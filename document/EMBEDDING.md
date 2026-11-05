@@ -79,7 +79,7 @@ What the host app answers deckit:
 
 | | |
 |---|---|
-| `notificationClicked()` | a notification a mod raised was clicked |
+| `notificationClicked()` | a notification of the system's that a mod showed was pressed |
 | `restart()` | the host app restarts: the process is its own |
 
 What the host app answers deckit's shell. A page is a page token, which the environment hands out and the host app hands back: in Electron's, the module's page.
@@ -91,7 +91,7 @@ What the host app answers deckit's shell. A page is a page token, which the envi
 | `show()` | "show me": a mod's `shell.show()`, the shell's `show` command |
 | `dismiss()` | "put it away": Escape with nothing else to close |
 | `panelTitled(title)` | the panel's title changed: the name of the mod in front, or the host app's name when none is |
-| `showWindow(control)` | a mod's window comes on screen: the host app makes or brings forward a window for it and puts the mod's page in it with `control.place`, the page `width` by `height` and the window that and any bar the host app draws |
+| `showWindow(control, { activates })` | a mod's window comes on screen: the host app makes or brings forward a window for it and puts the mod's page in it with `control.place`, the page `width` by `height` and the window that and any bar the host app draws; it takes the keyboard unless `activates` is false |
 | `hideWindow(control)` | a mod's window goes away |
 | `closeWindow(control)` | the mod is gone: its window closes, and the control is not handed again |
 

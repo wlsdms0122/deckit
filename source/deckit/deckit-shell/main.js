@@ -132,7 +132,7 @@ function attach(deckit, environment, { host } = {}) {
         PAGES,
         OVERLAY,
         makeStage,
-        showWindow: (control) => host.showWindow(control),
+        showWindow: (control, options) => host.showWindow(control, options),
         hideWindow: (control) => host.hideWindow(control),
         closeWindow: (control) => host.closeWindow(control),
     });
@@ -220,6 +220,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         restart: () => host.restart(),
         about: ENV.about,
         user: ENV.folders.user,
+        focused: ENV.keys.focused,
     });
     const SETUP = createSetup({ IDENTITY, web: ENV.web });
     const API = createApi({

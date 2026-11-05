@@ -3,8 +3,9 @@ import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
 
 // `deckit` is what connect answered, `PAGES` the shell's pages, `OVERLAY` their overlays and `makeStage()` a stage to
-// lay them on (environment: SHELL.stage); `showWindow(control)`, `hideWindow(control)` and `closeWindow(control)` are the
-// host app's, which puts a mod's window on screen and away, and closes it once the mod is gone.
+// lay them on (environment: SHELL.stage); `showWindow(control, { activates })`, `hideWindow(control)` and
+// `closeWindow(control)` are the host app's, which puts a mod's window on screen, taking the keyboard unless
+// `activates` is false, and away, and closes it once the mod is gone.
 export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hideWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -18,7 +19,7 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
     // The windows of the mods that said they have one, as the mods run. A mod's page is laid in its window, which the
     // host app makes and keeps under the same control from run to run, until the mod is gone.
     function start() {
-        PROTOCOL.open.on((_payload, sender) => open(heldBy(sender)));
+        PROTOCOL.open.on(({ activates }, sender) => open(heldBy(sender), activates));
         PROTOCOL.close.on((_payload, sender) => close(heldBy(sender)));
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
         deckit.mods.onChange(reconcile);
@@ -106,12 +107,13 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
         return held?.page === sender ? held : null;
     }
 
-    function open(held) {
+    // A window that does not activate leaves the keyboard where it is.
+    function open(held, activates) {
         if (!held || held.shown || !PAGES.isAlive(held.page)) return;
         held.shown = true;
         lay(held);
-        showWindow(held.control);
-        PAGES.focus(held.page);
+        showWindow(held.control, { activates });
+        if (activates) PAGES.focus(held.page);
         PROTOCOL.shown.send(held.page, { on: true });
     }
 

@@ -52,18 +52,18 @@ function createApp({ WINDOW, THEME }) {
             if (controls.panel.shown()) controls.panel.focus();
         }
 
-        function raise(window) {
-            window.show({ focus: true });
+        function raise(window, activates) {
+            window.show({ focus: activates });
         }
 
         // An overlay opens floating over whichever app is in front, on the screen the pointer is on, and tells the mod
         // as the keyboard leaves it; another opens as Deckit.app's windows do, with its bar. Each opens where it was
         // last left, at the size the mod gives it now.
-        function showWindow(control) {
+        function showWindow(control, { activates = true } = {}) {
             const window = modWindow(control);
             WINDOW.setViewSize(window, control);
-            if (control.overlay) WINDOW.float(window);
-            else raise(window);
+            if (control.overlay) WINDOW.float(window, { activates });
+            else raise(window, activates);
         }
 
         function modWindow(control) {

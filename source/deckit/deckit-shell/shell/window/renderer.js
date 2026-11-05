@@ -19,7 +19,10 @@ const STYLE = `
 function createWindow({ running, fail, deliver, channels }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
-    const handle = Object.freeze({ open: () => PROTOCOL.open.send(), close: () => PROTOCOL.close.send() });
+    const handle = Object.freeze({
+        open: ({ activates = true } = {}) => PROTOCOL.open.send({ activates: activates !== false }),
+        close: () => PROTOCOL.close.send(),
+    });
     let window = null;
     let started = false;
     let shown = false;

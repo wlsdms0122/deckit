@@ -58,7 +58,8 @@ function createWindow({ CONFIG, THEME, windows }) {
     // Deckit.app forward. It blurs what is behind it, macOS draws its edge, and it has no bar, so what is laid in it,
     // as glass, is all it draws, and it moves by what that marks to drag. `size` is its own; where it was moved to is
     // kept by `key`. `place(window)` puts a view in it, which fills it; `focus` hands the view the keyboard as the
-    // window takes it, and `blur` hears it lose it. It opens hidden: `float(window)` shows it.
+    // window takes it, and `blur` hears it lose it. It opens hidden: `float(window, { activates })` shows it, taking the
+    // keyboard unless `activates` is false.
     function openFloating({ size, key, place, focus, blur }) {
         const window = windows().open({ kind: 'floating', size, material: 'hud' });
         place(window);
@@ -70,7 +71,7 @@ function createWindow({ CONFIG, THEME, windows }) {
 
     // A floating window shown with the keyboard on the screen the pointer is on: where it was last moved to, when that
     // is on this screen, or else centred across it, a fifth of the way down.
-    function float(window) {
+    function float(window, { activates = true } = {}) {
         const { screen } = require('electron');
         const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
         const { width, height } = window.frame();
@@ -87,7 +88,7 @@ function createWindow({ CONFIG, THEME, windows }) {
             ? kept
             : { x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + area.height / 5) };
         window.setFrame({ x: at.x, y: at.y, width, height });
-        window.show({ focus: true });
+        window.show({ focus: activates });
     }
 
     // Gives a window's view `size`, and the bar's height with it in a window whose view fills it.
