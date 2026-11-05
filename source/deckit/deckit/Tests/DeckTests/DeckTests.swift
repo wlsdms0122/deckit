@@ -63,7 +63,7 @@ struct DeckTests {
     // The mod loads, begins its first lifecycle and starts, the exports for each name in `exportedIn` opened in the
     // lifecycle given. Answers the effects of its load and its start.
     private func start(_ id: String, exportedIn: [String: Int] = [:], sut: Deck) throws -> [Effect] {
-        let loaded = try sut.load([id])
+        let loaded = try sut.load([LaunchRequest(modId: id, origin: .person)])
         _ = try sut.connections.begin(mod: id, run: 1, lifecycle: 0)
         let contributions = Contribution(exportedIn: exportedIn, awaits: [:], layers: [:])
         let started = try sut.started(id, run: 1, summary: .object([:]), contributions: contributions)

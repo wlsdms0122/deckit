@@ -10,7 +10,7 @@ import Deck
 import Deckit
 
 // Each as `effect`, its name, with the mod's id as `mod` and a run's number as `run`, as main names them in what it
-// asks; the mod a sandbox opens for is `found`, as the catalog reads it. A layer's change is named by what it is: the
+// asks, and a run's origin as `origin`; the mod a sandbox opens for is `found`, as the catalog reads it. A layer's change is named by what it is: the
 // keymap is `bindingsChanged`. An event delivered is `name` and `listeners`, as `event/emit` answers it.
 extension Effect: Encodable {
     // MARK: - Property
@@ -21,6 +21,9 @@ extension Effect: Encodable {
         case notification
         case run
         case state
+        case origin
+        case failed
+        case relaunchLimited
         case problem
         case summary
         case contributions
@@ -86,6 +89,9 @@ extension Effect: Encodable {
         try container.encode(run.modId, forKey: .mod)
         try container.encode(run.number, forKey: .run)
         try container.encode(run.state, forKey: .state)
+        try container.encode(run.origin, forKey: .origin)
+        try container.encode(run.failed, forKey: .failed)
+        try container.encode(run.relaunchLimited, forKey: .relaunchLimited)
         try container.encodeIfPresent(run.problem, forKey: .problem)
         try container.encodeIfPresent(run.summary, forKey: .summary)
         try container.encodeIfPresent(run.contributions, forKey: .contributions)

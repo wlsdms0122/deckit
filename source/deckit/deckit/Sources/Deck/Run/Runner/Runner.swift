@@ -9,7 +9,7 @@ import Foundation
 
 // Each mod loads in a sandbox of its own and runs only while what it requires runs: one loaded while a mod it requires
 // does not run fails as it launches and stays as it is, and one ends before what it requires does. Which mods load or
-// unload, and when, is the caller's. The driver says what happened to a run, and is answered what to do, in order: the
+// unload, and when, is the caller's, but for a mod at the relaunch limit, which loads only as the person opens it. The driver says what happened to a run, and is answered what to do, in order: the
 // runner never waits on it, and what comes of an effect comes back as what happened next.
 final class Runner {
     // MARK: - Property
@@ -19,10 +19,19 @@ final class Runner {
     // Mod id -> the number of its latest run, counted from 1.
     private var runNumbers: [String: Int] = [:]
     private var effects: [Effect] = []
+    private var limit: RelaunchLimit
+    private let now: () -> Date
 
     // MARK: - Initializer
-    init(catalog: Catalog) {
+    // `limit` is how often a mod's runs may fail, `now` the time a run fails at.
+    init(
+        catalog: Catalog,
+        limit: RelaunchLimit = RelaunchLimit(burst: 5, interval: 10),
+        now: @escaping () -> Date = Date.init
+    ) {
         self.catalog = catalog
+        self.limit = limit
+        self.now = now
     }
 
     // MARK: - Public
@@ -51,23 +60,32 @@ final class Runner {
         catalog.owners
     }
 
-    // Each mod named that loads, as the catalog was last read, launches in the mods' order, in its page loaded anew.
-    // One whose run has not ended is left as it is. One whose code changed since its sandbox opened launches in a new
-    // sandbox.
-    func load(_ ids: [String]) throws -> [Effect] {
+    // Each mod requested that loads, as the catalog was last read, launches in the mods' order, in its page loaded
+    // anew, its run keeping the request's origin. One whose run has not ended is left as it is, and one at the relaunch
+    // limit too unless the person opens it, which takes it off the limit. One whose code changed since its sandbox
+    // opened launches in a new sandbox.
+    func load(_ requests: [LaunchRequest]) throws -> [Effect] {
         try decide {
-            for mod in catalog.lastRead where mod.problem == nil && ids.contains(mod.manifest.id) {
-                let sandbox = sandbox(of: mod.manifest.id)
+            for mod in catalog.lastRead where mod.problem == nil {
+                let id = mod.manifest.id
+                guard let request = requests.first(where: { request in request.modId == id }) else { continue }
+                let sandbox = sandbox(of: id)
                 guard (sandbox?.state ?? .notRunning) == .notRunning else { continue }
+                if request.origin == .person {
+                    limit.reset(id)
+                } else if limit.isReached(by: id) {
+                    continue
+                }
 
+                let run = nextRun(of: id, origin: request.origin)
                 if let sandbox, sandbox.mod.revision == mod.revision {
-                    sandbox.run = nextRun(of: mod.manifest.id)
+                    sandbox.run = run
                     try launch(sandbox)
                 } else {
                     if let sandbox {
                         close(sandbox)
                     }
-                    try open(mod)
+                    try open(mod, run: run)
                 }
             }
         }
@@ -162,8 +180,8 @@ final class Runner {
         return effects
     }
 
-    private func open(_ mod: Mod) throws {
-        let sandbox = Sandbox(mod: mod, run: nextRun(of: mod.manifest.id))
+    private func open(_ mod: Mod, run: Run) throws {
+        let sandbox = Sandbox(mod: mod, run: run)
         sandboxes.append(sandbox)
         effects.append(.open(mod))
         try launch(sandbox)
@@ -199,12 +217,16 @@ final class Runner {
         try move(sandbox) { run throws(LifecycleError) in try run.terminate() }
     }
 
+    // A run that ends failing counts toward its mod's relaunch limit.
     private func move(
         _ sandbox: Sandbox,
         _ step: (inout Run) throws(LifecycleError) -> LifecycleNotification?
     ) throws {
         var run = sandbox.run
         let notification = try step(&run)
+        if notification == .didTerminate, run.failed, limit.fail(run.modId, at: now()) {
+            run.limitRelaunch()
+        }
         sandbox.run = run
         guard let notification else { return }
         try tell(notification, run, of: sandbox)
@@ -246,11 +268,11 @@ final class Runner {
         }
     }
 
-    private func nextRun(of id: String) -> Run {
+    private func nextRun(of id: String, origin: LaunchOrigin) -> Run {
         let number = runNumbers[id, default: 0] + 1
         runNumbers[id] = number
 
-        return Run(modId: id, number: number)
+        return Run(modId: id, number: number, origin: origin)
     }
 
     private func directDependents(of id: String) -> [Sandbox] {

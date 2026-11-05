@@ -194,7 +194,7 @@ final class Server {
             return deck.reconnect()
 
         case "runner/load":
-            return try deck.load(request.decodeParams(as: ModsParams.self).mods)
+            return try deck.load(request.decodeParams(as: LoadParams.self).requests)
 
         case "runner/unload":
             return try deck.unload(request.decodeParams(as: ModsParams.self).mods)

@@ -224,7 +224,11 @@ struct ServerTests {
         _ = try send(initializeRequest, to: sut)
         try mod("notes")
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["notes"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
+                + #""params":{"requests":[{"mod":"notes","origin":{"kind":"person"}}]}}"#,
+            to: sut
+        )
         let declared = #"[{"key":"wrap","type":"boolean"},{"key":"size","type":"number","maximum":12}]"#
         _ = try send(
             #"{"jsonrpc":"2.0","id":4,"method":"configuration/declare","#
@@ -324,7 +328,11 @@ struct ServerTests {
         try mod("dep")
         try mod("a", dependencies: #"dep = "1.0.0""#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["dep"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
+                + #""params":{"requests":[{"mod":"dep","origin":{"kind":"person"}}]}}"#,
+            to: sut
+        )
         let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
         _ = try send(begin + #"{"mod":"dep","run":1,"lifecycle":0}}"#, to: sut)
         let contributions = #"{"exportedIn":{"dep":0},"awaits":{},"layer":["a"]}"#
@@ -332,7 +340,11 @@ struct ServerTests {
 
         // When
         let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":6,"method":"runner/load","params":{"mods":["a"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"runner/load","#
+                + #""params":{"requests":[{"mod":"a","origin":{"kind":"person"}}]}}"#,
+            to: sut
+        )
         let connected = try send(begin + #"{"mod":"a","run":1,"lifecycle":0}}"#, to: sut)
 
         // Then
@@ -359,7 +371,11 @@ struct ServerTests {
         _ = try send(initializeRequest, to: sut)
         try mod("notes")
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["notes"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
+                + #""params":{"requests":[{"mod":"notes","origin":{"kind":"person"}}]}}"#,
+            to: sut
+        )
         let declared = #"[{"key":"shade","type":"slider"}]"#
 
         // When
@@ -385,7 +401,11 @@ struct ServerTests {
         try mod("mail", urls: #"["mailto:*"]"#)
         _ = try send(initializeRequest, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["mail"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
+                + #""params":{"requests":[{"mod":"mail","origin":{"kind":"person"}}]}}"#,
+            to: sut
+        )
         let contributions = #"{"awaits":{},"urls":true,"commands":[{"name":"compose"}]}"#
         _ = try send(
             #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#

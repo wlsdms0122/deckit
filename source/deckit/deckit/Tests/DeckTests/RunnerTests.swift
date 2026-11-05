@@ -169,6 +169,92 @@ struct RunnerTests {
         #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
     }
 
+    @Test("a run keeps the origin of the request that launched it, and whether it ended failing")
+    func runKeepsOriginAndFailure() throws {
+        // Given
+        try write("a")
+        try write("b")
+        try write("c")
+        let (sut, catalog) = try runner()
+        _ = catalog.read()
+        let work = LaunchOrigin.work(.object(["command": .string("x")]), mod: "c")
+
+        // When
+        _ = try sut.load([
+            LaunchRequest(modId: "a", origin: .startup),
+            LaunchRequest(modId: "b", origin: work),
+            LaunchRequest(modId: "c", origin: .required(by: "b"))
+        ])
+        _ = try sut.started("a", run: 1)
+        _ = try sut.started("b", run: 1)
+        _ = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
+        _ = try sut.unload(["b"])
+        _ = try sut.stopped("b", run: 1)
+        _ = try sut.notStarted("c", run: 1, problem: "start threw")
+        _ = try sut.stopped("c", run: 1)
+
+        // Then
+        let runs = try ["a", "b", "c"].map { id in try #require(sut.run(of: id)) }
+        #expect(runs.map(\.origin) == [.startup, work, .required(by: "b")])
+        #expect(runs.map(\.failed) == [true, false, true])
+        #expect(runs.allSatisfy { run in run.state == .notRunning && !run.relaunchLimited })
+    }
+
+    @Test("a mod whose runs failed five times within ten seconds launches again only as the person opens it")
+    func relaunchLimitHolds() throws {
+        // Given
+        try write("a")
+        var now = Date(timeIntervalSince1970: 0)
+        let (sut, catalog) = try runner { now }
+        _ = catalog.read()
+        let startup = [LaunchRequest(modId: "a", origin: .startup)]
+
+        // When
+        var limited: [Bool] = []
+        for number in 1...5 {
+            _ = try sut.load(startup)
+            _ = try sut.crashed("a", run: number, problem: "its page ended (crashed)")
+            limited.append(try #require(sut.run(of: "a")).relaunchLimited)
+            now += 2
+        }
+        let held = try sut.load(startup)
+        let opened = try sut.load([LaunchRequest(modId: "a", origin: .person)])
+        _ = try sut.crashed("a", run: 6, problem: "its page ended (crashed)")
+        let again = try sut.load(startup)
+
+        // Then
+        #expect(limited == [false, false, false, false, true])
+        #expect(describe(held).isEmpty)
+        #expect(describe(opened) == ["tell willLaunch a 6 launching", "loadPage a"])
+        #expect(describe(again) == ["tell willLaunch a 7 launching", "loadPage a"])
+    }
+
+    @Test("failures further apart than the limit's interval, or a run that ended itself, do not reach the limit")
+    func spreadFailuresDoNotReachTheLimit() throws {
+        // Given
+        try write("a")
+        try write("b")
+        var now = Date(timeIntervalSince1970: 0)
+        let (sut, catalog) = try runner { now }
+        _ = catalog.read()
+
+        // When
+        for number in 1...6 {
+            _ = try sut.load([LaunchRequest(modId: "a", origin: .startup)])
+            _ = try sut.crashed("a", run: number, problem: "its page ended (crashed)")
+            _ = try sut.load([LaunchRequest(modId: "b", origin: .startup)])
+            _ = try sut.unload(["b"])
+            _ = try sut.stopped("b", run: number)
+            now += 3
+        }
+        let a = try sut.load([LaunchRequest(modId: "a", origin: .startup)])
+        let b = try sut.load([LaunchRequest(modId: "b", origin: .startup)])
+
+        // Then
+        #expect(describe(a) == ["tell willLaunch a 7 launching", "loadPage a"])
+        #expect(describe(b) == ["tell willLaunch b 7 launching", "loadPage b"])
+    }
+
     @Test("a run asked to unload again as it terminates tells nothing more")
     func terminatingRunUnloadsOnce() throws {
         // Given
@@ -331,7 +417,8 @@ struct RunnerTests {
     }
 
     // MARK: - Private
-    private func runner() throws -> (Runner, Catalog) {
+    // `now` is the time a run fails at.
+    private func runner(now: @escaping () -> Date = Date.init) throws -> (Runner, Catalog) {
         let store = Store()
         let reader = try ManifestReader(
             api: try #require(Version("1.0.0")),
@@ -354,7 +441,7 @@ struct RunnerTests {
             store: store
         )
 
-        return (Runner(catalog: catalog), catalog)
+        return (Runner(catalog: catalog, now: now), catalog)
     }
 
     private func write(

@@ -7,12 +7,17 @@
 
 import Foundation
 
-// One run of a mod's entry, the `number`th, launching as it is made.
+// One run of a mod's entry, the `number`th, launching as it is made, for the request of `origin`.
 public struct Run: Sendable {
     // MARK: - Property
     public let modId: String
     public let number: Int
+    public let origin: LaunchOrigin
     public private(set) var state: RunState = .launching
+    // Whether it ended failing: it did not start, or it crashed before its end was asked.
+    public private(set) var failed = false
+    // Whether its mod reached the relaunch limit as it failed.
+    public private(set) var relaunchLimited = false
     // The first problem recorded against it while it launches or runs, or why it failed or crashed.
     public private(set) var problem: String?
     // What its page reported: `summary`, what the layers read of its entry and what it contributes, as a person reads
@@ -21,9 +26,10 @@ public struct Run: Sendable {
     public private(set) var contributions: Contribution?
 
     // MARK: - Initializer
-    init(modId: String, number: Int) {
+    init(modId: String, number: Int, origin: LaunchOrigin) {
         self.modId = modId
         self.number = number
+        self.origin = origin
     }
 
     // MARK: - Public
@@ -51,6 +57,7 @@ public struct Run: Sendable {
     mutating func didFailToLaunch(_ problem: String) throws(LifecycleError) -> LifecycleNotification {
         let notification = try move(.didFailToLaunch)
         self.problem = self.problem ?? problem
+        failed = true
         return notification
     }
 
@@ -66,9 +73,15 @@ public struct Run: Sendable {
     }
 
     mutating func crash(_ problem: String) throws(LifecycleError) -> LifecycleNotification {
+        let asked = state == .terminating
         let notification = try move(.crash)
         self.problem = self.problem ?? problem
+        failed = failed || !asked
         return notification
+    }
+
+    mutating func limitRelaunch() {
+        relaunchLimited = true
     }
 
     // Whether the problem is recorded: a run keeps its first.

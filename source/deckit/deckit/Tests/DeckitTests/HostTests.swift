@@ -92,7 +92,7 @@ struct HostTests {
             permissions: []
         )
         let mods = deckit.deck.readCatalog()
-        _ = try deckit.deck.load(mods.map(\.manifest.id))
+        _ = try deckit.deck.load(mods.map { mod in LaunchRequest(modId: mod.manifest.id, origin: .person) })
 
         return deckit
     }

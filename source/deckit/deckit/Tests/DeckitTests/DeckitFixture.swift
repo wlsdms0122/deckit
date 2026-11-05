@@ -83,7 +83,7 @@ struct DeckitFixture {
             permissions: []
         )
         let mods = sut.deck.readCatalog()
-        _ = try sut.deck.load(mods.map(\.manifest.id))
+        _ = try sut.deck.load(mods.map { mod in LaunchRequest(modId: mod.manifest.id, origin: .person) })
 
         return sut
     }

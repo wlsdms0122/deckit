@@ -115,9 +115,9 @@ public final class Deck {
         withChanges([])
     }
 
-    // The mods named load, as the catalog was last read.
-    public func load(_ ids: [String]) throws -> [Effect] {
-        try withChanges(runner.load(ids))
+    // The mods requested load, as the catalog was last read, each run keeping why it was requested.
+    public func load(_ requests: [LaunchRequest]) throws -> [Effect] {
+        try withChanges(runner.load(requests))
     }
 
     // The mods named unload.
