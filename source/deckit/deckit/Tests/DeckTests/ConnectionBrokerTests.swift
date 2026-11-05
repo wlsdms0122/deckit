@@ -77,7 +77,7 @@ struct ConnectionBrokerTests {
         #expect(after.map(\.line) == ["connect 1 a#1@1 -> dep#1@1"])
     }
 
-    @Test("a mod named in [dependencies] connects at a version the dependent takes, by the exports it opened for its id")
+    @Test("a mod named in [dependencies] connects at a version taken, by the exports it opened for its id")
     func idDependencyConnectsAtItsVersion() throws {
         // Given
         try fixture.write("dep", version: "1.2.0", provides: ["dep/api": [1]])

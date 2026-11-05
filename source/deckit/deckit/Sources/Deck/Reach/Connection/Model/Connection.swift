@@ -8,8 +8,8 @@
 import Foundation
 
 // A lifecycle of a mod and the exports another mod opened for a name the first gives, a mod id or an interface, joined
-// from when both are up until either ends. What crosses it, values and the functions
-// each end hands the other, is the two pages'.
+// from when both are up until either ends. What crosses it, values and the functions each end hands the other, is the
+// two pages'.
 public struct Connection: Equatable, Sendable {
     // MARK: - Property
     public let id: Int

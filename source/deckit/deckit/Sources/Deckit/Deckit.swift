@@ -18,8 +18,8 @@ public final class Deckit {
     public let configuration: Configuration
 
     // MARK: - Initializer
-    // `schemeHandlers` is, by scheme, the mods the app asks first to open an address, and `permissions` those the layers
-    // the driver runs define; deckit adds those it checks itself.
+    // `schemeHandlers` is, by scheme, the mods the app asks first to open an address, and `permissions` those the
+    // layers the driver runs define; deckit adds those it checks itself.
     public init(
         home: URL,
         ship: [URL],

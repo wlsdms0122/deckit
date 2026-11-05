@@ -12,6 +12,94 @@ import Testing
 @Suite("ManifestReader")
 struct ManifestReaderTests {
     // MARK: - Property
+    private static let minimal = #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n"#
+    private static let problems: [(text: String, problem: String)] = [
+        ("color = 1", #"manifest.toml has "color", which is not a manifest field"#),
+        ("name = 1", #"manifest.toml needs an id, as id = "my-mod""#),
+        (#"id = "Notes""#, #"mod ids are lower case: "notes", not "Notes""#),
+        (#"id = "a""#, #"manifest.toml needs a version, as version = "1.0.0""#),
+        (#"id = "a"\#nversion = 1"#, #"version must be written as "MAJOR.MINOR.PATCH", not 1"#),
+        (#"id = "a"\#nversion = "1.0.0"\#napi = "2.0.0""#, "needs api 2.0.0, this deck speaks 1.2.0"),
+        (
+            #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "../x.js""#,
+            #"main must be a path inside the mod's folder, as main = "dist/main.js", not "../x.js""#
+        ),
+        (
+            minimal + #"[dependencies]\#n"b/c" = "1.0.0""#,
+            #"dependencies b/c: "b/c" is not a usable mod id: lower case letters, digits,"#
+                + #" . _ - and at most 64 of them"#
+        ),
+        (
+            minimal + #"[dependencies]\#na = "1.0.0""#,
+            "a names itself in [dependencies]"
+        ),
+        (
+            minimal + #"[dependencies]\#nb = { optional = true }"#,
+            #"dependencies b needs a version written as "MAJOR.MINOR.PATCH", as other = "1.0.0","#
+                + #" or other = { version = "1.0.0", optional = true }"#
+        ),
+        (
+            minimal + #"[dependencies]\#nb = { version = "1.0.0", optional = 1 }"#,
+            "dependencies b: optional must be true or false"
+        ),
+        (
+            minimal + #"[dependencies]\#nb = { version = "1.0.0", lazy = true }"#,
+            #"dependencies b has "lazy"; it takes version and optional"#
+        ),
+        (
+            minimal + #"interfaces = 1"#,
+            #"interfaces must be an [interfaces] table,"#
+                + #" as provides = { "other/name" = [1] } and uses = { "other/name" = 1 }"#
+        ),
+        (
+            minimal + #"[interfaces]\#nimplements = 1"#,
+            #"interfaces has "implements"; it takes provides and uses"#
+        ),
+        (
+            minimal + #"[interfaces]\#nprovides = 1"#,
+            #"interfaces.provides must be written as provides = { "other/name" = [1] }"#
+        ),
+        (
+            minimal + #"[interfaces]\#nprovides = { "B/c" = [1] }"#,
+            #"interfaces.provides B/c: "B/c" is not an interface: <mod id>/<name>, each lower case letters,"#
+                + #" digits, . _ - and at most 64 of them"#
+        ),
+        (
+            minimal + #"[interfaces]\#nprovides = { "b" = [1] }"#,
+            #"interfaces.provides b: "b" is not an interface: <mod id>/<name>, each lower case letters,"#
+                + #" digits, . _ - and at most 64 of them"#
+        ),
+        (
+            minimal + #"[interfaces]\#nprovides = { "b/c" = [] }"#,
+            #"interfaces.provides b/c must be a list of majors, as [1], not []"#
+        ),
+        (
+            minimal + #"[interfaces]\#nprovides = { "b/c" = 1 }"#,
+            #"interfaces.provides b/c must be a list of majors, as [1], not 1"#
+        ),
+        (
+            minimal + #"[interfaces]\#nprovides = { "b/c" = ["1.0.0"] }"#,
+            #"interfaces.provides b/c must be a list of majors, as [1], not ["1.0.0"]"#
+        ),
+        (
+            minimal + #"[interfaces]\#nuses = { "b/c/d" = 1 }"#,
+            #"interfaces.uses b/c/d: "b/c/d" is not an interface: <mod id>/<name>, each lower case letters,"#
+                + #" digits, . _ - and at most 64 of them"#
+        ),
+        (
+            minimal + #"[interfaces]\#nuses = { "b/c" = -1 }"#,
+            #"interfaces.uses b/c must be a major, as 1, not -1"#
+        ),
+        (
+            minimal + #"[interfaces]\#nuses = { "b/c" = [1] }"#,
+            #"interfaces.uses b/c must be a major, as 1, not [1]"#
+        ),
+        (
+            minimal + #"[permissions]\#n"deckit.mods" = " ""#,
+            #"permission "deckit.mods" needs the reason it is asked for, as text"#
+        )
+    ]
+
     private let mods = Permission(id: "deckit.mods", name: "Mods", means: "Every mod.")
     private let network = Permission(id: "system.network", name: "Network", means: "The web.")
     private let sut: ManifestReader
@@ -86,89 +174,7 @@ struct ManifestReaderTests {
         #expect(sut.problem(of: text) == "manifest.toml: line 1: not a value this reads: ")
     }
 
-    @Test(
-        "what is wrong with a manifest is said",
-        arguments: [
-            ("color = 1", #"manifest.toml has "color", which is not a manifest field"#),
-            ("name = 1", #"manifest.toml needs an id, as id = "my-mod""#),
-            (#"id = "Notes""#, #"mod ids are lower case: "notes", not "Notes""#),
-            (#"id = "a""#, #"manifest.toml needs a version, as version = "1.0.0""#),
-            (#"id = "a"\#nversion = 1"#, #"version must be written as "MAJOR.MINOR.PATCH", not 1"#),
-            (#"id = "a"\#nversion = "1.0.0"\#napi = "2.0.0""#, "needs api 2.0.0, this deck speaks 1.2.0"),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "../x.js""#,
-                #"main must be a path inside the mod's folder, as main = "dist/main.js", not "../x.js""#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#n"b/c" = "1.0.0""#,
-                #"dependencies b/c: "b/c" is not a usable mod id: lower case letters, digits, . _ - and at most 64 of them"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#na = "1.0.0""#,
-                "a names itself in [dependencies]"
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { optional = true }"#,
-                #"dependencies b needs a version written as "MAJOR.MINOR.PATCH", as other = "1.0.0", or other = { version = "1.0.0", optional = true }"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { version = "1.0.0", optional = 1 }"#,
-                "dependencies b: optional must be true or false"
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { version = "1.0.0", lazy = true }"#,
-                #"dependencies b has "lazy"; it takes version and optional"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#ninterfaces = 1"#,
-                #"interfaces must be an [interfaces] table, as provides = { "other/name" = [1] } and uses = { "other/name" = 1 }"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nimplements = 1"#,
-                #"interfaces has "implements"; it takes provides and uses"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = 1"#,
-                #"interfaces.provides must be written as provides = { "other/name" = [1] }"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "B/c" = [1] }"#,
-                #"interfaces.provides B/c: "B/c" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "b" = [1] }"#,
-                #"interfaces.provides b: "b" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "b/c" = [] }"#,
-                #"interfaces.provides b/c must be a list of majors, as [1], not []"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "b/c" = 1 }"#,
-                #"interfaces.provides b/c must be a list of majors, as [1], not 1"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "b/c" = ["1.0.0"] }"#,
-                #"interfaces.provides b/c must be a list of majors, as [1], not ["1.0.0"]"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nuses = { "b/c/d" = 1 }"#,
-                #"interfaces.uses b/c/d: "b/c/d" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nuses = { "b/c" = -1 }"#,
-                #"interfaces.uses b/c must be a major, as 1, not -1"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nuses = { "b/c" = [1] }"#,
-                #"interfaces.uses b/c must be a major, as 1, not [1]"#
-            ),
-            (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[permissions]\#n"deckit.mods" = " ""#,
-                #"permission "deckit.mods" needs the reason it is asked for, as text"#
-            )
-        ]
-    )
+    @Test("what is wrong with a manifest is said", arguments: problems)
     func problemIsSaid(text: String, problem: String) {
         // Given
         // When

@@ -182,8 +182,8 @@ public final class Catalog {
             .sorted { manifest, other in rank(manifest.id) < rank(other.id) }
     }
 
-    // The ownership kept, as the mods `found` provide now, written again when that changed it. A settings file that does
-    // not read as a JSON object keeps none until it does.
+    // The ownership kept, as the mods `found` provide now, written again when that changed it. A settings file that
+    // does not read as a JSON object keeps none until it does.
     private func keptOwnership(of found: [Mod]) -> Ownership {
         let kept = ownershipStore.read()
         let ownership = kept.joined(by: providers(in: found))

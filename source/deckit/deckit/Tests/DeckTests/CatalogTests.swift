@@ -139,7 +139,7 @@ struct CatalogTests {
         #expect(dependents == ["x": ["y", "z"], "y": ["z"], "z": [], "w": []])
     }
 
-    @Test("each loads after what it requires, otherwise as the load order kept places it, which reading leaves as it is")
+    @Test("each loads after what it requires, else where the load order kept places it, which reading leaves as it is")
     func loadOrderPutsRequirementsFirst() throws {
         // Given
         try write("a", in: source)
@@ -159,7 +159,7 @@ struct CatalogTests {
         #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"loadOrder":["c","b","a"],"other":1}"#)
     }
 
-    @Test("installing or removing keeps the load order as the mods come: one installed takes its place, one removed leaves")
+    @Test("installing or removing keeps the load order: one installed takes its place, one removed leaves")
     func installKeepsLoadOrder() throws {
         // Given
         try write("a", in: home.appending(path: "mods"))
