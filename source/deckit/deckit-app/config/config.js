@@ -11,6 +11,7 @@ const SHIPS = [
     'calendar',
     'forge',
     'bot',
+    'mods',
     'settings',
     'deckit',
     'switcher',

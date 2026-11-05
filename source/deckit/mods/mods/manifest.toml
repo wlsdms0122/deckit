@@ -1,0 +1,9 @@
+id = "mods"
+name = "Mods"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+contributes = "contributes.json"
+
+[permissions]
+"deckit.mods" = "Lists every mod you can open, opens the one you pick, and keeps one in the Dock or takes it out."
