@@ -81,25 +81,23 @@ public final class Catalog {
     }
 
     // As the person's: the implementations in `order` take the places they held among themselves in the interface's
-    // list, in the order given, and those in `off` are switched off. One missing from the list now keeps its place and
-    // switch, so editing the list while it was gone keeps what the person set of it. Refused when the picks it comes to
-    // make a cycle of mods that load now.
+    // list, in the order given, those placed that it does not name come after them, and those in `off` are switched
+    // off. One missing from the list now keeps its place and switch, so editing the list while it was gone keeps what
+    // the person set of it. Refused when the picks it comes to make a cycle of mods that load now.
     public func order(_ interface: String, order: [String], off: [String]) throws {
         let found = ranked()
         let kept = implementationOrder.read()
         let before = InterfaceLists(found: found, kept: kept, host: implementations)
-        guard before.lists.contains(where: { list in list.interface == interface }) else {
+        guard let list = before.lists.first(where: { list in list.interface == interface }) else {
             throw LoadOrderError.noInterface(interface)
         }
 
-        let given = Set(order)
-        let preference = kept[interface] ?? .none
-        let placed = preference.placed(host: implementations[interface] ?? [])
-        var next = order[...]
         var after = kept
-        after[interface] = ListPreference(
-            order: placed.compactMap { id in given.contains(id) ? next.popFirst() : id } + next,
-            off: preference.off.filter { id in !given.contains(id) } + off
+        after[interface] = (kept[interface] ?? .none).arranged(
+            order: order,
+            off: off,
+            host: implementations[interface] ?? [],
+            listed: list.implementations.map(\.id)
         )
 
         let loading = Set(
