@@ -358,6 +358,47 @@ struct CatalogTests {
         #expect(mods.map(\.problem) == [#"did not install: main = "missing.js" names no file in the mod's folder"#])
     }
 
+    @Test("what the app ships that asks to run from the start is approved as it installs, until the person decides")
+    func shippedStartupIsApproved() throws {
+        // Given
+        try write("a", in: ship, startup: "Runs a service")
+        try write("b", in: ship)
+        try write("c", in: source, startup: "Runs a service")
+        let shipped = [ship.appending(path: "a"), ship.appending(path: "b")]
+        let sut = try catalog(sources: [source], ship: shipped)
+
+        // When
+        _ = try sut.installShipped()
+        let approved = sut.mods().filter(\.startupApproved).map(\.manifest.id)
+        try sut.approveStartup("a", false)
+        let restarted = try catalog(sources: [source], ship: shipped)
+        _ = try restarted.installShipped()
+        let removed = restarted.mods().filter(\.startupApproved).map(\.manifest.id)
+        try restarted.approveStartup("c", true)
+
+        // Then
+        #expect(approved == ["a"])
+        #expect(removed.isEmpty)
+        #expect(restarted.mods().filter(\.startupApproved).map(\.manifest.id) == ["c"])
+    }
+
+    @Test("only a mod whose manifest asks to run from the start is approved to")
+    func startupNeedsAsking() throws {
+        // Given
+        try write("a", in: source)
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        try Data(#"{"startup":{"a":true}}"#.utf8).write(to: home.appending(path: "deck.json"))
+        let sut = try catalog(sources: [source])
+
+        // When
+        let approved = sut.mods().filter(\.startupApproved)
+
+        // Then
+        #expect(approved.isEmpty)
+        #expect(throws: StartupError.notAsked("a")) { try sut.approveStartup("a", true) }
+        #expect(throws: StartupError.notAsked("x")) { try sut.approveStartup("x", true) }
+    }
+
     @Test("what the app ships that fails to install says why, and is no installed mod")
     func shippedFailedIsNotInstalled() throws {
         // Given
@@ -559,6 +600,7 @@ struct CatalogTests {
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
             order: Order(file: home.appending(path: "deck.json"), store: store),
             ownershipStore: OwnershipStore(file: home.appending(path: "deck.json"), store: store),
+            startupList: StartupList(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
     }
@@ -579,6 +621,7 @@ struct CatalogTests {
         version: String = "1.0.0",
         main: String? = "main.js",
         contributes: String? = nil,
+        startup: String? = nil,
         provides: [String: [Int]] = [:],
         uses: [String: Int] = [:],
         requires: [String: String] = [:],
@@ -605,7 +648,8 @@ struct CatalogTests {
             version = "\(version)"
             api = "1.0.0"
             main = "\(main ?? "missing.js")"
-            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"") + relations + interfaces
+            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"")
+            + (startup.map { reason in "\nstartup = \"\(reason)\"" } ?? "") + relations + interfaces
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         if let contributes {
             try Data(contributes.utf8).write(to: location.appending(path: "contributes.json"))

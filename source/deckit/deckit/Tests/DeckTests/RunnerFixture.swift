@@ -93,6 +93,7 @@ struct RunnerFixture {
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
             order: Order(file: settings, store: store),
             ownershipStore: OwnershipStore(file: settings, store: store),
+            startupList: StartupList(file: settings, store: store),
             store: store
         )
         _ = catalog.read()

@@ -15,7 +15,7 @@ struct ManifestReader {
     let file = "manifest.toml"
 
     private let ownFields: Set<String> = [
-        "id", "name", "version", "api", "main", "contributes", "interfaces", "dependencies", "permissions"
+        "id", "name", "version", "api", "main", "contributes", "startup", "interfaces", "dependencies", "permissions"
     ]
     private let parser = TOMLParser()
     private let store: Store
@@ -64,6 +64,7 @@ struct ManifestReader {
             api: string(of: raw["api"]),
             main: string(of: raw["main"]),
             contributes: string(of: raw["contributes"]),
+            startup: string(of: raw["startup"]),
             provides: provided(of: raw["interfaces"]),
             uses: used(of: raw["interfaces"]),
             dependencies: dependencies(of: raw["dependencies"]),
@@ -111,6 +112,7 @@ struct ManifestReader {
 
         return mainProblem(raw)
             ?? contributesProblem(raw)
+            ?? startupProblem(raw)
             ?? interfacesProblem(raw)
             ?? dependenciesProblem(raw, id: id)
             ?? permissionsProblem(raw)
@@ -150,6 +152,17 @@ struct ManifestReader {
         }
 
         return pathProblem(contributes, of: "contributes", example: example)
+    }
+
+    // The reason it asks to run from the app's start, when it asks.
+    private func startupProblem(_ raw: [String: TOMLValue]) -> String? {
+        guard let written = raw["startup"] else { return nil }
+        guard case let .string(reason) = written, !isBlank(reason) else {
+            return "startup must be the reason the mod asks to run from the start, as text, as "
+                + "startup = \"Shows notifications as they come\""
+        }
+
+        return nil
     }
 
     private func pathProblem(_ path: String, of field: String, example: String) -> String? {

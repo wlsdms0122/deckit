@@ -350,6 +350,7 @@ struct RunnerTests {
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
             order: Order(file: home.appending(path: "deck.json"), store: store),
             ownershipStore: OwnershipStore(file: home.appending(path: "deck.json"), store: store),
+            startupList: StartupList(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
 

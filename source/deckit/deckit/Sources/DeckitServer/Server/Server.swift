@@ -157,6 +157,11 @@ final class Server {
             try deck.catalog.pin(params.interface, to: params.mod)
             return true
 
+        case "catalog/approve-startup":
+            let params = try request.decodeParams(as: ApproveStartupParams.self)
+            try deck.catalog.approveStartup(params.mod, params.approved)
+            return true
+
         case "catalog/install-shipped":
             return try deck.catalog.installShipped()
 
