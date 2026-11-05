@@ -1,28 +1,28 @@
 const { chip } = require('../../chip/chip.js');
 const { section } = require('../section/section.js');
-const { handlerRow, moved, placing } = require('../handler-list/handler-list.js');
+const { handlerRow } = require('../handler-list/handler-list.js');
 
-// The Interfaces section: a card per interface a mod implements or depends on, with its implementations in their
-// order, reordered by dragging and switched off one by one. The first that is on is the one picked: the mods that
-// depend on the interface get it. An order deckit refuses is told on its card, and the list is drawn as it stands.
-// `mods` is deckit.mods.
+// The Interfaces section: a card per interface a mod provides or uses, with its owner and the mods that provide it in
+// their queue, the earliest first. The owner is the provider the person pinned, or else the first in the queue; the
+// card's menu pins one or clears the pin. A pin deckit refuses is told on its card. `mods` is deckit.mods.
 function interfacesSection({ ui, mods }) {
     const TITLE = 'Interfaces';
-    const KEYWORDS = ['인터페이스', '구현', '의존', 'interface', 'implementation', 'dependency'];
+    const KEYWORDS = ['인터페이스', '주인', '고정', 'interface', 'owner', 'provider', 'pin'];
     const DESCRIPTION =
-        'What mods offer each other, by name, and the mods that implement each. A mod that depends on one gets ' +
-        'the first that is on; drag to change the order, switch one off to pass it over.';
+        'What mods offer each other, by name, and the mods that provide each. The mods that use one reach its ' +
+        'owner: the first mod that provided it, unless you pin another.';
+    const AUTOMATIC = null;
 
-    const cardFills = new WeakMap(); // card -> its fill(interfaceList)
-    const rowFills = new WeakMap(); // implementation row -> its fill(entry)
-    const refusals = new Map(); // interface -> why deckit refused the order last asked for it
+    const cardFills = new WeakMap(); // card -> its fill(interfaceQueue)
+    const rowFills = new WeakMap(); // provider row -> its fill(entry)
+    const refusals = new Map(); // interface -> why deckit refused the pin last asked for it
 
     ui.addStyle(`
         .settings-interface-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; }
         .settings-interface-name { flex: 1 1 auto; min-width: 0; font: 600 var(--deckit-type-body); }
         .settings-interface-description { padding: 1px 12px 6px; font: var(--deckit-type-small); opacity: 0.5; }
         .settings-interface-none { padding: 4px 12px 6px 44px; font: 12.5px var(--deckit-font); opacity: 0.4; }
-        .settings-interface-version {
+        .settings-interface-majors {
             flex: 0 0 auto;
             font: var(--deckit-type-small);
             font-variant-numeric: tabular-nums;
@@ -37,119 +37,99 @@ function interfacesSection({ ui, mods }) {
     `);
     const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const cards = ui.list({
-        key: (interfaceList) => interfaceList.interface,
+        key: (interfaceQueue) => interfaceQueue.interface,
         create: interfaceCard,
-        update: (card, interfaceList) => cardFills.get(card)(interfaceList),
+        update: (card, interfaceQueue) => cardFills.get(card)(interfaceQueue),
     });
 
     body.append(cards.element);
     return { element, title: TITLE, keywords: KEYWORDS, draw };
 
-    function draw(interfaceLists) {
-        cards.set(interfaceLists);
+    function draw(interfaceQueues) {
+        cards.set(interfaceQueues);
     }
 
-    function interfaceCard(interfaceList) {
-        let current = interfaceList;
+    function interfaceCard(interfaceQueue) {
+        let current = interfaceQueue;
 
         const card = ui.element('div', { className: 'settings-card' });
         const head = ui.element('div', { className: 'settings-interface-head' });
-        const name = ui.element('div', { className: 'settings-interface-name', text: interfaceList.interface });
-        const undecided = chip({ ui, text: 'Undecided' });
+        const name = ui.element('div', { className: 'settings-interface-name', text: interfaceQueue.interface });
+        const owner = ui.select({
+            options: [],
+            value: AUTOMATIC,
+            onChange: (id) => {
+                owner.set(id);
+                pin(current.interface, id);
+            },
+        });
         const description = ui.element('div', { className: 'settings-interface-description' });
-        const none = ui.element('div', { className: 'settings-interface-none', text: 'No mod implements it.' });
+        const none = ui.element('div', { className: 'settings-interface-none', text: 'No mod provides it.' });
         const refusal = ui.element('div', { className: 'settings-interface-refusal' });
         const list = ui.list({
-            key: ({ implementation }) => implementation.id,
-            create: implementationEntry,
+            key: ({ provider }) => provider.id,
+            create: providerEntry,
             update: (row, entry) => rowFills.get(row)(entry),
         });
 
-        undecided.element.title =
-            'No one placed its mods, so the first that is on is used for now. Drag one to the top.';
-        head.append(name, undecided.element);
+        head.append(name, owner.element);
         card.append(head, description, none, list.element, refusal);
-        ui.sortable(list, {
-            onReorder: (id, toId) => {
-                const next = moved(current.implementations, id, toId);
-                if (next) save(current.interface, next.list, next);
-            },
-        });
         cardFills.set(card, fill);
-        fill(interfaceList);
+        fill(interfaceQueue);
         return card;
 
-        function fill(interfaceList) {
-            current = interfaceList;
-            const { implementations } = interfaceList;
-            list.set(implementations.map((implementation, index) => ({ implementation, index })));
-            none.hidden = implementations.length > 0;
-            undecided.element.hidden = !interfaceList.undecided;
-            description.textContent = interfaceList.name
-                ? `Defined by ${interfaceList.name}.`
+        function fill(interfaceQueue) {
+            current = interfaceQueue;
+            const { providers } = interfaceQueue;
+            const first = providers[0];
+            owner.setOptions([
+                { value: AUTOMATIC, label: first ? `Automatic: ${first.name}` : 'Automatic' },
+                ...providers.map((provider) => ({ value: provider.id, label: `Pinned: ${provider.name}` })),
+            ]);
+            owner.set(interfaceQueue.pinned ? interfaceQueue.owner : AUTOMATIC);
+            owner.element.hidden = !providers.length;
+            list.set(providers.map((provider, index) => ({ provider, index })));
+            none.hidden = providers.length > 0;
+            description.textContent = interfaceQueue.name
+                ? `Defined by ${interfaceQueue.name}.`
                 : 'No mod found defines it.';
-            refusal.textContent = refusals.get(interfaceList.interface) || '';
+            refusal.textContent = refusals.get(interfaceQueue.interface) || '';
             refusal.hidden = !refusal.textContent;
         }
 
-        function implementationEntry(entry) {
-            let currentEntry = entry;
-
-            const version = ui.element('span', { className: 'settings-interface-version' });
-            const toggle = ui.toggle({
-                value: entry.implementation.on,
-                onChange: (on) => {
-                    const { implementation } = currentEntry;
-                    const next = current.implementations.map((candidate) =>
-                        candidate.id === implementation.id ? { ...implementation, on } : candidate
-                    );
-                    toggle.set(on);
-                    save(current.interface, next, placing(next, implementation.id));
-                },
-            });
-            const row = handlerRow({ ui, trailing: [version, toggle.element], draggable: true });
+        function providerEntry(entry) {
+            const majors = ui.element('span', { className: 'settings-interface-majors' });
+            const ownerChip = chip({ ui, text: 'Owner' });
+            const row = handlerRow({ ui, trailing: [majors, ownerChip.element] });
 
             rowFills.set(row.element, fill);
             fill(entry);
             return row.element;
 
-            function fill(entry) {
-                currentEntry = entry;
-                const { implementation, index } = entry;
-                const picked = current.implementations.find((candidate) => candidate.on) === implementation;
-                toggle.set(implementation.on);
-                toggle.element.title = !implementation.on
-                    ? `${implementation.name} is passed over`
-                    : picked
-                      ? `${implementation.name} is the one picked`
-                      : `${implementation.name} is used when none before it is on`;
-                version.textContent = implementation.version;
-                row.set({ position: String(index + 1), label: implementation.name, muted: !implementation.on });
+            function fill({ provider, index }) {
+                const owns = provider.id === current.owner;
+                majors.textContent = provider.majors.map((major) => `v${major}`).join(', ');
+                majors.title = `${provider.name} speaks major ${provider.majors.join(', ')} of it`;
+                ownerChip.element.hidden = !owns;
+                row.set({ position: String(index + 1), label: provider.name, muted: !owns });
+                row.element.title = owns
+                    ? `${provider.name} owns it: the mods that use it reach ${provider.name}`
+                    : `${provider.name} provides it and waits in line: no one reaches it by this name`;
             }
         }
     }
 
-    // `implementations` is drawn at once, and the list as deckit has it once it set `order` and `off`: a refused one is
-    // drawn as it stands, with why.
-    function save(named, implementations, { order, off }) {
+    // `id` pins that provider, AUTOMATIC clears the pin. The card is drawn as deckit has it after, with why when
+    // deckit refused.
+    function pin(named, id) {
         refusals.delete(named);
-        draw(withList(named, implementations));
-        mods.pin(named, order[0] ?? null).then(
+        mods.pin(named, id).then(
             () => draw(mods.list().interfaces),
             (error) => {
                 refusals.set(named, error.message || String(error));
                 draw(mods.list().interfaces);
             }
         );
-    }
-
-    // The interfaces as deckit lists them, with `named` in the order given.
-    function withList(named, implementations) {
-        return mods
-            .list()
-            .interfaces.map((interfaceList) =>
-                interfaceList.interface === named ? { ...interfaceList, implementations } : interfaceList
-            );
     }
 }
 

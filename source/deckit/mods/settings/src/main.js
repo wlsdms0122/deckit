@@ -158,7 +158,7 @@ class Settings {
         // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
         // one, not as a mod gone and back.
         function redraw() {
-            const { found, running: now, interfaces: interfaceLists } = deckit.mods.list();
+            const { found, running: now, interfaces: interfaceQueues } = deckit.mods.list();
             const listed = deckit.keys.list();
             const handlerLists = deckit.urls.list();
             for (const mod of now)
@@ -177,7 +177,7 @@ class Settings {
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();
             urlSchemes.draw(handlerLists);
-            interfaces.draw(interfaceLists);
+            interfaces.draw(interfaceQueues);
             general.draw();
             keyboard.draw(shortcuts);
         }

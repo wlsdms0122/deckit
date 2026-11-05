@@ -1,5 +1,5 @@
-// The rules of a list of mods asked in turn, each a row dragged into its place and switched on or off: a scheme's
-// handlers, an interface's implementations. main.js adopts them once.
+// The rules of a list of mods in turn, each a row: a scheme's handlers, dragged into place and switched on or off, and
+// an interface's providers. main.js adopts them once.
 const HANDLER_LIST_STYLE = `
     .settings-handler {
         display: flex;

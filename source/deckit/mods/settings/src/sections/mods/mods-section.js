@@ -319,9 +319,9 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
                 .filter(Boolean)
                 .join('\n');
             failure.hidden = !failure.textContent;
-            note.textContent = (mod.relations || [])
-                .filter((relation) => relation.optional && relation.problem)
+            note.textContent = [...(mod.relations || []).filter((relation) => relation.optional), ...(mod.uses || [])]
                 .map((relation) => relation.problem)
+                .filter(Boolean)
                 .join('\n');
             note.hidden = !note.textContent;
             details.set(mod);
@@ -498,6 +498,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
             permissions: mod?.permissions,
             mainProcessFailure: mod?.mainProcess.failure,
             relations: mod?.relations,
+            uses: mod?.uses,
             dependents: mod?.dependents,
             hides: mod?.hides,
         });

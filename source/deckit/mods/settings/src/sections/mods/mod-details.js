@@ -63,7 +63,7 @@ const MOD_DETAILS_STYLE = `
     .settings-details-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 `;
 
-// What an opened mod row shows: the mods it depends on, where its view is shown, its permissions, the addresses
+// What an opened mod row shows: the mods it depends on, the interfaces it uses, where its view is shown, its permissions, the addresses
 // it opens, its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the slow
 // duration, as content entering the row.
@@ -96,21 +96,17 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
-        // Each interface it depends on, at the version it names, with the mod picked for it when one is. One is short
-        // while it has a problem or is not running, and its problem is said over it. An optional one short stops
-        // nothing, so it is drawn quiet, not as a fault.
+        // Each mod it depends on, at the version it names. One is short while it has a problem or is not running, and
+        // its problem is said over it. An optional one short stops nothing, so it is drawn quiet, not as a fault.
         const relationChips = (optional) =>
             (mod.relations || [])
                 .filter((relation) => relation.optional === optional)
                 .map((relation) => {
-                    const text = [`${relation.interface} ${relation.version}`, relation.name]
-                        .filter(Boolean)
-                        .join(' · ');
+                    const text = `${relation.name} ${relation.version}`;
                     const ok = !relation.problem && relation.running;
                     const { element } =
                         optional && !ok ? chip({ ui, text, muted: true }) : statusChip({ ui, text, ok });
-                    element.title =
-                        relation.problem || (relation.name ? '' : `No mod is picked for ${relation.interface}`);
+                    element.title = relation.problem || '';
                     return element;
                 });
         for (const [label, optional] of [
@@ -120,6 +116,7 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
             const chips = relationChips(optional);
             if (chips.length) addPart(label, chipRow(chips));
         }
+        if (mod.uses?.length) addPart('Interfaces', chipRow(useChips(mod.uses)));
         if (mod.live?.parent && pins) addPart('Sidebar', sidebarPin());
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
@@ -158,10 +155,21 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         );
     }
 
-    // A child's view is shown in the view of the mod picked for the interface it names as parent, and in the
-    // sidebar's list as well once the person pins it there.
+    // Each interface it uses, at the major it uses, with its owner when one is. Using one is never required, so one
+    // that reaches no one is drawn quiet, with its problem said over it.
+    function useChips(uses) {
+        return uses.map((use) => {
+            const text = [`${use.interface} v${use.major}`, use.name].filter(Boolean).join(' · ');
+            const { element } = chip({ ui, text, muted: !use.owner || !!use.problem });
+            element.title = use.problem || (use.owner ? '' : `No other mod owns ${use.interface}`);
+            return element;
+        });
+    }
+
+    // A child's view is shown in the view of the owner of the interface it names as parent, and in the sidebar's list
+    // as well once the person pins it there.
     function sidebarPin() {
-        const parent = (mod.relations || []).find((relation) => relation.interface === mod.live.parent);
+        const parent = (mod.uses || []).find((use) => use.interface === mod.live.parent);
         const { id } = mod;
         const pin = ui.element('div', { className: 'settings-details-switch' });
         const toggle = ui.toggle({
@@ -175,7 +183,7 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
             detailsLine(
                 parent?.name
                     ? `Shown in ${parent.name}. Pinned to the sidebar too`
-                    : `Shown in what implements ${mod.live.parent}. Pinned to the sidebar too`
+                    : `Shown in the owner of ${mod.live.parent}. Pinned to the sidebar too`
             ),
             toggle.element
         );

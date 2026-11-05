@@ -403,8 +403,8 @@ async function run({
         const actions = await settings?.evaluate(`[...${interfaces}.querySelectorAll('.settings-card')]
             .find((card) => card.querySelector('.settings-interface-name').textContent === 'switcher/actions')?.innerText`);
         check(
-            'settings lists an interface with the mod that implements it',
-            /Switcher/.test(actions || ''),
+            'settings lists an interface with its owner, the first to provide it',
+            /Automatic: Switcher/.test(actions || ''),
             actions || ''
         );
         // A menu is a layer, drawn in the page's overlay, which has the keys while it is open.

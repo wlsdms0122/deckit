@@ -1,18 +1,18 @@
 # Settings
 
-Where the app is set up: the mods (installing, removing, restarting, pinning, the load order), each mod's settings, the keys, which mod opens an address first, which mod implements an interface, and the fonts.
+Where the app is set up: the mods (installing, removing, restarting, pinning, the load order), each mod's settings, the keys, which mod opens an address first, which mod owns an interface, and the fonts.
 
 ## Interfaces
 
-Each interface a mod implements or depends on, with its implementations in their order. The first that is on is the one picked, and the mods that depend on the interface get it: drag to change the order, switch one off to pass it over. An interface whose implementations no one placed is marked Undecided until one is dragged into place. An order deckit refuses, one whose pick would make a cycle among mods that load now, is told on its card.
+Each interface a mod provides or uses, with its owner and the mods that provide it, in their queue: the earliest to provide it first, each with the majors it speaks. The mods that use the interface reach its owner, the one pinned or else the first in the queue. Its menu says Automatic while no one pinned one, and pins one provider or clears the pin. A pin deckit refuses is told on its card. A mod's row shows the interfaces it uses, with their owners, and says why one reaches no one.
 
 ## Adding buttons: `settings/buttons`
 
-Settings defines the interface `settings/buttons`, and implements it at `1.0.0`. Its exports open in `attach`, so a mod names it as an optional dependency and hands its buttons over in `attach`, with `onConnect`. They are `setButtons(buttons)`, one set of buttons for each connection, shown on the connected mod's settings. It gives no place for views.
+Settings defines the interface `settings/buttons`, and provides its major 1. Its exports open in `attach`, so a mod uses it and hands its buttons over in `attach`, with `onConnect`. They are `setButtons(buttons)`, one set of buttons for each connection, shown on the connected mod's settings. It gives no place for views.
 
 ```toml
-[dependencies]
-"settings/buttons" = { version = "1.0.0", optional = true }
+[interfaces]
+uses = { "settings/buttons" = 1 }
 ```
 
 ```js
