@@ -46,7 +46,6 @@ async function main() {
                 return name === 'switcher/actions' ? contributions : [];
             },
         },
-        notify: async () => {},
     };
     const shell = { ui: {}, theme: {}, iconOf: () => '' };
     const window = { open: () => {}, close: () => {} };

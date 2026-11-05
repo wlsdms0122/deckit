@@ -60,6 +60,7 @@ const main = async () => {
         'region.js',
         'forge.js',
         'switcher.js',
+        'notifications.js',
     ];
     for (const check of checks)
         execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {
