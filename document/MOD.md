@@ -395,7 +395,7 @@ With `deckit.mods`: `list`, `pick`, `planInstall`, `install`, `remove`, `relaunc
 
 ### events
 
-A mod says what happened to it, for whoever cares, as events. `deckit.events.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. `deckit.events.on('<mod id>:<name>', listener)` hears one and returns its off. Values are copied, and a function is not: an event that holds one is not sent, and the mod's row in Settings says why. Listening takes no dependency: a mod's events go out while it is running, from when its `start` has finished until it terminates, and nothing arrives from one that is not running.
+A mod says what happened to it, for whoever cares, as events. `deckit.events.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. `deckit.events.on('<mod id>:<name>', listener)` hears one and returns its off. A mod hears only names its manifest names: its own id, an id in `[dependencies]`, and an interface it uses or provides, whose signals (`<interface>:owner-changed`) are named after it; `on` with any other name is refused. Values are copied, and a function is not: an event that holds one is not sent, and the mod's row in Settings says why. Listening to a dependency, optional or not, waits for nothing: a mod's events go out while it is running, from when its `start` has finished until it terminates, and nothing arrives from one that is not running.
 
 ## shell
 
