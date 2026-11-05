@@ -75,6 +75,7 @@ public final class URLRouter {
             return HandlerList(
                 scheme: scheme,
                 system: SystemHandler(scheme: scheme),
+                undecided: undecided(in: scheme),
                 handlers: handlers.map { mod, patterns, on, _ in
                     SchemeHandler(
                         id: mod.manifest.id,
@@ -169,5 +170,29 @@ public final class URLRouter {
         }
 
         return ordered
+    }
+
+    // The patterns of the scheme's list whose addresses go to mods no one placed by id alone: at the addresses of
+    // each, the first two handlers that are on were placed by no one and wrote it. `*` stands for the addresses of the
+    // scheme in its list.
+    private func undecided(in scheme: String) -> [String] {
+        let placed = preference(of: scheme).placed(host: schemeHandlers[scheme] ?? [])
+        var written: [URLPattern] = []
+        for pattern in members(of: scheme).flatMap(\.patterns) where !written.map(\.match).contains(pattern.match) {
+            written.append(pattern)
+        }
+
+        return written
+            .filter { pattern in
+                let first = ordered(in: scheme) { patterns in
+                    patterns.filter { own in own.covers(pattern, in: scheme) }.map(\.specificity).max()
+                }
+                .filter(\.on)
+                .prefix(2)
+                return first.count == 2 && first.allSatisfy { handler in
+                    !placed.contains(handler.mod.manifest.id) && handler.width == pattern.specificity
+                }
+            }
+            .map(\.written)
     }
 }

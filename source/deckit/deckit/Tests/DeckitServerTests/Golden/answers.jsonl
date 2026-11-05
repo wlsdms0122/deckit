@@ -48,7 +48,7 @@
 {"id":40,"jsonrpc":"2.0","result":[{"alt":false,"code":"KeyK","control":false,"meta":true,"shift":false},null]}
 {"id":41,"jsonrpc":"2.0","result":[{"command":"switch","description":"","params":null,"provider":"@app"},{"command":"next","description":"","params":null,"provider":"a"}]}
 {"id":42,"jsonrpc":"2.0","result":{"handlers":["a"],"url":"mailto:x@y.z"}}
-{"id":43,"jsonrpc":"2.0","result":[{"handlers":[],"scheme":"http","system":"browser"},{"handlers":[],"scheme":"https","system":"browser"},{"handlers":[],"scheme":"file","system":"file"},{"handlers":[{"id":"a","name":"A","on":true,"patterns":["mailto:*"]}],"scheme":"mailto"}]}
+{"id":43,"jsonrpc":"2.0","result":[{"handlers":[],"scheme":"http","system":"browser","undecided":[]},{"handlers":[],"scheme":"https","system":"browser","undecided":[]},{"handlers":[],"scheme":"file","system":"file","undecided":[]},{"handlers":[{"id":"a","name":"A","on":true,"patterns":["mailto:*"]}],"scheme":"mailto","undecided":[]}]}
 {"id":44,"jsonrpc":"2.0","result":true}
 {"error":{"code":-32803,"data":{"kind":"SCHEME"},"message":"no mod handles nope"},"id":45,"jsonrpc":"2.0"}
 {"id":46,"jsonrpc":"2.0","result":{"manifest":{"api":"1.0.0","dependencies":{},"id":"d","implements":{},"main":"main.js","name":"D","permissions":[],"urls":[],"version":"1.0.0"},"replaces":false}}

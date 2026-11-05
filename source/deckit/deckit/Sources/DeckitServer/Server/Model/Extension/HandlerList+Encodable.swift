@@ -13,6 +13,7 @@ extension HandlerList: Encodable {
     private enum CodingKeys: String, CodingKey {
         case scheme
         case system
+        case undecided
         case handlers
     }
 
@@ -22,6 +23,7 @@ extension HandlerList: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(scheme, forKey: .scheme)
         try container.encodeIfPresent(system, forKey: .system)
+        try container.encode(undecided, forKey: .undecided)
         try container.encode(handlers, forKey: .handlers)
     }
 

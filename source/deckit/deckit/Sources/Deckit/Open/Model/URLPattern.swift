@@ -93,5 +93,26 @@ public struct URLPattern: Equatable, Sendable {
         }
     }
 
+    // Whether it matches every address `pattern` matches in the handler list of the scheme `list`, where `*` matches
+    // that scheme's addresses.
+    func covers(_ pattern: URLPattern, in list: String) -> Bool {
+        switch (match, pattern.match) {
+        case (.every, _):
+            true
+
+        case let (.scheme(name), .every):
+            name == list
+
+        case let (.scheme(name), .scheme(other)), let (.scheme(name), .host(other, _, _)):
+            name == other
+
+        case let (.host(name, host, path), .host(otherName, otherHost, otherPath)):
+            name == otherName && host == otherHost && otherPath.hasPrefix(path)
+
+        case (.host, _):
+            false
+        }
+    }
+
     // MARK: - Private
 }

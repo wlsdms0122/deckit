@@ -12,6 +12,8 @@ public struct HandlerList: Sendable {
     // MARK: - Property
     public let scheme: String
     public let system: SystemHandler?
+    // The patterns whose addresses go to mods no one placed by id alone, until the person places one, as written.
+    public let undecided: [String]
     public let handlers: [SchemeHandler]
 
     // MARK: - Initializer

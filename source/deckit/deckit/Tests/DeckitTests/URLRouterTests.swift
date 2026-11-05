@@ -187,6 +187,48 @@ struct URLRouterTests {
         #expect(https.handlers.map(\.id) == ["github", "placed", "browser", "narrowed"])
     }
 
+    @Test("a pattern is undecided while two mods no one placed wrote it and come first at its addresses, both on")
+    func undecidedIsPerPattern() throws {
+        // Given
+        try fixture.write("browser", urls: ["https:*"])
+        try fixture.write("narrowed", urls: ["https:*", "https://example.com/x*"])
+        try fixture.write("github", urls: ["https://github.com/*"])
+        try fixture.write("hub", urls: ["https://github.com/*"])
+        try fixture.write("issues", urls: ["https://github.com/deckit/*"])
+        let sut = try fixture.deckit()
+
+        // When
+        let unplaced = undecided(sut, "https")
+        try sut.urlRouter.setHandlers(of: "https", order: ["browser"], off: [])
+        let placed = undecided(sut, "https")
+        try sut.urlRouter.setHandlers(of: "https", order: [], off: ["hub"])
+        let off = undecided(sut, "https")
+
+        // Then
+        #expect(unplaced == ["https:*", "https://github.com/*"])
+        #expect(placed == ["https://github.com/*"])
+        #expect(off == [])
+    }
+
+    @Test("every address is undecided in each list where two mods no one placed take it first")
+    func everyAddressIsUndecidedPerList() throws {
+        // Given
+        try fixture.write("one", urls: ["*"])
+        try fixture.write("two", urls: ["*"])
+        try fixture.write("mail", urls: ["mailto:*"])
+        let sut = try fixture.deckit()
+
+        // When
+        let every = undecided(sut, "*")
+        let http = undecided(sut, "http")
+        let mailto = undecided(sut, "mailto")
+
+        // Then
+        #expect(every == ["*"])
+        #expect(http == ["*"])
+        #expect(mailto == [])
+    }
+
     @Test("a drag places the moved mod and those above it, and a narrow mod no one placed stays first at its addresses")
     func dragPlacesUpToTheMovedMod() throws {
         // Given
@@ -232,6 +274,10 @@ struct URLRouterTests {
     }
 
     // MARK: - Private
+    private func undecided(_ sut: Deckit, _ scheme: String) -> [String]? {
+        sut.urlRouter.handlerLists().first { list in list.scheme == scheme }?.undecided
+    }
+
     // `url -> handlers, system` as a test compares a route.
     private func route(_ sut: Deckit, _ url: String, opensFiles: Bool, usesDefaultApp: Bool = false) -> String {
         let route = sut.urlRouter.route(url, opensFiles: opensFiles, usesDefaultApp: usesDefaultApp)
