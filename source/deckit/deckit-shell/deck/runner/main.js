@@ -368,7 +368,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             if (run.state !== 'launching') throw Object.assign(new Error(run.problem), { kind: 'REFUSED' });
             IDENTITY.whenPageEnds(sender, (ending) => crash(run, endedProblem(ending)));
             sandbox.lifecycles = 1;
-            return { manifest: mod.manifest, source: await CATALOG.sourceOf(mod), run: run.number };
+            const source = await CATALOG.sourceOf(mod);
+            return { manifest: mod.manifest, contributes: mod.contributes, source, run: run.number };
         });
         PROTOCOL.described.on(({ run: number, summary, lifecycles }, sender) => {
             const sandbox = sandboxes.get(IDENTITY.modFrom(sender).id);

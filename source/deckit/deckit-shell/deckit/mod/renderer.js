@@ -28,7 +28,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
     // `join(parts, scope)` answering `{ keyProblem }`, `keyProblem(key)` why a key would never run once it has joined,
     // or '': one registered there that would is left out, and one registered under it is withdrawn while it lasts; and
     // `blockKeysWhen(blocks)`, a key pressed in the page dropped while `blocks()`, or any other given, answers true.
-    function layer({ mod, deliver, fail }) {
+    function layer({ mod, contributes, deliver, fail }) {
         NOTIFICATION.listen(deliver);
         const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
         const blocking = new Set();
@@ -54,7 +54,11 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                 }
             }
             const commands = COMMAND.declare(parts.commands, { invalid: fail });
-            const keys = KEYMAP.declare(parts.keys, { invalid: fail, problemOf: keyProblem });
+            const keys = KEYMAP.declare(parts.keys, {
+                contributes: contributes.keys,
+                invalid: fail,
+                problemOf: keyProblem,
+            });
             joined.commands = [...joined.commands, ...commands.declared];
             joined.keys = [...joined.keys, ...keys.declared];
             scope.add(() => {

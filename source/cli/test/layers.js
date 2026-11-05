@@ -32,6 +32,7 @@ async function main() {
     const problems = [];
     const deckit = MOD.layer({
         mod: { permissions: [], urls: [] },
+        contributes: { keys: { summon: { label: 'Summon', key: 'alt+space', scope: 'global' } } },
         deliver: () => {},
         fail: (why) => problems.push(why),
     });
@@ -75,6 +76,15 @@ async function main() {
     const taken = [];
     KEYMAP.declare({ front: { run: () => {} } }, { invalid: (why) => taken.push(why), problemOf: () => '' });
     check('a key back runs in the page again', /declared under it/.test(taken[0] || ''), taken);
+    const handlers = makeScope();
+    lifecycle.join({ keys: { summon: { run: () => {} } } }, handlers);
+    const summon = deckit.report().contributions.keys.find(({ name }) => name === 'summon');
+    check(
+        'a key the mod declares takes its label, chord and scope from there, and runs where no page is in front',
+        summon?.label === 'Summon' && summon.key === 'alt+space' && summon.scope === 'global',
+        summon
+    );
+    handlers.cut();
 
     let blocked = false;
     deckit.over.blockKeysWhen(() => false);

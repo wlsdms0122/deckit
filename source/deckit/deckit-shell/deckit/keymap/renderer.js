@@ -15,12 +15,16 @@ export function createKeymap() {
     // MARK: - Public
     // A mod's keys, { name: { label, key, scope, run } }, as one lifecycle of its run contributes them: `run()` is what
     // pressing it does, here, and the core judges each label and chord, and whether the mod may have its scope,
-    // `local` when it names none. One with no function to run or no scope there is, one a lifecycle under it has
-    // declared, or one that `problemOf(entry)`, why a key would never run, asked with its scope, refuses, is told to
-    // `invalid` and left out. Answers those declared, and their off.
-    function declare(keys, { invalid, problemOf }) {
+    // `local` when it names none. A key of `contributes`, the keys the mod's contributes declares by name, takes its
+    // label, chord and scope from there when that scope is `app` or `global`. One with no function to run or no scope there is, one a
+    // lifecycle under it has declared, or one that `problemOf(entry)`, why a key would never run, asked with its scope,
+    // refuses, is told to `invalid` and left out. Answers those declared, and their off.
+    function declare(keys, { contributes = {}, invalid, problemOf }) {
         const declared = [];
-        for (const [name, entry] of Object.entries(keys || {})) {
+        for (const [name, given] of Object.entries(keys || {})) {
+            const scoped = contributes[name]?.scope;
+            const wide = KEY_SCOPE.SCOPES.includes(scoped) && KEY_SCOPE.isWide(scoped);
+            const entry = wide ? { ...contributes[name], run: given?.run } : given;
             if (typeof entry?.run !== 'function') {
                 invalid(`key "${name}" cannot be used: it needs a function in "run"`);
                 continue;
