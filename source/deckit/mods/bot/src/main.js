@@ -9,27 +9,6 @@ const { switcher, inFront } = require('./switcher/switcher.js');
 const PLACES = ['llmemory', 'brain'];
 
 class Bot {
-    static keywords = [
-        'bot',
-        'forge',
-        'daemon',
-        'supervisor',
-        'runner',
-        'service',
-        'llmemory',
-        'brain',
-        'memory',
-        '봇',
-        '데몬',
-        '서비스',
-        '러너',
-        '브레인',
-        '기억',
-        '지식',
-    ];
-
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
-
     static configuration = {
         llmemory: {
             type: 'string',

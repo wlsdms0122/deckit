@@ -4,9 +4,6 @@ const { switcher } = require('./switcher/switcher.js');
 // What a person asks of deckit itself, as commands and as the switcher's actions: an address to open, a mod or the app
 // to restart, deckit's folders, and what is running. It has no view.
 class Deckit {
-    static keywords = ['deckit', 'deck'];
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg>`;
-
     start(deckit) {
         const { util } = deckit;
         const APP_NAME = deckit.about().name;

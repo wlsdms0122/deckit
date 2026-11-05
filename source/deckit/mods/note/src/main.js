@@ -2,7 +2,6 @@ const { dragAndDrop } = require('./browsing/drag-and-drop.js');
 const { folderAt } = require('./notes-folder/folder.js');
 const { foldersFound, notesFound } = require('./candidates/candidates.js');
 const { gallery } = require('./browsing/gallery.js');
-const { NOTEBOOK_SHAPES } = require('./icons/icons.js');
 const { linkTargetOf, linkedNotePath } = require('./editor/link.js');
 const { liveEditor } = require('./editor/live-editor.js');
 const { menus } = require('./browsing/menus.js');
@@ -48,23 +47,6 @@ class Note {
             default: 'default',
         },
     };
-    //! Lucide "notebook-pen" (ISC).
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${NOTEBOOK_SHAPES}</svg>`;
-    static keywords = [
-        'notes',
-        'note',
-        'memo',
-        'markdown',
-        'md',
-        'checklist',
-        'todo',
-        '노트',
-        '메모',
-        '메모장',
-        '마크다운',
-        '체크리스트',
-        '할일',
-    ];
     static form = { textSize: { unit: ' px', inherits: 'textSize' }, font: { choices: 'textFonts' } };
 
     // What detach() waits for: the open note written, its title typed and not yet applied too, so what was typed just

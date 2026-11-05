@@ -58,23 +58,6 @@ class Editor {
             ],
         },
     };
-    //! Lucide "file-code" (ISC).
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/></svg>`;
-    static keywords = [
-        'editor',
-        'edit',
-        'code',
-        'file',
-        'folder',
-        'workspace',
-        'text',
-        '에디터',
-        '편집',
-        '코드',
-        '파일',
-        '폴더',
-        '워크스페이스',
-    ];
     static form = { fontSize: { unit: ' px', inherits: 'textSize' }, font: { choices: 'monospacedFonts' } };
 
     // What detach() waits for: the unsaved text of every open file kept as a draft, typed until the run ends, and the

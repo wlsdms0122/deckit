@@ -12,8 +12,6 @@ const { START, tabList, tabLabel } = require('./tabs/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
 
 class Browser {
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
-    static keywords = ['브라우저', '웹', '인터넷', 'browser', 'web'];
     static configuration = {
         homepage: {
             type: 'string',
