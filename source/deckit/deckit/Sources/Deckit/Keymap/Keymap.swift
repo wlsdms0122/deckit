@@ -8,9 +8,10 @@
 import Foundation
 import Deck
 
-// The keys of the hosts and of the mods that run, bound to chords a person may change, and how a keystroke is resolved
-// against them. Each key runs where its provider is. A mod's keys are those its run contributed under `keys`, taken
-// while it runs and as it terminates; a host's are registered under a name of its own.
+// The keys of the hosts and of the mods, bound to chords a person may change, and how a keystroke is resolved against
+// them. Each key runs where its provider is. A mod's keys are its `app` and `global` keys its contributes declares
+// under `keys`, there whether it runs or not, and those its run contributed under `keys` beside them, taken while it
+// runs and as it terminates; a host's are registered under a name of its own.
 public final class Keymap {
     // MARK: - Property
     // What a mod holds for keys that work past its own page, by their scope.
@@ -44,8 +45,34 @@ public final class Keymap {
     }
 
     // MARK: - Lifecycle
+    // A key that cannot be used, the mod's or its run's, is told so as the mod starts, and left out.
     func problems(of run: Run, mod: Mod) -> [String] {
-        declared(in: run.contributions).compactMap { key in problem(of: key, mod: mod) }
+        let contributed: [(String, JSONValue)]
+        switch mod.contributes[contributionKey] {
+        case .none:
+            contributed = []
+
+        case let .object(entries):
+            contributed = entries.sorted { one, other in one.key < other.key }
+
+        case .some:
+            return ["contributes \"\(contributionKey)\" must be an object of keys by name"]
+        }
+        let names = Set(contributed.map { name, _ in name })
+        let declaredProblems = contributed.compactMap { name, value in
+            guard let key = key(named: name, declared: value) else {
+                return "key \"\(name)\" cannot be used: it needs { label, key, scope }"
+            }
+            guard key.scope.isWide else {
+                return "key \"\(name)\" cannot be declared: a local key is registered with what the mod shows"
+            }
+            return problem(of: key, mod: mod)
+        }
+
+        return declaredProblems
+            + registered(in: run.contributions)
+                .filter { key in !names.contains(key.name) }
+                .compactMap { key in problem(of: key, mod: mod) }
     }
 
     // The keymap, once it resolves otherwise than the driver was last told.
@@ -114,7 +141,23 @@ public final class Keymap {
         return told
     }
 
-    private func declared(in contributions: Contribution?) -> [Key] {
+    // The `app` and `global` keys the mod declares, by name.
+    private func declared(of mod: Mod) -> [Key] {
+        guard case let .object(entries) = mod.contributes[contributionKey] else { return [] }
+        return entries.sorted { one, other in one.key < other.key }
+            .compactMap { name, value in key(named: name, declared: value) }
+            .filter { key in key.scope.isWide }
+    }
+
+    // The key `name` as a mod's contributes declares it, `{ label, key, scope }`, or nil when it does not read as one.
+    private func key(named name: String, declared value: JSONValue) -> Key? {
+        guard case var .object(fields) = value else { return nil }
+        fields["name"] = .string(name)
+
+        return try? JSONValue.object(fields).decode(as: Key.self)
+    }
+
+    private func registered(in contributions: Contribution?) -> [Key] {
         guard let written = contributions?.layers[contributionKey] else { return [] }
         return (try? written.decode(as: [Key].self)) ?? []
     }
@@ -167,15 +210,19 @@ public final class Keymap {
     }
 
     // In the order a keystroke tries them, the narrowest scope first: a mod's keys in its own page, the hosts' in any
-    // page in front, then anywhere in the app, then in every app, the hosts' before the mods' in the load order. A
-    // mod's key works past its page only with the permission for its scope.
+    // page in front, then anywhere in the app, then in every app, the hosts' before the mods' in the load order, a
+    // mod's declared keys before those its run registers beside them. A mod's key works past its page only with the
+    // permission for its scope.
     private func ordered() -> [Binding] {
         let mods = deck.catalog.loading.map { mod in
-            (
+            let declared = declared(of: mod)
+            let names = Set(declared.map(\.name))
+            let registered = registered(in: deck.contributions(of: mod.manifest.id)).filter { key in
+                !names.contains(key.name)
+            }
+            return (
                 provider: Provider.mod(id: mod.manifest.id, name: mod.manifest.name),
-                keys: declared(in: deck.contributions(of: mod.manifest.id)).filter { key in
-                    problem(of: key, mod: mod) == nil
-                }
+                keys: (declared + registered).filter { key in problem(of: key, mod: mod) == nil }
             )
         }
         let app = { (scope: KeyScope) in

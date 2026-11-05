@@ -45,6 +45,55 @@ struct KeymapTests {
         #expect(b.problem == "key \"go\" cannot work in every app: that takes the system.global-keys permission")
     }
 
+    @Test("a mod's declared app and global keys are bound whether it runs or not, before those its run registers")
+    func declaredKeysAreBound() throws {
+        // Given
+        let find: JSONValue = .object(["label": .string("Find"), "key": .string("mod+shift+f"), "scope": .string("app")])
+        try fixture.write("a", permissions: ["deckit.app-keys"], contributes: ["keys": .object(["find": find])])
+        let sut = try fixture.deckit()
+
+        // When
+        let declared = try sut.keymap.reset("a.none")
+        let running = try sut.started("a", run: 1, keys: [key("find", "mod+g", scope: .app), key("next", "mod+j")])
+
+        // Then
+        #expect(declared.bindings.map { resolved in resolved.binding.id } == ["a.find"])
+        let keymap = try #require(running.keymapChange)
+        #expect(keymap.bindings.map { resolved in "\(resolved.binding.id) \(resolved.binding.label)" } == [
+            "a.next Next", "a.find Find"
+        ])
+        #expect(keymap.line(of: "a.find") == "a.find active")
+        #expect(running.problem == nil)
+    }
+
+    @Test("a declared key that cannot be used is told as the mod starts and left out", arguments: [
+        (
+            ["keys": .object(["find": .object(["label": .string("Find"), "key": .string("mod+f"), "scope": .string("local")])])],
+            "key \"find\" cannot be declared: a local key is registered with what the mod shows"
+        ),
+        (
+            ["keys": .object(["find": .object(["label": .string("Find"), "key": .string("mod+f")])])],
+            "key \"find\" cannot be used: it needs { label, key, scope }"
+        ),
+        (
+            ["keys": .object(["find": .object(["label": .string("Find"), "key": .string("mod+f"), "scope": .string("global")])])],
+            "key \"find\" cannot work in every app: that takes the system.global-keys permission"
+        ),
+        (["keys": .array([])], "contributes \"keys\" must be an object of keys by name")
+    ] as [([String: JSONValue], String)])
+    func declaredKeyIsRefused(contributes: [String: JSONValue], problem: String) throws {
+        // Given
+        try fixture.write("a", contributes: contributes)
+        let sut = try fixture.deckit()
+
+        // When
+        let effects = try sut.started("a", run: 1, keys: [])
+
+        // Then
+        #expect(effects.problem == problem)
+        #expect(try sut.keymap.reset("a.none").bindings.isEmpty)
+    }
+
     @Test("bindings are listed as a keystroke tries them, the narrowest scope first, and contend only in one scope")
     func keystrokesResolveInOrder() throws {
         // Given
