@@ -20,8 +20,8 @@ struct EventBusTests {
     func eventGoesToItsListeners() throws {
         // Given
         try fixture.write("a")
-        try fixture.write("b")
-        try fixture.write("c")
+        try fixture.write("b", optional: ["a": "1.0.0"])
+        try fixture.write("c", optional: ["a": "1.0.0"])
         let runner = try fixture.runner()
         let sut = EventBus(runner: runner)
         _ = try runner.load(["a", "b", "c"])
@@ -44,7 +44,7 @@ struct EventBusTests {
     func endedRunHearsNothing() throws {
         // Given
         try fixture.write("a")
-        try fixture.write("b")
+        try fixture.write("b", optional: ["a": "1.0.0"])
         let runner = try fixture.runner()
         let sut = EventBus(runner: runner)
         _ = try runner.load(["a", "b"])
@@ -67,6 +67,30 @@ struct EventBusTests {
         #expect(relaunched.listeners.isEmpty)
         #expect(older.listeners.isEmpty)
         #expect(listening.listeners == ["b"])
+    }
+
+    @Test("a run hears only names of its own id, its dependencies and the interfaces it uses or provides")
+    func runHearsWhatItsManifestNames() throws {
+        // Given
+        try fixture.write("a", provides: ["a/api": [1]])
+        try fixture.write("b", uses: ["a/api": 1])
+        try fixture.write("c")
+        let runner = try fixture.runner()
+        let sut = EventBus(runner: runner)
+        _ = try runner.load(["a", "b", "c"])
+
+        // When
+        sut.listen(mod: "a", run: 1, names: ["a:status", "a/api:owner-changed", "c:status"])
+        sut.listen(mod: "b", run: 1, names: ["a:status", "a/api:owner-changed"])
+        sut.listen(mod: "c", run: 1, names: ["a:status", "c:status"])
+        let status = sut.announce("a:status")
+        let owner = sut.announce("a/api:owner-changed")
+        let own = sut.announce("c:status")
+
+        // Then
+        #expect(status.listeners == ["a"])
+        #expect(owner.listeners == ["a", "b"])
+        #expect(own.listeners == ["c"])
     }
 
     // MARK: - Private
