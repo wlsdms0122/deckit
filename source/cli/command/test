@@ -3,10 +3,10 @@
 // answers, deck's client of the core, its runner, the exports a page opens by interface, the mods a connection
 // launches, the scope a lifecycle cuts and the events a page hears, deckit as a layer on deck, the key map, command
 // tokens, an address offered to its handlers in turn, the web pages a mod shows, what a page is told as it starts, the
-// styles a page wears, the regions mods give their children, the Switcher's list and Settings' Activity, runs the
-// core's tests, then drives Deckit.app, put together from the archive it builds first, through the scenario, with data
-// of its own that is thrown away. Exits 1 with a line for each check that failed. Screenshots and the app's log are
-// left in .build/test/.
+// styles a page wears, the regions mods give their children, the Switcher's list, Settings' Activity and the Mods
+// mod's search, runs the core's tests, then drives Deckit.app, put together from the archive it builds first, through
+// the scenario, with data of its own that is thrown away. Exits 1 with a line for each check that failed. Screenshots
+// and the app's log are left in .build/test/.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -63,6 +63,7 @@ const main = async () => {
         'switcher.js',
         'notifications.js',
         'activity.js',
+        'all-mods.js',
     ];
     for (const check of checks)
         execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {
