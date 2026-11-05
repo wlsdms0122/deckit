@@ -1,13 +1,15 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
+import * as ORIGIN from '../runner/model/origin.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
 // what crosses goes from page to page through here, never read. A connection is handed to its dependent while it
 // stands, and so is one its dependency refused, with why: one that ended while its exports were asked for is left out.
-// The dependency is handed the dependent's id and name; the dependent, the name alone.
+// The dependency is handed the dependent's id and name; the dependent, the name alone. A run that listens for a name
+// whose mod, by id, or owner, by interface, is not running launches it for the connection, as the run's mod.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -44,6 +46,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             if (page && opened && (opened.problem || standing.has(connection.id)))
                 PROTOCOL.connected.send(page, { ...opened, lifecycle: connection.dependent.lifecycle });
         });
+        for (const name of ['didLaunch', 'didJoin']) RUNNER.observe(name, activate);
         RUNNER.handleEffect('disconnect', ({ connection }) => {
             standing.delete(connection.id);
             for (const end of [connection.dependent, connection.dependency]) {
@@ -77,6 +80,26 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             CORE.request('connection/refuse', { connection: id }).catch(() => {});
             return { ...named, problem: `${connection.name} did not connect: ${error.message || error}` };
         }
+    }
+
+    // Each mod the run reaches by a name it listens for that is not running launches for the connection. The core
+    // connects them once both run; one that does not launch is logged with why.
+    function activate(run) {
+        for (const name of Object.keys(run.contributions?.awaits ?? {})) {
+            const id = providerOf(name, run.mod);
+            if (!id || RUNNER.runOf(id)?.state === 'running') continue;
+            RUNNER.activate(id, ORIGIN.work({ connection: name }, run.mod.id)).catch((error) =>
+                LOG.warn(`${run.mod.id}: ${name} did not connect`, error)
+            );
+        }
+    }
+
+    // The id of the mod `mod` reaches by `name`: the mod a mod id names, or the owner of an interface but for `mod`
+    // itself, as the catalog was last read.
+    function providerOf(name, mod) {
+        if (Object.hasOwn(mod.manifest.dependencies, name)) return name;
+        const owner = Object.hasOwn(mod.manifest.uses, name) ? CATALOG.owners().get(name) : null;
+        return owner && owner !== mod.id ? owner : null;
     }
 
     // The end of the connection other than the page's run, which the core says the message goes to.
