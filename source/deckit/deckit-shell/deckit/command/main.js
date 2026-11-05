@@ -73,7 +73,7 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
     }
 
     // Every command, `{ provider, command, description, params }`: the hosts' first, then each running mod's in the
-    // load order.
+    // mods' order.
     function list() {
         return CORE.request('command/list');
     }

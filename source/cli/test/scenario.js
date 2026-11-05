@@ -21,7 +21,7 @@ const BEHIND_TAB = 'https://example.org/';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them asking for addresses as it may not, Settings placed second in the
-// panel's list, as a person would have arranged it, a load order that puts a mod before the one it requires, and what
+// panel's list, as a person would have arranged it, an order that puts a mod before the one it requires, and what
 // REMOVED left.
 function seed({ data, files }) {
     const mods = path.join(data, 'deckit', 'mods');
@@ -65,7 +65,7 @@ function seed({ data, files }) {
     fs.writeFileSync(path.join(data, 'deckit', 'state', 'uncleared.json'), JSON.stringify([REMOVED]));
     fs.writeFileSync(
         path.join(data, 'deckit', 'deck.json'),
-        JSON.stringify({ loadOrder: ['broker-user', 'broker-provider'] })
+        JSON.stringify({ order: ['broker-user', 'broker-provider'] })
     );
     for (const kept of [
         ['records', REMOVED, 'tabs.json'],
@@ -346,11 +346,11 @@ async function run({
         const frameKept = path.join(home, 'state', 'host', 'panel-frame.json');
         const sidebarKept = await until(() => fs.existsSync(frameKept), 2000);
         check("the shell's state is kept by the core", sidebarKept, frameKept);
-        const loadOrder = JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).loadOrder;
+        const order = JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).order;
         check(
-            'the load order keeps the places it was given, and what is installed takes its own',
-            loadOrder.slice(0, 2).join() === 'broker-user,broker-provider' && loadOrder.includes('settings'),
-            loadOrder
+            'the order keeps the places it was given, and what is installed takes its own',
+            order.slice(0, 2).join() === 'broker-user,broker-provider' && order.includes('settings'),
+            order
         );
         const notesKept = path.join(home, 'data', 'note');
         const notesMade = await until(() => fs.existsSync(notesKept), 3000);
@@ -568,7 +568,7 @@ async function run({
         // the order it keeps stays.
         const rowOf = (name) =>
             `[...document.querySelectorAll('.settings-mod')].find((row) => row.querySelector('.settings-mod-name')?.textContent === ${JSON.stringify(name)})`;
-        const keptOrder = () => JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).loadOrder.join();
+        const keptOrder = () => JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).order.join();
         const orderBefore = keptOrder();
         await settings?.evaluate(`${rowOf('Broker Provider')}.scrollIntoView({ block: 'center' })`);
         await settings?.drag(rowOf('Broker Provider'), rowOf('Broker User'));

@@ -28,7 +28,7 @@ struct GoldenTests {
         (InstallError.refused("p"), "REFUSED"),
         (InstallError.notInstalled("a"), "NOT_INSTALLED"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
-        (LoadOrderError.requiredLater(mod: "b", requirement: "a"), "REQUIRED_LATER"),
+        (OrderError.requiredLater(mod: "b", requirement: "a"), "REQUIRED_LATER"),
         (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
         (PinError.notProvider(interface: "x/api", mod: "a"), "NOT_PROVIDER"),
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),

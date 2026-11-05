@@ -158,7 +158,7 @@ export function createRegion({ deckit }) {
         tell();
     }
 
-    // Interface -> its children that run, or launch again, in the load order, for each interface `parent` provides.
+    // Interface -> its children that run, or launch again, in the mods' order, for each interface `parent` provides.
     function childrenOf(parent) {
         if (!parent) return {};
         const mods = deckit.mods.list();

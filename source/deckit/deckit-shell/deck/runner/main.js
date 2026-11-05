@@ -108,7 +108,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         effectHandlers.set(name, handler);
     }
 
-    // The mods named load, in the load order, each once its own run that terminates has ended and the mods it requires
+    // The mods named load, in the mods' order, each once its own run that terminates has ended and the mods it requires
     // have launched or failed to: a mod loaded while one it requires
     // does not run fails as it launches. One launching or running is left as it is, and none loads while the app quits.
     // Resolves once each has launched, or failed to.

@@ -7,7 +7,7 @@
 
 import Foundation
 
-// The ownership of the interfaces as it is kept: in `deck.json`, beside the load order, `providers`, interface -> the
+// The ownership of the interfaces as it is kept: in `deck.json`, beside the order, `providers`, interface -> the
 // ids of the mods that provide it, the earliest first, and `pins`, interface -> the id of the provider the person
 // pinned.
 final class OwnershipStore {

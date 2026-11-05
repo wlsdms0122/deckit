@@ -58,7 +58,7 @@ public final class Configuration {
         values(of: mod, declared: declared(mod))
     }
 
-    // Every loading mod's that declared any, in the load order.
+    // Every loading mod's that declared any, in the mods' order.
     public func list() -> [ConfigurationGroup] {
         deck.catalog.loading
             .compactMap { mod in

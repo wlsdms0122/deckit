@@ -19,7 +19,7 @@ export function createRegion({ running, deliver, channels }) {
     // region, out of any other it was in, and `clear()` leaves the region empty. The region ends when its element, once
     // in the page, leaves it. `children` are the mod's children: the mods whose view names an interface it provides
     // as their parent, while it owns it. `list(interface)` answers those of one interface
-    // in the load order, and `onChange(listener)` hears `listener(interface, children)` each time an interface's
+    // in the mods' order, and `onChange(listener)` hears `listener(interface, children)` each time an interface's
     // children change, answering its off.
     function forScope(scope) {
         return {

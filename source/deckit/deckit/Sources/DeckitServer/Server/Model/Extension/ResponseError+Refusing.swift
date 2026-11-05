@@ -69,7 +69,7 @@ extension ResponseError {
                 "TRANSITION"
             }
 
-        case let error as LoadOrderError:
+        case let error as OrderError:
             switch error {
             case .requiredLater:
                 "REQUIRED_LATER"

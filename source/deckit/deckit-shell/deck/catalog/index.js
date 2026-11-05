@@ -4,7 +4,7 @@ import * as MOD from './model/mod.js';
 // reads a mod's files where the environment keeps them.
 export function createCatalog({ CORE, LOG, files }) {
     // MARK: - Property
-    let all = []; // every mod the core read, in the load order
+    let all = []; // every mod the core read, in the mods' order
     let loading = [];
     // Every interface a mod provides or uses, each `{ interface, name, owner, pinned, providers }`, its providers
     // `[{ id, name, majors }]` in the order they began to provide it and `owner` the id of the one that owns it, absent
@@ -28,13 +28,13 @@ export function createCatalog({ CORE, LOG, files }) {
         for (const mod of all) if (mod.problem) LOG.warn(`mod ${mod.id} not loaded: ${mod.problem}`);
     }
 
-    // Every mod read, in the load order, each with whether it loads and why not, and the folders of the same id it
+    // Every mod read, in the mods' order, each with whether it loads and why not, and the folders of the same id it
     // hides.
     function found() {
         return all;
     }
 
-    // The mods that load, in their load order.
+    // The mods that load, in their order.
     function mods() {
         return loading;
     }
@@ -51,7 +51,7 @@ export function createCatalog({ CORE, LOG, files }) {
         return owned;
     }
 
-    // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
+    // The ids named take the places they held among themselves in the mods' order, in the order given; the rest stay
     // put. Refused for an order that puts a mod that loads before one it requires. Settled once the mods are read
     // again.
     async function arrange(ids) {

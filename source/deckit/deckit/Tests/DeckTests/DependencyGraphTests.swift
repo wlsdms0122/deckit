@@ -112,7 +112,7 @@ struct DependencyGraphTests {
     }
 
     @Test("a mod loads after what it requires, which lists it among its dependents")
-    func loadOrderFollowsRequirements() throws {
+    func requirementsComeFirst() throws {
         // Given
         try fixture.write("b")
         try fixture.write("d", requires: ["z": "1.0.0"])

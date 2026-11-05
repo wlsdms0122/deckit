@@ -210,9 +210,9 @@ public final class Keymap {
     }
 
     // In the order a keystroke tries them, the narrowest scope first: a mod's keys in its own page, the hosts' in any
-    // page in front, then anywhere in the app, then in every app, the hosts' before the mods' in the load order, a
-    // mod's declared keys before those its run registers beside them. A mod's key works past its page only with the
-    // permission for its scope.
+    // page in front, then anywhere in the app, then in every app, the hosts' before the mods', theirs in the mods'
+    // order, a mod's declared keys before those its run registers beside them. A mod's key works past its page only
+    // with the permission for its scope.
     private func ordered() -> [Binding] {
         let mods = deck.catalog.loading.map { mod in
             let declared = declared(of: mod)

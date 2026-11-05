@@ -15,7 +15,7 @@ export function createStyle({ deckit }) {
     // A mod with `deckit.styles` styles other pages: by id that mod's page, its own among them, and by "*" every page,
     // the shell's and every mod's. What its contributes declares under `styles`, a CSS file inside its folder for each,
     // is worn from the time it is installed, running or not, and what its run registers while it runs. Each page wears
-    // what applies to it in the load order, the later over the earlier, a mod's declared styles before its run's, so a
+    // what applies to it in the mods' order, the later over the earlier, a mod's declared styles before its run's, so a
     // mod's styles go over those of the mods it requires.
     function start() {
         PROTOCOL.current.handle((_payload, sender) => {

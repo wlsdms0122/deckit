@@ -7,7 +7,7 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
-// again, loading, putting them in a load order, pinning the owner of each interface and what one has where deck keeps
+// again, loading, putting them in an order, pinning the owner of each interface and what one has where deck keeps
 // it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
@@ -89,7 +89,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     }
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `found`:
-    // every mod the catalog found, in the load order whether it loads or not, each with `installed`, whether it is a
+    // every mod the catalog found, in the mods' order whether it loads or not, each with `installed`, whether it is a
     // copy in deck's mods folder, `problem`, why it does not load, `run`, its latest run's `state` and `problem`, null
     // for one with no sandbox, `hides`, folders of the same id that are not read, `launched`, while it starts or stops
     // again, what its latest run that launched contributed, as `running` lists it, `relations`, each mod in its

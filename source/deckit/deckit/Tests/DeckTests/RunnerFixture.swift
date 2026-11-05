@@ -91,7 +91,7 @@ struct RunnerFixture {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: settings, store: store),
+            order: Order(file: settings, store: store),
             ownershipStore: OwnershipStore(file: settings, store: store),
             store: store
         )

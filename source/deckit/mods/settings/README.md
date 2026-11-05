@@ -1,6 +1,6 @@
 # Settings
 
-Where the app is set up: the mods (installing, removing, restarting, pinning, the load order), each mod's settings, the keys, which mod opens an address first, which mod owns an interface, and the fonts.
+Where the app is set up: the mods (installing, removing, restarting, pinning, their order), each mod's settings, the keys, which mod opens an address first, which mod owns an interface, and the fonts.
 
 ## Interfaces
 

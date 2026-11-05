@@ -8,7 +8,7 @@
 import Foundation
 
 // Every mod deck reads: those read in place from a source folder, ahead of an installed one of the same id, and the
-// installed ones. Each loads or says why not, and all come in their load order. Each interface a mod provides has one
+// installed ones. Each loads or says why not, and all come in their order. Each interface a mod provides has one
 // owner, the provider the person pinned or else the one that began to provide it first.
 public final class Catalog {
     // MARK: - Property
@@ -18,7 +18,7 @@ public final class Catalog {
     private let modFolder: ModFolder
     private let dataFolder: DataFolder
     private let installer: Installer
-    private let loadOrder: LoadOrder
+    private let order: Order
     private let ownershipStore: OwnershipStore
     private let store: Store
     // Mod id -> how many times it was installed while deck ran.
@@ -32,7 +32,7 @@ public final class Catalog {
     // The mods that stand in a list, as they were last read: those that load by their own manifest, whether what they
     // require is there or not and whether they run or not.
     public private(set) var listed: [Mod] = []
-    // Those of them that load, in their load order.
+    // Those of them that load, in their order.
     public var loading: [Mod] {
         lastRead.filter { mod in mod.problem == nil }
     }
@@ -47,7 +47,7 @@ public final class Catalog {
         modFolder: ModFolder,
         dataFolder: DataFolder,
         installer: Installer,
-        loadOrder: LoadOrder,
+        order: Order,
         ownershipStore: OwnershipStore,
         store: Store
     ) {
@@ -57,14 +57,14 @@ public final class Catalog {
         self.modFolder = modFolder
         self.dataFolder = dataFolder
         self.installer = installer
-        self.loadOrder = loadOrder
+        self.order = order
         self.ownershipStore = ownershipStore
         self.store = store
     }
 
     // MARK: - Public
-    // Every mod in its load order, whether it loads or not. One that loads comes after the mods it requires, and
-    // otherwise each comes as the load order kept places it; one it does not place goes where the app ships it, and one
+    // Every mod in the order, whether it loads or not. One that loads comes after the mods it requires, and
+    // otherwise each comes as the order kept places it; one it does not place goes where the app ships it, and one
     // the app does not ship goes last, by id.
     func mods() -> [Mod] {
         let found = ranked()
@@ -100,7 +100,7 @@ public final class Catalog {
         try ownershipStore.write(ownership.pinned(interface, to: id))
     }
 
-    // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
+    // The ids named take the places they held among themselves in the mods' order, in the order given; the rest stay
     // put. An order that puts a mod that loads before one it requires is refused.
     public func arrange(_ ids: [String]) throws {
         let mods = DependencyGraph(ranked()).ordered()
@@ -117,9 +117,9 @@ public final class Catalog {
         }
 
         if let (mod, requirement) = DependencyGraph(next).requiredLater() {
-            throw LoadOrderError.requiredLater(mod: mod, requirement: requirement)
+            throw OrderError.requiredLater(mod: mod, requirement: requirement)
         }
-        try loadOrder.write(next.map(\.manifest.id))
+        try order.write(next.map(\.manifest.id))
     }
 
     public func planInstall(from source: URL) throws -> InstallPlan {
@@ -156,9 +156,9 @@ public final class Catalog {
     }
 
     // MARK: - Private
-    // The mods found, as `list()` reads them, in the order the load order kept, the app ships them, then by id.
+    // The mods found, as `list()` reads them, as the order kept places them, then as the app ships them, then by id.
     private func ranked() -> [Mod] {
-        let kept = loadOrder.read()
+        let kept = order.read()
         let shipOrder = shipOrder()
         let rank = { (id: String) in
             (kept.firstIndex(of: id) ?? kept.count, shipOrder.firstIndex(of: id) ?? shipOrder.count, id)
@@ -172,7 +172,7 @@ public final class Catalog {
     }
 
     // The manifests of the mods `found` that load by their own manifest, as they arrive at once: in the order the app
-    // ships them, then by id. The load order is not looked at.
+    // ships them, then by id. The order is not looked at.
     private func providers(in found: [Mod]) -> [Manifest] {
         let shipOrder = shipOrder()
         let rank = { (id: String) in (shipOrder.firstIndex(of: id) ?? shipOrder.count, id) }
@@ -194,7 +194,7 @@ public final class Catalog {
         return ownership
     }
 
-    // Every mod in its load order, with what each interface it uses comes to, each interface's queue, and the mods that
+    // Every mod in the order, with what each interface it uses comes to, each interface's queue, and the mods that
     // stand in a list.
     private func resolve(
         _ found: [Mod],
@@ -222,21 +222,21 @@ public final class Catalog {
         return (mods, interfaces, listed)
     }
 
-    // The load order kept with the mods `installed` that it did not place, each just before the first it places that
+    // The order kept with the mods `installed` that it did not place, each just before the first it places that
     // comes after it now, and without those `removed`; every other place stays. The ownership is kept as the mods
     // provide now. A settings file that does not read as a JSON object keeps no order until it does, which arranging
     // tells.
     private func keepOrder(installed: [String] = [], removed: [String] = []) {
         _ = keptOwnership(of: ranked())
-        let before = loadOrder.read()
+        let before = order.read()
         var kept = before.filter { id in !removed.contains(id) }
-        let order = mods().map(\.manifest.id)
+        let current = mods().map(\.manifest.id)
         for id in installed where !kept.contains(id) {
-            let after = order.firstIndex(of: id).map { place in Set(order[(place + 1)...]) } ?? []
+            let after = current.firstIndex(of: id).map { place in Set(current[(place + 1)...]) } ?? []
             kept.insert(id, at: kept.firstIndex { other in after.contains(other) } ?? kept.count)
         }
         if kept != before {
-            try? loadOrder.write(kept)
+            try? order.write(kept)
         }
     }
 

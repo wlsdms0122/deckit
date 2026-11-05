@@ -51,7 +51,7 @@ final class Runner {
         catalog.owners
     }
 
-    // Each mod named that loads, as the catalog was last read, launches in the load order, in its page loaded anew.
+    // Each mod named that loads, as the catalog was last read, launches in the mods' order, in its page loaded anew.
     // One whose run has not ended is left as it is. One whose code changed since its sandbox opened launches in a new
     // sandbox.
     func load(_ ids: [String]) throws -> [Effect] {

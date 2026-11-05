@@ -17,7 +17,7 @@ struct CommandRegistryTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("the commands are the hosts' as declared, then each running mod's in the load order, each found by its provider")
+    @Test("the commands are the hosts' as declared, then the running mods' in their order, each found by its provider")
     func commandsAreTheHostsThenTheRuns() throws {
         // Given
         try fixture.write("a")

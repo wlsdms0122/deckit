@@ -162,8 +162,8 @@ struct CatalogTests {
         #expect(dependents == ["x": ["y", "z"], "y": ["z"], "z": [], "w": []])
     }
 
-    @Test("each loads after what it requires, else where the load order kept places it, which reading leaves as it is")
-    func loadOrderPutsRequirementsFirst() throws {
+    @Test("each comes after what it requires, else where the order kept places it, which reading leaves as it is")
+    func orderPutsRequirementsFirst() throws {
         // Given
         try write("a", in: source)
         try write("b", in: source, requires: ["a": "1.0.0"])
@@ -171,7 +171,7 @@ struct CatalogTests {
         try write("d", in: source, main: nil)
         let settings = home.appending(path: "deck.json")
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        try Data(#"{"loadOrder":["c","b","a"],"other":1}"#.utf8).write(to: settings)
+        try Data(#"{"order":["c","b","a"],"other":1}"#.utf8).write(to: settings)
         let sut = try catalog(sources: [source])
 
         // When
@@ -179,17 +179,17 @@ struct CatalogTests {
 
         // Then
         #expect(mods.map(\.manifest.id) == ["c", "a", "b", "d"])
-        #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"loadOrder":["c","b","a"],"other":1}"#)
+        #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"order":["c","b","a"],"other":1}"#)
     }
 
-    @Test("installing or removing keeps the load order: one installed takes its place, one removed leaves")
-    func installKeepsLoadOrder() throws {
+    @Test("installing or removing keeps the order: one installed takes its place, one removed leaves")
+    func installKeepsOrder() throws {
         // Given
         try write("a", in: home.appending(path: "mods"))
         try write("c", in: home.appending(path: "mods"))
         try write("b", in: source)
         let settings = home.appending(path: "deck.json")
-        try Data(#"{"loadOrder":["c","a"],"other":1}"#.utf8).write(to: settings)
+        try Data(#"{"order":["c","a"],"other":1}"#.utf8).write(to: settings)
         let sut = try catalog()
 
         // When
@@ -199,8 +199,8 @@ struct CatalogTests {
         let removed = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
 
         // Then
-        #expect(installed == .object(["loadOrder": .array(["c", "a", "b"].map(JSONValue.string)), "other": .number(1)]))
-        #expect(removed == .object(["loadOrder": .array(["c", "b"].map(JSONValue.string)), "other": .number(1)]))
+        #expect(installed == .object(["order": .array(["c", "a", "b"].map(JSONValue.string)), "other": .number(1)]))
+        #expect(removed == .object(["order": .array(["c", "b"].map(JSONValue.string)), "other": .number(1)]))
     }
 
     @Test("one that does not load keeps its place, and one it requires found anew goes just before it")
@@ -226,7 +226,7 @@ struct CatalogTests {
         #expect(back.allSatisfy { mod in mod.problem == nil })
     }
 
-    @Test("arranging moves the ids named among the places they held, refusing one that loads before what it requires")
+    @Test("arranging moves the ids named among the places they held, refusing one with a mod before what it requires")
     func arrangeKeepsRequirementsFirst() throws {
         // Given
         for id in ["a", "c", "d"] {
@@ -246,7 +246,7 @@ struct CatalogTests {
 
         // Then
         #expect(arranged == ["a", "b", "d", "f", "c", "e", "g", "h"])
-        #expect(throws: LoadOrderError.requiredLater(mod: "b", requirement: "a")) { try refused.get() }
+        #expect(throws: OrderError.requiredLater(mod: "b", requirement: "a")) { try refused.get() }
         #expect(sut.mods().map(\.manifest.id) == arranged)
     }
 
@@ -257,7 +257,7 @@ struct CatalogTests {
         try write("a", in: source)
         let settings = home.appending(path: "deck.json")
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        try Data(#"{"loadOrder":["b","a"],"#.utf8).write(to: settings)
+        try Data(#"{"order":["b","a"],"#.utf8).write(to: settings)
         let sut = try catalog(sources: [source])
 
         // When
@@ -267,7 +267,7 @@ struct CatalogTests {
         // Then
         #expect(mods.map(\.manifest.id) == ["a", "b"])
         #expect(throws: DeckSettingsError.unreadable("deck.json")) { try refused.get() }
-        #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"loadOrder":["b","a"],"#)
+        #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"order":["b","a"],"#)
     }
 
     @Test("installing copies the folder as mods/<id>, replacing every copy before it, and changes the revision")
@@ -294,15 +294,15 @@ struct CatalogTests {
         #expect(!FileManager.default.fileExists(atPath: staging.path(percentEncoded: false)))
     }
 
-    @Test("installing what the app ships places what the load order did not, and every place kept stays")
-    func installShippedKeepsLoadOrder() throws {
+    @Test("installing what the app ships places what the order did not, and every place kept stays")
+    func installShippedKeepsOrder() throws {
         // Given
         try write("x", in: source)
         try write("a", in: ship)
         try write("b", in: ship, requires: ["a": "1.0.0"])
         let settings = home.appending(path: "deck.json")
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        try Data(#"{"loadOrder":["x","gone","b"]}"#.utf8).write(to: settings)
+        try Data(#"{"order":["x","gone","b"]}"#.utf8).write(to: settings)
         let sut = try catalog(sources: [source], ship: [ship.appending(path: "a"), ship.appending(path: "b")])
 
         // When
@@ -310,7 +310,7 @@ struct CatalogTests {
 
         // Then
         let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
-        #expect(kept == .object(["loadOrder": .array(["x", "gone", "a", "b"].map(JSONValue.string))]))
+        #expect(kept == .object(["order": .array(["x", "gone", "a", "b"].map(JSONValue.string))]))
     }
 
     @Test("a folder that does not load, the installed one, or one a source hides is not installed")
@@ -557,7 +557,7 @@ struct CatalogTests {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
+            order: Order(file: home.appending(path: "deck.json"), store: store),
             ownershipStore: OwnershipStore(file: home.appending(path: "deck.json"), store: store),
             store: store
         )

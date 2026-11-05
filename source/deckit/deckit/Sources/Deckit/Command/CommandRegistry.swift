@@ -62,7 +62,7 @@ public final class CommandRegistry {
         hostCommands = next
     }
 
-    // The hosts' first, in the order declared, then each mod's, in the load order: those it declares, by name, running
+    // The hosts' first, in the order declared, then each mod's, in the mods' order: those it declares, by name, running
     // or not, then those its run registers beside them.
     public func list() -> [RegisteredCommand] {
         let mods = deck.catalog.loading.flatMap { mod in

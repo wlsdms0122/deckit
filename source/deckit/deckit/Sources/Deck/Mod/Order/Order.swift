@@ -1,5 +1,5 @@
 //
-//  LoadOrder.swift
+//  Order.swift
 //  Deck
 //
 //  Created by JSilver on 10/22/26.
@@ -7,10 +7,10 @@
 
 import Foundation
 
-// The load order as it is kept: `loadOrder` in `deck.json`, deck's settings file, a list of mod ids.
-final class LoadOrder {
+// The order as it is kept: `order` in `deck.json`, deck's settings file, a list of mod ids.
+final class Order {
     // MARK: - Property
-    private let key = "loadOrder"
+    private let key = "order"
     private let settings: DeckSettings
 
     // MARK: - Initializer

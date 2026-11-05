@@ -1,5 +1,5 @@
 //
-//  LoadOrderError.swift
+//  OrderError.swift
 //  Deck
 //
 //  Created by JSilver on 10/22/26.
@@ -8,7 +8,7 @@
 import Foundation
 
 // Why the mods are not put in an order.
-public enum LoadOrderError: Refusal, Equatable {
+public enum OrderError: Refusal, Equatable {
     // A mod placed before one it requires.
     case requiredLater(mod: String, requirement: String)
 
@@ -16,7 +16,7 @@ public enum LoadOrderError: Refusal, Equatable {
     public var message: String {
         switch self {
         case let .requiredLater(mod, requirement):
-            "\(mod) requires \(requirement), which would load after it"
+            "\(mod) requires \(requirement), which is placed after it"
         }
     }
 

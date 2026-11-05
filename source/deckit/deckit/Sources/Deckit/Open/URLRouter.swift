@@ -147,7 +147,7 @@ public final class URLRouter {
     // offered to them, each with whether it is on and its width there. `width` answers the specificity of a handler's
     // patterns for the scheme there, or nil where it has none. The person's and the app's placed come first, in their
     // order, and each no one placed goes before the first wider than its own, the narrowest first and then by id: the
-    // load order says nothing of who opens what.
+    // mods' order says nothing of who opens what.
     private func ordered(
         in scheme: String,
         width: ([URLPattern]) -> Int?

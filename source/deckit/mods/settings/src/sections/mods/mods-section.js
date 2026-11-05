@@ -5,7 +5,7 @@ const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
 const { section } = require('../section/section.js');
 
-// The Mods section: every mod found in the load order, what each contributes, installing and removing them, and putting
+// The Mods section: every mod found in their order, what each contributes, installing and removing them, and putting
 // them in another order and applying it. `onChange` hears that a mod was installed, removed, restarted, pinned or moved
 // here. Failures and what was done are told in a toast. `mods` is deckit.mods; `pins`, the panel's pins (shell.mods),
 // or nothing under a shell that has none; `dropDestination` the shell's.
@@ -483,7 +483,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         onChange();
     }
 
-    // One row per mod, in the load order whether it loads or not, each in its place whatever its run is doing: one
+    // One row per mod, in the mods' order whether it loads or not, each in its place whatever its run is doing: one
     // starting or stopping is in `running` as it last ran, and says so by its spinner. `notLoaded` is why one is not
     // running, `problem` what went wrong with one that is. Permissions are read from the folder, so one that did not
     // load still shows the permissions it asks for.
