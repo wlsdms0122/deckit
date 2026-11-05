@@ -154,6 +154,10 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
         PROTOCOL.icon.handle(({ mod }) => MOD_DECLARED.iconOf(deckit.mods.contributesOf(mod)));
         PROTOCOL.form.handle(({ mod }) => MOD_DECLARED.formOf(deckit.mods.contributesOf(mod)));
+        PROTOCOL.list.handle((_payload, sender) => {
+            deckit.mods.managerFrom(sender);
+            return listed();
+        });
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);
             return [...pinned];
@@ -632,13 +636,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     function stateOf() {
         const shown = inOrder().filter(({ id }) => inPanel(id));
         const names = new Map(shown.map(({ id, name }) => [id, name]));
-        const running = new Set(
-            deckit.mods
-                .runs()
-                .filter(({ run }) => inTransition(run))
-                .map(({ run }) => run.mod.id)
-        );
-        const mods = DOCK.items([...names.keys()], { pinned, running }).map((item) => ({
+        const mods = DOCK.items([...names.keys()], { pinned, running: runningIds() }).map((item) => ({
             ...item,
             name: names.get(item.id),
             icon: MOD_DECLARED.iconOf(deckit.mods.contributesOf(item.id)),
@@ -651,6 +649,34 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
             sidebar,
             down: down && { name: deckit.config.name, why: down },
         };
+    }
+
+    // Every mod that declares a view, in the list's order, marked as the Dock marks them.
+    function listed() {
+        const running = runningIds();
+        return inOrder()
+            .filter(({ id }) => viewOf(id))
+            .map(({ id, name }) => {
+                const contributes = deckit.mods.contributesOf(id);
+                return {
+                    id,
+                    name,
+                    icon: MOD_DECLARED.iconOf(contributes),
+                    keywords: MOD_DECLARED.keywordsOf(contributes),
+                    pinned: pinned.has(id),
+                    running: running.has(id),
+                };
+            });
+    }
+
+    // The ids of the mods whose run launches, runs or terminates, or that launch again.
+    function runningIds() {
+        return new Set(
+            deckit.mods
+                .runs()
+                .filter(({ run }) => inTransition(run))
+                .map(({ run }) => run.mod.id)
+        );
     }
 
     function broadcast() {

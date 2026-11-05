@@ -28,12 +28,13 @@ const STYLE = `
 // MARK: - Public
 // The panel in a mod's page, its channels bound with `channels`: `mount(view)`, `show()`, by which the mod asks to be
 // on screen, `iconOf(mod)` and `formOf(mod)`, and `pins`, what a mod with deckit.mods reads and changes of the Dock:
-// `pinned()`, the mods the person keeps in it, `setPinned(id, pinned)`, and `open(id)`, a mod on screen as the person
-// opens it.
+// `list()`, every mod that declares a view, as the Dock marks it, `pinned()`, the mods the person keeps in it,
+// `setPinned(id, pinned)`, and `open(id)`, a mod on screen as the person opens it.
 function createPanel({ channels }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const pins = Object.freeze({
+        list: () => PROTOCOL.list.invoke(),
         pinned: () => PROTOCOL.pinned.invoke(),
         setPinned: (id, pinned) => PROTOCOL.setPinned.invoke({ id: String(id), pinned: !!pinned }),
         open: (id) => PROTOCOL.open.invoke({ id: String(id) }),
