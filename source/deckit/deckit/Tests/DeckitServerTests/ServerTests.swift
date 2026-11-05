@@ -321,13 +321,13 @@ struct ServerTests {
     func contributionsRoundTrip() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("dep", implements: #""dep/api" = "1.0.0""#)
-        try mod("a", dependencies: #""dep/api" = "1.0.0""#)
+        try mod("dep")
+        try mod("a", dependencies: #"dep = "1.0.0""#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["dep"]}}"#, to: sut)
         let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
         _ = try send(begin + #"{"mod":"dep","run":1,"lifecycle":0}}"#, to: sut)
-        let contributions = #"{"exportedIn":{"dep/api":0},"awaits":{},"layer":["a"]}"#
+        let contributions = #"{"exportedIn":{"dep":0},"awaits":{},"layer":["a"]}"#
         let started = #"{"mod":"dep","run":1,"summary":{"x":true},"contributions":\#(contributions)}"#
 
         // When
@@ -343,11 +343,11 @@ struct ServerTests {
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
         #expect(value(in: told, at: "summary", "x") == .bool(true))
         #expect(value(in: told, at: "contributions", "layer") == .array([.string("a")]))
-        #expect(value(in: told, at: "contributions", "exportedIn") == .object(["dep/api": .number(0)]))
+        #expect(value(in: told, at: "contributions", "exportedIn") == .object(["dep": .number(0)]))
         #expect(
             value(in: connected, at: "result")
                 == (try json(
-                    #"[{"id":1,"name":"dep/api","dependent":{"mod":"a","run":1,"lifecycle":0},"#
+                    #"[{"id":1,"name":"dep","dependent":{"mod":"a","run":1,"lifecycle":0},"#
                         + #""dependency":{"mod":"dep","run":1,"lifecycle":0},"required":true}]"#
                 ))
         )
@@ -549,7 +549,6 @@ struct ServerTests {
     private func mod(
         _ id: String,
         urls: String? = nil,
-        implements: String? = nil,
         dependencies: String? = nil
     ) throws {
         let folder = URL(filePath: home + "source").appending(path: id)
@@ -560,7 +559,6 @@ struct ServerTests {
             api = "1.0.0"
             main = "main.js"
             """ + (urls.map { urls in "\nurls = \(urls)" } ?? "")
-            + (implements.map { implements in "\n[implements]\n\(implements)" } ?? "")
             + (dependencies.map { dependencies in "\n[dependencies]\n\(dependencies)" } ?? "")
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
         try Data().write(to: folder.appending(path: "main.js"))

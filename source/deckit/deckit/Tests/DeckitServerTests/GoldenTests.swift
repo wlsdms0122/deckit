@@ -65,11 +65,11 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "urls = [\"mailto:*\"]\n[implements]\n\"a/api\" = \"1.0.0\"\n[permissions]\n"
+            adding: "urls = [\"mailto:*\"]\n[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
                 + "\"system.global-keys\" = \"to test\"\n\"system.example\" = \"to test\""
         )
-        try writeMod("b", in: "source", adding: "[dependencies]\n\"a/api\" = \"1.0.0\"")
-        try writeMod("c", in: "ship", adding: "[implements]\n\"a/api\" = \"1.0.0\"")
+        try writeMod("b", in: "source", adding: "[dependencies]\na = \"1.0.0\"\n[interfaces]\nuses = { \"a/api\" = 1 }")
+        try writeMod("c", in: "ship", adding: "[interfaces]\nprovides = { \"a/api\" = [1] }")
         try writeMod("d", in: "spare")
         let requests = try lines(of: "session")
         let pinned = try lines(of: "answers")
