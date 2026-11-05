@@ -22,8 +22,8 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // Deckit as a layer on deck (deckit-shell/deck/runner/renderer.js). It reads the class's `configuration`. `over` is
-    // what a layer over it is handed:
+    // Deckit as a layer on deck (deckit-shell/deck/runner/renderer.js). Its `start` waits on what the mod's
+    // configuration reads as. `over` is what a layer over it is handed:
     // `lifecycle({ method, registrations, start, end, join })`, a lifecycle of that layer's with deckit's handle in it,
     // deckit's registrations beside its own and the handle `deckit` handed its `start` with deckit's members, and
     // `join(parts, scope)` answering `{ keyProblem }`, `keyProblem(key)` why a key would never run once it has joined,
@@ -31,6 +31,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
     // `blockKeysWhen(blocks)`, a key pressed in the page dropped while `blocks()`, or any other given, answers true.
     function layer({ mod, contributes, deliver, fail }) {
         NOTIFICATION.listen(deliver);
+        CONFIGURED.load();
         const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
         const blocking = new Set();
         KEYMAP.hear({ blocksKeys: () => [...blocking].some((blocks) => blocks()) });
@@ -84,10 +85,6 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
         };
         return {
             handle: 'deckit',
-            read(Entry) {
-                CONFIGURED.declare(Entry.configuration);
-                return {};
-            },
             report: () => ({
                 // What it registered, by name, for deckit's core to judge it by.
                 contributions: { keys: joined.keys, commands: joined.commands, urls: !!joined.urls },

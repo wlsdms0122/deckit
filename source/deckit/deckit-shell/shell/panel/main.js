@@ -148,7 +148,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         });
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
         PROTOCOL.icon.handle(({ mod }) => MOD_DECLARED.iconOf(deckit.mods.contributesOf(mod)));
-        PROTOCOL.form.handle(({ mod }) => deckit.mods.listingOf(mod)?.form || {});
+        PROTOCOL.form.handle(({ mod }) => MOD_DECLARED.formOf(deckit.mods.contributesOf(mod)));
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);
             return [...pinned];

@@ -218,23 +218,13 @@ struct ServerTests {
         #expect(error["code"] == .number(-32600))
     }
 
-    @Test("configuration set as declared is read back as the JSON it was set as")
+    @Test("configuration set as declared is read back as the JSON it was set as, the mod not running")
     func configurationRoundTrips() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("notes")
-        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
-                + #""params":{"requests":[{"mod":"notes","origin":{"kind":"person"}}]}}"#,
-            to: sut
-        )
         let declared = #"[{"key":"wrap","type":"boolean"},{"key":"size","type":"number","maximum":12}]"#
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"configuration/declare","#
-                + #""params":{"mod":"notes","run":1,"configuration":\#(declared)}}"#,
-            to: sut
-        )
+        try mod("notes", contributes: #"{"configuration":\#(declared)}"#)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(
             #"{"jsonrpc":"2.0","id":5,"method":"configuration/set","#
                 + #""params":{"mod":"notes","key":"wrap","value":true}}"#,
@@ -365,33 +355,23 @@ struct ServerTests {
         )
     }
 
-    @Test("a configuration declared that deckit does not read is a problem of the run as it is declared")
+    @Test("a configuration declared that deckit does not read is a problem of the mod as it is read")
     func unreadConfigurationIsAProblem() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("notes")
-        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
-                + #""params":{"requests":[{"mod":"notes","origin":{"kind":"person"}}]}}"#,
-            to: sut
-        )
-        let declared = #"[{"key":"shade","type":"slider"}]"#
+        try mod("notes", contributes: #"{"configuration":[{"key":"shade","type":"slider"}]}"#)
 
         // When
-        let response = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"configuration/declare","#
-                + #""params":{"mod":"notes","run":1,"configuration":\#(declared)}}"#,
-            to: sut
-        )
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
 
         // Then
-        guard case let .array(effects)? = value(in: response, at: "result") else {
-            Issue.record("no effects in \(response)")
+        guard case let .array(mods)? = value(in: response, at: "result") else {
+            Issue.record("no mods in \(response)")
             return
         }
-        #expect(effects.contains { effect in
-            value(in: effect, at: "problem") == .string(#"configuration "shade": deckit does not read its type"#)
+        #expect(mods.contains { mod in
+            value(in: mod, at: "declarationProblems")
+                == .array([.string(#"configuration "shade": deckit does not read its type"#)])
         })
     }
 
@@ -569,7 +549,8 @@ struct ServerTests {
     private func mod(
         _ id: String,
         urls: String? = nil,
-        dependencies: String? = nil
+        dependencies: String? = nil,
+        contributes: String? = nil
     ) throws {
         let folder = URL(filePath: home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -578,9 +559,13 @@ struct ServerTests {
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            """ + (urls.map { urls in "\nurls = \(urls)" } ?? "")
+            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"")
+            + (urls.map { urls in "\nurls = \(urls)" } ?? "")
             + (dependencies.map { dependencies in "\n[dependencies]\n\(dependencies)" } ?? "")
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
+        if let contributes {
+            try Data(contributes.utf8).write(to: folder.appending(path: "contributes.json"))
+        }
         try Data().write(to: folder.appending(path: "main.js"))
     }
 

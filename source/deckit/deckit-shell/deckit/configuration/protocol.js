@@ -1,12 +1,8 @@
 // Between a mod's page and main, about configuration: a mod's own, and with deckit.mod-configuration every mod's.
 import * as CHANNEL from '../../deck/channel/index.js';
 
-// What its class declares, as soon as its entry is read: answered with the values it reads as, which the core checked.
-export const declare = CHANNEL.pageToMain(
-    'deckit-shell:configuration-declare',
-    { run: 'number', configuration: 'array' },
-    { reply: true }
-);
+// What each key the mod's contributes declares reads as, as the page starts.
+export const values = CHANNEL.pageToMain('deckit-shell:configuration-values', {}, { reply: true });
 // { key, value }, a value of null unsetting it: answers what it reads as now.
 export const set = CHANNEL.pageToMain(
     'deckit-shell:configuration-set',

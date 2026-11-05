@@ -179,6 +179,15 @@ async function main() {
     const keywords = DECLARED.keywordsOf({ keywords: ['files', 3, '', 'folder'] }).join();
     check('the declared keywords are the words among them', keywords === 'files,folder', keywords);
     check('an icon that is no text is left out', DECLARED.iconOf({ icon: 3 }) === '', '');
+    const form = DECLARED.formOf({
+        configuration: [{ key: 'size', type: 'number' }],
+        form: { size: { unit: ' px' }, gone: { placeholder: 'x' } },
+    });
+    check(
+        'a form hints only at what the configuration declares',
+        JSON.stringify(form) === JSON.stringify({ size: { unit: ' px' } }),
+        form
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);

@@ -67,7 +67,10 @@ struct GoldenTests {
             "a",
             in: "source",
             adding: "urls = [\"mailto:*\"]\n[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
-                + "\"system.global-keys\" = \"to test\"\n\"system.example\" = \"to test\""
+                + "\"system.global-keys\" = \"to test\"\n\"system.example\" = \"to test\"",
+            contributes: #"{"configuration":[{"default":12,"key":"size","minimum":8,"title":"Size","type":"number"},"#
+                + #"{"default":"mono","key":"font","oneOf":[{"const":"mono","title":"Mono"}],"type":"string"},"#
+                + #"{"default":"x","key":"bad","oneOf":[{"const":"y"}],"type":"string"}]}"#
         )
         try writeMod("b", in: "source", adding: "[dependencies]\na = \"1.0.0\"\n[interfaces]\nuses = { \"a/api\" = 1 }")
         try writeMod("c", in: "ship", adding: "[interfaces]\nprovides = { \"a/api\" = [1] }")
@@ -128,7 +131,12 @@ struct GoldenTests {
         }
     }
 
-    private func writeMod(_ id: String, in folder: String, adding extra: String = "") throws {
+    private func writeMod(
+        _ id: String,
+        in folder: String,
+        adding extra: String = "",
+        contributes: String? = nil
+    ) throws {
         let location = root.appending(path: folder).appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let manifest = """
@@ -137,8 +145,12 @@ struct GoldenTests {
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            """ + (extra.isEmpty ? "" : "\n" + extra)
+            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"")
+            + (extra.isEmpty ? "" : "\n" + extra)
         try Data(manifest.utf8).write(to: location.appending(path: "manifest.toml"))
+        if let contributes {
+            try Data(contributes.utf8).write(to: location.appending(path: "contributes.json"))
+        }
         try Data().write(to: location.appending(path: "main.js"))
     }
 }

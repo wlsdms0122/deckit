@@ -128,10 +128,6 @@ final class Server {
             try deck.state.write(folder: params.folder, key: params.key, text: params.text)
             return true
 
-        case "configuration/declare":
-            let params = try request.decodeParams(as: DeclareConfigurationParams.self)
-            return try deckit.configuration.declare(params.configuration, mod: params.mod, run: params.run)
-
         case "configuration/values":
             return deckit.configuration.values(of: try request.decodeParams(as: ModParams.self).mod)
 

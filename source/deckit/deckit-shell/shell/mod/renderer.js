@@ -24,9 +24,8 @@ import { createWindow } from '../window/renderer.js';
 // the kit and the styles from just before attach().
 // Once attach() has ended, a view is laid where the panel's guide says, or a region's for a child, unless the page is
 // in a window of its own, and a key that is never in front is left out. A view is registered only by a mod whose
-// contributes declares one, with a sidebar only where it declares the view lends one. It reads the class's `form`
-// into the run's summary, where whatever lists the mods reads it. `WEB` is deckit's web in the page, whose pages the
-// shell hands the mod; `channels` binds the shell's channels in the page.
+// contributes declares one, with a sidebar only where it declares the view lends one. `WEB` is deckit's web in the
+// page, whose pages the shell hands the mod; `channels` binds the shell's channels in the page.
 function shellOf({ WEB, channels }) {
     return ({ mod: running, contributes, deliver, fail, under: deckit }) => {
         const has = (permission) => running.permissions.some(({ id }) => id === permission);
@@ -44,7 +43,6 @@ function shellOf({ WEB, channels }) {
         let mounted = { unmount() {}, remove() {} };
         deckit.blockKeysWhen(() => PRESENTATION.count() > 0);
         return {
-            read: (Entry) => ({ form: formOf(Entry, fail) }),
             report: () => reported,
             lifecycles: [
                 deckit.lifecycle({
@@ -152,31 +150,6 @@ function themeOf(theme, scope) {
     for (const key of Object.keys(theme).filter((key) => key !== 'onChange'))
         Object.defineProperty(read, key, { get: () => theme[key], enumerable: true });
     return Object.freeze(read);
-}
-
-// Each hint for a key the class's configuration declares: `placeholder`, `unit`, `step`, and `choices`, the name of a
-// list the shell has.
-function formOf(Entry, fail) {
-    const { form, configuration } = Entry;
-    if (form === undefined) return {};
-    if (!form || typeof form !== 'object') {
-        fail('static form is no object, so it is left out');
-        return {};
-    }
-    const declared = configuration && typeof configuration === 'object' ? configuration : {};
-    const out = {};
-    for (const [key, hints] of Object.entries(form)) {
-        if (!Object.hasOwn(declared, key)) {
-            fail(`static form has "${key}", which the configuration does not declare, so it is left out`);
-            continue;
-        }
-        if (!hints || typeof hints !== 'object') {
-            fail(`static form's "${key}" is no object, so it is left out`);
-            continue;
-        }
-        out[key] = JSON.parse(JSON.stringify(hints));
-    }
-    return out;
 }
 
 export { shellOf };

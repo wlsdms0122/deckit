@@ -54,7 +54,10 @@ public final class Deckit {
         ))
         deck.add(Layer(problems: { [weak urlRouter] run, mod in urlRouter?.problems(of: run, mod: mod) ?? [] }))
         let configuration = try Configuration(deck: deck)
-        deck.add(Layer(closed: { [weak configuration] mod in configuration?.closed(mod) }))
+        deck.add(Layer(
+            declarationProblems: { [weak configuration] mod in configuration?.problems(of: mod) ?? [] },
+            read: { [weak configuration] mods in configuration?.read(mods) }
+        ))
         self.deck = deck
         self.keymap = keymap
         self.commands = commands

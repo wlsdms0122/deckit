@@ -3,7 +3,6 @@
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":86,"jsonrpc":"2.0","method":"catalog/interfaces"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"requests":[{"mod":"a","origin":{"kind":"startup"}},{"mod":"b","origin":{"kind":"required","by":"c"}},{"mod":"c","origin":{"kind":"work","work":{"command":"x"},"mod":"a"}}]}}
-{"id":5,"jsonrpc":"2.0","method":"configuration/declare","params":{"configuration":[{"default":12,"key":"size","minimum":8,"title":"Size","type":"number"},{"default":"mono","key":"font","oneOf":[{"const":"mono","title":"Mono"}],"type":"string"},{"default":"x","key":"bad","oneOf":[{"const":"y"}],"type":"string"}],"mod":"a","run":1}}
 {"id":50,"jsonrpc":"2.0","method":"runner/described","params":{"mod":"a","run":1,"summary":{"keywords":["alpha"]}}}
 {"id":81,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":0,"mod":"a","run":1}}
 {"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":{"a":0,"a/api":0},"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"}],"urls":true},"mod":"a","run":1,"summary":{"x":true}}}

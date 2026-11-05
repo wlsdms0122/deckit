@@ -179,7 +179,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const IDENTITY = createIdentity({ pages: ENV.pages });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
     const RECORD = createRecord({ CORE, IDENTITY });
-    const CONFIGURATION = createConfiguration({ CORE, LOG, IDENTITY, RUNNER });
+    const CONFIGURATION = createConfiguration({ CORE, IDENTITY });
     const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER });
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: ENV.pages });

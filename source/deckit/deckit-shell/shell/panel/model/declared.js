@@ -22,3 +22,16 @@ export function keywordsOf(contributes) {
     const keywords = contributes?.keywords;
     return Array.isArray(keywords) ? keywords.filter((word) => typeof word === 'string' && word) : [];
 }
+
+// How the mod's configuration is drawn: by each key its contributes declares under `configuration`, the hints
+// `placeholder`, `unit`, `step`, `inherits`, and `choices`, the name of a list the shell has.
+export function formOf(contributes) {
+    const form = contributes?.form;
+    if (!form || typeof form !== 'object' || Array.isArray(form)) return {};
+    const configuration = Array.isArray(contributes.configuration) ? contributes.configuration : [];
+    const declared = new Set(configuration.map((declaration) => declaration?.key));
+    const out = {};
+    for (const [key, hints] of Object.entries(form))
+        if (declared.has(key) && hints && typeof hints === 'object') out[key] = hints;
+    return out;
+}

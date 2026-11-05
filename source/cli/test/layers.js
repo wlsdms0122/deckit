@@ -27,7 +27,7 @@ async function main() {
         NOTIFICATION: { listen: () => {} },
         KEYMAP,
         COMMAND: { declare: () => ({ declared: [], off: () => {} }) },
-        CONFIGURATION: { declare: () => {}, ready: Promise.resolve() },
+        CONFIGURATION: { load: () => {}, ready: Promise.resolve() },
     });
     const problems = [];
     const deckit = MOD.layer({

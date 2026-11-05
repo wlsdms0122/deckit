@@ -6,23 +6,15 @@ import * as CONFIGURATION_PERMISSION from './model/permission.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods' configuration, as the core judges and keeps it.
-export function createConfiguration({ CORE, LOG, IDENTITY, RUNNER }) {
+export function createConfiguration({ CORE, IDENTITY }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // What a run declares the core cannot read, and the values saved that it does not take, are recorded against the
-    // run; its page is answered what its values read as.
+    // A mod's page is answered what its values read as.
     function start() {
-        PROTOCOL.declare.handle(async ({ run, configuration }, sender) => {
-            const { id } = IDENTITY.modFrom(sender);
-            try {
-                await RUNNER.ask('configuration/declare', { mod: id, run, configuration });
-            } catch (error) {
-                LOG.warn(`${id}: its configuration was not declared`, error);
-                throw error;
-            }
-            return CORE.request('configuration/values', { mod: id });
-        });
+        PROTOCOL.values.handle((_payload, sender) =>
+            CORE.request('configuration/values', { mod: IDENTITY.modFrom(sender).id })
+        );
         PROTOCOL.set.handle(({ key, value }, sender) => set(IDENTITY.modFrom(sender).id, key, value));
         PROTOCOL.list.handle((_payload, sender) => {
             IDENTITY.modFrom(sender, CONFIGURATION_PERMISSION.MOD_CONFIGURATION);

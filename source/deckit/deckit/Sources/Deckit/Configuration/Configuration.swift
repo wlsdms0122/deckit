@@ -8,14 +8,15 @@
 import Foundation
 import Deck
 
-// What can be configured of each mod: what its run declares as its entry is read, and the values saved, which deck keeps
-// for the mod under this one's name. A value saved is read as far as its declaration takes it: one it does not take
-// reads as the default, and is left as it is saved.
+// What can be configured of each mod: what it declares under `configuration` in its contributes, running or not, and
+// the values saved, which deck keeps for the mod under this one's name. A value saved is read as far as its
+// declaration takes it: one it does not take reads as the default, and is left as it is saved.
 public final class Configuration {
     // MARK: - Property
+    private let contributionKey = "configuration"
     private let name = "configuration"
     private let deck: Deck
-    // Mod id -> what its run declared, in the order declared.
+    // Mod id -> what it declares, in the order declared, as the mods were last read.
     private var declarations: [String: [ConfigurationDeclaration]] = [:]
 
     // MARK: - Initializer
@@ -24,41 +25,30 @@ public final class Configuration {
         try deck.modState.reserve(name)
     }
 
-    // MARK: - Public
-    // A mod's configuration stands from its run's declaring it as it launches until a later run declares it again, or
-    // its sandbox closes: one whose start failed can still be configured. What an older run declared, or a run past
-    // launching, is not kept. What deckit does not read is left out, and is a problem of the run, as is a value saved
-    // that reads as the default.
-    public func declare(_ declared: [JSONValue], mod: String, run number: Int) throws -> [Effect] {
-        guard let run = deck.run(of: mod), run.number == number, run.state == .launching else { return [] }
-
-        var kept: [ConfigurationDeclaration] = []
-        var problems: [String] = []
-        for item in declared {
-            switch Result(catching: { try item.decode(as: ConfigurationDeclaration.self) }) {
-            case let .success(declaration):
-                kept.append(declaration)
-
-            case let .failure(error):
-                problems.append(problem(of: item, error))
-            }
-        }
-        declarations[mod] = kept
-        problems += unread(saved: read(mod: mod), declared: kept)
-
-        var effects: [Effect] = []
-        for problem in problems {
-            effects += try deck.report(mod, run: number, problem: problem)
-        }
-        return effects
+    // MARK: - Lifecycle
+    // What deckit does not read of what the mod declares is left out, and a problem of the mod as it is read, as is a
+    // value saved that reads as the default.
+    func problems(of mod: Mod) -> [String] {
+        let (declared, problems) = declarations(of: mod)
+        return problems + unread(saved: read(mod: mod.manifest.id), declared: declared)
     }
 
+    // The mods read again, every one found: what each that loads declares now.
+    func read(_ mods: [Mod]) {
+        declarations = Dictionary(
+            uniqueKeysWithValues: mods.filter { mod in mod.problem == nil }.map { mod in
+                (mod.manifest.id, declarations(of: mod).declared)
+            }
+        )
+    }
+
+    // MARK: - Public
     // What each configuration of the mod reads as: what was saved, when its declaration takes it, or the default.
     public func values(of mod: String) -> [String: ConfigurationValue] {
         values(of: mod, declared: declared(mod))
     }
 
-    // Every loading mod's that declared any, in the mods' order.
+    // Every loading mod's that declares any, in the mods' order.
     public func list() -> [ConfigurationGroup] {
         deck.catalog.loading
             .compactMap { mod in
@@ -73,11 +63,6 @@ public final class Configuration {
 
                 return ConfigurationGroup(id: id, name: mod.manifest.name, items: items)
             }
-    }
-
-    // The mod's sandbox closed: what its runs declared ends with it.
-    func closed(_ mod: String) {
-        declarations[mod] = nil
     }
 
     // A value of none unsets it: it reads as its default again.
@@ -111,6 +96,35 @@ public final class Configuration {
         }
 
         return values
+    }
+
+    // What the mod's contributes declares that deckit reads, and why each of the rest is left out.
+    private func declarations(of mod: Mod) -> (declared: [ConfigurationDeclaration], problems: [String]) {
+        let declared: [JSONValue]
+        switch mod.contributes[contributionKey] {
+        case .none:
+            return ([], [])
+
+        case let .array(items):
+            declared = items
+
+        case .some:
+            return ([], ["contributes \"\(contributionKey)\" must be a list of declarations"])
+        }
+
+        var kept: [ConfigurationDeclaration] = []
+        var problems: [String] = []
+        for item in declared {
+            switch Result(catching: { try item.decode(as: ConfigurationDeclaration.self) }) {
+            case let .success(declaration):
+                kept.append(declaration)
+
+            case let .failure(error):
+                problems.append(problem(of: item, error))
+            }
+        }
+
+        return (kept, problems)
     }
 
     // What is saved that is read as nothing, or as the default.

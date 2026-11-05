@@ -9,22 +9,18 @@ export function createConfiguration({ RUN }) {
     // MARK: - Property
     const listeners = new Set();
     let values = {}; // what each key reads as, as the core answered
-    let declared = Promise.resolve();
+    let loaded = Promise.resolve();
 
     // MARK: - Initializer
     // MARK: - Public
-    // What the mod's class declares, `{ key: { type, title, description, default, oneOf, minimum, maximum } }`, told
-    // main as its entry is read. The core judges it and answers what each value reads as: what was saved, or the
-    // default when nothing it takes was. `ready` settles once it has.
-    function declare(configuration) {
-        const declarations = Object.entries(
-            configuration && typeof configuration === 'object' ? configuration : {}
-        ).map(([key, declaration]) => ({ ...dataOf(declaration), key }));
-        declared = PROTOCOL.declare.invoke({ run: RUN.number, configuration: declarations }).then(
+    // What each key the mod's contributes declares reads as, as the core answers: what was saved, or the default
+    // when nothing it takes was. `ready` settles once it has answered.
+    function load() {
+        loaded = PROTOCOL.values.invoke().then(
             (read) => {
                 values = { ...read };
             },
-            (error) => RUN.fail(`its configuration was not declared: ${error.message || error}`)
+            (error) => RUN.fail(`its configuration was not read: ${error.message || error}`)
         );
         PROTOCOL.changed.on(({ key, value }) => {
             if (value === undefined || value === null) delete values[key];
@@ -55,10 +51,10 @@ export function createConfiguration({ RUN }) {
     // MARK: - Private
 
     return {
-        declare,
+        load,
         forScope,
         get ready() {
-            return declared;
+            return loaded;
         },
     };
 }
@@ -84,15 +80,6 @@ function tool() {
 function given(value) {
     if (value === undefined) throw new Error('takes a value, or null to unset it');
     return value;
-}
-
-// A declaration as data: what JSON does not hold is left out, which the core then reads as missing.
-function dataOf(declaration) {
-    try {
-        return JSON.parse(JSON.stringify(declaration ?? {}));
-    } catch {
-        return {};
-    }
 }
 
 export { tool };

@@ -21,7 +21,7 @@ struct ConfigurationTests {
     func valueIsSavedAmongOthers() throws {
         // Given
         let sut = try deckit(["a", "b"])
-        _ = try sut.configuration.declare([boolean("wrap"), number("size"), string("font")], mod: "a", run: 1)
+        try declare([boolean("wrap"), number("size"), string("font")], mod: "a", in: sut)
         _ = try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true))
         _ = try sut.configuration.set(mod: "a", key: "size", value: .number(14))
 
@@ -40,7 +40,7 @@ struct ConfigurationTests {
     func setSaysWhetherChanged() throws {
         // Given
         let sut = try deckit(["a"])
-        _ = try sut.configuration.declare([number("size")], mod: "a", run: 1)
+        try declare([number("size")], mod: "a", in: sut)
         _ = try sut.configuration.set(mod: "a", key: "size", value: .number(14))
 
         // When
@@ -62,11 +62,14 @@ struct ConfigurationTests {
         try sut.deck.modState.write("configuration", mod: "a", text: #"{"size":99,"theme":"blue","wrap":1}"#)
 
         // When
-        let effects = try sut.configuration.declare([boolean("wrap"), number("size"), theme], mod: "a", run: 1)
+        try declare([boolean("wrap"), number("size"), theme], mod: "a", in: sut)
 
         // Then
         #expect(sut.configuration.values(of: "a") == ["size": .number(12), "theme": .string("light")])
-        #expect(effects.problem == #"configuration "size" does not take 99, which is saved: it reads as its default"#)
+        #expect(
+            problems(of: "a", in: sut).first
+                == #"configuration "size" does not take 99, which is saved: it reads as its default"#
+        )
         #expect(sut.deck.modState.read("configuration", mod: "a") == #"{"size":99,"theme":"blue","wrap":1}"#)
     }
 
@@ -77,11 +80,13 @@ struct ConfigurationTests {
         try sut.deck.modState.write("configuration", mod: "a", text: #"{"gone":true}"#)
 
         // When
-        let effects = try sut.configuration.declare([boolean("wrap")], mod: "a", run: 1)
+        try declare([boolean("wrap")], mod: "a", in: sut)
 
         // Then
         #expect(sut.configuration.values(of: "a").isEmpty)
-        #expect(effects.problem == #"configuration "gone" is saved, and the mod does not declare it"#)
+        #expect(
+            problems(of: "a", in: sut).first == #"configuration "gone" is saved, and the mod does not declare it"#
+        )
     }
 
     @Test("a text saved that is not a table of values reads as none saved")
@@ -91,29 +96,40 @@ struct ConfigurationTests {
         try sut.deck.modState.write("configuration", mod: "a", text: "[1,2]")
 
         // When
-        _ = try sut.configuration.declare([number("size")], mod: "a", run: 1)
+        try declare([number("size")], mod: "a", in: sut)
 
         // Then
         #expect(sut.configuration.values(of: "a") == ["size": .number(12)])
     }
 
-    @Test("only the mod's latest run declares, while it launches")
-    func onlyTheLaunchingRunDeclares() throws {
+    @Test("a mod declares in its contributes, its declarations read whether it runs or not")
+    func declarationsStandWithoutARun() throws {
         // Given
-        let sut = try deckit(["a", "b"])
+        let sut = try deckit(["a"])
+        try declare([boolean("wrap")], mod: "a", in: sut)
 
         // When
-        _ = try sut.configuration.declare([boolean("wrap")], mod: "a", run: 0)
-        _ = try sut.configuration.declare([boolean("wrap")], mod: "b", run: 1)
-        _ = try sut.started("b", run: 1, contributing: [:])
-        _ = try sut.configuration.declare([boolean("hidden")], mod: "b", run: 1)
-        let wrap = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
-        let hidden = Result { try sut.configuration.set(mod: "b", key: "hidden", value: .bool(true)) }
+        _ = try sut.deck.unload(["a"])
+        _ = try sut.deck.stopped("a", run: 1)
+        let wrap = try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true))
 
         // Then
-        #expect(throws: ConfigurationError.undeclared(mod: "a", key: "wrap")) { try wrap.get() }
-        #expect(throws: ConfigurationError.undeclared(mod: "b", key: "hidden")) { try hidden.get() }
-        #expect(sut.configuration.values(of: "b") == [:])
+        #expect(wrap.value == .bool(true))
+        #expect(sut.configuration.list().map(\.id) == ["a"])
+    }
+
+    @Test("a contributes that declares no list is a problem of the mod, and declares nothing")
+    func declarationsNotAListAreAProblem() throws {
+        // Given
+        let sut = try deckit(["a"])
+
+        // When
+        try fixture.write("a", contributes: ["configuration": .object(["wrap": boolean("wrap")])])
+        _ = sut.deck.readCatalog()
+
+        // Then
+        #expect(problems(of: "a", in: sut) == [#"contributes "configuration" must be a list of declarations"#])
+        #expect(sut.configuration.list().isEmpty)
     }
 
     @Test(
@@ -142,12 +158,12 @@ struct ConfigurationTests {
         let sut = try deckit(["a"])
 
         // When
-        let effects = try sut.configuration.declare([boolean("wrap"), .object(fields)], mod: "a", run: 1)
+        try declare([boolean("wrap"), .object(fields)], mod: "a", in: sut)
         let wrap = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
 
         // Then
         #expect(throws: Never.self) { try wrap.get() }
-        #expect(effects.problem == problem)
+        #expect(problems(of: "a", in: sut).first == problem)
     }
 
     @Test("a value is set as its declaration takes it, and a number within its bounds")
@@ -155,7 +171,7 @@ struct ConfigurationTests {
         // Given
         let sut = try deckit(["a"])
         let theme = declaration(["key": .string("theme"), "type": .string("string"), "oneOf": choices])
-        _ = try sut.configuration.declare([boolean("wrap"), number("size"), string("font"), theme], mod: "a", run: 1)
+        try declare([boolean("wrap"), number("size"), string("font"), theme], mod: "a", in: sut)
 
         // When
         let size = try sut.configuration.set(mod: "a", key: "size", value: .number(99))
@@ -170,7 +186,7 @@ struct ConfigurationTests {
     func valueUnsetReadsAsDefault() throws {
         // Given
         let sut = try deckit(["a"])
-        _ = try sut.configuration.declare([number("size"), string("font")], mod: "a", run: 1)
+        try declare([number("size"), string("font")], mod: "a", in: sut)
         _ = try sut.configuration.set(mod: "a", key: "size", value: .number(14))
         _ = try sut.configuration.set(mod: "a", key: "font", value: .string("Menlo"))
 
@@ -203,7 +219,7 @@ struct ConfigurationTests {
         // Given
         let sut = try deckit(["a"])
         let theme = declaration(["key": .string("theme"), "type": .string("string"), "oneOf": choices])
-        _ = try sut.configuration.declare([boolean("wrap"), number("size"), string("font"), theme], mod: "a", run: 1)
+        try declare([boolean("wrap"), number("size"), string("font"), theme], mod: "a", in: sut)
 
         // When
         let set = Result { try sut.configuration.set(mod: "a", key: key, value: value) }
@@ -212,16 +228,16 @@ struct ConfigurationTests {
         #expect(throws: refusal) { try set.get() }
     }
 
-    @Test("the list has every loading mod's that declared any, in the catalog's order, with the values they read as")
+    @Test("the list has every loading mod's that declares any, in the catalog's order, with the values they read as")
     func listHasDeclaredConfiguration() throws {
         // Given
         let sut = try deckit(["b", "c", "a"])
         let theme = declaration(
             ["key": .string("theme"), "type": .string("string"), "default": .string("light"), "oneOf": choices]
         )
-        _ = try sut.configuration.declare([theme, number("size"), string("font")], mod: "b", run: 1)
-        _ = try sut.configuration.declare([], mod: "c", run: 1)
-        _ = try sut.configuration.declare([boolean("wrap")], mod: "a", run: 1)
+        try declare([theme, number("size"), string("font")], mod: "b", in: sut)
+        try declare([], mod: "c", in: sut)
+        try declare([boolean("wrap")], mod: "a", in: sut)
         _ = try sut.configuration.set(mod: "b", key: "size", value: .number(14))
 
         // When
@@ -235,42 +251,20 @@ struct ConfigurationTests {
         #expect(items[0].declaration.oneOf.map(\.value) == [.string("light"), .string("dark")])
     }
 
-    @Test("what a mod that no longer loads declared is neither listed nor set")
+    @Test("what a mod that no longer loads declares is neither listed nor set")
     func whatNoLongerLoadsIsLeftOut() throws {
         // Given
         let sut = try deckit(["a", "b"])
-        _ = try sut.configuration.declare([boolean("wrap")], mod: "a", run: 1)
-        _ = try sut.configuration.declare([boolean("wrap")], mod: "b", run: 1)
+        try declare([boolean("wrap")], mod: "a", in: sut)
+        try declare([boolean("wrap")], mod: "b", in: sut)
         try fixture.remove("a")
 
         // When
         _ = sut.deck.readCatalog()
-        _ = try sut.deck.unload(["a"])
-        _ = try sut.deck.stopped("a", run: 1)
         let wrap = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
 
         // Then
         #expect(sut.configuration.list().map(\.id) == ["b"])
-        #expect(throws: ConfigurationError.undeclared(mod: "a", key: "wrap")) { try wrap.get() }
-    }
-
-    @Test("what a mod's runs declared ends as its sandbox closes, though the mod still loads")
-    func declarationEndsWithItsSandbox() throws {
-        // Given
-        let sut = try deckit(["a"])
-        _ = try sut.configuration.declare([boolean("wrap")], mod: "a", run: 1)
-        try fixture.write("a", permissions: ["deckit.app-keys"])
-        _ = sut.deck.readCatalog()
-
-        // When
-        let before = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
-        _ = try sut.deck.unload(["a"])
-        _ = try sut.deck.stopped("a", run: 1)
-        let wrap = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
-
-        // Then
-        #expect(throws: Never.self) { try before.get() }
-        #expect(sut.configuration.values(of: "a").isEmpty)
         #expect(throws: ConfigurationError.undeclared(mod: "a", key: "wrap")) { try wrap.get() }
     }
 
@@ -311,6 +305,17 @@ struct ConfigurationTests {
             try fixture.write(id)
         }
         return try fixture.deckit()
+    }
+
+    // The mod written again with `declarations` under `configuration` in its contributes, and the mods read again.
+    private func declare(_ declarations: [JSONValue], mod id: String, in sut: Deckit) throws {
+        try fixture.write(id, contributes: ["configuration": .array(declarations)])
+        _ = sut.deck.readCatalog()
+    }
+
+    // What is wrong with what the mod declares, as it was last read.
+    private func problems(of id: String, in sut: Deckit) -> [String] {
+        sut.deck.catalog.loading.first { mod in mod.manifest.id == id }?.declarationProblems ?? []
     }
 
     private func declaration(_ fields: [String: JSONValue]) -> JSONValue {
