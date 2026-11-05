@@ -76,7 +76,7 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | what a mod's run is: its states, its transitions and what each tells | the core, `Deck/Run/Lifecycle`; the notifications' names are `deckit-shell/deck/mod/lifecycle.js` |
 | what a manifest may say, and what may be asked for in it | the core, `Deck/Mod/Manifest`, with the permissions each layer defines and the fields deckit adds |
 | the mods found, installed and removed | the core, `Deck/Mod/Catalog` and `Deck/Mod/Install`; main's copy is `deckit-shell/deck/catalog/index.js` |
-| who depends on whom, and the order the mods load in | the core, `Deck/Mod/Catalog`, and `Deck/Mod/LoadOrder` for the order the person keeps, in `deck.json` |
+| who depends on whom, and the order the mods stand in | the core, `Deck/Mod/Catalog`, and `Deck/Mod/Order` for the order the person keeps, in `deck.json` |
 | which mods load or unload, and when | main, `deckit-shell/deck/runner/main.js` |
 | each mod in its sandbox, and where each run is in its lifecycle | the core, `Deck/Run/Runner`; main's copy, and the pages it does it with, `deckit-shell/deck/runner/main.js`; the page a mod runs in, `deckit-electron/environment/main.js` |
 | which mod owns each interface | the core, `Deck/Mod/Owner`, from the manifests' `provides`, each interface's queue of providers and the person's pins, kept in `deck.json` |
@@ -118,7 +118,7 @@ What a mod is, the core says (`Deck/Mod/Manifest`): its manifest, its folder, it
 Deckit's folder is the `home` of the host app's `folders`, or `~/.config/<id>`:
 
 ```
-deck.json       deck's settings: the load order (`loadOrder`), the mod ids
+deck.json       deck's settings: the mods' order (`order`), the mod ids
 mods/           installed mods, a folder each, named by id
 data/<id>/      a mod's own files (a main process module's notes, its workspaces)
 records/<id>/   a mod's records, one JSON file a key
