@@ -1,8 +1,8 @@
 // The regions mods give in their views (deckit-shell/shell/region/main), over a stand-in for what connect answers: a
 // child is the child of the owner of the interface its view names as parent, at the major it uses, a region shows only
 // the children of its own interface, so a mod that gives regions for two keeps them apart, and a new owner takes a
-// child out of the old one's region and to the new one's children. Exits 1 with a line for each check that
-// failed. The packages are ES modules, so they are imported as such.
+// child out of the old one's region and to the new one's children, and a view names as parent only an interface its
+// mod uses. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -136,6 +136,15 @@ async function main() {
     owners.set('dash/tools', 'tool');
     check('the owner of the interface it names is no child', REGION.parentOf('tool') === null, '');
     check('a child with no parent is still a child', REGION.interfaceOf('tool') === 'dash/tools', '');
+
+    const { parentProblem } = await import(url('deckit-shell', 'shell', 'region', 'renderer.js'));
+    const child = { uses: { 'dash/boards': 1 } };
+    check('a view may name as parent an interface its mod uses', parentProblem('dash/boards', child) === '', '');
+    check(
+        'a view naming as parent an interface its mod does not use is refused',
+        parentProblem('dash/tools', child) !== '',
+        parentProblem('dash/tools', child)
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);
