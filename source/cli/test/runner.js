@@ -4,8 +4,8 @@
 // has launched, one restarted with the mods that require it, each for its origin, the core asked first what the owners
 // come to as the catalog changes, with no new mod loaded for it and the owner change it delivers reaching the page that
 // listens, a changed mod that ran loaded again, a startup mod that failed loaded again unless it reached the relaunch
-// limit, a mod that quits its run, the page closed, and the quit held while a run has not ended. Exits 1 with a line
-// for each check that failed. The packages are ES modules, so they are imported as such.
+// limit, a mod that quits its run, a mod activated for work, the page closed, and the quit held while a run has not
+// ended. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -324,6 +324,43 @@ async function main() {
     );
     answers.set('runner/started', [[told('didLaunch', 'running')]]);
     await RUNNER.ask('runner/started', { mod: 'a', run: 1 });
+
+    // A mod activated for work: one running is answered as it runs, one not running loads for the work and is answered
+    // once its start has ended, and one that fails to launch is refused with why.
+    const work = { kind: 'work', work: { command: 'go' }, mod: 'b' };
+    loadsBefore = loadsNow();
+    const already = await RUNNER.activate('a', work);
+    check('a mod running is activated as it runs', already === RUNNER.runOf('a') && loadsNow() === loadsBefore, null);
+    answers.set('runner/unload', [[told('didTerminate', 'notRunning')]]);
+    await RUNNER.unload(['a']);
+    answers.set('runner/load', [
+        [told('willLaunch', 'launching', 'a', { origin: work }), told('didLaunch', 'running')],
+    ]);
+    const activated = await RUNNER.activate('a', work);
+    check(
+        'a mod not running loads for the work and is answered once it runs',
+        activated.state === 'running' &&
+            requests(methods('runner/load').at(-1)) === JSON.stringify([{ mod: 'a', origin: work }]),
+        asked.slice(-1)
+    );
+    answers.set('runner/unload', [[told('didTerminate', 'notRunning')]]);
+    await RUNNER.unload(['a']);
+    answers.set('runner/load', [
+        [
+            told('willLaunch', 'launching', 'a', { origin: work }),
+            told('didFailToLaunch', 'terminating', 'a', { problem: 'its start threw' }),
+        ],
+    ]);
+    const refusal = await RUNNER.activate('a', work).catch((error) => error);
+    check(
+        'a mod that fails to launch for the work is refused with why',
+        refusal.kind === 'NOT_RUNNING' && /its start threw/.test(refusal.message),
+        refusal.message
+    );
+    answers.set('runner/stopped', [[told('didTerminate', 'notRunning', 'a', { failed: true })]]);
+    await RUNNER.ask('runner/stopped', { mod: 'a', run: 1 });
+    answers.set('runner/load', [[told('willLaunch', 'launching', 'a'), told('didLaunch', 'running')]]);
+    await RUNNER.load(['a'], { kind: 'person' });
 
     answers.set('runner/crash', [[{ effect: 'close', mod: 'a' }]]);
     watching.get(page).gone('killed');
