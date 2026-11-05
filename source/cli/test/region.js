@@ -1,7 +1,7 @@
 // The regions mods give in their views (deckit-shell/shell/region/main), over a stand-in for what connect answers: a
-// child is the child of the mod picked for the interface its view names as parent, at a version it takes, a region
-// shows only the children of its own interface, so a mod that gives regions for two keeps them apart, and a new pick
-// takes a child out of the old one's region and to the new one's children. Exits 1 with a line for each check that
+// child is the child of the owner of the interface its view names as parent, at the major it uses, a region shows only
+// the children of its own interface, so a mod that gives regions for two keeps them apart, and a new owner takes a
+// child out of the old one's region and to the new one's children. Exits 1 with a line for each check that
 // failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -17,19 +17,19 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    // `board` and `tool` are children of `dash/boards` and `dash/tools`, which `dash` implements, and `other` and
-    // `tool` implement one of.
+    // `board` and `tool` are children of `dash/boards` and `dash/tools`, which `dash` provides, and `other` and `tool`
+    // provide one of.
     const mods = [
-        { id: 'dash', name: 'Dash', implements: { 'dash/boards': '1.0.0', 'dash/tools': '1.0.0' } },
-        { id: 'other', name: 'Other', implements: { 'dash/boards': '1.0.0' } },
-        { id: 'board', name: 'Board', implements: {} },
-        { id: 'tool', name: 'Tool', implements: { 'dash/tools': '1.0.0' } },
+        { id: 'dash', name: 'Dash', provides: { 'dash/boards': [1], 'dash/tools': [1] } },
+        { id: 'other', name: 'Other', provides: { 'dash/boards': [1] } },
+        { id: 'board', name: 'Board', provides: {} },
+        { id: 'tool', name: 'Tool', provides: { 'dash/tools': [1] } },
     ];
-    const picks = new Map([
+    const owners = new Map([
         ['dash/boards', 'dash'],
         ['dash/tools', 'dash'],
     ]);
-    const untaken = new Set(); // the mods that do not take the version picked for what they name
+    const unreached = new Set(); // the mods whose interface's owner does not provide the major they use
     const pages = Object.fromEntries(mods.map(({ id }) => [id, { mod: id }]));
     const runs = Object.fromEntries(mods.map(({ id }) => [id, { mod: { id }, state: 'running', relaunches: false }]));
     const handlers = {};
@@ -47,10 +47,10 @@ async function main() {
         mods: {
             notifications: ['didTerminate'],
             list: () => mods,
-            // As deckit's: null for a dependent that does not take the pick, and for one that is itself the pick.
-            pickOf: (named, dependent) => {
-                const picked = picks.get(named) ?? null;
-                return untaken.has(dependent) || picked === dependent ? null : picked;
+            // As deckit's: null for a dependent the owner does not reach, and for one that is itself the owner.
+            ownerOf: (named, dependent) => {
+                const owner = owners.get(named) ?? null;
+                return unreached.has(dependent) || owner === dependent ? null : owner;
             },
             runOf: (id) => runs[id],
             runs: () => Object.values(runs).map((run) => ({ run, page: pages[run.mod.id] })),
@@ -85,7 +85,7 @@ async function main() {
         children
     );
     check(
-        'a child is the child of the mod picked for its interface',
+        'a child is the child of the owner of its interface',
         REGION.parentOf('board') === 'dash' && REGION.interfaceOf('board') === 'dash/boards',
         [REGION.parentOf('board'), REGION.interfaceOf('board')]
     );
@@ -103,39 +103,39 @@ async function main() {
     } catch (error) {
         refused = error.message;
     }
-    check('a mod not picked for the interface has no children of it', !!refused, refused);
+    check('a mod that does not own the interface has no children of it', !!refused, refused);
 
     channel('place')({ region: 1, interface: 'dash/boards', id: 'board' }, pages.dash);
     channel('place')({ region: 2, interface: 'dash/tools', id: 'tool' }, pages.dash);
     const laid = [...REGION.laidOut('dash', () => true).keys()].join();
     check("each region shows its interface's child", laid === 'board,tool', laid);
 
-    picks.set('dash/boards', 'other');
+    owners.set('dash/boards', 'other');
     sent.length = 0;
     changes.forEach((listener) => listener());
     const after = [...REGION.laidOut('dash', () => true).keys()].join();
-    check("a new pick takes the child out of the old one's region", after === 'tool', after);
+    check("a new owner takes the child out of the old one's region", after === 'tool', after);
     const told = sent.find(({ page }) => page === pages.other)?.payload.children;
     check(
-        'the mod picked now hears the child among its children',
+        'the owner now hears the child among its children',
         JSON.stringify(told) === JSON.stringify({ 'dash/boards': [{ id: 'board', name: 'Board', icon: '' }] }),
         sent
     );
     const before = sent.find(({ page }) => page === pages.dash)?.payload.children;
     check(
-        'the mod picked before hears it gone',
+        'the owner before hears it gone',
         JSON.stringify(before) ===
             JSON.stringify({ 'dash/boards': [], 'dash/tools': [{ id: 'tool', name: 'Tool', icon: '' }] }),
         sent
     );
 
-    untaken.add('board');
-    check('a child that does not take the version picked has no parent', REGION.parentOf('board') === null, '');
-    untaken.delete('board');
+    unreached.add('board');
+    check("a child its interface's owner does not reach has no parent", REGION.parentOf('board') === null, '');
+    unreached.delete('board');
 
-    picks.set('dash/tools', 'tool');
-    check('a mod picked for the interface it names is no child', REGION.parentOf('tool') === null, '');
-    check('a child with no parent picked is still a child', REGION.interfaceOf('tool') === 'dash/tools', '');
+    owners.set('dash/tools', 'tool');
+    check('the owner of the interface it names is no child', REGION.parentOf('tool') === null, '');
+    check('a child with no parent is still a child', REGION.interfaceOf('tool') === 'dash/tools', '');
 
     if (failed.length) {
         for (const line of failed) console.error(line);

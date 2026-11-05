@@ -1,9 +1,9 @@
 // Deck's runner and connections in a mod's page (deckit-shell/deck/runner/renderer.js, deck/connection/renderer.js)
 // over a stand-in for the messages main and the page carry, with a layer stacking two lifecycles: exports registered by
-// interface, each once for the run, refused with why for an interface the manifest does not implement, a second
-// register, or one in the other lifecycle after one lifecycle opened it; what main is told each opened in; the
-// implementation's `connect` handed the dependent's id and name; and the dependent's `dependencies` and `onConnect`
-// keyed by interface. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported
+// interface, and for the mods that depend on it by id under its own id, each once for the run, refused with why for an
+// interface the manifest does not provide, a second register, or one in the other lifecycle after one lifecycle opened
+// it; what main is told each opened in; the `connect` handed the dependent's id and name; and the dependent's
+// `dependencies`, by the id of the mod it requires, and `onConnect`, by the interface it uses. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported
 // as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -30,8 +30,9 @@ async function main() {
         id: 'p',
         name: 'P',
         main: 'main.js',
-        implements: { 'p/one': '1.0.0', 'p/two': '1.0.0' },
-        dependencies: { 'q/required': '1.0.0', 'q/optional': { version: '1.0.0', optional: true } },
+        provides: { 'p/one': [1], 'p/two': [1] },
+        uses: { 'q/optional': 1 },
+        dependencies: { q: { version: '1.0.0', optional: false } },
         permissions: [],
     };
     const tells = [];
@@ -43,7 +44,7 @@ async function main() {
                 ? [
                       {
                           id: 10,
-                          interface: 'q/required',
+                          name: 'q',
                           required: true,
                           exportedIn: 0,
                           exports: { value: { answer: 42 }, references: [] },
@@ -73,24 +74,27 @@ async function main() {
         return tells.find((message) => message.id === id && message.channel === `deckit-shell:${channel}`);
     };
 
-    // The mod: it implements p/one and p/two, requires q/required and listens for q/optional.
+    // The mod: it provides p/one and p/two, opens its own exports for its id dependents, requires q and listens for
+    // q/optional.
     const seen = { connected: [], heard: [] };
     class Mod {
         start(deckit) {
             seen.dependencies = Object.keys(deckit.dependencies);
-            seen.required = deckit.dependencies['q/required'].answer;
+            seen.required = deckit.dependencies.q.answer;
             deckit.exports.register('p/one', {
                 connect: (connection) => {
                     seen.connected.push(connection);
                     return { who: () => connection.mod.id };
                 },
             });
+            deckit.exports.register({ connect: (connection) => ({ own: connection.mod.id }) });
             deckit.exports.register('p/one', { connect: () => ({}) });
             deckit.exports.register('q/other', { connect: () => ({}) });
         }
 
         attach(deckit) {
             deckit.exports.register('p/one', { connect: () => ({}) });
+            deckit.exports.register({ connect: () => ({}) });
             deckit.exports.register('p/two', { connect: () => ({ two: true }) });
             deckit.dependencies.onConnect('q/optional', (exports) => seen.heard.push(exports));
         }
@@ -116,21 +120,21 @@ async function main() {
     for (let at = 0; at < 5; at++) await tick();
 
     check(
-        "a required interface's exports are the lifecycle's dependencies, by the interface",
-        seen.required === 42 && seen.dependencies.join() === 'q/required,onConnect',
+        "a required mod's exports are the lifecycle's dependencies, by its id",
+        seen.required === 42 && seen.dependencies.join() === 'q,onConnect',
         seen
     );
     const problems = payloads('mod-problem').map(({ problem }) => problem);
     check(
         'a second register of an interface is refused on the row',
         problems.some((problem) =>
-            /deckit\.exports\.register\(\) is called once for each interface, and p\/one/.test(problem)
+            /deckit\.exports\.register\(\) is called once for each name, and p\/one/.test(problem)
         ),
         problems
     );
     check(
-        'a register of an interface the manifest does not implement is refused on the row',
-        problems.some((problem) => /takes an interface the manifest implements, and q\/other is not one/.test(problem)),
+        'a register of an interface the manifest does not provide is refused on the row',
+        problems.some((problem) => /takes an interface the manifest provides, and q\/other is not one/.test(problem)),
         problems
     );
     check(
@@ -138,12 +142,17 @@ async function main() {
         problems.some((problem) => /a lifecycle under it opened p\/one/.test(problem)),
         problems
     );
+    check(
+        'a register of its own exports in the other lifecycle after one lifecycle opened them is refused on the row',
+        problems.some((problem) => /a lifecycle under it opened its own id/.test(problem)),
+        problems
+    );
     const started = payloads('mod-started')[0];
     const joined = payloads('mod-joined').at(-1);
     check(
-        'main is told the lifecycle each interface was opened in',
-        JSON.stringify(started?.contributions.exportedIn) === '{"p/one":0}' &&
-            JSON.stringify(joined?.contributions.exportedIn) === '{"p/one":0,"p/two":1}',
+        "main is told the lifecycle each interface and the mod's own exports were opened in, these by its id",
+        JSON.stringify(started?.contributions.exportedIn) === '{"p/one":0,"p":0}' &&
+            JSON.stringify(joined?.contributions.exportedIn) === '{"p/one":0,"p":0,"p/two":1}',
         { started, joined }
     );
     check('the summary says exports were opened', joined?.summary.exports === true, joined?.summary);
@@ -153,10 +162,10 @@ async function main() {
         joined?.contributions
     );
 
-    // The implementation's end: each connection asks the exports of its interface, opened in that lifecycle.
+    // The dependency's end: each connection asks the exports of its name, opened in that lifecycle.
     const one = await ask('connection-connect', {
         id: 1,
-        interface: 'p/one',
+        name: 'p/one',
         mod: { id: 'd', name: 'D' },
         lifecycle: 0,
     });
@@ -169,25 +178,36 @@ async function main() {
     );
     const two = await ask('connection-connect', {
         id: 2,
-        interface: 'p/two',
+        name: 'p/two',
         mod: { id: 'd', name: 'D' },
         lifecycle: 1,
     });
     check("another interface's exports answer its own connections", two?.value?.value?.two === true, two);
     const wrong = await ask('connection-connect', {
         id: 3,
-        interface: 'p/two',
+        name: 'p/two',
         mod: { id: 'd', name: 'D' },
         lifecycle: 0,
     });
     check('an interface is not answered for a lifecycle that did not open it', wrong?.value === null, wrong);
+    const own = await ask('connection-connect', {
+        id: 4,
+        name: 'p',
+        mod: { id: 'd', name: 'D' },
+        lifecycle: 0,
+    });
+    check(
+        "the mod's own exports answer a connection by its id, made for the dependent",
+        own?.value?.value?.own === 'd',
+        own
+    );
 
     // The dependent's end: a connection that comes and goes is handed to what listens for its interface.
     heard.told({
         channel: 'deckit-shell:connection-connected',
         payload: {
             id: 20,
-            interface: 'q/optional',
+            name: 'q/optional',
             required: false,
             exportedIn: 1,
             exports: { value: { optional: true }, references: [] },

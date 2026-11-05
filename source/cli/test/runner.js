@@ -1,8 +1,8 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: a run's page
 // made, known as the mod's and set up before it loads, what the core is told as the page fails, crashes or is
 // replaced, a run's end asked of its page, a mod loaded once what it requires has launched, one restarted with the
-// mods that require it, one that requires an interface picked anew loaded again once the core has said what the pick
-// comes to, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each
+// mods that require it, the core asked first what the owners come to as the catalog changes, with no mod loaded again
+// for it and the owner change it delivers reaching the page that listens, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each
 // check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -13,6 +13,7 @@ const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
     const { createRunner } = await import(url('deckit-shell', 'deck', 'runner', 'main.js'));
+    const { createEvent } = await import(url('deckit-shell', 'deck', 'event', 'main.js'));
     const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;
@@ -49,11 +50,14 @@ async function main() {
     };
     IPC.carry({ messages, pages }, { report: () => {} });
     const app = { onQuit: (given) => (hold = given), quit: () => done.push(['quit']) };
-    const IDENTITY = { add: (page) => done.push(['add', page.modId]), modFrom: () => ({ id: 'a' }) };
+    const IDENTITY = {
+        add: (page) => done.push(['add', page.modId]),
+        modFrom: () => ({ id: 'a' }),
+        pageOf: (id) => RUNNER.runs().find(({ run }) => run.mod.id === id)?.page ?? null,
+    };
     let catalog = [{ id: 'a', relations: [], revision: '1', dependents: [] }];
-    let picks = new Map([['a/x', 'a']]);
     let changed = null;
-    const CATALOG = { onChange: (listener) => (changed = listener), mods: () => catalog, picks: () => picks };
+    const CATALOG = { onChange: (listener) => (changed = listener), mods: () => catalog };
     const LOG = { warn: () => {}, error: () => {} };
     // The core answers each request with what the test queued for its method, a list of effects or a function that
     // answers, and nothing otherwise.
@@ -74,6 +78,7 @@ async function main() {
     ]);
 
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages, app });
+    createEvent({ CORE, LOG, IDENTITY, RUNNER }).start();
     RUNNER.start({ preparePage: (page) => done.push(['prepare', page.modId]) });
     await tick();
     const order = done.map(([what]) => what).join(' ');
@@ -151,7 +156,7 @@ async function main() {
         ...catalog,
         {
             id: 'b',
-            relations: [{ interface: 'a/x', optional: false, version: '1.0.0', id: 'a' }],
+            relations: [{ id: 'a', optional: false, version: '1.0.0', name: 'a' }],
             revision: '1',
             dependents: [],
         },
@@ -200,36 +205,39 @@ async function main() {
     check('a run that launches while a reload is bringing its mod back says so too', markedAgain === true, markedAgain);
     check('a reload ended says so no more', RUNNER.runOf('a').relaunches === false, RUNNER.runOf('a').relaunches);
 
-    // Another mod picked for an interface: the core says first what that comes to, and a mod that requires the
-    // interface goes and loads again, once the mod picked now has launched.
-    catalog = [
-        ...catalog.map((mod) =>
-            mod.id === 'b' ? { ...mod, relations: [{ ...mod.relations[0], id: 'c' }] } : { ...mod, dependents: [] }
-        ),
-        { id: 'c', relations: [], revision: '1', dependents: ['b'] },
-    ];
-    picks = new Map([['a/x', 'c']]);
+    // A mod found anew, which may own an interface now: the core says first what the owners come to, delivering the
+    // owner change to the mods that listen, and it loads, while what runs runs on.
+    catalog = [...catalog, { id: 'c', relations: [], revision: '1', dependents: [] }];
     const before = asked.length;
-    answers.set('runner/unload', [[told('didTerminate', 'notRunning', 'b')]]);
+    const toldBefore = tells.length;
+    answers.set('runner/reconnect', [[{ effect: 'deliver', name: 'x/api:owner-changed', listeners: ['b'] }]]);
     answers.set('runner/load', [
         [{ effect: 'open', found: found('c') }, told('willLaunch', 'launching', 'c'), { effect: 'loadPage', mod: 'c' }],
-        [told('willLaunch', 'launching', 'b'), told('didLaunch', 'running', 'b')],
     ]);
     changed();
     for (let at = 0; at < 6; at++) await tick();
     answers.set('runner/started', [[told('didLaunch', 'running', 'c')]]);
     await RUNNER.ask('runner/started', { mod: 'c', run: 1 });
     await RUNNER.whenReconciled();
-    const repicking = asked
+    const reconnecting = asked
         .slice(before)
         .filter(({ method }) => method !== 'runner/started')
         .map(({ method, params }) => `${method}${params.mods ? ' ' + params.mods.join() : ''}`);
     check(
-        'a pick change asks the core first, then loads again what requires the interface, after the mod picked now',
-        repicking.join(' | ') === 'runner/repick | runner/unload b | runner/load c | runner/load b',
-        repicking
+        'a catalog change asks the core first what the owners come to, then loads what is new',
+        reconnecting.join(' | ') === 'runner/reconnect | runner/load c',
+        reconnecting
     );
-    check('a mod picked anew runs the mod that requires it again', RUNNER.runOf('b')?.state === 'running', null);
+    check('a mod that runs runs on as the owners change', RUNNER.runOf('b')?.state === 'running', null);
+    const delivered = tells
+        .slice(toldBefore)
+        .filter(([, message]) => message.channel === 'deckit-shell:event')
+        .map(([page, message]) => [page.modId, message.payload]);
+    check(
+        'an owner change the core delivers reaches the page of the mod that listens, carrying nothing',
+        JSON.stringify(delivered) === '[["b",{"name":"x/api:owner-changed","args":[]}]]',
+        delivered
+    );
 
     answers.set('runner/crash', [[{ effect: 'close', mod: 'a' }]]);
     watching.get(page).gone('killed');

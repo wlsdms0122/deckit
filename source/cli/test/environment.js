@@ -20,7 +20,7 @@ const USED = {
         list: 'function',
         onChange: 'function',
         arrange: 'function',
-        pickOf: 'function',
+        ownerOf: 'function',
         runs: 'function',
         runOf: 'function',
         listingOf: 'function',

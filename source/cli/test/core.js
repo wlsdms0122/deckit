@@ -43,7 +43,6 @@ async function main() {
 
     CORE.start({
         permissions: [{ id: 'a.b' }, { id: 'a.c' }],
-        implementations: { 'a/x': ['a'] },
         layers: { handlers: { x: ['a'] } },
     });
     const early = outcome(CORE.request('catalog/read', {}));
@@ -52,11 +51,6 @@ async function main() {
     check(
         'initialize carries the home and the permissions',
         sent[0].params.home === '/home/deckit' && sent[0].params.permissions[1].id === 'a.c',
-        sent[0].params
-    );
-    check(
-        "initialize carries the host app's implementations",
-        sent[0].params.implementations?.['a/x']?.join() === 'a',
         sent[0].params
     );
     check(
