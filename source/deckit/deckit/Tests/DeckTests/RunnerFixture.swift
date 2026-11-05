@@ -9,7 +9,7 @@ import Foundation
 import Testing
 @testable import Deck
 
-// The mods a test writes into a source folder, and a runner over them.
+// The mods a test writes into a source folder, and a runner or a deck over them.
 struct RunnerFixture {
     // MARK: - Property
     private let home: URL
@@ -98,6 +98,21 @@ struct RunnerFixture {
         _ = catalog.read()
 
         return catalog
+    }
+
+    // A deck over what is written, its catalog read, with no mod loaded.
+    func deck() throws -> Deck {
+        let deck = try Deck(
+            home: home,
+            ship: [],
+            sources: [source],
+            api: try #require(Version("1.0.0")),
+            permissions: [],
+            fields: []
+        )
+        _ = deck.readCatalog()
+
+        return deck
     }
 
     // MARK: - Private
