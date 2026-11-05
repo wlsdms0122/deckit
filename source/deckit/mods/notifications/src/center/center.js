@@ -101,7 +101,7 @@ function center(deckit, { now = Date.now } = {}) {
         if (!Array.isArray(actions) || actions.some((action) => !action?.title || typeof action.token !== 'string'))
             throw new TypeError('actions are [{ title, token }]');
         const notification = {
-            id: crypto.randomUUID(),
+            id: newId(),
             mod,
             title,
             body,
@@ -118,6 +118,13 @@ function center(deckit, { now = Date.now } = {}) {
             drain();
         }
         return notification.id;
+    }
+
+    // Unguessable and never repeated, across runs too.
+    function newId() {
+        return [...crypto.getRandomValues(new Uint8Array(16))]
+            .map((byte) => byte.toString(16).padStart(2, '0'))
+            .join('');
     }
 
     function allowed(id) {
