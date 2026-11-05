@@ -24,13 +24,15 @@ struct DeckitFixture {
     }
 
     // MARK: - Public
-    // `requires` are the mods it requires, by id, at 1.0.0, and `contributes` what its contributes file declares.
+    // `requires` are the mods it requires, by id, at 1.0.0, `provides` the interfaces it provides at major 1, and
+    // `contributes` what its contributes file declares.
     func write(
         _ id: String,
         api: String = "1.0.0",
         permissions: [String] = [],
         urls: [String] = [],
         requires: [String] = [],
+        provides: [String] = [],
         contributes: [String: JSONValue]? = nil
     ) throws {
         let location = source.appending(path: id)
@@ -46,6 +48,10 @@ struct DeckitFixture {
         let patterns = urls.isEmpty
             ? ""
             : "\nurls = [" + urls.map { pattern in "\"\(pattern)\"" }.joined(separator: ", ") + "]"
+        let provided = provides.isEmpty
+            ? ""
+            : "\n[interfaces]\nprovides = { " + provides.map { interface in "\"\(interface)\" = [1]" }
+                .joined(separator: ", ") + " }"
         let text = """
             id = "\(id)"
             name = "\(id.uppercased())"
@@ -53,6 +59,7 @@ struct DeckitFixture {
             api = "\(api)"
             main = "main.js"
             """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"") + patterns + asked + required
+            + provided
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         if let contributes {
             try JSONEncoder().encode(JSONValue.object(contributes)).write(to: location.appending(path: "contributes.json"))

@@ -88,6 +88,12 @@ extension ResponseError {
                 "NOT_PROVIDER"
             }
 
+        case let error as DeclarationError:
+            switch error {
+            case .notOwner:
+                "NOT_OWNER"
+            }
+
         case let error as ManifestError:
             switch error {
             case .permissionDefined:

@@ -69,5 +69,25 @@ public final class Deckit {
         return .mod(id: mod.manifest.id, name: mod.manifest.name)
     }
 
+    // What the mods that load declare to `interface`, for its owner `owner`: an entry that names a command of its mod's
+    // comes with a token of it `owner` holds, minted once for each owner, and one whose command cannot run with its
+    // args is left out (CommandRegistry tells why as its mod starts). Refused for a mod that does not own `interface`.
+    public func contributions(to interface: String, for owner: String) throws -> [InterfaceContribution] {
+        try deck.catalog.declarations(to: interface, for: owner).compactMap { declaration in
+            guard case let .object(fields) = declaration.entry else { return nil }
+            let entry = JSONValue.object(fields.filter { key, _ in key != "command" && key != "args" })
+            guard let named = fields["command"] else {
+                return InterfaceContribution(mod: declaration.mod, name: declaration.name, entry: entry, token: nil)
+            }
+            guard case let .string(command) = named,
+                let token = try? commands.mint(command, of: declaration.mod, args: fields["args"], holder: owner)
+            else {
+                return nil
+            }
+
+            return InterfaceContribution(mod: declaration.mod, name: declaration.name, entry: entry, token: token.id)
+        }
+    }
+
     // MARK: - Private
 }

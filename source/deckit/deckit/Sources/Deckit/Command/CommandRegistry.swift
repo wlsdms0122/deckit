@@ -50,6 +50,9 @@ public final class CommandRegistry {
 
         return contributed.compactMap { name, value in problem { try Command(name: name, declared: value) } }
             + registered.compactMap { value in problem { try Command(declared: value) } }
+            + mod.declared.entries.sorted { one, other in one.key < other.key }.flatMap { interface, entries in
+                entries.compactMap { entry in problem(ofEntry: entry, to: interface, mod: mod) }
+            }
     }
 
     // The mods read again: a token ends once its sender, or the holder deckit handed it to, is not found.
@@ -193,6 +196,23 @@ public final class CommandRegistry {
     private func name(of value: JSONValue) -> String {
         guard case let .object(fields) = value, case let .string(name) = fields["name"] else { return "" }
         return name
+    }
+
+    // An entry declared to `interface` that names a command its mod cannot run with the entry's args.
+    private func problem(ofEntry entry: JSONValue, to interface: String, mod: Mod) -> String? {
+        guard case let .object(fields) = entry, let named = fields["command"] else { return nil }
+        guard case let .string(command) = named else {
+            return "an entry declared to \(interface) names a command that is no name, so it is left out"
+        }
+
+        do {
+            _ = try check(command, of: mod.manifest.id, args: fields["args"])
+            return nil
+        } catch let refusal as CommandError {
+            return "an entry declared to \(interface) is left out: \(refusal.message)"
+        } catch {
+            return "an entry declared to \(interface) is left out: \(error)"
+        }
     }
 
     private func problem(_ read: () throws -> Command) -> String? {

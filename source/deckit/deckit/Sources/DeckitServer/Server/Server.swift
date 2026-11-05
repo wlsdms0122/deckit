@@ -306,6 +306,10 @@ final class Server {
             try deckit.commands.release(token: request.decodeParams(as: TokenParams.self).token)
             return true
 
+        case "interface/contributions":
+            let params = try request.decodeParams(as: ContributionsParams.self)
+            return try deckit.contributions(to: params.interface, for: params.mod)
+
         case "provider":
             return deckit.provider(of: try request.decodeParams(as: ProviderParams.self).id)
 
