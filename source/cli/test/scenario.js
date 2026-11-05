@@ -214,9 +214,9 @@ async function run({
     };
 
     await sleep(9000);
-    // Only the startup mods run as the app starts. Every other mod the scenario drives is opened from the panel's
-    // list as a person opens it: one with no view leaves the list once it has started, and the Editor is opened last,
-    // so it is on screen.
+    // Only the startup mods run as the app starts. The panel lists every mod that declares a view, running or not, and
+    // each is opened from the list as a person opens it, the Editor last, so it is on screen. The region child comes
+    // as its parent places it; the rest run as their work asks for them.
     const launchedAtStart = (await targets()).map(({ url }) => url);
     check(
         'a startup mod runs as the app starts',
@@ -237,16 +237,18 @@ async function run({
         );
         await listFrame.press(`[data-mod-id="${id}"]`);
     };
-    const opened = new Set();
-    for (let round = 0; round < 3; round++) {
-        for (const id of (await listedIds()) || []) {
-            if (opened.has(id) || id === 'editor') continue;
-            opened.add(id);
-            await openFromList(id);
-            await sleep(300);
-        }
-        await sleep(3000);
+    const listedAtStart = (await until(async () => ((await listedIds()) || []).length && listedIds())) || [];
+    check(
+        'the panel lists the mods that declare a view before they run',
+        listedAtStart.length === VIEWS + TEST_VIEWS && !listedAtStart.includes('deckit'),
+        listedAtStart
+    );
+    for (const id of listedAtStart) {
+        if (id === 'editor') continue;
+        await openFromList(id);
+        await sleep(300);
     }
+    await sleep(3000);
     await openFromList('editor');
     await until(() => page('deckit://editor.mod'), 6000);
     await sleep(3000);
