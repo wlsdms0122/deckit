@@ -253,24 +253,15 @@ class Note {
         const newFolder = () => fileOperations.newFolder(currentFolder());
         deckit.commands.register({
             'new-note': {
-                description: 'Makes a note in the folder in front and opens it, its name selected to type over.',
                 run: async () => {
                     await fileOperations.newNote(currentFolder());
                 },
             },
             open: {
-                description: 'Opens a note.',
-                params: { type: 'object', properties: { id: { type: 'string', title: 'Note' } }, required: ['id'] },
                 run: openNoteOf,
                 complete: (_param, partial, { signal }) => notesFound(partial, { searchNotes, allNotes, signal }),
             },
             'show-folder': {
-                description: 'Shows the gallery of a folder.',
-                params: {
-                    type: 'object',
-                    properties: { path: { type: 'string', title: 'Folder' } },
-                    required: ['path'],
-                },
                 run: showFolderOf,
                 complete: (_param, partial) => foldersFound(partial, { allNotes, util }),
             },

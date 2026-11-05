@@ -106,12 +106,6 @@ class Settings {
         });
         deckit.commands.register({
             'show-settings-of': {
-                description: 'Shows the settings of one mod in Settings.',
-                params: {
-                    type: 'object',
-                    properties: { mod: { type: 'string', title: 'Mod' } },
-                    required: ['mod'],
-                },
                 run: showSettingsOf,
                 complete: (_param, partial) => settingsOf(partial),
             },

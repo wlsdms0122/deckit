@@ -15,51 +15,23 @@ class Deckit {
 
         deckit.commands.register({
             'open-address': {
-                description: "Opens an address with its scheme, by its scheme's handlers in your order.",
-                params: {
-                    type: 'object',
-                    properties: {
-                        address: {
-                            type: 'string',
-                            title: 'Address',
-                            description: 'With its scheme: https://…, file:///…',
-                        },
-                    },
-                    required: ['address'],
-                },
                 run: ({ address: given }) => address.go(given),
                 complete: (_param, partial) => address.candidatesFor(partial),
             },
             'restart-mod': {
-                description: 'Restarts a mod, or launches one not running with the mods that require it.',
-                params: {
-                    type: 'object',
-                    properties: { mod: { type: 'string', title: 'Mod' } },
-                    required: ['mod'],
-                },
                 run: async ({ mod }) => {
                     await restartMod(mod);
                 },
                 complete: (_param, partial) => modsFor(partial),
             },
             'restart-app': {
-                description: `Quits ${APP_NAME} and opens it again.`,
                 run: async () => {
                     await deckit.mods.restart();
                 },
             },
-            'show-mods-folder': {
-                description: 'Shows the folder of the installed mods in Finder.',
-                run: () => reveal('mods'),
-            },
-            'show-data-folder': {
-                description: 'Shows the folder where mods keep their data in Finder.',
-                run: () => reveal('data'),
-            },
-            'show-log': {
-                description: `Shows the log of ${APP_NAME} in Finder.`,
-                run: () => reveal('log'),
-            },
+            'show-mods-folder': { run: () => reveal('mods') },
+            'show-data-folder': { run: () => reveal('data') },
+            'show-log': { run: () => reveal('log') },
             'copy-version': {
                 description: 'Copies a version of what is running, for a report.',
                 params: {

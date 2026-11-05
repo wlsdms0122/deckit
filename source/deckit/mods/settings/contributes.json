@@ -1,0 +1,12 @@
+{
+    "commands": {
+        "show-settings-of": {
+            "description": "Shows the settings of one mod in Settings.",
+            "params": {
+                "type": "object",
+                "properties": { "mod": { "type": "string", "title": "Mod" } },
+                "required": ["mod"]
+            }
+        }
+    }
+}

@@ -1,0 +1,32 @@
+{
+    "commands": {
+        "open-folder": {
+            "description": "Goes to a folder in the tab in front; a file goes to its folder, selected there.",
+            "params": {
+                "type": "object",
+                "properties": { "path": { "type": "string", "title": "Folder", "description": "A path from / or ~." } },
+                "required": ["path"]
+            }
+        },
+        "go-to-place": {
+            "description": "Goes to Home, Desktop or another of the system places.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "place": {
+                        "type": "string",
+                        "title": "Place",
+                        "oneOf": [
+                            { "const": "home", "title": "Home" },
+                            { "const": "desktop", "title": "Desktop" },
+                            { "const": "documents", "title": "Documents" },
+                            { "const": "downloads", "title": "Downloads" },
+                            { "const": "applications", "title": "Applications" }
+                        ]
+                    }
+                },
+                "required": ["place"]
+            }
+        }
+    }
+}

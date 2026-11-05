@@ -3,6 +3,7 @@ name = "Deckit"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+contributes = "contributes.json"
 
 [permissions]
 "deckit.mods" = "Restarts a mod you pick, or the whole app."

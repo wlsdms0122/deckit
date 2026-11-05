@@ -25,13 +25,7 @@ class Calendar {
     start(deckit) {
         this.calendar = calendar({ deckit, screen: () => this.screen });
         this.sendTest = () => sendTest(deckit, () => this.screen?.reveal());
-        deckit.commands.register({
-            'send-test': {
-                description:
-                    'Shows a notification now, to see that macOS lets it through. Answers what came of it, as text.',
-                run: this.sendTest,
-            },
-        });
+        deckit.commands.register({ 'send-test': { run: this.sendTest } });
         deckit.exports.register('calendar/accounts', {
             connect: (connection) => ({
                 setProvider: (provider) => {

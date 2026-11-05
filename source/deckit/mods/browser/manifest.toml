@@ -3,6 +3,7 @@ name = "Browser"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+contributes = "contributes.json"
 urls = ["http:*", "https:*"]
 
 [permissions]

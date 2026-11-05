@@ -3,6 +3,7 @@ name = "Finder"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+contributes = "contributes.json"
 
 [permissions]
 "system.main-process" = "Lists and watches the folders you browse, draws their icons, shows Quick Look, and makes, renames, moves and trashes files there."

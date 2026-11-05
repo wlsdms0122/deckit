@@ -21,7 +21,7 @@ forge hands the token that controls a daemon to the process that starts it, and 
 
 ## Commands
 
-What a CLI, the switcher or another mod runs by name, on a host app with no UI too. Each takes an optional `session`, `default` when not given, completed from the sessions there are, each with its state.
+What a CLI, the switcher or another mod runs by name, on a host app with no UI too, declared in `contributes.json`. Each takes an optional `session`, `default` when not given, completed from the sessions there are, each with its state.
 
 | Command | What it does |
 |---|---|

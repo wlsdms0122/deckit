@@ -17,8 +17,10 @@ export function createCommand() {
     // MARK: - Initializer
     // MARK: - Public
     // A mod's commands, { name: { description, params, run(args), complete(param, partial, { args, signal }) } }, as
-    // one lifecycle of its run contributes them: the core judges each declaration. One with no function to run, or one
-    // a lifecycle under it has declared, is told to `invalid` and left out. What `run` answers is its result, and a
+    // one lifecycle of its run contributes them: the handlers of those its contributes declares, which take their
+    // description and params from there, and beside them commands that are there only while the run lasts. The core
+    // judges each declaration. One with no function to run, or one a lifecycle under it has declared, is told to
+    // `invalid` and left out. What `run` answers is its result, and a
     // throw is why it did not run, both the caller's to read. Answers those declared, and their off.
     function declare(commands, { invalid }) {
         if (!answering) answer();

@@ -1,0 +1,19 @@
+{
+    "commands": {
+        "open": {
+            "description": "Opens a file of a workspace, the one in front unless its folder is given, without bringing it to the front.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "title": "File" },
+                    "root": { "type": "string", "title": "Workspace" }
+                },
+                "required": ["path"]
+            }
+        },
+        "open-folder": {
+            "description": "Opens a folder as a workspace, or brings it to the front; with none given, asks for one.",
+            "params": { "type": "object", "properties": { "path": { "type": "string", "title": "Folder" } } }
+        }
+    }
+}

@@ -27,7 +27,7 @@ class Switcher {
             disconnect: (connection) => given.delete(connection),
         });
         deckit.commands.register({
-            show: { description: 'Opens the quick switcher.', run: () => this.list?.show() },
+            show: { run: () => this.list?.show() },
         });
         deckit.keys.register({
             summon: {

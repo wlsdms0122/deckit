@@ -187,30 +187,8 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
             next: { label: 'Next', key: 'mod+right', run: () => shift(1) },
         },
         commands: {
-            'go-to-date': {
-                description: 'Shows a day in the view on screen.',
-                params: {
-                    type: 'object',
-                    properties: { date: { type: 'string', title: 'Date', description: 'A day, as YYYY-MM-DD.' } },
-                    required: ['date'],
-                },
-                run: goToDate,
-            },
-            'show-view': {
-                description: 'Shows the day, the week or the month view.',
-                params: {
-                    type: 'object',
-                    properties: {
-                        view: {
-                            type: 'string',
-                            title: 'View',
-                            oneOf: MODES.map(([key, label]) => ({ const: key, title: label })),
-                        },
-                    },
-                    required: ['view'],
-                },
-                run: showView,
-            },
+            'go-to-date': { run: goToDate },
+            'show-view': { run: showView },
         },
         actions,
         screen: {

@@ -1,0 +1,43 @@
+{
+    "commands": {
+        "start": {
+            "description": "Starts a forge session's daemon.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "session": {
+                        "type": "string",
+                        "title": "Session",
+                        "description": "A forge session. Absent: default."
+                    }
+                }
+            }
+        },
+        "stop": {
+            "description": "Stops a forge session's daemon, with the services it supervises.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "session": {
+                        "type": "string",
+                        "title": "Session",
+                        "description": "A forge session. Absent: default."
+                    }
+                }
+            }
+        },
+        "restart": {
+            "description": "Restarts a forge session's daemon with the services it supervises, or starts it.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "session": {
+                        "type": "string",
+                        "title": "Session",
+                        "description": "A forge session. Absent: default."
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,23 @@
+{
+    "commands": {
+        "new-note": {
+            "description": "Makes a note in the folder in front and opens it, its name selected to type over."
+        },
+        "open": {
+            "description": "Opens a note.",
+            "params": {
+                "type": "object",
+                "properties": { "id": { "type": "string", "title": "Note" } },
+                "required": ["id"]
+            }
+        },
+        "show-folder": {
+            "description": "Shows the gallery of a folder.",
+            "params": {
+                "type": "object",
+                "properties": { "path": { "type": "string", "title": "Folder" } },
+                "required": ["path"]
+            }
+        }
+    }
+}

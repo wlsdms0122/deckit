@@ -244,54 +244,17 @@ class Bot {
         });
         deckit.commands.register({
             show: {
-                description: 'Shows Bot on Services, Workflows, Schedules or Brain, a Forge view on the session given.',
-                params: {
-                    type: 'object',
-                    properties: {
-                        view: {
-                            type: 'string',
-                            title: 'View',
-                            oneOf: MODES.map((entry) => ({ const: entry.key, title: entry.label })),
-                        },
-                        session: {
-                            type: 'string',
-                            title: 'Forge session',
-                            description: 'The session the Forge views show. Absent: the one chosen.',
-                        },
-                    },
-                    required: ['view'],
-                },
                 run: (args) => {
                     showView(args);
                     shell.show();
                 },
             },
             'choose-session': {
-                description: 'Chooses which daemon the Forge views show.',
-                params: {
-                    type: 'object',
-                    properties: { session: { type: 'string', title: 'Forge session' } },
-                    required: ['session'],
-                },
                 run: chooseSession,
                 complete: (_param, partial) => picker.candidates(partial),
             },
-            'search-brain': {
-                description: 'Lists the notes of the brain that match a search, in Brain.',
-                params: {
-                    type: 'object',
-                    properties: { query: { type: 'string', title: 'Search' } },
-                    required: ['query'],
-                },
-                run: searchBrain,
-            },
+            'search-brain': { run: searchBrain },
             'read-note': {
-                description: 'Opens a note of the brain in Brain.',
-                params: {
-                    type: 'object',
-                    properties: { note: { type: 'string', title: 'Note' } },
-                    required: ['note'],
-                },
                 run: readNote,
                 complete: (_param, partial, { signal }) => brain.notesFor(partial, { signal }),
             },

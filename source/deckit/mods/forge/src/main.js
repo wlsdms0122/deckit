@@ -59,32 +59,20 @@ class Forge {
             disconnect: (connection) => dispatched.forget(connection),
         });
 
-        const SESSION = {
-            type: 'object',
-            properties: {
-                session: { type: 'string', title: 'Session', description: 'A forge session. Absent: default.' },
-            },
-        };
         deckit.commands.register({
             start: {
-                description: "Starts a forge session's daemon.",
-                params: SESSION,
                 run: async ({ session }) => {
                     await forge.start(session);
                 },
                 complete: (_param, partial) => sessionsFor(partial),
             },
             stop: {
-                description: "Stops a forge session's daemon, with the services it supervises.",
-                params: SESSION,
                 run: async ({ session }) => {
                     await forge.stop(session);
                 },
                 complete: (_param, partial) => sessionsFor(partial),
             },
             restart: {
-                description: "Restarts a forge session's daemon with the services it supervises, or starts it.",
-                params: SESSION,
                 run: async ({ session }) => {
                     await forge.restart(session);
                 },

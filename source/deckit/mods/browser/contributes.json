@@ -1,0 +1,25 @@
+{
+    "commands": {
+        "new-tab": {
+            "description": "Opens a new tab, at the address given or the homepage.",
+            "params": { "type": "object", "properties": { "url": { "type": "string", "title": "Address" } } }
+        },
+        "reopen-tab": { "description": "Opens the tab closed last again, where it was." },
+        "switch-to-tab": {
+            "description": "Brings an open tab to the front.",
+            "params": {
+                "type": "object",
+                "properties": { "tab": { "type": "string", "title": "Tab" } },
+                "required": ["tab"]
+            }
+        },
+        "open-bookmark": {
+            "description": "Opens a bookmark in a new tab.",
+            "params": {
+                "type": "object",
+                "properties": { "bookmark": { "type": "string", "title": "Bookmark" } },
+                "required": ["bookmark"]
+            }
+        }
+    }
+}

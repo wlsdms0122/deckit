@@ -1,0 +1,30 @@
+{
+    "commands": {
+        "open-address": {
+            "description": "Opens an address with its scheme, by its scheme's handlers in your order.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "title": "Address",
+                        "description": "With its scheme: https://…, file:///…"
+                    }
+                },
+                "required": ["address"]
+            }
+        },
+        "restart-mod": {
+            "description": "Restarts a mod, or launches one not running with the mods that require it.",
+            "params": {
+                "type": "object",
+                "properties": { "mod": { "type": "string", "title": "Mod" } },
+                "required": ["mod"]
+            }
+        },
+        "restart-app": { "description": "Quits the app and opens it again." },
+        "show-mods-folder": { "description": "Shows the folder of the installed mods in Finder." },
+        "show-data-folder": { "description": "Shows the folder where mods keep their data in Finder." },
+        "show-log": { "description": "Shows the app's log in Finder." }
+    }
+}

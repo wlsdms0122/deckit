@@ -1,0 +1,52 @@
+{
+    "commands": {
+        "show": {
+            "description": "Shows Bot on Services, Workflows, Schedules or Brain, a Forge view on the session given.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "view": {
+                        "type": "string",
+                        "title": "View",
+                        "oneOf": [
+                            { "const": "supervisor", "title": "Services" },
+                            { "const": "workflows", "title": "Workflows" },
+                            { "const": "schedules", "title": "Schedules" },
+                            { "const": "brain", "title": "Brain" }
+                        ]
+                    },
+                    "session": {
+                        "type": "string",
+                        "title": "Forge session",
+                        "description": "The session the Forge views show. Absent: the one chosen."
+                    }
+                },
+                "required": ["view"]
+            }
+        },
+        "choose-session": {
+            "description": "Chooses which daemon the Forge views show.",
+            "params": {
+                "type": "object",
+                "properties": { "session": { "type": "string", "title": "Forge session" } },
+                "required": ["session"]
+            }
+        },
+        "search-brain": {
+            "description": "Lists the notes of the brain that match a search, in Brain.",
+            "params": {
+                "type": "object",
+                "properties": { "query": { "type": "string", "title": "Search" } },
+                "required": ["query"]
+            }
+        },
+        "read-note": {
+            "description": "Opens a note of the brain in Brain.",
+            "params": {
+                "type": "object",
+                "properties": { "note": { "type": "string", "title": "Note" } },
+                "required": ["note"]
+            }
+        }
+    }
+}

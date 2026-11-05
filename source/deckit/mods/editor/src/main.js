@@ -346,27 +346,13 @@ class Editor {
         const wrapLines = () => configuration.set('wrap', !configuration.get('wrap'));
         deckit.commands.register({
             open: {
-                description:
-                    'Opens a file of a workspace, the one in front unless its folder is given, without bringing it to the front.',
-                params: {
-                    type: 'object',
-                    properties: {
-                        path: { type: 'string', title: 'File' },
-                        root: { type: 'string', title: 'Workspace' },
-                    },
-                    required: ['path'],
-                },
                 run: (args) => goToFile(args, { background: true }),
                 complete: (_param, partial, { args }) => {
                     const workspace = args?.root === undefined ? workspaces.front() : workspaces.withRoot(args.root);
                     return filesFound(workspace, partial, { listFiles: workspaces.listFiles, ranker: fileRanker });
                 },
             },
-            'open-folder': {
-                description: 'Opens a folder as a workspace, or brings it to the front; with none given, asks for one.',
-                params: { type: 'object', properties: { path: { type: 'string', title: 'Folder' } } },
-                run: openFolderAt,
-            },
+            'open-folder': { run: openFolderAt },
         });
         deckit.keys.register({
             quickOpen: { label: 'Open Quickly', key: 'mod+p', run: openQuickly },

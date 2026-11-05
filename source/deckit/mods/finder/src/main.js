@@ -264,30 +264,10 @@ class Finder {
         const trash = () => operator.trash(selectedEntries());
         deckit.commands.register({
             'open-folder': {
-                description: 'Goes to a folder in the tab in front; a file goes to its folder, selected there.',
-                params: {
-                    type: 'object',
-                    properties: { path: { type: 'string', title: 'Folder', description: 'A path from / or ~.' } },
-                    required: ['path'],
-                },
                 run: openFolder,
                 complete: (_param, partial) => foldersAtHand(partial),
             },
-            'go-to-place': {
-                description: 'Goes to Home, Desktop or another of the system places.',
-                params: {
-                    type: 'object',
-                    properties: {
-                        place: {
-                            type: 'string',
-                            title: 'Place',
-                            oneOf: PLACES.map(([id, title]) => ({ const: id, title })),
-                        },
-                    },
-                    required: ['place'],
-                },
-                run: goToPlace,
-            },
+            'go-to-place': { run: goToPlace },
         });
         deckit.keys.register({
             newTab: { label: 'New Tab', key: 'mod+t', run: () => tabs.open() },

@@ -3,6 +3,7 @@ name = "Bot"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+contributes = "contributes.json"
 
 [permissions]
 "system.main-process" = "Reads the brain, by running the llmemory command."

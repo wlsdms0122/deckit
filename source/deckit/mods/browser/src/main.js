@@ -146,29 +146,13 @@ class Browser {
         });
 
         deckit.commands.register({
-            'new-tab': {
-                description: 'Opens a new tab, at the address given or the homepage.',
-                params: { type: 'object', properties: { url: { type: 'string', title: 'Address' } } },
-                run: ({ url } = {}) => newTab(url),
-            },
-            'reopen-tab': { description: 'Opens the tab closed last again, where it was.', run: reopenTab },
+            'new-tab': { run: ({ url } = {}) => newTab(url) },
+            'reopen-tab': { run: reopenTab },
             'switch-to-tab': {
-                description: 'Brings an open tab to the front.',
-                params: {
-                    type: 'object',
-                    properties: { tab: { type: 'string', title: 'Tab' } },
-                    required: ['tab'],
-                },
                 run: switchToTab,
                 complete: (_param, partial) => candidatesOf(tabs.tree(), tabLabel, partial, deckit.util),
             },
             'open-bookmark': {
-                description: 'Opens a bookmark in a new tab.',
-                params: {
-                    type: 'object',
-                    properties: { bookmark: { type: 'string', title: 'Bookmark' } },
-                    required: ['bookmark'],
-                },
                 run: openBookmark,
                 complete: (_param, partial) =>
                     candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), partial, deckit.util),

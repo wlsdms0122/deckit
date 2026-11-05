@@ -1,0 +1,33 @@
+{
+    "commands": {
+        "send-test": {
+            "description": "Shows a notification now, to see that macOS lets it through. Answers what came of it, as text."
+        },
+        "go-to-date": {
+            "description": "Shows a day in the view on screen.",
+            "params": {
+                "type": "object",
+                "properties": { "date": { "type": "string", "title": "Date", "description": "A day, as YYYY-MM-DD." } },
+                "required": ["date"]
+            }
+        },
+        "show-view": {
+            "description": "Shows the day, the week or the month view.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "view": {
+                        "type": "string",
+                        "title": "View",
+                        "oneOf": [
+                            { "const": "day", "title": "Day" },
+                            { "const": "week", "title": "Week" },
+                            { "const": "month", "title": "Month" }
+                        ]
+                    }
+                },
+                "required": ["view"]
+            }
+        }
+    }
+}
