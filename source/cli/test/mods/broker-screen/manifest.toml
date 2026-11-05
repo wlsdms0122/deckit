@@ -4,8 +4,8 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 
-[implements]
-"broker-screen/takes" = "1.0.0"
+[interfaces]
+provides = { "broker-screen/takes" = [1] }
 
 [dependencies]
-"broker-provider/calls" = { version = "2.0.0", optional = true }
+broker-provider = { version = "2.0.0", optional = true }

@@ -1,5 +1,5 @@
-// A headless mod that depends on the interfaces the provider and the screen implement, and on one no mod installed
-// implements. In start it calls what the provider exports, one of which throws, hands it functions and an object of a
+// A headless mod that requires the provider by id, uses the interface the screen provides, and one no mod installed
+// provides. In start it calls what the provider exports, one of which throws, hands it functions and an object of a
 // class, and hears its event; in attach, as the screen connects, it hands the screen one of the provider's functions
 // and one of its own, and counts the screen's connections and their ends. It marks each on its page.
 class Thing {
@@ -15,7 +15,7 @@ class Thing {
 class BrokerUser {
     async start(deckit) {
         const marks = document.documentElement.dataset;
-        const provider = deckit.dependencies['broker-provider/calls'];
+        const provider = deckit.dependencies['broker-provider'];
         marks.lasting = Object.keys(deckit.dependencies)
             .filter((key) => key !== 'onConnect')
             .join();
@@ -36,7 +36,7 @@ class BrokerUser {
 
     attach(shell, deckit) {
         const marks = document.documentElement.dataset;
-        const provider = deckit.dependencies['broker-provider/calls'];
+        const provider = deckit.dependencies['broker-provider'];
         deckit.dependencies.onConnect('broker-screen/takes', async (screen) => {
             marks.screens = String(Number(marks.screens || 0) + 1);
             marks.handedOn = await screen.take(provider.ask).then(

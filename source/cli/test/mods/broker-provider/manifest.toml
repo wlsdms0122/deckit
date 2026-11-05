@@ -3,6 +3,3 @@ name = "Broker Provider"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-
-[implements]
-"broker-provider/calls" = "1.0.0"

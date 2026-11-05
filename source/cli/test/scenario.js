@@ -1285,8 +1285,8 @@ async function run({
             await mark(user, 'refused')
         );
         check(
-            'a mod runs while an optional dependency it names is not installed, its dependencies holding the required one alone',
-            asked && (await mark(user, 'lasting')) === 'broker-provider/calls',
+            'a mod runs while no mod provides an interface it uses, its dependencies holding the mod it requires alone',
+            asked && (await mark(user, 'lasting')) === 'broker-provider',
             await mark(user, 'lasting')
         );
         const pinged = await until(async () => (await mark(user, 'pinged')) === '7', 4000);
@@ -1311,9 +1311,7 @@ async function run({
         const refusedFailure = `${rowOf('Broker Refused')}?.querySelector('.settings-mod-failure')?.textContent || ''`;
         const refusedRow = await until(
             async () =>
-                /broker-refuser\/refusals did not connect: .*no connections here/.test(
-                    await settings.evaluate(refusedFailure)
-                ),
+                /broker-refuser did not connect: .*no connections here/.test(await settings.evaluate(refusedFailure)),
             4000
         );
         const refusedPage = await page('deckit://broker-refused.mod');
@@ -1338,7 +1336,7 @@ async function run({
         const mismatched = await until(
             async () =>
                 (await settings.evaluate(screenNote)).includes(
-                    'uses broker-provider/calls 2.0.0, and broker-provider implements it at 1.0.0, so it runs without it'
+                    'uses broker-provider 2.0.0, and broker-provider is 1.0.0, so it runs without it'
                 ),
             4000
         );
@@ -1597,8 +1595,8 @@ async function run({
         const back = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
         check('unfolding the sidebar brings the region back', back, await child.evaluate(seen));
 
-        // An optional dependency whose page loads again by itself ends its connections: the dependent's onConnect
-        // cleanup runs, and the dependency's next run connects again.
+        // The owner of an interface whose page loads again by itself ends its connections: the dependent's onConnect
+        // cleanup runs, and the owner's next run connects again.
         const screens = Number(await mark(user, 'screens'));
         await screen.evaluate('location.reload()');
         const cleaned = await until(async () => (await mark(user, 'cleaned')) === '1', 4000);
@@ -1616,8 +1614,8 @@ async function run({
         check('a dependency that runs again connects again', reconnected, await mark(user, 'screens'));
 
         // A mod's page loading again by itself ends the runs of the mods that require it, and they stay down; the mod
-        // restarted from Settings brings them back, each in a new document. A child in a region depends on its parent
-        // optionally, so it runs on.
+        // restarted from Settings brings them back, each in a new document. A child in a region uses its parent's
+        // interface, which no mod requires, so it runs on.
         const started = `performance.timeOrigin`;
         const origin = await user.evaluate(started);
         const childOrigin = await child.evaluate(started);
