@@ -11,19 +11,20 @@ const NOW_MAX = 3;
 const NOW_WAIT_MS = 150;
 
 // The list of a Show item for each mod the shell can show and the actions mods set, `given`, by the connection of
-// each, in `window`, the mod's own: `show()` opens it, and `isOpen()` tells whether it is open or on its way. Each
-// open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod coming on
-// screen, another app. `end()` drops the list.
+// each, in `window`, the mod's own: `show()` opens it, and `toggle()` opens it or puts it away when it is
+// open. Each open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod
+// coming on screen, another app. `end()` drops the list.
 function switcher(shell, deckit, window, given) {
     const registry = deckit.commands;
     const records = deckit.storage.records;
     const drawing = { ui: shell.ui, theme: shell.theme, util: deckit.util }; // what the list is drawn and ranked with
     let open = null; // the list on screen, or on its way: { list, about, submenus }
 
-    return { show, isOpen, putAway, closed, end };
+    return { show, toggle, putAway, closed, end };
 
-    function isOpen() {
-        return !!open;
+    function toggle() {
+        if (open) return putAway();
+        show();
     }
 
     // The window comes once the list is drawn in it, and goes with it: the two are one thing on screen.
