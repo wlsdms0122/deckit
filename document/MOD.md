@@ -129,13 +129,14 @@ Each layer defines the names of what it adds and checks them where the mod asks;
 }
 ```
 
-What the mod declares, by contribution point: what is there from the time the mod is installed, whether its run is there or not. The run attaches what does the work by the same names when it registers (Registering). The file is a JSON object, read by deckit's core with the manifest, before a line of the mod runs; a file that is no JSON object stops the mod loading. Deck carries each contribution point to the layer that owns it and reads none of them; the layer checks what is under its own, and what it cannot use is shown on the mod's row in Settings as the mod starts.
+What the mod declares, by contribution point: what is there from the time the mod is installed, whether its run is there or not. The run attaches what does the work by the same names when it registers (Registering). The file is a JSON object, read by deckit's core with the manifest, before a line of the mod runs; a file that is no JSON object stops the mod loading. Deck holds `interfaces` for each interface's owner and carries every other contribution point to the layer that owns it, and reads none of what they declare; the layer checks what is under its own, and what it cannot use is shown on the mod's row in Settings as the mod starts.
 
 | Contribution point | What it declares |
 |---|---|
 | `commands` | commands by name, `{ description, params }` each (`deckit.commands.register`) |
 | `keys` | `app` and `global` keys by name, `{ label, key, scope }` each (`deckit.keys.register`) |
 | `styles` | `{ '<mod id>' or '*': a CSS file inside the folder, `/` separated }`, worn as `shell.styles.register`'s are, from the time the mod is installed, running or not, with `deckit.styles` |
+| `interfaces` | `{ '<interface>': [entry, …] }`, entries handed to each interface's owner, each an object whose shape the interface's README says, with `command` and `args` naming a command of the mod's own (Declared contributions) |
 
 ## The entry
 
@@ -326,7 +327,7 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `keys` | `register(keys)`; `chordOf(name, { provider })`, the chord one of the mod's keys is bound to now, or `''`, and with `provider`, a key of that mod or host; with `deckit.keymap`: `list`, `bind`, `reset`, `record`, `onChange`, where `bind` gives a key the chord a person chose, as Settings does; `list` answers at once, `onChange` returns the unsubscribe |
 | `urls` | `register(handler)`; `open(url, { activates, usesDefaultApp, target })`, which offers an address to the handlers its patterns match in turn, then deckit's own answer (`urls`, above), and resolves to whether anything opened it. A `file://` address goes anywhere only with `system.file-handlers`, and otherwise resolves `false`; a web address goes to the default browser with no permission. With `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, undecided, handlers }` at once, `undecided` its undecided patterns as written, `handlers` in the order Settings shows (`urls`, above), a handler `{ id, name, patterns, on }`; `set(scheme, { order, off })`, which gives the handlers in `order` the places they held among themselves in the scheme's list, in the order given, puts those placed it does not name after them, and switches off those in `off`, as the person's; `everyScheme`, the name of the list for every scheme |
 | `events` | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` (below) |
-| `exports` | `register(interface, { connect, disconnect })` and `register({ connect, disconnect })` (Dependencies and connections) |
+| `exports` | `register(interface, { connect, disconnect })` and `register({ connect, disconnect })`; `contributions(interface)`, what mods declare to an interface the mod owns (Dependencies and connections) |
 | `dependencies` | `dependencies.<id>` and `onConnect(name, connected)` (Dependencies and connections) |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | with `system.file-handlers`: shows a file in the system's Finder |
@@ -542,6 +543,27 @@ deckit.exports.register({ connect: () => this.forge });
 `interface` is one the manifest `provides`; any other is refused and shown on the mod's row. With no `interface`, the exports are the mod's own, for the mods that name it in `[dependencies]`. `connect(connection)` is called once for each connection and answers the exports for it, at once: an object of values and functions. `connection` is `{ mod: { id, name } }`, the mod on the other end, frozen, and `disconnect` is handed the same object. So the exports made for a connection know the mod that calls them, and a function keyed by the connection knows whose it is. Exports that need not know answer one object for every connection (`connect: () => this.forge`). `disconnect(connection)`, which may be left out, hears the dependent's lifecycle end while the exports are open. A mod that keeps what a dependent handed it keys it by the connection, and drops it in `disconnect` or once it has no more use for it.
 
 It is called once for the run for each interface, and once for the mod's own exports, in `start` or in `attach`: once one lifecycle opened a set of exports, a call for it in the other is refused. The exports end with the lifecycle that opened them. An interface that only gives a place for views is provided with no exports.
+
+### Declared contributions
+
+```json
+{
+    "interfaces": {
+        "switcher/actions": [{ "label": "Show Log", "keywords": ["finder"], "command": "show-log" }]
+    }
+}
+```
+
+```js
+// the owner of switcher/actions, while it runs
+const declared = await deckit.exports.contributions('switcher/actions');
+// [{ mod: { id: 'deckit', name: 'Deckit' }, entry: { label: 'Show Log', keywords: ['finder'] }, token: '…' }]
+await deckit.commands.tokens.run(declared[0].token);
+```
+
+A mod gives an interface's owner what is there whether the mod runs or not, by declaring it under `interfaces` in `contributes`; what only a run knows it hands over a connection (`deckit.dependencies.onConnect`), and that goes as the connection ends. An entry is data, its shape the interface's to define; `command` and `args`, which may be left out, name a command of the mod's own and the args it runs with. deck holds the declarations from the time the mod is installed, and installing a mod does not launch the owner.
+
+The owner asks for them while it runs: `contributions(interface)` resolves to each entry declared to it by the mods that load, in their order, `{ mod, entry, token }`. `mod` is `{ id, name }`, as `connection.mod` is; `entry` is the entry without `command` and `args`; `token` is there for an entry that names a command, a token of that command the owner holds (Command tokens), so picking the entry runs it and reaches none of the mod's other commands. deckit mints one token for each entry and owner, and hands it again on each ask; a new owner is handed its own. An entry whose command cannot run with its args is left out, and the mod's row in Settings says why as it starts. A mod that does not own the interface is refused with kind `NOT_OWNER`. deck sends `<interface>:contributions-changed`, of no args, to the mods listening for it as a mod that declares to the interface is installed, removed or updated, and `<interface>:owner-changed` as the owner changes; the owner asks again then, or on each use.
 
 ### deckit.dependencies
 
