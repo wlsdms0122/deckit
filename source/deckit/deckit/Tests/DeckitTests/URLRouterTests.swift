@@ -138,25 +138,27 @@ struct URLRouterTests {
         #expect(route(sut, "https://example.com", opensFiles: false) == "https://example.com -> a b c, browser")
     }
 
-    @Test("a mod stands in a scheme's list by its manifest, and is offered an address once its run registered")
+    @Test("a mod stands in a scheme's list by its manifest, and is offered an address unless it runs unregistered")
     func membershipIsStatic() throws {
         // Given
         try fixture.write("a", urls: ["https:*"])
+        try fixture.write("b", urls: ["https:*"])
         try fixture.write("other-api", api: "2.0.0", urls: ["https:*"])
         try fixture.write("wanting", urls: ["https:*"], requires: ["missing"])
         let sut = try fixture.deckit()
 
         // When
         let lists = sut.urlRouter.handlerLists()
-        let unregistered = route(sut, "https://example.com", opensFiles: false)
+        let notRunning = route(sut, "https://example.com", opensFiles: false)
         _ = try sut.started("a", run: 1, contributing: ["urls": .bool(true)])
-        let registered = route(sut, "https://example.com", opensFiles: false)
+        _ = try sut.started("b", run: 1, contributing: [:])
+        let running = route(sut, "https://example.com", opensFiles: false)
 
         // Then
         let https = try #require(lists.first { list in list.scheme == "https" })
-        #expect(https.handlers.map(\.id) == ["a", "wanting"])
-        #expect(unregistered == "https://example.com -> , browser")
-        #expect(registered == "https://example.com -> a, browser")
+        #expect(https.handlers.map(\.id) == ["a", "b", "wanting"])
+        #expect(notRunning == "https://example.com -> a b, browser")
+        #expect(running == "https://example.com -> a, browser")
     }
 
     @Test("a mod's width at an address is its narrowest pattern that matches it, placed or not")

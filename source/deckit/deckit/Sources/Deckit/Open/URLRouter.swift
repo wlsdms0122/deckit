@@ -10,9 +10,10 @@ import Deck
 
 // Which mods an address is offered to, in what order, and what deckit opens it with by itself after them. Each scheme
 // has one list of handlers: the mods whose manifest names a pattern of it or `*`, but for those that do not load by
-// their own manifest. An address is offered to each handler of its list that is on, has a pattern that matches it and
-// whose run registered a handler: its run contributes `urls`. The person's order comes first, then the app's, and a
-// mod no one placed goes before the first handler wider than its own at the address.
+// their own manifest. An address is offered to each handler of its list that is on, loads and has a pattern that
+// matches it, unless its run has started without registering a handler: a run that registered one contributes `urls`,
+// and a mod not running is launched as the address is offered to it. The person's order comes first, then the app's,
+// and a mod no one placed goes before the first handler wider than its own at the address.
 public final class URLRouter {
     // MARK: - Property
     private let contributionKey = "urls"
@@ -56,12 +57,16 @@ public final class URLRouter {
         let system = SystemHandler(scheme: scheme.name)
         guard opensFiles || system != .file else { return URLRoute(url: address, handlers: [], system: nil) }
 
+        let loading = Set(deck.catalog.loading.map(\.manifest.id))
         let handlers = usesDefaultApp
             ? []
             : ordered(in: handledAs(scheme)) { patterns in
                 patterns.filter { pattern in pattern.matches(address) }.map(\.specificity).max()
             }
-            .filter { handler in handler.on && handlesURL(deck.contributions(of: handler.mod.manifest.id)) }
+            .filter { handler in
+                let id = handler.mod.manifest.id
+                return handler.on && loading.contains(id) && (deck.contributions(of: id).map(handlesURL) ?? true)
+            }
             .map { handler in handler.mod.manifest.id }
         return URLRoute(url: address, handlers: handlers, system: system)
     }

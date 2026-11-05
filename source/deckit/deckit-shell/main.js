@@ -196,7 +196,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         keys: ENV.keys,
     });
     const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
-    const OPEN = createOpen({ LOG, IDENTITY, CORE, open: ENV.open });
+    const OPEN = createOpen({ LOG, IDENTITY, RUNNER, CORE, open: ENV.open });
     const NOTIFICATION = createNotification({
         LOG,
         IDENTITY,
