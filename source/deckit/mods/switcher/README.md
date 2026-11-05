@@ -2,6 +2,10 @@
 
 A list over the app you are in, opened on its key from any app: each mod the app can show, to show the one you pick, and what other mods add to it.
 
+## Opening a launcher: `launcher:`
+
+Switcher writes `urls = ["launcher:*"]` and opens for `launcher:open`, so whatever opens that address with `deckit.urls.open` opens the launcher: a mod, the host app, a key. Its own key does too, and puts the list away while it is open. The address goes to the `launcher` list of handlers in the person's order (Settings, URL Schemes), where Deckit places Switcher first. A mod that is a launcher writes `urls = ["launcher:*"]` and opens itself for `launcher:open`, and the key opens whichever of them the person puts first. Switcher passes every other `launcher:` address.
+
 ## Adding actions: `switcher/actions`
 
 Switcher defines the interface `switcher/actions`, and implements it at `1.0.0`. Its exports open in `attach`, so a mod names it as an optional dependency and hands its actions over in `attach`, with `onConnect`. They are `setActions(actions)`, one set of actions for each connection, listed under the connected mod. It gives no place for views.

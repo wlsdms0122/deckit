@@ -3,6 +3,7 @@ name = "Switcher"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+urls = ["launcher:*"]
 
 [implements]
 "switcher/actions" = "1.0.0"
