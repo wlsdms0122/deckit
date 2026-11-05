@@ -153,6 +153,15 @@ export function createApi({
                     get problem() {
                         return run.problem;
                     },
+                    get origin() {
+                        return copyOf(run.origin);
+                    },
+                    get failed() {
+                        return run.failed;
+                    },
+                    get relaunchLimited() {
+                        return run.relaunchLimited;
+                    },
                     get relaunches() {
                         return run.relaunches;
                     },

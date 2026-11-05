@@ -7,6 +7,10 @@
 // `summary` is what it contributes once running, as a person reads it, and `contributions` what deck joins of it, both
 // as its page reported them as it started;
 // `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed;
+// `origin`, why it launched (origin.js, or work as the layer that asked for it describes it);
+// `failed`, whether it failed or crashed rather than ending as asked;
+// `relaunchLimited`, whether its mod reached the relaunch limit as it failed, so it loads again only as the person
+// opens it;
 // `relaunches`, whether the runner loads the mod again once it has ended.
 function makeRun({ mod, number, relaunches = false }) {
     const facts = {
@@ -14,6 +18,9 @@ function makeRun({ mod, number, relaunches = false }) {
         summary: null,
         contributions: null,
         problem: null,
+        origin: null,
+        failed: false,
+        relaunchLimited: false,
         relaunches,
     };
     const run = Object.freeze({
@@ -30,6 +37,15 @@ function makeRun({ mod, number, relaunches = false }) {
         },
         get problem() {
             return facts.problem;
+        },
+        get origin() {
+            return facts.origin;
+        },
+        get failed() {
+            return facts.failed;
+        },
+        get relaunchLimited() {
+            return facts.relaunchLimited;
         },
         get relaunches() {
             return facts.relaunches;

@@ -5,6 +5,7 @@ import * as DECLARED from './protocol.js';
 import * as MOD from '../catalog/model/mod.js';
 import * as RUN from './model/run.js';
 import * as LIMIT from './model/limit.js';
+import * as ORIGIN from './model/origin.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -31,13 +32,19 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     // MARK: - Initializer
     // MARK: - Public
-    // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show.
-    // `preparePage(page, mod)` is what is on deck setting the page up, once deck knows it as the mod's.
+    // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show. The mods the person
+    // approved to start with the app load now. `preparePage(page, mod)` is what is on deck setting the page up, once
+    // deck knows it as the mod's.
     function start({ preparePage: prepare }) {
         preparePage = prepare;
         listen();
         CATALOG.onChange(reconcile);
-        reconcile();
+        const startup = CATALOG.mods().filter(({ startupApproved }) => startupApproved);
+        reconciled = load(
+            startup.map(({ id }) => id),
+            ORIGIN.STARTUP
+        );
+        reconciled.catch((error) => LOG.error('the startup mods were not loaded', error));
         // The app quits once every run has ended. Held as the app is about to quit, once the quit is decided, while
         // a run has not; a quit asked again meanwhile waits too. Then the quit is asked again and goes on as any quit
         // does. A quit the host app calls off leaves those runs ended, and the next quit terminates what launched
@@ -97,8 +104,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return () => problemListeners.delete(listener);
     }
 
-    // Resolves once what the catalog's last change comes to has loaded: a mod gone has closed, and one new or
-    // changed has launched, or failed to. Rejects with why it did not.
+    // Resolves once what the catalog's last change comes to has loaded, or before any change the startup mods: a mod
+    // gone has closed, and one changed that ran has launched again, or failed to. Rejects with why it did not.
     function whenReconciled() {
         return reconciled;
     }
@@ -108,28 +115,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         effectHandlers.set(name, handler);
     }
 
-    // The mods named load, in the mods' order, each once its own run that terminates has ended and the mods it requires
-    // have launched or failed to: a mod loaded while one it requires
-    // does not run fails as it launches. One launching or running is left as it is, and none loads while the app quits.
-    // Resolves once each has launched, or failed to.
-    async function load(ids) {
-        let left = CATALOG.mods()
-            .filter((mod) => ids.includes(mod.id))
-            .map((mod) => ({
-                id: mod.id,
-                requires: mod.relations.filter(({ optional }) => !optional).map(({ id }) => id),
-            }));
-        const ready = ({ id, requires }) =>
-            runOf(id)?.state !== 'terminating' &&
-            requires.every((other) => !left.some((mod) => mod.id === other) && runOf(other)?.state !== 'launching');
-        while (left.length) {
-            await until(() => quitHold === 'held' || left.some(ready));
-            if (quitHold === 'held') return;
-            const now = left.filter(ready);
-            left = left.filter((mod) => !now.includes(mod));
-            await ask('runner/load', { mods: now.map(({ id }) => id) });
-        }
-        await until(() => ids.every((id) => runOf(id)?.state !== 'launching'));
+    // The mods named load for `origin` (model/origin.js), with the mods they require by id, for being required. See
+    // `loadRequested`.
+    function load(ids, origin) {
+        return loadRequested(ids.map((id) => ({ id, origin })));
     }
 
     // The mods named terminate, after the mods that require them. Resolves once each has ended.
@@ -139,53 +128,100 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         await until(() => ids.every((id) => (runOf(id)?.state ?? 'notRunning') === 'notRunning'));
     }
 
-    // The mods terminate and load again, or load when they are not running, and the mods that require them load
-    // again with them. Resolves once each has launched again, or failed to: one loaded while a mod it requires is not
-    // running fails as it launches.
+    // The mods terminate and load again as the person opens them, or load when they are not running, and the mods
+    // that require them and run load again with them, as they launched. Resolves once each has launched again, or
+    // failed to: one loaded while a mod it requires is not running fails as it launches.
     function relaunch(ids) {
-        return reload(ids, withDependents(ids, new Map(CATALOG.mods().map((mod) => [mod.id, mod]))));
+        const dependents = dependentsOf(ids, new Map(CATALOG.mods().map((mod) => [mod.id, mod])));
+        const requested = ids.map((id) => ({ id, origin: ORIGIN.PERSON }));
+        return reload(ids, [...requested, ...asLaunched(dependents.filter(running))]);
     }
 
-    // Every mod that loads terminates and loads again, and one whose run ended for a quit the host app called off
-    // loads again.
+    // Every mod with a sandbox terminates and loads again as it launched, and one whose run ended for a quit the host
+    // app called off loads again.
     function relaunchAll() {
-        return relaunch(CATALOG.mods().map(({ id }) => id));
+        const ids = [...sandboxes.keys()];
+        return reload(ids, asLaunched(ids));
     }
 
     // MARK: - Private
-    // A mod opens as it arrives and goes as it leaves. One whose code changed goes and opens again, and the mods that
-    // require it load again with it. The core is asked first what the owners come to: a connection to a mod that no
-    // longer owns its interface ends, and one to the owner now stands. Each change of the catalog comes to this on its
-    // own: one that waits on a mod still launching holds up no other.
+    // A mod that arrives loads only as something asks for it, and one that leaves goes. One whose code changed goes,
+    // and loads again if it ran, with the mods that require it and ran, each as it launched. The core is asked first
+    // what the owners come to: a connection to a mod that no longer owns its interface ends, and one to the owner now
+    // stands. Each change of the catalog comes to this on its own: one that waits on a mod still launching holds up no
+    // other.
     function reconcile() {
         const current = new Map(CATALOG.mods().map((mod) => [mod.id, mod]));
         const stale = [...sandboxes.values()]
             .filter(({ mod }) => current.get(mod.id)?.revision !== mod.revision)
             .map(({ mod }) => mod.id);
-        const updated = stale.filter((id) => current.has(id));
-        const opening = [...current.keys()].filter((id) => !sandboxes.has(id));
-        const again = withDependents(updated, current);
-        reconciled = ask('runner/reconnect', {})
-            .then(() => unload(stale.filter((id) => !current.has(id))))
-            .then(() => reload(updated, [...opening, ...again]));
+        const updated = stale.filter((id) => current.has(id) && running(id));
+        const again = asLaunched([...updated, ...dependentsOf(updated, current).filter(running)]);
+        reconciled = ask('runner/reconnect', {}).then(() => reload(stale, again));
         reconciled.catch((error) => LOG.error('the mods were not loaded', error));
     }
 
-    // The mods named unload, and then those in `loading` load, the runs of those that have one saying meanwhile that
-    // they load again.
-    async function reload(unloading, loading) {
-        mark(loading, true);
+    // Each `{ id, origin }` requested loads for its origin, and the mods it requires by id for being required by it,
+    // in the mods' order, each once its own run that terminates has ended and the mods it requires have launched or
+    // failed to: a mod loaded while one it requires does not run fails as it launches. One launching or running is
+    // left as it is, and none loads while the app quits. Resolves once each has launched, or failed to.
+    async function loadRequested(requested) {
+        const mods = new Map(CATALOG.mods().map((mod) => [mod.id, mod]));
+        const requires = (id) =>
+            (mods.get(id)?.relations ?? []).filter(({ optional }) => !optional).map(({ id }) => id);
+        const origins = new Map(requested.map(({ id, origin }) => [id, origin]));
+        for (const [id] of origins)
+            for (const required of requires(id))
+                if (!origins.has(required)) origins.set(required, ORIGIN.requiredBy(id));
+        let left = [...mods.keys()].filter((id) => origins.has(id));
+        const ready = (id) =>
+            runOf(id)?.state !== 'terminating' &&
+            requires(id).every((other) => !left.includes(other) && runOf(other)?.state !== 'launching');
+        while (left.length) {
+            await until(() => quitHold === 'held' || left.some(ready));
+            if (quitHold === 'held') return;
+            const now = left.filter(ready);
+            left = left.filter((id) => !now.includes(id));
+            await ask('runner/load', { requests: now.map((id) => ({ mod: id, origin: origins.get(id) })) });
+        }
+        await until(() => [...origins.keys()].every((id) => runOf(id)?.state !== 'launching'));
+    }
+
+    // The mods named unload, and then each `{ id, origin }` in `requested` loads, the runs of those that have one
+    // saying meanwhile that they load again.
+    async function reload(unloading, requested) {
+        const ids = requested.map(({ id }) => id);
+        mark(ids, true);
         try {
             await unload(unloading);
-            await load(loading);
+            await loadRequested(requested);
         } finally {
-            mark(loading, false);
+            mark(ids, false);
         }
     }
 
-    // The mods named, and the mods that require them, by `mods`: the catalog's mods by id.
-    function withDependents(ids, mods) {
-        return [...ids, ...ids.flatMap((id) => mods.get(id)?.dependents ?? [])];
+    // The mods that require the mods named, by `mods`: the catalog's mods by id.
+    function dependentsOf(ids, mods) {
+        return ids.flatMap((id) => mods.get(id)?.dependents ?? []);
+    }
+
+    function running(id) {
+        return (runOf(id)?.state ?? 'notRunning') !== 'notRunning';
+    }
+
+    // Each mod named, requested for the origin its latest run launched for.
+    function asLaunched(ids) {
+        return [...new Set(ids)].map((id) => ({ id, origin: runOf(id).origin }));
+    }
+
+    // A startup mod whose run failed loads again for the startup list, with the startup mods that require it, unless
+    // it reached the relaunch limit.
+    function loadAgainAtStartup(run) {
+        const mods = new Map(CATALOG.mods().map((mod) => [mod.id, mod]));
+        const id = run.mod.id;
+        if (!run.failed || run.relaunchLimited || !mods.get(id)?.startupApproved) return;
+        const dependents = dependentsOf([id], mods).filter((other) => mods.get(other)?.startupApproved);
+        load([id, ...dependents], ORIGIN.STARTUP).catch((error) => LOG.error(`${id} was not loaded again`, error));
     }
 
     // A reload starting or ending for the mods: their latest runs say they load again while any reload is bringing
@@ -275,6 +311,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         const { run } = sandbox;
         if (name === 'didLaunch') lastLaunched.set(run.mod.id, run);
         notifications.emit(name, run);
+        if (name === 'didTerminate') loadAgainAtStartup(run);
     }
 
     function keep(sandbox, told) {
@@ -283,8 +320,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     function update(sandbox, told) {
-        const { state, problem = null, summary = null, contributions = null } = told;
-        sandbox.update({ state, problem, summary, contributions });
+        const { state, origin, failed, relaunchLimited, problem = null, summary = null, contributions = null } = told;
+        sandbox.update({ state, origin, failed, relaunchLimited, problem, summary, contributions });
     }
 
     // The page is made, known as the mod's and set up before it loads, so what it asks as it starts is the mod's. A
@@ -341,8 +378,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         send('runner/crash', { mod: run.mod.id, run: run.number, problem });
     }
 
-    // A page that loaded again by itself runs again, in the document it loaded: the run it had ended with the
-    // document it ran in. None runs again while the app quits.
+    // A page that loaded again by itself runs again, in the document it loaded, for the origin its run had: the run it
+    // had ended with the document it ran in. None runs again while the app quits.
     async function loadAgain(sandbox) {
         await asked;
         const { run } = sandbox;
@@ -351,7 +388,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         try {
             if (run.state !== 'notRunning')
                 await ask('runner/crash', { mod: run.mod.id, run: run.number, problem: 'its page loaded again' });
-            if (quitHold !== 'held') await ask('runner/load', { mods: [run.mod.id] });
+            if (quitHold !== 'held') await ask('runner/load', { requests: [{ mod: run.mod.id, origin: run.origin }] });
         } finally {
             sandbox.loadedItself = false;
         }

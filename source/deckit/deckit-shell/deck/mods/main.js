@@ -3,6 +3,7 @@ import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 import * as LIFECYCLE from '../mod/lifecycle.js';
+import * as ORIGIN from '../runner/model/origin.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -59,7 +60,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
         });
         PROTOCOL.load.handle(({ ids }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return RUNNER.load(ids);
+            return RUNNER.load(ids, ORIGIN.PERSON);
         });
         PROTOCOL.arrange.handle(({ ids }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);

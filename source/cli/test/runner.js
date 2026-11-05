@@ -1,9 +1,11 @@
-// Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: a run's page
-// made, known as the mod's and set up before it loads, what the core is told as the page fails, crashes or is
-// replaced, a run's end asked of its page, a mod loaded once what it requires has launched, one restarted with the
-// mods that require it, the core asked first what the owners come to as the catalog changes, with no mod loaded again
-// for it and the owner change it delivers reaching the page that listens, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each
-// check that failed. The packages are ES modules, so they are imported as such.
+// Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: the startup
+// mods loaded as it starts, a run's page made, known as the mod's and set up before it loads, what the core is told as
+// the page fails, crashes or is replaced, a run's end asked of its page, a mod loaded with what it requires, once that
+// has launched, one restarted with the mods that require it, each for its origin, the core asked first what the owners
+// come to as the catalog changes, with no new mod loaded for it and the owner change it delivers reaching the page that
+// listens, a changed mod that ran loaded again, a startup mod that failed loaded again unless it reached the relaunch
+// limit, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each check that failed.
+// The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -55,7 +57,7 @@ async function main() {
         modFrom: () => ({ id: 'a' }),
         pageOf: (id) => RUNNER.runs().find(({ run }) => run.mod.id === id)?.page ?? null,
     };
-    let catalog = [{ id: 'a', relations: [], revision: '1', dependents: [] }];
+    let catalog = [{ id: 'a', relations: [], revision: '1', dependents: [], startupApproved: true }];
     let changed = null;
     const CATALOG = { onChange: (listener) => (changed = listener), mods: () => catalog };
     const LOG = { warn: () => {}, error: () => {} };
@@ -72,9 +74,25 @@ async function main() {
     };
     const methods = (method) => asked.filter((request) => request.method === method);
     const found = (id) => ({ id, revision: '1', manifest: { id, name: id.toUpperCase() } });
-    const told = (notification, state, mod = 'a') => ({ effect: 'tell', mod, run: 1, notification, state });
+    const told = (notification, state, mod = 'a', facts = {}) => ({
+        effect: 'tell',
+        mod,
+        run: 1,
+        notification,
+        state,
+        origin: { kind: 'person' },
+        failed: false,
+        relaunchLimited: false,
+        ...facts,
+    });
+    const requests = (request) => JSON.stringify(request?.params.requests);
+    const startup = { origin: { kind: 'startup' } };
     answers.set('runner/load', [
-        [{ effect: 'open', found: found('a') }, told('willLaunch', 'launching'), { effect: 'loadPage', mod: 'a' }],
+        [
+            { effect: 'open', found: found('a') },
+            told('willLaunch', 'launching', 'a', startup),
+            { effect: 'loadPage', mod: 'a' },
+        ],
     ]);
 
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages, app });
@@ -89,10 +107,11 @@ async function main() {
     );
     check('a run is kept with its page', RUNNER.runs()[0]?.page?.modId === 'a', RUNNER.runs());
     check(
-        'each mod that loads is loaded as the runner starts',
-        methods('runner/load')[0]?.params.mods[0] === 'a',
+        'each startup mod is loaded as the runner starts, for the startup list',
+        requests(methods('runner/load')[0]) === '[{"mod":"a","origin":{"kind":"startup"}}]',
         asked
     );
+    check('a run keeps the origin the core told', RUNNER.runOf('a')?.origin.kind === 'startup', RUNNER.runOf('a'));
 
     const page = RUNNER.runs()[0].page;
     const crashes = () => methods('runner/crash').map(({ params }) => params.problem);
@@ -162,20 +181,27 @@ async function main() {
         },
     ];
     answers.set('runner/load', [
+        [],
         [{ effect: 'open', found: found('b') }, told('willLaunch', 'launching', 'b'), { effect: 'loadPage', mod: 'b' }],
     ]);
-    const loading = RUNNER.load(['b']);
+    const loading = RUNNER.load(['b'], { kind: 'person' });
     await tick();
-    check('a mod is not loaded while what it requires launches', methods('runner/load').length === 1, asked);
+    check(
+        'a mod loaded first asks for what it requires, for being required by it',
+        requests(methods('runner/load').at(-1)) === '[{"mod":"a","origin":{"kind":"required","by":"b"}}]',
+        asked
+    );
+    check('a mod is not loaded while what it requires launches', methods('runner/load').length === 2, asked);
     answers.set('runner/started', [[told('didLaunch', 'running')]]);
     await RUNNER.ask('runner/started', { mod: 'a', run: 1 });
     await tick();
     check(
-        'a mod is loaded once what it requires has launched',
-        methods('runner/load')[1]?.params.mods.join() === 'b' && done.at(-1)?.join() === 'load,b',
+        'a mod is loaded once what it requires has launched, for its own origin',
+        requests(methods('runner/load')[2]) === '[{"mod":"b","origin":{"kind":"person"}}]' &&
+            done.at(-1)?.join() === 'load,b',
         asked
     );
-    answers.set('runner/started', [[told('didLaunch', 'running', 'b')]]);
+    answers.set('runner/started', [[told('didLaunch', 'running', 'b', startup)]]);
     await RUNNER.ask('runner/started', { mod: 'b', run: 1 });
     await loading;
 
@@ -199,33 +225,28 @@ async function main() {
     await RUNNER.relaunch(['a']);
     const loads = methods('runner/load')
         .slice(-2)
-        .map(({ params }) => params.mods.join());
-    check('a mod restarted loads the mods that require it again, after it', loads.join(' ') === 'a b', loads);
+        .map(({ params }) => params.requests.map(({ mod, origin }) => `${mod}:${origin.kind}`).join());
+    check(
+        'a mod restarted loads as the person opens it, and the mods that require it again after it, as they launched',
+        loads.join(' ') === 'a:person b:startup',
+        loads
+    );
     check('the mods that require a mod restarted say meanwhile that they load again', marked === true, marked);
     check('a run that launches while a reload is bringing its mod back says so too', markedAgain === true, markedAgain);
     check('a reload ended says so no more', RUNNER.runOf('a').relaunches === false, RUNNER.runOf('a').relaunches);
 
     // A mod found anew, which may own an interface now: the core says first what the owners come to, delivering the
-    // owner change to the mods that listen, and it loads, while what runs runs on.
+    // owner change to the mods that listen, and it does not load, while what runs runs on.
     catalog = [...catalog, { id: 'c', relations: [], revision: '1', dependents: [] }];
     const before = asked.length;
     const toldBefore = tells.length;
     answers.set('runner/reconnect', [[{ effect: 'deliver', name: 'x/api:owner-changed', listeners: ['b'] }]]);
-    answers.set('runner/load', [
-        [{ effect: 'open', found: found('c') }, told('willLaunch', 'launching', 'c'), { effect: 'loadPage', mod: 'c' }],
-    ]);
     changed();
-    for (let at = 0; at < 6; at++) await tick();
-    answers.set('runner/started', [[told('didLaunch', 'running', 'c')]]);
-    await RUNNER.ask('runner/started', { mod: 'c', run: 1 });
     await RUNNER.whenReconciled();
-    const reconnecting = asked
-        .slice(before)
-        .filter(({ method }) => method !== 'runner/started')
-        .map(({ method, params }) => `${method}${params.mods ? ' ' + params.mods.join() : ''}`);
+    const reconnecting = asked.slice(before).map(({ method }) => method);
     check(
-        'a catalog change asks the core first what the owners come to, then loads what is new',
-        reconnecting.join(' | ') === 'runner/reconnect | runner/load c',
+        'a catalog change asks the core first what the owners come to, and loads no mod new to it',
+        reconnecting.join(' | ') === 'runner/reconnect',
         reconnecting
     );
     check('a mod that runs runs on as the owners change', RUNNER.runOf('b')?.state === 'running', null);
@@ -238,6 +259,54 @@ async function main() {
         JSON.stringify(delivered) === '[["b",{"name":"x/api:owner-changed","args":[]}]]',
         delivered
     );
+
+    // A changed mod that ran goes and loads again, as it launched, with what it requires.
+    catalog = catalog.map((mod) => (mod.id === 'b' ? { ...mod, revision: '2' } : mod));
+    const beforeChange = asked.length;
+    answers.set('runner/unload', [[told('didTerminate', 'notRunning', 'b')]]);
+    answers.set('runner/load', [[told('willLaunch', 'launching', 'b', startup), told('didLaunch', 'running', 'b')]]);
+    changed();
+    await RUNNER.whenReconciled();
+    const changing = asked
+        .slice(beforeChange)
+        .map(({ method, params }) => `${method}${params.mods ? ' ' + params.mods : ''}${requests({ params }) ?? ''}`);
+    check(
+        'a changed mod that ran goes and loads again, as it launched, with what it requires',
+        changing.join(' | ') ===
+            'runner/reconnect | runner/unload b | runner/load[{"mod":"a","origin":{"kind":"required","by":"b"}}] | ' +
+                'runner/load[{"mod":"b","origin":{"kind":"person"}}]',
+        changing
+    );
+
+    // A startup mod whose run failed loads again for the startup list, unless it reached the relaunch limit; one
+    // that ended as asked does not.
+    const loadsNow = () => methods('runner/load').length;
+    let loadsBefore = loadsNow();
+    answers.set('runner/unload', [[told('didTerminate', 'notRunning')]]);
+    answers.set('runner/load', [[]]);
+    await RUNNER.ask('runner/unload', { mods: ['a'] });
+    await tick();
+    check('a startup mod that ended as asked does not load again', loadsNow() === loadsBefore, asked.slice(-2));
+    answers.set('runner/crash', [[told('didTerminate', 'notRunning', 'a', { failed: true })]]);
+    answers.set('runner/load', [[told('willLaunch', 'launching', 'a', startup), told('didLaunch', 'running')]]);
+    await RUNNER.ask('runner/crash', { mod: 'a', run: 1, problem: 'x' });
+    await tick();
+    check(
+        'a startup mod whose run failed loads again for the startup list',
+        loadsNow() === loadsBefore + 1 &&
+            requests(methods('runner/load').at(-1)) === '[{"mod":"a","origin":{"kind":"startup"}}]',
+        asked.slice(-2)
+    );
+    check('a run says it failed as the core told', RUNNER.runOf('a').failed === false, RUNNER.runOf('a'));
+    loadsBefore = loadsNow();
+    const limited = { failed: true, relaunchLimited: true };
+    answers.set('runner/crash', [[told('didTerminate', 'notRunning', 'a', limited)]]);
+    await RUNNER.ask('runner/crash', { mod: 'a', run: 1, problem: 'x' });
+    await tick();
+    check('a startup mod at the relaunch limit does not load again', loadsNow() === loadsBefore, asked.slice(-2));
+    check('a run says its mod reached the relaunch limit', RUNNER.runOf('a').relaunchLimited === true, null);
+    answers.set('runner/started', [[told('didLaunch', 'running')]]);
+    await RUNNER.ask('runner/started', { mod: 'a', run: 1 });
 
     answers.set('runner/crash', [[{ effect: 'close', mod: 'a' }]]);
     watching.get(page).gone('killed');
@@ -259,7 +328,7 @@ async function main() {
     ]);
     check('the quit is held while a run has not ended', hold() === true, RUNNER.runs());
     const quit = methods('runner/unload').at(-1)?.params;
-    check('the core is asked to stop the runs as the app quits', quit?.mods.join() === 'b,c', quit);
+    check('the core is asked to stop the runs as the app quits', quit?.mods.join() === 'b', quit);
     check('a quit asked again meanwhile waits too', hold() === true, null);
     end();
     await tick();
