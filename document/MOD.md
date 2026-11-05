@@ -135,6 +135,7 @@ What the mod declares, by contribution point: what is there from the time the mo
 |---|---|
 | `commands` | commands by name, `{ description, params }` each (`deckit.commands.register`) |
 | `keys` | `app` and `global` keys by name, `{ label, key, scope }` each (`deckit.keys.register`) |
+| `styles` | `{ '<mod id>' or '*': a CSS file inside the folder, `/` separated }`, worn as `shell.styles.register`'s are, from the time the mod is installed, running or not, with `deckit.styles` |
 
 ## The entry
 
@@ -273,6 +274,8 @@ Returns `{ open(), close() }`: the mod's page, `width` by `height` with `content
 ### shell.styles.register({ '<mod id>' or '*': css })
 
 With `deckit.styles`, styles other pages while the screen lifecycle lasts: by id that mod's page, its own among them, and by `*` every page, the shell's too, and every mod's. A page wears them as its last style sheets, in the load order, the later over the earlier: a rule wins at the same specificity over the sheets the kit and the page's mod adopt, and over its `<style>` elements. A style the page sets on an element itself still wins unless the rule is `!important`. A sheet a script of the page's own world adopts, or one pushed onto `adoptedStyleSheets`, goes after them until the styles next change: which wins there is not settled, so a style does not lean on it. What the kit draws reads its tokens, `--deckit-*` on the page's root, and each mod's classes start with its id (UI.md): a mod that sets the tokens recolours what is drawn with them, and what a page colours from `theme` in its code stays as it is. A page for a mod that is not there is never styled, and a mod's styles go when its screen lifecycle ends.
+
+Styles that are not made while the mod runs are declared under `styles` in `contributes`, a CSS file for each id or `*`: they are worn from the time the mod is installed, whether it runs or not, before what its run registers, and go when it is removed. A file that is not there is left out. `shell.styles.register` is for styles made at run time.
 
 ## Configuration
 
