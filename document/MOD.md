@@ -24,6 +24,7 @@ name = "Dashboard"
 version = "1.0.0"
 api = "1.0.0"
 main = "dist/main.js"
+contributes = "contributes.json"
 urls = ["https://github.com/*", "dashboard:*"]
 
 [interfaces]
@@ -45,12 +46,13 @@ bot = { version = "1.0.0", optional = true }
 | `version` | yes | the mod's own release, `MAJOR.MINOR.PATCH`, by which an install tells a newer copy, compared with what other mods name in `[dependencies]` |
 | `api` | yes | the version of the mod contract it is written against |
 | `main` | yes | the entry, a path inside the folder, `/` separated |
+| `contributes` | no | a JSON file inside the folder, `/` separated, of what the mod declares, there whether it runs or not (below) |
 | `urls` | no | patterns of the addresses it asks to be offered: it is one of their handlers (below) |
 | `interfaces` | no | `provides`, interface = the majors of it the mod speaks, and `uses`, interface = the major of it the mod speaks (below) |
 | `dependencies` | no | mod id = the lowest version it needs, or `{ version, optional = true }` for one it runs without (below) |
 | `permissions` | no | permission = why it is needed, in words the person reads |
 
-Any other field stops the mod loading, and so does a `main` that names no file inside the folder. The manifest is read by deckit's core before a line of the mod runs.
+Any other field stops the mod loading, and so does a `main` or a `contributes` that names no file inside the folder. The manifest is read by deckit's core before a line of the mod runs.
 
 Only the part of TOML a manifest uses is read: top-level keys, one level of tables, and strings, booleans, integers, arrays and inline tables of those as values. An inline table is written on one line. A key with a dot is quoted (`"system.main-process" = …`).
 
@@ -113,6 +115,25 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `deckit.fonts` | the fonts and the text size every mod writes text in | `shell.fonts` |
 
 Each layer defines the names of what it adds and checks them where the mod asks; deck only keeps what a mod asked for. A name without a reason stops the mod. A name no layer on this host app defines (`system.overlay-windows`, `deckit.styles` and `deckit.fonts` where no UI shell is, or one misspelled) is not usable here: the mod runs without what it guards. Without asking, a mod has its own sandbox, records, values, configuration, keys and web sessions, and of deckit and its shell: asking for an address to be opened, putting itself on screen, a window of its own, and `about()`. None of it reaches another mod.
+
+### contributes
+
+```json
+{
+    "commands": {
+        "open-tab": {
+            "description": "Opens an address in a new tab",
+            "params": { "type": "object", "properties": { "url": { "type": "string", "title": "Address" } }, "required": ["url"] }
+        }
+    }
+}
+```
+
+What the mod declares, by contribution point: what is there from the time the mod is installed, whether its run is there or not. The run attaches what does the work by the same names when it registers (Registering). The file is a JSON object, read by deckit's core with the manifest, before a line of the mod runs; a file that is no JSON object stops the mod loading. Deck carries each contribution point to the layer that owns it and reads none of them; the layer checks what is under its own, and what it cannot use is shown on the mod's row in Settings as the mod starts.
+
+| Contribution point | What it declares |
+|---|---|
+| `commands` | commands by name, `{ description, params }` each (`deckit.commands.register`) |
 
 ## The entry
 
@@ -216,13 +237,13 @@ Each key is `{ label, key, scope, run }`: `run()` is what pressing it does, in t
 ```js
 deckit.commands.register({
     'open-tab': {
-        description: 'Opens an address in a new tab',
-        params: { type: 'object', properties: { url: { type: 'string', title: 'Address' } }, required: ['url'] },
         run(args) { … },
         complete(param, partial, { args, signal }) { … },
     },
 });
 ```
+
+A command is declared under `commands` in `contributes`, its `description` and `params` there, and the run attaches its `run` and `complete` by its name. A declared command is listed whether its mod runs or not; running one whose `run` is not attached is refused, as one of a mod not running is. A run may also register a command its `contributes` does not declare, with its `description` and `params` beside `run`: that command is there only while the run lasts, for what only a run knows (a choice of the values it has now). A name `contributes` declares takes its `description` and `params` from there.
 
 What the mod does, by name, for anyone to run: another mod through `deckit.commands.run`, the host app, a CLI, an automation. Which of what it does a mod offers is its own to choose: a command does not know where the person's focus is, so what only means something there (Save, Next Tab, Go to Line) stays a key, and a command is what its name and args say in full. A command a CLI runs by name is registered in `start`, so it is there with no UI. A name is ASCII letters, digits, `_` and `-`. `params` is a subset of JSON Schema: `type: 'object'` at the top, and `type`, `properties`, `required`, `items`, `enum`, `oneOf` of `{ const, title, description }`, `title` and `description`; the core refuses any other keyword and checks the args against `params` before every run. A command has no label and no icon: what a person reads is a key's or an action's. Commands are public.
 
