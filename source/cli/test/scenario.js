@@ -8,6 +8,9 @@ const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 const VIEWS = 7;
 // The test's own mods with a view: the region parent and the window probe. Its region child is in no list.
 const TEST_VIEWS = 2;
+// The test's own mods the person opens though the panel does not list them: each shows nothing there, and no work asks
+// for it.
+const OPENED = ['broker-user', 'broker-refused', 'open-user', 'window-user', 'web-user'];
 const LINES = 'lines.txt';
 const FOUND = 'source/quick-open-target.js';
 const BROKEN = 'opens-everything';
@@ -216,7 +219,8 @@ async function run({
     await sleep(9000);
     // Only the startup mods run as the app starts. The panel lists every mod that declares a view, running or not, and
     // each is opened from the list as a person opens it, the Editor last, so it is on screen. The region child comes
-    // as its parent places it; the rest run as their work asks for them.
+    // as its parent places it, the test's mods the list does not show are opened as a person opens them, and the rest
+    // run as their work asks for them.
     const launchedAtStart = (await targets()).map(({ url }) => url);
     check(
         'a startup mod runs as the app starts',
@@ -249,6 +253,21 @@ async function run({
         await sleep(300);
     }
     await sleep(3000);
+    // The test's mods that show nothing the list holds and that no work asks for are opened as a person opens a mod
+    // the list does not show, from the window probe's page; the mods they require launch with them.
+    const probe = await until(() => page('deckit://window-probe.mod'), 4000);
+    await probe?.evaluate(
+        `document.dispatchEvent(new CustomEvent('test-load', { detail: ${JSON.stringify(OPENED)} }))`
+    );
+    const loaded = await until(
+        async () => (await probe?.evaluate('document.documentElement.dataset.loaded')) || false,
+        8000
+    );
+    check(
+        'a mod the list does not show runs as the person opens it, with the mods it requires',
+        loaded === OPENED.join() && !!(await page('deckit://broker-provider.mod')),
+        loaded
+    );
     await openFromList('editor');
     await until(() => page('deckit://editor.mod'), 6000);
     await sleep(3000);
@@ -1290,7 +1309,8 @@ async function run({
         // mod opened in attach, in its dependent's attach as they connect; and an event one sends, which is public.
         const provider = await page('deckit://broker-provider.mod');
         const user = await page('deckit://broker-user.mod');
-        const screen = await page('deckit://broker-screen.mod');
+        // The screen is launched for the connection the user listens for as its attach runs.
+        const screen = await until(() => page('deckit://broker-screen.mod'), 4000);
         const mark = (session, name) => session?.evaluate(`document.documentElement.dataset.${name}`);
         const asked = await until(async () => (await mark(user, 'asked')) === '42 broker-user', 4000);
         check(
@@ -1384,19 +1404,28 @@ async function run({
             await settings.evaluate(screenNote)
         );
 
-        // Keys, as the core resolves them: a mod's key that works anywhere in the app, bound again, and a chord
-        // recorded.
-        const keys = await page('deckit://keys-user.mod');
+        // Keys, as the core resolves them: a mod's key that works anywhere in the app, declared, launching its mod as
+        // it is pressed, bound again, and a chord recorded.
         await show('editor');
+        check(
+            'a mod with a declared key does not run before the key is pressed',
+            !(await page('deckit://keys-user.mod')),
+            ''
+        );
         await editor.key('9', 'Digit9', META | SHIFT, 57);
+        const keys = await until(() => page('deckit://keys-user.mod'), 4000);
         const pressed = await until(async () => (await mark(keys, 'pressed')) === '1', 3000);
-        check("a mod's key that reaches the app runs from another mod's page", pressed, await mark(keys, 'pressed'));
-        await keys.evaluate(`document.dispatchEvent(new CustomEvent('test-bind', { detail: 'mod+shift+8' }))`);
+        check(
+            "a mod's declared key that reaches the app launches its mod and runs from another mod's page",
+            pressed,
+            await mark(keys, 'pressed')
+        );
+        await keys?.evaluate(`document.dispatchEvent(new CustomEvent('test-bind', { detail: 'mod+shift+8' }))`);
         const rebound = await until(async () => /8/.test((await mark(keys, 'chord')) || ''), 3000);
         await editor.key('8', 'Digit8', META | SHIFT, 56);
         const moved = await until(async () => (await mark(keys, 'pressed')) === '2', 3000);
         check('a key bound again runs on its new chord', rebound && moved, await mark(keys, 'chord'));
-        await keys.evaluate(`document.dispatchEvent(new CustomEvent('test-record'))`);
+        await keys?.evaluate(`document.dispatchEvent(new CustomEvent('test-record'))`);
         await editor.key('k', 'KeyK', META, 75);
         const recorded = await until(async () => (await mark(keys, 'recorded')) === '{"spec":"cmd+k"}', 3000);
         check('a chord typed to be bound is recorded', recorded, await mark(keys, 'recorded'));
@@ -1404,9 +1433,8 @@ async function run({
         // Addresses and queries, as the core routes them: an address of a scheme a mod asks for reaches it, one under a
         // path another mod asks for reaches that one first, and what a mod resolves is in the switcher and runs.
         const opener = await page('deckit://open-user.mod');
-        const pathOpener = await page('deckit://open-user-path.mod');
         const openFrom = (url) =>
-            opener.evaluate(
+            opener?.evaluate(
                 `delete document.documentElement.dataset.answered; document.dispatchEvent(new CustomEvent('test-open', { detail: ${JSON.stringify(url)} }))`
             );
         await openFrom(' TEST-OPEN:hello ');
@@ -1418,6 +1446,8 @@ async function run({
         check('an address of a scheme a mod asks for reaches it', reached, await mark(opener, 'opened'));
         const deep = 'test-open://probe/deep/1';
         await openFrom(deep);
+        // The mod that asks for the path is launched as its turn for the address comes.
+        const pathOpener = await until(() => page('deckit://open-user-path.mod'), 4000);
         const narrower = await until(
             async () => (await mark(pathOpener, 'opened')) === deep && (await mark(opener, 'answered')) === 'true',
             3000
@@ -1636,7 +1666,7 @@ async function run({
         // The owner of an interface whose page loads again by itself ends its connections: the dependent's onConnect
         // cleanup runs, and the owner's next run connects again.
         const screens = Number(await mark(user, 'screens'));
-        await screen.evaluate('location.reload()');
+        await screen?.evaluate('location.reload()');
         const cleaned = await until(async () => (await mark(user, 'cleaned')) === '1', 4000);
         check(
             "a dependency that ends calls the cleanup its dependent's onConnect answered",
@@ -1655,12 +1685,12 @@ async function run({
         // restarted from Settings brings them back, each in a new document. A child in a region uses its parent's
         // interface, which no mod requires, so it runs on.
         const started = `performance.timeOrigin`;
-        const origin = await user.evaluate(started);
+        const origin = await user?.evaluate(started);
         const childOrigin = await child.evaluate(started);
-        await provider.evaluate('location.reload()');
+        await provider?.evaluate('location.reload()');
         await parent.evaluate('location.reload()');
         await sleep(1500);
-        check('a mod whose requirement ran again stays down', (await user.evaluate(started)) === origin, '');
+        check('a mod whose requirement ran again stays down', (await user?.evaluate(started)) === origin, '');
         check('a child whose parent ran again runs on', (await child.evaluate(started)) === childOrigin, '');
         const disconnected = await until(async () => (await mark(screen, 'disconnected')) === 'broker-user true', 3000);
         check(
@@ -1669,7 +1699,7 @@ async function run({
             await mark(screen, 'disconnected')
         );
         await settings?.evaluate(`${rowOf('Broker Provider')}.querySelector('[title^="Restart this mod"]').click()`);
-        const relaunched = await until(async () => (await user.evaluate(started)) !== origin, 6000);
+        const relaunched = await until(async () => (await user?.evaluate(started)) !== origin, 6000);
         check('a mod restarted from Settings brings back the mods that require it', relaunched, '');
 
         // A shown mod's next revision installed over it: its page is replaced while the panel lays it, the new one

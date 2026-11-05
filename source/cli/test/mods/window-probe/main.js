@@ -1,5 +1,6 @@
 // A mod with a view, which asks a main process module of its own whether it finds the window its page is shown in,
-// installs the folder the test hands it as a person would, by a press in its page, and takes files dropped on it.
+// installs the folder the test hands it as a person would, by a press in its page, opens the mods the test names as a
+// person opens one the panel does not list, and takes files dropped on it.
 class WindowProbe {
     attach(shell, deckit) {
         const marks = document.documentElement.dataset;
@@ -22,6 +23,12 @@ class WindowProbe {
             deckit.mods.install(from).then(
                 ({ id }) => (marks.installed = id),
                 (error) => (marks.installed = 'failed: ' + error.message)
+            )
+        );
+        document.addEventListener('test-load', ({ detail: ids }) =>
+            deckit.mods.load(ids).then(
+                () => (marks.loaded = ids.join()),
+                (error) => (marks.loaded = 'failed: ' + error.message)
             )
         );
         document.addEventListener('test-stack', async () => {

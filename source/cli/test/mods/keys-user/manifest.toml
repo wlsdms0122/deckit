@@ -3,6 +3,7 @@ name = "Keys User"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+contributes = "contributes.json"
 
 [permissions]
 "deckit.app-keys" = "to test a key that works anywhere in the app"
