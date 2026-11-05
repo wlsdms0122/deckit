@@ -8,8 +8,8 @@ import * as ORIGIN from '../runner/model/origin.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
-// again, loading, putting them in an order, pinning the owner of each interface and what one has where deck keeps
-// it.
+// again, loading and quitting as the person asks, putting them in an order, pinning the owner of each interface and
+// what one has where deck keeps it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // MARK: - Property
@@ -19,10 +19,11 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // What is on deck is told of a mod installed, once what runs in its place has launched, and answers what it adds
-    // to what install answers (`installed(id)`, which may answer a promise), and of one removed (`removed(id)`). It
-    // is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed (`onFactsChange(tell)`),
-    // and to erase what it keeps outside deck of a mod removed with its data (`erase(id)`, a promise).
+    // What is on deck is told of a mod installed, once the one it replaced, if that ran, has launched again, and
+    // answers what it adds to what install answers (`installed(id)`, which may answer a promise), and of one removed
+    // (`removed(id)`). It is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed
+    // (`onFactsChange(tell)`), and to erase what it keeps outside deck of a mod removed with its data (`erase(id)`, a
+    // promise).
     function start(given) {
         layer = given;
         eraseUncleared();
@@ -57,6 +58,10 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
         PROTOCOL.relaunch.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return RUNNER.relaunch([id]);
+        });
+        PROTOCOL.quit.handle(({ id }, sender) => {
+            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
+            return RUNNER.unload([id]);
         });
         PROTOCOL.load.handle(({ ids }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);

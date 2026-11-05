@@ -10,6 +10,7 @@ export const remove = CHANNEL.pageToMain(
     { reply: true }
 );
 export const relaunch = CHANNEL.pageToMain('deckit-shell:mods-relaunch', { id: 'string' }, { reply: true });
+export const quit = CHANNEL.pageToMain('deckit-shell:mods-quit', { id: 'string' }, { reply: true });
 export const load = CHANNEL.pageToMain('deckit-shell:mods-load', { ids: 'array' }, { reply: true });
 export const arrange = CHANNEL.pageToMain('deckit-shell:mods-arrange', { ids: 'array' }, { reply: true });
 // `mod` absent or null clears the pin.

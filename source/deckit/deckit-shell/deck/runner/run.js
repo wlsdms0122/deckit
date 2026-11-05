@@ -47,6 +47,11 @@ export function createRun() {
         PROTOCOL.notStarted.send({ run: number, problem: String(failures.at(-1) || 'it did not start') });
     }
 
+    // The mod ends its run, as any request ends it.
+    function quit() {
+        if (number !== null) PROTOCOL.quit.send({ run: number });
+    }
+
     // MARK: - Private
 
     return {
@@ -54,6 +59,7 @@ export function createRun() {
         deliver,
         fail,
         notStarted,
+        quit,
         get mod() {
             return mod;
         },

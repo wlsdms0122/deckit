@@ -433,6 +433,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         PROTOCOL.notStarted.on(({ run: number, problem }, sender) =>
             send('runner/not-started', { mod: IDENTITY.modFrom(sender).id, run: number, problem })
         );
+        PROTOCOL.quit.on(({ run: number }, sender) => {
+            const run = currentRun(sender, number);
+            if (run) unload([run.mod.id]).catch((error) => LOG.error(`${run.mod.id} did not quit`, error));
+        });
     }
 
     return {
@@ -448,6 +452,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         handleEffect,
         whenReconciled,
         load,
+        unload,
         relaunch,
         relaunchAll,
     };

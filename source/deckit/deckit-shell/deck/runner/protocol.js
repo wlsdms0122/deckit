@@ -28,5 +28,7 @@ export const joined = CHANNEL.pageToMain('deckit-shell:mod-joined', {
 export const problem = CHANNEL.pageToMain('deckit-shell:mod-problem', { run: 'number', problem: 'string' });
 // It did not start, and why: what the mods that require it are told.
 export const notStarted = CHANNEL.pageToMain('deckit-shell:mod-not-started', { run: 'number', problem: 'string' });
+// The mod asks its run to end.
+export const quit = CHANNEL.pageToMain('deckit-shell:mod-quit', { run: 'number' });
 // Its run is ending: answered once each of its lifecycles has ended.
 export const stop = CHANNEL.mainToPage('deckit-shell:mod-stop', { reply: true });
