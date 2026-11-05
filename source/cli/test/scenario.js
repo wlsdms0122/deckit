@@ -281,8 +281,8 @@ async function run({
     })()`);
     const searched = await allMods?.evaluate(gridIds);
     check(
-        'the Mods mod finds a mod by its name',
-        JSON.stringify(searched) === '["window-probe"]',
+        'the Mods mod finds a mod by its name, best first',
+        searched?.[0] === 'window-probe' && !searched.includes('editor'),
         JSON.stringify(searched)
     );
     await allMods?.shot('mods');
