@@ -59,14 +59,14 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // refused, and is null. What the dependent is handed names the interface, never the mod that implements it.
     async function open(connection) {
         const { id, dependent, dependency, required } = connection;
-        const named = { id, interface: connection.interface, required, exportedIn: dependency.lifecycle };
+        const named = { id, name: connection.name, required, exportedIn: dependency.lifecycle };
         const mod = CATALOG.mods().find((one) => one.id === dependent.mod);
         try {
             const page = IDENTITY.pageOf(dependency.mod);
             if (!page) return null;
             const exports = await PROTOCOL.connect.invoke(page, {
                 id,
-                interface: connection.interface,
+                name: connection.name,
                 mod: { id: dependent.mod, name: mod?.name ?? dependent.mod },
                 lifecycle: dependency.lifecycle,
             });
@@ -74,7 +74,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
         } catch (error) {
             if (!standing.delete(id)) return null;
             CORE.request('connection/refuse', { connection: id }).catch(() => {});
-            return { ...named, problem: `${connection.interface} did not connect: ${error.message || error}` };
+            return { ...named, problem: `${connection.name} did not connect: ${error.message || error}` };
         }
     }
 
