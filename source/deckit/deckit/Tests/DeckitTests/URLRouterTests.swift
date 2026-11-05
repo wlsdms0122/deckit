@@ -120,6 +120,100 @@ struct URLRouterTests {
         #expect(throws: URLRouterError.noHandlers("mailto")) { try unhandled.get() }
     }
 
+    @Test("the person's order comes before the app's, and a mod no one placed after both at its width")
+    func personsOrderComesBeforeTheApps() throws {
+        // Given
+        try fixture.write("a", urls: ["https:*"])
+        try fixture.write("b", urls: ["https:*"])
+        try fixture.write("c", urls: ["https:*"])
+        let sut = try fixture.deckit(schemeHandlers: ["https": ["b"]])
+        for mod in ["a", "b", "c"] {
+            _ = try sut.started(mod, run: 1, contributing: ["urls": .bool(true)])
+        }
+
+        // When
+        try sut.urlRouter.setHandlers(of: "https", order: ["a"], off: [])
+
+        // Then
+        #expect(route(sut, "https://example.com", opensFiles: false) == "https://example.com -> a b c, browser")
+    }
+
+    @Test("a mod stands in a scheme's list by its manifest, and is offered an address once its run registered")
+    func membershipIsStatic() throws {
+        // Given
+        try fixture.write("a", urls: ["https:*"])
+        try fixture.write("other-api", api: "2.0.0", urls: ["https:*"])
+        try fixture.write("wanting", urls: ["https:*"], requires: ["x/missing"])
+        let sut = try fixture.deckit()
+
+        // When
+        let lists = sut.urlRouter.handlerLists()
+        let unregistered = route(sut, "https://example.com", opensFiles: false)
+        _ = try sut.started("a", run: 1, contributing: ["urls": .bool(true)])
+        let registered = route(sut, "https://example.com", opensFiles: false)
+
+        // Then
+        let https = try #require(lists.first { list in list.scheme == "https" })
+        #expect(https.handlers.map(\.id) == ["a", "wanting"])
+        #expect(unregistered == "https://example.com -> , browser")
+        #expect(registered == "https://example.com -> a, browser")
+    }
+
+    @Test("a mod's width at an address is its narrowest pattern that matches it, placed or not")
+    func widthIsMeasuredPerAddress() throws {
+        // Given
+        try fixture.write("placed", urls: ["https:*", "https://example.com/deep*"])
+        try fixture.write("github", urls: ["https://github.com/*"])
+        try fixture.write("narrowed", urls: ["https:*", "https://example.com/x*"])
+        try fixture.write("browser", urls: ["https:*"])
+        let sut = try fixture.deckit(schemeHandlers: ["https": ["placed"]])
+        for mod in ["placed", "github", "narrowed", "browser"] {
+            _ = try sut.started(mod, run: 1, contributing: ["urls": .bool(true)])
+        }
+
+        // When
+        let github = route(sut, "https://github.com/deckit", opensFiles: false)
+        let narrowed = route(sut, "https://example.com/x/1", opensFiles: false)
+        let deep = route(sut, "https://example.com/deep/1", opensFiles: false)
+        let other = route(sut, "https://other.org", opensFiles: false)
+        let lists = sut.urlRouter.handlerLists()
+
+        // Then
+        let https = try #require(lists.first { list in list.scheme == "https" })
+        #expect(github == "https://github.com/deckit -> github placed browser narrowed, browser")
+        #expect(narrowed == "https://example.com/x/1 -> narrowed placed browser, browser")
+        #expect(deep == "https://example.com/deep/1 -> placed browser narrowed, browser")
+        #expect(other == "https://other.org -> placed browser narrowed, browser")
+        #expect(https.handlers.map(\.id) == ["github", "placed", "browser", "narrowed"])
+    }
+
+    @Test("a drag places the moved mod and those above it, and a narrow mod no one placed stays first at its addresses")
+    func dragPlacesUpToTheMovedMod() throws {
+        // Given
+        try fixture.write("a", urls: ["https:*"])
+        try fixture.write("b", urls: ["https:*"])
+        try fixture.write("github", urls: ["https://github.com/*"])
+        let sut = try fixture.deckit()
+        for mod in ["a", "b", "github"] {
+            _ = try sut.started(mod, run: 1, contributing: ["urls": .bool(true)])
+        }
+        let shown = try #require(sut.urlRouter.handlerLists().first { list in list.scheme == "https" })
+
+        // When
+        try sut.urlRouter.setHandlers(of: "https", order: ["b"], off: [])
+        let moved = try #require(sut.urlRouter.handlerLists().first { list in list.scheme == "https" })
+        let github = route(sut, "https://github.com/deckit", opensFiles: false)
+        try sut.urlRouter.setHandlers(of: "https", order: ["github", "a"], off: [])
+        let above = try #require(sut.urlRouter.handlerLists().first { list in list.scheme == "https" })
+
+        // Then
+        #expect(shown.handlers.map(\.id) == ["github", "a", "b"])
+        #expect(moved.handlers.map(\.id) == ["github", "b", "a"])
+        #expect(github == "https://github.com/deckit -> github b a, browser")
+        #expect(above.handlers.map(\.id) == ["github", "a", "b"])
+        #expect(route(sut, "https://example.com", opensFiles: false) == "https://example.com -> a b, browser")
+    }
+
     @Test("a mod that registers a handler and names no urls is told so, and one that has not registered it is passed")
     func unpairedHandlerIsAProblem() throws {
         // Given

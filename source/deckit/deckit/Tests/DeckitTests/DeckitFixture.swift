@@ -24,12 +24,23 @@ struct DeckitFixture {
     }
 
     // MARK: - Public
-    func write(_ id: String, permissions: [String] = [], urls: [String] = []) throws {
+    // `requires` are the interfaces it requires, at 1.0.0.
+    func write(
+        _ id: String,
+        api: String = "1.0.0",
+        permissions: [String] = [],
+        urls: [String] = [],
+        requires: [String] = []
+    ) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let asked = permissions.isEmpty
             ? ""
             : "\n[permissions]\n" + permissions.map { permission in "\"\(permission)\" = \"to test\"" }
+                .joined(separator: "\n")
+        let required = requires.isEmpty
+            ? ""
+            : "\n[dependencies]\n" + requires.map { interface in "\"\(interface)\" = \"1.0.0\"" }
                 .joined(separator: "\n")
         let patterns = urls.isEmpty
             ? ""
@@ -38,9 +49,9 @@ struct DeckitFixture {
             id = "\(id)"
             name = "\(id.uppercased())"
             version = "1.0.0"
-            api = "1.0.0"
+            api = "\(api)"
             main = "main.js"
-            """ + patterns + asked
+            """ + patterns + asked + required
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         try Data().write(to: location.appending(path: "main.js"))
     }
