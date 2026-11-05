@@ -6,6 +6,7 @@ import * as OPEN from '../open/renderer.js';
 import * as MAIN_PROCESS from '../main-process/renderer.js';
 import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as PROVIDER from '../provider/renderer.js';
+import * as CONTRIBUTION from '../contribution/renderer.js';
 import * as CONFIGURATION from '../configuration/renderer.js';
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
@@ -173,6 +174,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                     ? { ...COMMAND.registry, onChange: scoped(COMMAND.registry.onChange) }
                     : {}),
             }),
+            exports: Object.freeze({ ...deck.exports, contributions: CONTRIBUTION.contributions }),
             keys: Object.freeze({
                 ...deck.keys,
                 chordOf: (name, { provider = '' } = {}) => KEYMAP.chord(name, { provider }),

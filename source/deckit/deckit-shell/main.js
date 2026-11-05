@@ -32,6 +32,7 @@ import { createNotification } from './deckit/notification/main.js';
 import { createClipboard } from './deckit/clipboard/main.js';
 import { createCommand } from './deckit/command/main.js';
 import { createProvider } from './deckit/provider/main.js';
+import { createContribution } from './deckit/contribution/main.js';
 import { createConfiguration } from './deckit/configuration/main.js';
 import { createMainProcess } from './deckit/main-process/main.js';
 import { createModFolder } from './deckit/mod-folder/main.js';
@@ -184,6 +185,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: ENV.pages });
     const COMMAND = createCommand({ LOG, IDENTITY, RUNNER, CORE });
     const PROVIDER = createProvider({ CORE, IDENTITY });
+    const CONTRIBUTION = createContribution({ CORE, IDENTITY });
     const KEYMAP = createKeymap({
         LOG,
         IDENTITY,
@@ -276,6 +278,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         CLIPBOARD.start();
         COMMAND.start();
         PROVIDER.start();
+        CONTRIBUTION.start();
         MAIN_PROCESS.start();
         MOD_FOLDER.start();
         RUNTIME.start();
