@@ -1,6 +1,6 @@
 // The panel's list order (deckit-shell/shell/panel/model/list-order): the mods the person placed first, as placed, the rest
-// as deckit lists them, and a drag that moves the ids it names among the places they held. And where the frame's parts
-// are (model/layout) at a panel's size. Exits 1 with a line for each check that failed. The packages are ES modules,
+// as deckit lists them, and a drag that moves the ids it names among the places they held. The Dock's items
+// (model/dock): those kept, then those running. And where the frame's parts are (model/layout) at a panel's size. Exits 1 with a line for each check that failed. The packages are ES modules,
 // so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -10,6 +10,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 async function main() {
     const LIST_ORDER = await import(url('deckit-shell', 'shell', 'panel', 'model', 'list-order.js'));
     const LAYOUT = await import(url('deckit-shell', 'shell', 'panel', 'model', 'layout.js'));
+    const DOCK = await import(url('deckit-shell', 'shell', 'panel', 'model', 'dock.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -21,6 +22,24 @@ async function main() {
     check('those placed come first, as placed, then the rest as listed', sorted === 'c,a,b,d', sorted);
     const arranged = LIST_ORDER.arranged(['a', 'b', 'c', 'd'], ['d', 'b', 'x', 'd']).join();
     check('the ids named move among the places they held, the rest stay put', arranged === 'a,d,c,b', arranged);
+
+    const ids = ['a', 'b', 'c', 'd', 'e'];
+    const docked = DOCK.items(ids, { pinned: new Set(['d', 'b']), running: new Set(['b', 'c', 'e']) });
+    check(
+        'the Dock holds the mods kept, in the list order, then those running that are not kept',
+        JSON.stringify(docked) ===
+            JSON.stringify([
+                { id: 'b', pinned: true, running: true },
+                { id: 'd', pinned: true, running: false },
+                { id: 'c', pinned: false, running: true },
+                { id: 'e', pinned: false, running: true },
+            ]),
+        docked
+    );
+    const unkept = DOCK.items(ids, { pinned: new Set(['b']), running: new Set(['c']) }).map(({ id }) => id);
+    check('a mod taken out of the Dock that does not run leaves it', unkept.join() === 'b,c', unkept);
+    const kept = DOCK.items(ids, { pinned: new Set(['a', 'c']), running: new Set(['c']) }).map(({ id }) => id);
+    check('a running mod kept is listed once, where it is kept', kept.join() === 'a,c', kept);
 
     const slot = { top: 100, bottom: 10 };
     const open = LAYOUT.laidOut({ size: { width: 1000, height: 700 }, width: 300, collapsed: false, slot });
