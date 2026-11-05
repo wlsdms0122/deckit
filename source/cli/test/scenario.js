@@ -4,10 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 
-// The mods Deckit.app ships with a view: every one but Deckit, which has none, and the Switcher and Notifications,
-// windows.
-const VIEWS = 7;
-// The test's own mods with a view: the region parent and the window probe. Its region child is in no list.
+// The mods Deckit.app ships with a view, which the Dock keeps from the first start: every one but Deckit, which has
+// none, and the Switcher and Notifications, windows.
+const VIEWS = 8;
+// The test's own mods with a view, which the Dock lists once they run: the region parent and the window probe. Its
+// region child is in no list.
 const TEST_VIEWS = 2;
 // The test's own mods the person opens though the panel does not list them: each shows nothing there, and no work asks
 // for it.
@@ -218,10 +219,11 @@ async function run({
     };
 
     await sleep(9000);
-    // Only the startup mods run as the app starts. The panel lists every mod that declares a view, running or not, and
-    // each is opened from the list as a person opens it, the Editor last, so it is on screen. The region child comes
-    // as its parent places it, the test's mods the list does not show are opened as a person opens them, and the rest
-    // run as their work asks for them.
+    // Only the startup mods run as the app starts. The Dock keeps the shipped mods that declare a view, running or not,
+    // and each is opened from it as a person opens it, the Editor last, so it is on screen. The test's mods with a view
+    // are opened from the Mods mod, and come into the Dock as they run. The region child comes as its parent places
+    // it, the test's mods the panel does not show are opened as a person opens them, and the rest run as their work
+    // asks for them.
     const launchedAtStart = (await targets()).map(({ url }) => url);
     check(
         'a startup mod runs as the app starts',
@@ -249,8 +251,8 @@ async function run({
     };
     const listedAtStart = (await until(async () => ((await listedIds()) || []).length && listedIds())) || [];
     check(
-        'the panel lists the mods that declare a view before they run',
-        listedAtStart.length === VIEWS + TEST_VIEWS && !listedAtStart.includes('deckit'),
+        'the Dock keeps the shipped mods that declare a view before they run',
+        listedAtStart.length === VIEWS && !listedAtStart.includes('deckit') && !listedAtStart.includes('region-parent'),
         listedAtStart
     );
     for (const id of listedAtStart) {
@@ -259,6 +261,48 @@ async function run({
         await sleep(300);
     }
     await sleep(3000);
+    // The Mods mod lists every mod that declares a view, and opens one the Dock does not keep.
+    await openFromList('mods');
+    const allMods = await until(() => page('deckit://mods.mod'), 4000);
+    const gridIds = `[...document.querySelectorAll('.mods-item')].map((item) => item.dataset.modId)`;
+    const grid = await until(
+        async () => ((await allMods?.evaluate(gridIds)) || []).length && allMods.evaluate(gridIds)
+    );
+    check(
+        'the Mods mod lists every mod that declares a view',
+        Array.isArray(grid) &&
+            ['region-parent', 'window-probe', 'region-child', 'editor'].every((id) => grid.includes(id)),
+        JSON.stringify(grid)
+    );
+    await allMods?.evaluate(`(() => {
+        const field = document.querySelector('.mods-search input');
+        field.value = 'probe';
+        field.dispatchEvent(new Event('input'));
+    })()`);
+    const searched = await allMods?.evaluate(gridIds);
+    check(
+        'the Mods mod finds a mod by its name',
+        JSON.stringify(searched) === '["window-probe"]',
+        JSON.stringify(searched)
+    );
+    await allMods?.shot('mods');
+    for (const id of ['region-parent', 'window-probe']) {
+        await allMods?.evaluate(`document.querySelector('.mods-search .deckit-field-clear')?.click()`);
+        await allMods?.evaluate(`document.querySelector('.mods-item[data-mod-id="${id}"]').click()`);
+        await until(() => page(`deckit://${id}.mod`), 4000);
+        await sleep(300);
+    }
+    const docked = await until(
+        async () => ((await listedIds()) || []).length === VIEWS + TEST_VIEWS && listedIds(),
+        4000
+    );
+    check(
+        'a mod opened from the Mods mod comes into the Dock as it runs, marked running',
+        Array.isArray(docked) &&
+            docked.slice(-TEST_VIEWS).join() === 'region-parent,window-probe' &&
+            (await listFrame.evaluate(`!!document.querySelector('[data-mod-id="window-probe"] .deckit-mod-running')`)),
+        JSON.stringify(docked)
+    );
     // The test's mods that show nothing the list holds and that no work asks for are opened as a person opens a mod
     // the list does not show, from the window probe's page; the mods they require launch with them.
     const probe = await until(() => page('deckit://window-probe.mod'), 4000);
@@ -459,6 +503,18 @@ async function run({
             JSON.stringify(selectable)
         );
         await settings?.shot('settings');
+        const activity = `[...document.querySelectorAll('.settings-section')].find((section) => section.querySelector('.settings-section-title').textContent === 'Activity')`;
+        await settings?.evaluate(`${activity}.scrollIntoView({ block: 'start' })`);
+        await sleep(200);
+        await settings?.shot('settings-activity');
+        const activityText = (await settings?.evaluate(`${activity}.innerText`)) || '';
+        check(
+            'Activity lists the running mods with why each runs, and the startup list',
+            /Switcher[\s\S]*Started with the app/.test(activityText) &&
+                /Editor[\s\S]*Opened by you/.test(activityText) &&
+                /Starting with the app[\s\S]*Notifications/.test(activityText),
+            activityText.slice(0, 600)
+        );
         const interfaces = `[...document.querySelectorAll('.settings-section')].find((section) => section.querySelector('.settings-section-title').textContent === 'Interfaces')`;
         await settings?.evaluate(`${interfaces}.scrollIntoView({ block: 'start' })`);
         await sleep(200);
