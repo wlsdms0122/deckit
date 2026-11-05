@@ -1,6 +1,6 @@
 # How a host app embeds deckit
 
-Deckit is a library a host app embeds, in three layers: deck, the engine that runs mods, deckit, the platform on deck, and a shell, the surface a person uses it through. A host app makes the environment deckit runs on, Electron's, connects deckit to it and puts deckit's own shell on it (the panel and the kit). It brings what deckit cannot know: its configuration, its folders, its answers about the process and where the shell is shown, and the mods it ships. This is the line between them.
+Deckit is a library a host app embeds, in three layers: deck, the core that manages mods, deckit, the operating system's concepts and the platform's APIs on deck, and a shell, the passage from mods to them and the surface a person uses deckit through. A host app makes the environment deckit runs on, Electron's, connects deckit to it and puts deckit's own shell on it (the panel and the kit). It brings what deckit cannot know: its configuration, its folders, its answers about the process and where the shell is shown, and the mods it ships. This is the line between them.
 
 ## 1. The archive
 
