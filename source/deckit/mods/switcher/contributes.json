@@ -1,1 +1,4 @@
-{ "commands": { "show": { "description": "Opens the quick switcher." } } }
+{
+    "commands": { "show": { "description": "Opens the quick switcher." } },
+    "keys": { "summon": { "label": "Toggle Quick Switcher", "key": "alt+space", "scope": "global" } }
+}

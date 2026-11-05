@@ -29,14 +29,7 @@ class Switcher {
         deckit.commands.register({
             show: { run: () => this.list?.show() },
         });
-        deckit.keys.register({
-            summon: {
-                label: 'Toggle Quick Switcher',
-                key: 'alt+space',
-                scope: 'global',
-                run: () => this.list?.toggle(),
-            },
-        });
+        deckit.keys.register({ summon: { run: () => this.list?.toggle() } });
     }
 
     detach() {
