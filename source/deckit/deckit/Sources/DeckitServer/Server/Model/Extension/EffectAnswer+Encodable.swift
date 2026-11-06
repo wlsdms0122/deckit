@@ -12,7 +12,7 @@ import Deckit
 // Each as `effect`, its name, with the mod's id as `mod` and a run's number as `run`, as main names them in what it
 // asks; the mod a sandbox opens for is `found`, as the catalog reads it. A run's `contributions` are deck's keys. An
 // event delivered is `name` and `listeners`, as `event/emit` answers it. A lifecycle that waits is `wait`, with the
-// mod it waits for as `mod`, the name it reaches it by as `name` and itself as `dependent`.
+// mod it waits for as `mod`, the name it reaches it by as `name` and itself as `client`.
 extension EffectAnswer: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -28,7 +28,7 @@ extension EffectAnswer: Encodable {
         case contributions
         case connection
         case name
-        case dependent
+        case client
     }
 
     // MARK: - Initializer
@@ -79,7 +79,7 @@ extension EffectAnswer: Encodable {
             try container.encode("wait", forKey: .effect)
             try container.encode(service, forKey: .mod)
             try container.encode(name, forKey: .name)
-            try container.encode(client, forKey: .dependent)
+            try container.encode(client, forKey: .client)
         }
     }
 

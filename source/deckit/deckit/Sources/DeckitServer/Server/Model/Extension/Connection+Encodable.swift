@@ -14,8 +14,8 @@ extension Connection: Encodable {
     private enum CodingKeys: String, CodingKey {
         case id
         case name
-        case dependent
-        case dependency
+        case client
+        case service
     }
 
     // MARK: - Initializer
@@ -24,8 +24,8 @@ extension Connection: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
-        try container.encode(client, forKey: .dependent)
-        try container.encode(service, forKey: .dependency)
+        try container.encode(client, forKey: .client)
+        try container.encode(service, forKey: .service)
     }
 
     // MARK: - Private

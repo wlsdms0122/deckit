@@ -295,9 +295,40 @@ struct ServerTests {
         #expect(
             value(in: connected, at: "result")
                 == (try json(
-                    #"[{"id":1,"name":"dep/api","dependent":{"mod":"a","run":1,"lifecycle":0},"#
-                        + #""dependency":{"mod":"dep","run":1,"lifecycle":0}}]"#
+                    #"[{"id":1,"name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0},"#
+                        + #""service":{"mod":"dep","run":1,"lifecycle":0}}]"#
                 ))
+        )
+    }
+
+    @Test("a lifecycle that waits is answered as wait, with itself as its client")
+    func waitNamesItsClient() throws {
+        // Given
+        _ = try send(initializeRequest, to: sut)
+        try mod("dep", adding: #"[interfaces]\#nprovides = { "dep/api" = [1] }"#)
+        try mod("a", adding: #"[interfaces]\#nuses = { "dep/api" = 1 }"#)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":{"mod":"a","run":1,"lifecycle":0}}"#,
+            to: sut
+        )
+        let started = #"{"mod":"a","run":1,"contributions":{"exportedIn":{},"awaits":{"dep/api":0}}}"#
+
+        // When
+        let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
+
+        // Then
+        guard case let .array(effects)? = value(in: response, at: "result") else {
+            Issue.record("no effects in \(response)")
+            return
+        }
+        #expect(
+            effects.contains(
+                try json(
+                    #"{"effect":"wait","mod":"dep","name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0}}"#
+                )
+            )
         )
     }
 
