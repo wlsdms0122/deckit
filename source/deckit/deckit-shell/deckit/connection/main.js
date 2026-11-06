@@ -5,9 +5,9 @@ import * as DECLARED from './protocol.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
-// what crosses goes from page to page through here, never read. A connection is handed to its dependent while it
-// stands, and so is one its dependency refused, with why: one that ended while its exports were asked for is left out.
-// The dependency is handed the dependent's id and name; the dependent, the name alone.
+// what crosses goes from page to page through here, never read. A connection is handed to its client while it stands,
+// and so is one its service refused, with why: one that ended while its exports were asked for is left out. The
+// service is handed the client's id and name; the client, the name alone.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -40,13 +40,13 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
         RUNNER.handleEffect('connect', async ({ connection }) => {
             standing.add(connection.id);
             const opened = await open(connection);
-            const page = IDENTITY.pageOf(connection.dependent.mod);
+            const page = IDENTITY.pageOf(connection.client.mod);
             if (page && opened && (opened.problem || standing.has(connection.id)))
-                PROTOCOL.connected.send(page, { ...opened, lifecycle: connection.dependent.lifecycle });
+                PROTOCOL.connected.send(page, { ...opened, lifecycle: connection.client.lifecycle });
         });
         RUNNER.handleEffect('disconnect', ({ connection }) => {
             standing.delete(connection.id);
-            for (const end of [connection.dependent, connection.dependency]) {
+            for (const end of [connection.client, connection.service]) {
                 const page = IDENTITY.pageOf(end.mod);
                 if (page) PROTOCOL.disconnected.send(page, { id: connection.id });
             }
@@ -54,22 +54,21 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     }
 
     // MARK: - Private
-    // The exports the connection reaches, as its dependency's page answers them for it, or why it refused them: the
-    // core keeps it down from then on. One whose dependency's lifecycle ended while they were asked for was not
-    // refused, and is null. What the dependent is handed names the mod id or the interface, never the mod that owns an
-    // interface.
+    // The exports the connection reaches, as its service's page answers them for it, or why it refused them: the core
+    // keeps it down from then on. One whose service's lifecycle ended while they were asked for was not refused, and
+    // is null. What the client is handed names the mod id or the interface, never the mod that owns an interface.
     async function open(connection) {
-        const { id, dependent, dependency, required } = connection;
-        const named = { id, name: connection.name, required, exportedIn: dependency.lifecycle };
-        const mod = CATALOG.mods().find((one) => one.id === dependent.mod);
+        const { id, client, service } = connection;
+        const named = { id, name: connection.name, exportedIn: service.lifecycle };
+        const mod = CATALOG.mods().find((one) => one.id === client.mod);
         try {
-            const page = IDENTITY.pageOf(dependency.mod);
+            const page = IDENTITY.pageOf(service.mod);
             if (!page) return null;
             const exports = await PROTOCOL.connect.invoke(page, {
                 id,
                 name: connection.name,
-                mod: { id: dependent.mod, name: mod?.name ?? dependent.mod },
-                lifecycle: dependency.lifecycle,
+                mod: { id: client.mod, name: mod?.name ?? client.mod },
+                lifecycle: service.lifecycle,
             });
             return exports && { ...named, exports };
         } catch (error) {

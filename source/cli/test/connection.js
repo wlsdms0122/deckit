@@ -1,6 +1,7 @@
 // Connections in main (deckit-shell/deckit/connection/main.js) over a stand-in for the core, the runner and the
 // catalog: a run that listens for a name launches nothing from here, as it launches or as a lifecycle joins: the core
-// launches the mod a lifecycle waits for. Exits 1 with a line for each check that failed. The packages are ES modules,
+// launches the mod a lifecycle waits for; and a connection's end told to the pages of its client and its service, as
+// the core names them. Exits 1 with a line for each check that failed. The packages are ES modules,
 // so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -19,27 +20,47 @@ async function main() {
     };
 
     IPC.carry(
-        { messages: { listen: () => {}, tell: () => {} }, pages: { isGone: () => false, watch: () => {} } },
+        {
+            messages: { listen: () => {}, tell: (page, message) => tells.push([page, message]) },
+            pages: { isGone: () => false, watch: () => {} },
+        },
         {
             report: () => {},
         }
     );
+    const tells = [];
     const observers = new Map();
+    const effects = new Map();
     const launched = [];
     const RUNNER = {
         observe: (name, observer) => observers.set(name, observer),
-        handleEffect: () => {},
+        handleEffect: (name, handler) => effects.set(name, handler),
         runOf: () => null,
         launch: async (id) => launched.push(id),
     };
     const CATALOG = { mods: () => [] };
     const LOG = { warn: () => {}, error: () => {} };
-    const CONNECTION = createConnection({ CORE: { request: async () => [] }, LOG, IDENTITY: {}, CATALOG, RUNNER });
+    const IDENTITY = { pageOf: (id) => ({ modId: id }) };
+    const CONNECTION = createConnection({ CORE: { request: async () => [] }, LOG, IDENTITY, CATALOG, RUNNER });
     CONNECTION.start();
     check(
         'a run that launches or a lifecycle that joins launches nothing from here',
         !observers.has('didLaunch') && !observers.has('didJoin') && !launched.length,
         { observed: [...observers.keys()], launched }
+    );
+    effects.get('disconnect')({
+        connection: {
+            id: 7,
+            name: 'p/x',
+            client: { mod: 'a', run: 1, lifecycle: 0 },
+            service: { mod: 'b', run: 1, lifecycle: 0 },
+        },
+    });
+    const ends = tells.map(([page, message]) => `${page.modId} ${message.channel} ${message.payload?.id}`);
+    check(
+        "a connection's end is told to the pages of its client and its service",
+        ends.join(' | ') === 'a deckit-shell:connection-disconnected 7 | b deckit-shell:connection-disconnected 7',
+        ends
     );
 
     for (const line of failed) console.error(line);

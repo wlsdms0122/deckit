@@ -85,18 +85,6 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         // Name, an interface or the mod's own id -> the lifecycle that opened its exports, as deck joins it.
         const joined = { exportedIn: {} };
         if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined });
-        // A required connection refused once its lifecycle has begun ends that lifecycle and those stacked on it, the
-        // highest first.
-        CONNECTION.onRefused(async (index, problem) => {
-            const at = begun.findIndex((one) => one.index === index);
-            if (at < 0 || stopping) return;
-            fail(problem);
-            const ending = begun.splice(at).reverse();
-            for (const [named, lifecycle] of Object.entries(joined.exportedIn))
-                if (lifecycle >= index) delete joined.exportedIn[named];
-            for (const entry of ending) await end(entry, instance);
-            if (!stopping) tell(PROTOCOL.joined, { described, joined, reported: given.report() });
-        });
         for (const [index, lifecycle] of given.lifecycles.entries()) {
             const first = index === 0;
             const scope = makeScope();
@@ -106,10 +94,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             const { handles } = registry;
             try {
                 const { dependencies, problems } = await CONNECTION.begin(index, scope);
-                for (const { required, problem } of problems) {
-                    if (required) throw new Error(problem);
-                    fail(problem);
-                }
+                for (const { problem } of problems) fail(problem);
                 handles[given.handle] = { ...deckOf({ given, scope, dependencies }), ...handles[given.handle] };
                 await lifecycle.start(instance, handles, scope);
                 if (stopping) return;

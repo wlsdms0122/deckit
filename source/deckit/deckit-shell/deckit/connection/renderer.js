@@ -13,9 +13,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // the page's run.
 export function createConnection({ RUN }) {
     // MARK: - Property
-    // Connection id -> { id, name, lifecycle, dependent, lasting, given, held, exporting, connection, exports,
-    // cleanups, ended }: `lifecycle` is the page's own, `dependent` whether the page is the end that depends on `name`,
-    // `lasting` whether its exports are the lifecycle's for as long as it lasts, as `dependencies['<name>']`; `given`
+    // Connection id -> { id, name, lifecycle, dependent, given, held, exporting, connection, exports, cleanups,
+    // ended }: `lifecycle` is the page's own, `dependent` whether the page is the end that depends on `name`; `given`
     // its numbers by function, and by number each function with how many times it was handed over; `held` its
     // references by number, each with how many times it was handed in; `exporting` the registration that answered it
     // and `connection` what its `connect` was called with; `cleanups` what each `onConnect` answered for it; `ended`
@@ -34,7 +33,6 @@ export function createConnection({ RUN }) {
     const begun = new Set(); // the lifecycles begun and not left
     // Interface -> { lifecycle, connect, disconnect }, once the lifecycle that opened its exports has joined.
     const exporting = new Map();
-    let refused = () => {}; // told of a required connection its dependency refused, once its lifecycle has begun
 
     // MARK: - Initializer
     PROTOCOL.connect.handle((asked) => answerConnect(asked));
@@ -47,33 +45,20 @@ export function createConnection({ RUN }) {
     });
 
     // MARK: - Public
-    // The `lifecycle`th lifecycle begins: answers its `dependencies`, the exports each mod it requires opened in its
-    // lowest lifecycle, by its id, with `onConnect(name, connected)`, and the
-    // problems of the connections refused, each `{ name, required, problem }`. What `onConnect` adds is cut with
-    // `scope`.
+    // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected)`, and the problems
+    // of the connections refused, each `{ name, problem }`. What `onConnect` adds is cut with `scope`.
     async function begin(lifecycle, scope) {
         begun.add(lifecycle);
         const answered = await PROTOCOL.begin.invoke({ run: RUN.number, lifecycle });
         const problems = [];
-        const lasting = {};
         for (const told of answered) {
-            if (told.problem) problems.push({ name: told.name, required: told.required, problem: told.problem });
-            else {
-                const entry = open({ ...told, lifecycle });
-                if (entry.lasting) lasting[told.name] = entry.exports;
-            }
+            if (told.problem) problems.push({ name: told.name, problem: told.problem });
+            else open({ ...told, lifecycle });
         }
         const dependencies = Object.freeze({
-            ...lasting,
             onConnect: (named, connected) => listen(lifecycle, String(named), connected, scope),
         });
         return { dependencies, problems };
-    }
-
-    // `listener(lifecycle, problem)` is told of a required connection its dependency refused after its lifecycle
-    // began.
-    function onRefused(listener) {
-        refused = listener;
     }
 
     // The exports of `named`, an interface, opened in `lifecycle`, which answer each connection for it from now on:
@@ -107,25 +92,19 @@ export function createConnection({ RUN }) {
     }
 
     // MARK: - Private
-    // A connection the page depends on, its exports read: those of a mod it requires opened in that mod's
-    // lowest lifecycle are the lifecycle's while it lasts, and every other comes and goes, handed to what listens for
-    // its name. `exportedIn` is the lifecycle of the dependency that opened them.
-    function open({ id, name: named, required, lifecycle, exportedIn, exports }) {
+    // A connection the page depends on, its exports read and handed to what listens for its name, as it comes and
+    // goes.
+    function open({ id, name: named, lifecycle, exports }) {
         const entry = makeEntry({ id, named, lifecycle, dependent: true });
-        entry.lasting = required && exportedIn === 0;
         entry.exports = WIRE.materialize(exports, (number) => referenceOf(entry, number));
         connections.set(id, entry);
-        if (!entry.lasting) {
-            for (const listener of listening.get(lifecycle)?.get(named) ?? []) hand(entry, listener);
-        }
-        return entry;
+        for (const listener of listening.get(lifecycle)?.get(named) ?? []) hand(entry, listener);
     }
 
-    // A connection that stands since the lifecycle began, or one its dependency refused.
+    // A connection that stands since the lifecycle began, or one its service refused, a problem against the run.
     function opened(told) {
         if (!begun.has(told.lifecycle)) return;
         if (!told.problem) open(told);
-        else if (told.required) refused(told.lifecycle, told.problem);
         else RUN.fail(told.problem);
     }
 
@@ -137,8 +116,7 @@ export function createConnection({ RUN }) {
         if (!byInterface.has(named)) byInterface.set(named, new Set());
         byInterface.get(named).add(connected);
         for (const entry of connections.values()) {
-            if (entry.dependent && !entry.lasting && entry.lifecycle === lifecycle && entry.name === named)
-                hand(entry, connected);
+            if (entry.dependent && entry.lifecycle === lifecycle && entry.name === named) hand(entry, connected);
         }
         scope.add(() => byInterface.get(named)?.delete(connected));
     }
@@ -207,7 +185,6 @@ export function createConnection({ RUN }) {
             name: named,
             lifecycle,
             dependent,
-            lasting: false,
             given: { numbers: new Map(), byNumber: new Map(), next: 0 },
             held: new Map(),
             exporting: null,
@@ -291,5 +268,5 @@ export function createConnection({ RUN }) {
         return reference;
     }
 
-    return { begin, onRefused, give, awaited, leave };
+    return { begin, give, awaited, leave };
 }

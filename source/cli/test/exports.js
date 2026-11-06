@@ -1,10 +1,11 @@
 // The runner and connections in a mod's page (deckit-shell/deckit/runner/renderer.js, deckit/connection/renderer.js)
 // over a stand-in for the messages main and the page carry, with a layer stacking two lifecycles: exports registered by
-// interface, and for the mods that depend on it by id under its own id, each once for the run, refused with why for an
+// interface, and for the mods that reach it by id under its own id, each once for the run, refused with why for an
 // interface the manifest does not provide, a second register, or one in the other lifecycle after one lifecycle opened
-// it; what main is told each opened in; the `connect` handed the dependent's id and name; and the dependent's
-// `dependencies`, by the id of the mod it requires, and `onConnect`, by the interface it uses. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported
-// as such.
+// it; what main is told each opened in; the `connect` handed the client's id and name; and the client's
+// `dependencies.onConnect`, by the mod id it reaches or the interface it uses, handed a connection that stands as its
+// lifecycle begins or comes later, and a connection refused as a lifecycle begins a problem that ends nothing. Exits 1
+// with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -32,7 +33,6 @@ async function main() {
         main: 'main.js',
         provides: { 'p/one': [1], 'p/two': [1] },
         uses: { 'q/optional': 1 },
-        dependencies: { q: { version: '1.0.0', optional: false } },
         permissions: [],
     };
     const tells = [];
@@ -41,16 +41,8 @@ async function main() {
         'deckit-shell:mod-load': () => ({ manifest: MANIFEST, source: '', run: 1 }),
         'deckit-shell:connection-begin': ({ lifecycle }) =>
             lifecycle === 0
-                ? [
-                      {
-                          id: 10,
-                          name: 'q',
-                          required: true,
-                          exportedIn: 0,
-                          exports: { value: { answer: 42 }, references: [] },
-                      },
-                  ]
-                : [],
+                ? [{ id: 10, name: 'q', exportedIn: 0, exports: { value: { answer: 42 }, references: [] } }]
+                : [{ id: 11, name: 'r', exportedIn: 0, problem: 'r did not connect: refused' }],
     };
     IPC.carry(
         {
@@ -74,13 +66,13 @@ async function main() {
         return tells.find((message) => message.id === id && message.channel === `deckit-shell:${channel}`);
     };
 
-    // The mod: it provides p/one and p/two, opens its own exports for its id dependents, requires q and listens for
-    // q/optional.
+    // The mod: it provides p/one and p/two, opens its own exports for the mods that reach it by id, and listens for q,
+    // a mod it reaches by id, and q/optional.
     const seen = { connected: [], heard: [] };
     class Mod {
         start(deckit) {
             seen.dependencies = Object.keys(deckit.dependencies);
-            seen.required = deckit.dependencies.q.answer;
+            deckit.dependencies.onConnect('q', (exports) => (seen.atBegin = exports.answer));
             deckit.exports.register('p/one', {
                 connect: (connection) => {
                     seen.connected.push(connection);
@@ -120,11 +112,18 @@ async function main() {
     for (let at = 0; at < 5; at++) await tick();
 
     check(
-        "a required mod's exports are the lifecycle's dependencies, by its id",
-        seen.required === 42 && seen.dependencies.join() === 'q,onConnect',
+        'a connection standing as its lifecycle begins reaches what listens for its name, beside onConnect alone',
+        seen.atBegin === 42 && seen.dependencies.join() === 'onConnect',
         seen
     );
     const problems = payloads('mod-problem').map(({ problem }) => problem);
+    check(
+        'a connection refused as a lifecycle begins is a problem against the run, and the lifecycle goes on',
+        problems.includes('r did not connect: refused') &&
+            JSON.stringify(seen.heard) === '[]' &&
+            !payloads('mod-not-started').length,
+        problems
+    );
     check(
         'a second register of an interface is refused on the row',
         problems.some((problem) =>
@@ -158,7 +157,7 @@ async function main() {
     check('the summary says exports were opened', joined?.summary.exports === true, joined?.summary);
     check(
         'main is told the interfaces the run listens for, by the lowest lifecycle',
-        JSON.stringify(joined?.contributions.awaits) === '{"q/optional":1}',
+        JSON.stringify(joined?.contributions.awaits) === '{"q":0,"q/optional":1}',
         joined?.contributions
     );
 
@@ -208,7 +207,6 @@ async function main() {
         payload: {
             id: 20,
             name: 'q/optional',
-            required: false,
             exportedIn: 1,
             exports: { value: { optional: true }, references: [] },
             lifecycle: 1,
