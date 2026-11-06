@@ -204,7 +204,11 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
                 if (!origins.has(required)) origins.set(required, ORIGIN.requiredBy(id));
         const reset = new Set(opened);
         for (const id of reset) for (const required of requires(id)) reset.add(required);
-        if (reset.size) await CORE.request('runner/reset-limit', { mods: [...reset] });
+        // The core answers one message at a time in the order sent, so the loads after it find the limits reset.
+        if (reset.size)
+            CORE.request('runner/reset-limit', { mods: [...reset] }).catch((error) =>
+                LOG.warn('the relaunch limit was not reset', error)
+            );
         let left = [...mods.keys()].filter((id) => origins.has(id));
         const ready = (id) =>
             runOf(id)?.state !== 'terminating' &&
