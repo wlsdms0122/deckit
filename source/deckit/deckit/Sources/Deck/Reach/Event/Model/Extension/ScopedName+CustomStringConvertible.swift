@@ -1,12 +1,11 @@
 //
 //  ScopedName+CustomStringConvertible.swift
-//  Deckit
+//  Deck
 //
 //  Created by JSilver on 10/20/26.
 //
 
 import Foundation
-import Deck
 
 extension ScopedName: CustomStringConvertible {
     // MARK: - Property

@@ -10,24 +10,26 @@ import Foundation
 // Mods say what happened to them through deck, never to each other: an event is named after the mod that sent it, so
 // none speaks for another, and deck's own after the interface it tells of. The owner of an interface sends its signals,
 // `<interface>:<name>`, named after the interface, and none of the names deck tells of the interface with. It goes to
-// the runs that listen to it, and only from a run that is running. A run hears only the names its manifest names, its
-// own id, the ids in [dependencies] and the interfaces it uses or provides, and listening to another name is ignored. A
-// run that has ended hears nothing.
+// the runs that listen to it, and only from a run that is running. A run hears only the names its job names, its own
+// id, the ids it reaches and the interfaces it uses or provides, and listening to another name is ignored. A run that
+// has ended hears nothing.
 public final class EventBus {
     // MARK: - Property
     private let runner: Runner
+    private let owners: OwnerTable
     // Mod id -> its run that listens, and every scoped event name it listens to.
     private var listening: [String: (run: Int, names: Set<String>)] = [:]
 
     // MARK: - Initializer
-    init(runner: Runner) {
+    init(runner: Runner, owners: OwnerTable) {
         self.runner = runner
+        self.owners = owners
     }
 
     // MARK: - Public
     public func listen(mod id: String, run number: Int, names: [String]) {
-        guard isLive(id, run: number), let manifest = runner.mod(of: id)?.manifest else { return }
-        let named = Set([id] + manifest.dependencies.keys + manifest.uses.keys + manifest.provides.keys)
+        guard isLive(id, run: number), let job = runner.job(of: id) else { return }
+        let named = Set([id] + job.reaches + job.uses.keys + job.provides.keys)
         let heard = names.filter { name in
             guard let scoped = ScopedName(name) else { return false }
             return named.contains(scoped.modId)
@@ -38,7 +40,7 @@ public final class EventBus {
     // The event `name` of the `number`th run of `id`, and the mods to tell it, none while that run is not running.
     // Refused for a signal of an interface `id` owns named as deck tells of the interface.
     public func emit(mod id: String, run number: Int, name: String) throws -> EventDelivery {
-        let signal = ScopedName(name).flatMap { signal in runner.owner(of: signal.modId) == id ? signal : nil }
+        let signal = ScopedName(name).flatMap { signal in owners.owner(of: signal.modId) == id ? signal : nil }
         if let signal, InterfaceChange(rawValue: signal.name) != nil {
             throw EventError.reserved(name)
         }

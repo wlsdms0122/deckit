@@ -17,8 +17,8 @@ final class OwnershipStore {
     private let settings: DeckSettings
 
     // MARK: - Initializer
-    init(file: URL, store: Store) {
-        self.settings = DeckSettings(file: file, store: store)
+    init(settings: DeckSettings) {
+        self.settings = settings
     }
 
     // MARK: - Public

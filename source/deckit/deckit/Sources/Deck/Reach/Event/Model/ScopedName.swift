@@ -1,12 +1,11 @@
 //
 //  ScopedName.swift
-//  Deckit
+//  Deck
 //
 //  Created by JSilver on 10/20/26.
 //
 
 import Foundation
-import Deck
 
 // A name scoped by the mod that owns it, as another mod names it: `<mod id>:<name>`. An event and an extension point
 // are named so. A mod id holds no colon, so the first one ends it.
