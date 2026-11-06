@@ -3,7 +3,6 @@ import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
 import * as KEY_SCOPE from './model/scope.js';
-import * as ORIGIN from '../runner/model/origin.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -231,8 +230,13 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
             return true;
         }
         if (KEY_SCOPE.isWide(binding.scope) && RUNNER.runOf(binding.provider)?.state !== 'running') {
-            RUNNER.activate(binding.provider, ORIGIN.work({ key: binding.name })).then(
-                () => PROTOCOL.key.send(IDENTITY.pageOf(binding.provider), { name: binding.name }),
+            RUNNER.launch(binding.provider).then(
+                () => {
+                    const run = RUNNER.runOf(binding.provider);
+                    if (run?.state === 'running')
+                        PROTOCOL.key.send(IDENTITY.pageOf(binding.provider), { name: binding.name });
+                    else LOG.warn(`${binding.id} did not run: ${run?.problem || 'its mod did not launch'}`);
+                },
                 (error) => LOG.warn(`${binding.id} did not run`, error)
             );
             return true;

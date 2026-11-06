@@ -4,7 +4,6 @@ import * as DECLARED from './protocol.js';
 import * as CANDIDATE from './model/candidate.js';
 import * as RESULT from './model/result.js';
 import * as COMMAND_PERMISSION from './model/permission.js';
-import * as ORIGIN from '../runner/model/origin.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -27,8 +26,8 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
             return list();
         });
         PROTOCOL.runOf.handle(({ provider, command, args }, sender) => {
-            const caller = IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
-            return run({ provider, command }, args, caller.id);
+            IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
+            return run({ provider, command }, args);
         });
         PROTOCOL.completeOf.handle(async ({ call, provider, command, param, partial, args }, sender) => {
             const caller = IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
@@ -49,8 +48,8 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
             return CORE.request('command/mint', { mod: id, command, ...(args ? { args } : {}) });
         });
         PROTOCOL.runToken.handle(({ token }, sender) => {
-            const { id } = IDENTITY.modFrom(sender);
-            return runToken(token, id);
+            IDENTITY.modFrom(sender);
+            return runToken(token);
         });
         PROTOCOL.cancelToken.handle(({ token }, sender) => {
             const { id } = IDENTITY.modFrom(sender);
@@ -95,18 +94,17 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         return CORE.request('command/list');
     }
 
-    // `{ provider, command }` run with `args`, for the mod of id `by`, if any, which answers its result, a JSON value or
-    // null, and rejects with why it did not run.
-    async function run({ provider, command }, args = null, by = null) {
+    // `{ provider, command }` run with `args`, which answers its result, a JSON value or null, and rejects with why it
+    // did not run.
+    async function run({ provider, command }, args = null) {
         await CORE.request('command/check', { provider, command, ...(args ? { args } : {}) });
-        return dispatch({ provider, command }, args, ORIGIN.work({ command }, by));
+        return dispatch({ provider, command }, args);
     }
 
-    // The command a token holds run with the args it was minted with, for the mod of id `by`, if any, as `run`
-    // answers; one that has ended rejects.
-    async function runToken(token, by = null) {
+    // The command a token holds run with the args it was minted with, as `run` answers; one that has ended rejects.
+    async function runToken(token) {
         const { sender, command, args } = await CORE.request('command/check-token', { token });
-        return dispatch({ provider: sender, command }, args ?? null, ORIGIN.work({ token: command }, by));
+        return dispatch({ provider: sender, command }, args ?? null);
     }
 
     // The candidates for `param` of `{ provider, command }` as `partial` is typed, `[{ value, title, hint, keywords }]`
@@ -148,9 +146,10 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
     }
 
     // MARK: - Private
-    // A command the core checked runs where its provider is: a host's here, a mod's in its page, once the mod runs for
-    // `origin` and its start has attached its handlers.
-    async function dispatch({ provider, command }, args, origin) {
+    // A command the core checked runs where its provider is: a host's here, a mod's in its page, once the mod runs and
+    // its start has attached its handlers: one not running is launched first, and one that does not launch is refused
+    // with why, `kind` NOT_RUNNING.
+    async function dispatch({ provider, command }, args) {
         if (hosts.has(provider))
             return RESULT.resultOf(
                 await hosts
@@ -158,7 +157,12 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
                     .get(command)
                     .run(args ?? {})
             );
-        await RUNNER.activate(provider, origin);
+        if (RUNNER.runOf(provider)?.state !== 'running') await RUNNER.launch(provider);
+        const run = RUNNER.runOf(provider);
+        if (run?.state !== 'running')
+            throw Object.assign(new Error(`${provider} is not running: ${run?.problem || 'it did not launch'}`), {
+                kind: 'NOT_RUNNING',
+            });
         return PROTOCOL.run.invoke(IDENTITY.pageOf(provider), { command, args });
     }
 

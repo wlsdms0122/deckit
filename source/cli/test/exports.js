@@ -1,4 +1,4 @@
-// Deck's runner and connections in a mod's page (deckit-shell/deck/runner/renderer.js, deck/connection/renderer.js)
+// The runner and connections in a mod's page (deckit-shell/deckit/runner/renderer.js, deckit/connection/renderer.js)
 // over a stand-in for the messages main and the page carry, with a layer stacking two lifecycles: exports registered by
 // interface, and for the mods that depend on it by id under its own id, each once for the run, refused with why for an
 // interface the manifest does not provide, a second register, or one in the other lifecycle after one lifecycle opened

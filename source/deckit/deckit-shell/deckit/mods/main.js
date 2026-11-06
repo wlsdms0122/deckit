@@ -55,16 +55,16 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
             return remove(id, data);
         });
         PROTOCOL.relaunch.handle(({ id }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return RUNNER.relaunch([id]);
+            const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
+            return RUNNER.relaunch([id], by);
         });
         PROTOCOL.quit.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return RUNNER.unload([id]);
         });
-        PROTOCOL.load.handle(({ ids }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return RUNNER.open(ids);
+        PROTOCOL.load.handle(async ({ ids }, sender) => {
+            const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
+            await Promise.all(ids.map((id) => RUNNER.launch(id, by)));
         });
         PROTOCOL.arrange.handle(({ ids }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -101,8 +101,8 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // every mod the catalog found, in the mods' order whether it loads or not, each with `installed`, whether it is a
     // copy in deck's mods folder, `problem`, why it does not load, `declarationProblems`, what is wrong with what it
     // declares, `startupApproved`, whether the person approved it to start with the app, `run`, its latest run's
-    // `state`, `problem`, `origin`, `failed`, `relaunchLimited` and `launchedAt`, null for one with no sandbox, `hides`, folders of
-    // the same id that are not read, `launched`, while it starts or stops again, what its latest run that launched
+    // `state`, `problem`, `failed`, `relaunchLimited` and `launchedAt`, null for one with no sandbox, `hides`, folders
+    // of the same id that are not read, `launched`, while it starts or stops again, what its latest run that launched
     // contributed, as `running` lists it, `relations`, each mod in its [dependencies] and whether that one runs, and
     // `uses`, each interface it uses and what it comes to. `interfaces`: each interface's queue of providers and its
     // owner, as the catalog read it.
@@ -123,7 +123,6 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
                     run: run && {
                         state: run.state,
                         problem: run.problem,
-                        origin: run.origin,
                         failed: run.failed,
                         relaunchLimited: run.relaunchLimited,
                         launchedAt: run.launchedAt,

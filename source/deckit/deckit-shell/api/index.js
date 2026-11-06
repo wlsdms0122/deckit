@@ -81,9 +81,9 @@ export function createApi({
                 modOf: (page) => IDENTITY.modOf(page)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
                 managerFrom: (page) => IDENTITY.modFrom(page, MOD_PERMISSION.MODS).id,
-                // The mod loads as the person opens it, with what it requires, or quits: resolve once it has
-                // launched, or failed to, or has ended.
-                launch: (id) => RUNNER.open([id]),
+                // The mod launches, the shell asking, or quits: resolve once it has launched, or failed to, or has
+                // ended.
+                launch: (id) => RUNNER.launch(id),
                 quit: (id) => RUNNER.unload([id]),
                 relaunch: (id) => RUNNER.relaunch([id]),
                 relaunchAll: RUNNER.relaunchAll,
@@ -153,9 +153,6 @@ export function createApi({
                     },
                     get problem() {
                         return run.problem;
-                    },
-                    get origin() {
-                        return copyOf(run.origin);
                     },
                     get failed() {
                         return run.failed;

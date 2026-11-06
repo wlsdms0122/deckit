@@ -1,9 +1,7 @@
-// Connections in main (deckit-shell/deck/connection/main.js) over a stand-in for the core, the runner and the catalog:
-// a run that listens for a name, as it launched or as a lifecycle joined, launches the mod it reaches by it when that
-// mod is not running, by id or the owner of an interface, as the run's mod for the connection; a mod running, an
-// interface the run's own mod owns and a name its manifest does not give launch nothing, and a launch that fails is
-// logged with why. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as
-// such.
+// Connections in main (deckit-shell/deckit/connection/main.js) over a stand-in for the core, the runner and the
+// catalog: a run that listens for a name launches nothing from here, as it launches or as a lifecycle joins: the core
+// launches the mod a lifecycle waits for. Exits 1 with a line for each check that failed. The packages are ES modules,
+// so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -27,64 +25,21 @@ async function main() {
         }
     );
     const observers = new Map();
-    const activated = [];
-    const running = new Set(['d']);
+    const launched = [];
     const RUNNER = {
         observe: (name, observer) => observers.set(name, observer),
         handleEffect: () => {},
-        runOf: (id) => (running.has(id) ? { state: 'running' } : null),
-        activate: async (id, origin) => {
-            activated.push({ id, origin });
-            if (id === 'e')
-                throw Object.assign(new Error('e is not running: it did not launch'), { kind: 'NOT_RUNNING' });
-            running.add(id);
-            return { state: 'running' };
-        },
+        runOf: () => null,
+        launch: async (id) => launched.push(id),
     };
-    const CATALOG = {
-        mods: () => [],
-        owners: () =>
-            new Map([
-                ['p/x', 'c'],
-                ['p/own', 'a'],
-            ]),
-    };
-    const warned = [];
-    const LOG = { warn: (...line) => warned.push(line.map(String).join(' ')), error: () => {} };
+    const CATALOG = { mods: () => [] };
+    const LOG = { warn: () => {}, error: () => {} };
     const CONNECTION = createConnection({ CORE: { request: async () => [] }, LOG, IDENTITY: {}, CATALOG, RUNNER });
     CONNECTION.start();
-
-    // Mod a depends on b by id, optionally, and on d, which runs, and uses p/x, owned by c, and p/own, which it owns.
-    const a = {
-        id: 'a',
-        manifest: {
-            dependencies: { b: { optional: true }, d: { optional: true }, e: { optional: true } },
-            uses: { 'p/x': '1', 'p/own': '1' },
-        },
-    };
-    observers.get('didLaunch')({ mod: a, contributions: { awaits: { b: 0, d: 0, 'p/x': 1, 'p/own': 0, other: 0 } } });
-    await tick();
     check(
-        'a run that listens for names launches the mod by id and the owner of an interface that are not running',
-        activated.map(({ id }) => id).join() === 'b,c',
-        activated
-    );
-    check(
-        "each launches for the connection's name, as the listening run's mod",
-        activated.every(({ origin }) => origin.kind === 'work' && origin.mod === 'a') &&
-            activated[0].origin.work.connection === 'b' &&
-            activated[1].origin.work.connection === 'p/x',
-        activated
-    );
-
-    activated.length = 0;
-    observers.get('didJoin')({ mod: a, contributions: { awaits: { b: 1, e: 1 } } });
-    await tick();
-    await tick();
-    check(
-        'a lifecycle that joins listening launches what is not running, and a launch that fails is logged with why',
-        activated.map(({ id }) => id).join() === 'e' && warned.some((line) => /did not launch/.test(line)),
-        { activated, warned }
+        'a run that launches or a lifecycle that joins launches nothing from here',
+        !observers.has('didLaunch') && !observers.has('didJoin') && !launched.length,
+        { observed: [...observers.keys()], launched }
     );
 
     for (const line of failed) console.error(line);

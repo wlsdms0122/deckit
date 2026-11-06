@@ -74,12 +74,12 @@ async function main() {
     let bindingsChanged = null;
     // Mod a runs, or launches as its key that works past its page asks for it.
     let aRuns = true;
-    const activated = [];
+    const launched = [];
     const RUNNER = {
         handleEffect: (name, handler) => name === 'bindingsChanged' && (bindingsChanged = handler),
         runOf: (id) => (id === 'a' && aRuns ? { state: 'running' } : null),
-        activate: async (id, origin) => {
-            activated.push({ id, origin });
+        launch: async (id, by) => {
+            launched.push({ id, by });
             aRuns = true;
         },
     };
@@ -291,12 +291,9 @@ async function main() {
     call.handler();
     await new Promise((resolve) => setImmediate(resolve));
     check(
-        "a mod's key that works past its page launches the mod for the key when it is not running, then is told",
-        activated[0]?.id === 'a' &&
-            activated[0].origin.kind === 'work' &&
-            activated[0].origin.work.key === 'call' &&
-            tells[0]?.[1]?.payload?.name === 'call',
-        { activated, tells }
+        "a mod's key that works past its page launches the mod not running, with no mod that asks, then is told",
+        launched[0]?.id === 'a' && launched[0].by === undefined && tells[0]?.[1]?.payload?.name === 'call',
+        { launched, tells }
     );
     // A hotkey pressed where a listened page has the keyboard lands there, so a narrower key on its chord wins.
     bindingsChanged({
