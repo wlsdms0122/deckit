@@ -228,18 +228,21 @@ public final class Catalog {
 
     // `ownership` as the mods `found` provide now: those that load by their own manifest provide what it names, as
     // they arrive at once in the order the app ships them, then by id, and one found with a problem keeps the places
-    // it holds and its pins. The order is not looked at.
+    // it holds and its pins. An id not found leaves only while every mod found is who its manifest names: one whose
+    // manifest names no id may be any of them. The order is not looked at.
     private func joined(_ ownership: Ownership, by found: [Mod]) -> Ownership {
         let shipOrder = shipOrder()
         let rank = { (id: String) in (shipOrder.firstIndex(of: id) ?? shipOrder.count, id) }
         let providers = found.filter { mod in mod.problem == nil }
             .map(\.manifest)
             .sorted { manifest, other in rank(manifest.id) < rank(other.id) }
+        let ids = Set(found.map(\.manifest.id))
+        var kept = Set(found.filter { mod in mod.problem != nil }.map(\.manifest.id))
+        if found.contains(where: { mod in !mod.manifest.namesID }) {
+            kept.formUnion(ownership.queues.values.joined().filter { id in !ids.contains(id) })
+        }
 
-        return ownership.joined(
-            by: providers,
-            keeping: Set(found.filter { mod in mod.problem != nil }.map(\.manifest.id))
-        )
+        return ownership.joined(by: providers, keeping: kept)
     }
 
     // The ownership kept, as the mods `found` provide now, written again when that changed it. A settings file that

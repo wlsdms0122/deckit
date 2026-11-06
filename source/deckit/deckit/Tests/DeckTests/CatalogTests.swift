@@ -599,6 +599,37 @@ struct CatalogTests {
         #expect(removedOwner.map(\.0) == ["a"] && removedOwner.map(\.1) == [false])
     }
 
+    @Test("while a mod found names no id, the ids not found keep their places and pins, and leave once all are known")
+    func unnamedModKeepsIdsNotFound() throws {
+        // Given
+        try write("a", in: source, provides: ["x/api": [1]])
+        try write("foo", in: source, folder: "foo-dev", provides: ["x/api": [1]])
+        let settings = home.appending(path: "deck.json")
+        let sut = try catalog(sources: [source])
+        _ = sut.read()
+        try sut.pin("x/api", to: "foo")
+        let first = queues(of: sut)
+        let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+
+        // When
+        try Data("id = ".utf8).write(to: source.appending(path: "foo-dev/manifest.toml"))
+        try FileManager.default.removeItem(at: source.appending(path: "a"))
+        let broken = queues(of: sut)
+        let brokenOwner = sut.interfaces.map { queue in (queue.owner, queue.pinned) }
+        let keptBroken = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+        try write("foo", in: source, folder: "foo-dev", provides: ["x/api": [1]])
+        let read = queues(of: sut)
+        let readOwner = sut.interfaces.map { queue in (queue.owner, queue.pinned) }
+
+        // Then
+        #expect(first == ["x/api": ["a", "foo"]])
+        #expect(broken == ["x/api": []])
+        #expect(brokenOwner.map(\.0) == ["foo"] && brokenOwner.map(\.1) == [true])
+        #expect(keptBroken == kept)
+        #expect(read == ["x/api": ["foo"]])
+        #expect(readOwner.map(\.0) == ["foo"] && readOwner.map(\.1) == [true])
+    }
+
     @Test("a pinned provider owns an interface until the pin is cleared or it leaves the queue, and only a provider is")
     func pinnedProviderOwns() throws {
         // Given

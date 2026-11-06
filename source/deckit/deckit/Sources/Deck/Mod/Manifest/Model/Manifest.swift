@@ -11,6 +11,8 @@ import Foundation
 public struct Manifest: Sendable {
     // MARK: - Property
     public let id: String
+    // Whether the manifest names the id: one that does not stands under the id its reader was handed for it.
+    public let namesID: Bool
     public let name: String
     public let version: String?
     public let api: String?

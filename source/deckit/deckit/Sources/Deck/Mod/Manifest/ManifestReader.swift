@@ -53,12 +53,14 @@ struct ManifestReader {
     // nothing.
     func read(_ text: String, fallback: String) -> Manifest {
         let raw = (try? parser.parse(text)) ?? [:]
-        let id = if case let .string(id) = raw["id"], !id.isEmpty { id } else { fallback }
+        let named: String? = if case let .string(id) = raw["id"], !id.isEmpty { id } else { nil }
+        let id = named ?? fallback
         let name = if case let .string(name) = raw["name"], !isBlank(name) { name } else { id }
         let asked = if case let .table(asked) = raw["permissions"] { asked } else { [String: TOMLValue]() }
 
         return Manifest(
             id: id,
+            namesID: named != nil,
             name: name,
             version: string(of: raw["version"]),
             api: string(of: raw["api"]),
