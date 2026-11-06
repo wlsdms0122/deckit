@@ -302,14 +302,20 @@ struct ServerTests {
         )
     }
 
-    @Test("a mod at the relaunch limit loads for no origin until its limit is reset")
-    func relaunchLimitResets() throws {
+    @Test("a mod at the relaunch limit loads no more until a mod granted deckit.mods asks that it launch")
+    func relaunchLimitResetsAsAsked() throws {
         // Given
         try mod("a")
-        _ = try send(initializeRequest, to: sut)
+        try mod("m", adding: "[permissions]\n\"deckit.mods\" = \"to test\"")
+        let permissions = #"[{"id":"deckit.mods","name":"Mods","means":"to test"}]"#
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":"#
+                + initializeParams.replacing(#""permissions":[]"#, with: #""permissions":"# + permissions) + "}",
+            to: sut
+        )
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
-            + #""params":{"requests":[{"mod":"a","origin":{"kind":"person"}}]}}"#
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"requests":[{"mod":"m"}]}}"#, to: sut)
+        let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"requests":[{"mod":"a"}]}}"#
         for number in 1...5 {
             _ = try send(load, to: sut)
             _ = try send(
@@ -321,17 +327,20 @@ struct ServerTests {
 
         // When
         let held = try send(load, to: sut)
-        let reset = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"runner/reset-limit","params":{"mods":["a"]}}"#,
+        let refused = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"runner/launch","params":{"mod":"m","by":"a"}}"#,
             to: sut
         )
-        let loaded = try send(load, to: sut)
+        let launched = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"runner/launch","params":{"mod":"a","by":"m"}}"#,
+            to: sut
+        )
 
         // Then
         #expect(value(in: held, at: "result") == .array([]))
-        #expect(value(in: reset, at: "result") == .bool(true))
-        guard case let .array(effects)? = value(in: loaded, at: "result") else {
-            Issue.record("runner/load answered no effects: \(loaded)")
+        #expect(value(in: refused, at: "error", "data", "kind") == .string("REFUSED"))
+        guard case let .array(effects)? = value(in: launched, at: "result") else {
+            Issue.record("runner/launch answered no effects: \(launched)")
             return
         }
         #expect(effects.count == 2)

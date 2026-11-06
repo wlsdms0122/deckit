@@ -173,12 +173,15 @@ final class Server {
         case "runner/reconnect":
             return answered(deckit.reconnect(), by: deckit)
 
+        case "runner/start":
+            return answered(try deckit.start(), by: deckit)
+
         case "runner/load":
             return answered(try deckit.load(request.decodeParams(as: LoadParams.self).requests), by: deckit)
 
-        case "runner/reset-limit":
-            deckit.resetLimit(try request.decodeParams(as: ModsParams.self).mods)
-            return true
+        case "runner/launch":
+            let params = try request.decodeParams(as: LaunchParams.self)
+            return answered(try deckit.launch(params.mod, by: params.by), by: deckit)
 
         case "runner/unload":
             return answered(try deckit.unload(request.decodeParams(as: ModsParams.self).mods), by: deckit)

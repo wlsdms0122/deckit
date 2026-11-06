@@ -1,7 +1,8 @@
-{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example"}],"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
+{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example"},{"id":"deckit.mods","means":"Mods","name":"Mods"}],"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
 {"id":2,"jsonrpc":"2.0","method":"catalog/install-shipped"}
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":86,"jsonrpc":"2.0","method":"catalog/interfaces"}
+{"id":93,"jsonrpc":"2.0","method":"runner/start"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"requests":[{"mod":"a","origin":{"kind":"startup"}},{"mod":"b","origin":{"kind":"required","by":"c"}},{"mod":"c","origin":{"kind":"work","work":{"command":"x"},"mod":"a"}}]}}
 {"id":50,"jsonrpc":"2.0","method":"runner/described","params":{"mod":"a","run":1,"summary":{"keywords":["alpha"]}}}
 {"id":81,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":0,"mod":"a","run":1}}
@@ -47,6 +48,8 @@
 {"id":54,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a"]}}
 {"id":55,"jsonrpc":"2.0","method":"runner/stopped","params":{"mod":"a","run":1}}
 {"id":56,"jsonrpc":"2.0","method":"runner/load","params":{"requests":[{"mod":"a","origin":{"kind":"person"}}]}}
+{"id":94,"jsonrpc":"2.0","method":"runner/launch","params":{"by":"b","mod":"d"}}
+{"id":95,"jsonrpc":"2.0","method":"runner/launch","params":{"by":"a","mod":"b"}}
 {"id":57,"jsonrpc":"2.0","method":"catalog/remove","params":{"id":"d"}}
 {"id":58,"jsonrpc":"2.0","method":"erasure/erase","params":{"mod":"d"}}
 {"id":59,"jsonrpc":"2.0","method":"erasure/uncleared"}

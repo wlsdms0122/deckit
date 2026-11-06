@@ -28,6 +28,7 @@ struct GoldenTests {
         (InstallError.refused("p"), "REFUSED"),
         (InstallError.notInstalled("a"), "NOT_INSTALLED"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
+        (LaunchError.notPermitted(mod: "a", permission: "deckit.mods"), "REFUSED"),
         (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
         (PinError.notProvider(interface: "x/api", mod: "a"), "NOT_PROVIDER"),
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
@@ -53,11 +54,11 @@ struct GoldenTests {
             "a",
             in: "source",
             adding: "[interfaces]\nprovides = { \"a/api\" = [1], \"a/own\" = [1] }\n[permissions]\n"
-                + "\"deckit.example\" = \"to test\"\n\"system.example\" = \"to test\"\n"
+                + "\"deckit.example\" = \"to test\"\n\"deckit.mods\" = \"to test\"\n\"system.example\" = \"to test\"\n"
                 + "[[contributes.\"a/api\"]]\ntitle = \"Size\"\nsize = 12"
         )
         try writeMod("b", in: "source", adding: "[interfaces]\nuses = { \"a/api\" = 1, \"a/own\" = 1 }")
-        try writeMod("c", in: "ship", adding: "[interfaces]\nprovides = { \"a/api\" = [1] }")
+        try writeMod("c", in: "ship", adding: "background = \"to test\"\n[interfaces]\nprovides = { \"a/api\" = [1] }")
         try writeMod("d", in: "spare")
         let requests = try lines(of: "session")
         let pinned = try lines(of: "answers")

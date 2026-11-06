@@ -16,8 +16,10 @@ public final class Deckit {
     // The state the layers above keep, each its own.
     public let state: State
     public let runs: RunTable
-    // A mod at the relaunch limit loads only once its limit is reset.
+    // A mod at the relaunch limit launches again only as a mod asks for it.
     private var limit: RelaunchLimit
+    // The permission a mod is granted to ask that another launch, defined by a layer the driver runs.
+    private let modsPermission = "deckit.mods"
     private let now: () -> Date
 
     // MARK: - Initializer
@@ -75,24 +77,28 @@ public final class Deckit {
         deck.reconnect()
     }
 
+    // The background mods launch, as the catalog was last read and in its order.
+    public func start() throws -> [Effect] {
+        let background = catalog.loading.filter { mod in mod.manifest.background != nil }
+
+        return try observed(deck.load(jobs(of: background.map(\.manifest.id))))
+    }
+
     // The mods requested that load launch, as the catalog was last read and in its order. One at the relaunch limit is
     // left as it is.
     public func load(_ requests: [LaunchRequest]) throws -> [Effect] {
-        let jobs = catalog.loading.compactMap { mod -> Job? in
-            guard requests.contains(where: { request in request.modId == mod.manifest.id }),
-                !limit.isReached(by: mod.manifest.id)
-            else { return nil }
-            return Job(mod)
-        }
-
-        return try observed(deck.load(jobs))
+        try observed(deck.load(jobs(of: requests.map(\.modId))))
     }
 
-    // What each mod named failed before is forgotten, which takes it off the relaunch limit.
-    public func resetLimit(_ ids: [String]) {
-        for id in ids {
-            limit.reset(id)
+    // The mod `asker` asks that the mod `id` launch, as the person opening it does: what `id` failed before is
+    // forgotten first, which takes it off the relaunch limit. Refused unless `asker` is granted `deckit.mods`.
+    public func launch(_ id: String, by asker: String) throws -> [Effect] {
+        guard deck.job(of: asker)?.permissions.contains(modsPermission) ?? false else {
+            throw LaunchError.notPermitted(mod: asker, permission: modsPermission)
         }
+        limit.reset(id)
+
+        return try observed(deck.load(jobs(of: [id])))
     }
 
     // The mods named unload: a sandbox whose run has ended closes once the catalog no longer has its mod as it runs it.
@@ -169,31 +175,58 @@ public final class Deckit {
         runs.contribute(run, summary: summary, contributions: layers)
     }
 
-    // What deckit keeps of the runs as `effects` move them: a run that launches has an entry, a run that failed counts
-    // toward its mod's relaunch limit, and a sandbox closes once its run has ended and the catalog no longer has its
-    // mod as it runs it.
-    private func observed(_ effects: [Effect]) throws -> [Effect] {
-        var closing: [String] = []
-        for case let .tell(notification, run) in effects {
-            switch notification {
-            case .willLaunch:
-                runs.begin(run)
-
-            case .didTerminate:
-                if run.failed, limit.fail(run.modId, at: now()) {
-                    runs.limitRelaunch(run)
-                }
-                if isGone(run.modId) {
-                    closing.append(run.modId)
-                }
-
-            case .didLaunch, .didFailToLaunch, .willTerminate:
-                break
-            }
+    // The jobs of the mods named that load, as the catalog was last read and in its order, but for those at the
+    // relaunch limit.
+    private func jobs(of ids: [String]) -> [Job] {
+        catalog.loading.compactMap { mod in
+            guard ids.contains(mod.manifest.id), !limit.isReached(by: mod.manifest.id) else { return nil }
+            return Job(mod)
         }
-        guard !closing.isEmpty else { return effects }
+    }
 
-        return try effects + deck.unload(closing)
+    // What deckit keeps and decides of the runs as `effects` move them, then of what that comes to, until nothing more
+    // comes: a run that launches has an entry; a run that failed counts toward its mod's relaunch limit, and a
+    // background mod's launches again; a mod a lifecycle waits for launches; and a sandbox closes once its run has
+    // ended and the catalog no longer has its mod as it runs it.
+    private func observed(_ effects: [Effect]) throws -> [Effect] {
+        var observed: [Effect] = []
+        var next = effects
+        while !next.isEmpty {
+            observed += next
+            var closing: [String] = []
+            var launching: [String] = []
+            for effect in next {
+                switch effect {
+                case let .tell(.willLaunch, run):
+                    runs.begin(run)
+
+                case let .tell(.didTerminate, run):
+                    if run.failed, limit.fail(run.modId, at: now()) {
+                        runs.limitRelaunch(run)
+                    }
+                    if run.failed, isBackground(run.modId) {
+                        launching.append(run.modId)
+                    }
+                    if isGone(run.modId) {
+                        closing.append(run.modId)
+                    }
+
+                case let .wait(_, _, service):
+                    launching.append(service)
+
+                default:
+                    break
+                }
+            }
+            let jobs = jobs(of: launching)
+            next = try (closing.isEmpty ? [] : deck.unload(closing)) + (jobs.isEmpty ? [] : deck.load(jobs))
+        }
+
+        return observed
+    }
+
+    private func isBackground(_ id: String) -> Bool {
+        catalog.loading.contains { mod in mod.manifest.id == id && mod.manifest.background != nil }
     }
 
     // Whether the catalog, as it was last read, no longer has the mod as its sandbox runs it.
