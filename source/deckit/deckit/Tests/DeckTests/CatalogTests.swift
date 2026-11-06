@@ -657,8 +657,8 @@ struct CatalogTests {
         let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
 
         // Then
-        let a = InterfaceProvider(id: "a", name: "a", majors: [1])
-        let b = InterfaceProvider(id: "b", name: "b", majors: [2])
+        let a = InterfaceProvider(id: "a", name: "a", majors: [1], pinnable: true)
+        let b = InterfaceProvider(id: "b", name: "b", majors: [2], pinnable: true)
         #expect(unread == [InterfaceQueue(interface: "x/api", name: nil, owner: "a", pinned: false, providers: [a, b])])
         #expect(pinned == [InterfaceQueue(interface: "x/api", name: nil, owner: "b", pinned: true, providers: [a, b])])
         #expect(throws: PinError.notProvider(interface: "x/api", mod: "c")) { try notProvider.get() }
@@ -666,6 +666,33 @@ struct CatalogTests {
         #expect(cleared == unread)
         #expect(left == [InterfaceQueue(interface: "x/api", name: nil, owner: "a", pinned: false, providers: [a])])
         #expect(kept == .object(["providers": .object(["x/api": .array([.string("a")])]), "pins": .object([:])]))
+    }
+
+    @Test("a provider kept with a problem is not pinnable and is refused a pin, and keeps the pin it holds")
+    func providerWithProblemIsNotPinned() throws {
+        // Given
+        try write("a", in: source, provides: ["x/api": [1]])
+        try write("b", in: source, provides: ["x/api": [1]])
+        try write("c", in: source, provides: ["x/api": [1]])
+        let sut = try catalog(sources: [source])
+        _ = sut.read()
+        try sut.pin("x/api", to: "b")
+
+        // When
+        try Data("id = ".utf8).write(to: source.appending(path: "b/manifest.toml"))
+        try write("c", in: source, contributes: "[]", provides: ["x/api": [1]])
+        _ = sut.read()
+        let pinnable = sut.interfaces.flatMap(\.providers).map { provider in (provider.id, provider.pinnable) }
+        let other = Result { try sut.pin("x/api", to: "c") }
+        let again = Result { try sut.pin("x/api", to: "b") }
+        _ = sut.read()
+        let owner = sut.interfaces.map { queue in (queue.owner, queue.pinned) }
+
+        // Then
+        #expect(pinnable.map(\.0) == ["a", "b", "c"] && pinnable.map(\.1) == [true, false, false])
+        #expect(throws: PinError.notProvider(interface: "x/api", mod: "c")) { try other.get() }
+        #expect(throws: PinError.notProvider(interface: "x/api", mod: "b")) { try again.get() }
+        #expect(owner.map(\.0) == ["b"] && owner.map(\.1) == [true])
     }
 
     @Test("an interface a mod uses comes to its owner, with a problem when it does not provide that major, and to none")

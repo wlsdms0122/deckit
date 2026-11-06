@@ -121,17 +121,11 @@ public final class Catalog {
     }
 
     // As the person's: `id` owns `interface` from now on, whichever provider is first in its queue, until its pin is
-    // cleared, for nil, or the mod leaves the queue. Refused for a mod that does not provide the interface now.
-    // Settled once the mods are read again.
+    // cleared, for nil, or the mod leaves the queue. Refused for a mod that does not provide the interface now, one
+    // kept in its queue with a problem too. Settled once the mods are read again.
     public func pin(_ interface: String, to id: String?) throws {
-        let ownership = keptOwnership(of: ranked())
-        if let id {
-            guard ownership.queues[interface]?.contains(id) ?? false else {
-                throw PinError.notProvider(interface: interface, mod: id)
-            }
-        }
-
-        try ownershipStore.write(ownership.pinned(interface, to: id))
+        let found = ranked()
+        try ownershipStore.write(keptOwnership(of: found).pinned(interface, to: id, providers: providers(in: found)))
     }
 
     // The ids named take the places they held among themselves in the mods' order, in the order given; the rest stay
@@ -231,18 +225,24 @@ public final class Catalog {
     // it holds and its pins. An id not found leaves only while every mod found is who its manifest names: one whose
     // manifest names no id may be any of them. The order is not looked at.
     private func joined(_ ownership: Ownership, by found: [Mod]) -> Ownership {
-        let shipOrder = shipOrder()
-        let rank = { (id: String) in (shipOrder.firstIndex(of: id) ?? shipOrder.count, id) }
-        let providers = found.filter { mod in mod.problem == nil }
-            .map(\.manifest)
-            .sorted { manifest, other in rank(manifest.id) < rank(other.id) }
         let ids = Set(found.map(\.manifest.id))
         var kept = Set(found.filter { mod in mod.problem != nil }.map(\.manifest.id))
         if found.contains(where: { mod in !mod.manifest.namesID }) {
             kept.formUnion(ownership.queues.values.joined().filter { id in !ids.contains(id) })
         }
 
-        return ownership.joined(by: providers, keeping: kept)
+        return ownership.joined(by: providers(in: found), keeping: kept)
+    }
+
+    // The manifests of the mods `found` that load, those that provide what they name, in the order the app ships them,
+    // then by id.
+    private func providers(in found: [Mod]) -> [Manifest] {
+        let shipOrder = shipOrder()
+        let rank = { (id: String) in (shipOrder.firstIndex(of: id) ?? shipOrder.count, id) }
+
+        return found.filter { mod in mod.problem == nil }
+            .map(\.manifest)
+            .sorted { manifest, other in rank(manifest.id) < rank(other.id) }
     }
 
     // The ownership kept, as the mods `found` provide now, written again when that changed it. A settings file that
@@ -265,6 +265,7 @@ public final class Catalog {
     ) -> (mods: [Mod], interfaces: [InterfaceQueue], listed: [Mod]) {
         let listed = found.filter { mod in mod.problem == nil }
         let manifests = found.map(\.manifest)
+        let providers = self.providers(in: found)
         var mods = DependencyGraph(found).ordered()
         for place in mods.indices {
             let manifest = mods[place].manifest
@@ -278,6 +279,7 @@ public final class Catalog {
             return ownership.queue(
                 of: interface,
                 found: manifests,
+                providers: providers,
                 definer: found.first { mod in mod.manifest.id == definer }?.manifest.name
             )
         }

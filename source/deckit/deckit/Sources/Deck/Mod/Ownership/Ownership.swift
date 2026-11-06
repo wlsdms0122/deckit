@@ -51,17 +51,29 @@ struct Ownership: Equatable, Sendable {
         )
     }
 
-    // With `id` pinned for `interface`, or its pin cleared for nil.
-    func pinned(_ interface: String, to id: String?) -> Ownership {
+    // With `id` pinned for `interface`, or its pin cleared for nil. Only a provider that provides it now among
+    // `providers`, the manifests of the mods that load, is pinned: one kept with a problem keeps a pin it holds.
+    func pinned(_ interface: String, to id: String?, providers: [Manifest]) throws -> Ownership {
+        if let id {
+            guard isPinnable(id, for: interface, providers: providers) else {
+                throw PinError.notProvider(interface: interface, mod: id)
+            }
+        }
+
         var pins = pins
         pins[interface] = id
 
         return Ownership(queues: queues, pins: pins)
     }
 
-    // The queue of `interface`, each provider read among `found`, the manifests of every mod found, and `definer` the
-    // name of the mod that defines it.
-    func queue(of interface: String, found: [Manifest], definer: String?) -> InterfaceQueue {
+    // The queue of `interface`, each provider read among `found`, the manifests of every mod found, pinnable as it is
+    // among `providers`, those of the mods that load, and `definer` the name of the mod that defines it.
+    func queue(
+        of interface: String,
+        found: [Manifest],
+        providers: [Manifest],
+        definer: String?
+    ) -> InterfaceQueue {
         InterfaceQueue(
             interface: interface,
             name: definer,
@@ -69,7 +81,12 @@ struct Ownership: Equatable, Sendable {
             pinned: pins[interface] != nil,
             providers: (queues[interface] ?? []).compactMap { id in
                 found.first { manifest in manifest.id == id }.map { manifest in
-                    InterfaceProvider(id: id, name: manifest.name, majors: manifest.provides[interface] ?? [])
+                    InterfaceProvider(
+                        id: id,
+                        name: manifest.name,
+                        majors: manifest.provides[interface] ?? [],
+                        pinnable: isPinnable(id, for: interface, providers: providers)
+                    )
                 }
             }
         )
@@ -101,4 +118,7 @@ struct Ownership: Equatable, Sendable {
     }
 
     // MARK: - Private
+    private func isPinnable(_ id: String, for interface: String, providers: [Manifest]) -> Bool {
+        providers.contains { manifest in manifest.id == id && manifest.provides[interface] != nil }
+    }
 }

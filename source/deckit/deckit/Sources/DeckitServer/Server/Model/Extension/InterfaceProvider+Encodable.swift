@@ -14,6 +14,7 @@ extension InterfaceProvider: Encodable {
         case id
         case name
         case majors
+        case pinnable
     }
 
     // MARK: - Initializer
@@ -23,6 +24,7 @@ extension InterfaceProvider: Encodable {
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(majors, forKey: .majors)
+        try container.encode(pinnable, forKey: .pinnable)
     }
 
     // MARK: - Private

@@ -4,7 +4,8 @@ const { handlerRow } = require('../handler-list/handler-list.js');
 
 // The Interfaces section: a card per interface a mod provides or uses, with its owner and the mods that provide it in
 // their queue, the earliest first. The owner is the provider the person pinned, or else the first in the queue; the
-// card's menu pins one or clears the pin. A pin deckit refuses is told on its card. `mods` is deckit.mods.
+// card's menu pins one that can be pinned, or clears the pin. A pin deckit refuses is told on its card. `mods` is
+// deckit.mods.
 function interfacesSection({ ui, mods }) {
     const TITLE = 'Interfaces';
     const KEYWORDS = ['인터페이스', '주인', '고정', 'interface', 'owner', 'provider', 'pin'];
@@ -82,9 +83,13 @@ function interfacesSection({ ui, mods }) {
             current = interfaceQueue;
             const { providers } = interfaceQueue;
             const first = providers[0];
+            // A provider kept with a problem is offered only while it holds the pin.
+            const offered = providers.filter(
+                (provider) => provider.pinnable || (interfaceQueue.pinned && provider.id === interfaceQueue.owner)
+            );
             owner.setOptions([
                 { value: AUTOMATIC, label: first ? `Automatic: ${first.name}` : 'Automatic' },
-                ...providers.map((provider) => ({ value: provider.id, label: `Pinned: ${provider.name}` })),
+                ...offered.map((provider) => ({ value: provider.id, label: `Pinned: ${provider.name}` })),
             ]);
             owner.set(interfaceQueue.pinned ? interfaceQueue.owner : AUTOMATIC);
             owner.element.hidden = !providers.length;
