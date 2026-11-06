@@ -10,30 +10,36 @@ import Testing
 @testable import Deck
 @testable import Deckit
 
-// The mods a test writes into a source folder, and a deckit over them.
+// The mods a test writes into a source folder, or a spare one to install from, and a deckit over them.
 struct DeckitFixture {
     // MARK: - Property
     private let home: URL
     private let source: URL
+    private let spare: URL
 
     // MARK: - Initializer
     init(_ name: String) {
         let root = FileManager.default.temporaryDirectory.appending(path: "\(name)-\(UUID().uuidString)")
         home = root.appending(path: "home")
         source = root.appending(path: "source")
+        spare = root.appending(path: "spare")
     }
 
     // MARK: - Public
-    // `provides` are the interfaces it provides at major 1, and `contributes` the TOML of what it declares to
-    // interfaces, written after its other fields.
+    // `provides` and `uses` are the interfaces it provides and uses at major 1, `background` why it runs in the
+    // background, and `contributes` the TOML of what it declares to interfaces, written after its other fields. A
+    // `spare` mod is not read until it is installed from `folder(of:)`.
     func write(
         _ id: String,
+        spare: Bool = false,
         api: String = "1.0.0",
+        background: String? = nil,
         permissions: [String] = [],
         provides: [String] = [],
+        uses: [String] = [],
         contributes: String = ""
     ) throws {
-        let location = source.appending(path: id)
+        let location = spare ? folder(of: id) : source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let asked = permissions.isEmpty
             ? ""
@@ -41,34 +47,49 @@ struct DeckitFixture {
                 .joined(separator: "\n")
         let provided = provides.isEmpty
             ? ""
-            : "\n[interfaces]\nprovides = { " + provides.map { interface in "\"\(interface)\" = [1]" }
-                .joined(separator: ", ") + " }"
+            : "\nprovides = { " + provides.map { interface in "\"\(interface)\" = [1]" }.joined(separator: ", ") + " }"
+        let used = uses.isEmpty
+            ? ""
+            : "\nuses = { " + uses.map { interface in "\"\(interface)\" = 1" }.joined(separator: ", ") + " }"
+        let interfaces = provided.isEmpty && used.isEmpty ? "" : "\n[interfaces]" + provided + used
         let text = """
             id = "\(id)"
             name = "\(id.uppercased())"
             version = "1.0.0"
             api = "\(api)"
             main = "main.js"
-            """ + asked + provided + (contributes.isEmpty ? "" : "\n" + contributes)
+            """ + (background.map { reason in "\nbackground = \"\(reason)\"" } ?? "") + asked + interfaces
+            + (contributes.isEmpty ? "" : "\n" + contributes)
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         try Data().write(to: location.appending(path: "main.js"))
+    }
+
+    // The folder a spare mod is written in.
+    func folder(of id: String) -> URL {
+        spare.appending(path: id)
     }
 
     func remove(_ id: String) throws {
         try FileManager.default.removeItem(at: source.appending(path: id))
     }
 
-    // A deckit over what is written, its mods read and each that loads launching.
-    func deckit() throws -> Deckit {
+    // A deckit over what is written, its mods read, which defines `permissions` and whose mods reach the relaunch
+    // limit as `limit` says, their runs failing at `now`.
+    func deckit(
+        permissions: [Permission] = [],
+        limit: RelaunchLimit = RelaunchLimit(burst: 5, interval: 10),
+        now: @escaping () -> Date = Date.init
+    ) throws -> Deckit {
         let sut = try Deckit(
             home: home,
             ship: [],
             sources: [source],
             api: try #require(Version("1.0.0")),
-            permissions: []
+            permissions: permissions,
+            limit: limit,
+            now: now
         )
-        let mods = sut.readCatalog()
-        _ = try sut.load(mods.map(\.manifest.id))
+        _ = sut.readCatalog()
 
         return sut
     }
