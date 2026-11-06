@@ -222,13 +222,15 @@ public final class Catalog {
 
     // `ownership` as the mods `found` provide now: those that load by their own manifest provide what it names, as
     // they arrive at once in the order the app ships them, then by id, and one found with a problem keeps the places
-    // it holds and its pins. An id not found leaves only while every mod found is who its manifest names: one whose
-    // manifest names no id may be any of them. The order is not looked at.
-    private func joined(_ ownership: Ownership, by found: [Mod]) -> Ownership {
+    // it holds and its pins. An id not found leaves when it was `removed`, and otherwise only while every mod found is
+    // who its manifest names: one whose manifest names no id may be any of them. The order is not looked at.
+    private func joined(_ ownership: Ownership, by found: [Mod], removed: [String] = []) -> Ownership {
         let ids = Set(found.map(\.manifest.id))
         var kept = Set(found.filter { mod in mod.problem != nil }.map(\.manifest.id))
         if found.contains(where: { mod in !mod.manifest.namesID }) {
-            kept.formUnion(ownership.queues.values.joined().filter { id in !ids.contains(id) })
+            kept.formUnion(ownership.queues.values.joined().filter { id in
+                !ids.contains(id) && !removed.contains(id)
+            })
         }
 
         return ownership.joined(by: providers(in: found), keeping: kept)
@@ -245,11 +247,11 @@ public final class Catalog {
             .sorted { manifest, other in rank(manifest.id) < rank(other.id) }
     }
 
-    // The ownership kept, as the mods `found` provide now, written again when that changed it. A settings file that
-    // does not read as a JSON object keeps none until it does.
-    private func keptOwnership(of found: [Mod]) -> Ownership {
+    // The ownership kept, as the mods `found` provide now and without those `removed`, written again when that changed
+    // it. A settings file that does not read as a JSON object keeps none until it does.
+    private func keptOwnership(of found: [Mod], removed: [String] = []) -> Ownership {
         let kept = ownershipStore.read()
-        let ownership = joined(kept, by: found)
+        let ownership = joined(kept, by: found, removed: removed)
         if ownership != kept {
             try? ownershipStore.write(ownership)
         }
@@ -289,10 +291,10 @@ public final class Catalog {
 
     // The order kept with the mods `installed` that it did not place, each just before the first it places that
     // comes after it now, and without those `removed`; every other place stays. The ownership is kept as the mods
-    // provide now. A settings file that does not read as a JSON object keeps no order until it does, which arranging
-    // tells.
+    // provide now, without those `removed`. A settings file that does not read as a JSON object keeps no order until
+    // it does, which arranging tells.
     private func keepOrder(installed: [String] = [], removed: [String] = []) {
-        _ = keptOwnership(of: ranked())
+        _ = keptOwnership(of: ranked(), removed: removed)
         let before = order.read()
         var kept = before.filter { id in !removed.contains(id) }
         let current = mods().map(\.manifest.id)

@@ -630,6 +630,26 @@ struct CatalogTests {
         #expect(readOwner.map(\.0) == ["foo"] && readOwner.map(\.1) == [true])
     }
 
+    @Test("a mod removed leaves its queues while a mod found names no id, and the next provider owns the interface")
+    func removedModLeavesQueues() throws {
+        // Given
+        try write("a", in: home.appending(path: "mods"), provides: ["x/api": [1]])
+        try write("b", in: home.appending(path: "mods"), provides: ["x/api": [1]])
+        let sut = try catalog(sources: [source])
+        let first = queues(of: sut)
+        try FileManager.default.createDirectory(at: source.appending(path: "foo-dev"), withIntermediateDirectories: true)
+        try Data("id = ".utf8).write(to: source.appending(path: "foo-dev/manifest.toml"))
+
+        // When
+        _ = try sut.remove("a")
+        let removed = queues(of: sut)
+
+        // Then
+        #expect(first == ["x/api": ["a", "b"]])
+        #expect(removed == ["x/api": ["b"]])
+        #expect(sut.owner(of: "x/api") == "b")
+    }
+
     @Test("a pinned provider owns an interface until the pin is cleared or it leaves the queue, and only a provider is")
     func pinnedProviderOwns() throws {
         // Given
