@@ -102,8 +102,8 @@ struct CommandTokenTests {
         try fixture.write("c")
         let sut = try fixture.deckit()
         let handed = try sut.commands.mint("open", of: "a", args: args)
-        let held = try sut.commands.mint("open", of: "a", args: args, holder: "b")
-        let other = try sut.commands.mint("open", of: "a", args: args, holder: "c")
+        let held = try sut.commands.hand("open", of: "a", args: args, to: "b")
+        let other = try sut.commands.hand("open", of: "a", args: args, to: "c")
 
         // When
         try fixture.remove("b")
@@ -141,9 +141,9 @@ struct CommandTokenTests {
         let sut = try fixture.deckit()
 
         // When
-        let first = try sut.commands.mint("open", of: "a", args: args, holder: "b")
-        let again = try sut.commands.mint("open", of: "a", args: args, holder: "b")
-        let other = try sut.commands.mint("open", of: "a", args: args, holder: "c")
+        let first = try sut.commands.hand("open", of: "a", args: args, to: "b")
+        let again = try sut.commands.hand("open", of: "a", args: args, to: "b")
+        let other = try sut.commands.hand("open", of: "a", args: args, to: "c")
         let handed = try sut.commands.mint("open", of: "a", args: args)
 
         // Then

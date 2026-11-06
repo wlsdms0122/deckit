@@ -116,6 +116,32 @@ struct InterfaceContributionTests {
         #expect(problems == ["an entry declared to o/actions is left out: no such command: a.missing"])
     }
 
+    @Test("an entry that names a command only its run registers is left out and told, whether the mod runs or not")
+    func entryOfRegisteredCommandIsLeftOut() throws {
+        // Given
+        try fixture.write("o", provides: ["o/actions"])
+        try fixture.write("a", contributes: [
+            "interfaces": .object(["o/actions": .array([.object(["command": .string("live")])])])
+        ])
+        let sut = try fixture.deckit()
+        let problem = "an entry declared to o/actions is left out: no such command: a.live"
+
+        // When
+        let idle = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
+        let idleHanded = try sut.contributions(to: "o/actions", for: "o")
+        _ = try sut.started("a", run: 1, contributing: ["commands": .array([.object(["name": .string("live")])])])
+        let registered = try sut.commands.find("live", of: "a")
+        let running = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
+        let runningHanded = try sut.contributions(to: "o/actions", for: "o")
+
+        // Then
+        #expect(registered.command.name == "live")
+        #expect(idle == [problem])
+        #expect(running == [problem])
+        #expect(idleHanded.isEmpty)
+        #expect(runningHanded.isEmpty)
+    }
+
     @Test("declarations that are not entry lists by interface are told as the mod is read and left out", arguments: [
         (.array([]), "contributes \"interfaces\" must be an object of entry lists by interface"),
         (

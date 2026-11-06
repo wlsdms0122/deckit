@@ -138,19 +138,26 @@ public final class CommandRegistry {
         return registered
     }
 
-    // A token of `sender`'s command `name`, which `args` fit now, for `holder` when deckit hands it over itself: one
-    // deckit handed `holder` before of the same command and args is handed again.
-    public func mint(
-        _ name: String,
-        of sender: String,
-        args: JSONValue?,
-        holder: String? = nil
-    ) throws -> CommandToken {
+    // A token of `sender`'s command `name`, which `args` fit now, that the sender hands over.
+    public func mint(_ name: String, of sender: String, args: JSONValue?) throws -> CommandToken {
         _ = try check(name, of: sender, args: args)
-        if let holder, let minted = tokens.first(where: { token in
+        let token = CommandToken(id: UUID().uuidString, sender: sender, command: name, args: args, holder: nil)
+        try save(tokens + [token])
+
+        return token
+    }
+
+    // A token of the command `name` that `sender` declares, which `args` fit, that deckit hands `holder` itself for an
+    // entry `sender` declares: one handed `holder` before of the same command and args is handed again.
+    func hand(_ name: String, of sender: String, args: JSONValue?, to holder: String) throws -> CommandToken {
+        guard let mod = deck.catalog.loading.first(where: { mod in mod.manifest.id == sender }) else {
+            throw CommandError.noSuchCommand("\(sender).\(name)")
+        }
+        _ = try checkDeclared(name, of: mod, args: args)
+        if let handed = tokens.first(where: { token in
             token.holder == holder && token.sender == sender && token.command == name && token.args == args
         }) {
-            return minted
+            return handed
         }
 
         let token = CommandToken(id: UUID().uuidString, sender: sender, command: name, args: args, holder: holder)
@@ -209,7 +216,22 @@ public final class CommandRegistry {
         return name
     }
 
-    // An entry declared to `interface` that names a command its mod cannot run with the entry's args.
+    // The command `name` that `mod` declares, which `args` fit, refused with why. Those its run registers are not
+    // looked at, so a declaration is checked the same whether the mod runs or not.
+    private func checkDeclared(_ name: String, of mod: Mod, args: JSONValue?) throws -> Command {
+        guard Provider.isName(name) else { throw CommandError.notAName(name) }
+        let provider = Provider.mod(id: mod.manifest.id, name: mod.manifest.name)
+        guard let command = declared(of: mod).first(where: { command in command.name == name }) else {
+            throw CommandError.noSuchCommand(provider.id(of: name))
+        }
+        if let why = command.problem(ofArguments: args) {
+            throw CommandError.arguments(command: provider.id(of: name), why: why)
+        }
+
+        return command
+    }
+
+    // An entry declared to `interface` that names no command its mod declares, or one the entry's args do not fit.
     private func problem(ofEntry entry: JSONValue, to interface: String, mod: Mod) -> String? {
         guard case let .object(fields) = entry, let named = fields["command"] else { return nil }
         guard case let .string(command) = named else {
@@ -217,7 +239,7 @@ public final class CommandRegistry {
         }
 
         do {
-            _ = try check(command, of: mod.manifest.id, args: fields["args"])
+            _ = try checkDeclared(command, of: mod, args: fields["args"])
             return nil
         } catch let refusal as CommandError {
             return "an entry declared to \(interface) is left out: \(refusal.message)"
