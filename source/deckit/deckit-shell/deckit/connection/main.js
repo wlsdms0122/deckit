@@ -59,7 +59,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // is null. What the client is handed names the mod id or the interface, never the mod that owns an interface.
     async function open(connection) {
         const { id, client, service } = connection;
-        const named = { id, name: connection.name, exportedIn: service.lifecycle };
+        const named = { id, name: connection.name };
         const mod = CATALOG.mods().find((one) => one.id === client.mod);
         try {
             const page = IDENTITY.pageOf(service.mod);

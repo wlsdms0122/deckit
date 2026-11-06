@@ -4,9 +4,8 @@
 // interface, and never the mod that owns an interface.
 import * as CHANNEL from '../channel/index.js';
 
-// A lifecycle of the page's run begins: answered with the connections it has from now on, each `{ id, name,
-// exportedIn, exports }`, `exportedIn` the lifecycle of the service that opened the exports, or with `problem` in
-// place of `exports` for one the service refused.
+// A lifecycle of the page's run begins: answered with the connections it has from now on, each
+// `{ id, name, exports }`, or with `problem` in place of `exports` for one the service refused.
 export const begin = CHANNEL.pageToMain(
     'deckit-shell:connection-begin',
     { run: 'number', lifecycle: 'number' },
@@ -35,8 +34,7 @@ export const release = CHANNEL.pageToMain('deckit-shell:connection-release', {
 // The exports the page's run opened for an interface are asked for a connection: `{ id, name, mod: { id, name },
 // lifecycle }`, `mod` the client, answered with them, or null once that lifecycle has ended.
 export const connect = CHANNEL.mainToPage('deckit-shell:connection-connect', { reply: true });
-// A connection stands since the page's `lifecycle` began: `{ id, name, exportedIn, exports, lifecycle }`, as `begin`
-// answers one.
+// A connection stands since the page's `lifecycle` began: `{ id, name, exports, lifecycle }`, as `begin` answers one.
 export const connected = CHANNEL.mainToPage('deckit-shell:connection-connected');
 // A connection has ended: `{ id }`.
 export const disconnected = CHANNEL.mainToPage('deckit-shell:connection-disconnected');

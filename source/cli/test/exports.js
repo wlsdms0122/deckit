@@ -41,8 +41,8 @@ async function main() {
         'deckit-shell:mod-load': () => ({ manifest: MANIFEST, source: '', run: 1 }),
         'deckit-shell:connection-begin': ({ lifecycle }) =>
             lifecycle === 0
-                ? [{ id: 10, name: 'q', exportedIn: 0, exports: { value: { answer: 42 }, references: [] } }]
-                : [{ id: 11, name: 'r', exportedIn: 0, problem: 'r did not connect: refused' }],
+                ? [{ id: 10, name: 'q', exports: { value: { answer: 42 }, references: [] } }]
+                : [{ id: 11, name: 'r', problem: 'r did not connect: refused' }],
     };
     IPC.carry(
         {
@@ -207,7 +207,6 @@ async function main() {
         payload: {
             id: 20,
             name: 'q/optional',
-            exportedIn: 1,
             exports: { value: { optional: true }, references: [] },
             lifecycle: 1,
         },
