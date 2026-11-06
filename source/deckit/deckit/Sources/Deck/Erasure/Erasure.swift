@@ -9,20 +9,20 @@ import Foundation
 
 // What deck keeps of a mod removed with its data is erased: what its storage holds here, and by the driver what the
 // driver keeps of it outside the core (its pages' storage among it). The mod is noted as uncleared before any of it is
-// erased, and until the driver says it cleared its part, so whatever was not erased is erased again.
+// erased, and until the driver says it cleared its part, so whatever was not erased is erased again: in `deck.json`,
+// under `uncleared`, their ids.
 public final class Erasure {
     // MARK: - Property
     private let key = "uncleared"
     private let storage: ModStorage
-    private let state: State
+    private let settings: DeckSettings
     private let store: Store
 
     // MARK: - Initializer
-    init(storage: ModStorage, state: State, store: Store) {
+    init(storage: ModStorage, settings: DeckSettings, store: Store) {
         self.storage = storage
-        self.state = state
+        self.settings = settings
         self.store = store
-        state.reserve(key)
     }
 
     // MARK: - Public
@@ -39,8 +39,11 @@ public final class Erasure {
 
     // The mods erased whose part kept outside the core the driver has not cleared yet.
     public func uncleared() -> [String] {
-        guard let text = try? state.read(folder: nil, key: key) else { return [] }
-        return (try? JSONDecoder().decode([String].self, from: Data(text.utf8))) ?? []
+        guard case let .array(ids)? = settings.value(of: key) else { return [] }
+        return ids.compactMap { id in
+            guard case let .string(id) = id else { return nil }
+            return id
+        }
     }
 
     public func cleared(mod: String) throws {
@@ -49,6 +52,6 @@ public final class Erasure {
 
     // MARK: - Private
     private func note(_ ids: [String]) throws {
-        try state.write(reserved: key, text: String(decoding: try JSONEncoder().encode(ids), as: UTF8.self))
+        try settings.write([key: .array(ids.map(JSONValue.string))])
     }
 }
