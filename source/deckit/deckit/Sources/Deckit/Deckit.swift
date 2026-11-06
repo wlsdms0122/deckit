@@ -16,7 +16,7 @@ public final class Deckit {
     // The state the layers above keep, each its own.
     public let state: State
     public let runs: RunTable
-    // A mod at the relaunch limit launches again only as a mod asks for it.
+    // A mod at the relaunch limit launches again only as its launch is asked.
     private var limit: RelaunchLimit
     // The permission deckit defines itself: a mod granted it asks that another launch.
     private static let mods = Permission(
@@ -95,10 +95,10 @@ public final class Deckit {
         try observed(deck.load(jobs(of: ids)))
     }
 
-    // The mod `asker` asks that the mod `id` launch, as the person opening it does: what `id` failed before is
-    // forgotten first, which takes it off the relaunch limit. Refused unless `asker` is granted `deckit.mods`.
-    public func launch(_ id: String, by asker: String) throws -> [Effect] {
-        guard deck.job(of: asker)?.permissions.contains(Deckit.mods.id) ?? false else {
+    // The mod `id` launches as asked: what it failed before is forgotten first, which takes it off the relaunch
+    // limit. `asker` is the mod that asks, refused unless it is granted `deckit.mods`; with none, nothing is checked.
+    public func launch(_ id: String, by asker: String?) throws -> [Effect] {
+        if let asker, !(deck.job(of: asker)?.permissions.contains(Deckit.mods.id) ?? false) {
             throw LaunchError.notPermitted(mod: asker, permission: Deckit.mods.id)
         }
         limit.reset(id)

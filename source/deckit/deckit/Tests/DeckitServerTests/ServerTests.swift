@@ -340,6 +340,33 @@ struct ServerTests {
         #expect(effects.count == 2)
     }
 
+    @Test("a launch asked with no by is not checked, and launches a mod at the relaunch limit")
+    func launchWithNoByIsNotChecked() throws {
+        // Given
+        try mod("a")
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#
+        for number in 1...5 {
+            _ = try send(load, to: sut)
+            _ = try send(
+                #"{"jsonrpc":"2.0","id":4,"method":"runner/crash","params":{"mod":"a","run":\#(number),"#
+                    + #""problem":"its page ended"}}"#,
+                to: sut
+            )
+        }
+
+        // When
+        let launched = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/launch","params":{"mod":"a"}}"#, to: sut)
+
+        // Then
+        guard case let .array(effects)? = value(in: launched, at: "result") else {
+            Issue.record("runner/launch answered no effects: \(launched)")
+            return
+        }
+        #expect(effects.count == 2)
+    }
+
     @Test("a file inside a mod's folder is read as its text, and one a link takes outside it as null")
     func modFileIsRead() throws {
         // Given

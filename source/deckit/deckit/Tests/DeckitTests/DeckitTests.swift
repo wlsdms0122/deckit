@@ -68,7 +68,7 @@ struct DeckitTests {
         #expect(launches(in: effects) == [])
     }
 
-    @Test("a mod at the relaunch limit launches again only as a mod granted deckit.mods asks for it")
+    @Test("a mod at the relaunch limit launches again as a mod granted deckit.mods asks for it")
     func askedLaunchResetsLimit() throws {
         // Given
         try fixture.write("a")
@@ -85,6 +85,21 @@ struct DeckitTests {
         // Then
         #expect(launches(in: held) == [])
         #expect(refused == .notPermitted(mod: "a", permission: "deckit.mods"))
+        #expect(launches(in: launched) == ["a"])
+    }
+
+    @Test("a launch asked with no mod asking is not checked, and takes the mod off the relaunch limit")
+    func launchWithNoAskerResetsLimit() throws {
+        // Given
+        try fixture.write("a")
+        let sut = try fixture.deckit(limit: RelaunchLimit(burst: 1, interval: 10))
+        _ = try sut.load(["a"])
+        _ = try sut.crashed("a", run: 1, problem: "its page ended")
+
+        // When
+        let launched = try sut.launch("a", by: nil)
+
+        // Then
         #expect(launches(in: launched) == ["a"])
     }
 

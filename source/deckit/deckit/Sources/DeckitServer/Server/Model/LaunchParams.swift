@@ -7,11 +7,11 @@
 
 import Foundation
 
-// The mod `by` asks that the mod `mod` launch.
+// The mod `mod` launches as asked, `by` the mod that asks, or none.
 struct LaunchParams: Decodable {
     // MARK: - Property
     let mod: String
-    let by: String
+    let by: String?
 
     // MARK: - Initializer
     // MARK: - Public
