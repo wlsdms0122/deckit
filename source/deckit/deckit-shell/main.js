@@ -4,11 +4,9 @@ import * as CLIPBOARD_PERMISSION from './deckit/clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from './deckit/notification/model/permission.js';
 import * as KEYMAP_PERMISSION from './deckit/keymap/model/permission.js';
 import * as OPEN_PERMISSION from './deckit/open/model/permission.js';
-import * as COMMAND_PERMISSION from './deckit/command/model/permission.js';
 import * as STYLE_PERMISSION from './shell/style/model/permission.js';
 import * as FONTS_PERMISSION from './shell/fonts/model/permission.js';
 import * as WINDOW_PERMISSION from './shell/window/model/permission.js';
-import * as CONFIGURATION_PERMISSION from './deckit/configuration/model/permission.js';
 import * as ENVIRONMENT from './environment/index.js';
 import * as IPC from './deckit/ipc/main.js';
 import { createHome } from './deckit/home/index.js';
@@ -29,10 +27,7 @@ import { createKeymap } from './deckit/keymap/main.js';
 import { createOpen } from './deckit/open/main.js';
 import { createNotification } from './deckit/notification/main.js';
 import { createClipboard } from './deckit/clipboard/main.js';
-import { createCommand } from './deckit/command/main.js';
-import { createProvider } from './deckit/provider/main.js';
 import { createContribution } from './deckit/contribution/main.js';
-import { createConfiguration } from './deckit/configuration/main.js';
 import { createMainProcess } from './deckit/main-process/main.js';
 import { createModFolder } from './deckit/mod-folder/main.js';
 import { createRuntime } from './deckit/runtime/main.js';
@@ -51,10 +46,10 @@ import { createOverlay } from './shell/overlay/main.js';
 
 // MARK: - Property
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
-// keeps, `name` is what a person reads, and `schemeHandlers`, by scheme, the mods asked first to open an address.
+// keeps, and `name` is what a person reads.
 // `folders`: `home` is deckit's folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships,
 // installed at every start, and `sources` folders of mods read in place, ahead of installed ones.
-const CONFIG = { id: 'deckit', name: 'Deckit', schemeHandlers: {} };
+const CONFIG = { id: 'deckit', name: 'Deckit' };
 const FOLDERS = { home: null, ship: [], sources: [] };
 const SHELL_CONFIG = { dock: null };
 // What the host app answers deckit: the process and its windows are its own. And what it answers the UI: where it is
@@ -78,8 +73,6 @@ const DECKIT_PERMISSIONS = [
     NOTIFICATION_PERMISSION,
     KEYMAP_PERMISSION,
     OPEN_PERMISSION,
-    COMMAND_PERMISSION,
-    CONFIGURATION_PERMISSION,
 ];
 const SHELL_PERMISSIONS = [WINDOW_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION];
 // Main's channels are the process's: deckit connects once, and the UI is attached once, to what connect answered.
@@ -151,11 +144,6 @@ function attach(deckit, environment, { host, config = {} } = {}) {
         DROP.start();
         PANEL.start();
         WINDOW.start();
-        // A page is in front in the panel, or in a window of its own on screen.
-        deckit.keymap.delegate({
-            isActive: (page) => PANEL.isActive(page) || WINDOW.isActive(page),
-            monitor: PANEL.monitor,
-        });
         host.start({ setTheme: THEME.set, panel: PANEL.control });
     });
 }
@@ -181,24 +169,13 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const IDENTITY = createIdentity({ pages: ENV.pages });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
     const RECORD = createRecord({ CORE, IDENTITY });
-    const CONFIGURATION = createConfiguration({ CORE, IDENTITY });
     const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER });
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: ENV.pages });
-    const COMMAND = createCommand({ LOG, IDENTITY, RUNNER, CORE });
-    const PROVIDER = createProvider({ CORE, IDENTITY });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
-    const KEYMAP = createKeymap({
-        LOG,
-        IDENTITY,
-        CATALOG,
-        RUNNER,
-        CORE,
-        pages: ENV.pages,
-        keys: ENV.keys,
-    });
+    const KEYMAP = createKeymap({ LOG, IDENTITY, keys: ENV.keys });
     const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
-    const OPEN = createOpen({ LOG, IDENTITY, RUNNER, CORE, open: ENV.open });
+    const OPEN = createOpen({ LOG, IDENTITY, open: ENV.open });
     const NOTIFICATION = createNotification({
         LOG,
         IDENTITY,
@@ -236,8 +213,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         PERMISSION,
         WEB,
         KEYMAP,
-        COMMAND,
-        PROVIDER,
         MAIN_PROCESS,
         SETUP,
     });
@@ -267,10 +242,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
         LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
-        CORE.start({
-            ...PERMISSION.all(),
-            layers: { schemeHandlers: CONFIG.schemeHandlers },
-        });
+        CORE.start(PERMISSION.all());
         await STORAGE.load();
         await CATALOG.load();
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
@@ -279,8 +251,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         OPEN.start();
         NOTIFICATION.start();
         CLIPBOARD.start();
-        COMMAND.start();
-        PROVIDER.start();
         CONTRIBUTION.start();
         MAIN_PROCESS.start();
         MOD_FOLDER.start();
@@ -296,7 +266,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             }
         }
         RECORD.start();
-        CONFIGURATION.start();
         CONNECTION.start();
         EVENT.start();
         MODS.start({
@@ -309,12 +278,11 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         RUNNER.start({ preparePage });
     }
 
-    // A mod's page shows the web, hears the key map, and offers what it opens to the scheme's handlers: a window it
-    // asks for, and a link that leaves its origin, which deck holds it to.
+    // A mod's page shows the web, is where the chords mods take work, and opens with the system what it opens: a
+    // window it asks for, and a link that leaves its origin, which deck holds it to.
     function preparePage(page) {
         WEB.prepare(page);
-        const owner = WEB.pageFor(page);
-        KEYMAP.listen(page, { belongsTo: () => owner });
+        KEYMAP.listen(page);
         ENV.pages.watch(page, {
             opens: (url, options) => OPEN.openFrom(page, url, options),
             leaves: (url) => OPEN.openFrom(page, url),

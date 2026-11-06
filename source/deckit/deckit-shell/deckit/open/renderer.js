@@ -1,27 +1,15 @@
-import * as SCHEME from './model/scheme.js';
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-const EVERY = SCHEME.EVERY;
 
 // MARK: - Initializer
 // MARK: - Public
-// Whether a person asked is main's to know: it sees the page's input itself.
-function open(url, { activates = true, usesDefaultApp = false, target = '' } = {}) {
-    return PROTOCOL.open.invoke({
-        url: String(url),
-        activates,
-        usesDefaultApp,
-        target: String(target),
-    });
-}
-
-// The mod's open(url, options), asked when an address of a scheme it names is opened.
-function answer(openURL) {
-    PROTOCOL.offer.handle(async ({ url, options }) => (await openURL(url, options)) === true);
+// An address opened with the system, brought forward unless `activates` is false. Answers whether it opened.
+function open(url, { activates = true } = {}) {
+    return PROTOCOL.open.invoke({ url: String(url), activates: activates !== false });
 }
 
 function reveal(file) {
@@ -45,14 +33,6 @@ function filePath(url) {
     }
 }
 
-function handlerLists() {
-    return PROTOCOL.handlerLists.invoke();
-}
-
-function setHandlers(scheme, { order = [], off = [] } = {}) {
-    return PROTOCOL.setHandlers.invoke({ scheme, order, off });
-}
-
 // MARK: - Private
 
-export { open, answer, reveal, fileURL, filePath, handlerLists, setHandlers, EVERY };
+export { open, reveal, fileURL, filePath };

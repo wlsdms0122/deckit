@@ -14,8 +14,6 @@ export function createApi({
     PERMISSION,
     WEB,
     KEYMAP,
-    COMMAND,
-    PROVIDER,
     MAIN_PROCESS,
     SETUP,
 }) {
@@ -27,10 +25,10 @@ export function createApi({
     // MARK: - Initializer
 
     // MARK: - Public
-    // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages, keys,
-    // commands, permissions for what the UI adds, their own state, the log, and the layers stacked over deckit on a
-    // mod's page. No more of deckit is theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how
-    // deckit is told what starts with it, and `restart()` the host app's.
+    // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages, the
+    // pages where the chords mods take work, permissions for what the UI adds, their own state, the log, and the
+    // layers stacked over deckit on a mod's page. No more of deckit is theirs. Every fact it hands out is a frozen
+    // copy. `onStart(listener)` is how deckit is told what starts with it, and `restart()` the host app's.
     function make({ onStart, restart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
@@ -99,25 +97,8 @@ export function createApi({
                 isPressing: IDENTITY.isPressing,
                 isPointing: IDENTITY.isPointing,
             }),
-            keymap: Object.freeze({
-                register: KEYMAP.register,
-                chordOf: KEYMAP.chordOf,
-                listen: (page, { keys, belongsTo } = {}) => {
-                    const owner = WEB.pageFor(page);
-                    KEYMAP.listen(page, { keys, belongsTo: belongsTo ?? (() => owner) });
-                },
-                delegate: KEYMAP.delegate,
-            }),
-            commands: Object.freeze({
-                register: COMMAND.register,
-                list: COMMAND.list,
-                run: COMMAND.run,
-                complete: (command, param, partial, { args, signal } = {}) =>
-                    COMMAND.complete(command, param, partial, { args, signal }),
-                onChange: COMMAND.onChange,
-            }),
-            // Who declares keys and commands: `provider(id)` answers `{ id, name, host }` or null.
-            provider: PROVIDER.provider,
+            // listen(page): a page of the host app's or its shell's where the chords mods take work too.
+            keymap: Object.freeze({ listen: (page) => KEYMAP.listen(page) }),
             permissions: Object.freeze({ define: PERMISSION.define }),
             // What the host app and its shell keep of the person's, in a folder of their own beside deck's state.
             state: STORAGE.stateIn('host'),

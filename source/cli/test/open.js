@@ -1,13 +1,12 @@
-// Opening an address (deckit-shell/deckit/open/main.js) over a stand-in for the core, the runner and the pages: the
-// address is offered to the handlers the core routes it to in turn, each launched, with no mod that asks, only as its
-// turn comes; a handler that does not launch passes it on, and what none takes goes to what deckit
-// opens it with by itself. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// Opening outside the app (deckit-shell/deckit/open/main.js) over a stand-in for the system and the pages: an address
+// of the web opens in the browser, brought forward unless asked not to; a file opens in its app only for a mod with
+// system.file-handlers, and only one on this machine; an address of any other scheme opens nowhere. Revealing a file
+// takes system.file-handlers. Exits 1 with a line for each check that failed. The packages are ES modules, so they
+// are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
-const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
     const { createOpen } = await import(url('deckit-shell', 'deckit', 'open', 'main.js'));
@@ -19,86 +18,95 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    // The asking mod's page, and a page for each handler once it runs. What main tells a page is kept, and the test
-    // answers as the page.
-    const asking = { name: 'page c' };
-    const tells = [];
     let heard = null;
-    const messages = {
-        listen: (listeners) => (heard = listeners),
-        tell: (page, message) => tells.push([page, message]),
-    };
+    const messages = { listen: (listeners) => (heard = listeners), tell: () => {} };
     IPC.carry({ messages, pages: { isGone: () => false, watch: () => {} } }, { report: () => {} });
 
-    const running = new Set();
-    const failing = new Set();
-    const launched = [];
-    const RUNNER = {
-        runOf: (id) => (running.has(id) ? { state: 'running' } : null),
-        launch: async (id, by) => {
-            launched.push({ id, by });
-            if (!failing.has(id)) running.add(id);
+    // Mod c holds nothing; mod f holds system.file-handlers.
+    const plain = { name: 'page c' };
+    const files = { name: 'page f' };
+    const mods = new Map([
+        [plain, { id: 'c', permissions: [] }],
+        [files, { id: 'f', permissions: [{ id: 'system.file-handlers' }] }],
+    ]);
+    const IDENTITY = {
+        modOf: (page) => mods.get(page) || null,
+        modFrom: (page, permission) => {
+            const mod = mods.get(page);
+            if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
+            if (permission && !mod.permissions.some(({ id }) => id === permission))
+                throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'REFUSED' });
+            return mod;
         },
     };
-    const pages = new Map([['c', asking]]);
-    const IDENTITY = {
-        modOf: (page) => (page === asking ? { id: 'c', permissions: [] } : null),
-        modFrom: (page) => (page === asking ? { id: 'c', permissions: [] } : null),
-        pageOf: (id) => (running.has(id) ? (pages.get(id) ?? pages.set(id, { name: `page ${id}` }).get(id)) : null),
+    const opened = []; // [what, address, options]
+    const SYSTEM = {
+        url: async (address, options) => opened.push(['url', address, options]),
+        file: async (file) => opened.push(['file', file]) > 0,
+        reveal: async (file) => opened.push(['reveal', file]) > 0,
     };
-    const CORE = {
-        request: async (method, params) =>
-            method === 'open/route' ? { url: params.url, handlers: ['a', 'b'], system: 'browser' } : true,
-    };
-    const opened = [];
-    const SYSTEM = { url: async (address) => opened.push(address) };
-    const OPEN = createOpen({ LOG: { warn: () => {} }, IDENTITY, RUNNER, CORE, open: SYSTEM });
+    const OPEN = createOpen({ LOG: { warn: () => {} }, IDENTITY, open: SYSTEM });
     OPEN.start();
 
-    const ask = (page, payload) =>
-        heard.asked(page, {
-            channel: 'deckit-shell:open',
-            payload: { activates: true, usesDefaultApp: false, target: '', ...payload },
-        });
-    // The handler's page answers its latest offer with `value`.
-    const answerAs = async (id, value) => {
-        const offerOf = () =>
-            tells.findLast(([to, message]) => to === pages.get(id) && message.channel === 'deckit-shell:open-offer');
-        for (let turn = 0; turn < 20 && !offerOf(); turn++) await tick();
-        const page = IDENTITY.pageOf(id);
-        const offer = offerOf();
-        tells.splice(tells.indexOf(offer), 1);
-        heard.told(page, { channel: offer[1].channel, id: offer[1].id, value });
-        return offer[1].payload;
+    const ask = async (page, channel, payload) => {
+        const answer = await heard.asked(page, { channel, payload });
+        return answer.error ? { error: answer.error } : { value: answer.value };
     };
+    const open = (page, address, activates = true) => ask(page, 'deckit-shell:open', { url: address, activates });
 
-    const address = 'https://example.com';
-    const first = ask(asking, { url: address });
-    const offered = await answerAs('a', false);
+    const web = await open(plain, 'https://example.com');
     check(
-        'the first handler is launched, with no mod that asks, and offered it',
-        launched.length === 1 && launched[0].id === 'a' && launched[0].by === undefined && offered.url === address,
-        { launched, offered }
+        'an address of the web opens in the browser, brought forward',
+        web.value === true && opened[0]?.[0] === 'url' && opened[0][1] === 'https://example.com' &&
+            opened[0][2].activate === true,
+        { web, opened }
     );
-    await answerAs('b', true);
-    const taken = await first;
+    opened.length = 0;
+    await open(plain, 'HTTP://example.com', false);
     check(
-        'the next handler is launched only as its turn comes, and takes it',
-        launched.length === 2 && launched[1].id === 'b' && taken.value === true && !opened.length,
-        { launched, taken }
+        'a scheme is read in any case, and the browser is left behind when asked',
+        opened[0]?.[0] === 'url' && opened[0][2].activate === false,
+        opened
     );
+    opened.length = 0;
+    const other = await open(plain, 'test-open:probe');
+    check('an address of another scheme opens nowhere', other.value === false && !opened.length, { other, opened });
+    const nothing = await open(plain, 'no address');
+    check('what names no scheme opens nowhere', nothing.value === false && !opened.length, { nothing, opened });
 
-    running.clear();
-    launched.length = 0;
-    failing.add('a');
-    const second = ask(asking, { url: address });
-    await answerAs('b', false);
-    const passed = await second;
+    const refused = await open(plain, 'file:///Users/me/a%20b.txt');
+    check('a file opens nowhere for a mod without system.file-handlers', refused.value === false && !opened.length, {
+        refused,
+        opened,
+    });
+    const file = await open(files, 'file:///Users/me/a%20b.txt');
     check(
-        'a handler that does not launch passes the address on, and what none takes goes to the browser',
-        launched.map(({ id }) => id).join() === 'a,b' && passed.value === true && opened[0] === address,
-        { launched, passed, opened }
+        'a file opens in its app for a mod with system.file-handlers, by its path',
+        file.value === true && opened[0]?.[0] === 'file' && opened[0][1] === '/Users/me/a b.txt',
+        { file, opened }
     );
+    opened.length = 0;
+    const remote = await open(files, 'file://elsewhere/a.txt');
+    check('a file on another machine opens nowhere', remote.value === false && !opened.length, { remote, opened });
+
+    // What a page opens by itself, a window or a link that leaves, goes the same way.
+    OPEN.openFrom(plain, 'https://example.org', { activates: true, target: 'x' });
+    OPEN.openFrom(plain, 'file:///Users/me/a.txt');
+    await new Promise((resolve) => setImmediate(resolve));
+    check(
+        'what a page opens by itself opens as an address it asks to open',
+        opened.length === 1 && opened[0][1] === 'https://example.org',
+        opened
+    );
+    opened.length = 0;
+
+    const hidden = await ask(plain, 'deckit-shell:open-reveal', { file: '/Users/me/a.txt' });
+    check('revealing takes system.file-handlers', !!hidden.error && !opened.length, { hidden, opened });
+    const shown = await ask(files, 'deckit-shell:open-reveal', { file: '/Users/me/a.txt' });
+    check('a mod with system.file-handlers reveals a file', shown.value === true && opened[0]?.[0] === 'reveal', {
+        shown,
+        opened,
+    });
 
     for (const line of failed) console.error(line);
     if (failed.length) {

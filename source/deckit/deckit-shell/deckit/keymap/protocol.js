@@ -1,23 +1,15 @@
 import * as CHANNEL from '../channel/index.js';
 
-// A field has the keyboard, so a chord a field takes is the field's.
-export const typing = CHANNEL.pageToMain('deckit-shell:keymap-typing', { on: 'boolean' });
-export const record = CHANNEL.pageToMain('deckit-shell:keymap-record', { on: 'boolean' });
-// The chord bound now to a key of the sending mod's, or of the host `provider`, by its name, as a person reads it.
-export const chord = CHANNEL.pageToMain(
-    'deckit-shell:keymap-chord',
-    { name: 'string', provider: 'string?' },
-    { reply: true, sync: true }
+// The sending mod takes a chord, `keystroke` `{ code, meta, control, alt, shift }`, under its own `id`, in `scope`,
+// `app` or `global`. Answers whether it works where its scope says: false for a chord the system did not give, which
+// works in every page of the app still.
+export const take = CHANNEL.pageToMain(
+    'deckit-shell:keymap-take',
+    { id: 'number', keystroke: 'object', scope: 'string' },
+    { reply: true }
 );
-// deckit.keymap
-export const bindings = CHANNEL.pageToMain('deckit-shell:keymap-bindings', {}, { reply: true, sync: true });
-export const bind = CHANNEL.pageToMain('deckit-shell:keymap-bind', { id: 'string', spec: 'string' }, { reply: true });
-export const reset = CHANNEL.pageToMain('deckit-shell:keymap-reset', { id: 'string' }, { reply: true });
+// The sending mod lets the chord it took under `id` go.
+export const release = CHANNEL.pageToMain('deckit-shell:keymap-release', { id: 'number' });
 
-// The sending mod's key of that name was pressed.
+// The chord the page's mod took under `id` was pressed.
 export const key = CHANNEL.mainToPage('deckit-shell:keymap-key');
-// What the key typed comes to, as the core judges it: { pending }, { error }, { spec }, { cancel } or { clear }; also
-// { cancel: true } when main ended the recording.
-export const recorded = CHANNEL.mainToPage('deckit-shell:keymap-recorded');
-// The bindings changed: a chord shown anywhere may be out of date.
-export const changed = CHANNEL.mainToPage('deckit-shell:keymap-changed');

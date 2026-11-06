@@ -248,11 +248,10 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         return true;
     }
 
-    // A web page is a page of its own: its keystrokes reach the key map only when it is listened to, and what a person
+    // A web page is a page of its own: the chords taken work in it only when it is listened to, and what a person
     // does in it is watched, as a window it opens takes a press.
     function adopted(modPage, page) {
-        const owner = pageFor(page);
-        KEYMAP.listen(page, { belongsTo: () => owner });
+        KEYMAP.listen(page);
         IDENTITY.watchPresses(page);
     }
 

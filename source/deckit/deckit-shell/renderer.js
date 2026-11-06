@@ -12,8 +12,6 @@ import { createMods } from './deckit/mods/renderer.js';
 import { createWeb } from './deckit/web/renderer.js';
 import { createNotification } from './deckit/notification/renderer.js';
 import { createKeymap } from './deckit/keymap/renderer.js';
-import { createCommand } from './deckit/command/renderer.js';
-import { createConfiguration } from './deckit/configuration/renderer.js';
 import { createMod } from './deckit/mod/renderer.js';
 import { shellOf } from './shell/mod/renderer.js';
 import * as SHELL_LAYER from './shell/mod/model/layer.js';
@@ -47,13 +45,7 @@ function run(ENV) {
         modules: ENV.modules,
     });
     const WEB = createWeb({ sessions, web: ENV.web });
-    const MOD = createMod({
-        WEB,
-        NOTIFICATION: createNotification(),
-        KEYMAP: createKeymap(),
-        COMMAND: createCommand(),
-        CONFIGURATION: createConfiguration({ RUN }),
-    });
+    const MOD = createMod({ WEB, NOTIFICATION: createNotification(), KEYMAP: createKeymap() });
     // The layers stacked over deckit, in the order they stacked, each by its name.
     const OVER = { [SHELL_LAYER.LAYER]: () => shellOf({ WEB, channels: IPC.layerChannels }) };
     const over = layers.flatMap((name) => {

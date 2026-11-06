@@ -1,145 +1,59 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as KEY_SCOPE from './model/scope.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
+// The chords a mod takes from every page of the app, or from every app too, in its page.
 export function createKeymap() {
     // MARK: - Property
-    const declaredKeys = new Map(); // name -> { run, scope }
-    const listeners = new Set();
-    let hearing = null; // the recording under way
+    const runs = new Map(); // the id a chord is taken under -> what a press of it runs
+    let next = 0;
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's keys, { name: { label, key, scope, run } }, as one lifecycle of its run contributes them: `run()` is what
-    // pressing it does, here, and the core judges each label and chord, and whether the mod may have its scope,
-    // `local` when it names none. A key of `contributes`, the keys the mod's contributes declares by name, takes its
-    // label, chord and scope from there when that scope is `app` or `global`. One with no function to run or no scope there is, one a
-    // lifecycle under it has declared, or one that `problemOf(entry)`, why a key would never run, asked with its scope,
-    // refuses, is told to `invalid` and left out. Answers those declared, and their off.
-    function declare(keys, { contributes = {}, invalid, problemOf }) {
-        const declared = [];
-        for (const [name, given] of Object.entries(keys || {})) {
-            const scoped = contributes[name]?.scope;
-            const wide = KEY_SCOPE.SCOPES.includes(scoped) && KEY_SCOPE.isWide(scoped);
-            const entry = wide ? { ...contributes[name], run: given?.run } : given;
-            if (typeof entry?.run !== 'function') {
-                invalid(`key "${name}" cannot be used: it needs a function in "run"`);
-                continue;
-            }
-            if (declaredKeys.has(name)) {
-                invalid(`key "${name}" is declared under it, so this one is left out`);
-                continue;
-            }
-            const scope = entry.scope ?? 'local';
-            if (!KEY_SCOPE.SCOPES.includes(scope)) {
-                invalid(`key "${name}" cannot be used: its "scope" is one of ${KEY_SCOPE.SCOPES.join(', ')}`);
-                continue;
-            }
-            const never = problemOf({ ...entry, scope });
-            if (never) {
-                invalid(`key "${name}" never runs: ${never}`);
-                continue;
-            }
-            declaredKeys.set(name, { run: entry.run, scope });
-            declared.push({
-                name,
-                label: typeof entry.label === 'string' ? entry.label : '',
-                key: String(entry.key ?? ''),
-                scope,
-            });
-        }
-        return { declared, off: () => withdraw(declared.map(({ name }) => name)) };
-    }
-
-    // The keys named no longer run. Answers what puts back those it took.
-    function withdraw(names) {
-        const taken = names.filter((name) => declaredKeys.has(name)).map((name) => [name, declaredKeys.get(name)]);
-        for (const [name] of taken) declaredKeys.delete(name);
-        return () => {
-            for (const [name, key] of taken) if (!declaredKeys.has(name)) declaredKeys.set(name, key);
-        };
-    }
-
-    // A key pressed in the page while `blocksKeys()` is dropped, so it cannot act on what is behind whatever blocks
-    // them; one that works past the page was pressed wherever the person is, and runs. What a key throws is only
-    // logged: no one asked to be told.
-    function hear({ blocksKeys }) {
-        PROTOCOL.key.on(async ({ name }) => {
-            const key = declaredKeys.get(name);
-            if (!key || (!KEY_SCOPE.isWide(key.scope) && blocksKeys())) return;
+    // A press of a chord the mod took runs what it took it with, here. What that throws is only logged: no one asked
+    // to be told.
+    function hear() {
+        PROTOCOL.key.on(async ({ id }) => {
+            const run = runs.get(id);
+            if (!run) return;
             try {
-                await key.run();
+                await run();
             } catch (error) {
-                console.warn(`[deckit] the key ${name} did not run`, error);
+                console.warn('[deckit] what a chord runs threw', error);
             }
         });
-        PROTOCOL.changed.on(() => {
-            for (const listener of listeners) listener();
-        });
-        PROTOCOL.recorded.on((recorded) => hearing?.(recorded));
-        // Later: during focusout the field losing focus is still the active element.
-        let typing = false;
-        const tell = () =>
-            setTimeout(() => {
-                const now = isField(document.activeElement);
-                if (now === typing) return;
-                typing = now;
-                PROTOCOL.typing.send({ on: now });
+    }
+
+    // `keystroke`, `{ code, meta, control, alt, shift }`, `code` as a keyboard event names the key, taken in `scope`:
+    // `app`, every page of the app, with deckit.app-keys, or `global`, every app, with system.global-keys. `run()` is
+    // what each press does. Resolves to `{ held, release }`: `held` whether it works where its scope says, false for a
+    // chord the system did not give, which works in every page of the app still, and `release()` letting it go.
+    // Rejects for a chord another mod holds, or a permission the mod does not have.
+    async function take(keystroke, run, { scope = 'app' } = {}) {
+        if (typeof run !== 'function') throw new Error('a chord is taken with a function to run');
+        const { code, meta, control, alt, shift } = keystroke ?? {};
+        const id = ++next;
+        runs.set(id, run);
+        try {
+            const held = await PROTOCOL.take.invoke({
+                id,
+                keystroke: { code: String(code ?? ''), meta: !!meta, control: !!control, alt: !!alt, shift: !!shift },
+                scope: String(scope),
             });
-        document.addEventListener('focusin', tell);
-        document.addEventListener('focusout', tell);
-    }
-
-    // The chord one of the mod's keys is bound to now, or with `provider`, one that host registered.
-    function chord(name, { provider = '' } = {}) {
-        return PROTOCOL.chord.invoke({ name: String(name), ...(provider ? { provider } : {}) });
-    }
-
-    function bindings() {
-        return PROTOCOL.bindings.invoke();
-    }
-
-    function bind(id, spec) {
-        return PROTOCOL.bind.invoke({ id, spec: String(spec || '') });
-    }
-
-    function reset(id) {
-        return PROTOCOL.reset.invoke({ id });
-    }
-
-    // The next chord typed, for a person setting one: { cancel }, { clear }, { spec }, or { error } to try again.
-    // Main takes every keystroke while it records, so none reaches the page.
-    function record(onKey) {
-        let done = false;
-        const finish = () => {
-            if (done) return;
-            done = true;
-            hearing = null;
-            PROTOCOL.record.send({ on: false });
-        };
-        hearing = (recorded) => {
-            if (done || recorded.pending) return;
-            // Main is still recording, so the next keystroke is still this one's.
-            if (recorded.error) return onKey(recorded);
-            finish();
-            onKey(recorded);
-        };
-        PROTOCOL.record.send({ on: true });
-        return finish;
-    }
-
-    function onChange(listener) {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
+            return { held, release: () => release(id) };
+        } catch (error) {
+            runs.delete(id);
+            throw error;
+        }
     }
 
     // MARK: - Private
-    function isField(element) {
-        return !!element?.matches?.("input, textarea, select, [contenteditable]:not([contenteditable='false'])");
+    function release(id) {
+        if (!runs.delete(id)) return;
+        PROTOCOL.release.send({ id });
     }
 
-    return { declare, withdraw, hear, chord, bindings, bind, reset, record, onChange };
+    return { hear, take };
 }

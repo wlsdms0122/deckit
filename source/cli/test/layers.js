@@ -1,14 +1,16 @@
 // Deckit as a layer on deck in a mod's page (deckit-shell/deckit/mod/renderer.js), with a layer over it stacking a
-// lifecycle of its own on what deckit offers it: deckit's registrations are in that lifecycle, a key registered under
-// it that would never run once it has joined is withdrawn while it lasts and back once it has ended, and a key pressed
-// is dropped while any layer over deckit says so. Exits 1 with a line for each check that failed.
+// lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's handle,
+// which takes a chord only for a mod with deckit.app-keys or system.global-keys; a press of the chord runs what took
+// it, and the chord is let go once the lifecycle that took it ends. Exits 1 with a line for each check that failed.
 // The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
+const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
+    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'renderer.js'));
     const { createMod } = await import(url('deckit-shell', 'deckit', 'mod', 'renderer.js'));
     const { createKeymap } = await import(url('deckit-shell', 'deckit', 'keymap', 'renderer.js'));
     const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
@@ -19,82 +21,88 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    // The page's key map as deckit keeps it, heard by no page.
-    let heard = null;
-    const KEYMAP = { ...createKeymap(), hear: (given) => (heard = given) };
-    const MOD = createMod({
-        WEB: { forMod: () => ({}) },
-        NOTIFICATION: { listen: () => {} },
-        KEYMAP,
-        COMMAND: { declare: () => ({ declared: [], off: () => {} }) },
-        CONFIGURATION: { load: () => {}, ready: Promise.resolve() },
-    });
-    const problems = [];
-    const deckit = MOD.layer({
-        mod: { permissions: [], urls: [] },
-        contributes: { keys: { summon: { label: 'Summon', key: 'alt+space', scope: 'global' } } },
-        deliver: () => {},
-        fail: (why) => problems.push(why),
-    });
-    const keysOf = () => deckit.report().contributions.keys.map(({ name }) => name);
-
-    const under = makeScope();
-    deckit.lifecycles[0].join(
-        { keys: { front: { run: () => {}, scope: 'local' }, wide: { run: () => {}, scope: 'app' } } },
-        under
+    // What carries the page's channels: main answers what the page asks, and the test tells the page as main.
+    const sent = []; // { channel, payload }, what the page told or asked main
+    let tell = null;
+    IPC.carry(
+        {
+            messages: {
+                listen: ({ told }) => (tell = told),
+                tell: (message) => sent.push(message),
+                ask: async (message) => {
+                    sent.push(message);
+                    return { value: message.channel === 'deckit-shell:keymap-take' };
+                },
+                askSync: (message) => ({
+                    value: message.channel === 'deckit-shell:runtime-about' ? { home: '/h' } : null,
+                }),
+            },
+        },
+        { report: () => {} }
     );
-    check('the keys start registers are reported', keysOf().join() === 'front,wide', keysOf());
 
-    const over = makeScope();
-    const keyProblem = (key) => (key.scope === 'local' ? 'it is never in front' : '');
+    const layerOf = (permissions) =>
+        createMod({
+            WEB: { forMod: () => ({}) },
+            NOTIFICATION: { listen: () => {}, notificationsOf: () => ({}) },
+            KEYMAP: createKeymap(),
+        }).layer({ mod: { id: 'a', permissions: permissions.map((id) => ({ id })) }, deliver: () => {} });
+
+    const deckit = layerOf(['deckit.app-keys']);
+    check('deckit registers nothing of its own', Object.keys(deckit.lifecycles[0].registrations).length === 0, deckit);
+    let handed = null;
     const lifecycle = deckit.over.lifecycle({
         method: 'attach',
         registrations: { view: { handle: 'shell', check: () => '' } },
-        start: async () => {},
+        start: async (_instance, handles) => (handed = handles),
         end: async () => {},
-        join: () => ({ keyProblem }),
+        join: () => {},
     });
     check(
-        "a lifecycle over deckit registers deckit's beside its own",
-        Object.keys(lifecycle.registrations).join() === 'keys,commands,urls,view',
+        'a lifecycle over deckit registers its own alone',
+        Object.keys(lifecycle.registrations).join() === 'view',
         Object.keys(lifecycle.registrations)
     );
-    lifecycle.join({ keys: { late: { run: () => {}, scope: 'local' } } }, over);
-    check('a key registered over it that would never run is left out', !keysOf().includes('late'), keysOf());
-    check('a key registered under it that would never run is withdrawn', keysOf().join() === 'wide', keysOf());
+
+    const scope = makeScope();
+    await lifecycle.start({}, { deckit: { exports: {} }, shell: {} }, scope);
+    const handle = handed?.deckit;
+    check("a lifecycle over deckit is handed deckit's handle", typeof handle?.urls?.open === 'function', handed);
     check(
-        'what is withdrawn is told to the mod',
-        problems.some((why) => /key "front" never runs: it is never in front/.test(why)),
-        problems
+        'the handle holds no commands or configuration',
+        !handle.commands && !handle.configuration && !handle.modConfiguration,
+        handle
     );
-    const again = KEYMAP.declare({ front: { run: () => {} } }, { invalid: () => {}, problemOf: () => '' });
-    check('a key withdrawn no longer runs in the page', again.declared.length === 1, again.declared);
-    again.off();
+    check('a mod with deckit.app-keys takes a chord', typeof handle.keys?.take === 'function', handle.keys);
 
-    over.cut();
-    check('a key withdrawn is back once the lifecycle over it has ended', keysOf().join() === 'wide,front', keysOf());
-    const taken = [];
-    KEYMAP.declare({ front: { run: () => {} } }, { invalid: (why) => taken.push(why), problemOf: () => '' });
-    check('a key back runs in the page again', /declared under it/.test(taken[0] || ''), taken);
-    const handlers = makeScope();
-    lifecycle.join({ keys: { summon: { run: () => {} } } }, handlers);
-    const summon = deckit.report().contributions.keys.find(({ name }) => name === 'summon');
+    let ran = 0;
+    const chord = await handle.keys.take({ code: 'KeyK', alt: true }, () => ran++);
+    const asked = sent.find(({ channel }) => channel === 'deckit-shell:keymap-take');
+    check('a chord taken answers whether it is held', chord.held === true, chord);
     check(
-        'a key the mod declares takes its label, chord and scope from there, and runs where no page is in front',
-        summon?.label === 'Summon' && summon.key === 'alt+space' && summon.scope === 'global',
-        summon
+        'a chord is asked of main with its keystroke and scope, in the app when none is named',
+        asked?.payload.keystroke.code === 'KeyK' && asked.payload.keystroke.alt && asked.payload.scope === 'app',
+        asked
     );
-    handlers.cut();
+    tell({ channel: 'deckit-shell:keymap-key', payload: { id: asked.payload.id } });
+    await tick();
+    check('a press told to the page runs what took the chord', ran === 1, ran);
+    tell({ channel: 'deckit-shell:keymap-key', payload: { id: asked.payload.id + 1 } });
+    await tick();
+    check('a press of a chord not taken here runs nothing', ran === 1, ran);
 
-    let blocked = false;
-    deckit.over.blockKeysWhen(() => false);
-    deckit.over.blockKeysWhen(() => blocked);
-    const before = heard.blocksKeys();
-    blocked = true;
-    check('a key pressed is dropped while any layer over deckit says so', !before && heard.blocksKeys(), before);
+    scope.cut();
+    const released = sent.find(({ channel }) => channel === 'deckit-shell:keymap-release');
+    check('a chord is let go once its lifecycle ends', released?.payload.id === asked.payload.id, sent);
+    tell({ channel: 'deckit-shell:keymap-key', payload: { id: asked.payload.id } });
+    await tick();
+    check('a chord let go runs nothing', ran === 1, ran);
 
-    under.cut();
-    check('the keys of a lifecycle that ended are gone', keysOf().length === 0, keysOf());
+    const plain = layerOf([]);
+    let plainHanded = null;
+    const instance = { start: (given) => (plainHanded = given) };
+    await plain.lifecycles[0].start(instance, { deckit: { exports: {} } }, makeScope());
+    check('a mod with neither key permission takes no chord', plainHanded && !plainHanded.keys, plainHanded);
 
     for (const line of failed) console.error(line);
     if (failed.length) {
