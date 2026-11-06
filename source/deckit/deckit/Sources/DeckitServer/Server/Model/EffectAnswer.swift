@@ -11,22 +11,27 @@ import Deckit
 
 // An effect as the driver reads it: deck's, with the mod a sandbox opens for as the catalog reads it and what deckit
 // keeps of a run.
-enum EffectAnswer {
-    case effect(Effect, found: Mod?, entry: RunEntry?)
-
+struct EffectAnswer {
     // MARK: - Property
+    let effect: Effect
+    let found: Mod?
+    let entry: RunEntry?
+
     // MARK: - Initializer
     init(_ effect: Effect, of deckit: Deckit) {
+        self.effect = effect
         switch effect {
         case let .open(job):
-            let found = deckit.catalog.loading.first { mod in mod.manifest.id == job.modId }
-            self = .effect(effect, found: found, entry: nil)
+            found = deckit.catalog.loading.first { mod in mod.manifest.id == job.modId }
+            entry = nil
 
         case let .tell(_, run), let .keep(run):
-            self = .effect(effect, found: nil, entry: deckit.runs.entry(of: run))
+            found = nil
+            entry = deckit.runs.entry(of: run)
 
         default:
-            self = .effect(effect, found: nil, entry: nil)
+            found = nil
+            entry = nil
         }
     }
 

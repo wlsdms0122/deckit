@@ -11,14 +11,11 @@ import Deck
 // What deckit keeps of each mod's latest run beside what deck keeps of it.
 public final class RunTable {
     // MARK: - Property
-    private let deck: Deck
     // Mod id -> the entry of its latest run.
     private var entries: [String: RunEntry] = [:]
 
     // MARK: - Initializer
-    init(deck: Deck) {
-        self.deck = deck
-    }
+    init() {}
 
     // MARK: - Public
     // The entry of `run`, while it is its mod's latest.

@@ -26,7 +26,7 @@ struct HostTests {
 
         // When
         let mods = sut.readCatalog()
-        let effects = try sut.load(mods.map { mod in LaunchRequest(modId: mod.manifest.id) })
+        let effects = try sut.load(mods.map(\.manifest.id))
 
         // Then
         #expect(mods.map(\.manifest.name) == ["A"])

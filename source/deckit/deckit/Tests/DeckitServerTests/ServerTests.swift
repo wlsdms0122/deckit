@@ -267,7 +267,7 @@ struct ServerTests {
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(
             #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
-                + #""params":{"requests":[{"mod":"dep","origin":{"kind":"person"}}]}}"#,
+                + #""params":{"mods":["dep"]}}"#,
             to: sut
         )
         let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
@@ -279,7 +279,7 @@ struct ServerTests {
         let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
         _ = try send(
             #"{"jsonrpc":"2.0","id":6,"method":"runner/load","#
-                + #""params":{"requests":[{"mod":"a","origin":{"kind":"person"}}]}}"#,
+                + #""params":{"mods":["a"]}}"#,
             to: sut
         )
         let connected = try send(begin + #"{"mod":"a","run":1,"lifecycle":0}}"#, to: sut)
@@ -314,8 +314,8 @@ struct ServerTests {
             to: sut
         )
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"requests":[{"mod":"m"}]}}"#, to: sut)
-        let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"requests":[{"mod":"a"}]}}"#
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["m"]}}"#, to: sut)
+        let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#
         for number in 1...5 {
             _ = try send(load, to: sut)
             _ = try send(

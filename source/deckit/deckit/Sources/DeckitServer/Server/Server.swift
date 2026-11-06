@@ -177,7 +177,7 @@ final class Server {
             return answered(try deckit.start(), by: deckit)
 
         case "runner/load":
-            return answered(try deckit.load(request.decodeParams(as: LoadParams.self).requests), by: deckit)
+            return answered(try deckit.load(request.decodeParams(as: ModsParams.self).mods), by: deckit)
 
         case "runner/launch":
             let params = try request.decodeParams(as: LaunchParams.self)

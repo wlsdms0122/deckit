@@ -57,7 +57,7 @@ public final class Deckit {
             store: store
         )
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)
-        let runs = RunTable(deck: deck)
+        let runs = RunTable()
         self.deck = deck
         self.catalog = catalog
         self.state = state
@@ -84,10 +84,10 @@ public final class Deckit {
         return try observed(deck.load(jobs(of: background.map(\.manifest.id))))
     }
 
-    // The mods requested that load launch, as the catalog was last read and in its order. One at the relaunch limit is
+    // The mods named that load launch, as the catalog was last read and in its order. One at the relaunch limit is
     // left as it is.
-    public func load(_ requests: [LaunchRequest]) throws -> [Effect] {
-        try observed(deck.load(jobs(of: requests.map(\.modId))))
+    public func load(_ ids: [String]) throws -> [Effect] {
+        try observed(deck.load(jobs(of: ids)))
     }
 
     // The mod `asker` asks that the mod `id` launch, as the person opening it does: what `id` failed before is
