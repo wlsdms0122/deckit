@@ -18,7 +18,7 @@ struct InitializeParams: Decodable {
     // The folders of the mods the app ships, and of those read in place.
     let ship: [String]
     let sources: [String]
-    // Those the layers the driver runs define, deck's own among them.
+    // Those the layers the driver runs define, beside deckit's own.
     let permissions: [Permission]
 
     // MARK: - Initializer

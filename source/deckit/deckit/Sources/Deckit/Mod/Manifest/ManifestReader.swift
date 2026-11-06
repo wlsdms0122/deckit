@@ -9,8 +9,8 @@ import Foundation
 import Deck
 
 // How deck reads a manifest: what it says, and what is wrong with it, against the mod contract `api` this deck speaks,
-// the permissions the layers on this host define, and the fields the layers on deck add. An interface is named
-// `<mod id>/<name>`, the name of the same characters as an id, and spoken at a major, a whole number from 0.
+// the permissions deckit and the layers on this host define, and the fields the layers on deck add. An interface is
+// named `<mod id>/<name>`, the name of the same characters as an id, and spoken at a major, a whole number from 0.
 struct ManifestReader {
     // MARK: - Property
     let file = "manifest.toml"

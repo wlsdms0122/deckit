@@ -18,15 +18,20 @@ public final class Deckit {
     public let runs: RunTable
     // A mod at the relaunch limit launches again only as a mod asks for it.
     private var limit: RelaunchLimit
-    // The permission a mod is granted to ask that another launch, defined by a layer the driver runs.
-    private let modsPermission = "deckit.mods"
+    // The permission deckit defines itself: a mod granted it asks that another launch.
+    private static let mods = Permission(
+        id: "deckit.mods",
+        name: "Mods",
+        means: "It can see every installed mod, add one from a folder, which gets every permission it asks for, and "
+            + "delete installed ones, with what they stored."
+    )
     private let now: () -> Date
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
-    // place. A manifest is read against `api`, the mod contract the mods are run with, `permissions`, those the
-    // layers the driver runs define, and `fields`, those the layers add to the manifest. `limit` is how often a mod's
-    // runs may fail, `now` the time a run fails at.
+    // place. A manifest is read against `api`, the mod contract the mods are run with, deckit's own permissions and
+    // `permissions`, those the layers the driver runs define, and `fields`, those the layers add to the manifest.
+    // `limit` is how often a mod's runs may fail, `now` the time a run fails at.
     public init(
         home: URL,
         ship: [URL],
@@ -41,7 +46,7 @@ public final class Deckit {
         let deck = Deck(home: home)
         let reader = try ManifestReader(
             api: api,
-            permissions: permissions,
+            permissions: [Deckit.mods] + permissions,
             fields: fields,
             store: store
         )
@@ -93,8 +98,8 @@ public final class Deckit {
     // The mod `asker` asks that the mod `id` launch, as the person opening it does: what `id` failed before is
     // forgotten first, which takes it off the relaunch limit. Refused unless `asker` is granted `deckit.mods`.
     public func launch(_ id: String, by asker: String) throws -> [Effect] {
-        guard deck.job(of: asker)?.permissions.contains(modsPermission) ?? false else {
-            throw LaunchError.notPermitted(mod: asker, permission: modsPermission)
+        guard deck.job(of: asker)?.permissions.contains(Deckit.mods.id) ?? false else {
+            throw LaunchError.notPermitted(mod: asker, permission: Deckit.mods.id)
         }
         limit.reset(id)
 

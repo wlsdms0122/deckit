@@ -1,4 +1,4 @@
-{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example"},{"id":"deckit.mods","means":"Mods","name":"Mods"}],"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
+{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example"}],"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
 {"id":2,"jsonrpc":"2.0","method":"catalog/install-shipped"}
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":86,"jsonrpc":"2.0","method":"catalog/interfaces"}

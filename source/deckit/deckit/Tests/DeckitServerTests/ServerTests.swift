@@ -236,8 +236,8 @@ struct ServerTests {
         )
     }
 
-    @Test("initialize refuses a permission defined twice")
-    func initializeRefusesPermissionDefinedTwice() throws {
+    @Test("initialize refuses deckit.mods handed in, as deckit defines it itself")
+    func initializeRefusesModsPermissionHanded() throws {
         // Given
         let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them."}"#
 
@@ -245,7 +245,7 @@ struct ServerTests {
         let response = try send(
             #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","#
                 + #""implementations":{},"api":"1.0.0","ship":[],"sources":[],"#
-                + #""permissions":[\#(permission),\#(permission)]}}"#,
+                + #""permissions":[\#(permission)]}}"#,
             to: sut
         )
 
@@ -306,12 +306,7 @@ struct ServerTests {
         // Given
         try mod("a")
         try mod("m", adding: "[permissions]\n\"deckit.mods\" = \"to test\"")
-        let permissions = #"[{"id":"deckit.mods","name":"Mods","means":"to test"}]"#
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":"#
-                + initializeParams.replacing(#""permissions":[]"#, with: #""permissions":"# + permissions) + "}",
-            to: sut
-        )
+        _ = try send(initializeRequest, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["m"]}}"#, to: sut)
         let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#

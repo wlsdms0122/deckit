@@ -14,7 +14,6 @@ import Testing
 struct DeckitTests {
     // MARK: - Property
     private let fixture = DeckitFixture("deckit-tests")
-    private let mods = Permission(id: "deckit.mods", name: "Mods", means: "to test")
 
     // MARK: - Initializer
     // MARK: - Test
@@ -74,7 +73,7 @@ struct DeckitTests {
         // Given
         try fixture.write("a")
         try fixture.write("m", permissions: ["deckit.mods"])
-        let sut = try fixture.deckit(permissions: [mods], limit: RelaunchLimit(burst: 1, interval: 10))
+        let sut = try fixture.deckit(limit: RelaunchLimit(burst: 1, interval: 10))
         _ = try sut.load(["a", "m"])
         _ = try sut.crashed("a", run: 1, problem: "its page ended")
 
@@ -87,6 +86,22 @@ struct DeckitTests {
         #expect(launches(in: held) == [])
         #expect(refused == .notPermitted(mod: "a", permission: "deckit.mods"))
         #expect(launches(in: launched) == ["a"])
+    }
+
+    @Test("deckit defines deckit.mods itself, and refuses it defined again")
+    func deckitDefinesModsPermission() throws {
+        // Given
+        try fixture.write("m", permissions: ["deckit.mods"])
+        let again = Permission(id: "deckit.mods", name: "Mods", means: "to test")
+
+        // When
+        let sut = try fixture.deckit()
+        let refused = #expect(throws: ManifestError.self) { try fixture.deckit(permissions: [again]) }
+
+        // Then
+        let mod = try #require(sut.catalog.loading.first { mod in mod.manifest.id == "m" })
+        #expect(Job(mod)?.permissions == ["deckit.mods"])
+        #expect(refused == .permissionDefined("deckit.mods"))
     }
 
     @Test("the sandbox of a mod removed from the registry closes once its run has ended")
