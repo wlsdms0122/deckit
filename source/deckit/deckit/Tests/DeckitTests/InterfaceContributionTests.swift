@@ -65,7 +65,7 @@ struct InterfaceContributionTests {
         #expect(refused == .notOwner(interface: "o/actions", mod: "a"))
     }
 
-    @Test("a new owner is handed its own tokens, and the old owner's last until it is removed")
+    @Test("a new owner is handed its own tokens, and the old owner's end as it no longer owns the interface")
     func newOwnerGetsItsOwnTokens() throws {
         // Given
         try fixture.write("o", provides: ["o/actions"])
@@ -82,16 +82,48 @@ struct InterfaceContributionTests {
         _ = sut.deck.readCatalog()
         let second = try #require(try sut.contributions(to: "o/actions", for: "p").first?.token)
         let again = try sut.contributions(to: "o/actions", for: "p").first?.token
-        let kept = try sut.commands.check(token: first)
-        try fixture.remove("o")
-        _ = sut.deck.readCatalog()
 
         // Then
         #expect(second != first)
         #expect(again == second)
-        #expect(kept.holder == "o")
         #expect(throws: CommandError.noSuchToken) { try sut.commands.check(token: first) }
         #expect(try sut.commands.check(token: second).holder == "p")
+    }
+
+    @Test("an owner's token ends as the entry's args change, and one of a new owner or args does not outlive a restart")
+    func ownerTokenEndsWithItsEntry() throws {
+        // Given
+        let entry = { (x: Double) in
+            [
+                "commands": self.commands,
+                "interfaces": JSONValue.object(["o/actions": .array([
+                    .object(["command": .string("open"), "args": .object(["x": .number(x)])])
+                ])])
+            ]
+        }
+        try fixture.write("o", provides: ["o/actions"])
+        try fixture.write("p", provides: ["o/actions"])
+        try fixture.write("a", contributes: entry(1))
+        let sut = try fixture.deckit()
+        let first = try #require(try sut.contributions(to: "o/actions", for: "o").first?.token)
+        let sent = try sut.commands.mint("open", of: "a", args: .object(["x": .number(1)]))
+
+        // When
+        try fixture.write("a", contributes: entry(2))
+        _ = sut.deck.readCatalog()
+        let second = try #require(try sut.contributions(to: "o/actions", for: "o").first?.token)
+        try fixture.write("a", contributes: entry(3))
+        let restarted = try fixture.deckit()
+        let third = try #require(try restarted.contributions(to: "o/actions", for: "o").first?.token)
+        try restarted.deck.catalog.pin("o/actions", to: "p")
+        let pinned = try fixture.deckit()
+
+        // Then
+        #expect(second != first)
+        #expect(throws: CommandError.noSuchToken) { try sut.commands.check(token: first) }
+        #expect(throws: CommandError.noSuchToken) { try restarted.commands.check(token: second) }
+        #expect(throws: CommandError.noSuchToken) { try pinned.commands.check(token: third) }
+        #expect(try pinned.commands.check(token: sent.id) == sent)
     }
 
     @Test("an entry that names a command its mod cannot run is left out, and told as its mod is read")

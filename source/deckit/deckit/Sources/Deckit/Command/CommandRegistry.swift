@@ -11,7 +11,9 @@ import Deck
 // The commands there are: those each mod declares under `commands` in its contributes, running or not, those its run
 // registers beside them while it runs, and those a host declares under a name of its own. A command is found by its
 // provider and its name, never by a joined id. A mod's command is also run by a token of it the mod asked for, which
-// lasts until its sender cancels it, a holder releases it, or its sender or the holder deckit knows is not found.
+// lasts until its sender cancels it, a holder releases it, or its sender is not found. One deckit handed an interface's
+// owner for an entry declared to it is the owner's as the owner: it also ends once its holder no longer owns the
+// interface, or the entry, its command and args, is no longer declared to it.
 public final class CommandRegistry {
     // MARK: - Property
     private let contributionKey = "commands"
@@ -66,11 +68,12 @@ public final class CommandRegistry {
             .compactMap { value in problem { try Command(declared: value) } }
     }
 
-    // The mods read again: a token ends once its sender, or the holder deckit handed it to, is not found.
+    // The mods read again: a token ends once its sender is not found, and one deckit handed an owner once the role it
+    // was handed for is gone.
     func read(_ mods: [Mod]) {
         let found = Set(mods.map(\.manifest.id))
         let kept = tokens.filter { token in
-            found.contains(token.sender) && token.holder.map(found.contains) ?? true
+            found.contains(token.sender) && (token.holder == nil || isOwned(token))
         }
         guard kept != tokens else { return }
 
@@ -141,26 +144,48 @@ public final class CommandRegistry {
     // A token of `sender`'s command `name`, which `args` fit now, that the sender hands over.
     public func mint(_ name: String, of sender: String, args: JSONValue?) throws -> CommandToken {
         _ = try check(name, of: sender, args: args)
-        let token = CommandToken(id: UUID().uuidString, sender: sender, command: name, args: args, holder: nil)
+        let token = CommandToken(
+            id: UUID().uuidString,
+            sender: sender,
+            command: name,
+            args: args,
+            holder: nil,
+            interface: nil
+        )
         try save(tokens + [token])
 
         return token
     }
 
-    // A token of the command `name` that `sender` declares, which `args` fit, that deckit hands `holder` itself for an
-    // entry `sender` declares: one handed `holder` before of the same command and args is handed again.
-    func hand(_ name: String, of sender: String, args: JSONValue?, to holder: String) throws -> CommandToken {
+    // A token of the command `name` that `sender` declares, which `args` fit, that deckit hands `holder`, the owner of
+    // `interface`, itself for an entry `sender` declares to it: one handed `holder` before for the same interface,
+    // command and args is handed again.
+    func hand(
+        _ name: String,
+        of sender: String,
+        args: JSONValue?,
+        to holder: String,
+        for interface: String
+    ) throws -> CommandToken {
         guard let mod = deck.catalog.loading.first(where: { mod in mod.manifest.id == sender }) else {
             throw CommandError.noSuchCommand("\(sender).\(name)")
         }
         _ = try checkDeclared(name, of: mod, args: args)
         if let handed = tokens.first(where: { token in
-            token.holder == holder && token.sender == sender && token.command == name && token.args == args
+            token.holder == holder && token.interface == interface && token.sender == sender && token.command == name
+                && token.args == args
         }) {
             return handed
         }
 
-        let token = CommandToken(id: UUID().uuidString, sender: sender, command: name, args: args, holder: holder)
+        let token = CommandToken(
+            id: UUID().uuidString,
+            sender: sender,
+            command: name,
+            args: args,
+            holder: holder,
+            interface: interface
+        )
         try save(tokens + [token])
 
         return token
@@ -214,6 +239,20 @@ public final class CommandRegistry {
     private func name(of value: JSONValue) -> String {
         guard case let .object(fields) = value, case let .string(name) = fields["name"] else { return "" }
         return name
+    }
+
+    // Whether the holder of `token`, which deckit handed it, owns the interface it was handed for, and its sender
+    // declares the entry to it still, with its command and args.
+    private func isOwned(_ token: CommandToken) -> Bool {
+        guard let holder = token.holder,
+            let interface = token.interface,
+            let declarations = try? deck.catalog.declarations(to: interface, for: holder)
+        else { return false }
+
+        return declarations.contains { declaration in
+            guard declaration.mod == token.sender, case let .object(fields) = declaration.entry else { return false }
+            return fields["command"] == .string(token.command) && fields["args"] == token.args
+        }
     }
 
     // The command `name` that `mod` declares, which `args` fit, refused with why. Those its run registers are not
