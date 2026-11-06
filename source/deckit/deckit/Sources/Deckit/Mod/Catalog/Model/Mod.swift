@@ -29,22 +29,10 @@ public struct Mod: Sendable {
     // Two reads of a mod with one revision are the same code: a copy installed again, even of the same version, is
     // not.
     public let revision: String
-    // The mods its manifest's [dependencies] names, by id, each with whether it is optional.
-    public internal(set) var relations: [Relation]
     // The interfaces its manifest's `uses` names, by name, each with what it comes to.
     public internal(set) var uses: [InterfaceUse]
-    // The mods that load and require it, directly or through another, by id.
-    public internal(set) var dependents: [String]
     // The file its main names, where it really is.
     public let entry: URL?
-    // What the file its contributes names declares, by contribution point: deck reads it and does not judge it, and
-    // the layer that owns a contribution point reads what is under it.
-    public let contributes: [String: JSONValue]
-    // What it declares to interfaces under `interfaces` in its contributes, which deck holds for each one's owner.
-    public let declared: InterfaceDeclaration
-    // What is wrong with what it declares, deck's and each layer's, once it loads: each declaration it names is left
-    // out.
-    public internal(set) var declarationProblems: [String]
 
     // MARK: - Initializer
     // MARK: - Public

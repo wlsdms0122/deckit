@@ -26,40 +26,9 @@ struct ManifestReaderTests {
             #"main must be a path inside the mod's folder, as main = "dist/main.js", not "../x.js""#
         ),
         (
-            minimal + #"contributes = "/etc/contributes.json""#,
-            #"contributes must be a path inside the mod's folder, as contributes = "contributes.json","#
-                + #" not "/etc/contributes.json""#
-        ),
-        (
-            minimal + #"contributes = 1"#,
-            #"contributes must be a path inside the mod's folder, as contributes = "contributes.json", not 1"#
-        ),
-        (
             minimal + #"background = " ""#,
             #"background must be the reason the mod asks to run in the background, as text,"#
                 + #" as background = "Shows notifications as they come""#
-        ),
-        (
-            minimal + #"[dependencies]\#n"b/c" = "1.0.0""#,
-            #"dependencies b/c: "b/c" is not a usable mod id: lower case letters, digits,"#
-                + #" . _ - and at most 64 of them"#
-        ),
-        (
-            minimal + #"[dependencies]\#na = "1.0.0""#,
-            "a names itself in [dependencies]"
-        ),
-        (
-            minimal + #"[dependencies]\#nb = { optional = true }"#,
-            #"dependencies b needs a version written as "MAJOR.MINOR.PATCH", as other = "1.0.0","#
-                + #" or other = { version = "1.0.0", optional = true }"#
-        ),
-        (
-            minimal + #"[dependencies]\#nb = { version = "1.0.0", optional = 1 }"#,
-            "dependencies b: optional must be true or false"
-        ),
-        (
-            minimal + #"[dependencies]\#nb = { version = "1.0.0", lazy = true }"#,
-            #"dependencies b has "lazy"; it takes version and optional"#
         ),
         (
             minimal + #"interfaces = 1"#,
@@ -112,6 +81,24 @@ struct ManifestReaderTests {
         (
             minimal + #"[permissions]\#n"deckit.mods" = " ""#,
             #"permission "deckit.mods" needs the reason it is asked for, as text"#
+        ),
+        (
+            minimal + #"contributes = 1"#,
+            #"contributes must be a [contributes] table of entry lists by interface,"#
+                + #" as [[contributes."other/name"]] tables"#
+        ),
+        (
+            minimal + #"[contributes]\#n"b/c" = 1"#,
+            #"contributes b/c must be a list of tables, as [[contributes."other/name"]] tables"#
+        ),
+        (
+            minimal + #"[contributes]\#n"b/c" = [1]"#,
+            #"contributes b/c must be a list of tables, as [[contributes."other/name"]] tables"#
+        ),
+        (
+            minimal + #"[[contributes."B/c"]]\#ntitle = "x""#,
+            #"contributes B/c: "B/c" is not an interface: <mod id>/<name>, each lower case letters,"#
+                + #" digits, . _ - and at most 64 of them"#
         )
     ]
 
@@ -130,7 +117,7 @@ struct ManifestReaderTests {
     }
 
     // MARK: - Test
-    @Test("a manifest is read with its permissions, why, and what a layer here defines each as, the widest first")
+    @Test("a manifest is read with its permissions, the widest first, and its entries by interface")
     func manifestIsRead() throws {
         // Given
         let text = """
@@ -143,13 +130,15 @@ struct ManifestReaderTests {
             [interfaces]
             provides = { "notes/pages" = [1, 2], "files/open" = [0] }
             uses = { "notes/pages" = 2, "files/store" = 1 }
-            [dependencies]
-            files = "1.0.0"
-            sync = { version = "1.2.0", optional = true }
             [permissions]
             "deckit.mods" = " to list them "
             "system.network" = "to sync"
             "system.camera" = "to see"
+            [[contributes."files/open"]]
+            title = "Open"
+            [[contributes."files/open"]]
+            title = "Pages"
+            size = 2
             """
 
         // When
@@ -162,12 +151,13 @@ struct ManifestReaderTests {
         #expect(manifest.provides == ["notes/pages": [1, 2], "files/open": [0]])
         #expect(manifest.uses == ["notes/pages": 2, "files/store": 1])
         #expect(
-            manifest.dependencies == [
-                "files": Dependency(version: "1.0.0", optional: false),
-                "sync": Dependency(version: "1.2.0", optional: true)
+            manifest.contributes == [
+                "files/open": [
+                    .object(["title": .string("Open")]),
+                    .object(["title": .string("Pages"), "size": .number(2)])
+                ]
             ]
         )
-        #expect(manifest.required == ["files"])
         #expect(
             manifest.permissions == [
                 PermissionRequest(id: network.id, reason: "to sync", permission: network),

@@ -24,25 +24,20 @@ struct DeckitFixture {
     }
 
     // MARK: - Public
-    // `requires` are the mods it requires, by id, at 1.0.0, `provides` the interfaces it provides at major 1, and
-    // `contributes` what its contributes file declares.
+    // `provides` are the interfaces it provides at major 1, and `contributes` the TOML of what it declares to
+    // interfaces, written after its other fields.
     func write(
         _ id: String,
         api: String = "1.0.0",
         permissions: [String] = [],
-        requires: [String] = [],
         provides: [String] = [],
-        contributes: [String: JSONValue]? = nil
+        contributes: String = ""
     ) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let asked = permissions.isEmpty
             ? ""
             : "\n[permissions]\n" + permissions.map { permission in "\"\(permission)\" = \"to test\"" }
-                .joined(separator: "\n")
-        let required = requires.isEmpty
-            ? ""
-            : "\n[dependencies]\n" + requires.map { other in "\(other) = \"1.0.0\"" }
                 .joined(separator: "\n")
         let provided = provides.isEmpty
             ? ""
@@ -54,12 +49,8 @@ struct DeckitFixture {
             version = "1.0.0"
             api = "\(api)"
             main = "main.js"
-            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"") + asked + required
-            + provided
+            """ + asked + provided + (contributes.isEmpty ? "" : "\n" + contributes)
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
-        if let contributes {
-            try JSONEncoder().encode(JSONValue.object(contributes)).write(to: location.appending(path: "contributes.json"))
-        }
         try Data().write(to: location.appending(path: "main.js"))
     }
 

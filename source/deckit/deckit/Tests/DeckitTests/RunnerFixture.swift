@@ -24,15 +24,12 @@ struct RunnerFixture {
     }
 
     // MARK: - Public
-    // A mod that provides each interface in `provides` at the majors given, uses each in `uses` at the major given,
-    // and depends on the mods in `requires` and `optional`, by id, at the version given.
+    // A mod that provides each interface in `provides` at the majors given and uses each in `uses` at the major given.
     func write(
         _ id: String,
         version: String = "1.0.0",
         provides: [String: [Int]] = [:],
-        uses: [String: Int] = [:],
-        requires: [String: String] = [:],
-        optional: [String: String] = [:]
+        uses: [String: Int] = [:]
     ) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
@@ -42,8 +39,6 @@ struct RunnerFixture {
         let used = uses.sorted { one, other in one.key < other.key }.map { interface, major in
             "\"\(interface)\" = \(major)"
         }
-        let dependencies = requires.map { other, want in "\(other) = \"\(want)\"" }
-            + optional.map { other, want in "\(other) = { version = \"\(want)\", optional = true }" }
         let text = """
             id = "\(id)"
             version = "\(version)"
@@ -53,7 +48,6 @@ struct RunnerFixture {
             + (provided.isEmpty && used.isEmpty ? "" : "\n[interfaces]")
             + (provided.isEmpty ? "" : "\nprovides = { " + provided.joined(separator: ", ") + " }")
             + (used.isEmpty ? "" : "\nuses = { " + used.joined(separator: ", ") + " }")
-            + (dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n"))
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         try Data().write(to: location.appending(path: "main.js"))
     }

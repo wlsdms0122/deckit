@@ -11,8 +11,8 @@ import Deck
 extension Job {
     // MARK: - Property
     // MARK: - Initializer
-    // What deck runs of `mod`, which loads: the permissions its manifest asks for granted, the mods its
-    // [dependencies] names reached by id. Nil for a mod with no entry.
+    // What deck runs of `mod`, which loads: the permissions its manifest asks for granted, no mod reached by id. Nil for
+    // a mod with no entry.
     init?(_ mod: Mod) {
         guard let entry = mod.entry else { return nil }
 
@@ -21,7 +21,7 @@ extension Job {
             revision: mod.revision,
             entry: entry,
             permissions: mod.manifest.permissions.map(\.id),
-            reaches: mod.manifest.dependencies.keys.sorted(),
+            reaches: [],
             uses: mod.manifest.uses,
             provides: mod.manifest.provides
         )

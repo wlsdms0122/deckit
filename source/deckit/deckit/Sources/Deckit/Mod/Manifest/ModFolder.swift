@@ -8,8 +8,8 @@
 import Foundation
 import Deck
 
-// A folder a mod is in: its manifest, and the entry and the file of what it declares that the manifest names. Who the
-// mod is is the manifest's to say, not the folder's name.
+// A folder a mod is in: its manifest, and the entry the manifest names. Who the mod is is the manifest's to say, not the
+// folder's name.
 struct ModFolder {
     // MARK: - Property
     private let reader: ManifestReader
@@ -55,28 +55,8 @@ struct ModFolder {
         guard file(main, in: folder) != nil else {
             return "main = \"\(main)\" names no file in the mod's folder"
         }
-        if let contributes = manifest.contributes {
-            guard file(contributes, in: folder) != nil else {
-                return "contributes = \"\(contributes)\" names no file in the mod's folder"
-            }
-            guard self.contributes(of: manifest, in: folder) != nil else {
-                return "\(contributes) must hold a JSON object"
-            }
-        }
 
         return nil
-    }
-
-    // What the file the manifest's contributes names in a folder declares, or nil when it names none that is a JSON
-    // object.
-    func contributes(of manifest: Manifest, in folder: URL) -> [String: JSONValue]? {
-        guard let contributes = manifest.contributes,
-            let found = file(contributes, in: folder),
-            let text = store.read(found),
-            case let .object(declared) = try? JSONDecoder().decode(JSONValue.self, from: Data(text.utf8))
-        else { return nil }
-
-        return declared
     }
 
     // Where the file `path` names really is, or nil when that is no file inside the folder, by a link too.

@@ -16,7 +16,7 @@ struct ManifestReader {
     let file = "manifest.toml"
 
     private let ownFields: Set<String> = [
-        "id", "name", "version", "api", "main", "contributes", "background", "interfaces", "dependencies", "permissions"
+        "id", "name", "version", "api", "main", "background", "interfaces", "permissions", "contributes"
     ]
     private let parser = TOMLParser()
     private let store: Store
@@ -66,12 +66,11 @@ struct ManifestReader {
             version: string(of: raw["version"]),
             api: string(of: raw["api"]),
             main: string(of: raw["main"]),
-            contributes: string(of: raw["contributes"]),
             background: string(of: raw["background"]),
             provides: provided(of: raw["interfaces"]),
             uses: used(of: raw["interfaces"]),
-            dependencies: dependencies(of: raw["dependencies"]),
             permissions: requests(of: asked),
+            contributes: contributed(of: raw["contributes"]),
             fields: Dictionary(uniqueKeysWithValues: fields.map { field in (field.key, field.read(raw[field.name])) })
         )
     }
@@ -114,11 +113,10 @@ struct ManifestReader {
         }
 
         return mainProblem(raw)
-            ?? contributesProblem(raw)
             ?? backgroundProblem(raw)
             ?? interfacesProblem(raw)
-            ?? dependenciesProblem(raw, id: id)
             ?? permissionsProblem(raw)
+            ?? contributesProblem(raw)
             ?? fieldsProblem(raw)
     }
 
@@ -144,17 +142,6 @@ struct ManifestReader {
         }
 
         return pathProblem(main, of: "main", example: example)
-    }
-
-    // A path inside the mod's folder, when there is one, as main is.
-    private func contributesProblem(_ raw: [String: TOMLValue]) -> String? {
-        guard let written = raw["contributes"] else { return nil }
-        let example = "contributes = \"contributes.json\""
-        guard case let .string(contributes) = written, !isBlank(contributes) else {
-            return "contributes must be a path inside the mod's folder, as \(example), not \(written)"
-        }
-
-        return pathProblem(contributes, of: "contributes", example: example)
     }
 
     // The reason it asks to run in the background, when it asks.
@@ -238,48 +225,6 @@ struct ManifestReader {
         return nil
     }
 
-    // Each mod by id at a version: a required one as `id = "1.0.0"`, an optional one as
-    // `id = { version = "1.0.0", optional = true }`. A mod does not depend on itself.
-    private func dependenciesProblem(_ raw: [String: TOMLValue], id: String) -> String? {
-        guard let written = raw["dependencies"] else { return nil }
-
-        let example = "other = \"1.0.0\", or other = { version = \"1.0.0\", optional = true }"
-        guard case let .table(table) = written else {
-            return "dependencies must be a [dependencies] table of mod id = version, as \(example)"
-        }
-
-        for other in table.keys.sorted() {
-            if let problem = idProblem(other) {
-                return "dependencies \(other): \(problem)"
-            }
-            guard other != id else { return "\(id) names itself in [dependencies]" }
-
-            switch table[other]! {
-            case let .string(wanted) where Version(wanted) != nil:
-                continue
-
-            case let .table(fields):
-                let unknown = fields.keys.filter { key in key != "version" && key != "optional" }.sorted()
-                guard unknown.isEmpty else {
-                    return "dependencies \(other) has \(quoted(unknown)); it takes version and optional"
-                }
-                guard case let .string(wanted) = fields["version"], Version(wanted) != nil else {
-                    return "dependencies \(other) needs a version written as \"MAJOR.MINOR.PATCH\", as \(example)"
-                }
-                if let optional = fields["optional"] {
-                    guard case .boolean = optional else {
-                        return "dependencies \(other): optional must be true or false"
-                    }
-                }
-
-            case let value:
-                return "dependencies \(other) must be written as \(example), not \(value)"
-            }
-        }
-
-        return nil
-    }
-
     private func permissionsProblem(_ raw: [String: TOMLValue]) -> String? {
         guard let written = raw["permissions"] else { return nil }
 
@@ -295,6 +240,29 @@ struct ManifestReader {
             .sorted()
         guard unexplained.isEmpty else {
             return "permission \(quoted(unexplained)) needs the reason it is asked for, as text"
+        }
+
+        return nil
+    }
+
+    // Each interface by the entries declared to it, each a table whose shape is the interface's to define:
+    // `[[contributes."other/name"]]`.
+    private func contributesProblem(_ raw: [String: TOMLValue]) -> String? {
+        guard let written = raw["contributes"] else { return nil }
+
+        let example = "[[contributes.\"other/name\"]] tables"
+        guard case let .table(table) = written else {
+            return "contributes must be a [contributes] table of entry lists by interface, as \(example)"
+        }
+        for interface in table.keys.sorted() {
+            if let problem = interfaceProblem(interface) {
+                return "contributes \(interface): \(problem)"
+            }
+            guard case let .array(entries) = table[interface]!,
+                entries.allSatisfy({ entry in if case .table = entry { true } else { false } })
+            else {
+                return "contributes \(interface) must be a list of tables, as \(example)"
+            }
         }
 
         return nil
@@ -342,15 +310,15 @@ struct ManifestReader {
         return used.compactMapValues(major)
     }
 
-    // A required one by its version, an optional one as its table says.
-    private func dependencies(of written: TOMLValue?) -> [String: Dependency] {
+    // Each interface by the entries written as tables, each as JSON writes it.
+    private func contributed(of written: TOMLValue?) -> [String: [JSONValue]] {
         guard case let .table(table) = written else { return [:] }
         return table.mapValues { value in
-            guard case let .table(fields) = value else {
-                return Dependency(version: self.written(value), optional: false)
+            guard case let .array(entries) = value else { return [] }
+            return entries.compactMap { entry in
+                guard case .table = entry else { return nil }
+                return JSONValue(entry)
             }
-            let version = fields["version"].map(self.written) ?? ""
-            return Dependency(version: version, optional: fields["optional"] == .boolean(true))
         }
     }
 

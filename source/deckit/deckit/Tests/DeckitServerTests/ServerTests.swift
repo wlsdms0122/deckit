@@ -258,12 +258,12 @@ struct ServerTests {
         )
     }
 
-    @Test("what a run contributed comes back with it, the layers' too, and a dependent connects to its exports")
+    @Test("what a run contributed comes back with it, the layers' too, and a user connects to its exports")
     func contributionsRoundTrip() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("dep")
-        try mod("a", dependencies: #"dep = "1.0.0""#)
+        try mod("dep", adding: #"[interfaces]\#nprovides = { "dep/api" = [1] }"#)
+        try mod("a", adding: #"[interfaces]\#nuses = { "dep/api" = 1 }"#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(
             #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
@@ -272,7 +272,7 @@ struct ServerTests {
         )
         let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
         _ = try send(begin + #"{"mod":"dep","run":1,"lifecycle":0}}"#, to: sut)
-        let contributions = #"{"exportedIn":{"dep":0},"awaits":{},"layer":["a"]}"#
+        let contributions = #"{"exportedIn":{"dep/api":0},"awaits":{},"layer":["a"]}"#
         let started = #"{"mod":"dep","run":1,"summary":{"x":true},"contributions":\#(contributions)}"#
 
         // When
@@ -292,11 +292,11 @@ struct ServerTests {
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
         #expect(value(in: told, at: "summary", "x") == .bool(true))
         #expect(value(in: told, at: "contributions", "layer") == .array([.string("a")]))
-        #expect(value(in: told, at: "contributions", "exportedIn") == .object(["dep": .number(0)]))
+        #expect(value(in: told, at: "contributions", "exportedIn") == .object(["dep/api": .number(0)]))
         #expect(
             value(in: connected, at: "result")
                 == (try json(
-                    #"[{"id":1,"name":"dep","dependent":{"mod":"a","run":1,"lifecycle":0},"#
+                    #"[{"id":1,"name":"dep/api","dependent":{"mod":"a","run":1,"lifecycle":0},"#
                         + #""dependency":{"mod":"dep","run":1,"lifecycle":0}}]"#
                 ))
         )
@@ -384,11 +384,7 @@ struct ServerTests {
     }
 
     // MARK: - Private
-    private func mod(
-        _ id: String,
-        dependencies: String? = nil,
-        contributes: String? = nil
-    ) throws {
+    private func mod(_ id: String, adding extra: String = "") throws {
         let folder = URL(filePath: home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let manifest = """
@@ -396,12 +392,8 @@ struct ServerTests {
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"")
-            + (dependencies.map { dependencies in "\n[dependencies]\n\(dependencies)" } ?? "")
+            """ + (extra.isEmpty ? "" : "\n" + extra)
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
-        if let contributes {
-            try Data(contributes.utf8).write(to: folder.appending(path: "contributes.json"))
-        }
         try Data().write(to: folder.appending(path: "main.js"))
     }
 

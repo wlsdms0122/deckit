@@ -28,7 +28,6 @@ struct GoldenTests {
         (InstallError.refused("p"), "REFUSED"),
         (InstallError.notInstalled("a"), "NOT_INSTALLED"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
-        (OrderError.requiredLater(mod: "b", requirement: "a"), "REQUIRED_LATER"),
         (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
         (PinError.notProvider(interface: "x/api", mod: "a"), "NOT_PROVIDER"),
         (StartupError.notAsked("a"), "NOT_ASKED"),
@@ -54,13 +53,11 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
-                + "\"system.global-keys\" = \"to test\"\n\"system.example\" = \"to test\"",
-            contributes: #"{"configuration":[{"default":12,"key":"size","minimum":8,"title":"Size","type":"number"},"#
-                + #"{"default":"mono","key":"font","oneOf":[{"const":"mono","title":"Mono"}],"type":"string"},"#
-                + #"{"default":"x","key":"bad","oneOf":[{"const":"y"}],"type":"string"}]}"#
+            adding: "[interfaces]\nprovides = { \"a/api\" = [1], \"a/own\" = [1] }\n[permissions]\n"
+                + "\"system.global-keys\" = \"to test\"\n\"system.example\" = \"to test\"\n"
+                + "[[contributes.\"a/api\"]]\ntitle = \"Size\"\nsize = 12"
         )
-        try writeMod("b", in: "source", adding: "[dependencies]\na = \"1.0.0\"\n[interfaces]\nuses = { \"a/api\" = 1 }")
+        try writeMod("b", in: "source", adding: "[interfaces]\nuses = { \"a/api\" = 1, \"a/own\" = 1 }")
         try writeMod("c", in: "ship", adding: "[interfaces]\nprovides = { \"a/api\" = [1] }")
         try writeMod("d", in: "spare")
         let requests = try lines(of: "session")
@@ -119,12 +116,7 @@ struct GoldenTests {
         }
     }
 
-    private func writeMod(
-        _ id: String,
-        in folder: String,
-        adding extra: String = "",
-        contributes: String? = nil
-    ) throws {
+    private func writeMod(_ id: String, in folder: String, adding extra: String = "") throws {
         let location = root.appending(path: folder).appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let manifest = """
@@ -133,12 +125,8 @@ struct GoldenTests {
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"")
-            + (extra.isEmpty ? "" : "\n" + extra)
+            """ + (extra.isEmpty ? "" : "\n" + extra)
         try Data(manifest.utf8).write(to: location.appending(path: "manifest.toml"))
-        if let contributes {
-            try Data(contributes.utf8).write(to: location.appending(path: "contributes.json"))
-        }
         try Data().write(to: location.appending(path: "main.js"))
     }
 }

@@ -32,8 +32,8 @@ public final class Catalog {
     public private(set) var interfaces: [InterfaceQueue] = []
     // Interface -> its owner, as the mods were last read.
     private(set) var owners: [String: String] = [:]
-    // The mods that stand in a list, as they were last read: those that load by their own manifest, whether what they
-    // require is there or not and whether they run or not.
+    // The mods that stand in a list, as they were last read: those that load by their own manifest, whether they run or
+    // not.
     public private(set) var listed: [Mod] = []
     // Those of them that load, in their order.
     public var loading: [Mod] {
@@ -68,24 +68,19 @@ public final class Catalog {
     }
 
     // MARK: - Public
-    // Every mod in the order, whether it loads or not. One that loads comes after the mods it requires, and
-    // otherwise each comes as the order kept places it; one it does not place goes where the app ships it, and one
-    // the app does not ship goes last, by id.
+    // Every mod in the order, whether it loads or not: each as the order kept places it; one it does not place goes
+    // where the app ships it, and one the app does not ship goes last, by id.
     func mods() -> [Mod] {
         let found = ranked()
         return resolve(found, ownership: joined(ownerTable.ownership, by: found)).mods
     }
 
     // The mods, read and kept as read, with the ownership of each interface, which is kept as the mods provide now.
-    // Each that loads is told what is wrong with what it declares.
     func read() -> [Mod] {
         let found = ranked()
         let ownership = keptOwnership(of: found)
         (lastRead, interfaces, listed) = resolve(found, ownership: ownership)
         owners = ownership.owners()
-        for place in lastRead.indices where lastRead[place].problem == nil {
-            lastRead[place].declarationProblems = lastRead[place].declared.problems
-        }
         listed = listed.compactMap { mod in lastRead.first { read in read.manifest.id == mod.manifest.id } }
 
         return lastRead
@@ -106,7 +101,7 @@ public final class Catalog {
 
     // Each interface the mods that load declare anything to, with what they declare, as the mods were last read.
     func declarations() -> [String: [Declaration]] {
-        let interfaces = Set(loading.flatMap { mod in mod.declared.entries.keys })
+        let interfaces = Set(loading.flatMap { mod in mod.manifest.contributes.keys })
         return Dictionary(uniqueKeysWithValues: interfaces.map { interface in
             (interface, declarations(to: interface))
         })
@@ -131,9 +126,9 @@ public final class Catalog {
     }
 
     // The ids named take the places they held among themselves in the mods' order, in the order given; the rest stay
-    // put. An order that puts a mod that loads before one it requires is refused.
+    // put.
     public func arrange(_ ids: [String]) throws {
-        let mods = DependencyGraph(ranked()).ordered()
+        let mods = ranked()
         var seen: Set<String> = []
         let moved = ids
             .filter { id in seen.insert(id).inserted }
@@ -144,10 +139,6 @@ public final class Catalog {
         var next = mods
         for (place, mod) in zip(places, moved) {
             next[place] = mod
-        }
-
-        if let (mod, requirement) = DependencyGraph(next).requiredLater() {
-            throw OrderError.requiredLater(mod: mod, requirement: requirement)
         }
         try order.write(next.map(\.manifest.id))
     }
@@ -273,7 +264,7 @@ public final class Catalog {
         let listed = found.filter { mod in mod.problem == nil }
         let manifests = found.map(\.manifest)
         let providers = self.providers(in: found)
-        var mods = DependencyGraph(found).ordered()
+        var mods = found
         for place in mods.indices {
             let manifest = mods[place].manifest
             mods[place].uses = manifest.uses.keys.sorted().map { interface in
@@ -375,7 +366,6 @@ public final class Catalog {
             manifest.version ?? "",
             String(installs[manifest.id] ?? 0)
         ] + manifest.permissions.map { requested in "\(requested.id)=\(requested.reason)" }
-        let contributes = modFolder.contributes(of: manifest, in: source) ?? [:]
 
         return Mod(
             manifest: manifest,
@@ -387,13 +377,8 @@ public final class Catalog {
             problem: problem,
             hides: [],
             revision: revision.joined(separator: "\n"),
-            relations: [],
             uses: [],
-            dependents: [],
-            entry: manifest.main.flatMap { main in modFolder.file(main, in: source) },
-            contributes: contributes,
-            declared: InterfaceDeclaration(contributes: contributes),
-            declarationProblems: []
+            entry: manifest.main.flatMap { main in modFolder.file(main, in: source) }
         )
     }
 
@@ -464,7 +449,7 @@ public final class Catalog {
 
     private func declarations(to interface: String) -> [Declaration] {
         loading.flatMap { mod in
-            (mod.declared.entries[interface] ?? []).map { entry in
+            (mod.manifest.contributes[interface] ?? []).map { entry in
                 Declaration(mod: mod.manifest.id, name: mod.manifest.name, entry: entry)
             }
         }
