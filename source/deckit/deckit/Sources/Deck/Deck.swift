@@ -209,8 +209,8 @@ public final class Deck {
         }
         announcedDeclarations = declarations
         let deliveries = (
-            changed.sorted().map { interface in events.announce("\(interface):owner-changed") }
-                + redeclared.sorted().map { interface in events.announce("\(interface):contributions-changed") }
+            changed.sorted().map { interface in events.announce(.owner, of: interface) }
+                + redeclared.sorted().map { interface in events.announce(.contributions, of: interface) }
         )
         .filter { delivery in !delivery.listeners.isEmpty }
 

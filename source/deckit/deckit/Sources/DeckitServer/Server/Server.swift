@@ -256,7 +256,7 @@ final class Server {
 
         case "event/emit":
             let params = try request.decodeParams(as: EmitParams.self)
-            return deck.events.emit(mod: params.mod, run: params.run, name: params.name)
+            return try deck.events.emit(mod: params.mod, run: params.run, name: params.name)
 
         case "keymap/register":
             let params = try request.decodeParams(as: RegisterKeyParams.self)
