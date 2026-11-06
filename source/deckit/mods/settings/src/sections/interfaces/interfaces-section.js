@@ -4,8 +4,8 @@ const { handlerRow } = require('../handler-list/handler-list.js');
 
 // The Interfaces section: a card per interface a mod provides or uses, with its owner and the mods that provide it in
 // their queue, the earliest first. The owner is the provider the person pinned, or else the first in the queue; the
-// card's menu pins one that can be pinned, or clears the pin. A pin deckit refuses is told on its card. `mods` is
-// deckit.mods.
+// card's menu pins one that can be pinned, or clears the pin. A provider kept in the queue and not found has no name
+// and goes by its id. A pin deckit refuses is told on its card. `mods` is deckit.mods.
 function interfacesSection({ ui, mods }) {
     const TITLE = 'Interfaces';
     const KEYWORDS = ['인터페이스', '주인', '고정', 'interface', 'owner', 'provider', 'pin'];
@@ -88,8 +88,8 @@ function interfacesSection({ ui, mods }) {
                 (provider) => provider.pinnable || (interfaceQueue.pinned && provider.id === interfaceQueue.owner)
             );
             owner.setOptions([
-                { value: AUTOMATIC, label: first ? `Automatic: ${first.name}` : 'Automatic' },
-                ...offered.map((provider) => ({ value: provider.id, label: `Pinned: ${provider.name}` })),
+                { value: AUTOMATIC, label: first ? `Automatic: ${named(first)}` : 'Automatic' },
+                ...offered.map((provider) => ({ value: provider.id, label: `Pinned: ${named(provider)}` })),
             ]);
             owner.set(interfaceQueue.pinned ? interfaceQueue.owner : AUTOMATIC);
             owner.element.hidden = !providers.length;
@@ -113,15 +113,23 @@ function interfacesSection({ ui, mods }) {
 
             function fill({ provider, index }) {
                 const owns = provider.id === current.owner;
+                const found = provider.name != null;
                 majors.textContent = provider.majors.map((major) => `v${major}`).join(', ');
-                majors.title = `${provider.name} speaks major ${provider.majors.join(', ')} of it`;
+                majors.title = found ? `${provider.name} speaks major ${provider.majors.join(', ')} of it` : '';
                 ownerChip.element.hidden = !owns;
-                row.set({ position: String(index + 1), label: provider.name, muted: !owns });
-                row.element.title = owns
-                    ? `${provider.name} owns it: the mods that use it reach ${provider.name}`
-                    : `${provider.name} provides it and waits in line: no one reaches it by this name`;
+                row.set({ position: String(index + 1), label: named(provider), muted: !owns || !found });
+                row.element.title = !found
+                    ? `${provider.id} is not found and keeps its place in line` +
+                      (owns ? ': the mods that use it reach no one by it' : '')
+                    : owns
+                      ? `${provider.name} owns it: the mods that use it reach ${provider.name}`
+                      : `${provider.name} provides it and waits in line: no one reaches it by this name`;
             }
         }
+    }
+
+    function named(provider) {
+        return provider.name ?? `${provider.id} (not found)`;
     }
 
     // `id` pins that provider, AUTOMATIC clears the pin. The card is drawn as deckit has it after, with why when

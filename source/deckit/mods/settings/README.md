@@ -8,7 +8,7 @@ Every mod running now, with a view or without: its run's state, why it runs (ope
 
 ## Interfaces
 
-Each interface a mod provides or uses, with its owner and the mods that provide it, in their queue: the earliest to provide it first, each with the majors it speaks. The mods that use the interface reach its owner, the one pinned or else the first in the queue. Its menu says Automatic while no one pinned one, and pins a provider that loads and provides it now, or clears the pin: one kept in the queue with a problem keeps a pin it holds and cannot be pinned anew. A pin deckit refuses is told on its card. A mod's row shows the interfaces it uses, with their owners, and says why one reaches no one.
+Each interface a mod provides or uses, with its owner and the mods that provide it, in their queue: the earliest to provide it first, each with the majors it speaks. The mods that use the interface reach its owner, the one pinned or else the first in the queue. Its menu says Automatic while no one pinned one, and pins a provider that loads and provides it now, or clears the pin: one kept in the queue with a problem keeps a pin it holds and cannot be pinned anew, and one kept and not found is listed by its id. A pin deckit refuses is told on its card. A mod's row shows the interfaces it uses, with their owners, and says why one reaches no one.
 
 ## Adding buttons: `settings/buttons`
 

@@ -623,7 +623,7 @@ struct CatalogTests {
 
         // Then
         #expect(first == ["x/api": ["a", "foo"]])
-        #expect(broken == ["x/api": []])
+        #expect(broken == ["x/api": ["a", "foo"]])
         #expect(brokenOwner.map(\.0) == ["foo"] && brokenOwner.map(\.1) == [true])
         #expect(keptBroken == kept)
         #expect(read == ["x/api": ["foo"]])
@@ -648,6 +648,37 @@ struct CatalogTests {
         #expect(first == ["x/api": ["a", "b"]])
         #expect(removed == ["x/api": ["b"]])
         #expect(sut.owner(of: "x/api") == "b")
+    }
+
+    @Test("an owner kept and not found is listed as a provider not found, and a mod that uses it is told so")
+    func ownerNotFoundIsListed() throws {
+        // Given
+        try write("a", in: source, provides: ["x/api": [1]])
+        try write("b", in: source, uses: ["x/api": 1])
+        let sut = try catalog(sources: [source])
+        _ = sut.read()
+        try FileManager.default.removeItem(at: source.appending(path: "a"))
+        try FileManager.default.createDirectory(at: source.appending(path: "foo-dev"), withIntermediateDirectories: true)
+        try Data("id = ".utf8).write(to: source.appending(path: "foo-dev/manifest.toml"))
+
+        // When
+        let uses = sut.read().first { mod in mod.manifest.id == "b" }?.uses
+        let queue = sut.interfaces.first { queue in queue.interface == "x/api" }
+
+        // Then
+        #expect(queue?.owner == "a")
+        #expect(queue?.providers == [InterfaceProvider(id: "a", name: nil, majors: [], pinnable: false)])
+        #expect(
+            uses == [
+                InterfaceUse(
+                    interface: "x/api",
+                    major: 1,
+                    owner: "a",
+                    name: nil,
+                    problem: "uses x/api 1, and its owner a is not found, so it reaches no one by it"
+                )
+            ]
+        )
     }
 
     @Test("a pinned provider owns an interface until the pin is cleared or it leaves the queue, and only a provider is")

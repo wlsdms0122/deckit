@@ -67,7 +67,8 @@ struct Ownership: Equatable, Sendable {
     }
 
     // The queue of `interface`, each provider read among `found`, the manifests of every mod found, pinnable as it is
-    // among `providers`, those of the mods that load, and `definer` the name of the mod that defines it.
+    // among `providers`, those of the mods that load, and `definer` the name of the mod that defines it. One kept and
+    // not found has no name and no majors.
     func queue(
         of interface: String,
         found: [Manifest],
@@ -79,15 +80,14 @@ struct Ownership: Equatable, Sendable {
             name: definer,
             owner: owner(of: interface),
             pinned: pins[interface] != nil,
-            providers: (queues[interface] ?? []).compactMap { id in
-                found.first { manifest in manifest.id == id }.map { manifest in
-                    InterfaceProvider(
-                        id: id,
-                        name: manifest.name,
-                        majors: manifest.provides[interface] ?? [],
-                        pinnable: isPinnable(id, for: interface, providers: providers)
-                    )
-                }
+            providers: (queues[interface] ?? []).map { id in
+                let manifest = found.first { manifest in manifest.id == id }
+                return InterfaceProvider(
+                    id: id,
+                    name: manifest?.name,
+                    majors: manifest?.provides[interface] ?? [],
+                    pinnable: isPinnable(id, for: interface, providers: providers)
+                )
             }
         )
     }
@@ -97,22 +97,29 @@ struct Ownership: Equatable, Sendable {
     // problem.
     func use(of interface: String, by manifest: Manifest, found: [Manifest]) -> InterfaceUse {
         let major = manifest.uses[interface]!
-        let owner = owner(of: interface).flatMap { id in
-            id == manifest.id ? nil : found.first { provider in provider.id == id }
+        guard let id = owner(of: interface), id != manifest.id else {
+            return InterfaceUse(interface: interface, major: major, owner: nil, name: nil, problem: nil)
+        }
+        guard let owner = found.first(where: { provider in provider.id == id }) else {
+            return InterfaceUse(
+                interface: interface,
+                major: major,
+                owner: id,
+                name: nil,
+                problem: "uses \(interface) \(major), and its owner \(id) is not found, so it reaches no one by it"
+            )
         }
 
         return InterfaceUse(
             interface: interface,
             major: major,
-            owner: owner?.id,
-            name: owner?.name,
-            problem: owner.flatMap { owner in
-                owner.provides[interface].flatMap { majors in
-                    majors.contains(major)
-                        ? nil
-                        : "uses \(interface) \(major), and its owner \(owner.id) provides it at "
-                            + majors.map(String.init).joined(separator: ", ") + ", so it reaches no one by it"
-                }
+            owner: id,
+            name: owner.name,
+            problem: owner.provides[interface].flatMap { majors in
+                majors.contains(major)
+                    ? nil
+                    : "uses \(interface) \(major), and its owner \(id) provides it at "
+                        + majors.map(String.init).joined(separator: ", ") + ", so it reaches no one by it"
             }
         )
     }

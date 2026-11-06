@@ -22,7 +22,7 @@ extension InterfaceProvider: Encodable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(name, forKey: .name)
         try container.encode(majors, forKey: .majors)
         try container.encode(pinnable, forKey: .pinnable)
     }
