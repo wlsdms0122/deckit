@@ -1,7 +1,7 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as MOD_PERMISSION from '../mod/permission.js';
+import * as MOD_PERMISSION from '../permission/index.js';
 import * as LIMIT from './model/limit.js';
 import { makeScope } from './model/scope.js';
 

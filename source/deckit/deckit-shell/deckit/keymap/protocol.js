@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // A field has the keyboard, so a chord a field takes is the field's.
 export const typing = CHANNEL.pageToMain('deckit-shell:keymap-typing', { on: 'boolean' });

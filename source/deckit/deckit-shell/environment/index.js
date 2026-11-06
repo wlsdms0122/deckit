@@ -1,4 +1,4 @@
-import * as CHANNEL from '../deck/channel/index.js';
+import * as CHANNEL from '../deckit/channel/index.js';
 
 // What an environment gives deck, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files and

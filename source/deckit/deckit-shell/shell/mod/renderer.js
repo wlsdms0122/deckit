@@ -5,7 +5,7 @@ import * as STYLE from '../style/renderer.js';
 import * as STYLE_PERMISSION from '../style/model/permission.js';
 import * as FONTS from '../fonts/renderer.js';
 import * as FONTS_PERMISSION from '../fonts/model/permission.js';
-import * as MOD_PERMISSION from '../../deck/mod/permission.js';
+import * as MOD_PERMISSION from '../../deckit/permission/index.js';
 import { createPanel, viewProblem, keyProblem } from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion } from '../region/renderer.js';

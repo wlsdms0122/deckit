@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // Main asks the page of the mod that declared a command to run it, or to complete one of its args. `call` names a
 // completion, which `abort` ends.

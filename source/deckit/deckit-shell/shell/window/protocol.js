@@ -1,5 +1,5 @@
 // Between main and the page of a mod with a window of its own.
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 
 // { activates }: whether the window takes the keyboard as it comes on screen.
 export const open = CHANNEL.pageToMain('deckit-shell:window-open', { activates: 'boolean' });

@@ -1,5 +1,5 @@
 // Between main and a page the shell draws in, about the page's overlay.
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 
 // The page may open its overlay: answers the name it opens it by (window.open('', name)), at once.
 export const open = CHANNEL.pageToMain('deckit-shell:overlay-open', {}, { reply: true, sync: true });

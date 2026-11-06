@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // At once: a page draws it in one pass.
 export const about = CHANNEL.pageToMain('deckit-shell:runtime-about', {}, { reply: true, sync: true });

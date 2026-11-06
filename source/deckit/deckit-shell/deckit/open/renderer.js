@@ -1,6 +1,6 @@
 import * as SCHEME from './model/scheme.js';
-import * as CHANNEL from '../../deck/channel/index.js';
-import * as IPC from '../../deck/ipc/renderer.js';
+import * as CHANNEL from '../channel/index.js';
+import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

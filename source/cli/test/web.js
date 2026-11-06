@@ -10,7 +10,7 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
     const { createWeb } = await import(url('deckit-shell', 'deckit', 'web', 'main.js'));
-    const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
+    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const ENVIRONMENT = await import(url('deckit-shell', 'environment', 'index.js'));
     const failed = [];
     let count = 0;

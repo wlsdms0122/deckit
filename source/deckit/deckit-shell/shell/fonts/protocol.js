@@ -1,5 +1,5 @@
 // Between main and a mod's page with deckit.fonts, about the person's fonts.
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 
 // Answers the fonts at once: { text, size }, each null for the default.
 export const current = CHANNEL.pageToMain('deckit-shell:fonts-current', {}, { reply: true, sync: true });

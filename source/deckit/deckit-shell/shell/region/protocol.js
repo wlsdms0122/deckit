@@ -1,5 +1,5 @@
 // Between main and a mod's page, about the regions it gives its children.
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 
 // Interface -> the mods whose view names it as parent while the sending mod owns it: [{ id, name, icon }], in the load
 // order, for each interface the sending mod provides.

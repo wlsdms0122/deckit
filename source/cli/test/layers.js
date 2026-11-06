@@ -11,7 +11,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 async function main() {
     const { createMod } = await import(url('deckit-shell', 'deckit', 'mod', 'renderer.js'));
     const { createKeymap } = await import(url('deckit-shell', 'deckit', 'keymap', 'renderer.js'));
-    const { makeScope } = await import(url('deckit-shell', 'deck', 'runner', 'model', 'scope.js'));
+    const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

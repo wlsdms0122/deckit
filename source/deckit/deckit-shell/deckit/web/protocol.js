@@ -1,6 +1,6 @@
 // Between a mod's view and main, about the web pages it shows. `name` is a session's name within the mod; `id` is a
 // web page's, as the environment hands it out, which the mod's page keeps and hands back, never reads.
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // Answers the new window page's id, or 0 when it may not be shown.
 export const window = CHANNEL.pageToMain(

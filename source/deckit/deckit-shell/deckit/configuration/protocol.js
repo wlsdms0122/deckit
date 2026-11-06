@@ -1,5 +1,5 @@
 // Between a mod's page and main, about configuration: a mod's own, and with deckit.mod-configuration every mod's.
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // What each key the mod's contributes declares reads as, as the page starts.
 export const values = CHANNEL.pageToMain('deckit-shell:configuration-values', {}, { reply: true });

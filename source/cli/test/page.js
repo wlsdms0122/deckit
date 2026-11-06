@@ -9,7 +9,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 
 async function main() {
     const { createSetup } = await import(url('deckit-shell', 'deckit', 'setup', 'main.js'));
-    const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
+    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

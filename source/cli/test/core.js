@@ -14,7 +14,7 @@ const outcome = (promise) =>
     );
 
 async function main() {
-    const { createCore } = await import(url('deckit-shell', 'deck', 'core', 'main.js'));
+    const { createCore } = await import(url('deckit-shell', 'deckit', 'core', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

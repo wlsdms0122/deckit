@@ -1,6 +1,6 @@
 import * as TOKEN from '../ui/token/index.js';
 import * as SHEET from '../ui/sheet/index.js';
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

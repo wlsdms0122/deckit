@@ -11,8 +11,8 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
-    const { createConnection } = await import(url('deckit-shell', 'deck', 'connection', 'main.js'));
-    const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
+    const { createConnection } = await import(url('deckit-shell', 'deckit', 'connection', 'main.js'));
+    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

@@ -1,7 +1,7 @@
 import * as SCROLL from '../ui/scroll/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as LAYER from '../ui/layer/index.js';
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

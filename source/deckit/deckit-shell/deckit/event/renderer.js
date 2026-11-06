@@ -2,7 +2,7 @@ import * as EVENT_BUS from './bus.js';
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as SCOPED from '../mod/model/scoped-name.js';
+import * as SCOPED from './model/scoped-name.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 

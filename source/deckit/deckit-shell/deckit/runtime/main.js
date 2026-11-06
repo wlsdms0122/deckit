@@ -1,8 +1,8 @@
-import * as CHANNEL from '../../deck/channel/index.js';
-import * as IPC from '../../deck/ipc/main.js';
+import * as CHANNEL from '../channel/index.js';
+import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as BUILD from '../build/index.js';
-import * as MOD_PERMISSION from '../../deck/mod/permission.js';
+import * as MOD_PERMISSION from '../permission/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 

@@ -14,7 +14,7 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
     const { createKeymap } = await import(url('deckit-shell', 'deckit', 'keymap', 'main.js'));
-    const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
+    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

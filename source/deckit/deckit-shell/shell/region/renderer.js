@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // `running` is the mod the page runs; `deliver(label, listener, ...args)` calls a listener of the mod's and records on

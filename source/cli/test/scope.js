@@ -5,7 +5,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const SCOPE = pathToFileURL(
-    path.join(__dirname, '..', '..', 'deckit', 'deckit-shell', 'deck', 'runner', 'model', 'scope.js')
+    path.join(__dirname, '..', '..', 'deckit', 'deckit-shell', 'deckit', 'runner', 'model', 'scope.js')
 ).href;
 
 async function main() {

@@ -1,5 +1,5 @@
-import * as CHANNEL from '../../deck/channel/index.js';
-import * as IPC from '../../deck/ipc/main.js';
+import * as CHANNEL from '../channel/index.js';
+import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as COMMAND_PERMISSION from '../command/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';

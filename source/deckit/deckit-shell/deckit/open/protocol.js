@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // Answers whether something took it.
 export const open = CHANNEL.pageToMain(

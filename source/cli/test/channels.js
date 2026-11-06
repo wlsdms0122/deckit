@@ -7,7 +7,7 @@ const { pathToFileURL } = require('url');
 
 const DECKIT = path.join(__dirname, '..', '..', 'deckit');
 const url = (...parts) => pathToFileURL(path.join(DECKIT, ...parts)).href;
-const IPC = (side) => url('deckit-shell', 'deck', 'ipc', side);
+const IPC = (side) => url('deckit-shell', 'deckit', 'ipc', side);
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const outcome = (promise) =>
@@ -78,7 +78,7 @@ function pageNamed(name) {
 }
 
 async function main() {
-    const CHANNEL = await import(url('deckit-shell', 'deck', 'channel', 'index.js'));
+    const CHANNEL = await import(url('deckit-shell', 'deckit', 'channel', 'index.js'));
     const reported = [];
     const report = (label) => reported.push(label);
     const [A, B, C, D] = ['A', 'B', 'C', 'D'].map((name) => pageNamed(name));

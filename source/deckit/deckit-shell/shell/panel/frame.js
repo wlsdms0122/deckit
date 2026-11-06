@@ -7,7 +7,7 @@ import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
 import * as WIDTH from './model/width.js';
 import * as PAGE from './model/page-name.js';
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

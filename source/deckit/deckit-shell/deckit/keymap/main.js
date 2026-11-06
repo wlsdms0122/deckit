@@ -1,9 +1,9 @@
-import * as CHANNEL from '../../deck/channel/index.js';
-import * as IPC from '../../deck/ipc/main.js';
+import * as CHANNEL from '../channel/index.js';
+import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
 import * as KEY_SCOPE from './model/scope.js';
-import * as ORIGIN from '../../deck/runner/model/origin.js';
+import * as ORIGIN from '../runner/model/origin.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 

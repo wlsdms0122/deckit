@@ -1,6 +1,6 @@
-import * as EVENT_BUS from '../../deck/event/bus.js';
-import * as CHANNEL from '../../deck/channel/index.js';
-import * as IPC from '../../deck/ipc/renderer.js';
+import * as EVENT_BUS from '../event/bus.js';
+import * as CHANNEL from '../channel/index.js';
+import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

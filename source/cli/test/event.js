@@ -7,9 +7,9 @@ const { pathToFileURL } = require('url');
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
 async function main() {
-    const { createEvent } = await import(url('deckit-shell', 'deck', 'event', 'renderer.js'));
-    const { makeScope } = await import(url('deckit-shell', 'deck', 'runner', 'model', 'scope.js'));
-    const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'renderer.js'));
+    const { createEvent } = await import(url('deckit-shell', 'deckit', 'event', 'renderer.js'));
+    const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
+    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'renderer.js'));
     const tells = [];
     IPC.carry(
         {

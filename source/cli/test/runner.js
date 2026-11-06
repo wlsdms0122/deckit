@@ -15,9 +15,9 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
-    const { createRunner } = await import(url('deckit-shell', 'deck', 'runner', 'main.js'));
-    const { createEvent } = await import(url('deckit-shell', 'deck', 'event', 'main.js'));
-    const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
+    const { createRunner } = await import(url('deckit-shell', 'deckit', 'runner', 'main.js'));
+    const { createEvent } = await import(url('deckit-shell', 'deckit', 'event', 'main.js'));
+    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deck/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // Answers whether it was shown. `id` comes back with pressed.
 export const show = CHANNEL.pageToMain(

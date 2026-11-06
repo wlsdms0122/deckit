@@ -1,8 +1,8 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
-import * as MOD_PERMISSION from '../mod/permission.js';
-import * as LIFECYCLE from '../mod/lifecycle.js';
+import * as MOD_PERMISSION from '../permission/index.js';
+import * as LIFECYCLE from '../runner/model/lifecycle.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 

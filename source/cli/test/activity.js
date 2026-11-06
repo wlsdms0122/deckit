@@ -21,7 +21,7 @@ async function main() {
             'activity-section.js'
         )
     );
-    const { createCatalog } = await import(url('deckit-shell', 'deck', 'catalog', 'index.js'));
+    const { createCatalog } = await import(url('deckit-shell', 'deckit', 'catalog', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
