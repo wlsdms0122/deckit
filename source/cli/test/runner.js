@@ -63,14 +63,15 @@ async function main() {
     const CATALOG = { onChange: (listener) => (changed = listener), mods: () => catalog };
     const LOG = { warn: () => {}, error: () => {} };
     // The core answers each request with what the test queued for its method, a list of effects or a function that
-    // answers, and nothing otherwise.
+    // answers, and otherwise as the core does when nothing changes: no effects, or true for a limit reset.
     const asked = [];
     const answers = new Map();
     const CORE = {
         request: (method, params) => {
             asked.push({ method, params });
             const queued = answers.get(method)?.shift();
-            return typeof queued === 'function' ? queued() : Promise.resolve(queued || []);
+            if (typeof queued === 'function') return queued();
+            return Promise.resolve(queued || (method === 'runner/reset-limit' ? true : []));
         },
     };
     const methods = (method) => asked.filter((request) => request.method === method);
