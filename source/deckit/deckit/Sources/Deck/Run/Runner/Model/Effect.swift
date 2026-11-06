@@ -9,8 +9,8 @@ import Foundation
 
 // What the driver does, in order, with what deck decided of the runs.
 public enum Effect: Sendable {
-    // Make the mod's sandbox, its page not loaded yet.
-    case open(Mod)
+    // Make the mod's sandbox for the job, its page not loaded yet.
+    case open(Job)
     // Load the mod's page at its address: a page the driver knows has just loaded by itself is left as it is.
     case loadPage(modId: String)
     // Keep the run as it is now, and tell whoever observes it.
@@ -27,8 +27,8 @@ public enum Effect: Sendable {
     case disconnect(Connection)
     // Tell the listeners' pages the event.
     case deliver(EventDelivery)
-    // What a layer on deck tells has changed of its own.
-    case layer(any LayerChange)
+    // The dependent lifecycle reaches `provider` by `name`, and `provider` does not run: deck does not launch it.
+    case wait(name: String, dependent: Endpoint, provider: String)
 
     // MARK: - Property
     // MARK: - Initializer
