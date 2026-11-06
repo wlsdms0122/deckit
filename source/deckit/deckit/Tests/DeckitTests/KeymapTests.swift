@@ -87,7 +87,7 @@ struct KeymapTests {
         let sut = try fixture.deckit()
 
         // When
-        let problems = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
+        let problems = sut.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
 
         // Then
         #expect(problems == [problem])
@@ -222,8 +222,8 @@ struct KeymapTests {
         _ = try sut.started("a", run: 1, keys: [key("next", "mod+j")])
 
         // When
-        let terminating = try sut.deck.unload(["a"])
-        let ended = try sut.deck.stopped("a", run: 1)
+        let terminating = sut.outcome(try sut.unload(["a"]))
+        let ended = sut.outcome(try sut.stopped("a", run: 1))
 
         // Then
         #expect(terminating.keymapChange == nil)

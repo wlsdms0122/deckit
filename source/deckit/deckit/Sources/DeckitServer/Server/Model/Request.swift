@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // A JSON-RPC request, or a notification when it has no id.
 struct Request: Decodable {

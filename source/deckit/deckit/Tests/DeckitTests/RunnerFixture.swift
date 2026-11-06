@@ -10,7 +10,7 @@ import Testing
 @testable import Deck
 @testable import Deckit
 
-// The mods a test writes into a source folder, and a runner or a deck over them.
+// The mods a test writes into a source folder, and a catalog over them.
 struct RunnerFixture {
     // MARK: - Property
     private let home: URL
@@ -68,11 +68,6 @@ struct RunnerFixture {
         try FileManager.default.removeItem(at: source.appending(path: id))
     }
 
-    // A runner over what is written, as the catalog reads it, with no mod loaded.
-    func runner() throws -> Runner {
-        Runner(catalog: try catalog())
-    }
-
     // A catalog over what is written, read.
     func catalog() throws -> Catalog {
         let store = Store()
@@ -93,28 +88,13 @@ struct RunnerFixture {
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
             order: Order(file: settings, store: store),
-            ownershipStore: OwnershipStore(file: settings, store: store),
+            ownerTable: Deck(home: home).owners,
             startupList: StartupList(file: settings, store: store),
             store: store
         )
         _ = catalog.read()
 
         return catalog
-    }
-
-    // A deck over what is written, its catalog read, with no mod loaded.
-    func deck() throws -> Deck {
-        let deck = try Deck(
-            home: home,
-            ship: [],
-            sources: [source],
-            api: try #require(Version("1.0.0")),
-            permissions: [],
-            fields: []
-        )
-        _ = deck.readCatalog()
-
-        return deck
     }
 
     // MARK: - Private

@@ -47,6 +47,11 @@ public final class Deck {
     }
 
     // MARK: - Public
+    // The job the mod's sandbox runs, while it has one.
+    public func job(of id: String) -> Job? {
+        runner.job(of: id)
+    }
+
     // The mod's latest run, while it has a sandbox.
     public func run(of id: String) -> Run? {
         runner.run(of: id)

@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // The mod's id as `mod`, as main names it in what it asks.
 extension Endpoint: Encodable {

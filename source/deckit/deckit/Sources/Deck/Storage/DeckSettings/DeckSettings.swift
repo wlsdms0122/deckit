@@ -9,25 +9,25 @@ import Foundation
 
 // `deck.json`, deck's settings file: a JSON object of what deck keeps for the person, each under its key. What else the
 // file holds is kept as it is, and a file that does not read as a JSON object is not written.
-struct DeckSettings {
+package struct DeckSettings {
     // MARK: - Property
     private let file: URL
     private let store: Store
 
     // MARK: - Initializer
-    init(file: URL, store: Store) {
+    package init(file: URL, store: Store) {
         self.file = file
         self.store = store
     }
 
     // MARK: - Public
     // What the file keeps under `key`, or nil while it keeps nothing there or does not read.
-    func value(of key: String) -> JSONValue? {
+    package func value(of key: String) -> JSONValue? {
         (try? settings())?[key]
     }
 
     // Each value under its key, in one write.
-    func write(_ values: [String: JSONValue]) throws {
+    package func write(_ values: [String: JSONValue]) throws {
         let settings = try settings().merging(values) { _, value in value }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]

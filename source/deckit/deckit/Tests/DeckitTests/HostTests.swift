@@ -36,34 +36,27 @@ struct HostTests {
         #expect(find.issues.isEmpty)
     }
 
-    @Test("a mod's run started with the keys it contributed changes the keymap, which deck carries")
+    @Test("a mod's run started with the keys it contributed changes the keymap")
     func runChangesTheKeymap() throws {
         // Given
         try writeMod("a")
         let sut = try deckit()
-        let contributions = Contribution(
-            exportedIn: [:],
-            awaits: [:],
-            layers: [
-                "keys": .array([
-                    .object([
-                        "name": .string("next"),
-                        "label": .string("Next"),
-                        "key": .string("mod+j"),
-                        "scope": .string("local")
-                    ])
+        let layers: [String: JSONValue] = [
+            "keys": .array([
+                .object([
+                    "name": .string("next"),
+                    "label": .string("Next"),
+                    "key": .string("mod+j"),
+                    "scope": .string("local")
                 ])
-            ]
-        )
+            ])
+        ]
 
         // When
-        let effects = try sut.deck.started("a", run: 1, summary: .object([:]), contributions: contributions)
+        let outcome = try sut.started("a", run: 1, contributing: layers)
 
         // Then
-        let changes = effects.compactMap { effect in
-            if case let .layer(change) = effect { change as? ResolvedKeymap } else { nil }
-        }
-        let keymap = try #require(changes.last)
+        let keymap = try #require(outcome.keymapChange)
         #expect(keymap.bindings.map(\.binding.id) == ["a.next"])
         #expect(keymap.bindings.first?.binding.provider.name == "A")
     }
@@ -91,8 +84,8 @@ struct HostTests {
             schemeHandlers: [:],
             permissions: []
         )
-        let mods = deckit.deck.readCatalog()
-        _ = try deckit.deck.load(mods.map { mod in LaunchRequest(modId: mod.manifest.id, origin: .person) })
+        let mods = deckit.readCatalog()
+        _ = try deckit.load(mods.map { mod in LaunchRequest(modId: mod.manifest.id) })
 
         return deckit
     }

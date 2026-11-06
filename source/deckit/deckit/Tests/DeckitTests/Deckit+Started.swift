@@ -13,15 +13,20 @@ extension Deckit {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // The effects of the `run`th run of `mod` started, having contributed `keys`.
-    func started(_ mod: String, run: Int, keys: [JSONValue]) throws -> [Effect] {
+    // What the `run`th run of `mod` started comes to, having contributed `keys`.
+    func started(_ mod: String, run: Int, keys: [JSONValue]) throws -> Outcome {
         try started(mod, run: run, contributing: ["keys": .array(keys)])
     }
 
-    // The effects of the `run`th run of `mod` started, having contributed `layers` beside deck's own.
-    func started(_ mod: String, run: Int, contributing layers: [String: JSONValue]) throws -> [Effect] {
-        let contributions = Contribution(exportedIn: [:], awaits: [:], layers: layers)
-        return try deck.started(mod, run: run, summary: .object([:]), contributions: contributions)
+    // What the `run`th run of `mod` started comes to, having contributed `layers` beside deck's own.
+    func started(_ mod: String, run: Int, contributing layers: [String: JSONValue]) throws -> Outcome {
+        let contributions = Contribution(exportedIn: [:], awaits: [:])
+        return outcome(try started(mod, run: run, summary: .object([:]), contributions: contributions, layers: layers))
+    }
+
+    // `effects` and the keymap resolved anew, as the server answers them.
+    func outcome(_ effects: [Effect]) -> Outcome {
+        Outcome(effects: effects, keymapChange: keymap.changes().last)
     }
 
     // MARK: - Private

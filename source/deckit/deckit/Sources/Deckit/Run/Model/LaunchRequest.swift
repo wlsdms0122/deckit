@@ -8,16 +8,14 @@
 import Foundation
 import Deck
 
-// A request that the mod `modId` run, and why: the run it launches keeps `origin`.
+// A request that the mod `modId` run.
 public struct LaunchRequest: Sendable {
     // MARK: - Property
     public let modId: String
-    public let origin: LaunchOrigin
 
     // MARK: - Initializer
-    public init(modId: String, origin: LaunchOrigin) {
+    public init(modId: String) {
         self.modId = modId
-        self.origin = origin
     }
 
     // MARK: - Public

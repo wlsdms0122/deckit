@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 extension InterfaceProvider: Encodable {
     // MARK: - Property

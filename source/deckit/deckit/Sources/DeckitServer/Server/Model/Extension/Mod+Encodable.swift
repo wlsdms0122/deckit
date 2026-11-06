@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // Its folders as paths.
 extension Mod: Encodable {

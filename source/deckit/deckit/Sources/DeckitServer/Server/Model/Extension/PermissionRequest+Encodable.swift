@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // The id, what a layer defines it as, its reason and whether it is usable here, side by side.
 extension PermissionRequest: Encodable {

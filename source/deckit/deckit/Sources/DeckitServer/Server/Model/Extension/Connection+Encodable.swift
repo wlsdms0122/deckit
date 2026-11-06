@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 extension Connection: Encodable {
     // MARK: - Property
@@ -15,7 +16,6 @@ extension Connection: Encodable {
         case name
         case dependent
         case dependency
-        case required
     }
 
     // MARK: - Initializer
@@ -26,7 +26,6 @@ extension Connection: Encodable {
         try container.encode(name, forKey: .name)
         try container.encode(dependent, forKey: .dependent)
         try container.encode(dependency, forKey: .dependency)
-        try container.encode(required, forKey: .required)
     }
 
     // MARK: - Private

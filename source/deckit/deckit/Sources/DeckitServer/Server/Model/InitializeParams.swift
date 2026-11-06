@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 struct InitializeParams: Decodable {
     // MARK: - Property

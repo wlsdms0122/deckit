@@ -28,7 +28,9 @@ public final class Keymap {
 
     private let contributionKey = "keys"
     private let overridesKey = "keys"
-    private let deck: Deck
+    private let catalog: Catalog
+    private let state: State
+    private let runs: RunTable
     // In the order they were registered.
     private var hostKeys: [(provider: Provider, key: Key)] = []
     // In the order they were made.
@@ -36,10 +38,12 @@ public final class Keymap {
     private var told = ResolvedKeymap(revision: 0, bindings: [])
 
     // MARK: - Initializer
-    init(deck: Deck) {
-        self.deck = deck
-        deck.state.reserve(overridesKey)
-        let saved = try? deck.state.read(folder: nil, key: overridesKey)
+    init(catalog: Catalog, state: State, runs: RunTable) {
+        self.catalog = catalog
+        self.state = state
+        self.runs = runs
+        state.reserve(overridesKey)
+        let saved = try? state.read(folder: nil, key: overridesKey)
         self.overrides = saved.flatMap { text in try? JSONDecoder().decode([BindingOverride].self, from: Data(text.utf8)) }
             ?? []
     }
@@ -72,20 +76,20 @@ public final class Keymap {
 
     // A key its run registers beside those the mod declares that cannot be used is told so as the mod starts, and
     // left out.
-    func problems(of run: Run, mod: Mod) -> [String] {
+    func problems(of contributions: [String: JSONValue], mod: Mod) -> [String] {
         let names: Set<String> = if case let .object(entries) = mod.contributes[contributionKey] {
             Set(entries.keys)
         } else {
             []
         }
 
-        return registered(in: run.contributions)
+        return registered(in: contributions)
             .filter { key in !names.contains(key.name) }
             .compactMap { key in problem(of: key, mod: mod) }
     }
 
     // The keymap, once it resolves otherwise than the driver was last told.
-    func changes() -> [any LayerChange] {
+    public func changes() -> [ResolvedKeymap] {
         let now = resolved()
         guard now != told.bindings else { return [] }
 
@@ -141,7 +145,7 @@ public final class Keymap {
     // MARK: - Private
     private func save(_ next: [BindingOverride]) throws {
         let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try deck.state.write(reserved: overridesKey, text: text)
+        try state.write(reserved: overridesKey, text: text)
         overrides = next
     }
 
@@ -166,8 +170,8 @@ public final class Keymap {
         return try? JSONValue.object(fields).decode(as: Key.self)
     }
 
-    private func registered(in contributions: Contribution?) -> [Key] {
-        guard let written = contributions?.layers[contributionKey] else { return [] }
+    private func registered(in contributions: [String: JSONValue]?) -> [Key] {
+        guard let written = contributions?[contributionKey] else { return [] }
         return (try? written.decode(as: [Key].self)) ?? []
     }
 
@@ -223,10 +227,10 @@ public final class Keymap {
     // order, a mod's declared keys before those its run registers beside them. A mod's key works past its page only
     // with the permission for its scope.
     private func ordered() -> [Binding] {
-        let mods = deck.catalog.loading.map { mod in
+        let mods = catalog.loading.map { mod in
             let declared = declared(of: mod)
             let names = Set(declared.map(\.name))
-            let registered = registered(in: deck.contributions(of: mod.manifest.id)).filter { key in
+            let registered = registered(in: runs.contributions(of: mod.manifest.id)).filter { key in
                 !names.contains(key.name)
             }
             return (

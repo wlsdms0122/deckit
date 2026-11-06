@@ -11,14 +11,6 @@ import Foundation
 
 extension [Effect] {
     // MARK: - Property
-    // The keymap the last change of the keymap tells, or nil when none does.
-    var keymapChange: ResolvedKeymap? {
-        for case let .layer(keymap as ResolvedKeymap) in reversed() {
-            return keymap
-        }
-        return nil
-    }
-
     // The first problem a run is kept or told with.
     var problem: String? {
         for effect in self {

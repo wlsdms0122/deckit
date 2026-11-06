@@ -797,7 +797,7 @@ struct CatalogTests {
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
             order: Order(file: home.appending(path: "deck.json"), store: store),
-            ownershipStore: OwnershipStore(file: home.appending(path: "deck.json"), store: store),
+            ownerTable: Deck(home: home).owners,
             startupList: StartupList(file: home.appending(path: "deck.json"), store: store),
             store: store
         )

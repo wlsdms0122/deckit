@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // A host's commands as declared, under `provider`, its name.
 struct DefineCommandsParams: Decodable {

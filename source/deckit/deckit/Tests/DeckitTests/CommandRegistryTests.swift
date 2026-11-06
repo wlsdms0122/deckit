@@ -76,7 +76,7 @@ struct CommandRegistryTests {
         let sut = try fixture.deckit()
 
         // When
-        let problems = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
+        let problems = sut.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
 
         // Then
         #expect(problems == [problem])

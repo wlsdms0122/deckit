@@ -22,7 +22,7 @@ public final class DataFolder {
     }
 
     // MARK: - Public
-    func folder(of mod: String) -> URL {
+    package func folder(of mod: String) -> URL {
         folder.appending(path: mod)
     }
 

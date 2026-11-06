@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // A command by its provider, a mod's id or a host's name, and the args it is to run with, where it is to run.
 struct CheckCommandParams: Decodable {

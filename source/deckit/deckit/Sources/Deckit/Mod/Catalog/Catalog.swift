@@ -8,9 +8,10 @@
 import Foundation
 import Deck
 
-// Every mod deck reads: those read in place from a source folder, ahead of an installed one of the same id, and the
+// Every mod deckit reads: those read in place from a source folder, ahead of an installed one of the same id, and the
 // installed ones. Each loads or says why not, and all come in their order. Each interface a mod provides has one
-// owner, the provider the person pinned or else the one that began to provide it first.
+// owner, the provider the person pinned or else the one that began to provide it first, as deck's owner table keeps
+// it from the jobs of the mods that load.
 public final class Catalog {
     // MARK: - Property
     private let sources: [URL]
@@ -20,7 +21,7 @@ public final class Catalog {
     private let dataFolder: DataFolder
     private let installer: Installer
     private let order: Order
-    private let ownershipStore: OwnershipStore
+    private let ownerTable: OwnerTable
     private let startupList: StartupList
     private let store: Store
     // Mod id -> how many times it was installed while deck ran.
@@ -50,7 +51,7 @@ public final class Catalog {
         dataFolder: DataFolder,
         installer: Installer,
         order: Order,
-        ownershipStore: OwnershipStore,
+        ownerTable: OwnerTable,
         startupList: StartupList,
         store: Store
     ) {
@@ -61,7 +62,7 @@ public final class Catalog {
         self.dataFolder = dataFolder
         self.installer = installer
         self.order = order
-        self.ownershipStore = ownershipStore
+        self.ownerTable = ownerTable
         self.startupList = startupList
         self.store = store
     }
@@ -72,7 +73,7 @@ public final class Catalog {
     // the app does not ship goes last, by id.
     func mods() -> [Mod] {
         let found = ranked()
-        return resolve(found, ownership: joined(ownershipStore.read(), by: found)).mods
+        return resolve(found, ownership: joined(ownerTable.ownership, by: found)).mods
     }
 
     // The mods, read and kept as read, with the ownership of each interface, which is kept as the mods provide now.
@@ -125,8 +126,8 @@ public final class Catalog {
     // cleared, for nil, or the mod leaves the queue. Refused for a mod that does not provide the interface now, one
     // kept in its queue with a problem too. Settled once the mods are read again.
     public func pin(_ interface: String, to id: String?) throws {
-        let found = ranked()
-        try ownershipStore.write(keptOwnership(of: found).pinned(interface, to: id, providers: providers(in: found)))
+        keptOwnership(of: ranked())
+        try ownerTable.pin(interface, to: id)
     }
 
     // The ids named take the places they held among themselves in the mods' order, in the order given; the rest stay
@@ -226,6 +227,12 @@ public final class Catalog {
     // it holds and its pins. An id not found leaves when it was `removed`, and otherwise only while every mod found is
     // who its manifest names: one whose manifest names no id may be any of them. The order is not looked at.
     private func joined(_ ownership: Ownership, by found: [Mod], removed: [String] = []) -> Ownership {
+        ownership.joined(by: providers(in: found), keeping: kept(in: ownership, by: found, removed: removed))
+    }
+
+    // The ids that keep the places they hold in `ownership` though they provide nothing now: those `found` with a
+    // problem, and, while a mod found names no id, every one not found and not `removed`.
+    private func kept(in ownership: Ownership, by found: [Mod], removed: [String]) -> Set<String> {
         let ids = Set(found.map(\.manifest.id))
         var kept = Set(found.filter { mod in mod.problem != nil }.map(\.manifest.id))
         if found.contains(where: { mod in !mod.manifest.namesID }) {
@@ -234,30 +241,27 @@ public final class Catalog {
             })
         }
 
-        return ownership.joined(by: providers(in: found), keeping: kept)
+        return kept
     }
 
-    // The manifests of the mods `found` that load, those that provide what they name, in the order the app ships them,
-    // then by id.
-    private func providers(in found: [Mod]) -> [Manifest] {
+    // The jobs of the mods `found` that load, those that provide what they name, in the order the app ships them, then
+    // by id.
+    private func providers(in found: [Mod]) -> [Job] {
         let shipOrder = shipOrder()
         let rank = { (id: String) in (shipOrder.firstIndex(of: id) ?? shipOrder.count, id) }
 
         return found.filter { mod in mod.problem == nil }
-            .map(\.manifest)
-            .sorted { manifest, other in rank(manifest.id) < rank(other.id) }
+            .sorted { mod, other in rank(mod.manifest.id) < rank(other.manifest.id) }
+            .compactMap { mod in Job(mod) }
     }
 
-    // The ownership kept, as the mods `found` provide now and without those `removed`, written again when that changed
-    // it. A settings file that does not read as a JSON object keeps none until it does.
+    // The ownership deck keeps, as the mods `found` provide now and without those `removed`.
+    @discardableResult
     private func keptOwnership(of found: [Mod], removed: [String] = []) -> Ownership {
-        let kept = ownershipStore.read()
-        let ownership = joined(kept, by: found, removed: removed)
-        if ownership != kept {
-            try? ownershipStore.write(ownership)
-        }
-
-        return ownership
+        ownerTable.provide(
+            providers(in: found),
+            keeping: kept(in: ownerTable.ownership, by: found, removed: removed)
+        )
     }
 
     // Every mod in the order, with what each interface it uses comes to, each interface's queue, and the mods that
@@ -273,17 +277,18 @@ public final class Catalog {
         for place in mods.indices {
             let manifest = mods[place].manifest
             mods[place].uses = manifest.uses.keys.sorted().map { interface in
-                ownership.use(of: interface, by: manifest, found: manifests)
+                use(of: interface, by: manifest, found: manifests, in: ownership)
             }
         }
         let named = Set(ownership.queues.keys).union(listed.flatMap { mod in mod.manifest.uses.keys })
         let interfaces = named.sorted().map { interface in
             let definer = interface.split(separator: "/").first.map(String.init)
-            return ownership.queue(
+            return queue(
                 of: interface,
                 found: manifests,
                 providers: providers,
-                definer: found.first { mod in mod.manifest.id == definer }?.manifest.name
+                definer: found.first { mod in mod.manifest.id == definer }?.manifest.name,
+                in: ownership
             )
         }
 
@@ -389,6 +394,71 @@ public final class Catalog {
             contributes: contributes,
             declared: InterfaceDeclaration(contributes: contributes),
             declarationProblems: []
+        )
+    }
+
+    // The queue of `interface` in `ownership`, each provider read among `found`, the manifests of every mod found,
+    // pinnable as it is among `providers`, the jobs of the mods that load, and `definer` the name of the mod that
+    // defines it. One kept and
+    // not found has no name and no majors.
+    private func queue(
+        of interface: String,
+        found: [Manifest],
+        providers: [Job],
+        definer: String?,
+        in ownership: Ownership
+    ) -> InterfaceQueue {
+        InterfaceQueue(
+            interface: interface,
+            name: definer,
+            owner: ownership.owner(of: interface),
+            pinned: ownership.pins[interface] != nil,
+            providers: (ownership.queues[interface] ?? []).map { id in
+                let manifest = found.first { manifest in manifest.id == id }
+                return InterfaceProvider(
+                    id: id,
+                    name: manifest?.name,
+                    majors: manifest?.provides[interface] ?? [],
+                    pinnable: ownership.isPinnable(id, for: interface, among: providers)
+                )
+            }
+        )
+    }
+
+    // What `interface` comes to for `manifest`, which uses it, as `ownership` owns it, its owner read among `found`, the
+    // manifests of every mod found. An owner whose manifest is not read as providing it, one kept with a problem, is told by its own
+    // problem.
+    private func use(
+        of interface: String,
+        by manifest: Manifest,
+        found: [Manifest],
+        in ownership: Ownership
+    ) -> InterfaceUse {
+        let major = manifest.uses[interface]!
+        guard let id = ownership.owner(of: interface), id != manifest.id else {
+            return InterfaceUse(interface: interface, major: major, owner: nil, name: nil, problem: nil)
+        }
+        guard let owner = found.first(where: { provider in provider.id == id }) else {
+            return InterfaceUse(
+                interface: interface,
+                major: major,
+                owner: id,
+                name: nil,
+                problem: "uses \(interface) \(major), and its owner \(id) is not found, so it reaches no one by it"
+            )
+        }
+
+        return InterfaceUse(
+            interface: interface,
+            major: major,
+            owner: id,
+            name: owner.name,
+            problem: owner.provides[interface].flatMap { majors in
+                majors.contains(major)
+                    ? nil
+                    : "uses \(interface) \(major), and its owner \(id) provides it at "
+                        + majors.map(String.init).joined(separator: ", ") + ", so it reaches no one by it"
+            }
         )
     }
 

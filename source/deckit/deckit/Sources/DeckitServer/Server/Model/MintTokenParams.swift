@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // A command of the mod's own, by name, and the args a token of it runs it with.
 struct MintTokenParams: Decodable {

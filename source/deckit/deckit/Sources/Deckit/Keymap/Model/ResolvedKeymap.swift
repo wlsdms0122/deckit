@@ -10,7 +10,7 @@ import Deck
 
 // The keymap as a keystroke is resolved, as the driver was told it: `revision` counts each telling, so of two the
 // driver keeps the later, whichever way each came.
-public struct ResolvedKeymap: LayerChange, Equatable {
+public struct ResolvedKeymap: Equatable, Sendable {
     // MARK: - Property
     public let revision: Int
     public let bindings: [ResolvedBinding]

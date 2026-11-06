@@ -104,10 +104,10 @@ struct CommandTokenTests {
 
         // When
         try fixture.remove("b")
-        _ = sut.deck.readCatalog()
+        _ = sut.readCatalog()
         let kept = try sut.commands.check(token: handed.id)
         try fixture.remove("a")
-        _ = sut.deck.readCatalog()
+        _ = sut.readCatalog()
 
         // Then
         #expect(kept == handed)

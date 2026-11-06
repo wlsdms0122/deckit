@@ -18,17 +18,21 @@ public final class CommandRegistry {
     // MARK: - Property
     private let contributionKey = "commands"
     private let tokensKey = "command-tokens"
-    private let deck: Deck
+    private let catalog: Catalog
+    private let state: State
+    private let runs: RunTable
     // In the order they were declared.
     private var hostCommands: [RegisteredCommand] = []
     // In the order they were minted.
     private var tokens: [CommandToken]
 
     // MARK: - Initializer
-    init(deck: Deck) {
-        self.deck = deck
-        deck.state.reserve(tokensKey)
-        let saved = try? deck.state.read(folder: nil, key: tokensKey)
+    init(catalog: Catalog, state: State, runs: RunTable) {
+        self.catalog = catalog
+        self.state = state
+        self.runs = runs
+        state.reserve(tokensKey)
+        let saved = try? state.read(folder: nil, key: tokensKey)
         self.tokens = saved.flatMap { text in try? JSONDecoder().decode([CommandToken].self, from: Data(text.utf8)) }
             ?? []
     }
@@ -56,14 +60,14 @@ public final class CommandRegistry {
 
     // A command its run registers beside those the mod declares that cannot be used is told so as the mod starts,
     // and left out.
-    func problems(of run: Run, mod: Mod) -> [String] {
+    func problems(of contributions: [String: JSONValue], mod: Mod) -> [String] {
         let names: Set<String> = if case let .object(entries) = mod.contributes[contributionKey] {
             Set(entries.keys)
         } else {
             []
         }
 
-        return written(in: run.contributions)
+        return written(in: contributions)
             .filter { value in !names.contains(name(of: value)) }
             .compactMap { value in problem { try Command(declared: value) } }
     }
@@ -101,11 +105,11 @@ public final class CommandRegistry {
     // The hosts' first, in the order declared, then each mod's, in the mods' order: those it declares, by name, running
     // or not, then those its run registers beside them.
     public func list() -> [RegisteredCommand] {
-        let mods = deck.catalog.loading.flatMap { mod in
+        let mods = catalog.loading.flatMap { mod in
             let provider = Provider.mod(id: mod.manifest.id, name: mod.manifest.name)
             let declared = declared(of: mod)
             let names = Set(declared.map(\.name))
-            let registered = registered(in: deck.contributions(of: mod.manifest.id)).filter { command in
+            let registered = registered(in: runs.contributions(of: mod.manifest.id)).filter { command in
                 !names.contains(command.name)
             }
             return (declared + registered).map { command in RegisteredCommand(provider: provider, command: command) }
@@ -167,7 +171,7 @@ public final class CommandRegistry {
         to holder: String,
         for interface: String
     ) throws -> CommandToken {
-        guard let mod = deck.catalog.loading.first(where: { mod in mod.manifest.id == sender }) else {
+        guard let mod = catalog.loading.first(where: { mod in mod.manifest.id == sender }) else {
             throw CommandError.noSuchCommand("\(sender).\(name)")
         }
         _ = try checkDeclared(name, of: mod, args: args)
@@ -214,7 +218,7 @@ public final class CommandRegistry {
     // MARK: - Private
     private func save(_ next: [CommandToken]) throws {
         let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try deck.state.write(reserved: tokensKey, text: text)
+        try state.write(reserved: tokensKey, text: text)
         tokens = next
     }
 
@@ -227,12 +231,12 @@ public final class CommandRegistry {
     }
 
     // The commands a run registered that can be used.
-    private func registered(in contributions: Contribution?) -> [Command] {
+    private func registered(in contributions: [String: JSONValue]?) -> [Command] {
         written(in: contributions).compactMap { value in try? Command(declared: value) }
     }
 
-    private func written(in contributions: Contribution?) -> [JSONValue] {
-        guard case let .array(values) = contributions?.layers[contributionKey] else { return [] }
+    private func written(in contributions: [String: JSONValue]?) -> [JSONValue] {
+        guard case let .array(values) = contributions?[contributionKey] else { return [] }
         return values
     }
 
@@ -246,7 +250,7 @@ public final class CommandRegistry {
     private func isOwned(_ token: CommandToken) -> Bool {
         guard let holder = token.holder,
             let interface = token.interface,
-            let declarations = try? deck.catalog.declarations(to: interface, for: holder)
+            let declarations = try? catalog.declarations(to: interface, for: holder)
         else { return false }
 
         return declarations.contains { declaration in

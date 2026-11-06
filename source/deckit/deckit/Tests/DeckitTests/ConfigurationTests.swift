@@ -109,8 +109,8 @@ struct ConfigurationTests {
         try declare([boolean("wrap")], mod: "a", in: sut)
 
         // When
-        _ = try sut.deck.unload(["a"])
-        _ = try sut.deck.stopped("a", run: 1)
+        _ = try sut.unload(["a"])
+        _ = try sut.stopped("a", run: 1)
         let wrap = try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true))
 
         // Then
@@ -125,7 +125,7 @@ struct ConfigurationTests {
 
         // When
         try fixture.write("a", contributes: ["configuration": .object(["wrap": boolean("wrap")])])
-        _ = sut.deck.readCatalog()
+        _ = sut.readCatalog()
 
         // Then
         #expect(problems(of: "a", in: sut) == [#"contributes "configuration" must be a list of declarations"#])
@@ -260,7 +260,7 @@ struct ConfigurationTests {
         try fixture.remove("a")
 
         // When
-        _ = sut.deck.readCatalog()
+        _ = sut.readCatalog()
         let wrap = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
 
         // Then
@@ -310,12 +310,12 @@ struct ConfigurationTests {
     // The mod written again with `declarations` under `configuration` in its contributes, and the mods read again.
     private func declare(_ declarations: [JSONValue], mod id: String, in sut: Deckit) throws {
         try fixture.write(id, contributes: ["configuration": .array(declarations)])
-        _ = sut.deck.readCatalog()
+        _ = sut.readCatalog()
     }
 
     // What is wrong with what the mod declares, as it was last read.
     private func problems(of id: String, in sut: Deckit) -> [String] {
-        sut.deck.catalog.loading.first { mod in mod.manifest.id == id }?.declarationProblems ?? []
+        sut.catalog.loading.first { mod in mod.manifest.id == id }?.declarationProblems ?? []
     }
 
     private func declaration(_ fields: [String: JSONValue]) -> JSONValue {

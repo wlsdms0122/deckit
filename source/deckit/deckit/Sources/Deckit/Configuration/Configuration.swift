@@ -15,14 +15,16 @@ public final class Configuration {
     // MARK: - Property
     private let contributionKey = "configuration"
     private let name = "configuration"
-    private let deck: Deck
+    private let catalog: Catalog
+    private let modState: ModState
     // Mod id -> what it declares, in the order declared, as the mods were last read.
     private var declarations: [String: [ConfigurationDeclaration]] = [:]
 
     // MARK: - Initializer
-    init(deck: Deck) throws {
-        self.deck = deck
-        try deck.modState.reserve(name)
+    init(catalog: Catalog, modState: ModState) throws {
+        self.catalog = catalog
+        self.modState = modState
+        try modState.reserve(name)
     }
 
     // MARK: - Lifecycle
@@ -50,7 +52,7 @@ public final class Configuration {
 
     // Every loading mod's that declares any, in the mods' order.
     public func list() -> [ConfigurationGroup] {
-        deck.catalog.loading
+        catalog.loading
             .compactMap { mod in
                 let id = mod.manifest.id
                 let declared = declared(id)
@@ -154,7 +156,7 @@ public final class Configuration {
 
     // A text that is not a table of values reads as none saved.
     private func read(mod: String) -> [String: ConfigurationValue] {
-        guard let text = deck.modState.read(name, mod: mod) else { return [:] }
+        guard let text = modState.read(name, mod: mod) else { return [:] }
         return (try? JSONDecoder().decode([String: ConfigurationValue].self, from: Data(text.utf8))) ?? [:]
     }
 
@@ -166,7 +168,7 @@ public final class Configuration {
         values[key] = value
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
-        try deck.modState.write(name, mod: mod, text: String(decoding: try encoder.encode(values), as: UTF8.self))
+        try modState.write(name, mod: mod, text: String(decoding: try encoder.encode(values), as: UTF8.self))
 
         return true
     }

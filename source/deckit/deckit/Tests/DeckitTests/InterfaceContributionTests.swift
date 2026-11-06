@@ -78,8 +78,8 @@ struct InterfaceContributionTests {
         let first = try #require(try sut.contributions(to: "o/actions", for: "o").first?.token)
 
         // When
-        try sut.deck.catalog.pin("o/actions", to: "p")
-        _ = sut.deck.readCatalog()
+        try sut.catalog.pin("o/actions", to: "p")
+        _ = sut.readCatalog()
         let second = try #require(try sut.contributions(to: "o/actions", for: "p").first?.token)
         let again = try sut.contributions(to: "o/actions", for: "p").first?.token
 
@@ -110,12 +110,12 @@ struct InterfaceContributionTests {
 
         // When
         try fixture.write("a", contributes: entry(2))
-        _ = sut.deck.readCatalog()
+        _ = sut.readCatalog()
         let second = try #require(try sut.contributions(to: "o/actions", for: "o").first?.token)
         try fixture.write("a", contributes: entry(3))
         let restarted = try fixture.deckit()
         let third = try #require(try restarted.contributions(to: "o/actions", for: "o").first?.token)
-        try restarted.deck.catalog.pin("o/actions", to: "p")
+        try restarted.catalog.pin("o/actions", to: "p")
         let pinned = try fixture.deckit()
 
         // Then
@@ -141,7 +141,7 @@ struct InterfaceContributionTests {
 
         // When
         let handed = try sut.contributions(to: "o/actions", for: "o")
-        let problems = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
+        let problems = sut.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
 
         // Then
         #expect(handed.count == 1)
@@ -159,11 +159,11 @@ struct InterfaceContributionTests {
         let problem = "an entry declared to o/actions is left out: no such command: a.live"
 
         // When
-        let idle = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
+        let idle = sut.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
         let idleHanded = try sut.contributions(to: "o/actions", for: "o")
         _ = try sut.started("a", run: 1, contributing: ["commands": .array([.object(["name": .string("live")])])])
         let registered = try sut.commands.find("live", of: "a")
-        let running = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
+        let running = sut.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
         let runningHanded = try sut.contributions(to: "o/actions", for: "o")
 
         // Then
@@ -188,41 +188,12 @@ struct InterfaceContributionTests {
         let sut = try fixture.deckit()
 
         // When
-        let problems = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
+        let problems = sut.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
 
         // Then
         #expect(problems == [problem])
         #expect(try sut.contributions(to: "o/actions", for: "o").isEmpty)
     }
 
-    @Test("a mod that listens hears <interface>:contributions-changed as what is declared to it changes")
-    func changeIsDelivered() throws {
-        // Given
-        try fixture.write("o", provides: ["o/actions"])
-        try fixture.write("a")
-        let sut = try fixture.deckit()
-        sut.deck.events.listen(mod: "o", run: 1, names: ["o/actions:contributions-changed"])
-        let quiet = sut.deck.reconnect()
-
-        // When
-        try fixture.write("a", contributes: ["interfaces": .object(["o/actions": .array([.object([:])])])])
-        _ = sut.deck.readCatalog()
-        let installed = sut.deck.reconnect()
-        let again = sut.deck.reconnect()
-        try fixture.remove("a")
-        _ = sut.deck.readCatalog()
-        let removed = sut.deck.reconnect()
-
-        // Then
-        #expect(!quiet.contains(where: delivers))
-        #expect(installed.filter(delivers).count == 1)
-        #expect(!again.contains(where: delivers))
-        #expect(removed.filter(delivers).count == 1)
-    }
-
     // MARK: - Private
-    private func delivers(_ effect: Effect) -> Bool {
-        guard case let .deliver(delivery) = effect else { return false }
-        return delivery.name == "o/actions:contributions-changed" && delivery.listeners == ["o"]
-    }
 }

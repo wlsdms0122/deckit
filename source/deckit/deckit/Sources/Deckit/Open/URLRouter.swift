@@ -19,20 +19,24 @@ public final class URLRouter {
     private let contributionKey = "urls"
     private let preferencesKey = "scheme-handlers"
     private let field: URLsField
-    private let deck: Deck
+    private let catalog: Catalog
+    private let state: State
+    private let runs: RunTable
     // Scheme -> the mods the app places in its list.
     private let schemeHandlers: [String: [String]]
     // Scheme -> how the person arranged its handlers.
     private var preferences: [String: ListPreference]
 
     // MARK: - Initializer
-    // `field` is the urls field deck reads manifests with.
-    init(deck: Deck, field: URLsField, schemeHandlers: [String: [String]]) {
-        self.deck = deck
+    // `field` is the urls field the catalog reads manifests with.
+    init(catalog: Catalog, state: State, runs: RunTable, field: URLsField, schemeHandlers: [String: [String]]) {
+        self.catalog = catalog
+        self.state = state
+        self.runs = runs
         self.field = field
         self.schemeHandlers = schemeHandlers
-        deck.state.reserve(preferencesKey)
-        let saved = try? deck.state.read(folder: nil, key: preferencesKey)
+        state.reserve(preferencesKey)
+        let saved = try? state.read(folder: nil, key: preferencesKey)
         self.preferences = saved.flatMap { text in
             try? JSONDecoder().decode([String: ListPreference].self, from: Data(text.utf8))
         } ?? [:]
@@ -40,8 +44,8 @@ public final class URLRouter {
 
     // MARK: - Lifecycle
     // A mod that opens what it names none of is told so as it contributes it.
-    func problems(of run: Run, mod: Mod) -> [String] {
-        guard handlesURL(run.contributions), mod.manifest.value(of: field).isEmpty else { return [] }
+    func problems(of contributions: [String: JSONValue], mod: Mod) -> [String] {
+        guard handlesURL(contributions), mod.manifest.value(of: field).isEmpty else { return [] }
         return ["it registered urls.register(), but manifest.toml names no urls, so nothing asks it"]
     }
 
@@ -57,7 +61,7 @@ public final class URLRouter {
         let system = SystemHandler(scheme: scheme.name)
         guard opensFiles || system != .file else { return URLRoute(url: address, handlers: [], system: nil) }
 
-        let loading = Set(deck.catalog.loading.map(\.manifest.id))
+        let loading = Set(catalog.loading.map(\.manifest.id))
         let handlers = usesDefaultApp
             ? []
             : ordered(in: handledAs(scheme)) { patterns in
@@ -65,7 +69,7 @@ public final class URLRouter {
             }
             .filter { handler in
                 let id = handler.mod.manifest.id
-                return handler.on && loading.contains(id) && (deck.contributions(of: id).map(handlesURL) ?? true)
+                return handler.on && loading.contains(id) && (runs.contributions(of: id).map(handlesURL) ?? true)
             }
             .map { handler in handler.mod.manifest.id }
         return URLRoute(url: address, handlers: handlers, system: system)
@@ -112,17 +116,17 @@ public final class URLRouter {
     // MARK: - Private
     private func save(_ next: [String: ListPreference]) throws {
         let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try deck.state.write(reserved: preferencesKey, text: text)
+        try state.write(reserved: preferencesKey, text: text)
         preferences = next
     }
 
-    private func handlesURL(_ contributions: Contribution?) -> Bool {
-        contributions?.layers[contributionKey] == .bool(true)
+    private func handlesURL(_ contributions: [String: JSONValue]?) -> Bool {
+        contributions?[contributionKey] == .bool(true)
     }
 
     // The mods in the scheme's list, each with its patterns for the scheme: those of the scheme and `*`.
     private func members(of scheme: String) -> [(mod: Mod, patterns: [URLPattern])] {
-        deck.catalog.listed.compactMap { mod in
+        catalog.listed.compactMap { mod in
             let own = mod.manifest.value(of: field).filter { pattern in
                 pattern.match == .every || pattern.scheme == scheme
             }
@@ -131,7 +135,7 @@ public final class URLRouter {
     }
 
     private func schemes() -> [String] {
-        let named = deck.catalog.listed.flatMap { mod in mod.manifest.value(of: field).map(\.scheme) }
+        let named = catalog.listed.flatMap { mod in mod.manifest.value(of: field).map(\.scheme) }
         let own = named.filter { scheme in scheme != URLScheme.every }
         let every = named.contains(URLScheme.every) ? [URLScheme.every] : []
         var seen: Set<String> = []

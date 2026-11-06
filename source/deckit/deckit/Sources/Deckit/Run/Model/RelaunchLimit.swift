@@ -10,7 +10,7 @@ import Deck
 
 // How often a mod's runs may fail before a request launches it no more: a mod reaches the limit once `burst` of its
 // runs failed within `interval` seconds, and stays at it until its limit is reset.
-struct RelaunchLimit {
+public struct RelaunchLimit: Sendable {
     // MARK: - Property
     let burst: Int
     let interval: TimeInterval
@@ -19,7 +19,7 @@ struct RelaunchLimit {
     private var reached: Set<String> = []
 
     // MARK: - Initializer
-    init(burst: Int, interval: TimeInterval) {
+    public init(burst: Int, interval: TimeInterval) {
         self.burst = burst
         self.interval = interval
     }
