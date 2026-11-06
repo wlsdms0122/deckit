@@ -22,7 +22,7 @@ struct ServerTests {
     // MARK: - Initializer
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
-        initializeParams = #"{"home":"\#(home)","schemeHandlers":{},"implementations":{},"api":"1.0.0","ship":[],"#
+        initializeParams = #"{"home":"\#(home)","implementations":{},"api":"1.0.0","ship":[],"#
             + #""sources":["\#(home)source"],"permissions":[]}"#
         initializeRequest = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#
         sut = Server()
@@ -167,13 +167,13 @@ struct ServerTests {
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"keymap/keystrokes","params":{"specs":["mod+k",5]}}"#,
+            #"{"jsonrpc":"2.0","id":2,"method":"runner/unload","params":{"mods":["a",5]}}"#,
             to: sut
         )
 
         // Then
         #expect(
-            value(in: response, at: "error", "message") == .string("keymap/keystrokes has no such params at specs.1")
+            value(in: response, at: "error", "message") == .string("runner/unload has no such params at mods.1")
         )
     }
 
@@ -218,34 +218,6 @@ struct ServerTests {
         #expect(error["code"] == .number(-32600))
     }
 
-    @Test("configuration set as declared is read back as the JSON it was set as, the mod not running")
-    func configurationRoundTrips() throws {
-        // Given
-        _ = try send(initializeRequest, to: sut)
-        let declared = #"[{"key":"wrap","type":"boolean"},{"key":"size","type":"number","maximum":12}]"#
-        try mod("notes", contributes: #"{"configuration":\#(declared)}"#)
-        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"configuration/set","#
-                + #""params":{"mod":"notes","key":"wrap","value":true}}"#,
-            to: sut
-        )
-
-        // When
-        let set = try send(
-            #"{"jsonrpc":"2.0","id":6,"method":"configuration/set","params":{"mod":"notes","key":"size","value":14}}"#,
-            to: sut
-        )
-        let response = try send(
-            #"{"jsonrpc":"2.0","id":7,"method":"configuration/values","params":{"mod":"notes"}}"#,
-            to: sut
-        )
-
-        // Then
-        #expect(set == (try json(#"{"jsonrpc":"2.0","id":6,"result":{"value":12,"changed":true}}"#)))
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":7,"result":{"wrap":true,"size":12}}"#)))
-    }
-
     @Test("state written is read back by all, with no params asked")
     func stateRoundTrips() throws {
         // Given
@@ -271,7 +243,7 @@ struct ServerTests {
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","schemeHandlers":{},"#
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","#
                 + #""implementations":{},"api":"1.0.0","ship":[],"sources":[],"#
                 + #""permissions":[\#(permission),\#(permission)]}}"#,
             to: sut
@@ -283,31 +255,6 @@ struct ServerTests {
                 #"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"#
                     + #""message":"the permission deckit.mods is defined twice","data":{"kind":"PERMISSION"}}}"#
             ))
-        )
-    }
-
-    @Test("the catalog reads a mod's urls as deckit judges them")
-    func catalogReadsURLs() throws {
-        // Given
-        _ = try send(initializeRequest, to: sut)
-        try mod("opener", urls: #"["https:*", "https:*"]"#)
-        try mod("broken", urls: #"["https:*", "*"]"#)
-
-        // When
-        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-
-        // Then
-        guard case let .object(fields) = response, case let .array(mods)? = fields["result"] else {
-            Issue.record("no mods in \(response)")
-            return
-        }
-        let opener = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("opener") }
-        let broken = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("broken") }
-        #expect(opener.flatMap { mod in value(in: mod, at: "manifest", "urls") } == .array([.string("https:*")]))
-        #expect(opener.flatMap { mod in value(in: mod, at: "problem") } == nil)
-        #expect(
-            broken.flatMap { mod in value(in: mod, at: "problem") }
-                == .string(#"urls: "*" already takes every address, so it stands alone"#)
         )
     }
 
@@ -353,26 +300,6 @@ struct ServerTests {
                         + #""dependency":{"mod":"dep","run":1,"lifecycle":0}}]"#
                 ))
         )
-    }
-
-    @Test("a configuration declared that deckit does not read is a problem of the mod as it is read")
-    func unreadConfigurationIsAProblem() throws {
-        // Given
-        _ = try send(initializeRequest, to: sut)
-        try mod("notes", contributes: #"{"configuration":[{"key":"shade","type":"slider"}]}"#)
-
-        // When
-        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-
-        // Then
-        guard case let .array(mods)? = value(in: response, at: "result") else {
-            Issue.record("no mods in \(response)")
-            return
-        }
-        #expect(mods.contains { mod in
-            value(in: mod, at: "declarationProblems")
-                == .array([.string(#"configuration "shade": deckit does not read its type"#)])
-        })
     }
 
     @Test("a mod at the relaunch limit loads for no origin until its limit is reset")
@@ -439,144 +366,6 @@ struct ServerTests {
         #expect(value(in: outside, at: "result") == .null)
     }
 
-    @Test("deckit's own methods answer through the server, as deck's do")
-    func deckitMethodsAnswer() throws {
-        // Given
-        try mod("mail", urls: #"["mailto:*"]"#)
-        _ = try send(initializeRequest, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
-                + #""params":{"requests":[{"mod":"mail","origin":{"kind":"person"}}]}}"#,
-            to: sut
-        )
-        let contributions = #"{"awaits":{},"urls":true,"commands":[{"name":"compose"}]}"#
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
-                + #""contributions":\#(contributions)}}"#,
-            to: sut
-        )
-
-        // When
-        let defined = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"command/define","params":{"provider":"@app","name":"Deckit","#
-                + #""commands":[{"name":"go"}]}}"#,
-            to: sut
-        )
-        let registered = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"provider":"@app","name":"Deckit","#
-                + #""key":{"name":"go","label":"Go","key":"mod+1","scope":"local"}}}"#,
-            to: sut
-        )
-        let bound = try send(
-            #"{"jsonrpc":"2.0","id":6,"method":"keymap/bind","params":{"id":"@app.go","spec":"cmd+2"}}"#,
-            to: sut
-        )
-        let set = try send(
-            #"{"jsonrpc":"2.0","id":7,"method":"open/setHandlers","params":{"scheme":"mailto","order":["mail"],"#
-                + #""off":[]}}"#,
-            to: sut
-        )
-        let routed = try send(
-            #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","opensFiles":true,"#
-                + #""usesDefaultApp":false}}"#,
-            to: sut
-        )
-        let listed = try send(#"{"jsonrpc":"2.0","id":9,"method":"command/list"}"#, to: sut)
-        let checked = try send(
-            #"{"jsonrpc":"2.0","id":10,"method":"command/check","params":{"provider":"mail","command":"compose"}}"#,
-            to: sut
-        )
-        let provider = try send(
-            #"{"jsonrpc":"2.0","id":11,"method":"provider","params":{"id":"@app"}}"#,
-            to: sut
-        )
-        let nobody = try send(#"{"jsonrpc":"2.0","id":12,"method":"provider","params":{"id":"post"}}"#, to: sut)
-
-        // Then
-        guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let go = bindings.first else {
-            Issue.record("no bindings in \(bound)")
-            return
-        }
-        #expect(value(in: defined, at: "result") == .bool(true))
-        #expect(value(in: registered, at: "result", "revision") != nil)
-        #expect(value(in: go, at: "id") == .string("@app.go"))
-        #expect(value(in: go, at: "spec") == .string("cmd+2"))
-        #expect(value(in: set, at: "result") == .bool(true))
-        #expect(value(in: routed, at: "result", "handlers") == .array([.string("mail")]))
-        #expect(listed == (try json(
-            #"{"jsonrpc":"2.0","id":9,"result":[{"provider":"@app","command":"go","description":"","params":null},"#
-                + #"{"provider":"mail","command":"compose","description":"","params":null}]}"#
-        )))
-        #expect(value(in: checked, at: "result", "command") == .string("compose"))
-        #expect(value(in: provider, at: "result") == .object([
-            "id": .string("@app"), "name": .string("Deckit"), "host": .bool(true),
-        ]))
-        #expect(value(in: nobody, at: "result") == .null)
-    }
-
-    @Test("a configuration lists with the declaration's fields, `default` as declared, and the value it reads as")
-    func configurationItemIsJSON() throws {
-        // Given
-        let size = ConfigurationDeclaration(
-            key: "size",
-            type: .number,
-            title: "Size",
-            defaultValue: .number(12),
-            minimum: 8
-        )
-        let sut = ConfigurationItem(declaration: size, value: .number(14))
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .sortedKeys
-
-        // When
-        let listed = String(decoding: try encoder.encode(sut), as: UTF8.self)
-
-        // Then
-        #expect(
-            listed == #"{"default":12,"key":"size","minimum":8,"oneOf":[],"title":"Size","type":"number","value":14}"#
-        )
-    }
-
-    @Test("the keymap reads as the driver keeps it: each binding with its chord, its issues and its keystroke")
-    func keymapIsJSON() throws {
-        // Given
-        _ = try send(initializeRequest, to: sut)
-        for (id, (name, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
-            _ = try send(
-                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","#
-                    + #""params":{"provider":"@app","name":"Deckit","#
-                    + #""key":{"name":"\#(name)","label":"\#(name)","key":"\#(spec)","scope":"local"}}}"#,
-                to: sut
-            )
-        }
-
-        // When
-        let bound = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"keymap/bind","params":{"id":"@app.two","spec":"cmd+1"}}"#,
-                to: sut
-        )
-
-        // Then
-        guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let two = bindings.last,
-            case let .array(issues)? = value(in: two, at: "issues"), let held = issues.first
-        else {
-            Issue.record("not a keymap: \(bound)")
-            return
-        }
-        #expect(value(in: bound, at: "result", "revision") == .number(3))
-        #expect(value(in: two, at: "id") == .string("@app.two"))
-        #expect(value(in: two, at: "key") == Keystroke(spec: "mod+2")?.spec.map(JSONValue.string))
-        #expect(value(in: two, at: "spec") == .string("cmd+1"))
-        #expect(value(in: two, at: "chord") == .string(try #require(Keystroke(spec: "cmd+1")).label))
-        #expect(value(in: two, at: "changed") == .bool(true))
-        #expect(value(in: two, at: "active") == .bool(false))
-        #expect(value(in: two, at: "keystroke", "code") == .string("Digit1"))
-        #expect(value(in: held, at: "kind") == .string("held"))
-        #expect(value(in: held, at: "other", "id") == .string("@app.one"))
-        #expect(value(in: held, at: "other", "provider") == .string("@app"))
-    }
-
     @Test("a result that cannot be written is answered with an internal error, never dropped")
     func unwritableResultIsAnswered() throws {
         // Given
@@ -594,25 +383,9 @@ struct ServerTests {
         #expect(value(in: response, at: "error", "code") == .number(-32603))
     }
 
-    @Test("a state key deckit keeps itself is refused to the driver")
-    func reservedStateKeyIsRefused() throws {
-        // Given
-        _ = try send(initializeRequest, to: sut)
-
-        // When
-        let response = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":null,"key":"keys","text":"[]"}}"#,
-            to: sut
-        )
-
-        // Then
-        #expect(value(in: response, at: "error", "data", "kind") == .string("RESERVED"))
-    }
-
     // MARK: - Private
     private func mod(
         _ id: String,
-        urls: String? = nil,
         dependencies: String? = nil,
         contributes: String? = nil
     ) throws {
@@ -624,7 +397,6 @@ struct ServerTests {
             api = "1.0.0"
             main = "main.js"
             """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"")
-            + (urls.map { urls in "\nurls = \(urls)" } ?? "")
             + (dependencies.map { dependencies in "\n[dependencies]\n\(dependencies)" } ?? "")
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
         if let contributes {

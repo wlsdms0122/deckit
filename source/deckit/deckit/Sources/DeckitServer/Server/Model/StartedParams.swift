@@ -10,7 +10,7 @@ import Deck
 import Deckit
 
 // A run that started, or that runs, with what its page reported: `summary` as a person reads it, and what it
-// contributes, deck's keys as deck reads them and every other key as deckit's parts read theirs.
+// contributes, deck's keys as deck reads them and every other key for the layers above.
 struct StartedParams: Decodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {

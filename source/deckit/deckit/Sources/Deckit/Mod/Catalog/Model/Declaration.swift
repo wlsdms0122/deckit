@@ -8,8 +8,8 @@
 import Foundation
 import Deck
 
-// One entry a mod declares to an interface, as the mod wrote it: its id and name, and the entry. What the interface's
-// owner is handed is made of it by a layer on deck.
+// One entry a mod declares to an interface, as the mod wrote it, and the id and name of that mod: what the
+// interface's owner is handed.
 public struct Declaration: Equatable, Sendable {
     // MARK: - Property
     public let mod: String

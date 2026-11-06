@@ -136,21 +136,6 @@ struct CatalogTests {
         #expect(mods.map(\.data) == ["a", "b"].map { id in home.appending(path: "data/\(id)") })
     }
 
-    @Test("the mods that stand in a list carry what is wrong with what they declare, as reading found it")
-    func listedCarryDeclarationProblems() throws {
-        // Given
-        try write("a", in: source)
-        try write("b", in: source)
-        let sut = try catalog(sources: [source])
-
-        // When
-        _ = sut.read { mod in mod.manifest.id == "a" ? ["wrong"] : [] }
-
-        // Then
-        #expect(sut.listed.map(\.manifest.id) == ["a", "b"])
-        #expect(sut.listed.map(\.declarationProblems) == [["wrong"], []])
-    }
-
     @Test("a cycle fails every mod in it, and a failure spreads to whoever requires it")
     func requirementsFail() throws {
         // Given

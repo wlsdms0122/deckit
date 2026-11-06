@@ -42,18 +42,6 @@ struct GoldenTests {
         (StateError.notAKey("k"), "KEY"),
         (StateError.notAFolder("f"), "FOLDER"),
         (StateError.reserved("keys"), "RESERVED"),
-        (KeymapError.noSuchBinding("@app.x"), "SHORTCUT"),
-        (KeymapError.notAChord("x"), "CHORD"),
-        (KeymapError.cannotWork(label: "C", scope: .app), "REFUSED"),
-        (KeymapError.notAHost("x"), "REFUSED"),
-        (KeymapError.noLabel("k"), "REFUSED"),
-        (CommandError.noSuchCommand("a.c"), "COMMAND"),
-        (CommandError.arguments(command: "a.c", why: "w"), "ARGUMENTS"),
-        (CommandError.notAName("a.b"), "REFUSED"),
-        (ConfigurationError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
-        (ConfigurationError.notOfType(key: "k", type: .number), "TYPE"),
-        (ConfigurationError.notAChoice(key: "k", value: .string("v")), "CHOICE"),
-        (URLRouterError.noHandlers("x"), "SCHEME")
     ]
 
     private let root = FileManager.default.temporaryDirectory.appending(path: "golden-tests-\(UUID().uuidString)")
@@ -66,7 +54,7 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "urls = [\"mailto:*\"]\n[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
+            adding: "[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
                 + "\"system.global-keys\" = \"to test\"\n\"system.example\" = \"to test\"",
             contributes: #"{"configuration":[{"default":12,"key":"size","minimum":8,"title":"Size","type":"number"},"#
                 + #"{"default":"mono","key":"font","oneOf":[{"const":"mono","title":"Mono"}],"type":"string"},"#

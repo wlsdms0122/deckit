@@ -11,7 +11,7 @@ import Deckit
 
 // Each as `effect`, its name, with the mod's id as `mod` and a run's number as `run`, as main names them in what it
 // asks; the mod a sandbox opens for is `found`, as the catalog reads it. A run's
-// `contributions` are deck's keys beside the parts'. The keymap resolved anew is `bindingsChanged`. An event delivered
+// `contributions` are deck's keys beside the layers'. An event delivered
 // is `name` and `listeners`, as `event/emit` answers it. A lifecycle that waits is `wait`, with the mod it waits for as
 // `mod`, the name it reaches it by as `name` and itself as `dependent`.
 extension EffectAnswer: Encodable {
@@ -40,10 +40,6 @@ extension EffectAnswer: Encodable {
         switch self {
         case let .effect(effect, found, entry):
             try encode(effect, found: found, entry: entry, in: &container, to: encoder)
-
-        case let .bindingsChanged(keymap):
-            try keymap.encode(to: encoder)
-            try container.encode("bindingsChanged", forKey: .effect)
         }
     }
 

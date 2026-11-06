@@ -27,12 +27,6 @@ public final class RunTable {
         return entry
     }
 
-    // What the mod's latest run contributes for the layers, from its launch until it has ended.
-    func contributions(of id: String) -> [String: JSONValue]? {
-        guard let run = deck.run(of: id), run.state == .running || run.state == .terminating else { return nil }
-        return entry(of: run)?.contributions
-    }
-
     func begin(_ run: Run) {
         entries[run.modId] = RunEntry(number: run.number)
     }

@@ -10,10 +10,9 @@ import Deck
 import Deckit
 
 // An effect as the driver reads it: deck's, with the mod a sandbox opens for as the catalog reads it and what deckit
-// keeps of a run, or the keymap resolved anew.
+// keeps of a run.
 enum EffectAnswer {
     case effect(Effect, found: Mod?, entry: RunEntry?)
-    case bindingsChanged(ResolvedKeymap)
 
     // MARK: - Property
     // MARK: - Initializer

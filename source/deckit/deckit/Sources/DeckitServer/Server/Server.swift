@@ -89,7 +89,6 @@ final class Server {
                 ship: params.ship.map { folder in URL(filePath: folder) },
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
-                schemeHandlers: params.schemeHandlers,
                 permissions: params.permissions
             )
             self.deckit = deckit
@@ -127,16 +126,6 @@ final class Server {
             let params = try request.decodeParams(as: WriteStateParams.self)
             try deckit.state.write(folder: params.folder, key: params.key, text: params.text)
             return true
-
-        case "configuration/values":
-            return deckit.configuration.values(of: try request.decodeParams(as: ModParams.self).mod)
-
-        case "configuration/list":
-            return deckit.configuration.list()
-
-        case "configuration/set":
-            let params = try request.decodeParams(as: SetConfigurationParams.self)
-            return try deckit.configuration.set(mod: params.mod, key: params.key, value: params.value)
 
         case "catalog/read":
             return deckit.readCatalog()
@@ -270,86 +259,17 @@ final class Server {
             let params = try request.decodeParams(as: EmitParams.self)
             return try deck.events.emit(mod: params.mod, run: params.run, name: params.name)
 
-        case "keymap/register":
-            let params = try request.decodeParams(as: RegisterKeyParams.self)
-            return try deckit.keymap.register(params.key, provider: params.provider, name: params.name)
-
-        case "keymap/bind":
-            let params = try request.decodeParams(as: BindKeyParams.self)
-            return try deckit.keymap.bind(params.id, spec: params.spec)
-
-        case "keymap/reset":
-            return try deckit.keymap.reset(request.decodeParams(as: ResetKeyParams.self).id)
-
-        case "keymap/record":
-            return RecordedKey(try request.decodeParams(as: RecordKeyParams.self).keystroke)
-
-        case "keymap/keystrokes":
-            return try request.decodeParams(as: KeystrokesParams.self).specs.map(Keystroke.init(spec:))
-
-        case "command/define":
-            let params = try request.decodeParams(as: DefineCommandsParams.self)
-            try deckit.commands.define(params.commands, provider: params.provider, name: params.name)
-            return true
-
-        case "command/list":
-            return deckit.commands.list()
-
-        case "command/find":
-            let params = try request.decodeParams(as: CheckCommandParams.self)
-            return try deckit.commands.find(params.command, of: params.provider)
-
-        case "command/check":
-            let params = try request.decodeParams(as: CheckCommandParams.self)
-            return try deckit.commands.check(params.command, of: params.provider, args: params.args)
-
-        case "command/mint":
-            let params = try request.decodeParams(as: MintTokenParams.self)
-            return try deckit.commands.mint(params.command, of: params.mod, args: params.args).id
-
-        case "command/check-token":
-            return try deckit.commands.check(token: request.decodeParams(as: TokenParams.self).token)
-
-        case "command/cancel":
-            let params = try request.decodeParams(as: CancelTokenParams.self)
-            try deckit.commands.cancel(token: params.token, of: params.mod)
-            return true
-
-        case "command/release":
-            try deckit.commands.release(token: request.decodeParams(as: TokenParams.self).token)
-            return true
-
         case "interface/contributions":
             let params = try request.decodeParams(as: ContributionsParams.self)
-            return try deckit.contributions(to: params.interface, for: params.mod)
-
-        case "provider":
-            return deckit.provider(of: try request.decodeParams(as: ProviderParams.self).id)
-
-        case "open/route":
-            let params = try request.decodeParams(as: RouteParams.self)
-            return deckit.urlRouter.route(
-                params.url,
-                opensFiles: params.opensFiles,
-                usesDefaultApp: params.usesDefaultApp
-            )
-
-        case "open/handlerLists":
-            return deckit.urlRouter.handlerLists()
-
-        case "open/setHandlers":
-            let params = try request.decodeParams(as: SetHandlersParams.self)
-            try deckit.urlRouter.setHandlers(of: params.scheme, order: params.order, off: params.off)
-            return true
+            return try deckit.catalog.declarations(to: params.interface, for: params.mod)
 
         default:
             throw ResponseError(code: .methodNotFound, message: "no method \(request.method)")
         }
     }
 
-    // `effects` as the driver reads them, then the keymap resolved anew, if it changed.
+    // `effects` as the driver reads them.
     private func answered(_ effects: [Effect], by deckit: Deckit) -> [EffectAnswer] {
         effects.map { effect in EffectAnswer(effect, of: deckit) }
-            + deckit.keymap.changes().map(EffectAnswer.bindingsChanged)
     }
 }

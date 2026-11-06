@@ -142,51 +142,6 @@ extension ResponseError {
                 "RESERVED"
             }
 
-        case let error as KeymapError:
-            switch error {
-            case .noSuchBinding:
-                "SHORTCUT"
-
-            case .notAChord:
-                "CHORD"
-
-            case .cannotWork, .notAHost, .noLabel:
-                "REFUSED"
-            }
-
-        case let error as CommandError:
-            switch error {
-            case .noSuchCommand:
-                "COMMAND"
-
-            case .arguments:
-                "ARGUMENTS"
-
-            case .noSuchToken:
-                "TOKEN"
-
-            case .notAName, .declaration, .schema, .defined:
-                "REFUSED"
-            }
-
-        case let error as ConfigurationError:
-            switch error {
-            case .undeclared:
-                "UNDECLARED"
-
-            case .notOfType:
-                "TYPE"
-
-            case .notAChoice:
-                "CHOICE"
-            }
-
-        case let error as URLRouterError:
-            switch error {
-            case .noHandlers:
-                "SCHEME"
-            }
-
         default:
             nil
         }

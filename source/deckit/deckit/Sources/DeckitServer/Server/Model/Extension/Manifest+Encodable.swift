@@ -44,7 +44,6 @@ extension Manifest: Encodable {
         try container.encode(uses, forKey: Key("uses"))
         try container.encode(dependencies, forKey: Key("dependencies"))
         try container.encode(permissions, forKey: Key("permissions"))
-        try container.encode(value(of: URLsField()).map(\.written), forKey: Key("urls"))
     }
 
     // MARK: - Private

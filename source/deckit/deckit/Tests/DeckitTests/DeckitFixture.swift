@@ -30,7 +30,6 @@ struct DeckitFixture {
         _ id: String,
         api: String = "1.0.0",
         permissions: [String] = [],
-        urls: [String] = [],
         requires: [String] = [],
         provides: [String] = [],
         contributes: [String: JSONValue]? = nil
@@ -45,9 +44,6 @@ struct DeckitFixture {
             ? ""
             : "\n[dependencies]\n" + requires.map { other in "\(other) = \"1.0.0\"" }
                 .joined(separator: "\n")
-        let patterns = urls.isEmpty
-            ? ""
-            : "\nurls = [" + urls.map { pattern in "\"\(pattern)\"" }.joined(separator: ", ") + "]"
         let provided = provides.isEmpty
             ? ""
             : "\n[interfaces]\nprovides = { " + provides.map { interface in "\"\(interface)\" = [1]" }
@@ -58,7 +54,7 @@ struct DeckitFixture {
             version = "1.0.0"
             api = "\(api)"
             main = "main.js"
-            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"") + patterns + asked + required
+            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"") + asked + required
             + provided
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         if let contributes {
@@ -71,15 +67,13 @@ struct DeckitFixture {
         try FileManager.default.removeItem(at: source.appending(path: id))
     }
 
-    // A deckit over what is written, the app asking `schemeHandlers` first, its mods read and each that loads
-    // launching.
-    func deckit(schemeHandlers: [String: [String]] = [:]) throws -> Deckit {
+    // A deckit over what is written, its mods read and each that loads launching.
+    func deckit() throws -> Deckit {
         let sut = try Deckit(
             home: home,
             ship: [],
             sources: [source],
             api: try #require(Version("1.0.0")),
-            schemeHandlers: schemeHandlers,
             permissions: []
         )
         let mods = sut.readCatalog()
