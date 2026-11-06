@@ -350,7 +350,7 @@ struct ServerTests {
             value(in: connected, at: "result")
                 == (try json(
                     #"[{"id":1,"name":"dep","dependent":{"mod":"a","run":1,"lifecycle":0},"#
-                        + #""dependency":{"mod":"dep","run":1,"lifecycle":0},"required":true}]"#
+                        + #""dependency":{"mod":"dep","run":1,"lifecycle":0}}]"#
                 ))
         )
     }
