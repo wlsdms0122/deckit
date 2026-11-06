@@ -57,7 +57,7 @@ export const permit = CHANNEL.pageToMain('deckit-shell:web-permit', { ask: 'numb
 // Answers the `saving` of that number.
 export const save = CHANNEL.pageToMain('deckit-shell:web-save', { ask: 'number', save: 'boolean' });
 
-// The mod's downloads, by the id deck gives each: { id, url, name, path, state, received, expected, error, started }.
+// The mod's downloads, by the id deckit gives each: { id, url, name, path, state, received, expected, error, started }.
 export const downloads = CHANNEL.pageToMain('deckit-shell:web-downloads', {}, { reply: true });
 export const cancelDownload = CHANNEL.pageToMain('deckit-shell:web-download-cancel', { id: 'string' });
 export const revealDownload = CHANNEL.pageToMain('deckit-shell:web-download-reveal', { id: 'string' }, { reply: true });

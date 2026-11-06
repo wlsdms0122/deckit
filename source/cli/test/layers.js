@@ -1,8 +1,8 @@
-// Deckit as a layer on deck in a mod's page (deckit-shell/deckit/mod/renderer.js), with a layer over it stacking a
-// lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's handle,
-// which takes a chord only for a mod with deckit.app-keys or system.global-keys; a press of the chord runs what took
-// it, and the chord is let go once the lifecycle that took it ends. Exits 1 with a line for each check that failed.
-// The packages are ES modules, so they are imported as such.
+// Deckit as a layer on the runner in a mod's page (deckit-shell/deckit/mod/renderer.js), with a layer over it stacking
+// a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's
+// handle, which takes a chord only for a mod with deckit.app-keys or system.global-keys; a press of the chord runs what
+// took it, and the chord is let go once the lifecycle that took it ends. Exits 1 with a line for each check that
+// failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 

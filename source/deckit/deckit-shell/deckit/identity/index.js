@@ -4,8 +4,8 @@ import * as LISTENER from '../listener/index.js';
 // (environment/: MAIN.pages); a page is its token, kept and compared, never read.
 export function createIdentity({ pages: PAGES }) {
     // MARK: - Property
-    // How long after a person's click or key deck takes what a page does as theirs: deck's own window, as a browser
-    // has one for a page's user activation.
+    // How long after a person's click or key deckit takes what a page does as theirs: deckit's own window, as a
+    // browser has one for a page's user activation.
     const ACTIVATION_MS = 5000;
     const identities = new Map(); // page -> { mod }, or { page }, the name of a page that runs no mod
     const pages = new Map(); // mod id -> its page
@@ -50,12 +50,12 @@ export function createIdentity({ pages: PAGES }) {
     // `{ destroyed: true }`. Calling what this returns drops `undo` uncalled.
     function whenPageEnds(page, undo) {
         const undos = ends.get(page);
-        if (!undos) throw new Error("whenEnds takes a page of deck's: a mod's, or one that runs none");
+        if (!undos) throw new Error("whenEnds takes a page of deckit's: a mod's, or one that runs none");
         undos.add(undo);
         return () => undos.delete(undo);
     }
 
-    // A person's presses in a page, read by what follows: every page of deck's is watched, and another page, once it
+    // A person's presses in a page, read by what follows: every page of deckit's is watched, and another page, once it
     // is handed here.
     function watchPresses(page) {
         PAGES.watchInput(page, ({ type }) => {

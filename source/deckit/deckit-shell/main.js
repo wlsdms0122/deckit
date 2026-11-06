@@ -155,7 +155,7 @@ function refuseUnknown(what, given, known) {
     if (unknown.length) throw new Error(`[deckit] ${what} sets ${unknown.join(', ')}, which deckit does not read`);
 }
 
-// Deckit in main, made of deck's parts and deckit's, each handed what it uses of the environment.
+// Deckit in main, made of its parts, each handed what it uses of the environment.
 function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     ENV.configure({ id: CONFIG.id });
     const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
@@ -235,7 +235,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
 
     // The log starts first, then the core, which is handed the permissions the layers defined and hands over the
     // state it keeps, and installs what the host app ships and reads the mods, before anything reads the mods or the
-    // state. Deck's pages are served before any loads. What follows the mods' runs starts before the runner launches
+    // state. Deckit's pages are served before any loads. What follows the mods' runs starts before the runner launches
     // any.
     async function start() {
         LOG.start({
@@ -279,7 +279,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     }
 
     // A mod's page shows the web, is where the chords mods take work, and opens with the system what it opens: a
-    // window it asks for, and a link that leaves its origin, which deck holds it to.
+    // window it asks for, and a link that leaves its origin, which deckit holds it to.
     function preparePage(page) {
         WEB.prepare(page);
         KEYMAP.listen(page);

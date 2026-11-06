@@ -32,8 +32,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // MARK: - Initializer
     // MARK: - Public
     // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show. The core launches the
-    // background mods now. `preparePage(page, mod)` is what is on deck setting the page up, once deck knows it as the
-    // mod's.
+    // background mods now. `preparePage(page, mod)` sets the page up, once deckit knows it as the mod's.
     function start({ preparePage: prepare }) {
         preparePage = prepare;
         listen();
@@ -302,8 +301,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         if (sandbox?.run?.number === number) sandbox.update(facts);
     }
 
-    // What the core keeps of what a run contributes: deck's keys alone.
-    function deckOf({ exportedIn, awaits }) {
+    // What the core keeps of what a run contributes: `exportedIn` and `awaits` alone.
+    function keptOf({ exportedIn, awaits }) {
         return { exportedIn, awaits };
     }
 
@@ -330,7 +329,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     // The run's end asked of its page, which ends each of its lifecycles once, however often it is asked, each within
     // its own limit. The core is told once it has answered, its time ran out or the page is gone, which refuses the
-    // question at once (deck/ipc).
+    // question at once (deckit/ipc).
     function stop(modId, number) {
         const sandbox = sandboxes.get(modId);
         const stopping = sandbox
@@ -350,7 +349,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     // A crash's problem says why the page's process ended, whichever of what watches the page hears it first; a page
     // whose document was replaced, or that was destroyed, went away. `ending` is how its document ended
-    // (deck/identity).
+    // (deckit/identity).
     function endedProblem(ending) {
         return 'gone' in ending ? `its page ended (${ending.gone})` : 'its page went away';
     }
@@ -400,13 +399,13 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         PROTOCOL.started.on(({ run: number, contributions, summary }, sender) => {
             const { id } = IDENTITY.modFrom(sender);
             reported(id, number, { summary, contributions });
-            send('runner/started', { mod: id, run: number, contributions: deckOf(contributions) });
+            send('runner/started', { mod: id, run: number, contributions: keptOf(contributions) });
         });
         // Joined once the core has kept what it contributes now.
         PROTOCOL.joined.on(({ run: number, contributions, summary }, sender) => {
             const { id } = IDENTITY.modFrom(sender);
             reported(id, number, { summary, contributions });
-            ask('runner/joined', { mod: id, run: number, contributions: deckOf(contributions) }).then(
+            ask('runner/joined', { mod: id, run: number, contributions: keptOf(contributions) }).then(
                 () => {
                     const run = runOf(id);
                     if (run?.number === number && run.state === 'running') notifications.emit('didJoin', run);

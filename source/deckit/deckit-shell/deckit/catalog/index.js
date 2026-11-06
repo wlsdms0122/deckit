@@ -62,7 +62,7 @@ export function createCatalog({ CORE, LOG, files }) {
         return CORE.request('catalog/install', { from });
     }
 
-    // The installed copies of the mod taken away. Answers whether deck keeps anything under its id, which one that
+    // The installed copies of the mod taken away. Answers whether the core keeps anything under its id, which one that
     // names no mod id does not. What is read here changes at the next refresh.
     function remove(id) {
         return CORE.request('catalog/remove', { id });
@@ -83,7 +83,7 @@ export function createCatalog({ CORE, LOG, files }) {
         return () => listeners.delete(listener);
     }
 
-    // The text of the entry of a mod that loads, the one file deck runs in its sandbox.
+    // The text of the entry of a mod that loads, the one file deckit runs in its sandbox.
     function sourceOf(mod) {
         return files.readText(mod.entry);
     }

@@ -13,7 +13,7 @@ export function createMods({ RUN }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // `added` is what is on deck adds. `onChange(listener)` hears that what `list()` answers may have changed, once
+    // `added` is what the layers add. `onChange(listener)` hears that what `list()` answers may have changed, once
     // for each change main tells in one go, until its off or until `scope` is cut.
     function tool(added, scope) {
         return Object.freeze({

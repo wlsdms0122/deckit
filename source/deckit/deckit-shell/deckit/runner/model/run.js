@@ -4,8 +4,8 @@
 // A run of `mod`, the `number`th, as the core and its page last told it: one object for as long as the run lasts, so
 // whatever holds it reads it as it is now. `update(told)` takes what either told of it.
 //
-// `summary` is what it contributes once running, as a person reads it, and `contributions` what the layers on deck and
-// deck join of it, both as its page last reported them;
+// `summary` is what it contributes once running, as a person reads it, and `contributions` what the runner and the
+// layers on it join of it, both as its page last reported them;
 // `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed;
 // `failed`, whether it failed or crashed rather than ending as asked;
 // `relaunchLimited`, whether its mod reached the relaunch limit as it failed, so it launches again only as its launch

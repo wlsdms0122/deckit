@@ -5,7 +5,7 @@ export function createStorage({ CORE, LOG }) {
     const kept = new Map();
     let unread = null; // why the state was not read, if it was not
 
-    // What the person arranged and what deck and the layers on it keep between runs, one JSON file a key.
+    // What the person arranged and what deckit and the layers on it keep between runs, one JSON file a key.
     const state = stateIn(null);
 
     // MARK: - Initializer
@@ -14,7 +14,7 @@ export function createStorage({ CORE, LOG }) {
     // is not written over.
     async function load() {
         const entries = await CORE.request('state/all').catch((error) => {
-            LOG.error('the state deck keeps was not read', error);
+            LOG.error('the state the core keeps was not read', error);
             unread = error;
             return [];
         });

@@ -8,7 +8,7 @@ export function createCore({ FOLDERS, LOG, core, home }) {
     const pending = new Map(); // request id -> { resolve, reject }
     let connection = null;
     let ready = null; // settled once the core has answered initialize
-    let kept = null; // where deck keeps the mods it installed and their data folders, as initialize answered
+    let kept = null; // where the core keeps the mods it installed and their data folders, as initialize answered
     let ended = null; // why the core is gone, once it is
     let down = null; // why the core answers nothing more, once it does not: it ended, or did not start
     const downListeners = [];
@@ -47,7 +47,7 @@ export function createCore({ FOLDERS, LOG, core, home }) {
         return ready.then(() => send(method, params));
     }
 
-    // Where deck keeps the mods it installed and their data folders, `{ mods, data }`, once the core has started.
+    // Where the core keeps the mods it installed and their data folders, `{ mods, data }`, once the core has started.
     function folders() {
         return kept;
     }

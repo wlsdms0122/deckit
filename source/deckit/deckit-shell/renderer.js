@@ -30,7 +30,7 @@ function start(given) {
 }
 
 // MARK: - Private
-// The page the shell made is drawn; a mod's runs, deck's runner handed deckit's layer with the shell's stacked over it
+// The page the shell made is drawn; a mod's runs, the runner handed deckit's layer with the shell's stacked over it
 // when the shell is on deckit, each part handed what it uses.
 function run(ENV) {
     const { page, sessions, layers } = SETUP.setup();

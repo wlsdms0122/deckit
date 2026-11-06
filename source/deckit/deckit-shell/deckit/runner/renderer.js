@@ -9,39 +9,39 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The run of a mod in its page: its entry evaluated, the class it exports made once and its lifecycles started in the
 // order they are stacked, each connected to the interfaces it depends on as it begins, and what each registered told to
-// main as it joins. `RUN` is the page's run; `STORAGE`, `CONNECTION`, `EVENT` and `MODS` are what deck gives it;
+// main as it joins. `RUN` is the page's run; `STORAGE`, `CONNECTION`, `EVENT` and `MODS` are what deckit gives it;
 // `modules` is the environment's (environment/: PAGE.modules).
 export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: MODULES }) {
     // MARK: - Property
-    // What a layer gives of what it leaves out, and what is on deck when nothing is: no lifecycle, so the run starts
-    // once its class is made.
+    // What a layer gives of what it leaves out, and what the runner has when no layer is given: no lifecycle, so the
+    // run starts once its class is made.
     const NOTHING = Object.freeze({ handle: 'deck', read: () => ({}), report: () => ({}), mods: {}, lifecycles: [] });
 
     // MARK: - Initializer
     // MARK: - Public
-    // The mod this page runs. `layers` is what is on deck, the lowest first, each `layer(context)` asked with the mod
-    // (`{ mod, contributes, run, deliver, fail, under }`, `contributes` what the mod's contributes file declares, by
-    // contribution point, which deck carries and does not read, and `under` what the layer under it offers a layer over
-    // it, null for the lowest) before its entry runs, and answering:
+    // The mod this page runs. `layers` is what stacks on the runner, the lowest first, each `layer(context)` asked
+    // with the mod (`{ mod, contributes, run, deliver, fail, under }`, `contributes` what the mod's contributes file
+    // declares, by contribution point, which the runner carries and does not read, and `under` what the layer under
+    // it offers a layer over it, null for the lowest) before its entry runs, and answering:
     // `read(Entry)`, what it reads of the class the entry exports, before any instance is made, as part of the
     // summary;
-    // `report()`, what main is told of the run beside deck's own now, `{ summary, contributions }`, which deck carries
-    // and does not read;
+    // `report()`, what main is told of the run beside the runner's own now, `{ summary, contributions }`, which the
+    // runner carries and does not read;
     // `lifecycles`, the lifecycles it stacks on the run, over those of the layers under it, the lowest first;
     // `over`, what it offers a layer over it;
-    // and, for the lowest, `handle`, the name of the handle deck's members are on, and `mods`, what it adds to `mods`
-    // for a mod with deckit.mods.
+    // and, for the lowest, `handle`, the name of the handle the runner's members are on, and `mods`, what it adds to
+    // `mods` for a mod with deckit.mods.
     // A lifecycle is `{ method, registrations, start(instance, handles, scope), end(instance), join(parts, scope) }`:
     // `method` names it in what a person reads; `registrations`, by name, `{ handle, check }`, what the handles it
-    // hands out register beside deck's own; `start`, which calls the instance with its handles, by name, each of deck's
-    // members and registrations on the one named `handle`; `end`, which ends what start began; `join`, called with
-    // what it registered once start has ended.
+    // hands out register beside the runner's own; `start`, which calls the instance with its handles, by name, each of
+    // the runner's members and registrations on the one named `handle`; `end`, which ends what start began; `join`,
+    // called with what it registered once start has ended.
     // Each lifecycle has a `scope`: what its handles made that calls back into the mod's code is cut as it ends.
     async function start({ layers = [] } = {}) {
         try {
             await run(layers);
         } catch (error) {
-            RUN.fail(`deck could not start it: ${error.message || error}`);
+            RUN.fail(`deckit could not start it: ${error.message || error}`);
             RUN.notStarted();
         }
     }
@@ -82,7 +82,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             fail(`its constructor threw: ${error.message || error}`);
             return RUN.notStarted();
         }
-        // Name, an interface or the mod's own id -> the lifecycle that opened its exports, as deck joins it.
+        // Name, an interface or the mod's own id -> the lifecycle that opened its exports, as the runner joins it.
         const joined = { exportedIn: {} };
         if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined });
         for (const [index, lifecycle] of given.lifecycles.entries()) {
@@ -95,7 +95,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             try {
                 const { dependencies, problems } = await CONNECTION.begin(index, scope);
                 for (const { problem } of problems) fail(problem);
-                handles[given.handle] = { ...deckOf({ given, scope, dependencies }), ...handles[given.handle] };
+                handles[given.handle] = { ...membersOf({ given, scope, dependencies }), ...handles[given.handle] };
                 await lifecycle.start(instance, handles, scope);
                 if (stopping) return;
                 const parts = registry.close();
@@ -118,8 +118,8 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         }
     }
 
-    // The layers on deck as one: what each reads and reports, a lower one's where two say the same, their lifecycles in
-    // order, and the lowest's handle.
+    // The layers on the runner as one: what each reads and reports, a lower one's where two say the same, their
+    // lifecycles in order, and the lowest's handle.
     function stacked(layers, context) {
         const given = [];
         for (const layer of layers)
@@ -187,9 +187,9 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     }
 
     // What a lifecycle's handles register, each once and only while its start runs, by the handle each is on: each as
-    // `<handle>.<name>.register()`, deck's own `exports` on the handle named `handle`, `register(interface, exports)`
-    // once for the run for each interface the manifest provides, and `register(exports)` once for the run for the mods
-    // that depend on it by id, under its own id, beside the lifecycle's.
+    // `<handle>.<name>.register()`, the runner's own `exports` on the handle named `handle`, `register(interface,
+    // exports)` once for the run for each interface the manifest provides, and `register(exports)` once for the run for
+    // the mods that depend on it by id, under its own id, beside the lifecycle's.
     function registryOf(lifecycle, { handle, joined }) {
         const registered = {};
         const exported = {}; // name, an interface or the mod's own id -> the exports registered for it
@@ -242,9 +242,9 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         };
     }
 
-    // Deck's members on a lifecycle's handle, what they make cut with `scope`: `dependencies` is what the lifecycle
-    // was connected to as it began.
-    function deckOf({ given, scope, dependencies }) {
+    // The runner's members on a lifecycle's handle, what they make cut with `scope`: `dependencies` is what the
+    // lifecycle was connected to as it began.
+    function membersOf({ given, scope, dependencies }) {
         const { mod } = RUN;
         const has = (permission) => mod.permissions.some(({ id }) => id === permission);
         return {

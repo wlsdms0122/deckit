@@ -7,8 +7,8 @@ import * as LIFECYCLE from '../runner/model/lifecycle.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, installing and removing them, launching
-// them, launching them again and quitting them, pinning the owner of each interface, and what one has where deck keeps
-// it.
+// them, launching them again and quitting them, pinning the owner of each interface, and what one has where the core
+// keeps it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // MARK: - Property
@@ -18,11 +18,11 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // What is on deck is told of a mod installed, once the one it replaced, if that ran, has launched again, and
-    // answers what it adds to what install answers (`installed(id)`, which may answer a promise), and of one removed
-    // (`removed(id)`). It is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed
-    // (`onFactsChange(tell)`), and to erase what it keeps outside deck of a mod removed with its data (`erase(id)`, a
-    // promise).
+    // What `start` is handed is told of a mod installed, once the one it replaced, if that ran, has launched again,
+    // and answers what it adds to what install answers (`installed(id)`, which may answer a promise), and of one
+    // removed (`removed(id)`). It is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed
+    // (`onFactsChange(tell)`), and to erase what it keeps outside the core of a mod removed with its data
+    // (`erase(id)`, a promise).
     function start(given) {
         layer = given;
         eraseUncleared();
@@ -91,7 +91,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `found`:
     // every mod the catalog found, in the mods' order whether it loads or not, each its manifest with `installed`,
-    // whether it is a copy in deck's mods folder, `problem`, why it does not load, `run`, its latest run's `state`,
+    // whether it is a copy in the core's mods folder, `problem`, why it does not load, `run`, its latest run's `state`,
     // `problem`, `failed`, `relaunchLimited` and `launchedAt`, null for one with no sandbox, `hides`, folders of the
     // same id that are not read, `launched`, while it starts or stops again, what its latest run that launched
     // contributed, as `running` lists it, and `uses`, each interface it uses and what it comes to. `interfaces`: each
@@ -170,8 +170,8 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     }
 
     // What a mod removed with its data kept outside its own folder: the core erases its data folder, its records and
-    // what the layers above deck keep for it, and notes it until its pages' storage and what the layer keeps of it
-    // outside deck are cleared here. Each is cleared whether or not another fails; the note goes only once all are, so
+    // what is kept for it in the core, and notes it until its pages' storage and what the layer keeps of it outside
+    // the core are cleared here. Each is cleared whether or not another fails; the note goes only once all are, so
     // a failure is tried again at the next start.
     async function erase(id) {
         const outcomes = await Promise.allSettled([

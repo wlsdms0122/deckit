@@ -1,6 +1,6 @@
 // The styles a page wears (deckit-shell/shell/style/main): what mods with deckit.styles declare and what their running
 // runs give every page, and what they give a mod's page by its id, from the mod itself and from any other, in the load
-// order, and a declared file read as the core resolves it (deckit-shell/deck/catalog). Exits 1 with a line for each
+// order, and a declared file read as the core resolves it (deckit-shell/deckit/catalog). Exits 1 with a line for each
 // check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');

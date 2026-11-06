@@ -1,7 +1,7 @@
-// The web pages a mod shows (deckit-shell/deckit/web) over a stand-in for the environment's web: what loads in them, which
-// sessions attach and are kept, a mod's windows closing with its document, what a web page's window.open gets, what a
-// site may have and the question put to the mod showing it, a site's notifications, and a mod's tabs held to the mod.
-// Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// The web pages a mod shows (deckit-shell/deckit/web) over a stand-in for the environment's web: what loads in them,
+// which sessions attach and are kept, a mod's windows closing with its document, what a web page's window.open gets,
+// what a site may have and the question put to the mod showing it, a site's notifications, and a mod's tabs held to the
+// mod. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -77,11 +77,11 @@ async function main() {
     const watching = new Map(); // page -> what watches it
     const done = []; // what the environment was asked to do
     let changes = 0; // how often what sites may have changed
-    let deck = null;
+    let listened = null;
     let clearing = () => {}; // what happens as a session is cleared
     const windowPage = { id: 9, embedder: filesPage };
     const web = {
-        listen: (given) => (deck = given),
+        listen: (given) => (listened = given),
         embed: () => {},
         pageOf: (id) => webPages.get(id) || null,
         holderOf: (page) => ({ embedder: page.embedder, id: page.id, tab: page.id, inPage: true }),
@@ -117,10 +117,14 @@ async function main() {
     };
     const WEB = createWeb({ LOG: { info: () => {} }, IDENTITY, KEYMAP, STORAGE, web, pages, open });
     WEB.start();
-    check('deck hands the web all it declares', ENVIRONMENT.missingIn(deck, ENVIRONMENT.WEB_DECK).length === 0, '');
+    check(
+        'deckit hands the web all it declares',
+        ENVIRONMENT.missingIn(listened, ENVIRONMENT.WEB_DECK).length === 0,
+        ''
+    );
 
     // What loads, and where.
-    const load = (page, to, options) => deck.loading(page, null, to, options);
+    const load = (page, to, options) => listened.loading(page, null, to, options);
     check('the web loads anywhere', load(plainPage, 'https://example.com', { inPage: false }) === 'load', '');
     check(
         'a file loads in the page of a mod with system.files',
@@ -134,7 +138,7 @@ async function main() {
         ''
     );
     check('no other scheme loads', load(filesPage, 'deckit://plain.mod/', { inPage: true }) === 'refuse', '');
-    const leaves = deck.loading(filesPage, tab, 'https://a.com', { inPage: true, from: 'file:///tmp/a.html' });
+    const leaves = listened.loading(filesPage, tab, 'https://a.com', { inPage: true, from: 'file:///tmp/a.html' });
     const leaving = toldOn('deckit-shell:web-leaving').at(-1)?.[1].payload;
     check(
         'a file page asking for the web leaves it, to whoever shows it',
@@ -143,16 +147,16 @@ async function main() {
     );
     check(
         'a web page following the web stays',
-        deck.loading(filesPage, tab, 'https://b.com', { inPage: true, from: 'https://a.com' }) === 'load',
+        listened.loading(filesPage, tab, 'https://b.com', { inPage: true, from: 'https://a.com' }) === 'load',
         ''
     );
 
     // Sessions.
-    check('a mod attaches its own session', deck.attaching(filesPage, { mod: 'files', name: 'web' }), '');
+    check('a mod attaches its own session', listened.attaching(filesPage, { mod: 'files', name: 'web' }), '');
     check('the session it used is kept', JSON.stringify(state['web-sessions']) === '{"files":["web"]}', state);
-    check("a mod never attaches another's session", !deck.attaching(plainPage, { mod: 'files', name: 'web' }), '');
-    check("a session that is no mod's never attaches", !deck.attaching(plainPage, null), '');
-    clearing = () => deck.attaching(plainPage, { mod: 'plain', name: 'web' });
+    check("a mod never attaches another's session", !listened.attaching(plainPage, { mod: 'files', name: 'web' }), '');
+    check("a session that is no mod's never attaches", !listened.attaching(plainPage, null), '');
+    clearing = () => listened.attaching(plainPage, { mod: 'plain', name: 'web' });
     await WEB.erase('files');
     check(
         "a mod's sessions are cleared and forgotten, and another's used meanwhile kept",
@@ -185,18 +189,22 @@ async function main() {
         activates: true,
         ...fields,
     });
-    check('without a press nothing opens', deck.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');
-    activated.add(tab);
-    check('a window page opens a window', deck.windowOpen(filesPage, tab, asked({ inPage: false })) === 'window', '');
+    check('without a press nothing opens', listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');
     activated.add(tab);
     check(
-        'a tab asking for a window with features gets one',
-        deck.windowOpen(filesPage, tab, asked({ ownWindow: true })) === 'window',
+        'a window page opens a window',
+        listened.windowOpen(filesPage, tab, asked({ inPage: false })) === 'window',
         ''
     );
     activated.add(tab);
-    check("a tab's window is handed to its mod's page", deck.windowOpen(filesPage, tab, asked({})) === 'page', '');
-    deck.opened(filesPage, 7, 9, { url: 'https://a.com', activates: true });
+    check(
+        'a tab asking for a window with features gets one',
+        listened.windowOpen(filesPage, tab, asked({ ownWindow: true })) === 'window',
+        ''
+    );
+    activated.add(tab);
+    check("a tab's window is handed to its mod's page", listened.windowOpen(filesPage, tab, asked({})) === 'page', '');
+    listened.opened(filesPage, 7, 9, { url: 'https://a.com', activates: true });
     const handed = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
     check(
         "a tab's window is told to the delegate as its page",
@@ -204,7 +212,7 @@ async function main() {
         handed
     );
     activated.add(tab);
-    const fileOpens = deck.windowOpen(filesPage, tab, asked({ from: 'file:///a.html', inPage: false }));
+    const fileOpens = listened.windowOpen(filesPage, tab, asked({ from: 'file:///a.html', inPage: false }));
     const fileOpening = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
     check(
         "a file page's window is no window, its address opened",
@@ -214,7 +222,7 @@ async function main() {
 
     // The question put to the mod showing a site.
     activated.add(tab);
-    deck.windowOpen(filesPage, tab, asked({ url: 'zoommtg://join' }));
+    listened.windowOpen(filesPage, tab, asked({ url: 'zoommtg://join' }));
     await tick();
     const app = toldOn('deckit-shell:web-asking').at(-1)?.[1].payload;
     check(
@@ -230,12 +238,12 @@ async function main() {
     check('an app allowed opens', opened.at(-1) === 'zoommtg://join', opened);
     const before = toldOn('deckit-shell:web-asking').length;
     activated.add(tab);
-    deck.windowOpen(filesPage, tab, asked({ url: 'javascript:alert(1)' }));
+    listened.windowOpen(filesPage, tab, asked({ url: 'javascript:alert(1)' }));
     await tick();
     check('a scheme that never leaves is never asked', toldOn('deckit-shell:web-asking').length === before, '');
 
-    const first = deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['camera'] });
-    const second = deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['camera'] });
+    const first = listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['camera'] });
+    const second = listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['camera'] });
     const questions = toldOn('deckit-shell:web-asking').slice(before);
     check('a page asking again joins the question up', questions.length === 1, questions.length);
     heard.told(plainPage, {
@@ -249,7 +257,7 @@ async function main() {
     check('both are answered by the mod showing it', (await first) === true && (await second) === true, '');
     check(
         'a mod without system.site-permissions refuses',
-        (await deck.request(plainPage, 8, { origin: 'https://a.com', permissions: ['camera'] })) === false,
+        (await listened.request(plainPage, 8, { origin: 'https://a.com', permissions: ['camera'] })) === false,
         ''
     );
     const allowSite = (origin, permission) =>
@@ -261,20 +269,20 @@ async function main() {
     check('what a mod lets a site have is told the environment', changes === 1, changes);
     check(
         'what was allowed is not asked again',
-        (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['microphone'] })) === true,
+        (await listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['microphone'] })) === true,
         ''
     );
-    const pending = deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['geolocation'] });
+    const pending = listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['geolocation'] });
     watching.get(tab).destroyed();
     check('a question whose page goes is refused', (await pending) === false, '');
 
     // What a site's notification shows.
     const shown = () => toldOn('deckit-shell:web-notified').length;
     const notice = { origin: 'https://a.com', notification: 1, title: 'Hi', body: 'There', silent: false };
-    deck.notified(filesPage, 7, notice);
+    listened.notified(filesPage, 7, notice);
     check('a site not allowed notifications shows none', shown() === 0, shown());
     await allowSite('https://a.com', 'notifications');
-    deck.notified(filesPage, 7, { ...notice, title: 'x'.repeat(300) });
+    listened.notified(filesPage, 7, { ...notice, title: 'x'.repeat(300) });
     const shownNotice = toldOn('deckit-shell:web-notified').at(-1)?.[1].payload;
     check(
         'a site allowed notifications shows them, cut to length',
@@ -286,38 +294,45 @@ async function main() {
     const session = { mod: 'files', name: 'main' };
     check(
         'a site is let have what it is never asked for',
-        deck.permits(null, 'https://b.com', 'fullscreen') === true,
+        listened.permits(null, 'https://b.com', 'fullscreen') === true,
         ''
     );
-    check('a site is refused what deck does not name', deck.permits(session, 'https://b.com', 'midi') === false, '');
+    check(
+        'a site is refused what deckit does not name',
+        listened.permits(session, 'https://b.com', 'midi') === false,
+        ''
+    );
     check(
         'a site has what it is asked for once the mod lets it, in that session alone',
-        deck.permits(session, 'https://a.com', 'notifications') === true &&
-            deck.permits({ mod: 'files', name: 'other' }, 'https://a.com', 'notifications') === false &&
-            deck.permits(session, 'https://b.com', 'notifications') === false,
+        listened.permits(session, 'https://a.com', 'notifications') === true &&
+            listened.permits({ mod: 'files', name: 'other' }, 'https://a.com', 'notifications') === false &&
+            listened.permits(session, 'https://b.com', 'notifications') === false,
         ''
     );
     check(
         'the sites that may have it are listed',
-        JSON.stringify(deck.permitted(session, 'notifications')) === '["https://a.com"]',
-        deck.permitted(session, 'notifications')
+        JSON.stringify(listened.permitted(session, 'notifications')) === '["https://a.com"]',
+        listened.permitted(session, 'notifications')
     );
     check(
-        'a request for nothing deck names, or for what is never let, is refused without asking',
-        (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: [] })) === false &&
-            (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['camera', 'midi'] })) === false,
+        'a request for nothing deckit names, or for what is never let, is refused without asking',
+        (await listened.request(filesPage, 7, { origin: 'https://a.com', permissions: [] })) === false &&
+            (await listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['camera', 'midi'] })) ===
+                false,
         ''
     );
     check(
         'a request for what is let without asking is let',
-        (await deck.request(plainPage, 8, { origin: 'https://a.com', permissions: ['fullscreen'] })) === true,
+        (await listened.request(plainPage, 8, { origin: 'https://a.com', permissions: ['fullscreen'] })) === true,
         ''
     );
     check(
         'what a site is only checked for is said yes to when checked and refused when asked for',
-        deck.permits(session, 'https://a.com', 'local-network-access') === true &&
-            (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['local-network-access'] })) ===
-                false,
+        listened.permits(session, 'https://a.com', 'local-network-access') === true &&
+            (await listened.request(filesPage, 7, {
+                origin: 'https://a.com',
+                permissions: ['local-network-access'],
+            })) === false,
         ''
     );
     await heard.asked(filesPage, {
@@ -326,20 +341,20 @@ async function main() {
     });
     check(
         'what a mod revokes a site no longer has',
-        deck.permits(session, 'https://a.com', 'notifications') === false,
+        listened.permits(session, 'https://a.com', 'notifications') === false,
         ''
     );
 
     // A link the page follows goes where the web takes it; what is loaded into it is held to what it shows.
     check(
         'a link a web page follows loads',
-        deck.loading(plainPage, other, 'zoommtg://x', { inPage: true, from: 'https://a.com', followed: true }) ===
+        listened.loading(plainPage, other, 'zoommtg://x', { inPage: true, from: 'https://a.com', followed: true }) ===
             'load',
         ''
     );
     check(
         'an address loaded into a web page it may not show is refused',
-        deck.loading(plainPage, other, 'zoommtg://x', { inPage: true, from: 'https://a.com' }) === 'refuse',
+        listened.loading(plainPage, other, 'zoommtg://x', { inPage: true, from: 'https://a.com' }) === 'refuse',
         ''
     );
 
@@ -366,8 +381,8 @@ async function main() {
         expected: 10,
         error: '',
     };
-    deck.downloaded(filesPage, downloading);
-    deck.downloaded(filesPage, { ...downloading, received: 4 });
+    listened.downloaded(filesPage, downloading);
+    listened.downloaded(filesPage, { ...downloading, received: 4 });
     const toldDownloads = toldOn('deckit-shell:web-downloaded');
     const kept = state['web-downloads'].files;
     const id = kept?.[0]?.id;
@@ -395,7 +410,7 @@ async function main() {
     const openIt = async () =>
         (await heard.asked(filesPage, { channel: 'deckit-shell:web-download-open', payload: { id } })).value;
     check('one under way does not open', (await openIt()) === false, '');
-    deck.downloaded(filesPage, { ...downloading, received: 10, state: 'finished' });
+    listened.downloaded(filesPage, { ...downloading, received: 10, state: 'finished' });
     check(
         'a finished download is kept as finished',
         state['web-downloads'].files[0].state === 'finished' && state['web-downloads'].files[0].received === 10,
@@ -425,9 +440,9 @@ async function main() {
     );
 
     // One whose mod's page is gone as it ends is still the mod's.
-    deck.downloaded(filesPage, { ...downloading, id: 60, path: '/D/c.zip', name: 'c.zip' });
+    listened.downloaded(filesPage, { ...downloading, id: 60, path: '/D/c.zip', name: 'c.zip' });
     mods.delete(filesPage);
-    deck.downloaded(filesPage, { ...downloading, id: 60, path: '/D/c.zip', name: 'c.zip', state: 'finished' });
+    listened.downloaded(filesPage, { ...downloading, id: 60, path: '/D/c.zip', name: 'c.zip', state: 'finished' });
     mods.set(filesPage, files);
     check(
         "a download ending after its mod's page is gone is kept as finished",
@@ -435,12 +450,12 @@ async function main() {
         state['web-downloads'].files[0]
     );
 
-    deck.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip' });
+    listened.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip' });
     const forgotten = state['web-downloads'].files[0].id;
     const removed = (
         await heard.asked(filesPage, { channel: 'deckit-shell:web-download-remove', payload: { id: forgotten } })
     ).value;
-    deck.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip', state: 'cancelled' });
+    listened.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip', state: 'cancelled' });
     check(
         'one forgotten under way is stopped, and not kept again as it ends',
         removed === true &&
@@ -449,9 +464,9 @@ async function main() {
             state['web-downloads'].files.length === 2,
         [done.at(-1), state['web-downloads']]
     );
-    deck.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip' });
+    listened.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip' });
     await WEB.erase('files');
-    deck.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip', state: 'cancelled' });
+    listened.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip', state: 'cancelled' });
     check(
         "a mod's downloads go with its data, one under way stopped",
         !('files' in state['web-downloads']) && done.some(([what, under]) => what === 'cancelDownload' && under === 70),
@@ -460,7 +475,7 @@ async function main() {
 
     // The last 100 records are kept, and an older one still under way stays until it ends.
     const record = (id, state) =>
-        deck.downloaded(plainPage, { ...downloading, id, path: `/D/${id}.zip`, name: `${id}.zip`, state });
+        listened.downloaded(plainPage, { ...downloading, id, path: `/D/${id}.zip`, name: `${id}.zip`, state });
     record(200, 'downloading');
     for (let id = 201; id <= 300; id++) {
         record(id, 'downloading');
@@ -487,7 +502,7 @@ async function main() {
             channel: 'deckit-shell:web-save',
             payload: { ask: toldOn('deckit-shell:web-saving').at(-1)[1].payload.ask, save },
         });
-    const saved = deck.shouldDownload(filesPage, 7, file);
+    const saved = listened.shouldDownload(filesPage, 7, file);
     answerSave(plainPage, false);
     answerSave(filesPage, true);
     const saving = toldOn('deckit-shell:web-saving');
@@ -500,15 +515,15 @@ async function main() {
             (await saved) === true,
         saving
     );
-    const unsaved = deck.shouldDownload(filesPage, 7, file);
+    const unsaved = listened.shouldDownload(filesPage, 7, file);
     answerSave(filesPage, false);
     check('a download the mod refuses is not saved', (await unsaved) === false, '');
-    const orphaned = deck.shouldDownload(filesPage, 7, file);
+    const orphaned = listened.shouldDownload(filesPage, 7, file);
     watching.get(tab).destroyed();
     check('a download whose tab goes before it is answered is not saved', (await orphaned) === false, '');
     check(
         'a download from a tab not there is not saved',
-        (await deck.shouldDownload(filesPage, 99, file)) === false,
+        (await listened.shouldDownload(filesPage, 99, file)) === false,
         ''
     );
 

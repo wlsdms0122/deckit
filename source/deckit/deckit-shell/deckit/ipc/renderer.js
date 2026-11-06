@@ -1,6 +1,6 @@
 // Channels between main and a page, a page's side: every one crosses as a message carrying its channel's name, which
-// the environment carries (environment/: PAGE.messages). `ownChannels` binds deck's own, and `layerChannels`, handed to
-// a layer on deck, binds the layer's.
+// the environment carries (environment/: PAGE.messages). `ownChannels` binds deckit's own, and `layerChannels`, handed
+// to a layer on deckit, binds the layer's.
 import * as LISTENER from '../listener/index.js';
 import * as ENVELOPE from './model/envelope.js';
 import * as TABLE from './index.js';

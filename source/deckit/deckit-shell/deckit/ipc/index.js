@@ -8,13 +8,13 @@ import * as CHANNEL from '../channel/index.js';
 // A side's channels. `sides` makes what a channel is on this side from its copy: `toMain(copy)` for one a page asks or
 // tells main, `toPage(copy)` for one main asks or tells a page. What is bound is a copy of the declaration, read once,
 // so nothing changes it after. A channel is declared once: binding the same declaration again binds the same channel,
-// and another declaration of its name is refused. A layer's are bound as any other, but never one deck binds as its
+// and another declaration of its name is refused. A layer's are bound as any other, but never one deckit binds as its
 // own, whoever declares it.
 function createTable(sides) {
     const declared = new Map(); // channel -> the declaration it was bound as, so it is declared once
     // The channels heard here, by name: { copy, answer, listeners }, once something answers or listens on one.
     const heard = new Map();
-    const own = new Set(); // the channels deck binds as its own
+    const own = new Set(); // the channels deckit binds as its own
 
     function bindOwn(given) {
         const copy = copyOf(given);
@@ -25,7 +25,7 @@ function createTable(sides) {
 
     function bindLayer(given) {
         const copy = copyOf(given);
-        if (own.has(copy.channel)) throw new Error(`[deckit] ${copy.channel} is deck's, not a layer's to declare`);
+        if (own.has(copy.channel)) throw new Error(`[deckit] ${copy.channel} is deckit's, not a layer's to declare`);
         return bindCopy(given, copy);
     }
 
@@ -51,7 +51,7 @@ function createTable(sides) {
     }
 
     return {
-        // What deck's concepts bind their channels with, and what a layer on deck is handed for its own.
+        // What deckit's concepts bind their channels with, and what a layer on deckit is handed for its own.
         ownChannels: Object.freeze({ bind: bindOwn }),
         layerChannels: Object.freeze({ bind: bindLayer }),
         hear,

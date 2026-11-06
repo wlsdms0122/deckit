@@ -1,4 +1,4 @@
-// The channels between main and a page (deckit-shell/deck/ipc), checked over a stand-in for what an environment
+// The channels between main and a page (deckit-shell/deckit/ipc), checked over a stand-in for what an environment
 // carries them with (deckit-shell/environment): main and pages, each its own copy of its side's module, as each is its
 // own bundle. Exits 1 with a line for each check that failed. What a page is asked before its code says how to answer
 // cannot be timed in the app, so it is checked here. The packages are ES modules, so they are imported as such.
@@ -201,14 +201,14 @@ async function main() {
     await tick();
     check('a page hears what main tells once it listens, and nothing before', JSON.stringify(states) === '[2]', states);
 
-    // A layer's names are its own, read once: what deck binds as its own is never a layer's, even declared alike, and
-    // deck and a layer may share a package's names otherwise.
-    const deckOwn = CHANNEL.pageToMain('deckit-shell:mod-load', {});
-    MAIN.ownChannels.bind(deckOwn);
-    const own = thrown(() => MAIN.layerChannels.bind(deckOwn));
-    check('a layer binds no channel deck binds as its own', /not a layer's/.test(own), own);
+    // A layer's names are its own, read once: what deckit binds as its own is never a layer's, even declared alike,
+    // and deckit and a layer may share a package's names otherwise.
+    const deckitOwn = CHANNEL.pageToMain('deckit-shell:mod-load', {});
+    MAIN.ownChannels.bind(deckitOwn);
+    const own = thrown(() => MAIN.layerChannels.bind(deckitOwn));
+    check('a layer binds no channel deckit binds as its own', /not a layer's/.test(own), own);
     const beside = thrown(() => MAIN.layerChannels.bind(CHANNEL.pageToMain('deckit-shell:panel-said', {})));
-    check("a layer binds its own beside deck's, under the same package's name", beside === '', beside);
+    check("a layer binds its own beside deckit's, under the same package's name", beside === '', beside);
     let reads = 0;
     const twoFaced = {
         get channel() {

@@ -100,11 +100,11 @@ export function createApi({
             // listen(page): a page of the host app's or its shell's where the chords mods take work too.
             keymap: Object.freeze({ listen: (page) => KEYMAP.listen(page) }),
             permissions: Object.freeze({ define: PERMISSION.define }),
-            // What the host app and its shell keep of the person's, in a folder of their own beside deck's state.
+            // What the host app and its shell keep of the person's, in a folder of their own beside deckit's state.
             state: STORAGE.stateIn('host'),
             web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
             log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error }),
-            // How the UI binds its own channels: as deck/channel declares them, never one of deck's own.
+            // How the UI binds its own channels: as deckit/channel declares them, never one of deckit's own.
             channels: IPC.layerChannels,
         });
     }

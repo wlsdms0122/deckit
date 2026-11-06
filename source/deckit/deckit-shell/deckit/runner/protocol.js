@@ -12,7 +12,7 @@ export const described = CHANNEL.pageToMain('deckit-shell:mod-described', {
 });
 // Started, its first lifecycle joined, with what it contributes. `contributions`: `{ exportedIn, awaits }`, by
 // interface the lifecycle that opened its exports, and by interface the lowest lifecycle that waits for its exports,
-// beside what is on deck added; `summary`, what it contributes as a person reads it.
+// beside what the layers added; `summary`, what it contributes as a person reads it.
 export const started = CHANNEL.pageToMain('deckit-shell:mod-started', {
     run: 'number',
     contributions: 'object',

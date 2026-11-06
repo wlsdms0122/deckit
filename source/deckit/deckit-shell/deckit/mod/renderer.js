@@ -12,20 +12,21 @@ import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYS_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 
-// What deckit puts on deck for a mod's page: the handle `deckit`, deck's members and deckit's, the lifecycle deckit
-// calls, start() and stop(), and what a layer over deckit stacks a lifecycle of its own with.
+// What deckit puts on the runner for a mod's page: the handle `deckit`, the runner's members and the layer's, the
+// lifecycle deckit calls, start() and stop(), and what a layer over deckit stacks a lifecycle of its own with.
 export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // Deckit as a layer on deck (deckit-shell/deck/runner/renderer.js). `over` is what a layer over it is handed:
-    // `lifecycle({ method, registrations, start, end, join })`, a lifecycle of that layer's, whose `start` is handed
-    // the handle `deckit` with deckit's members.
+    // Deckit as a layer on the runner (deckit-shell/deckit/runner/renderer.js). `over` is what a layer over it is
+    // handed: `lifecycle({ method, registrations, start, end, join })`, a lifecycle of that layer's, whose `start` is
+    // handed the handle `deckit` with deckit's members.
     function layer({ mod, deliver }) {
         NOTIFICATION.listen(deliver);
         const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
         KEYMAP.hear();
-        const handleOf = (deck, scope) => Object.freeze({ ...deck, ...membersOf(mod, deck, scope, { mainProcess }) });
+        const handleOf = (runner, scope) =>
+            Object.freeze({ ...runner, ...membersOf(mod, runner, scope, { mainProcess }) });
         return {
             handle: 'deckit',
             mods: {
@@ -74,8 +75,9 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
 
     // MARK: - Private
     // Deckit's members on a handle, what they make that calls back into the mod's code cut with `scope`: each
-    // namespace holds what `deck` registers in it beside what reaches others' (deckit-shell/deck/runner).
-    function membersOf(mod, deck, scope, { mainProcess }) {
+    // namespace holds what `runner`, the runner's members, registers in it beside what reaches others'
+    // (deckit-shell/deckit/runner).
+    function membersOf(mod, runner, scope, { mainProcess }) {
         const has = (permission) => mod.permissions.some(({ id }) => id === permission);
         const scoped =
             (subscribe) =>
@@ -94,7 +96,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
                 movePath,
                 tildify: tildifyOf(),
             }),
-            exports: Object.freeze({ ...deck.exports, contributions: CONTRIBUTION.contributions }),
+            exports: Object.freeze({ ...runner.exports, contributions: CONTRIBUTION.contributions }),
             // A chord taken is let go once `scope` is cut.
             ...(has(KEYS_PERMISSION.APP_KEYS) || has(KEYS_PERMISSION.GLOBAL_KEYS)
                 ? {

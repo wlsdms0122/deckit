@@ -4,7 +4,7 @@ let report = (label, error) => console.error(`[deckit] ${label} failed`, error);
 // MARK: - Initializer
 // MARK: - Public
 // An exception nobody catches in main ends the app with no dialog, and a library does not own the process to catch
-// it there. So every listener deck adds goes through here, and a throw, or a promise it rejects, is reported instead.
+// it there. So every listener deckit adds goes through here, and a throw, or a promise it rejects, is reported instead.
 function wrap(listener, label) {
     return (...args) => {
         try {
@@ -18,7 +18,7 @@ function wrap(listener, label) {
 }
 
 // Where the listeners of the bundle that carries this report what they throw, as the composition hands it over with
-// what carries the channels (deck/ipc): a layer's bundle carries its own.
+// what carries the channels (deckit/ipc): a layer's bundle carries its own.
 function reportTo(reporter) {
     report = reporter;
 }

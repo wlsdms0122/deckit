@@ -1,6 +1,6 @@
-// The events of a mod's page (deckit-shell/deck/event/renderer.js): a page listens only to names its manifest names, its
-// own id, the ids in [dependencies] and the interfaces it uses or provides, and is refused any other. Exits 1 with a
-// line for each check that failed. The packages are ES modules, so they are imported as such.
+// The events of a mod's page (deckit-shell/deckit/event/renderer.js): a page listens only to names its manifest names,
+// its own id, the ids in [dependencies] and the interfaces it uses or provides, and is refused any other. Exits 1 with
+// a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 

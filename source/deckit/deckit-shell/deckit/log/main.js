@@ -4,7 +4,7 @@ import * as DECLARED from './protocol.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// Deck's log: what main, its pages and the environment say (`reports`), on the console and in the file the
+// Deckit's log: what main, its pages and the environment say (`reports`), on the console and in the file the
 // environment keeps (`log`), in `folder` and named for `name`, which it opens as deckit starts. `about` is what the
 // environment says runs deckit.
 export function createLog({ log, reports, about, folder, name }) {

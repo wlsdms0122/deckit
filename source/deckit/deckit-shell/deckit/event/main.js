@@ -5,13 +5,13 @@ import * as DECLARED from './protocol.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Events, as the core routes them: the core names an event after the mod that sent it and says which mods hear it, and
-// what it carries goes from page to page through here. Deck's own events come as an effect the core answers, `deliver`,
+// what it carries goes from page to page through here. The core's own events come as an effect it answers, `deliver`,
 // and carry nothing.
 export function createEvent({ CORE, LOG, IDENTITY, RUNNER }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // Mods say what happened to them through deck, never to each other, so none speaks for another. An event goes to
+    // Mods say what happened to them through deckit, never to each other, so none speaks for another. An event goes to
     // the runs that listen to it, and only from a run that is running.
     function start() {
         PROTOCOL.listen.on(({ run, names }, sender) => {

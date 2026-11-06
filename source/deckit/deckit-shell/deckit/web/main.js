@@ -91,8 +91,8 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         PAGES.watch(modPage, { ended: closeWindows, destroyed: closeWindows });
     }
 
-    // The page of deck's a page answers to: a mod's or one that runs no mod, or the mod's page that shows it as a web
-    // page, so a keystroke in the web page is the mod page's.
+    // The page of deckit's a page answers to: a mod's or one that runs no mod, or the mod's page that shows it as a
+    // web page, so a keystroke in the web page is the mod page's.
     function pageFor(page) {
         if (IDENTITY.modOf(page) || IDENTITY.pageNameOf(page)) return page;
         const held = WEB.holderOf(page);
@@ -288,8 +288,8 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         });
     }
 
-    // Whether a site may have `name` in a session, `{ mod, name }` or null for one that is no mod's: what it is let have
-    // without asking, or what the mod let it have when it is asked.
+    // Whether a site may have `name` in a session, `{ mod, name }` or null for one that is no mod's: what it is let
+    // have without asking, or what the mod let it have when it is asked.
     function permits(session, origin, name) {
         const rule = SITE_PERMISSION.ruleOf(name);
         if (rule !== 'ask') return rule === 'allow' || rule === 'checked';
@@ -305,8 +305,8 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             .map((key) => key.slice(prefix.length, -name.length - 1));
     }
 
-    // What a site asks: refused when it asks for nothing deck names or for something it is never let have, let through
-    // when it is all it is let have without asking, and otherwise asked of the mod showing it.
+    // What a site asks: refused when it asks for nothing deckit names or for something it is never let have, let
+    // through when it is all it is let have without asking, and otherwise asked of the mod showing it.
     function request(embedder, id, { origin, permissions }) {
         const rules = permissions.map(SITE_PERMISSION.ruleOf);
         if (!permissions.length || rules.some((rule) => rule === 'refuse' || rule === 'checked'))

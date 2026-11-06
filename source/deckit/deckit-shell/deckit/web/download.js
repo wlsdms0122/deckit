@@ -2,7 +2,7 @@ import * as OPEN_PERMISSION from '../open/model/permission.js';
 
 // The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's and any
 // older one still under way. The mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id
-// deck gives it, for its list and for one to be stopped or forgotten, and, with system.file-handlers as for any file,
+// deckit gives it, for its list and for one to be stopped or forgotten, and, with system.file-handlers as for any file,
 // shown in Finder or opened in its app. A download stays the mod's it started for, whatever becomes of its page. Before
 // it is saved, the mod's page is asked whether to save it (`saving`). `web` and `open` are the environment's: what
 // stops a download, and what shows and opens a file.

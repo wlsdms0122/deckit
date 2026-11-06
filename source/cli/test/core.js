@@ -1,4 +1,4 @@
-// Deck's client of the core (deckit-shell/deck/core), checked over a stand-in for how the environment reaches the
+// Deckit's client of the core (deckit-shell/deckit/core), checked over a stand-in for how the environment reaches the
 // core: what it sends first, how it waits for that, what an answer and a refusal come to, and that a core that ended
 // refuses everything after. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
 // imported as such.
@@ -22,7 +22,7 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    // The core as the environment gives it: what deck sends is kept, and the test answers for the core.
+    // The core as the environment gives it: what deckit sends is kept, and the test answers for the core.
     const sent = [];
     let listeners = null;
     const core = {
@@ -74,7 +74,7 @@ async function main() {
     );
     listeners.onLog('hello');
     check(
-        "the core's log goes to deck's",
+        "the core's log goes to deckit's",
         logged.some(([, a, b]) => a === 'core:' && b === 'hello'),
         logged
     );
