@@ -133,10 +133,6 @@ final class Server {
         case "catalog/interfaces":
             return deckit.catalog.interfaces
 
-        case "catalog/arrange":
-            try deckit.catalog.arrange(request.decodeParams(as: ArrangeCatalogParams.self).ids)
-            return true
-
         case "catalog/pin":
             let params = try request.decodeParams(as: PinCatalogParams.self)
             try deckit.catalog.pin(params.interface, to: params.mod)

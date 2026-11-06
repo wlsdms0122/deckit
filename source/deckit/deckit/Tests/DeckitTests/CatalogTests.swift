@@ -27,7 +27,7 @@ struct CatalogTests {
     }
 
     // MARK: - Test
-    @Test("each comes as the app ships it, then by id, whether it loads or not")
+    @Test("each comes in the order it was installed, then by id, whether it loads or not")
     func modsComeInOrder() throws {
         // Given
         try write("c", in: home.appending(path: "mods"))
@@ -133,80 +133,27 @@ struct CatalogTests {
         #expect(mods.map(\.data) == ["a", "b"].map { id in home.appending(path: "data/\(id)") })
     }
 
-    @Test("each comes where the order kept places it, which reading leaves as it is")
-    func orderIsKept() throws {
-        // Given
-        try write("a", in: source)
-        try write("b", in: source)
-        try write("c", in: source)
-        try write("d", in: source, main: nil)
-        let settings = home.appending(path: "deck.json")
-        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        try Data(#"{"order":["c","b","a"],"other":1}"#.utf8).write(to: settings)
-        let sut = try catalog(sources: [source])
-
-        // When
-        let mods = sut.read()
-
-        // Then
-        #expect(mods.map(\.manifest.id) == ["c", "b", "a", "d"])
-        #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"order":["c","b","a"],"other":1}"#)
-    }
-
-    @Test("installing or removing keeps the order: one installed takes its place, one removed leaves")
+    @Test("installing keeps the install order: one installed again keeps its place, one removed leaves it")
     func installKeepsOrder() throws {
         // Given
-        try write("a", in: home.appending(path: "mods"))
-        try write("c", in: home.appending(path: "mods"))
-        try write("b", in: source)
-        let settings = home.appending(path: "deck.json")
-        try Data(#"{"order":["c","a"],"other":1}"#.utf8).write(to: settings)
-        let sut = try catalog()
-
-        // When
-        _ = try sut.install(from: source.appending(path: "b"))
-        let installed = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
-        _ = try sut.remove("a")
-        let removed = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
-
-        // Then
-        #expect(installed == .object(["order": .array(["c", "a", "b"].map(JSONValue.string)), "other": .number(1)]))
-        #expect(removed == .object(["order": .array(["c", "b"].map(JSONValue.string)), "other": .number(1)]))
-    }
-
-    @Test("arranging moves the ids named among the places they held")
-    func arrangeMovesAmongPlaces() throws {
-        // Given
-        for id in ["a", "b", "c", "d", "e", "f", "g", "h"] {
+        for id in ["a", "b", "c"] {
             try write(id, in: source)
         }
-        let sut = try catalog(sources: [source])
+        try write("d", in: root.appending(path: "place"))
+        let sut = try catalog(sources: [root.appending(path: "place")])
 
         // When
-        try sut.arrange(["d", "f", "c", "x", "d", "e", "g", "h"])
+        for id in ["c", "a", "b", "c"] {
+            _ = try sut.install(from: source.appending(path: id))
+        }
+        let installed = sut.mods().map(\.manifest.id)
+        _ = try sut.remove("a")
+        _ = try sut.install(from: source.appending(path: "a"))
+        let again = sut.mods().map(\.manifest.id)
 
         // Then
-        #expect(sut.mods().map(\.manifest.id) == ["a", "b", "d", "f", "c", "e", "g", "h"])
-    }
-
-    @Test("a settings file that does not read as a JSON object is neither read for an order nor written over")
-    func unreadableSettingsStay() throws {
-        // Given
-        try write("b", in: source)
-        try write("a", in: source)
-        let settings = home.appending(path: "deck.json")
-        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        try Data(#"{"order":["b","a"],"#.utf8).write(to: settings)
-        let sut = try catalog(sources: [source])
-
-        // When
-        let mods = sut.read()
-        let refused = Result { try sut.arrange(["b", "a"]) }
-
-        // Then
-        #expect(mods.map(\.manifest.id) == ["a", "b"])
-        #expect(throws: DeckSettingsError.unreadable("deck.json")) { try refused.get() }
-        #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"order":["b","a"],"#)
+        #expect(installed == ["c", "a", "b", "d"])
+        #expect(again == ["c", "b", "a", "d"])
     }
 
     @Test("installing copies the folder as mods/<id>, replacing every copy before it, and changes the revision")
@@ -233,23 +180,20 @@ struct CatalogTests {
         #expect(!FileManager.default.fileExists(atPath: staging.path(percentEncoded: false)))
     }
 
-    @Test("installing what the app ships places what the order did not, and every place kept stays")
+    @Test("what the app ships is installed in the order it ships it, after what was installed before")
     func installShippedKeepsOrder() throws {
         // Given
         try write("x", in: source)
-        try write("a", in: ship)
         try write("b", in: ship)
-        let settings = home.appending(path: "deck.json")
-        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        try Data(#"{"order":["x","gone","b"]}"#.utf8).write(to: settings)
-        let sut = try catalog(sources: [source], ship: [ship.appending(path: "a"), ship.appending(path: "b")])
+        try write("a", in: ship)
+        let sut = try catalog(ship: [ship.appending(path: "b"), ship.appending(path: "a")])
+        _ = try sut.install(from: source.appending(path: "x"))
 
         // When
         _ = try sut.installShipped()
 
         // Then
-        let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
-        #expect(kept == .object(["order": .array(["x", "gone", "b", "a"].map(JSONValue.string))]))
+        #expect(sut.mods().map(\.manifest.id) == ["x", "b", "a"])
     }
 
     @Test("a folder that does not load, the installed one, or one a source hides is not installed")
@@ -407,8 +351,8 @@ struct CatalogTests {
         #expect(kept == gone)
     }
 
-    @Test("providers arriving at once queue in the app's ship order, then by id, and a mod that does not load is none")
-    func queueTiesComeInShipOrder() throws {
+    @Test("providers arriving at once queue in install order, then by id, and a mod that does not load is none")
+    func queueTiesComeInInstallOrder() throws {
         // Given
         try write("b", in: source, provides: ["x/api": [1]])
         try write("a", in: source, provides: ["x/api": [1]])
@@ -682,7 +626,6 @@ struct CatalogTests {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
-            order: Order(file: home.appending(path: "deck.json"), store: store),
             ownerTable: Deck(home: home).owners,
             startupList: StartupList(file: home.appending(path: "deck.json"), store: store),
             store: store

@@ -8,16 +8,17 @@
 import Foundation
 import Deck
 
-// The copies of mods in deck's mods folder, each installed whole as mods/<id>, and what the app ships installed by one
-// rule.
+// The copies of mods in deck's mods folder, each installed whole as mods/<id>, in the order they were installed, and
+// what the app ships installed by one rule.
 final class Installer {
     // MARK: - Property
     private let folder: URL
     // Beside the mods, on the same disk so an install ends in a rename, and outside them so a copy half made is never
     // read as a mod.
     private let staging: URL
-    // Inside the mods, so what removes them removes the list too.
+    // Inside the mods, so what removes them removes the lists too.
     private let shippedList: URL
+    private let installedList: URL
     private let ship: [URL]
     private let modFolder: ModFolder
     private let store: Store
@@ -31,6 +32,7 @@ final class Installer {
         self.folder = folder
         self.staging = home.appending(path: ".mods-installing")
         self.shippedList = folder.appending(path: ".shipped")
+        self.installedList = folder.appending(path: ".installed")
         self.ship = ship
         self.modFolder = modFolder
         self.store = store
@@ -80,6 +82,10 @@ final class Installer {
         }
         try FileManager.default.moveItem(at: staged, to: folder.appending(path: manifest.id))
         try store.remove(staging)
+        let order = installOrder()
+        if !order.contains(manifest.id) {
+            try write(order + [manifest.id], to: installedList)
+        }
 
         return manifest
     }
@@ -90,11 +96,17 @@ final class Installer {
         for copy in copies {
             try store.remove(copy)
         }
+        try write(installOrder().filter { installed in installed != id }, to: installedList)
+    }
+
+    // The ids installed, in the order each was first installed: one installed again keeps its place.
+    func installOrder() -> [String] {
+        read(installedList) ?? []
     }
 
     // The ids the app shipped at the last install of what it ships, or nil before the first.
     func shipped() -> Set<String>? {
-        store.read(shippedList).map { text in Set(text.split(separator: "\n").map(String.init)) }
+        read(shippedList).map(Set.init)
     }
 
     // What the app ships installed by one rule: a mod it shipped before and that is not installed now was removed by
@@ -136,6 +148,7 @@ final class Installer {
             for copy in dropped {
                 try store.remove(copy)
             }
+            try write(installOrder().filter { installed in installed != id }, to: installedList)
             reports.append(InstallReport(id: id, outcome: .dropped))
         }
         for id in taken {
@@ -154,12 +167,21 @@ final class Installer {
         // A left out id stays on the list, so its absence keeps meaning it was removed.
         let now = installed()
         let list = order.filter { id in failures[id] == nil || now[id] != nil }
-        try store.write(list.map { id in id + "\n" }.joined(), to: shippedList)
+        try write(list, to: shippedList)
 
         return reports
     }
 
     // MARK: - Private
+    // A list of ids, one a line, or nil while there is none.
+    private func read(_ list: URL) -> [String]? {
+        store.read(list).map { text in text.split(separator: "\n").map(String.init) }
+    }
+
+    private func write(_ ids: [String], to list: URL) throws {
+        try store.write(ids.map { id in id + "\n" }.joined(), to: list)
+    }
+
     // The installed copies of each mod, by id, whatever their folders are named, in the order they are read: the first
     // is the one read.
     private func installed() -> [String: [URL]] {

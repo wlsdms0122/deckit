@@ -9,9 +9,9 @@ import Foundation
 import Deck
 
 // Every mod deckit reads: those read in place from a source folder, ahead of an installed one of the same id, and the
-// installed ones. Each loads or says why not, and all come in their order. Each interface a mod provides has one
-// owner, the provider the person pinned or else the one that began to provide it first, as deck's owner table keeps
-// it from the jobs of the mods that load.
+// installed ones. Each loads or says why not, and all come in the order they were installed. Each interface a mod
+// provides has one owner, the provider the person pinned or else the one that began to provide it first, as deck's
+// owner table keeps it from the jobs of the mods that load.
 public final class Catalog {
     // MARK: - Property
     private let sources: [URL]
@@ -20,7 +20,6 @@ public final class Catalog {
     private let modFolder: ModFolder
     private let dataFolder: DataFolder
     private let installer: Installer
-    private let order: Order
     private let ownerTable: OwnerTable
     private let startupList: StartupList
     private let store: Store
@@ -32,9 +31,6 @@ public final class Catalog {
     public private(set) var interfaces: [InterfaceQueue] = []
     // Interface -> its owner, as the mods were last read.
     private(set) var owners: [String: String] = [:]
-    // The mods that stand in a list, as they were last read: those that load by their own manifest, whether they run or
-    // not.
-    public private(set) var listed: [Mod] = []
     // Those of them that load, in their order.
     public var loading: [Mod] {
         lastRead.filter { mod in mod.problem == nil }
@@ -50,7 +46,6 @@ public final class Catalog {
         modFolder: ModFolder,
         dataFolder: DataFolder,
         installer: Installer,
-        order: Order,
         ownerTable: OwnerTable,
         startupList: StartupList,
         store: Store
@@ -61,15 +56,13 @@ public final class Catalog {
         self.modFolder = modFolder
         self.dataFolder = dataFolder
         self.installer = installer
-        self.order = order
         self.ownerTable = ownerTable
         self.startupList = startupList
         self.store = store
     }
 
     // MARK: - Public
-    // Every mod in the order, whether it loads or not: each as the order kept places it; one it does not place goes
-    // where the app ships it, and one the app does not ship goes last, by id.
+    // Every mod, whether it loads or not, in the order they were installed, and one not installed last, by id.
     func mods() -> [Mod] {
         let found = ranked()
         return resolve(found, ownership: joined(ownerTable.ownership, by: found)).mods
@@ -79,9 +72,8 @@ public final class Catalog {
     func read() -> [Mod] {
         let found = ranked()
         let ownership = keptOwnership(of: found)
-        (lastRead, interfaces, listed) = resolve(found, ownership: ownership)
+        (lastRead, interfaces) = resolve(found, ownership: ownership)
         owners = ownership.owners()
-        listed = listed.compactMap { mod in lastRead.first { read in read.manifest.id == mod.manifest.id } }
 
         return lastRead
     }
@@ -125,24 +117,6 @@ public final class Catalog {
         try ownerTable.pin(interface, to: id)
     }
 
-    // The ids named take the places they held among themselves in the mods' order, in the order given; the rest stay
-    // put.
-    public func arrange(_ ids: [String]) throws {
-        let mods = ranked()
-        var seen: Set<String> = []
-        let moved = ids
-            .filter { id in seen.insert(id).inserted }
-            .compactMap { id in mods.first { mod in mod.manifest.id == id } }
-        let places = mods.indices.filter { place in
-            moved.contains { mod in mod.manifest.id == mods[place].manifest.id }
-        }
-        var next = mods
-        for (place, mod) in zip(places, moved) {
-            next[place] = mod
-        }
-        try order.write(next.map(\.manifest.id))
-    }
-
     public func planInstall(from source: URL) throws -> InstallPlan {
         try installer.planInstall(from: source, refuse: shadow)
     }
@@ -150,7 +124,7 @@ public final class Catalog {
     public func install(from source: URL) throws -> Manifest {
         let manifest = try installer.install(from: source, refuse: shadow)
         installs[manifest.id, default: 0] += 1
-        keepOrder(installed: [manifest.id])
+        keptOwnership(of: ranked())
 
         return manifest
     }
@@ -163,7 +137,7 @@ public final class Catalog {
         }
 
         try installer.remove(id)
-        keepOrder(removed: [id])
+        keptOwnership(of: ranked(), removed: [id])
         return store.isName(id)
     }
 
@@ -171,10 +145,7 @@ public final class Catalog {
     public func installShipped() throws -> [InstallReport] {
         let reports = try installer.installShipped()
         let installed = reports.filter { report in report.outcome == .installed }.map(\.id)
-        keepOrder(
-            installed: installed,
-            removed: reports.filter { report in report.outcome == .dropped }.map(\.id)
-        )
+        keptOwnership(of: ranked(), removed: reports.filter { report in report.outcome == .dropped }.map(\.id))
         let approvals = startupList.read()
         let asking = ship.map { source in modFolder.manifest(of: source) }
             .filter { manifest in manifest.background != nil && installed.contains(manifest.id) }
@@ -198,25 +169,18 @@ public final class Catalog {
     }
 
     // MARK: - Private
-    // The mods found, as `list()` reads them, as the order kept places them, then as the app ships them, then by id.
+    // The mods found, as `list()` reads them, in the order they were installed, then by id.
     private func ranked() -> [Mod] {
-        let kept = order.read()
-        let shipOrder = shipOrder()
-        let rank = { (id: String) in
-            (kept.firstIndex(of: id) ?? kept.count, shipOrder.firstIndex(of: id) ?? shipOrder.count, id)
-        }
+        let order = installer.installOrder()
+        let rank = { (id: String) in (order.firstIndex(of: id) ?? order.count, id) }
 
         return list().sorted { mod, other in rank(mod.manifest.id) < rank(other.manifest.id) }
     }
 
-    private func shipOrder() -> [String] {
-        ship.map { source in modFolder.manifest(of: source).id }
-    }
-
-    // `ownership` as the mods `found` provide now: those that load by their own manifest provide what it names, as
-    // they arrive at once in the order the app ships them, then by id, and one found with a problem keeps the places
-    // it holds and its pins. An id not found leaves when it was `removed`, and otherwise only while every mod found is
-    // who its manifest names: one whose manifest names no id may be any of them. The order is not looked at.
+    // `ownership` as the mods `found` provide now: those that load provide what their manifest names, as they arrive at
+    // once in their order, and one found with a problem keeps the places it holds and its pins. An id not found leaves
+    // when it was `removed`, and otherwise only while every mod found is who its manifest names: one whose manifest
+    // names no id may be any of them.
     private func joined(_ ownership: Ownership, by found: [Mod], removed: [String] = []) -> Ownership {
         ownership.joined(by: providers(in: found), keeping: kept(in: ownership, by: found, removed: removed))
     }
@@ -235,15 +199,9 @@ public final class Catalog {
         return kept
     }
 
-    // The jobs of the mods `found` that load, those that provide what they name, in the order the app ships them, then
-    // by id.
+    // The jobs of the mods `found` that load, those that provide what they name, in their order.
     private func providers(in found: [Mod]) -> [Job] {
-        let shipOrder = shipOrder()
-        let rank = { (id: String) in (shipOrder.firstIndex(of: id) ?? shipOrder.count, id) }
-
-        return found.filter { mod in mod.problem == nil }
-            .sorted { mod, other in rank(mod.manifest.id) < rank(other.manifest.id) }
-            .compactMap { mod in Job(mod) }
+        found.filter { mod in mod.problem == nil }.compactMap { mod in Job(mod) }
     }
 
     // The ownership deck keeps, as the mods `found` provide now and without those `removed`.
@@ -255,13 +213,10 @@ public final class Catalog {
         )
     }
 
-    // Every mod in the order, with what each interface it uses comes to, each interface's queue, and the mods that
-    // stand in a list. A provider is read among every mod found, one with a problem too.
-    private func resolve(
-        _ found: [Mod],
-        ownership: Ownership
-    ) -> (mods: [Mod], interfaces: [InterfaceQueue], listed: [Mod]) {
-        let listed = found.filter { mod in mod.problem == nil }
+    // Every mod in its order, with what each interface it uses comes to, and each interface's queue. A provider is read
+    // among every mod found, one with a problem too.
+    private func resolve(_ found: [Mod], ownership: Ownership) -> (mods: [Mod], interfaces: [InterfaceQueue]) {
+        let loading = found.filter { mod in mod.problem == nil }
         let manifests = found.map(\.manifest)
         let providers = self.providers(in: found)
         var mods = found
@@ -271,7 +226,7 @@ public final class Catalog {
                 use(of: interface, by: manifest, found: manifests, in: ownership)
             }
         }
-        let named = Set(ownership.queues.keys).union(listed.flatMap { mod in mod.manifest.uses.keys })
+        let named = Set(ownership.queues.keys).union(loading.flatMap { mod in mod.manifest.uses.keys })
         let interfaces = named.sorted().map { interface in
             let definer = interface.split(separator: "/").first.map(String.init)
             return queue(
@@ -283,25 +238,7 @@ public final class Catalog {
             )
         }
 
-        return (mods, interfaces, listed)
-    }
-
-    // The order kept with the mods `installed` that it did not place, each just before the first it places that
-    // comes after it now, and without those `removed`; every other place stays. The ownership is kept as the mods
-    // provide now, without those `removed`. A settings file that does not read as a JSON object keeps no order until
-    // it does, which arranging tells.
-    private func keepOrder(installed: [String] = [], removed: [String] = []) {
-        _ = keptOwnership(of: ranked(), removed: removed)
-        let before = order.read()
-        var kept = before.filter { id in !removed.contains(id) }
-        let current = mods().map(\.manifest.id)
-        for id in installed where !kept.contains(id) {
-            let after = current.firstIndex(of: id).map { place in Set(current[(place + 1)...]) } ?? []
-            kept.insert(id, at: kept.firstIndex { other in after.contains(other) } ?? kept.count)
-        }
-        if kept != before {
-            try? order.write(kept)
-        }
+        return (mods, interfaces)
     }
 
     // By id, the first folder of an id the one read. What the app ships and did not install, with no copy to read, is

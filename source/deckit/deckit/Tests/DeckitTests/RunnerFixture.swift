@@ -81,7 +81,6 @@ struct RunnerFixture {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            order: Order(file: settings, store: store),
             ownerTable: Deck(home: home).owners,
             startupList: StartupList(file: settings, store: store),
             store: store

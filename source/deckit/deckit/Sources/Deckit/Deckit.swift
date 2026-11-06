@@ -53,7 +53,6 @@ public final class Deckit {
             modFolder: modFolder,
             dataFolder: deck.dataFolder,
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
-            order: Order(file: settings, store: store),
             ownerTable: deck.owners,
             startupList: StartupList(file: settings, store: store),
             store: store
