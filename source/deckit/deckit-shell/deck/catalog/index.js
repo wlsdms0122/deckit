@@ -110,16 +110,10 @@ export function createCatalog({ CORE, LOG, files }) {
         return files.readText(mod.entry);
     }
 
-    // The text of the file `path` names inside the mod's folder, `/` separated as a manifest writes a path, or null
-    // when it names none there.
-    async function readFile(mod, path) {
-        const parts = String(path).split('/');
-        if (path.startsWith('/') || path.includes('\\') || parts.includes('..')) return null;
-        try {
-            return await files.readText([mod.folder, ...parts].join('/'));
-        } catch {
-            return null;
-        }
+    // The text of the file `path` names inside the folder of the mod `id` that loads, `/` separated as a manifest
+    // writes a path, or null when that is no file inside the folder, by a link too, as the core resolves it.
+    function readFile(id, path) {
+        return CORE.request('catalog/read-file', { mod: id, path });
     }
 
     // MARK: - Private

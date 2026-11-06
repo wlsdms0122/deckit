@@ -410,6 +410,35 @@ struct ServerTests {
         #expect(effects.count == 2)
     }
 
+    @Test("a file inside a mod's folder is read as its text, and one a link takes outside it as null")
+    func modFileIsRead() throws {
+        // Given
+        try mod("a")
+        let folder = URL(filePath: home + "source").appending(path: "a")
+        try Data("body {}".utf8).write(to: folder.appending(path: "page.css"))
+        try Data("secret".utf8).write(to: URL(filePath: home + "secret.css"))
+        try FileManager.default.createSymbolicLink(
+            at: folder.appending(path: "outside.css"),
+            withDestinationURL: URL(filePath: home + "secret.css")
+        )
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+
+        // When
+        let inside = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"catalog/read-file","params":{"mod":"a","path":"page.css"}}"#,
+            to: sut
+        )
+        let outside = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"catalog/read-file","params":{"mod":"a","path":"outside.css"}}"#,
+            to: sut
+        )
+
+        // Then
+        #expect(value(in: inside, at: "result") == .string("body {}"))
+        #expect(value(in: outside, at: "result") == .null)
+    }
+
     @Test("deckit's own methods answer through the server, as deck's do")
     func deckitMethodsAnswer() throws {
         // Given

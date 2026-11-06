@@ -158,6 +158,10 @@ final class Server {
             try deck.catalog.approveStartup(params.mod, params.approved)
             return true
 
+        case "catalog/read-file":
+            let params = try request.decodeParams(as: ReadFileParams.self)
+            return deck.catalog.text(of: params.path, in: params.mod) as any Encodable & Sendable
+
         case "catalog/install-shipped":
             return try deck.catalog.installShipped()
 

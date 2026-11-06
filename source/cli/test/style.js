@@ -1,7 +1,7 @@
 // The styles a page wears (deckit-shell/shell/style/main): what mods with deckit.styles declare and what their running
 // runs give every page, and what they give a mod's page by its id, from the mod itself and from any other, in the load
-// order. Exits 1 with a line for
-// each check that failed. The packages are ES modules, so they are imported as such.
+// order, and a declared file read as the core resolves it (deckit-shell/deck/catalog). Exits 1 with a line for each
+// check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -9,6 +9,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 
 async function main() {
     const { createStyle } = await import(url('deckit-shell', 'shell', 'style', 'main.js'));
+    const { createCatalog } = await import(url('deckit-shell', 'deck', 'catalog', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -60,6 +61,23 @@ async function main() {
     check("a page the shell made wears every page's styles alone", shell === 'a-declared,a-all,d-all', shell);
     const declared = current({}, { mod: 'b' }).join();
     check('a file a mod declares that is not there is left out', declared === 'a-declared,a-all,d-all', declared);
+
+    const asked = [];
+    const CORE = {
+        request: async (method, params) => {
+            asked.push({ method, params });
+            return method === 'catalog/read-file' && params.path === 'all.css' ? 'a-declared' : null;
+        },
+    };
+    const read = { readText: () => 'read here' };
+    const CATALOG = createCatalog({ CORE, LOG: { info() {}, warn() {}, error() {} }, files: read });
+    const texts = [await CATALOG.readFile('a', 'all.css'), await CATALOG.readFile('a', 'linked.css')];
+    check(
+        'a file a mod declares is read as the core resolves it in its folder, and none it refuses',
+        JSON.stringify(texts) === '["a-declared",null]' &&
+            JSON.stringify(asked[0]) === '{"method":"catalog/read-file","params":{"mod":"a","path":"all.css"}}',
+        { texts, asked }
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);

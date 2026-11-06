@@ -76,10 +76,7 @@ export function createApi({
                     return mod ? frozen(mod.contributes) : null;
                 },
                 // The text of a file inside the mod's folder, by its path there, or null for none.
-                readFile: async (id, path) => {
-                    const mod = CATALOG.mods().find((each) => each.id === id);
-                    return mod ? CATALOG.readFile(mod, path) : null;
-                },
+                readFile: CATALOG.readFile,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
                 modOf: (page) => IDENTITY.modOf(page)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.

@@ -68,6 +68,41 @@ struct CatalogTests {
         #expect(mods[3].contributes.isEmpty)
     }
 
+    @Test("a file read inside a mod's folder is one there, by a link too, and none outside it or of a mod that fails")
+    func fileIsReadInsideTheFolder() throws {
+        // Given
+        try write("a", in: source)
+        try write("b", in: source, main: nil)
+        let folder = source.appending(path: "a")
+        try FileManager.default.createDirectory(at: folder.appending(path: "styles"), withIntermediateDirectories: true)
+        try Data("body {}".utf8).write(to: folder.appending(path: "styles/page.css"))
+        try Data("secret".utf8).write(to: source.appending(path: "outside.css"))
+        try FileManager.default.createSymbolicLink(
+            at: folder.appending(path: "inside.css"),
+            withDestinationURL: folder.appending(path: "styles/page.css")
+        )
+        try FileManager.default.createSymbolicLink(
+            at: folder.appending(path: "outside.css"),
+            withDestinationURL: source.appending(path: "outside.css")
+        )
+        try Data("body {}".utf8).write(to: source.appending(path: "b/page.css"))
+        let sut = try catalog(sources: [source])
+        _ = sut.read()
+
+        // When
+        let texts = [
+            sut.text(of: "styles/page.css", in: "a"),
+            sut.text(of: "inside.css", in: "a"),
+            sut.text(of: "outside.css", in: "a"),
+            sut.text(of: "../outside.css", in: "a"),
+            sut.text(of: "styles", in: "a"),
+            sut.text(of: "page.css", in: "b")
+        ]
+
+        // Then
+        #expect(texts == ["body {}", "body {}", nil, nil, nil, nil])
+    }
+
     @Test("a mod read in place comes before an installed copy of its id, which it hides")
     func sourceHidesInstalled() throws {
         // Given

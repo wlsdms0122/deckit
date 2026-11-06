@@ -110,6 +110,16 @@ public final class Catalog {
         })
     }
 
+    // The text of the file `path` names inside the folder of the mod `id`, which loads as the mods were last read, or
+    // nil when that is no file inside the folder, by a link too.
+    public func text(of path: String, in id: String) -> String? {
+        guard let mod = loading.first(where: { mod in mod.manifest.id == id }),
+            let file = modFolder.file(path, in: mod.folder)
+        else { return nil }
+
+        return store.read(file)
+    }
+
     // As the person's: `id` owns `interface` from now on, whichever provider is first in its queue, until its pin is
     // cleared, for nil, or the mod leaves the queue. Refused for a mod that does not provide the interface now.
     // Settled once the mods are read again.
