@@ -73,8 +73,8 @@ public final class Deckit {
     }
 
     // What the runs come to once the catalog was read again.
-    public func reconnect() -> [Effect] {
-        deck.reconnect()
+    public func reconnect() throws -> [Effect] {
+        try observed(deck.reconnect())
     }
 
     // The background mods launch, as the catalog was last read and in its order.
@@ -113,11 +113,13 @@ public final class Deckit {
 
     // The `run`th run of `id` read its entry, while it launches: `summary` is what its page reported of it, as a
     // person reads it.
-    public func described(_ id: String, run number: Int, summary: JSONValue) -> [Effect] {
-        guard let run = deck.run(of: id), run.number == number, run.state == .launching else { return deck.reconnect() }
+    public func described(_ id: String, run number: Int, summary: JSONValue) throws -> [Effect] {
+        guard let run = deck.run(of: id), run.number == number, run.state == .launching else {
+            return try observed(deck.reconnect())
+        }
         runs.describe(run, summary: summary)
 
-        return [.keep(run)] + deck.reconnect()
+        return try observed([.keep(run)] + deck.reconnect())
     }
 
     // The `run`th run of `id` started, with what its page reported: `summary` as a person reads it, `contributions`
@@ -166,6 +168,11 @@ public final class Deckit {
 
     public func stopped(_ id: String, run: Int) throws -> [Effect] {
         try observed(deck.stopped(id, run: run))
+    }
+
+    // The `lifecycle`th lifecycle of the `run`th run of `id` has ended.
+    public func ended(_ id: String, run: Int, lifecycle: Int) throws -> [Effect] {
+        try observed(deck.ended(id, run: run, lifecycle: lifecycle))
     }
 
     // MARK: - Private

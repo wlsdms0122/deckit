@@ -171,7 +171,7 @@ final class Server {
             return true
 
         case "runner/reconnect":
-            return answered(deckit.reconnect(), by: deckit)
+            return answered(try deckit.reconnect(), by: deckit)
 
         case "runner/start":
             return answered(try deckit.start(), by: deckit)
@@ -188,7 +188,7 @@ final class Server {
 
         case "runner/described":
             let params = try request.decodeParams(as: DescribedParams.self)
-            return answered(deckit.described(params.mod, run: params.run, summary: params.summary), by: deckit)
+            return answered(try deckit.described(params.mod, run: params.run, summary: params.summary), by: deckit)
 
         case "runner/started":
             let params = try request.decodeParams(as: StartedParams.self)
@@ -234,7 +234,7 @@ final class Server {
 
         case "connection/end":
             let params = try request.decodeParams(as: LifecycleParams.self)
-            return answered(deck.ended(params.mod, run: params.run, lifecycle: params.lifecycle), by: deckit)
+            return answered(try deckit.ended(params.mod, run: params.run, lifecycle: params.lifecycle), by: deckit)
 
         case "connection/refuse":
             deck.connections.refuse(try request.decodeParams(as: ConnectionParams.self).connection)
