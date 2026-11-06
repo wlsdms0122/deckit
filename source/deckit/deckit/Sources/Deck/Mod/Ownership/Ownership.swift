@@ -59,28 +59,29 @@ struct Ownership: Equatable, Sendable {
         return Ownership(queues: queues, pins: pins)
     }
 
-    // The queue of `interface`, each provider read among `providers`, and `definer` the name of the mod that defines
-    // it.
-    func queue(of interface: String, providers: [Manifest], definer: String?) -> InterfaceQueue {
+    // The queue of `interface`, each provider read among `found`, the manifests of every mod found, and `definer` the
+    // name of the mod that defines it.
+    func queue(of interface: String, found: [Manifest], definer: String?) -> InterfaceQueue {
         InterfaceQueue(
             interface: interface,
             name: definer,
             owner: owner(of: interface),
             pinned: pins[interface] != nil,
             providers: (queues[interface] ?? []).compactMap { id in
-                providers.first { manifest in manifest.id == id }.map { manifest in
+                found.first { manifest in manifest.id == id }.map { manifest in
                     InterfaceProvider(id: id, name: manifest.name, majors: manifest.provides[interface] ?? [])
                 }
             }
         )
     }
 
-    // What `interface` comes to for `manifest`, which uses it, its owner read among `providers`. An owner whose
-    // manifest is not read as providing it, one kept with a problem, is told by its own problem.
-    func use(of interface: String, by manifest: Manifest, providers: [Manifest]) -> InterfaceUse {
+    // What `interface` comes to for `manifest`, which uses it, its owner read among `found`, the manifests of every
+    // mod found. An owner whose manifest is not read as providing it, one kept with a problem, is told by its own
+    // problem.
+    func use(of interface: String, by manifest: Manifest, found: [Manifest]) -> InterfaceUse {
         let major = manifest.uses[interface]!
         let owner = owner(of: interface).flatMap { id in
-            id == manifest.id ? nil : providers.first { provider in provider.id == id }
+            id == manifest.id ? nil : found.first { provider in provider.id == id }
         }
 
         return InterfaceUse(

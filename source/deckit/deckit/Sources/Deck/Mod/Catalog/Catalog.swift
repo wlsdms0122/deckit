@@ -264,12 +264,12 @@ public final class Catalog {
         ownership: Ownership
     ) -> (mods: [Mod], interfaces: [InterfaceQueue], listed: [Mod]) {
         let listed = found.filter { mod in mod.problem == nil }
-        let providers = found.map(\.manifest)
+        let manifests = found.map(\.manifest)
         var mods = DependencyGraph(found).ordered()
         for place in mods.indices {
             let manifest = mods[place].manifest
             mods[place].uses = manifest.uses.keys.sorted().map { interface in
-                ownership.use(of: interface, by: manifest, providers: providers)
+                ownership.use(of: interface, by: manifest, found: manifests)
             }
         }
         let named = Set(ownership.queues.keys).union(listed.flatMap { mod in mod.manifest.uses.keys })
@@ -277,7 +277,7 @@ public final class Catalog {
             let definer = interface.split(separator: "/").first.map(String.init)
             return ownership.queue(
                 of: interface,
-                providers: providers,
+                found: manifests,
                 definer: found.first { mod in mod.manifest.id == definer }?.manifest.name
             )
         }
