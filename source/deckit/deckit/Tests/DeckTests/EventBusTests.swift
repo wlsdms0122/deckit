@@ -29,10 +29,10 @@ struct EventBusTests {
         sut.listen(mod: "c", run: 1, names: ["a:other"])
 
         // When
-        let launching = sut.emit(mod: "a", run: 1, name: "status")
+        let launching = try sut.emit(mod: "a", run: 1, name: "status")
         _ = try runner.started("a", run: 1)
-        let running = sut.emit(mod: "a", run: 1, name: "status")
-        let older = sut.emit(mod: "a", run: 0, name: "status")
+        let running = try sut.emit(mod: "a", run: 1, name: "status")
+        let older = try sut.emit(mod: "a", run: 0, name: "status")
 
         // Then
         #expect(launching == EventDelivery(name: "a:status", listeners: []))
@@ -57,11 +57,11 @@ struct EventBusTests {
         _ = try runner.stopped("b", run: 1)
         _ = try runner.load(["b"])
         sut.dropEnded()
-        let relaunched = sut.emit(mod: "a", run: 1, name: "status")
+        let relaunched = try sut.emit(mod: "a", run: 1, name: "status")
         sut.listen(mod: "b", run: 1, names: ["a:status"])
-        let older = sut.emit(mod: "a", run: 1, name: "status")
+        let older = try sut.emit(mod: "a", run: 1, name: "status")
         sut.listen(mod: "b", run: 2, names: ["a:status"])
-        let listening = sut.emit(mod: "a", run: 1, name: "status")
+        let listening = try sut.emit(mod: "a", run: 1, name: "status")
 
         // Then
         #expect(relaunched.listeners.isEmpty)
@@ -78,14 +78,16 @@ struct EventBusTests {
         let runner = try fixture.runner()
         let sut = EventBus(runner: runner)
         _ = try runner.load(["a", "b", "c"])
+        _ = try runner.started("a", run: 1)
+        _ = try runner.started("c", run: 1)
 
         // When
         sut.listen(mod: "a", run: 1, names: ["a:status", "a/api:owner-changed", "c:status"])
         sut.listen(mod: "b", run: 1, names: ["a:status", "a/api:owner-changed"])
         sut.listen(mod: "c", run: 1, names: ["a:status", "c:status"])
-        let status = sut.announce("a:status")
-        let owner = sut.announce("a/api:owner-changed")
-        let own = sut.announce("c:status")
+        let status = try sut.emit(mod: "a", run: 1, name: "status")
+        let owner = sut.announce(.owner, of: "a/api")
+        let own = try sut.emit(mod: "c", run: 1, name: "status")
 
         // Then
         #expect(status.listeners == ["a"])
@@ -107,12 +109,37 @@ struct EventBusTests {
         sut.listen(mod: "b", run: 1, names: ["a/api:posted"])
 
         // When
-        let owner = sut.emit(mod: "a", run: 1, name: "a/api:posted")
-        let other = sut.emit(mod: "b", run: 1, name: "a/api:posted")
+        let owner = try sut.emit(mod: "a", run: 1, name: "a/api:posted")
+        let other = try sut.emit(mod: "b", run: 1, name: "a/api:posted")
 
         // Then
         #expect(owner == EventDelivery(name: "a/api:posted", listeners: ["a", "b"]))
         #expect(other == EventDelivery(name: "b:a/api:posted", listeners: []))
+    }
+
+    @Test("the owner of an interface sends no signal named as deck tells of the interface, and another mod may")
+    func ownerSendsNoReservedSignal() throws {
+        // Given
+        try fixture.write("a", provides: ["a/api": [1]])
+        try fixture.write("b", uses: ["a/api": 1])
+        let runner = try fixture.runner()
+        let sut = EventBus(runner: runner)
+        _ = try runner.load(["a", "b"])
+        _ = try runner.started("a", run: 1)
+        _ = try runner.started("b", run: 1)
+        sut.listen(mod: "b", run: 1, names: ["a/api:owner-changed", "a/api:contributions-changed"])
+
+        // When
+        let owner = Result { try sut.emit(mod: "a", run: 1, name: "a/api:owner-changed") }
+        let contributions = Result { try sut.emit(mod: "a", run: 1, name: "a/api:contributions-changed") }
+        let other = try sut.emit(mod: "b", run: 1, name: "a/api:owner-changed")
+        let announced = sut.announce(.owner, of: "a/api")
+
+        // Then
+        #expect(throws: EventError.reserved("a/api:owner-changed")) { try owner.get() }
+        #expect(throws: EventError.reserved("a/api:contributions-changed")) { try contributions.get() }
+        #expect(other == EventDelivery(name: "b:a/api:owner-changed", listeners: []))
+        #expect(announced == EventDelivery(name: "a/api:owner-changed", listeners: ["b"]))
     }
 
     // MARK: - Private

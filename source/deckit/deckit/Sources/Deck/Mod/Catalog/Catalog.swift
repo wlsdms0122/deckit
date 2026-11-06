@@ -71,7 +71,7 @@ public final class Catalog {
     // the app does not ship goes last, by id.
     func mods() -> [Mod] {
         let found = ranked()
-        return resolve(found, ownership: ownershipStore.read().joined(by: providers(in: found))).mods
+        return resolve(found, ownership: joined(ownershipStore.read(), by: found)).mods
     }
 
     // The mods, read and kept as read, with the ownership of each interface, which is kept as the mods provide now.
@@ -226,22 +226,27 @@ public final class Catalog {
         ship.map { source in modFolder.manifest(of: source).id }
     }
 
-    // The manifests of the mods `found` that load by their own manifest, as they arrive at once: in the order the app
-    // ships them, then by id. The order is not looked at.
-    private func providers(in found: [Mod]) -> [Manifest] {
+    // `ownership` as the mods `found` provide now: those that load by their own manifest provide what it names, as
+    // they arrive at once in the order the app ships them, then by id, and one found with a problem keeps the places
+    // it holds and its pins. The order is not looked at.
+    private func joined(_ ownership: Ownership, by found: [Mod]) -> Ownership {
         let shipOrder = shipOrder()
         let rank = { (id: String) in (shipOrder.firstIndex(of: id) ?? shipOrder.count, id) }
-
-        return found.filter { mod in mod.problem == nil }
+        let providers = found.filter { mod in mod.problem == nil }
             .map(\.manifest)
             .sorted { manifest, other in rank(manifest.id) < rank(other.id) }
+
+        return ownership.joined(
+            by: providers,
+            keeping: Set(found.filter { mod in mod.problem != nil }.map(\.manifest.id))
+        )
     }
 
     // The ownership kept, as the mods `found` provide now, written again when that changed it. A settings file that
     // does not read as a JSON object keeps none until it does.
     private func keptOwnership(of found: [Mod]) -> Ownership {
         let kept = ownershipStore.read()
-        let ownership = kept.joined(by: providers(in: found))
+        let ownership = joined(kept, by: found)
         if ownership != kept {
             try? ownershipStore.write(ownership)
         }
@@ -250,13 +255,13 @@ public final class Catalog {
     }
 
     // Every mod in the order, with what each interface it uses comes to, each interface's queue, and the mods that
-    // stand in a list.
+    // stand in a list. A provider is read among every mod found, one with a problem too.
     private func resolve(
         _ found: [Mod],
         ownership: Ownership
     ) -> (mods: [Mod], interfaces: [InterfaceQueue], listed: [Mod]) {
         let listed = found.filter { mod in mod.problem == nil }
-        let providers = listed.map(\.manifest)
+        let providers = found.map(\.manifest)
         var mods = DependencyGraph(found).ordered()
         for place in mods.indices {
             let manifest = mods[place].manifest
@@ -264,7 +269,7 @@ public final class Catalog {
                 ownership.use(of: interface, by: manifest, providers: providers)
             }
         }
-        let named = Set(providers.flatMap { manifest in Array(manifest.provides.keys) + Array(manifest.uses.keys) })
+        let named = Set(ownership.queues.keys).union(listed.flatMap { mod in mod.manifest.uses.keys })
         let interfaces = named.sorted().map { interface in
             let definer = interface.split(separator: "/").first.map(String.init)
             return ownership.queue(

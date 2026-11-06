@@ -94,16 +94,13 @@ struct CommandTokenTests {
         #expect(throws: CommandError.noSuchToken) { try sut.commands.check(token: "made-up") }
     }
 
-    @Test("a token ends once its sender, or the holder deckit handed it to, is not found")
-    func tokenEndsWithItsMods() throws {
+    @Test("a token its sender hands over ends once its sender is not found, whichever other mod is")
+    func tokenEndsWithItsSender() throws {
         // Given
         try fixture.write("a", contributes: declared)
         try fixture.write("b")
-        try fixture.write("c")
         let sut = try fixture.deckit()
         let handed = try sut.commands.mint("open", of: "a", args: args)
-        let held = try sut.commands.mint("open", of: "a", args: args, holder: "b")
-        let other = try sut.commands.mint("open", of: "a", args: args, holder: "c")
 
         // When
         try fixture.remove("b")
@@ -114,8 +111,6 @@ struct CommandTokenTests {
 
         // Then
         #expect(kept == handed)
-        #expect(throws: CommandError.noSuchToken) { try sut.commands.check(token: held.id) }
-        #expect(throws: CommandError.noSuchToken) { try sut.commands.check(token: other.id) }
         #expect(throws: CommandError.noSuchToken) { try sut.commands.check(token: handed.id) }
     }
 
@@ -132,7 +127,7 @@ struct CommandTokenTests {
         #expect(try sut.commands.check(token: minted.id) == minted)
     }
 
-    @Test("a token deckit hands a holder is handed again for the same command and args, and is the holder's")
+    @Test("a token deckit hands a holder is handed again for the same interface, command and args, and is the holder's")
     func heldTokenIsReused() throws {
         // Given
         try fixture.write("a", contributes: declared)
@@ -141,13 +136,16 @@ struct CommandTokenTests {
         let sut = try fixture.deckit()
 
         // When
-        let first = try sut.commands.mint("open", of: "a", args: args, holder: "b")
-        let again = try sut.commands.mint("open", of: "a", args: args, holder: "b")
-        let other = try sut.commands.mint("open", of: "a", args: args, holder: "c")
+        let first = try sut.commands.hand("open", of: "a", args: args, to: "b", for: "b/actions")
+        let again = try sut.commands.hand("open", of: "a", args: args, to: "b", for: "b/actions")
+        let elsewhere = try sut.commands.hand("open", of: "a", args: args, to: "b", for: "b/other")
+        let other = try sut.commands.hand("open", of: "a", args: args, to: "c", for: "b/actions")
         let handed = try sut.commands.mint("open", of: "a", args: args)
 
         // Then
         #expect(again == first)
+        #expect(first.holder == "b" && first.interface == "b/actions")
+        #expect(elsewhere.id != first.id)
         #expect(other.id != first.id)
         #expect(handed.id != first.id)
     }

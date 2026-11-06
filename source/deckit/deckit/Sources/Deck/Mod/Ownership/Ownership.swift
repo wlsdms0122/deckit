@@ -29,13 +29,14 @@ struct Ownership: Equatable, Sendable {
         queues.compactMapValues { ids in ids.first }.merging(pins) { _, pinned in pinned }
     }
 
-    // As `providers` provide now: a mod leaves the queue of an interface it no longer provides, or when it is not among
-    // them, and joins the end of the queue of one it begins to provide, those that join at once in the order given.
-    // One that keeps providing keeps its place. A pin goes as its mod leaves the queue.
-    func joined(by providers: [Manifest]) -> Ownership {
+    // As `providers` provide now, the mods in `kept` keeping the places they hold: a mod leaves the queue of an
+    // interface it no longer provides, or when it is in neither, and joins the end of the queue of one it begins to
+    // provide, those that join at once in the order given. One that keeps providing keeps its place. A pin goes as its
+    // mod leaves the queue.
+    func joined(by providers: [Manifest], keeping kept: Set<String>) -> Ownership {
         let provided = Dictionary(providers.map { manifest in (manifest.id, manifest) }) { first, _ in first }
         var queues = Dictionary(uniqueKeysWithValues: queues.map { interface, ids in
-            (interface, ids.filter { id in provided[id]?.provides[interface] != nil })
+            (interface, ids.filter { id in kept.contains(id) || provided[id]?.provides[interface] != nil })
         })
         for manifest in providers {
             for interface in manifest.provides.keys.sorted() where !(queues[interface] ?? []).contains(manifest.id) {
@@ -74,13 +75,13 @@ struct Ownership: Equatable, Sendable {
         )
     }
 
-    // What `interface` comes to for `manifest`, which uses it, its owner read among `providers`.
+    // What `interface` comes to for `manifest`, which uses it, its owner read among `providers`. An owner whose
+    // manifest is not read as providing it, one kept with a problem, is told by its own problem.
     func use(of interface: String, by manifest: Manifest, providers: [Manifest]) -> InterfaceUse {
         let major = manifest.uses[interface]!
         let owner = owner(of: interface).flatMap { id in
             id == manifest.id ? nil : providers.first { provider in provider.id == id }
         }
-        let majors = owner?.provides[interface] ?? []
 
         return InterfaceUse(
             interface: interface,
@@ -88,10 +89,12 @@ struct Ownership: Equatable, Sendable {
             owner: owner?.id,
             name: owner?.name,
             problem: owner.flatMap { owner in
-                majors.contains(major)
-                    ? nil
-                    : "uses \(interface) \(major), and its owner \(owner.id) provides it at "
-                        + majors.map(String.init).joined(separator: ", ") + ", so it reaches no one by it"
+                owner.provides[interface].flatMap { majors in
+                    majors.contains(major)
+                        ? nil
+                        : "uses \(interface) \(major), and its owner \(owner.id) provides it at "
+                            + majors.map(String.init).joined(separator: ", ") + ", so it reaches no one by it"
+                }
             }
         )
     }

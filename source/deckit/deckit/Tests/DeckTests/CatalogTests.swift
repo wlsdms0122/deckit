@@ -561,6 +561,44 @@ struct CatalogTests {
         #expect(loading == first)
     }
 
+    @Test("a provider found with a problem keeps its place and its pin, and leaves the queue once it is removed")
+    func providerWithProblemKeepsPlace() throws {
+        // Given
+        try write("a", in: source, provides: ["x/api": [1]])
+        try write("b", in: source, provides: ["x/api": [1]])
+        try write("c", in: source, provides: ["x/api": [1]])
+        let settings = home.appending(path: "deck.json")
+        let sut = try catalog(sources: [source])
+        _ = sut.read()
+        try sut.pin("x/api", to: "b")
+        let first = queues(of: sut)
+        let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+
+        // When
+        try Data("id = ".utf8).write(to: source.appending(path: "b/manifest.toml"))
+        try write("c", in: source, contributes: "[]", provides: ["x/api": [1]])
+        let problems = sut.read().filter { mod in mod.problem != nil }.map(\.manifest.id)
+        let broken = queues(of: sut)
+        let brokenOwner = sut.interfaces.map { queue in (queue.owner, queue.pinned) }
+        let keptBroken = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+        try write("b", in: source, provides: ["x/api": [1]])
+        try write("c", in: source, provides: ["x/api": [1]])
+        let read = queues(of: sut)
+        try FileManager.default.removeItem(at: source.appending(path: "b"))
+        let removed = queues(of: sut)
+        let removedOwner = sut.interfaces.map { queue in (queue.owner, queue.pinned) }
+
+        // Then
+        #expect(first == ["x/api": ["a", "b", "c"]])
+        #expect(problems == ["b", "c"])
+        #expect(broken == first)
+        #expect(brokenOwner.map(\.0) == ["b"] && brokenOwner.map(\.1) == [true])
+        #expect(keptBroken == kept)
+        #expect(read == first)
+        #expect(removed == ["x/api": ["a", "c"]])
+        #expect(removedOwner.map(\.0) == ["a"] && removedOwner.map(\.1) == [false])
+    }
+
     @Test("a pinned provider owns an interface until the pin is cleared or it leaves the queue, and only a provider is")
     func pinnedProviderOwns() throws {
         // Given

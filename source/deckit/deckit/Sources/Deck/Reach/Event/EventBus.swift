@@ -8,11 +8,11 @@
 import Foundation
 
 // Mods say what happened to them through deck, never to each other: an event is named after the mod that sent it, so
-// none speaks for another, and deck's own after the interface it tells of. The owner of an interface sends its
-// signals, `<interface>:<name>`, named after the interface. It goes to the runs that listen to it, and
-// only from a run that is running. A run hears only the names its manifest names, its own id, the ids in
-// [dependencies] and the interfaces it uses or provides, and listening to another name is ignored. A run that has
-// ended hears nothing.
+// none speaks for another, and deck's own after the interface it tells of. The owner of an interface sends its signals,
+// `<interface>:<name>`, named after the interface, and none of the names deck tells of the interface with. It goes to
+// the runs that listen to it, and only from a run that is running. A run hears only the names its manifest names, its
+// own id, the ids in [dependencies] and the interfaces it uses or provides, and listening to another name is ignored. A
+// run that has ended hears nothing.
 public final class EventBus {
     // MARK: - Property
     private let runner: Runner
@@ -36,9 +36,13 @@ public final class EventBus {
     }
 
     // The event `name` of the `number`th run of `id`, and the mods to tell it, none while that run is not running.
-    public func emit(mod id: String, run number: Int, name: String) -> EventDelivery {
-        let interface = ScopedName(name)?.modId
-        let scoped = interface.flatMap(runner.owner(of:)) == id ? name : ScopedName(modId: id, name: name).description
+    // Refused for a signal of an interface `id` owns named as deck tells of the interface.
+    public func emit(mod id: String, run number: Int, name: String) throws -> EventDelivery {
+        let signal = ScopedName(name).flatMap { signal in runner.owner(of: signal.modId) == id ? signal : nil }
+        if let signal, InterfaceChange(rawValue: signal.name) != nil {
+            throw EventError.reserved(name)
+        }
+        let scoped = signal == nil ? ScopedName(modId: id, name: name).description : name
         guard let run = runner.run(of: id), run.number == number, run.state == .running else {
             return EventDelivery(name: scoped, listeners: [])
         }
@@ -47,8 +51,9 @@ public final class EventBus {
         return EventDelivery(name: scoped, listeners: listeners.keys.sorted())
     }
 
-    // Deck's own event `name`, of no run, and the mods to tell it.
-    func announce(_ name: String) -> EventDelivery {
+    // Deck's own event, `change` of `interface`, of no run, and the mods to tell it.
+    func announce(_ change: InterfaceChange, of interface: String) -> EventDelivery {
+        let name = "\(interface):\(change.rawValue)"
         let listeners = listening.filter { _, listens in listens.names.contains(name) }
         return EventDelivery(name: name, listeners: listeners.keys.sorted())
     }

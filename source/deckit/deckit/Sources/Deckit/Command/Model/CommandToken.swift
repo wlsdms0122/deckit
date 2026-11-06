@@ -10,7 +10,8 @@ import Deck
 
 // One command of its sender's with the args it runs with, kept under an id deckit makes and no mod can: what a mod
 // hands another to run that command, and nothing else. Deckit keeps the args as the sender gave them and never reads
-// them. `holder` is the mod deckit handed it to itself, or nil for one the sender hands over.
+// them. `holder` is the mod deckit handed it to itself as the owner of `interface`, for an entry declared to it, both
+// nil for one the sender hands over.
 public struct CommandToken: Codable, Equatable, Sendable {
     // MARK: - Property
     public let id: String
@@ -18,6 +19,7 @@ public struct CommandToken: Codable, Equatable, Sendable {
     public let command: String
     public let args: JSONValue?
     public let holder: String?
+    public let interface: String?
 
     // MARK: - Initializer
     // MARK: - Public

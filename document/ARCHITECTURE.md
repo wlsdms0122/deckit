@@ -79,7 +79,7 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | who depends on whom, and the order the mods stand in | the core, `Deck/Mod/Catalog`, and `Deck/Mod/Order` for the order the person keeps, in `deck.json` |
 | which mods load or unload, and when | main, `deckit-shell/deck/runner/main.js` |
 | each mod in its sandbox, and where each run is in its lifecycle | the core, `Deck/Run/Runner`; main's copy, and the pages it does it with, `deckit-shell/deck/runner/main.js`; the page a mod runs in, `deckit-electron/environment/main.js` |
-| which mod owns each interface | the core, `Deck/Mod/Owner`, from the manifests' `provides`, each interface's queue of providers and the person's pins, kept in `deck.json` |
+| which mod owns each interface | the core, `Deck/Mod/Ownership`, from the manifests' `provides`, each interface's queue of providers and the person's pins, kept in `deck.json` |
 | which connections stand between mods, and whether a message on one goes | the core, `Deck/Reach/Connection`, from the manifests' `[dependencies]` and `uses`, the owner of each interface and what each run contributed; main carries the messages, `deckit-shell/deck/connection/main.js` |
 | what crosses a connection, and the references each one holds | each end's page, `deckit-shell/deck/connection/renderer.js` |
 | what the person can configure about a mod, and what each value takes | the core, `Deckit/Configuration`, from the `configuration` the mod's contributes declares, as the mods are read; main carries it, `deckit-shell/deckit/configuration/main.js` |
