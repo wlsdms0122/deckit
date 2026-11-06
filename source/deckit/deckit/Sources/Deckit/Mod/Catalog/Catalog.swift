@@ -186,7 +186,7 @@ public final class Catalog {
         )
         let approvals = startupList.read()
         let asking = ship.map { source in modFolder.manifest(of: source) }
-            .filter { manifest in manifest.startup != nil && installed.contains(manifest.id) }
+            .filter { manifest in manifest.background != nil && installed.contains(manifest.id) }
             .map(\.id)
         let approved = asking.filter { id in approvals[id] == nil }
         if !approved.isEmpty {
@@ -199,7 +199,7 @@ public final class Catalog {
     // As the person's: the mod runs from the app's start from then on, for `approved`, or does not. Refused for a mod
     // whose manifest does not ask to. Settled once the mods are read again.
     public func approveStartup(_ id: String, _ approved: Bool) throws {
-        guard list().contains(where: { mod in mod.manifest.id == id && mod.manifest.startup != nil }) else {
+        guard list().contains(where: { mod in mod.manifest.id == id && mod.manifest.background != nil }) else {
             throw StartupError.notAsked(id)
         }
 
@@ -383,7 +383,7 @@ public final class Catalog {
             data: dataFolder.folder(of: manifest.id),
             installed: installed,
             shipped: shipped,
-            startupApproved: approved && manifest.startup != nil,
+            startupApproved: approved && manifest.background != nil,
             problem: problem,
             hides: [],
             revision: revision.joined(separator: "\n"),

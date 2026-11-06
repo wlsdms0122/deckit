@@ -397,9 +397,9 @@ struct CatalogTests {
     @Test("what the app ships that asks to run from the start is approved as it installs, until the person decides")
     func shippedStartupIsApproved() throws {
         // Given
-        try write("a", in: ship, startup: "Runs a service")
+        try write("a", in: ship, background: "Runs a service")
         try write("b", in: ship)
-        try write("c", in: source, startup: "Runs a service")
+        try write("c", in: source, background: "Runs a service")
         let shipped = [ship.appending(path: "a"), ship.appending(path: "b")]
         let sut = try catalog(sources: [source], ship: shipped)
 
@@ -804,7 +804,7 @@ struct CatalogTests {
         version: String = "1.0.0",
         main: String? = "main.js",
         contributes: String? = nil,
-        startup: String? = nil,
+        background: String? = nil,
         provides: [String: [Int]] = [:],
         uses: [String: Int] = [:],
         requires: [String: String] = [:],
@@ -832,7 +832,7 @@ struct CatalogTests {
             api = "1.0.0"
             main = "\(main ?? "missing.js")"
             """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"")
-            + (startup.map { reason in "\nstartup = \"\(reason)\"" } ?? "") + relations + interfaces
+            + (background.map { reason in "\nbackground = \"\(reason)\"" } ?? "") + relations + interfaces
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         if let contributes {
             try Data(contributes.utf8).write(to: location.appending(path: "contributes.json"))

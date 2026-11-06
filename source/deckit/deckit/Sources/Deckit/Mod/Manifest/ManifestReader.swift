@@ -16,7 +16,7 @@ struct ManifestReader {
     let file = "manifest.toml"
 
     private let ownFields: Set<String> = [
-        "id", "name", "version", "api", "main", "contributes", "startup", "interfaces", "dependencies", "permissions"
+        "id", "name", "version", "api", "main", "contributes", "background", "interfaces", "dependencies", "permissions"
     ]
     private let parser = TOMLParser()
     private let store: Store
@@ -67,7 +67,7 @@ struct ManifestReader {
             api: string(of: raw["api"]),
             main: string(of: raw["main"]),
             contributes: string(of: raw["contributes"]),
-            startup: string(of: raw["startup"]),
+            background: string(of: raw["background"]),
             provides: provided(of: raw["interfaces"]),
             uses: used(of: raw["interfaces"]),
             dependencies: dependencies(of: raw["dependencies"]),
@@ -115,7 +115,7 @@ struct ManifestReader {
 
         return mainProblem(raw)
             ?? contributesProblem(raw)
-            ?? startupProblem(raw)
+            ?? backgroundProblem(raw)
             ?? interfacesProblem(raw)
             ?? dependenciesProblem(raw, id: id)
             ?? permissionsProblem(raw)
@@ -157,12 +157,12 @@ struct ManifestReader {
         return pathProblem(contributes, of: "contributes", example: example)
     }
 
-    // The reason it asks to run from the app's start, when it asks.
-    private func startupProblem(_ raw: [String: TOMLValue]) -> String? {
-        guard let written = raw["startup"] else { return nil }
+    // The reason it asks to run in the background, when it asks.
+    private func backgroundProblem(_ raw: [String: TOMLValue]) -> String? {
+        guard let written = raw["background"] else { return nil }
         guard case let .string(reason) = written, !isBlank(reason) else {
-            return "startup must be the reason the mod asks to run from the start, as text, as "
-                + "startup = \"Shows notifications as they come\""
+            return "background must be the reason the mod asks to run in the background, as text, as "
+                + "background = \"Shows notifications as they come\""
         }
 
         return nil

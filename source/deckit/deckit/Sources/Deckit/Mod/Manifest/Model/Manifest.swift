@@ -20,8 +20,8 @@ public struct Manifest: Sendable {
     public let main: String?
     // The file of what it declares by contribution point, a JSON object, which deck reads before the mod runs.
     public let contributes: String?
-    // Why it asks to run from the app's start, when it asks: the person approves it or not.
-    public let startup: String?
+    // Why it asks to run in the background, when it asks: the person approves it or not.
+    public let background: String?
     // Interface -> the majors of it the mod provides.
     public let provides: [String: [Int]]
     // Interface -> the major of it the mod uses.

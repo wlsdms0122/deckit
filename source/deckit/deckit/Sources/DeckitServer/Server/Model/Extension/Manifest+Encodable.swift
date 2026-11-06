@@ -39,7 +39,7 @@ extension Manifest: Encodable {
         try container.encode(api, forKey: Key("api"))
         try container.encode(main, forKey: Key("main"))
         try container.encode(contributes, forKey: Key("contributes"))
-        try container.encode(startup, forKey: Key("startup"))
+        try container.encode(background, forKey: Key("background"))
         try container.encode(provides, forKey: Key("provides"))
         try container.encode(uses, forKey: Key("uses"))
         try container.encode(dependencies, forKey: Key("dependencies"))

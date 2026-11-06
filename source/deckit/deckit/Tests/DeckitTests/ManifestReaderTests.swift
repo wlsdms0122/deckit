@@ -35,9 +35,9 @@ struct ManifestReaderTests {
             #"contributes must be a path inside the mod's folder, as contributes = "contributes.json", not 1"#
         ),
         (
-            minimal + #"startup = " ""#,
-            #"startup must be the reason the mod asks to run from the start, as text,"#
-                + #" as startup = "Shows notifications as they come""#
+            minimal + #"background = " ""#,
+            #"background must be the reason the mod asks to run in the background, as text,"#
+                + #" as background = "Shows notifications as they come""#
         ),
         (
             minimal + #"[dependencies]\#n"b/c" = "1.0.0""#,
@@ -139,7 +139,7 @@ struct ManifestReaderTests {
             version = "1.0.0"
             api = "1.1.0"
             main = "dist/main.js"
-            startup = "Keeps the pages in sync"
+            background = "Keeps the pages in sync"
             [interfaces]
             provides = { "notes/pages" = [1, 2], "files/open" = [0] }
             uses = { "notes/pages" = 2, "files/store" = 1 }
@@ -158,7 +158,7 @@ struct ManifestReaderTests {
         // Then
         #expect(sut.problem(of: text) == nil)
         #expect(manifest.id == "notes")
-        #expect(manifest.startup == "Keeps the pages in sync")
+        #expect(manifest.background == "Keeps the pages in sync")
         #expect(manifest.provides == ["notes/pages": [1, 2], "files/open": [0]])
         #expect(manifest.uses == ["notes/pages": 2, "files/store": 1])
         #expect(
