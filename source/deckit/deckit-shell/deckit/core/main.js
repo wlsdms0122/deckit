@@ -17,9 +17,8 @@ export function createCore({ FOLDERS, LOG, core, home }) {
     // MARK: - Initializer
     // MARK: - Public
     // Once the app is ready, before any mod launches: what the mods are read against is handed over then, `permissions`
-    // those the layers on this host define, with what the layers on deck hand the core as it starts (`layers`), which
-    // deck does not read.
-    function start({ permissions, layers = {} }) {
+    // those the layers on this host define.
+    function start({ permissions }) {
         connection = core.open({
             onMessage: receive,
             onLog: (line) => LOG.info('core:', line),
@@ -31,7 +30,6 @@ export function createCore({ FOLDERS, LOG, core, home }) {
             ship: FOLDERS.ship,
             sources: FOLDERS.sources,
             permissions,
-            ...layers,
         }).then((folders) => {
             kept = folders;
         });

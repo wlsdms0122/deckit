@@ -41,21 +41,13 @@ async function main() {
     const FOLDERS = { ship: ['/ship'], sources: [] };
     const CORE = createCore({ FOLDERS, LOG, core, home: '/home/deckit' });
 
-    CORE.start({
-        permissions: [{ id: 'a.b' }, { id: 'a.c' }],
-        layers: { handlers: { x: ['a'] } },
-    });
+    CORE.start({ permissions: [{ id: 'a.b' }, { id: 'a.c' }] });
     const early = outcome(CORE.request('catalog/read', {}));
     await tick();
     check('initialize goes first, alone', sent.length === 1 && sent[0].method === 'initialize', sent);
     check(
         'initialize carries the home and the permissions',
         sent[0].params.home === '/home/deckit' && sent[0].params.permissions[1].id === 'a.c',
-        sent[0].params
-    );
-    check(
-        'initialize carries what the layers hand the core as it is',
-        sent[0].params.handlers?.x?.join() === 'a',
         sent[0].params
     );
     answer(sent[0].id, {});
