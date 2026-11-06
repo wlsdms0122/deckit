@@ -54,7 +54,7 @@ struct GoldenTests {
             "a",
             in: "source",
             adding: "[interfaces]\nprovides = { \"a/api\" = [1], \"a/own\" = [1] }\n[permissions]\n"
-                + "\"system.global-keys\" = \"to test\"\n\"system.example\" = \"to test\"\n"
+                + "\"deckit.example\" = \"to test\"\n\"system.example\" = \"to test\"\n"
                 + "[[contributes.\"a/api\"]]\ntitle = \"Size\"\nsize = 12"
         )
         try writeMod("b", in: "source", adding: "[interfaces]\nuses = { \"a/api\" = 1, \"a/own\" = 1 }")

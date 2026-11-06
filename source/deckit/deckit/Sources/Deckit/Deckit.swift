@@ -23,8 +23,8 @@ public final class Deckit {
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
     // place. A manifest is read against `api`, the mod contract the mods are run with, `permissions`, those the
-    // layers the driver runs define, beside deckit's own, and `fields`, those the layers add to the manifest. `limit`
-    // is how often a mod's runs may fail, `now` the time a run fails at.
+    // layers the driver runs define, and `fields`, those the layers add to the manifest. `limit` is how often a mod's
+    // runs may fail, `now` the time a run fails at.
     public init(
         home: URL,
         ship: [URL],
@@ -39,7 +39,7 @@ public final class Deckit {
         let deck = Deck(home: home)
         let reader = try ManifestReader(
             api: api,
-            permissions: permissions + [.appKeys, .globalKeys],
+            permissions: permissions,
             fields: fields,
             store: store
         )
