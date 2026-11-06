@@ -5,7 +5,6 @@ import * as NOTIFICATION_PERMISSION from './deckit/notification/model/permission
 import * as KEYMAP_PERMISSION from './deckit/keymap/model/permission.js';
 import * as OPEN_PERMISSION from './deckit/open/model/permission.js';
 import * as COMMAND_PERMISSION from './deckit/command/model/permission.js';
-import * as MOD_PERMISSION from './deckit/permission/index.js';
 import * as STYLE_PERMISSION from './shell/style/model/permission.js';
 import * as FONTS_PERMISSION from './shell/fonts/model/permission.js';
 import * as WINDOW_PERMISSION from './shell/window/model/permission.js';
@@ -72,7 +71,6 @@ const ATTACH_ANSWERS = [
     'closeWindow',
 ];
 // The permissions each layer defines, in the order a person reads them.
-const DECK_PERMISSIONS = [MOD_PERMISSION];
 const DECKIT_PERMISSIONS = [
     MAIN_PROCESS_PERMISSION,
     WEB_PERMISSION,
@@ -246,8 +244,8 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const starting = []; // what starts with deckit, before any mod launches: the UI on it
     let started = false;
 
-    // What deck and deckit give, on every host.
-    for (const model of [...DECK_PERMISSIONS, ...DECKIT_PERMISSIONS])
+    // What deckit's passages give, on every host.
+    for (const model of DECKIT_PERMISSIONS)
         for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
     const answer = API.make({ onStart, restart: () => host.restart() });
     ENV.app.whenReady().then(start);

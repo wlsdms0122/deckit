@@ -1,15 +1,8 @@
-// The permissions deck checks itself, as a person reads them before installing.
+// Deckit's own permission, which Deckit defines itself: what a mod holds to drive mods, checked here too.
 const MODS = 'deckit.mods';
-const PERMISSIONS = Object.freeze([
-    Object.freeze({
-        id: MODS,
-        name: 'Mods',
-        means: 'It can see every installed mod, add one from a folder, which gets every permission it asks for, and delete installed ones, with what they stored.',
-    }),
-]);
 
-// The permissions the layers on this host define, each guarding what its layer adds and checked there. Deck knows
-// none of them: it reads every manifest against them, and one no layer defines is not usable here.
+// The permissions the layers on this host define, each guarding what its layer adds and checked there. The core
+// reads every manifest against them beside its own, and one neither defines is not usable here.
 export function createPermission() {
     // MARK: - Property
     const defined = []; // `{ id, name, means }`, in the order each was defined
@@ -39,4 +32,4 @@ export function createPermission() {
     return { define, all };
 }
 
-export { MODS, PERMISSIONS };
+export { MODS };
