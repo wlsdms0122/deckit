@@ -186,30 +186,14 @@ final class Server {
         case "runner/unload":
             return answered(try deckit.unload(request.decodeParams(as: ModsParams.self).mods), by: deckit)
 
-        case "runner/described":
-            let params = try request.decodeParams(as: DescribedParams.self)
-            return answered(try deckit.described(params.mod, run: params.run, summary: params.summary), by: deckit)
-
         case "runner/started":
             let params = try request.decodeParams(as: StartedParams.self)
-            let effects = try deckit.started(
-                params.mod,
-                run: params.run,
-                summary: params.summary,
-                contributions: params.contributions,
-                layers: params.layers
-            )
+            let effects = try deckit.started(params.mod, run: params.run, contributions: params.contributions)
             return answered(effects, by: deckit)
 
         case "runner/joined":
             let params = try request.decodeParams(as: StartedParams.self)
-            let effects = try deckit.joined(
-                params.mod,
-                run: params.run,
-                summary: params.summary,
-                contributions: params.contributions,
-                layers: params.layers
-            )
+            let effects = try deckit.joined(params.mod, run: params.run, contributions: params.contributions)
             return answered(effects, by: deckit)
 
         case "runner/problem":

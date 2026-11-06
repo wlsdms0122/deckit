@@ -4,7 +4,6 @@
 {"id":86,"jsonrpc":"2.0","method":"catalog/interfaces"}
 {"id":93,"jsonrpc":"2.0","method":"runner/start"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a","b","c"]}}
-{"id":50,"jsonrpc":"2.0","method":"runner/described","params":{"mod":"a","run":1,"summary":{"keywords":["alpha"]}}}
 {"id":81,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":0,"mod":"a","run":1}}
 {"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":{"a/api":0,"a/own":0},"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"}],"urls":true},"mod":"a","run":1,"summary":{"x":true}}}
 {"id":7,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["b"]}}

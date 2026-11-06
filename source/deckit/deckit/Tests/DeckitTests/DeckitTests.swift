@@ -122,13 +122,7 @@ struct DeckitTests {
         _ = try sut.deck.connections.begin(mod: "c", run: 1, lifecycle: 0)
 
         // When
-        let effects = try sut.started(
-            "c",
-            run: 1,
-            summary: .null,
-            contributions: Contribution(exportedIn: [:], awaits: ["p/api": 0]),
-            layers: [:]
-        )
+        let effects = try sut.started("c", run: 1, contributions: Contribution(exportedIn: [:], awaits: ["p/api": 0]))
 
         // Then
         #expect(effects.contains { effect in

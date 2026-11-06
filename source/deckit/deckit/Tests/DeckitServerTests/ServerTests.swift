@@ -258,7 +258,7 @@ struct ServerTests {
         )
     }
 
-    @Test("what a run contributed comes back with it, the layers' too, and a user connects to its exports")
+    @Test("what a run contributed comes back with it as deck reads it, and a user connects to its exports")
     func contributionsRoundTrip() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
@@ -290,9 +290,8 @@ struct ServerTests {
             return
         }
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
-        #expect(value(in: told, at: "summary", "x") == .bool(true))
-        #expect(value(in: told, at: "contributions", "layer") == .array([.string("a")]))
-        #expect(value(in: told, at: "contributions", "exportedIn") == .object(["dep/api": .number(0)]))
+        #expect(value(in: told, at: "summary") == nil)
+        #expect(value(in: told, at: "contributions") == (try json(#"{"exportedIn":{"dep/api":0},"awaits":{}}"#)))
         #expect(
             value(in: connected, at: "result")
                 == (try json(

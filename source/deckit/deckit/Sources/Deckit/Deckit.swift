@@ -111,47 +111,14 @@ public final class Deckit {
         return try observed(deck.unload(ending))
     }
 
-    // The `run`th run of `id` read its entry, while it launches: `summary` is what its page reported of it, as a
-    // person reads it.
-    public func described(_ id: String, run number: Int, summary: JSONValue) throws -> [Effect] {
-        guard let run = deck.run(of: id), run.number == number, run.state == .launching else {
-            return try observed(deck.reconnect())
-        }
-        runs.describe(run, summary: summary)
-
-        return try observed([.keep(run)] + deck.reconnect())
+    // The `run`th run of `id` started, with what it contributes.
+    public func started(_ id: String, run number: Int, contributions: Contribution) throws -> [Effect] {
+        try observed(deck.started(id, run: number, contributions: contributions))
     }
 
-    // The `run`th run of `id` started, with what its page reported: `summary` as a person reads it, `contributions`
-    // what deck reads and `layers` what the layers above read, which deckit keeps for them.
-    public func started(
-        _ id: String,
-        run number: Int,
-        summary: JSONValue,
-        contributions: Contribution,
-        layers: [String: JSONValue]
-    ) throws -> [Effect] {
-        let launching = deck.run(of: id).map { run in run.number == number && run.state == .launching } ?? false
-        let effects = try deck.started(id, run: number, contributions: contributions)
-        if launching {
-            contributed(id, run: number, summary: summary, layers: layers)
-        }
-
-        return try observed(effects)
-    }
-
-    // What the running `run`th run of `id` contributes now, with what its page reported.
-    public func joined(
-        _ id: String,
-        run number: Int,
-        summary: JSONValue,
-        contributions: Contribution,
-        layers: [String: JSONValue]
-    ) throws -> [Effect] {
-        let effects = try deck.joined(id, run: number, contributions: contributions)
-        contributed(id, run: number, summary: summary, layers: layers)
-
-        return try observed(effects)
+    // What the running `run`th run of `id` contributes now.
+    public func joined(_ id: String, run number: Int, contributions: Contribution) throws -> [Effect] {
+        try observed(deck.joined(id, run: number, contributions: contributions))
     }
 
     public func report(_ id: String, run: Int, problem: String) throws -> [Effect] {
@@ -176,12 +143,6 @@ public final class Deckit {
     }
 
     // MARK: - Private
-    // What the running `number`th run of `id` contributes for the layers above is kept.
-    private func contributed(_ id: String, run number: Int, summary: JSONValue, layers: [String: JSONValue]) {
-        guard let run = deck.run(of: id), run.number == number, run.state == .running else { return }
-        runs.contribute(run, summary: summary, contributions: layers)
-    }
-
     // The jobs of the mods named that load, as the catalog was last read and in its order, but for those at the
     // relaunch limit.
     private func jobs(of ids: [String]) -> [Job] {

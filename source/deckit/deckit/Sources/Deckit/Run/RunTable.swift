@@ -28,17 +28,6 @@ public final class RunTable {
         entries[run.modId] = RunEntry(number: run.number)
     }
 
-    func describe(_ run: Run, summary: JSONValue) {
-        update(run) { entry in entry.summary = summary }
-    }
-
-    func contribute(_ run: Run, summary: JSONValue, contributions: [String: JSONValue]) {
-        update(run) { entry in
-            entry.summary = summary
-            entry.contributions = contributions
-        }
-    }
-
     func limitRelaunch(_ run: Run) {
         update(run) { entry in entry.relaunchLimited = true }
     }
