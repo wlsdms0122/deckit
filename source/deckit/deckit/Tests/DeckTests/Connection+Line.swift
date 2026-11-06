@@ -10,10 +10,10 @@ import Foundation
 
 extension Connection {
     // MARK: - Property
-    // `<id> <dependent mod>#<run>@<lifecycle> -> <dependency mod>#<run>@<lifecycle>`, and ` required` for a required one.
+    // `<id> <dependent mod>#<run>@<lifecycle> -> <dependency mod>#<run>@<lifecycle>`.
     var line: String {
         let end = { (endpoint: Endpoint) in "\(endpoint.modId)#\(endpoint.run)@\(endpoint.lifecycle)" }
-        return "\(id) \(end(dependent)) -> \(end(dependency))" + (required ? " required" : "")
+        return "\(id) \(end(dependent)) -> \(end(dependency))"
     }
 
     // MARK: - Initializer

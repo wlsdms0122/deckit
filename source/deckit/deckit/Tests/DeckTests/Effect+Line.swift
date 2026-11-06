@@ -13,8 +13,8 @@ extension Effect {
     // The effect in one line, as a test compares it.
     var line: String {
         switch self {
-        case let .open(mod):
-            "open \(mod.manifest.id)"
+        case let .open(job):
+            "open \(job.modId)"
 
         case let .loadPage(modId):
             "loadPage \(modId)"
@@ -47,8 +47,8 @@ extension Effect {
         case let .deliver(delivery):
             "deliver \(delivery.name) to \(delivery.listeners.joined(separator: ", "))"
 
-        case let .layer(change):
-            "layer \(type(of: change))"
+        case let .wait(name, dependent, provider):
+            "wait \(dependent.modId)#\(dependent.run)@\(dependent.lifecycle) for \(provider) by \(name)"
         }
     }
 

@@ -12,19 +12,20 @@ import Testing
 @Suite("EventBus")
 struct EventBusTests {
     // MARK: - Property
-    private let fixture = RunnerFixture("event-bus-tests")
+    private let runner = Runner()
+    private let owners = OwnerTable.fixture("event-bus-tests")
+    private let sut: EventBus
 
     // MARK: - Initializer
+    init() {
+        sut = EventBus(runner: runner, owners: owners)
+    }
+
     // MARK: - Test
     @Test("an event goes, named after its mod, to the runs that listen to it, and only from a run that is running")
     func eventGoesToItsListeners() throws {
         // Given
-        try fixture.write("a")
-        try fixture.write("b", optional: ["a": "1.0.0"])
-        try fixture.write("c", optional: ["a": "1.0.0"])
-        let runner = try fixture.runner()
-        let sut = EventBus(runner: runner)
-        _ = try runner.load(["a", "b", "c"])
+        _ = try runner.load([.fixture("a"), .fixture("b", reaches: ["a"]), .fixture("c", reaches: ["a"])])
         sut.listen(mod: "b", run: 1, names: ["a:status"])
         sut.listen(mod: "c", run: 1, names: ["a:other"])
 
@@ -43,11 +44,8 @@ struct EventBusTests {
     @Test("a run that has ended hears nothing, and what an older run listens to is not taken")
     func endedRunHearsNothing() throws {
         // Given
-        try fixture.write("a")
-        try fixture.write("b", optional: ["a": "1.0.0"])
-        let runner = try fixture.runner()
-        let sut = EventBus(runner: runner)
-        _ = try runner.load(["a", "b"])
+        let b = Job.fixture("b", reaches: ["a"])
+        _ = try runner.load([.fixture("a"), b])
         _ = try runner.started("a", run: 1)
         _ = try runner.started("b", run: 1)
         sut.listen(mod: "b", run: 1, names: ["a:status"])
@@ -55,7 +53,7 @@ struct EventBusTests {
         // When
         _ = try runner.unload(["b"])
         _ = try runner.stopped("b", run: 1)
-        _ = try runner.load(["b"])
+        _ = try runner.load([b])
         sut.dropEnded()
         let relaunched = try sut.emit(mod: "a", run: 1, name: "status")
         sut.listen(mod: "b", run: 1, names: ["a:status"])
@@ -69,15 +67,14 @@ struct EventBusTests {
         #expect(listening.listeners == ["b"])
     }
 
-    @Test("a run hears only names of its own id, its dependencies and the interfaces it uses or provides")
-    func runHearsWhatItsManifestNames() throws {
+    @Test("a run hears only names of its own id, the ids it reaches and the interfaces it uses or provides")
+    func runHearsWhatItsJobNames() throws {
         // Given
-        try fixture.write("a", provides: ["a/api": [1]])
-        try fixture.write("b", uses: ["a/api": 1])
-        try fixture.write("c")
-        let runner = try fixture.runner()
-        let sut = EventBus(runner: runner)
-        _ = try runner.load(["a", "b", "c"])
+        _ = try runner.load([
+            .fixture("a", provides: ["a/api": [1]]),
+            .fixture("b", uses: ["a/api": 1]),
+            .fixture("c")
+        ])
         _ = try runner.started("a", run: 1)
         _ = try runner.started("c", run: 1)
 
@@ -98,11 +95,9 @@ struct EventBusTests {
     @Test("the owner of an interface sends a signal named after the interface, and another mod only its own event")
     func ownerSendsInterfaceSignals() throws {
         // Given
-        try fixture.write("a", provides: ["a/api": [1]])
-        try fixture.write("b", uses: ["a/api": 1])
-        let runner = try fixture.runner()
-        let sut = EventBus(runner: runner)
-        _ = try runner.load(["a", "b"])
+        let jobs = [Job.fixture("a", provides: ["a/api": [1]]), .fixture("b", uses: ["a/api": 1])]
+        owners.provide(jobs, keeping: [])
+        _ = try runner.load(jobs)
         _ = try runner.started("a", run: 1)
         _ = try runner.started("b", run: 1)
         sut.listen(mod: "a", run: 1, names: ["a/api:posted"])
@@ -120,24 +115,20 @@ struct EventBusTests {
     @Test("the owner of an interface sends no signal named as deck tells of the interface, and another mod may")
     func ownerSendsNoReservedSignal() throws {
         // Given
-        try fixture.write("a", provides: ["a/api": [1]])
-        try fixture.write("b", uses: ["a/api": 1])
-        let runner = try fixture.runner()
-        let sut = EventBus(runner: runner)
-        _ = try runner.load(["a", "b"])
+        let jobs = [Job.fixture("a", provides: ["a/api": [1]]), .fixture("b", uses: ["a/api": 1])]
+        owners.provide(jobs, keeping: [])
+        _ = try runner.load(jobs)
         _ = try runner.started("a", run: 1)
         _ = try runner.started("b", run: 1)
-        sut.listen(mod: "b", run: 1, names: ["a/api:owner-changed", "a/api:contributions-changed"])
+        sut.listen(mod: "b", run: 1, names: ["a/api:owner-changed"])
 
         // When
         let owner = Result { try sut.emit(mod: "a", run: 1, name: "a/api:owner-changed") }
-        let contributions = Result { try sut.emit(mod: "a", run: 1, name: "a/api:contributions-changed") }
         let other = try sut.emit(mod: "b", run: 1, name: "a/api:owner-changed")
         let announced = sut.announce(.owner, of: "a/api")
 
         // Then
         #expect(throws: EventError.reserved("a/api:owner-changed")) { try owner.get() }
-        #expect(throws: EventError.reserved("a/api:contributions-changed")) { try contributions.get() }
         #expect(other == EventDelivery(name: "b:a/api:owner-changed", listeners: []))
         #expect(announced == EventDelivery(name: "a/api:owner-changed", listeners: ["b"]))
     }

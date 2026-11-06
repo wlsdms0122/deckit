@@ -20,9 +20,7 @@ extension Runner {
         exportedIn: [String: Int] = [:],
         awaits: [String: Int] = [:]
     ) throws -> [Effect] {
-        let contributions = Contribution(exportedIn: exportedIn, awaits: awaits, layers: [:])
-
-        return try started(id, run: number, summary: .object([:]), contributions: contributions)
+        try started(id, run: number, contributions: Contribution(exportedIn: exportedIn, awaits: awaits))
     }
 
     // MARK: - Private

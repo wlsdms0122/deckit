@@ -12,32 +12,29 @@ import Testing
 @Suite("Deck")
 struct DeckTests {
     // MARK: - Property
-    private let fixture = RunnerFixture("deck-tests")
+    private let sut = Deck(
+        home: FileManager.default.temporaryDirectory.appending(path: "deck-tests-\(UUID().uuidString)")
+    )
 
     // MARK: - Initializer
     // MARK: - Test
     @Test("as an interface's owner changes, the runs that listen hear <interface>:owner-changed once it is reconnected")
     func ownerChangeIsDelivered() throws {
         // Given
-        try fixture.write("b", provides: ["x/api": [1]])
-        try fixture.write("c", provides: ["x/api": [1]])
-        try fixture.write("a", uses: ["x/api": 1])
-        try fixture.write("d")
-        let sut = try fixture.deck()
-        let started = try start("b", exportedIn: ["x/api": 0], sut: sut)
-            + start("c", exportedIn: ["x/api": 0], sut: sut)
-            + start("d", sut: sut)
-            + start("a", sut: sut)
+        let b = Job.fixture("b", provides: ["x/api": [1]])
+        let c = Job.fixture("c", provides: ["x/api": [1]])
+        let a = Job.fixture("a", uses: ["x/api": 1])
+        let d = Job.fixture("d")
+        sut.owners.provide([b, c, a, d], keeping: [])
+        let started = try start(b, exportedIn: ["x/api": 0]) + start(c, exportedIn: ["x/api": 0]) + start(d) + start(a)
         sut.events.listen(mod: "a", run: 1, names: ["x/api:owner-changed"])
         sut.events.listen(mod: "d", run: 1, names: ["x/api:other"])
 
         // When
-        try sut.catalog.pin("x/api", to: "c")
-        _ = sut.readCatalog()
+        try sut.owners.pin("x/api", to: "c")
         let pinned = sut.reconnect()
         let again = sut.reconnect()
-        try sut.catalog.pin("x/api", to: nil)
-        _ = sut.readCatalog()
+        try sut.owners.pin("x/api", to: nil)
         let cleared = sut.reconnect()
 
         // Then
@@ -60,13 +57,13 @@ struct DeckTests {
     }
 
     // MARK: - Private
-    // The mod loads, begins its first lifecycle and starts, the exports for each name in `exportedIn` opened in the
+    // The job loads, begins its first lifecycle and starts, the exports for each name in `exportedIn` opened in the
     // lifecycle given. Answers the effects of its load and its start.
-    private func start(_ id: String, exportedIn: [String: Int] = [:], sut: Deck) throws -> [Effect] {
-        let loaded = try sut.load([LaunchRequest(modId: id, origin: .person)])
-        _ = try sut.connections.begin(mod: id, run: 1, lifecycle: 0)
-        let contributions = Contribution(exportedIn: exportedIn, awaits: [:], layers: [:])
-        let started = try sut.started(id, run: 1, summary: .object([:]), contributions: contributions)
+    private func start(_ job: Job, exportedIn: [String: Int] = [:]) throws -> [Effect] {
+        let loaded = try sut.load([job])
+        _ = try sut.connections.begin(mod: job.modId, run: 1, lifecycle: 0)
+        let contributions = Contribution(exportedIn: exportedIn, awaits: [:])
+        let started = try sut.started(job.modId, run: 1, contributions: contributions)
 
         return loaded + started
     }

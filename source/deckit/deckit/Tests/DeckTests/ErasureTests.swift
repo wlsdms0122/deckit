@@ -15,7 +15,6 @@ struct ErasureTests {
     private let home: URL
     private let record: Record
     private let dataFolder: DataFolder
-    private let state: State
     private let modState: ModState
     private let sut: Erasure
 
@@ -25,11 +24,11 @@ struct ErasureTests {
         let store = Store()
         record = Record(folder: home.appending(path: "records"), store: store)
         dataFolder = DataFolder(folder: home.appending(path: "data"), store: store)
-        state = State(root: home.appending(path: "state"), store: store)
         modState = ModState(root: home.appending(path: "mod-state"), store: store)
         try modState.reserve("layer")
         let storage = ModStorage(dataFolder: dataFolder, record: record, modState: modState, store: store)
-        sut = Erasure(storage: storage, state: state, store: store)
+        let settings = DeckSettings(file: home.appending(path: "deck.json"), store: store)
+        sut = Erasure(storage: storage, settings: settings, store: store)
     }
 
     // MARK: - Test
@@ -72,7 +71,7 @@ struct ErasureTests {
         #expect(sut.uncleared() == ["notes"])
     }
 
-    @Test("a mod cleared is no longer noted, and what another is stays")
+    @Test("a mod cleared is no longer noted, and what another is stays, in deck.json under uncleared")
     func clearedTakesTheNote() throws {
         // Given
         try sut.erase(mod: "notes")
@@ -83,7 +82,8 @@ struct ErasureTests {
 
         // Then
         #expect(sut.uncleared() == ["other"])
-        #expect(try state.read(folder: nil, key: "uncleared") == #"["other"]"#)
+        let settings = try Data(contentsOf: home.appending(path: "deck.json"))
+        #expect(try JSONDecoder().decode([String: [String]].self, from: settings) == ["uncleared": ["other"]])
     }
 
     @Test("an id that is no mod's is refused, and nothing is noted")
