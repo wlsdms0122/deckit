@@ -121,6 +121,11 @@ public final class Deck {
         try withChanges(runner.load(requests))
     }
 
+    // What each mod named failed before is forgotten, which takes it off the relaunch limit.
+    public func resetLimit(_ ids: [String]) {
+        runner.resetLimit(ids)
+    }
+
     // The mods named unload.
     public func unload(_ ids: [String]) throws -> [Effect] {
         try withChanges(runner.unload(ids))

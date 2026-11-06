@@ -375,6 +375,41 @@ struct ServerTests {
         })
     }
 
+    @Test("a mod at the relaunch limit loads for no origin until its limit is reset")
+    func relaunchLimitResets() throws {
+        // Given
+        try mod("a")
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
+            + #""params":{"requests":[{"mod":"a","origin":{"kind":"person"}}]}}"#
+        for number in 1...5 {
+            _ = try send(load, to: sut)
+            _ = try send(
+                #"{"jsonrpc":"2.0","id":4,"method":"runner/crash","params":{"mod":"a","run":\#(number),"#
+                    + #""problem":"its page ended"}}"#,
+                to: sut
+            )
+        }
+
+        // When
+        let held = try send(load, to: sut)
+        let reset = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"runner/reset-limit","params":{"mods":["a"]}}"#,
+            to: sut
+        )
+        let loaded = try send(load, to: sut)
+
+        // Then
+        #expect(value(in: held, at: "result") == .array([]))
+        #expect(value(in: reset, at: "result") == .bool(true))
+        guard case let .array(effects)? = value(in: loaded, at: "result") else {
+            Issue.record("runner/load answered no effects: \(loaded)")
+            return
+        }
+        #expect(effects.count == 2)
+    }
+
     @Test("deckit's own methods answer through the server, as deck's do")
     func deckitMethodsAnswer() throws {
         // Given

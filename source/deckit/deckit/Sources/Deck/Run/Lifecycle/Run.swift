@@ -14,7 +14,8 @@ public struct Run: Sendable {
     public let number: Int
     public let origin: LaunchOrigin
     public private(set) var state: RunState = .launching
-    // Whether it ended failing: it did not start, or it crashed before its end was asked.
+    // Whether it ended failing: it did not start, or it crashed before its end was asked, not ended with a mod it
+    // requires.
     public private(set) var failed = false
     // Whether its mod reached the relaunch limit as it failed.
     public private(set) var relaunchLimited = false
@@ -75,11 +76,16 @@ public struct Run: Sendable {
         try move(.didTerminate)
     }
 
-    mutating func crash(_ problem: String) throws(LifecycleError) -> LifecycleNotification {
+    // `required` is the id of the mod it requires whose end ended it: a run ended so did not fail by itself.
+    mutating func crash(
+        _ problem: String,
+        with required: String? = nil
+    ) throws(LifecycleError) -> LifecycleNotification {
         let asked = state == .terminating
         let notification = try move(.crash)
         self.problem = self.problem ?? problem
-        failed = failed || !asked
+        endedWith = endedWith ?? required
+        failed = failed || (!asked && required == nil)
         return notification
     }
 

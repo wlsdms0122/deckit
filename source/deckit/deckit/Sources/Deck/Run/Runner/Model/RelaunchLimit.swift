@@ -7,8 +7,8 @@
 
 import Foundation
 
-// How often a mod's runs may fail before a request launches it again only as the person opens it: a mod reaches the
-// limit once `burst` of its runs failed within `interval` seconds, and stays at it until the person opens it.
+// How often a mod's runs may fail before a request launches it no more: a mod reaches the limit once `burst` of its
+// runs failed within `interval` seconds, and stays at it until its limit is reset.
 struct RelaunchLimit {
     // MARK: - Property
     let burst: Int
@@ -38,7 +38,7 @@ struct RelaunchLimit {
         return true
     }
 
-    // The person opened the mod: what it failed before is forgotten.
+    // What the mod failed before is forgotten.
     mutating func reset(_ id: String) {
         failures[id] = nil
         reached.remove(id)

@@ -8,7 +8,7 @@
 // as its page reported them as it started;
 // `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed;
 // `origin`, why it launched (origin.js, or work as the layer that asked for it describes it);
-// `failed`, whether it failed or crashed rather than ending as asked;
+// `failed`, whether it failed or crashed rather than ending as asked or with a mod it requires;
 // `relaunchLimited`, whether its mod reached the relaunch limit as it failed, so it loads again only as the person
 // opens it;
 // `endedWith`, the id of the mod it requires whose end ended it, or null;

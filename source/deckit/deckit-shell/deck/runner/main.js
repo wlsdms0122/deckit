@@ -121,6 +121,15 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return loadRequested(ids.map((id) => ({ id, origin })));
     }
 
+    // The mods named load as the person opens them, the relaunch limit of each and of the mods it requires by id reset
+    // first. See `load`.
+    function open(ids) {
+        return loadRequested(
+            ids.map((id) => ({ id, origin: ORIGIN.PERSON })),
+            ids
+        );
+    }
+
     // The mod's run, for `origin`: as it runs, or once the mod has loaded for it and its start has ended. Rejects with
     // why it does not run, `kind` NOT_RUNNING, for a mod that does not load, failed to launch or is at the relaunch
     // limit.
@@ -144,16 +153,16 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         await until(() => ids.every((id) => (runOf(id)?.state ?? 'notRunning') === 'notRunning'));
     }
 
-    // The mods terminate and load again as the person opens them, or load when they are not running, and the mods
-    // that require them and run, or whose run ended with one of these, load again with them, as they launched. Resolves
-    // once each has launched again, or failed to: one loaded while a mod it requires is not running fails as it
-    // launches.
+    // The mods terminate and load again as the person opens them (`open`), or load when they are not running, and the
+    // mods that require them and run, or whose run ended with one of these, load again with them, as they launched.
+    // Resolves once each has launched again, or failed to: one loaded while a mod it requires is not running fails as
+    // it launches.
     function relaunch(ids) {
         const dependents = dependentsOf(ids, new Map(CATALOG.mods().map((mod) => [mod.id, mod])));
         const again = new Set([...ids, ...dependents]);
         const comesBack = (id) => running(id) || again.has(runOf(id)?.endedWith);
         const requested = ids.map((id) => ({ id, origin: ORIGIN.PERSON }));
-        return reload(ids, [...requested, ...asLaunched(dependents.filter(comesBack))]);
+        return reload(ids, [...requested, ...asLaunched(dependents.filter(comesBack))], ids);
     }
 
     // Every mod with a sandbox terminates and loads again as it launched, and one whose run ended for a quit the host
@@ -183,8 +192,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // Each `{ id, origin }` requested loads for its origin, and the mods it requires by id for being required by it,
     // in the mods' order, each once its own run that terminates has ended and the mods it requires have launched or
     // failed to: a mod loaded while one it requires does not run fails as it launches. One launching or running is
-    // left as it is, and none loads while the app quits. Resolves once each has launched, or failed to.
-    async function loadRequested(requested) {
+    // left as it is, one at the relaunch limit too, and none loads while the app quits. The limit of each mod in
+    // `opened` and of the mods it requires by id is reset first. Resolves once each has launched, or failed to.
+    async function loadRequested(requested, opened = []) {
         const mods = new Map(CATALOG.mods().map((mod) => [mod.id, mod]));
         const requires = (id) =>
             (mods.get(id)?.relations ?? []).filter(({ optional }) => !optional).map(({ id }) => id);
@@ -192,6 +202,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         for (const [id] of origins)
             for (const required of requires(id))
                 if (!origins.has(required)) origins.set(required, ORIGIN.requiredBy(id));
+        const reset = new Set(opened);
+        for (const id of reset) for (const required of requires(id)) reset.add(required);
+        if (reset.size) await ask('runner/reset-limit', { mods: [...reset] });
         let left = [...mods.keys()].filter((id) => origins.has(id));
         const ready = (id) =>
             runOf(id)?.state !== 'terminating' &&
@@ -207,13 +220,13 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     // The mods named unload, and then each `{ id, origin }` in `requested` loads, the runs of those that have one
-    // saying meanwhile that they load again.
-    async function reload(unloading, requested) {
+    // saying meanwhile that they load again. See `loadRequested` for `opened`.
+    async function reload(unloading, requested, opened = []) {
         const ids = requested.map(({ id }) => id);
         mark(ids, true);
         try {
             await unload(unloading);
-            await loadRequested(requested);
+            await loadRequested(requested, opened);
         } finally {
             mark(ids, false);
         }
@@ -472,6 +485,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         handleEffect,
         whenReconciled,
         load,
+        open,
         activate,
         unload,
         relaunch,

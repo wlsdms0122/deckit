@@ -1,7 +1,6 @@
 import * as MOD_PERMISSION from '../deck/mod/permission.js';
 import * as LIFECYCLE from '../deck/mod/lifecycle.js';
 import * as IPC from '../deck/ipc/main.js';
-import * as ORIGIN from '../deck/runner/model/origin.js';
 
 // What connect answers.
 export function createApi({
@@ -87,7 +86,7 @@ export function createApi({
                 managerFrom: (page) => IDENTITY.modFrom(page, MOD_PERMISSION.MODS).id,
                 // The mod loads as the person opens it, with what it requires, or quits: resolve once it has
                 // launched, or failed to, or has ended.
-                launch: (id) => RUNNER.load([id], ORIGIN.PERSON),
+                launch: (id) => RUNNER.open([id]),
                 quit: (id) => RUNNER.unload([id]),
                 relaunch: (id) => RUNNER.relaunch([id]),
                 relaunchAll: RUNNER.relaunchAll,

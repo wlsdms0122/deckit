@@ -9,8 +9,9 @@ import Foundation
 
 // Each mod loads in a sandbox of its own and runs only while what it requires runs: one loaded while a mod it requires
 // does not run fails as it launches and stays as it is, and one ends before what it requires does. Which mods load or
-// unload, and when, is the caller's, but for a mod at the relaunch limit, which loads only as the person opens it. The driver says what happened to a run, and is answered what to do, in order: the
-// runner never waits on it, and what comes of an effect comes back as what happened next.
+// unload, and when, is the caller's, but for a mod at the relaunch limit, which loads only once its limit is reset.
+// The driver says what happened to a run, and is answered what to do, in order: the runner never waits on it, and what
+// comes of an effect comes back as what happened next.
 final class Runner {
     // MARK: - Property
     private let catalog: Catalog
@@ -62,20 +63,14 @@ final class Runner {
 
     // Each mod requested that loads, as the catalog was last read, launches in the mods' order, in its page loaded
     // anew, its run keeping the request's origin. One whose run has not ended is left as it is, and one at the relaunch
-    // limit too unless the person opens it, which takes it off the limit. One whose code changed since its sandbox
-    // opened launches in a new sandbox.
+    // limit too. One whose code changed since its sandbox opened launches in a new sandbox.
     func load(_ requests: [LaunchRequest]) throws -> [Effect] {
         try decide {
             for mod in catalog.lastRead where mod.problem == nil {
                 let id = mod.manifest.id
                 guard let request = requests.first(where: { request in request.modId == id }) else { continue }
                 let sandbox = sandbox(of: id)
-                guard (sandbox?.state ?? .notRunning) == .notRunning else { continue }
-                if request.origin == .person {
-                    limit.reset(id)
-                } else if limit.isReached(by: id) {
-                    continue
-                }
+                guard (sandbox?.state ?? .notRunning) == .notRunning, !limit.isReached(by: id) else { continue }
 
                 let run = nextRun(of: id, origin: request.origin)
                 if let sandbox, sandbox.mod.revision == mod.revision {
@@ -88,6 +83,13 @@ final class Runner {
                     try open(mod, run: run)
                 }
             }
+        }
+    }
+
+    // What each mod named failed before is forgotten, which takes it off the relaunch limit.
+    func resetLimit(_ ids: [String]) {
+        for id in ids {
+            limit.reset(id)
         }
     }
 
@@ -202,12 +204,17 @@ final class Runner {
     }
 
     // Its latest run launches. While a mod it requires does not run, the run fails as it launches, and its page does
-    // not load.
+    // not load. One that requires a mod at the relaunch limit ends with that mod, no failure of its own.
     private func launch(_ sandbox: Sandbox) throws {
         sandbox.stopAsked = false
         try tell(.willLaunch, sandbox.run, of: sandbox)
         if let missing = missing(sandbox) {
-            try move(sandbox) { run throws(LifecycleError) in try run.crash("needs \(missing), which was not running") }
+            let limited = limit.isReached(by: missing)
+            try move(sandbox) { run throws(LifecycleError) in
+                limited
+                    ? try run.crash("needs \(missing), which reached the relaunch limit", with: missing)
+                    : try run.crash("needs \(missing), which was not running")
+            }
         } else {
             effects.append(.loadPage(modId: sandbox.mod.manifest.id))
         }

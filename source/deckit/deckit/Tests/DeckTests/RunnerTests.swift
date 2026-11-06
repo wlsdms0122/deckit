@@ -219,7 +219,7 @@ struct RunnerTests {
         #expect(runs.allSatisfy { run in run.state == .notRunning && !run.relaunchLimited })
     }
 
-    @Test("a mod whose runs failed five times within ten seconds launches again only as the person opens it")
+    @Test("a mod whose runs failed five times within ten seconds launches no more, whatever the origin, until reset")
     func relaunchLimitHolds() throws {
         // Given
         try write("a")
@@ -237,15 +237,50 @@ struct RunnerTests {
             now += 2
         }
         let held = try sut.load(startup)
-        let opened = try sut.load([LaunchRequest(modId: "a", origin: .person)])
+        let heldForPerson = try sut.load([LaunchRequest(modId: "a", origin: .person)])
+        sut.resetLimit(["a"])
+        let reset = try sut.load(startup)
         _ = try sut.crashed("a", run: 6, problem: "its page ended (crashed)")
         let again = try sut.load(startup)
 
         // Then
         #expect(limited == [false, false, false, false, true])
         #expect(describe(held).isEmpty)
-        #expect(describe(opened) == ["tell willLaunch a 6 launching", "loadPage a"])
+        #expect(describe(heldForPerson).isEmpty)
+        #expect(describe(reset) == ["tell willLaunch a 6 launching", "loadPage a"])
         #expect(describe(again) == ["tell willLaunch a 7 launching", "loadPage a"])
+    }
+
+    @Test("a mod requiring one at the relaunch limit ends with it as it launches, not counting toward its own")
+    func requiredAtTheLimitEndsTheDependent() throws {
+        // Given
+        try write("a")
+        try write("b", requires: ["a": "1.0.0"])
+        var now = Date(timeIntervalSince1970: 0)
+        let (sut, catalog) = try runner { now }
+        _ = catalog.read()
+        for number in 1...5 {
+            _ = try sut.load(["a"])
+            _ = try sut.crashed("a", run: number, problem: "its page ended (crashed)")
+            now += 2
+        }
+
+        // When
+        var loads: [[String]] = []
+        for _ in 1...6 {
+            loads.append(describe(try sut.load(["a", "b"])))
+        }
+        let run = try #require(sut.run(of: "b"))
+        sut.resetLimit(["b", "a"])
+        let reset = try sut.load(["a", "b"])
+
+        // Then
+        #expect(loads[0] == ["open b", "tell willLaunch b 1 launching", "tell didTerminate b 1 notRunning"])
+        #expect(loads[5] == ["tell willLaunch b 6 launching", "tell didTerminate b 6 notRunning"])
+        #expect(run.problem == "needs a, which reached the relaunch limit")
+        #expect(run.endedWith == "a")
+        #expect(!run.failed && !run.relaunchLimited)
+        #expect(describe(reset).prefix(2) == ["tell willLaunch a 6 launching", "loadPage a"])
     }
 
     @Test("failures further apart than the limit's interval, or a run that ended itself, do not reach the limit")

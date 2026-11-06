@@ -1,12 +1,12 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: the startup
 // mods loaded as it starts, a run's page made, known as the mod's and set up before it loads, what the core is told as
 // the page fails, crashes or is replaced, a run's end asked of its page, a mod loaded with what it requires, once that
-// has launched, one restarted with the mods that require it and run or ended with it, each for its origin, the core
-// asked first what the owners come to as the catalog changes, with no new mod loaded for it and the owner change it
-// delivers reaching the page that listens, a changed mod that ran loaded again, a startup mod that failed loaded again
-// unless it reached the relaunch limit, a mod that quits its run, a mod activated for work, the page closed, and the
-// quit held while a run has not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so
-// they are imported as such.
+// has launched, one restarted with the mods that require it and run or ended with it, each for its origin, the
+// relaunch limit reset as the person opens or restarts a mod, the core asked first what the owners come to as the
+// catalog changes, with no new mod loaded for it and the owner change it delivers reaching the page that listens, a
+// changed mod that ran loaded again, a startup mod that failed loaded again unless it reached the relaunch limit, a mod
+// that quits its run, a mod activated for work, the page closed, and the quit held while a run has not ended. Exits 1
+// with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -261,6 +261,25 @@ async function main() {
     check('a mod restarted does not bring back a mod whose run ended otherwise', otherwise === 'a', otherwise);
     answers.set('runner/load', [[told('didLaunch', 'running', 'b')]]);
     await RUNNER.load(['b'], { kind: 'person' });
+
+    // The relaunch limit is reset only as the person opens or restarts a mod, for it and the mods it requires by id,
+    // before they load: a load for any origin, the person's too, leaves it.
+    const resets = methods('runner/reset-limit').map(({ params }) => params.mods.join());
+    check(
+        'a mod restarted has its limit reset, and not that of the mods that require it, and a load resets none',
+        resets.length > 0 && resets.every((mods) => mods === 'a'),
+        resets
+    );
+    const openedFrom = asked.length;
+    await RUNNER.open(['b']);
+    const opened = asked
+        .slice(openedFrom)
+        .map(({ method, params }) => (method === 'runner/reset-limit' ? `reset ${params.mods.join()}` : method));
+    check(
+        'a mod opened has its limit reset, and that of the mods it requires by id, before it loads',
+        opened.join(' | ') === 'reset b,a | runner/load | runner/load',
+        opened
+    );
 
     // A mod found anew, which may own an interface now: the core says first what the owners come to, delivering the
     // owner change to the mods that listen, and it does not load, while what runs runs on.
