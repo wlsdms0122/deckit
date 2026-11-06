@@ -456,7 +456,7 @@ struct CatalogTests {
         // Then
         #expect(first == ["x/api": ["a", "b"]])
         #expect(removed == ["x/api": ["b"]])
-        #expect(sut.owner(of: "x/api") == "b")
+        #expect(sut.interfaces.first { queue in queue.interface == "x/api" }?.owner == "b")
     }
 
     @Test("an owner kept and not found is listed as a provider not found, and a mod that uses it is told so")

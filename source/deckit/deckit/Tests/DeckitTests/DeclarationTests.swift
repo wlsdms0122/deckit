@@ -60,5 +60,24 @@ struct DeclarationTests {
         #expect(refused == .notOwner(interface: "o/actions", mod: "a"))
     }
 
+    @Test("as another mod comes to own the interface, it is handed the entries and the one before is refused")
+    func newOwnerIsHandedEntries() throws {
+        // Given
+        try fixture.write("o", provides: ["o/actions"])
+        try fixture.write("p", provides: ["o/actions"])
+        try fixture.write("a", contributes: "[contributes]\n\"o/actions\" = [{ title = \"Open\" }]")
+        let sut = try fixture.deckit().catalog
+
+        // When
+        try sut.pin("o/actions", to: "p")
+
+        // Then
+        let handed = try sut.declarations(to: "o/actions", for: "p")
+        #expect(handed.map(\.entry) == [.object(["title": .string("Open")])])
+        #expect(throws: DeclarationError.notOwner(interface: "o/actions", mod: "o")) {
+            try sut.declarations(to: "o/actions", for: "o")
+        }
+    }
+
     // MARK: - Private
 }

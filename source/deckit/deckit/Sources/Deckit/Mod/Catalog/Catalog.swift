@@ -27,8 +27,6 @@ public final class Catalog {
     private(set) var lastRead: [Mod] = []
     // Each interface a mod provides or uses, as the mods were last read, by name.
     public private(set) var interfaces: [InterfaceQueue] = []
-    // Interface -> its owner, as the mods were last read.
-    private(set) var owners: [String: String] = [:]
     // Those of them that load, in their order.
     public var loading: [Mod] {
         lastRead.filter { mod in mod.problem == nil }
@@ -64,32 +62,23 @@ public final class Catalog {
     // The mods, read and kept as read, with the ownership of each interface, which is kept as the mods provide now.
     func read() -> [Mod] {
         let found = ranked()
-        let ownership = keptOwnership(of: found)
-        (lastRead, interfaces) = resolve(found, ownership: ownership)
-        owners = ownership.owners()
+        (lastRead, interfaces) = resolve(found, ownership: keptOwnership(of: found))
 
         return lastRead
     }
 
-    // The id of the owner of `interface`, as the mods were last read, or nil while none provides it.
-    func owner(of interface: String) -> String? {
-        owners[interface]
-    }
-
-    // What the mods that load declare to `interface`, in their order, as the mods were last read: handed to its owner
-    // `id` only.
+    // What the mods that load declare to `interface`, in their order, as the mods were last read: handed only to `id`
+    // while deck's owner table has it own the interface, so a pin or a read hands them to the new owner at once.
     public func declarations(to interface: String, for id: String) throws -> [Declaration] {
-        guard owners[interface] == id else { throw DeclarationError.notOwner(interface: interface, mod: id) }
+        guard ownerTable.ownership.owner(of: interface) == id else {
+            throw DeclarationError.notOwner(interface: interface, mod: id)
+        }
 
-        return declarations(to: interface)
-    }
-
-    // Each interface the mods that load declare anything to, with what they declare, as the mods were last read.
-    func declarations() -> [String: [Declaration]] {
-        let interfaces = Set(loading.flatMap { mod in mod.manifest.contributes.keys })
-        return Dictionary(uniqueKeysWithValues: interfaces.map { interface in
-            (interface, declarations(to: interface))
-        })
+        return loading.flatMap { mod in
+            (mod.manifest.contributes[interface] ?? []).map { entry in
+                Declaration(mod: mod.manifest.id, name: mod.manifest.name, entry: entry)
+            }
+        }
     }
 
     // The text of the file `path` names inside the folder of the mod `id`, which loads as the mods were last read, or
@@ -349,14 +338,6 @@ public final class Catalog {
                         + majors.map(String.init).joined(separator: ", ") + ", so it reaches no one by it"
             }
         )
-    }
-
-    private func declarations(to interface: String) -> [Declaration] {
-        loading.flatMap { mod in
-            (mod.manifest.contributes[interface] ?? []).map { entry in
-                Declaration(mod: mod.manifest.id, name: mod.manifest.name, entry: entry)
-            }
-        }
     }
 
     // A source folder of the same id would hide the installed copy.
