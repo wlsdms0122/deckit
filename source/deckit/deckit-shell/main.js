@@ -220,8 +220,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     let started = false;
 
     // What deckit's passages give, on every host.
-    for (const model of DECKIT_PERMISSIONS)
-        for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
+    for (const model of DECKIT_PERMISSIONS) for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
     const answer = API.make({ onStart, restart: () => host.restart() });
     ENV.app.whenReady().then(start);
     return answer;
