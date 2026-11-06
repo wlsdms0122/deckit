@@ -44,32 +44,10 @@ export function createCatalog({ CORE, LOG, files }) {
         return queues;
     }
 
-    // Interface -> the id of the mod that owns it, for each interface one does.
-    function owners() {
-        const owned = new Map();
-        for (const queue of queues) if (queue.owner) owned.set(queue.interface, queue.owner);
-        return owned;
-    }
-
-    // The ids named take the places they held among themselves in the mods' order, in the order given; the rest stay
-    // put. Refused for an order that puts a mod that loads before one it requires. Settled once the mods are read
-    // again.
-    async function arrange(ids) {
-        await CORE.request('catalog/arrange', { ids });
-        await refresh();
-    }
-
-    // As the person's: the provider `id` owns the interface from now on, until its pin is cleared, for null, or it
-    // stops providing it. Refused for a mod that does not provide the interface. Settled once the mods are read again.
+    // The provider `id` owns the interface from now on, until its pin is cleared, for null, or it stops providing it.
+    // Refused for a mod that does not provide the interface. Settled once the mods are read again.
     async function pin(named, id) {
         await CORE.request('catalog/pin', { interface: named, mod: id ?? null });
-        await refresh();
-    }
-
-    // As the person's: the mod launches as the app starts from then on, for `approved`, or does not. Refused for a mod
-    // whose manifest does not ask to. Settled once the mods are read again.
-    async function approveStartup(id, approved) {
-        await CORE.request('catalog/approve-startup', { mod: id, approved });
         await refresh();
     }
 
@@ -123,10 +101,7 @@ export function createCatalog({ CORE, LOG, files }) {
         found,
         mods,
         interfaces,
-        owners,
-        arrange,
         pin,
-        approveStartup,
         planInstall,
         install,
         remove,

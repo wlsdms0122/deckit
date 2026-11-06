@@ -55,12 +55,11 @@ export function createApi({
                     const offs = [CATALOG.onChange(listener), MAIN_PROCESS.onChange(listener)];
                     return () => offs.forEach((off) => off?.());
                 },
-                arrange: CATALOG.arrange,
-                // The id of the mod that owns an interface, or null; with `dependent`, the id of a mod, null too where
-                // that mod does not reach it: it uses no such interface, owns it itself, or the owner does not provide
-                // the major it uses.
+                // The id of the mod that owns an interface, as its queue says, or null; with `dependent`, the id of a
+                // mod, null too where that mod does not reach it: it uses no such interface, owns it itself, or the
+                // owner does not provide the major it uses.
                 ownerOf: (named, dependent) => {
-                    const owner = CATALOG.owners().get(named) ?? null;
+                    const owner = CATALOG.interfaces().find((queue) => queue.interface === named)?.owner ?? null;
                     if (!owner || dependent === undefined) return owner;
                     const use = CATALOG.found()
                         .find(({ id }) => id === dependent)
@@ -70,10 +69,11 @@ export function createApi({
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: factsOf(run), page }))),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),
-                // What the mod's contributes file declares, by contribution point, or null for no mod that loads.
+                // What the mod's manifest declares in [contributes], entries by interface, or null for no mod that
+                // loads.
                 contributesOf: (id) => {
                     const mod = CATALOG.mods().find((each) => each.id === id);
-                    return mod ? frozen(mod.contributes) : null;
+                    return mod ? frozen(mod.manifest.contributes) : null;
                 },
                 // The text of a file inside the mod's folder, by its path there, or null for none.
                 readFile: CATALOG.readFile,

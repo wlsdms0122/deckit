@@ -1,8 +1,8 @@
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// A mod as the core gives it, read as deck reads every mod: what its manifest says, with `manifest` itself, and where
-// it is, its data folder, whether it loads and what it depends on.
+// A mod as the core gives it: what its manifest says, with `manifest` itself, where it is, its data folder, whether it
+// loads, and `uses`, each interface it uses and what it comes to.
 function read(found) {
     return { ...found.manifest, ...found };
 }

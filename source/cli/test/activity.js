@@ -1,10 +1,6 @@
 // The Settings mod's Activity section (mods/settings/src/sections/activity): the mods it lists as running, why each
-// runs in words, how long, and what is wrong with it; and the startup approval as deck's catalog asks the core for it
-// (deckit-shell/deck/catalog) over a stand-in for the core. Exits 1 with a line for each check that failed.
+// runs in words, how long, and what is wrong with it. Exits 1 with a line for each check that failed.
 const path = require('path');
-const { pathToFileURL } = require('url');
-
-const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
 async function main() {
     const ACTIVITY = require(
@@ -21,7 +17,6 @@ async function main() {
             'activity-section.js'
         )
     );
-    const { createCatalog } = await import(url('deckit-shell', 'deckit', 'catalog', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -77,31 +72,6 @@ async function main() {
         problems.join('|') === 'crashed|configuration "x": bad|refused',
         problems
     );
-
-    const asked = [];
-    let approved = false;
-    const CORE = {
-        request: async (method, params) => {
-            asked.push({ method, params });
-            if (method === 'catalog/approve-startup') approved = params.approved;
-            if (method === 'catalog/read')
-                return [{ manifest: { id: 'a', startup: 'why' }, id: 'a', startupApproved: approved }];
-            if (method === 'catalog/interfaces') return [];
-            return null;
-        },
-    };
-    const CATALOG = createCatalog({ CORE, LOG: { info() {}, warn() {}, error() {} }, files: {} });
-    let heard = 0;
-    CATALOG.onChange(() => heard++);
-    await CATALOG.approveStartup('a', true);
-    check(
-        'approving a startup asks the core, then reads the mods again',
-        asked[0].method === 'catalog/approve-startup' &&
-            JSON.stringify(asked[0].params) === JSON.stringify({ mod: 'a', approved: true }) &&
-            asked[1].method === 'catalog/read',
-        asked
-    );
-    check('the approval is read back and told', CATALOG.found()[0].startupApproved === true && heard === 1, heard);
 
     if (failed.length) {
         for (const line of failed) console.error(line);

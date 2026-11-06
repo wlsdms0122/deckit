@@ -6,9 +6,9 @@ import * as LIFECYCLE from '../runner/model/lifecycle.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
-// again, loading and quitting as the person asks, putting them in an order, pinning the owner of each interface,
-// approving the mods that ask to start with the app and what one has where deck keeps it.
+// The mods as a mod with deckit.mods manages them: what it reads of every mod, installing and removing them, launching
+// them, launching them again and quitting them, pinning the owner of each interface, and what one has where deck keeps
+// it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // MARK: - Property
@@ -66,17 +66,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
             const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
             await Promise.all(ids.map((id) => RUNNER.launch(id, by)));
         });
-        PROTOCOL.arrange.handle(({ ids }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return CATALOG.arrange(ids);
-        });
         PROTOCOL.pin.handle(({ interface: named, mod }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return CATALOG.pin(named, mod);
-        });
-        PROTOCOL.approveStartup.handle(({ id, approved }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return CATALOG.approveStartup(id, approved);
         });
         PROTOCOL.usage.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -98,14 +90,12 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     }
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `found`:
-    // every mod the catalog found, in the mods' order whether it loads or not, each with `installed`, whether it is a
-    // copy in deck's mods folder, `problem`, why it does not load, `declarationProblems`, what is wrong with what it
-    // declares, `startupApproved`, whether the person approved it to start with the app, `run`, its latest run's
-    // `state`, `problem`, `failed`, `relaunchLimited` and `launchedAt`, null for one with no sandbox, `hides`, folders
-    // of the same id that are not read, `launched`, while it starts or stops again, what its latest run that launched
-    // contributed, as `running` lists it, `relations`, each mod in its [dependencies] and whether that one runs, and
-    // `uses`, each interface it uses and what it comes to. `interfaces`: each interface's queue of providers and its
-    // owner, as the catalog read it.
+    // every mod the catalog found, in the mods' order whether it loads or not, each its manifest with `installed`,
+    // whether it is a copy in deck's mods folder, `problem`, why it does not load, `run`, its latest run's `state`,
+    // `problem`, `failed`, `relaunchLimited` and `launchedAt`, null for one with no sandbox, `hides`, folders of the
+    // same id that are not read, `launched`, while it starts or stops again, what its latest run that launched
+    // contributed, as `running` lists it, and `uses`, each interface it uses and what it comes to. `interfaces`: each
+    // interface's queue of providers and its owner, as the catalog read it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
@@ -118,8 +108,6 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
                     shipped: mod.shipped,
                     hides: mod.hides,
                     problem: mod.problem ?? null,
-                    declarationProblems: mod.declarationProblems,
-                    startupApproved: mod.startupApproved,
                     run: run && {
                         state: run.state,
                         problem: run.problem,
@@ -132,12 +120,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
                             ? entryOf(mod, RUNNER.launchedOf(mod.id))
                             : null,
                     ...layer.facts(mod),
-                    relations: mod.relations.map((relation) => ({
-                        ...relation,
-                        running: !!relation.id && running(relation.id),
-                    })),
                     uses: mod.uses,
-                    dependents: mod.dependents,
                 };
             }),
             running: CATALOG.mods()
