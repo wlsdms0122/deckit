@@ -158,7 +158,7 @@ struct ConnectionBrokerTests {
         #expect(runner.run(of: "o") == nil)
     }
 
-    @Test("a connection its dependency's page refused is not made again while both its ends are up")
+    @Test("a connection its service's page refused is not made again while both its ends are up")
     func refusedConnectionStaysDown() throws {
         // Given
         let dep = Job.fixture("dep", provides: ["dep/api": [1]])

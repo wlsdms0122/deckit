@@ -95,11 +95,11 @@ extension EffectAnswer: Encodable {
             try delivery.encode(to: encoder)
             try container.encode("deliver", forKey: .effect)
 
-        case let .wait(name, dependent, provider):
+        case let .wait(name, client, service):
             try container.encode("wait", forKey: .effect)
-            try container.encode(provider, forKey: .mod)
+            try container.encode(service, forKey: .mod)
             try container.encode(name, forKey: .name)
-            try container.encode(dependent, forKey: .dependent)
+            try container.encode(client, forKey: .dependent)
         }
     }
 

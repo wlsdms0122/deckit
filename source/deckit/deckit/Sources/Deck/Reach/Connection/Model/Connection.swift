@@ -13,12 +13,12 @@ import Foundation
 public struct Connection: Equatable, Sendable {
     // MARK: - Property
     public let id: Int
-    // The mod id or the interface the dependent reaches the exports by.
+    // The mod id or the interface the client reaches the exports by.
     public let name: String
     // The lifecycle that reaches the exports.
-    public let dependent: Endpoint
+    public let client: Endpoint
     // The lifecycle that opened the exports it reaches.
-    public let dependency: Endpoint
+    public let service: Endpoint
 
     // MARK: - Initializer
     // MARK: - Public

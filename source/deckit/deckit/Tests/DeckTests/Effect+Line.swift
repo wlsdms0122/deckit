@@ -47,8 +47,8 @@ extension Effect {
         case let .deliver(delivery):
             "deliver \(delivery.name) to \(delivery.listeners.joined(separator: ", "))"
 
-        case let .wait(name, dependent, provider):
-            "wait \(dependent.modId)#\(dependent.run)@\(dependent.lifecycle) for \(provider) by \(name)"
+        case let .wait(name, client, service):
+            "wait \(client.modId)#\(client.run)@\(client.lifecycle) for \(service) by \(name)"
         }
     }
 

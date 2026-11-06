@@ -24,8 +24,8 @@ extension Connection: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
-        try container.encode(dependent, forKey: .dependent)
-        try container.encode(dependency, forKey: .dependency)
+        try container.encode(client, forKey: .dependent)
+        try container.encode(service, forKey: .dependency)
     }
 
     // MARK: - Private

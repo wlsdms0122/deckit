@@ -117,10 +117,10 @@ public final class Deck {
         for job in runner.jobs() {
             let names = job.reaches + job.uses.keys
             guard names.contains(where: { name in connections.provider(of: name, for: job.modId) == id }),
-                let dependent = runner.run(of: job.modId)
+                let client = runner.run(of: job.modId)
             else { continue }
-            for problem in connections.problems(of: dependent) {
-                effects += try runner.report(job.modId, run: dependent.number, problem: problem)
+            for problem in connections.problems(of: client) {
+                effects += try runner.report(job.modId, run: client.number, problem: problem)
             }
         }
         return withChanges(effects)

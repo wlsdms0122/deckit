@@ -21,14 +21,14 @@ public enum Effect: Sendable {
     case stop(modId: String, number: Int)
     // Close the mod's sandbox, which runs no more.
     case close(modId: String)
-    // Ask the dependency's page for the exports the connection reaches, and hand them to the dependent's.
+    // Ask the service's page for the exports the connection reaches, and hand them to the client's.
     case connect(Connection)
     // Tell both pages the connection has ended.
     case disconnect(Connection)
     // Tell the listeners' pages the event.
     case deliver(EventDelivery)
-    // The dependent lifecycle reaches `provider` by `name`, and `provider` does not run: deck does not launch it.
-    case wait(name: String, dependent: Endpoint, provider: String)
+    // The client lifecycle reaches `service` by `name`, and `service` does not run: deck does not launch it.
+    case wait(name: String, client: Endpoint, service: String)
 
     // MARK: - Property
     // MARK: - Initializer
