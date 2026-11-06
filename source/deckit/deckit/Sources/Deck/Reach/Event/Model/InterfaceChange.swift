@@ -11,5 +11,4 @@ import Foundation
 // not send.
 enum InterfaceChange: String, Sendable {
     case owner = "owner-changed"
-    case contributions = "contributions-changed"
 }

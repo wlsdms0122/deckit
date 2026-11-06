@@ -7,44 +7,24 @@
 
 import Foundation
 
-// One object: deck's keys beside the layers', which never take one of deck's.
+// One object, of which deck reads its own keys only.
 extension Contribution: Codable {
     // MARK: - Property
-    private struct Key: CodingKey {
-        static let exportedIn = Key(stringValue: "exportedIn")
-        static let awaits = Key(stringValue: "awaits")
-        static let deck: Set<String> = [exportedIn.stringValue, awaits.stringValue]
-
-        let stringValue: String
-        var intValue: Int? { nil }
-
-        init(stringValue: String) {
-            self.stringValue = stringValue
-        }
-
-        init?(intValue: Int) {
-            nil
-        }
+    private enum CodingKeys: String, CodingKey {
+        case exportedIn
+        case awaits
     }
 
     // MARK: - Initializer
     public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: Key.self)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
         exportedIn = try container.decodeIfPresent([String: Int].self, forKey: .exportedIn) ?? [:]
         awaits = try container.decode([String: Int].self, forKey: .awaits)
-        var layers: [String: JSONValue] = [:]
-        for key in container.allKeys where !Key.deck.contains(key.stringValue) {
-            layers[key.stringValue] = try container.decode(JSONValue.self, forKey: key)
-        }
-        self.layers = layers
     }
 
     // MARK: - Public
     public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: Key.self)
-        for (key, value) in layers {
-            try container.encode(value, forKey: Key(stringValue: key))
-        }
+        var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(exportedIn, forKey: .exportedIn)
         try container.encode(awaits, forKey: .awaits)
     }
