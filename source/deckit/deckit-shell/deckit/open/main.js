@@ -5,8 +5,8 @@ import * as OPEN_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// Opening outside the app, with the system: the web in the browser, and a file in its app for a caller that may hand
-// files on. `open` is the environment's.
+// Opening outside the app, with the system: the web in the browser, and a file in its app for a caller that may open
+// files. `open` is the environment's.
 export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
     // MARK: - Property
     // The schemes opened with the system, and what opens each.
@@ -23,7 +23,7 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
     }
 
     // Answers whether it opened: an address of another scheme opens nowhere, and a file only where the caller may
-    // hand files on (`opensFiles`, a mod's system.file-handlers) and only where the file is.
+    // open files (`opensFiles`, a mod's system.file-handlers) and only where the file is.
     async function open(url, { activates = true, opensFiles = false } = {}) {
         const address = String(url).trim();
         const handler = SYSTEM_HANDLERS[schemeOf(address)];

@@ -6,7 +6,7 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: FILE_HANDLERS,
         name: 'File Handlers',
-        means: 'It can hand files on this Mac to whatever opens them, a mod or the app for them, which can start programs, and show them in Finder.',
+        means: 'It can open files on this Mac in the app for them, which can start programs, and show them in Finder.',
     }),
 ]);
 
