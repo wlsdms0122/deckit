@@ -18,7 +18,7 @@ public struct Manifest: Sendable {
     public let version: String?
     public let api: String?
     public let main: String?
-    // Why it asks to run in the background, when it asks: the person approves it or not.
+    // Why it runs in the background, shown to the person before it is installed: a mod with one is a background mod.
     public let background: String?
     // Interface -> the majors of it the mod provides.
     public let provides: [String: [Int]]

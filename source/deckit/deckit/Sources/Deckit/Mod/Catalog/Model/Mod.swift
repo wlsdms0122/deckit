@@ -20,8 +20,6 @@ public struct Mod: Sendable {
     // Whether the app ships it: a copy installed of what it shipped, or what it ships and did not install, read where
     // it ships it. A mod neither installed nor shipped is read in place from a source folder.
     public let shipped: Bool
-    // Whether it is in the startup list: its manifest asks to run in the background and the person approved it.
-    public let startupApproved: Bool
     // Why it does not load, or nil when it does.
     public internal(set) var problem: String?
     // Folders of the same id that are not read.

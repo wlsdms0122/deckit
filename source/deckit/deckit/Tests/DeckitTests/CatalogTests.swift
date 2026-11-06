@@ -241,45 +241,23 @@ struct CatalogTests {
         #expect(mods.map(\.problem) == [#"did not install: main = "missing.js" names no file in the mod's folder"#])
     }
 
-    @Test("what the app ships that asks to run from the start is approved as it installs, until the person decides")
-    func shippedStartupIsApproved() throws {
+    @Test("the plan answers the permissions and background installing consents to, and a job has those defined here")
+    func installIsConsent() throws {
         // Given
-        try write("a", in: ship, background: "Runs a service")
-        try write("b", in: ship)
-        try write("c", in: source, background: "Runs a service")
-        let shipped = [ship.appending(path: "a"), ship.appending(path: "b")]
-        let sut = try catalog(sources: [source], ship: shipped)
+        let mods = Permission(id: "deckit.mods", name: "Mods", means: "Every mod.")
+        try write("a", in: source, background: "Runs a service", permissions: ["deckit.mods", "system.camera"])
+        let sut = try catalog(permissions: [mods])
 
         // When
-        _ = try sut.installShipped()
-        let approved = sut.mods().filter(\.startupApproved).map(\.manifest.id)
-        try sut.approveStartup("a", false)
-        let restarted = try catalog(sources: [source], ship: shipped)
-        _ = try restarted.installShipped()
-        let removed = restarted.mods().filter(\.startupApproved).map(\.manifest.id)
-        try restarted.approveStartup("c", true)
+        let plan = try sut.planInstall(from: source.appending(path: "a"))
+        _ = try sut.install(from: source.appending(path: "a"))
+        let job = try #require(sut.read().first.flatMap(Job.init))
 
         // Then
-        #expect(approved == ["a"])
-        #expect(removed.isEmpty)
-        #expect(restarted.mods().filter(\.startupApproved).map(\.manifest.id) == ["c"])
-    }
-
-    @Test("only a mod whose manifest asks to run from the start is approved to")
-    func startupNeedsAsking() throws {
-        // Given
-        try write("a", in: source)
-        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        try Data(#"{"startup":{"a":true}}"#.utf8).write(to: home.appending(path: "deck.json"))
-        let sut = try catalog(sources: [source])
-
-        // When
-        let approved = sut.mods().filter(\.startupApproved)
-
-        // Then
-        #expect(approved.isEmpty)
-        #expect(throws: StartupError.notAsked("a")) { try sut.approveStartup("a", true) }
-        #expect(throws: StartupError.notAsked("x")) { try sut.approveStartup("x", true) }
+        #expect(plan.manifest.background == "Runs a service")
+        #expect(plan.manifest.permissions.map(\.id) == ["system.camera", "deckit.mods"])
+        #expect(plan.manifest.permissions.map(\.usable) == [false, true])
+        #expect(job.permissions == ["deckit.mods"])
     }
 
     @Test("what the app ships that fails to install says why, and is no installed mod")
@@ -609,11 +587,11 @@ struct CatalogTests {
     }
 
     // MARK: - Private
-    private func catalog(sources: [URL] = [], ship: [URL] = []) throws -> Catalog {
+    private func catalog(sources: [URL] = [], ship: [URL] = [], permissions: [Permission] = []) throws -> Catalog {
         let store = Store()
         let reader = try ManifestReader(
             api: try #require(Version("1.0.0")),
-            permissions: [],
+            permissions: permissions,
             fields: [],
             store: store
         )
@@ -622,12 +600,10 @@ struct CatalogTests {
         return Catalog(
             folder: folder,
             sources: sources,
-            ship: ship,
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
             ownerTable: Deck(home: home).owners,
-            startupList: StartupList(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
     }
@@ -649,6 +625,7 @@ struct CatalogTests {
         main: String? = "main.js",
         contributes: String? = nil,
         background: String? = nil,
+        permissions: [String] = [],
         provides: [String: [Int]] = [:],
         uses: [String: Int] = [:]
     ) throws {
@@ -660,6 +637,9 @@ struct CatalogTests {
         let used = uses.sorted { one, other in one.key < other.key }.map { interface, major in
             "\"\(interface)\" = \(major)"
         }
+        let asked = permissions.isEmpty
+            ? ""
+            : "\n[permissions]" + permissions.map { permission in "\n\"\(permission)\" = \"to test\"" }.joined()
         let interfaces = provided.isEmpty && used.isEmpty
             ? ""
             : "\n[interfaces]"
@@ -670,7 +650,7 @@ struct CatalogTests {
             version = "\(version)"
             api = "1.0.0"
             main = "\(main ?? "missing.js")"
-            """ + (background.map { reason in "\nbackground = \"\(reason)\"" } ?? "") + interfaces
+            """ + (background.map { reason in "\nbackground = \"\(reason)\"" } ?? "") + asked + interfaces
             + (contributes.map { contributes in "\n" + contributes } ?? "")
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         if let main {

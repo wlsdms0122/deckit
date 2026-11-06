@@ -45,16 +45,13 @@ public final class Deckit {
         )
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods", directoryHint: .isDirectory)
-        let settings = home.appending(path: "deck.json")
         let catalog = Catalog(
             folder: folder,
             sources: sources,
-            ship: ship,
             modFolder: modFolder,
             dataFolder: deck.dataFolder,
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
             ownerTable: deck.owners,
-            startupList: StartupList(file: settings, store: store),
             store: store
         )
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)

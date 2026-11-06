@@ -73,16 +73,13 @@ struct RunnerFixture {
         )
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
-        let settings = home.appending(path: "deck.json")
         let catalog = Catalog(
             folder: folder,
             sources: [source],
-            ship: [],
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
             ownerTable: Deck(home: home).owners,
-            startupList: StartupList(file: settings, store: store),
             store: store
         )
         _ = catalog.read()

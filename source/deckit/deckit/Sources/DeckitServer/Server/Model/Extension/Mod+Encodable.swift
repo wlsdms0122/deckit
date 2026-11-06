@@ -18,7 +18,6 @@ extension Mod: Encodable {
         case data
         case installed
         case shipped
-        case startupApproved
         case problem
         case hides
         case revision
@@ -35,7 +34,6 @@ extension Mod: Encodable {
         try container.encode(data.path(percentEncoded: false), forKey: .data)
         try container.encode(installed, forKey: .installed)
         try container.encode(shipped, forKey: .shipped)
-        try container.encode(startupApproved, forKey: .startupApproved)
         try container.encodeIfPresent(problem, forKey: .problem)
         try container.encode(hides.map { hidden in hidden.path(percentEncoded: false) }, forKey: .hides)
         try container.encode(revision, forKey: .revision)

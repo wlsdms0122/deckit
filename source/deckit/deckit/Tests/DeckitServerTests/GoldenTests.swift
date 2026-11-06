@@ -30,7 +30,6 @@ struct GoldenTests {
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
         (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
         (PinError.notProvider(interface: "x/api", mod: "a"), "NOT_PROVIDER"),
-        (StartupError.notAsked("a"), "NOT_ASKED"),
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
         (ManifestError.permissionDefined("p"), "PERMISSION"),
         (ManifestError.fieldDefined("f"), "FIELD"),

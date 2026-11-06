@@ -138,11 +138,6 @@ final class Server {
             try deckit.catalog.pin(params.interface, to: params.mod)
             return true
 
-        case "catalog/approve-startup":
-            let params = try request.decodeParams(as: ApproveStartupParams.self)
-            try deckit.catalog.approveStartup(params.mod, params.approved)
-            return true
-
         case "catalog/read-file":
             let params = try request.decodeParams(as: ReadFileParams.self)
             return deckit.catalog.text(of: params.path, in: params.mod) as any Encodable & Sendable

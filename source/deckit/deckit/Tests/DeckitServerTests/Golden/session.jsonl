@@ -52,6 +52,5 @@
 {"id":59,"jsonrpc":"2.0","method":"erasure/uncleared"}
 {"id":60,"jsonrpc":"2.0","method":"erasure/cleared","params":{"mod":"d"}}
 {"id":61,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a","d"]}}
-{"id":64,"jsonrpc":"2.0","method":"catalog/approve-startup","params":{"mod":"a","approved":true}}
 {"id":62,"jsonrpc":"2.0","method":"no/such"}
 {"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[],"ship":[],"sources":[]}}

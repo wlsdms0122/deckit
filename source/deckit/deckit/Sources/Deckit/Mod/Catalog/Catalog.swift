@@ -15,13 +15,11 @@ import Deck
 public final class Catalog {
     // MARK: - Property
     private let sources: [URL]
-    private let ship: [URL]
     public let folder: URL
     private let modFolder: ModFolder
     private let dataFolder: DataFolder
     private let installer: Installer
     private let ownerTable: OwnerTable
-    private let startupList: StartupList
     private let store: Store
     // Mod id -> how many times it was installed while deck ran.
     private var installs: [String: Int] = [:]
@@ -37,27 +35,22 @@ public final class Catalog {
     }
 
     // MARK: - Initializer
-    // `folder` is deck's mods folder, `sources` the folders of mods read in place, and `ship` the folders of what the
-    // app ships.
+    // `folder` is deck's mods folder, and `sources` the folders of mods read in place.
     init(
         folder: URL,
         sources: [URL],
-        ship: [URL],
         modFolder: ModFolder,
         dataFolder: DataFolder,
         installer: Installer,
         ownerTable: OwnerTable,
-        startupList: StartupList,
         store: Store
     ) {
         self.folder = folder
         self.sources = sources
-        self.ship = ship
         self.modFolder = modFolder
         self.dataFolder = dataFolder
         self.installer = installer
         self.ownerTable = ownerTable
-        self.startupList = startupList
         self.store = store
     }
 
@@ -141,31 +134,11 @@ public final class Catalog {
         return store.isName(id)
     }
 
-    // A mod the app ships that asks to run from the start is approved as it is installed, until the person decides.
     public func installShipped() throws -> [InstallReport] {
         let reports = try installer.installShipped()
-        let installed = reports.filter { report in report.outcome == .installed }.map(\.id)
         keptOwnership(of: ranked(), removed: reports.filter { report in report.outcome == .dropped }.map(\.id))
-        let approvals = startupList.read()
-        let asking = ship.map { source in modFolder.manifest(of: source) }
-            .filter { manifest in manifest.background != nil && installed.contains(manifest.id) }
-            .map(\.id)
-        let approved = asking.filter { id in approvals[id] == nil }
-        if !approved.isEmpty {
-            try? startupList.write(approvals.merging(approved.map { id in (id, true) }) { _, new in new })
-        }
 
         return reports
-    }
-
-    // As the person's: the mod runs from the app's start from then on, for `approved`, or does not. Refused for a mod
-    // whose manifest does not ask to. Settled once the mods are read again.
-    public func approveStartup(_ id: String, _ approved: Bool) throws {
-        guard list().contains(where: { mod in mod.manifest.id == id && mod.manifest.background != nil }) else {
-            throw StartupError.notAsked(id)
-        }
-
-        try startupList.write(startupList.read().merging([id: approved]) { _, new in new })
     }
 
     // MARK: - Private
@@ -245,7 +218,6 @@ public final class Catalog {
     // read where the app ships it, and does not load.
     private func list() -> [Mod] {
         let shipped = installer.shipped() ?? []
-        let approvals = startupList.read()
         var found: [Mod] = []
         var places: [String: Int] = [:]
         for root in sources + [folder] {
@@ -264,7 +236,6 @@ public final class Catalog {
                         in: source,
                         installed: installed,
                         shipped: installed && shipped.contains(manifest.id),
-                        approved: approvals[manifest.id] ?? false,
                         problem: modFolder.problem(of: source)
                     )
                 )
@@ -280,7 +251,6 @@ public final class Catalog {
                     in: failure.folder,
                     installed: false,
                     shipped: true,
-                    approved: approvals[id] ?? false,
                     problem: "did not install: " + failure.problem
                 )
             )
@@ -289,13 +259,11 @@ public final class Catalog {
         return found
     }
 
-    // `approved` for a mod the person approved to run from the start, which it is while its manifest asks to.
     private func mod(
         _ manifest: Manifest,
         in source: URL,
         installed: Bool,
         shipped: Bool,
-        approved: Bool,
         problem: String?
     ) -> Mod {
         let revision = [
@@ -310,7 +278,6 @@ public final class Catalog {
             data: dataFolder.folder(of: manifest.id),
             installed: installed,
             shipped: shipped,
-            startupApproved: approved && manifest.background != nil,
             problem: problem,
             hides: [],
             revision: revision.joined(separator: "\n"),

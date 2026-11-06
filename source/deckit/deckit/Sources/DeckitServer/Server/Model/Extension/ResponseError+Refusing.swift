@@ -81,12 +81,6 @@ extension ResponseError {
                 "NOT_PROVIDER"
             }
 
-        case let error as StartupError:
-            switch error {
-            case .notAsked:
-                "NOT_ASKED"
-            }
-
         case let error as DeclarationError:
             switch error {
             case .notOwner:
