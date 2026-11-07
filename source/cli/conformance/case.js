@@ -1,9 +1,10 @@
 // A conformance case as the case format fixes it (spec/DECKIT-1): its folder read and held to the format. What the
-// format does not take throws a NotACase; a case written for another format throws a TooOld.
+// format does not take throws a NotACase; a case written for a later format than FORMAT throws a TooOld.
 const fs = require('fs');
 const path = require('path');
 const TOML = require('./toml.js');
 
+// The newest case format this runner knows. It reads a case of any format from 1 up to it.
 const FORMAT = 1;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
@@ -52,7 +53,7 @@ function read(folder) {
         refuse(`case.toml does not read: ${error.message}`);
     }
     if (!is.integer(written.case) || written.case < 1) refuse('case is no integer of at least 1');
-    if (written.case !== FORMAT)
+    if (written.case > FORMAT)
         throw new TooOld(`${path.basename(folder)}: this runner is too old for this case (format ${written.case})`);
 
     keys(
