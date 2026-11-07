@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-A permission is what a mod is granted so that the system, or a layer on it, does a request the permission guards. [The bundle](../DECKIT-2/SPEC.md) fixes how a permission is defined, asked for and answered. This DECKIT fixes what a mod is granted, how a request is refused when the mod making it is not granted the permission that guards it, and the permissions the system defines itself: their ids, names, what each one grants, which are privileged, and the order they are defined in.
+A permission is what a mod is granted so that the system, a layer on it or the host does a request the permission guards. [The bundle](../DECKIT-2/SPEC.md) fixes how a permission is defined, asked for and answered. This DECKIT fixes what a mod is granted, how a request is refused when the mod making it is not granted the permission that guards it, and the permissions the system defines itself: their ids, names, what each one grants, which are privileged, and the order they are defined in.
 
 ## Motivation
 
