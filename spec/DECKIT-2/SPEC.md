@@ -234,7 +234,7 @@ A **permission** is defined as:
 |---|---|---|---|
 | `id` | string: any string a `key` writes | yes | the permission's id, the key a manifest asks for it by |
 | `name` | string, not blank | yes | the name the permission is listed by |
-| `means` | string, not blank | yes | what the permission grants, shown wherever it is listed |
+| `description` | string, not blank | yes | what the permission grants, shown wherever it is listed |
 | `privileged` | boolean | no | whether only a system mod may ask for it; `false` where not given |
 
 A permission defined refuses the app's start at `call` with kind `PERMISSION` where it is not as the table gives, or where its id is defined twice, by the system, a layer or the host.
@@ -268,7 +268,7 @@ Each permission asked for is answered as:
 | `id` | string: the id |
 | `reason` | string: what the manifest writes, without the code points with White_Space at its ends |
 | `usable` | boolean: whether a layer or the host on this host, or the system, defines it |
-| `name`, `means`, `privileged` | as the permission is defined; absent where it is not usable |
+| `name`, `description`, `privileged` | as the permission is defined; absent where it is not usable |
 
 The usable permissions come first, in the order they were defined, the system's own first. Then come the ones not usable, by their ids compared as Unicode scalar values: at the first place two ids differ, the one whose scalar value there is smaller comes first, and where one id is the other's beginning, the shorter comes first.
 

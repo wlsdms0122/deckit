@@ -6,8 +6,8 @@ note = "A permission whose id is defined twice refuses the app's start at call w
 base = "system"
 api = "1.0.0"
 permissions = [
-    { id = "case.sync", name = "Sync", means = "Syncs the pages." },
-    { id = "case.sync", name = "Sync again", means = "Syncs the pages again." },
+    { id = "case.sync", name = "Sync", description = "Syncs the pages." },
+    { id = "case.sync", name = "Sync again", description = "Syncs the pages again." },
 ]
 
 [[step]]

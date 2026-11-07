@@ -65,7 +65,7 @@ A case **refuses as a case** when it breaks any rule under *What a case is*, *Th
 | `base` | `"system"` | yes | what the host is before the case adds to it, below |
 | `api` | string, a version as [the bundle](../DECKIT-2/SPEC.md) writes one | yes | the version of the mod contract the host runs mods with |
 | `fields` | array of strings | no | the manifest fields the host adds, in order |
-| `permissions` | array of tables `{ id, name, means, privileged }`, each a string but `privileged`, a boolean, which may be left out and is then handed absent | no | the permissions the host defines, in order |
+| `permissions` | array of tables `{ id, name, description, privileged }`, each a string but `privileged`, a boolean, which may be left out and is then handed absent | no | the permissions the host defines, in order |
 | `ship` | array of `bundle-name` | no | the bundles the host ships, in the order it ships them |
 | `system` | array of `bundle-name`, each one in `ship` | no | the bundles it ships that it marks system |
 | `sources` | array of `bundle-name` | no | the bundles it reads in place |

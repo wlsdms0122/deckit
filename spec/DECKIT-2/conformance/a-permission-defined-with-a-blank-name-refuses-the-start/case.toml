@@ -5,7 +5,7 @@ note = "A permission's name is a string, not blank. A host that defines one whos
 [host]
 base = "system"
 api = "1.0.0"
-permissions = [{ id = "case.sync", name = " ", means = "Syncs the pages.", privileged = false }]
+permissions = [{ id = "case.sync", name = " ", description = "Syncs the pages.", privileged = false }]
 
 [[step]]
 input = "start"

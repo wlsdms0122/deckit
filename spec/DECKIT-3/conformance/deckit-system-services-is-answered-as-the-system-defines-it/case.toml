@@ -1,6 +1,6 @@
 case = 1
 name = "deckit-system-services-is-answered-as-the-system-defines-it"
-note = "The system defines deckit.system-services, named System Services, with its means, and privileged, so a system mod that asks for it is taken and the permission is usable."
+note = "The system defines deckit.system-services, named System Services, with its description, and privileged, so a system mod that asks for it is taken and the permission is usable."
 
 [host]
 base = "system"
@@ -18,5 +18,5 @@ part = "permissions"
 
 [step.expect]
 answers = [
-    { id = "deckit.system-services", reason = "Runs the commands.", usable = true, name = "System Services", means = "It can act on other mods through the system's services: run their commands, change their keys and settings, and choose which mod opens an address.", privileged = true },
+    { id = "deckit.system-services", reason = "Runs the commands.", usable = true, name = "System Services", description = "It can act on other mods through the system's services: run their commands, change their keys and settings, and choose which mod opens an address.", privileged = true },
 ]

@@ -45,17 +45,17 @@ A request a permission guards, made by a mod that is not granted that permission
 
 The system defines these permissions, as [the bundle](../DECKIT-2/SPEC.md) defines a permission:
 
-| id | name | means | privileged |
+| id | name | description | privileged |
 |---|---|---|---|
 | `deckit.mods` | `Mods` | `It can see every installed mod, launch and quit them, add one from a folder, which gets every permission it asks for, and delete installed ones, with what they stored.` | `false` |
 | `deckit.reach-mods` | `Reach Mods` | `It connects to any mod by its id, which launches the mod if it does not run.` | `true` |
 | `deckit.system-services` | `System Services` | `It can act on other mods through the system's services: run their commands, change their keys and settings, and choose which mod opens an address.` | `true` |
 
-Each `name` and `means` is the text the table gives, every code point of it.
+Each `name` and `description` is the text the table gives, every code point of it.
 
 The system's other DECKITs define permissions of their own, each in a table of this shape. The system defines its own before any layer or the host defines a permission: this table's first, in its order, and then each other DECKIT's, by the DECKITs' numbers, each in its table's order.
 
-**Note.** A permission's `name` and `means` are what a person reads before a mod is installed, and they are fixed to the code point so that a mod asks for the same thing on every host.
+**Note.** A permission's `name` and `description` are what a person reads before a mod is installed, and they are fixed to the code point so that a mod asks for the same thing on every host.
 
 ## Interactions
 
@@ -68,7 +68,7 @@ The system's other DECKITs define permissions of their own, each in a table of t
 
 ## Alternatives considered
 
-- A permission's reach, whether what it grants lies past the app or inside it, as a key of its definition and of what is answered. What a permission grants is its `means`, written by whatever defines it, and the system decides nothing by how far a permission reaches. A key beside `means` would say part of `means` a second time, in a few words every definition must fit.
+- A permission's reach, whether what it grants lies past the app or inside it, as a key of its definition and of what is answered. What a permission grants is its `description`, written by whatever defines it, and the system decides nothing by how far a permission reaches. A key beside `description` would say part of `description` a second time, in a few words every definition must fit.
 - A permission granted as the request it guards is first made, and asked of a person then. What a mod may do would be known only once it runs, and the bundle read before any of its code runs could no longer say it.
 - A prefix of ids kept for the system, `deckit.`, refused to a layer or the host. The start already refuses an id defined twice, which covers every id the system defines, and a kept prefix would be a second rule for the same thing.
 

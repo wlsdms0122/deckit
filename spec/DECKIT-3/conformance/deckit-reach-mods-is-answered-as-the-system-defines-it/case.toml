@@ -1,6 +1,6 @@
 case = 1
 name = "deckit-reach-mods-is-answered-as-the-system-defines-it"
-note = "The system defines deckit.reach-mods, named Reach Mods, with its means, and privileged, so a system mod that asks for it is taken and the permission is usable."
+note = "The system defines deckit.reach-mods, named Reach Mods, with its description, and privileged, so a system mod that asks for it is taken and the permission is usable."
 
 [host]
 base = "system"
@@ -18,5 +18,5 @@ part = "permissions"
 
 [step.expect]
 answers = [
-    { id = "deckit.reach-mods", reason = "Reaches the mods.", usable = true, name = "Reach Mods", means = "It connects to any mod by its id, which launches the mod if it does not run.", privileged = true },
+    { id = "deckit.reach-mods", reason = "Reaches the mods.", usable = true, name = "Reach Mods", description = "It connects to any mod by its id, which launches the mod if it does not run.", privileged = true },
 ]

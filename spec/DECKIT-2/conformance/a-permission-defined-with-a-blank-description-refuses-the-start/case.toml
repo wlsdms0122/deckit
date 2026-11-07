@@ -1,0 +1,15 @@
+case = 1
+name = "a-permission-defined-with-a-blank-description-refuses-the-start"
+note = "A permission's description is a string, not blank. A host that defines one whose description is one space has its start refused at call with kind PERMISSION."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "case.sync", name = "Sync", description = " ", privileged = false }]
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "PERMISSION"

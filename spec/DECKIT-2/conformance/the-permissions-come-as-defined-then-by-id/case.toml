@@ -6,9 +6,9 @@ note = "Permissions asked for come with the usable ones first, in the order they
 base = "system"
 api = "1.0.0"
 permissions = [
-    { id = "zeta", name = "Zeta", means = "Last letter.", privileged = false },
-    { id = "system.case-net", name = "Net", means = "Reaches the network.", privileged = false },
-    { id = "alpha", name = "Alpha", means = "First letter.", privileged = false },
+    { id = "zeta", name = "Zeta", description = "Last letter.", privileged = false },
+    { id = "system.case-net", name = "Net", description = "Reaches the network.", privileged = false },
+    { id = "alpha", name = "Alpha", description = "First letter.", privileged = false },
 ]
 sources = ["mod-a"]
 
@@ -22,9 +22,9 @@ part = "permissions"
 
 [step.expect]
 answers = [
-    { id = "zeta", reason = "Zeta.", usable = true, name = "Zeta", means = "Last letter.", privileged = false },
-    { id = "system.case-net", reason = "Net.", usable = true, name = "Net", means = "Reaches the network.", privileged = false },
-    { id = "alpha", reason = "Alpha.", usable = true, name = "Alpha", means = "First letter.", privileged = false },
+    { id = "zeta", reason = "Zeta.", usable = true, name = "Zeta", description = "Last letter.", privileged = false },
+    { id = "system.case-net", reason = "Net.", usable = true, name = "Net", description = "Reaches the network.", privileged = false },
+    { id = "alpha", reason = "Alpha.", usable = true, name = "Alpha", description = "First letter.", privileged = false },
     { id = "b-case", reason = "B.", usable = false },
     { id = "m-case", reason = "M.", usable = false },
     { id = "system.a-case", reason = "A.", usable = false },
