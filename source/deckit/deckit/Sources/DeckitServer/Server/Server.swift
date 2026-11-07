@@ -13,7 +13,6 @@ import Deckit
 // `initialize` on.
 final class Server {
     // MARK: - Property
-    private let decoder = JSONDecoder()
     private let writer = JSONWriter()
     private var deckit: Deckit?
 
@@ -23,7 +22,7 @@ final class Server {
     func respond(to message: Data) -> Data? {
         let response: Response?
         do {
-            response = answer(try decoder.decode(Request.self, from: message))
+            response = answer(try Request(JSONValue(data: message)))
         } catch let DecodingError.dataCorrupted(context) where context.codingPath.isEmpty {
             let error = ResponseError(code: .parseError, message: "not JSON: \(context.debugDescription)")
             response = .error(id: nil, error)

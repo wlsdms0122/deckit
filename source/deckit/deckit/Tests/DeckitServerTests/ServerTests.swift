@@ -582,6 +582,6 @@ struct ServerTests {
     }
 
     private func json(_ text: String) throws -> JSONValue {
-        try JSONParser().parse(text)
+        try JSONValue(data: Data(text.utf8))
     }
 }
