@@ -1,0 +1,12 @@
+id = "urls"
+name = "URLs"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[interfaces]
+provides = { "deckit/urls" = [1] }
+
+[permissions]
+"deckit.reach-mods" = "Reaches the mod that opens an address, which launches it if it does not run."
+"system.file-handlers" = "Opens a file no mod opens in the app for it, for a mod that may open files."
