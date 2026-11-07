@@ -40,18 +40,18 @@ function handlersOf(contributions, warn) {
 // Every scheme with a list, as a client of deckit/urls lists them: those opened outside the app, then each one a mod
 // declares, then every scheme's, `*`, for an address whose scheme has no list of its own. Each
 // `{ scheme, system, chosen, mods }`: `system` what opens it outside the app (`browser`, `file`) or null, `chosen` the
-// id of the mod chosen for it or null, and `mods` `[{ mod, patterns }]` its handlers, the chosen first, then by their
-// widest pattern, the narrowest first, then by id. `chosen` is a Map, scheme -> mod id.
+// choice for it, `{ mod: id }`, `{ system: true }` or null, and `mods` `[{ mod, patterns }]` its handlers, the chosen
+// first, then by their widest pattern, the narrowest first, then by id. `chosen` is a Map, scheme -> choice.
 function listsOf(handlers, chosen) {
     return schemesOf(handlers).map((scheme) => {
         const members = membersOf(handlers, scheme);
-        const choice = members.some(({ mod }) => mod.id === chosen.get(scheme)) ? chosen.get(scheme) : null;
+        const choice = choiceIn(members, scheme, chosen);
         const widest = (handler) => Math.min(...handler.patterns.map(({ specificity }) => specificity));
         return {
             scheme,
             system: SYSTEM[scheme] ?? null,
             chosen: choice,
-            mods: ordered(members, widest, choice).map(({ mod, patterns }) => ({
+            mods: ordered(members, widest, choice?.mod ?? null).map(({ mod, patterns }) => ({
                 mod,
                 patterns: patterns.map(({ written }) => written),
             })),
@@ -60,20 +60,23 @@ function listsOf(handlers, chosen) {
 }
 
 // Where `address` goes: `{ handlers, system }`, the handlers it is offered to in turn, then what opens it outside the
-// app, or null. It goes to its scheme's list, or every scheme's when its scheme has none: to the chosen when one of its
-// patterns takes it, then to the others whose patterns take it, the narrowest there first, then by id. An address with
-// no scheme, or of one that is no place, goes nowhere, as does a file for a client that may not open files
-// (`opensFiles`), whoever would open it.
+// app, or null. It goes to its scheme's list, or every scheme's when its scheme has none: to no mod when the list is
+// chosen outside the app, else to the chosen mod when one of its patterns takes it, then to the others whose patterns
+// take it, the narrowest there first, then by id. An address with no scheme, or of one that is no place, goes nowhere,
+// as does a file for a client that may not open files (`opensFiles`), whoever would open it.
 function routeOf(handlers, chosen, address, { opensFiles }) {
     const scheme = schemeOf(address);
     if (!scheme || !isPlace(scheme)) return { handlers: [], system: null };
     const system = SYSTEM[scheme] ?? null;
     if (system === 'file' && !opensFiles) return { handlers: [], system: null };
     const list = schemesOf(handlers).includes(scheme) ? scheme : EVERY;
+    const members = membersOf(handlers, list);
+    const choice = choiceIn(members, list, chosen);
+    if (choice?.system) return { handlers: [], system };
     const width = (handler) =>
         Math.max(...handler.patterns.filter((pattern) => matches(pattern, address)).map((each) => each.specificity));
-    const taking = membersOf(handlers, list).filter((handler) => width(handler) >= 0);
-    return { handlers: ordered(taking, width, chosen.get(list) ?? null), system };
+    const taking = members.filter((handler) => width(handler) >= 0);
+    return { handlers: ordered(taking, width, choice?.mod ?? null), system };
 }
 
 // MARK: - Private
@@ -106,6 +109,15 @@ function schemesOf(handlers) {
     const own = declared.filter((scheme) => scheme !== EVERY);
     const every = declared.includes(EVERY) ? [EVERY] : [];
     return [...new Set([...Object.keys(SYSTEM), ...own, ...every])];
+}
+
+// The choice for the list of `scheme` that stands: a mod among its `members`, or outside the app where something opens
+// it there; else null.
+function choiceIn(members, scheme, chosen) {
+    const choice = chosen.get(scheme);
+    if (choice?.system) return SYSTEM[scheme] ? choice : null;
+    if (choice?.mod !== undefined) return members.some(({ mod }) => mod.id === choice.mod) ? choice : null;
+    return null;
 }
 
 // The handlers in the list of `scheme`: those of the scheme and of every scheme.

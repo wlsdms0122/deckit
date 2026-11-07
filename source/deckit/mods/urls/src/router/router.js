@@ -7,7 +7,7 @@ const INTERFACE = 'deckit/urls';
 const SYSTEM_SERVICES = 'deckit.system-services';
 // What a client holds to have a file opened.
 const FILE_HANDLERS = 'system.file-handlers';
-// The record of the mods chosen: scheme -> mod id.
+// The record of the choices: scheme -> `{ mod: id }` or `{ system: true }`.
 const KEPT = 'chosen';
 // How long a mod has to answer whether it opened an address, in milliseconds, once its exports for its id stand: one
 // that has not by then passes it on, so one stuck mod does not hold every address.
@@ -16,8 +16,8 @@ const ANSWER_WITHIN = 3000;
 // MARK: - Initializer
 // MARK: - Public
 // The addresses mods declare to deckit/urls, read from what is declared on each ask: an address opened is offered to
-// the mods that open it in turn, each reached by its id, and opened outside the app when none takes it. The mods
-// chosen are kept in the mod's records. `deckit` is the function lifecycle's handle.
+// the mods that open it in turn, each reached by its id, and opened outside the app when none takes it. The choices
+// are kept in the mod's records. `deckit` is the function lifecycle's handle.
 function router(deckit, { within, answerWithin = ANSWER_WITHIN } = {}) {
     // MARK: - Property
     const records = deckit.storage.records;
@@ -45,17 +45,21 @@ function router(deckit, { within, answerWithin = ANSWER_WITHIN } = {}) {
         return listsOf(await handlers(), chosen);
     }
 
-    // The mod `mod` chosen for `scheme`, or none for null: answers the scheme as `list` does.
-    function choose(scheme, mod) {
+    // The choice for `scheme`, `{ mod: id }`, `{ system: true }` or none for null: answers the scheme as `list` does.
+    function choose(scheme, choice) {
         const run = queue.then(async () => {
             const name = typeof scheme === 'string' ? scheme.toLowerCase() : '';
             const found = listsOf(await handlers(), chosen).find((each) => each.scheme === name);
             if (!found) throw refusal('SCHEME', `no mod opens ${scheme}`);
-            if (mod != null && !found.mods.some((each) => each.mod.id === mod))
-                throw refusal('MOD', `${mod} opens no address of ${name}`);
+            const read = choice == null ? null : choiceOf(choice);
+            if (read === undefined)
+                throw refusal('CHOICE', `${JSON.stringify(choice)} is not { mod: id }, { system: true } or null`);
+            if (read?.mod !== undefined && !found.mods.some((each) => each.mod.id === read.mod))
+                throw refusal('MOD', `${read.mod} opens no address of ${name}`);
+            if (read?.system && !found.system) throw refusal('SYSTEM', `nothing opens ${name} outside the app`);
             const next = new Map(chosen);
-            if (mod == null) next.delete(name);
-            else next.set(name, mod);
+            if (read === null) next.delete(name);
+            else next.set(name, read);
             await records.set(KEPT, Object.fromEntries(next));
             chosen = next;
             return listsOf(await handlers(), chosen).find((each) => each.scheme === name);
@@ -108,10 +112,24 @@ function router(deckit, { within, answerWithin = ANSWER_WITHIN } = {}) {
 }
 
 // MARK: - Private
-// The mods chosen, as the record holds them: an entry of another shape is left out.
+// The choices, as the record holds them: an entry of another shape is left out.
 function choicesOf(read) {
     if (!read || typeof read !== 'object' || Array.isArray(read)) return new Map();
-    return new Map(Object.entries(read).filter(([, mod]) => typeof mod === 'string'));
+    return new Map(
+        Object.entries(read)
+            .map(([scheme, choice]) => [scheme, choiceOf(choice)])
+            .filter(([, choice]) => choice)
+    );
+}
+
+// `{ mod: id }` or `{ system: true }` as `value` holds it, or undefined for any other shape.
+function choiceOf(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+    const keys = Object.keys(value);
+    if (keys.length !== 1) return undefined;
+    if (typeof value.mod === 'string') return Object.freeze({ mod: value.mod });
+    if (value.system === true) return Object.freeze({ system: true });
+    return undefined;
 }
 
 // What `answer` settles to, or a rejection once `ms` pass first.

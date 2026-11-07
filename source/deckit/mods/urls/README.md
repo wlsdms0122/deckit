@@ -1,6 +1,6 @@
 # URLs
 
-Which mod opens an address, in one place: the addresses each mod declares in its manifest, an address a mod asks to open offered to the mods that open it, each launched if it does not run, and opened outside the app when none takes it. It keeps the mod you choose for a scheme. It has no view, and launches as a client connects to it.
+Which mod opens an address, in one place: the addresses each mod declares in its manifest, an address a mod asks to open offered to the mods that open it, each launched if it does not run, and opened outside the app when none takes it. It keeps what you choose to open a scheme: a mod, or outside the app. It has no view, and launches as a client connects to it.
 
 ## Declaring addresses
 
@@ -33,13 +33,15 @@ Each scheme has a list of mods: those that declare it, and those that declare `*
 
 A mod is reached by its id as its turn comes, which launches it if it does not run, and let go as it answers. One that passes, does not launch, opens no exports for its id within 10 seconds, has no `openURL`, throws, or does not answer within 3 seconds passes the address on to the next, which is logged.
 
+A scheme you chose to open outside the app offers its addresses to no mod: each opens outside the app at once.
+
 When no mod takes it, an address of `http` or `https` opens in the system browser, and one of `file` in the app for that file, through `deckit.urls.open`. An address of another scheme opens nowhere.
 
 An address with no scheme, or of one that is no place, goes nowhere. A `file` address goes nowhere for a client that does not hold `system.file-handlers`, whoever would open it.
 
 ## Providing `deckit/urls`
 
-URLs provides `deckit/urls` major 1, an interface of the mod contract's own. The exports open in `start`, so a client opens an address with no screen too. Any client opens an address. A client lists the schemes and chooses the mod for one (Settings) when it holds `deckit.system-services`, which only a system mod is granted:
+URLs provides `deckit/urls` major 1, an interface of the mod contract's own. The exports open in `start`, so a client opens an address with no screen too. Any client opens an address. A client lists the schemes and chooses what opens one (Settings) when it holds `deckit.system-services`, which only a system mod is granted:
 
 ```toml
 [interfaces]
@@ -56,16 +58,17 @@ deckit.dependencies.onConnect('deckit/urls', (urls) => {
 });
 const opened = await this.urls.open('https://github.com/deckit', { activates: false });
 const lists = await this.urls.list();
-await this.urls.choose('https', 'browser');
+await this.urls.choose('https', { mod: 'browser' });
+await this.urls.choose('http', { system: true });
 ```
 
 ## What a client calls
 
-| Export                | Who                      | What it is                                                                                                                                                                                          |
-| --------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `open(url, options)`  | any client               | offers `url` as Where an address goes says, and resolves to whether a mod took it or it opened outside the app. `options.activates` false asks the mod, or the system, to leave the app where it is |
-| `list()`              | `deckit.system-services` | every scheme with a list, `[{ scheme, system, chosen, mods }]`: `http`, `https` and `file`, then each one a mod declares, then `*` if a mod declares it                                             |
-| `choose(scheme, mod)` | `deckit.system-services` | chooses the mod `mod` for `scheme`, or none for null, and answers the scheme as `list()` does                                                                                                       |
+| Export                   | Who                      | What it is                                                                                                                                                                                          |
+| ------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open(url, options)`     | any client               | offers `url` as Where an address goes says, and resolves to whether a mod took it or it opened outside the app. `options.activates` false asks the mod, or the system, to leave the app where it is |
+| `list()`                 | `deckit.system-services` | every scheme with a list, `[{ scheme, system, chosen, mods }]`: `http`, `https` and `file`, then each one a mod declares, then `*` if a mod declares it                                             |
+| `choose(scheme, choice)` | `deckit.system-services` | chooses what opens `scheme`, `choice` one of the three in Choices, and answers the scheme as `list()` does                                                                                          |
 
 A scheme as `list()` answers it:
 
@@ -73,17 +76,29 @@ A scheme as `list()` answers it:
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `scheme` | the scheme, lower case, or `*`: the list of an address whose scheme no mod declares                                                                                                                          |
 | `system` | what opens it outside the app when no mod takes it, `browser` or `file`, or null for nothing                                                                                                                 |
-| `chosen` | the id of the mod you chose for it, or null                                                                                                                                                                  |
+| `chosen` | what you chose to open it, as Choices says                                                                                                                                                                   |
 | `mods`   | `[{ mod, patterns }]`, `mod` its `{ id, name }` and `patterns` as it wrote them (`<scheme>:*` for none, `*` for every scheme): the chosen first, then by its widest pattern, the narrowest first, then by id |
 
-What you chose is kept in URLs' storage across runs, and is kept for a mod that is gone, so it is chosen again as the mod comes back.
+### Choices
+
+What opens a scheme is one of three, of shapes that differ so no mod id reads as outside the app:
+
+| Choice             | What it is                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| `{ mod: id }`      | the mod of that id first, where its patterns take the address, then the others           |
+| `{ system: true }` | outside the app at once, offered to no mod: only for a scheme whose `system` is not null |
+| null               | none: the mods in turn, then outside the app                                             |
+
+What you chose is kept in URLs' storage across runs. A mod chosen is kept while it is gone, so it is chosen again as it comes back, and `list()` answers null for it meanwhile. A kept value of another shape is left out.
 
 A call that does not hold `deckit.system-services` rejects with kind `REFUSED`. `choose` rejects with why, the `kind` saying which:
 
-| Kind     | Why                                 |
-| -------- | ----------------------------------- |
-| `SCHEME` | no mod opens an address of `scheme` |
-| `MOD`    | `mod` is not in the scheme's list   |
+| Kind     | Why                                                                              |
+| -------- | -------------------------------------------------------------------------------- |
+| `SCHEME` | no mod opens an address of `scheme`                                              |
+| `CHOICE` | `choice` is none of the three                                                    |
+| `MOD`    | the mod of `{ mod: id }` is not in the scheme's list                             |
+| `SYSTEM` | `{ system: true }` for a scheme nothing opens outside the app, its `system` null |
 
 `open` does not reject for an address no one took: it resolves to false. It rejects only as `deckit.urls.open` does.
 
