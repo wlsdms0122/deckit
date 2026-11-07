@@ -39,10 +39,11 @@ async function run(theCase, { folder, hostApp, electron }) {
     const sources = path.join(folder, 'sources');
     for (const made of [home, path.join(folder, 'electron'), path.join(folder, 'downloads')])
         fs.mkdirSync(made, { recursive: true });
-    for (const name of host.sources) fs.cpSync(bundles[name], path.join(sources, name), { recursive: true });
+    for (const name of host.sources)
+        fs.cpSync(bundles[name], path.join(sources, name), { recursive: true, verbatimSymlinks: true });
     const ship = host.ship.map((name) => {
         const to = path.join(folder, 'ship', name);
-        fs.cpSync(bundles[name], to, { recursive: true });
+        fs.cpSync(bundles[name], to, { recursive: true, verbatimSymlinks: true });
         return { folder: to, system: host.system.includes(name) };
     });
 
