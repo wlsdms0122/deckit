@@ -29,7 +29,7 @@ struct GoldenTests {
         (InstallError.refused("p"), "REFUSED"),
         (InstallError.notInstalled("a"), "NOT_INSTALLED"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
-        (LaunchError.notPermitted(mod: "a", permission: "deckit.mods"), "REFUSED"),
+        (LaunchError.notPermitted(mod: "a", permission: "deckit.mods"), "NOT_PERMITTED"),
         (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
         (PinError.notProvider(interface: "x/api", mod: "a"), "NOT_PROVIDER"),
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),

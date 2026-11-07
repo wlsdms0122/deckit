@@ -80,7 +80,7 @@ extension Refusal {
         case let error as LaunchError:
             switch error {
             case .notPermitted:
-                "REFUSED"
+                "NOT_PERMITTED"
             }
 
         case let error as DeclarationError:

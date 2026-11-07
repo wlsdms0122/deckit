@@ -453,7 +453,7 @@ struct ServerTests {
 
         // Then
         #expect(value(in: held, at: "result") == .array([]))
-        #expect(value(in: refused, at: "error", "data", "kind") == .string("REFUSED"))
+        #expect(value(in: refused, at: "error", "data", "kind") == .string("NOT_PERMITTED"))
         guard case let .array(effects)? = value(in: launched, at: "result") else {
             Issue.record("runner/launch answered no effects: \(launched)")
             return
