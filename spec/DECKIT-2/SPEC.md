@@ -1,6 +1,6 @@
 # DECKIT-2: The bundle
 
-Status: draft
+Status: accepted
 Area: system
 
 ## Summary

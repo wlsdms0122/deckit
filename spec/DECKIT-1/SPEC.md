@@ -1,6 +1,6 @@
 # DECKIT-1: Conformance
 
-Status: draft
+Status: accepted
 Area: system
 
 ## Summary
