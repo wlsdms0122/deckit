@@ -1,0 +1,142 @@
+#!/usr/bin/env node
+// Runs the specification's conformance cases on deckit as it was just built (spec/DECKIT-1): the live set's, or those
+// of the DECKITs and the cases named, drafts too. Each case runs on a host app of the runner's own that embeds the
+// archive as any host app does, with a folder of its own under .build/conformance/runs/. Reports each case, and for one
+// that did not pass, its first step that did not match. Exits 1 unless every case passed.
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+const root = path.join(__dirname, '..', '..', '..');
+const APP = require(path.join(root, 'source', 'cli', 'app.js'));
+const ELECTRON = require(path.join(root, 'source', 'cli', 'electron.js'));
+const SERIES = require(path.join(root, 'source', 'cli', 'conformance', 'series.js'));
+const CASE = require(path.join(root, 'source', 'cli', 'conformance', 'case.js'));
+const RUN = require(path.join(root, 'source', 'cli', 'conformance', 'run.js'));
+const OUT = path.join(root, '.build', 'conformance');
+const USAGE = 'usage: deckit conformance [--spec <folder>] [<DECKIT-N | case name> ...]';
+
+const args = process.argv.slice(2);
+let spec = path.join(root, 'spec');
+if (args[0] === '--spec') {
+    if (!args[1]) fail(USAGE, 2);
+    spec = path.resolve(args[1]);
+    args.splice(0, 2);
+}
+
+function fail(message, code = 1) {
+    console.error(message);
+    process.exit(code);
+}
+
+// The host app's folder: the archive unpacked as deckit/, the runner's host entry beside it, and for each base the
+// preload every deckit page loads with, deckit's renderer bundle and, with the shell on, the shell's.
+function assemble(archive, to) {
+    fs.rmSync(to, { recursive: true, force: true });
+    const library = path.join(to, 'deckit');
+    fs.mkdirSync(library, { recursive: true });
+    execFileSync('tar', ['-xzf', archive, '-C', library]);
+    const built = JSON.parse(fs.readFileSync(path.join(library, 'deckit.json'), 'utf8'));
+    const read = (bundle) => fs.readFileSync(path.join(library, built.bundles[bundle].file), 'utf8');
+    const preload = (shell) =>
+        [
+            '(() => {',
+            'const before = new Set(Object.keys(globalThis));',
+            read('renderer'),
+            ...(shell ? [read('shell-renderer')] : []),
+            `const environment = ${built.bundles.renderer.global}.boot({ before });`,
+            ...(shell ? [`if (environment) ${built.bundles['shell-renderer'].global}.start(environment);`] : []),
+            '})();',
+        ].join('\n;\n') + '\n';
+    fs.writeFileSync(path.join(to, 'preload-system.js'), preload(false));
+    fs.writeFileSync(path.join(to, 'preload-shell.js'), preload(true));
+    fs.copyFileSync(path.join(root, 'source', 'cli', 'conformance', 'host.js'), path.join(to, 'host.js'));
+    fs.writeFileSync(
+        path.join(to, 'package.json'),
+        JSON.stringify({ name: 'deckit-conformance', version: built.version, main: 'host.js' }, null, 4) + '\n'
+    );
+    return built;
+}
+
+// What WebKit keeps for Electron's app: the stores a run made go with it.
+function webKitStores() {
+    const plist = path.join(ELECTRON.electronApp(), 'Contents', 'Info.plist');
+    const id = execFileSync('plutil', ['-extract', 'CFBundleIdentifier', 'raw', plist], { encoding: 'utf8' }).trim();
+    const folder = path.join(require('os').homedir(), 'Library', 'WebKit', id, 'WebsiteDataStore');
+    const list = () => (fs.existsSync(folder) ? fs.readdirSync(folder) : []);
+    const before = new Set(list());
+    return () => {
+        for (const store of list())
+            if (!before.has(store)) fs.rmSync(path.join(folder, store), { recursive: true, force: true });
+    };
+}
+
+const main = async () => {
+    let chosen;
+    try {
+        chosen = SERIES.select(SERIES.read(spec), args);
+    } catch (error) {
+        fail(`${error.message}\n${USAGE}`, 2);
+    }
+    if (!chosen.length)
+        return console.log(
+            args.length ? `${args.join(', ')}: no cases` : 'the live set is empty: no DECKIT is accepted'
+        );
+
+    // A case the format does not take stops the run: the suite is what is wrong then.
+    const cases = [];
+    for (const { deckit, name, folder } of chosen) {
+        try {
+            cases.push({ deckit, name, theCase: CASE.read(folder) });
+        } catch (error) {
+            if (error instanceof CASE.TooOld) cases.push({ deckit, name, why: error.message });
+            else if (error instanceof CASE.NotACase) fail(`not a case: ${error.message}`);
+            else throw error;
+        }
+    }
+    for (const one of cases) one.why ??= RUN.cannotRun(one.theCase);
+
+    let api = null;
+    let clean = () => {};
+    const electron = path.join(ELECTRON.electronApp(), 'Contents', 'MacOS', 'Electron');
+    const hostApp = path.join(OUT, 'host');
+    if (cases.some(({ why }) => !why)) {
+        execFileSync(path.join(__dirname, 'build'), { cwd: root, stdio: 'inherit' });
+        ({ api } = assemble(APP.builtArchive(), hostApp));
+        clean = webKitStores();
+    }
+
+    const counts = { passed: 0, failed: 0, 'not run': 0 };
+    for (const { deckit, name, theCase, why } of cases) {
+        const label = `${deckit.id}${deckit.status === 'accepted' ? '' : ` (${deckit.status})`} ${name}`;
+        if (why) {
+            counts['not run']++;
+            console.log(`not run  ${label}\n         ${why}`);
+            continue;
+        }
+        const folder = path.join(OUT, 'runs', name);
+        const result = await RUN.run(theCase, { folder, hostApp, electron, api });
+        if (result.passed) {
+            counts.passed++;
+            console.log(`ok       ${label}`);
+            continue;
+        }
+        counts.failed++;
+        const { step } = result;
+        const where = step
+            ? `step ${step.number} (${step.kind} ${[step.what, step.mod, step.part].filter(Boolean).join(' ')})`
+            : 'before step 1';
+        console.log(`FAIL     ${label}\n         ${where} came to ${result.came}`);
+        if (result.expected) console.log(`         and expects ${result.expected}`);
+    }
+    clean();
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+    const summary = Object.entries(counts)
+        .filter(([, count]) => count)
+        .map(([outcome, count]) => `${count} ${outcome}`)
+        .join(', ');
+    console.log(`${total} cases: ${summary} (each run's folder is under ${path.relative(root, OUT)}/runs/)`);
+    process.exit(counts.passed === total ? 0 : 1);
+};
+
+main().catch((error) => fail('[conformance] ' + (error.stack || error.message)));
