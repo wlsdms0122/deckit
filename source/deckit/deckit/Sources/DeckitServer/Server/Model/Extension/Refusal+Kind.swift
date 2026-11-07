@@ -40,9 +40,6 @@ extension Refusal {
 
         case let error as InstallError:
             switch error {
-            case .notLoadable:
-                "NOT_LOADABLE"
-
             case .installedThere:
                 "INSTALLED_THERE"
 
@@ -90,6 +87,12 @@ extension Refusal {
             switch error {
             case .notOwner:
                 "NOT_OWNER"
+            }
+
+        case let error as ModFolderError:
+            switch error {
+            case .notLoadable:
+                "NOT_LOADABLE"
             }
 
         case let error as ManifestError:

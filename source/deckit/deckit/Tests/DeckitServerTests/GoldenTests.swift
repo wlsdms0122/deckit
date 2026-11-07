@@ -23,7 +23,6 @@ struct GoldenTests {
         (ConnectionError.notAnEnd(mod: "a"), "NOT_AN_END"),
         (ConnectionError.notUp(Endpoint(modId: "a", run: 1, lifecycle: 0)), "NOT_UP"),
         (ConnectionError.outOfReach(mod: "b", client: "a"), "REFUSED"),
-        (InstallError.notLoadable("p"), "NOT_LOADABLE"),
         (InstallError.installedThere, "INSTALLED_THERE"),
         (InstallError.nested, "NESTED"),
         (InstallError.occupied(id: "a", folder: "/a"), "OCCUPIED"),
@@ -34,6 +33,7 @@ struct GoldenTests {
         (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
         (PinError.notProvider(interface: "x/api", mod: "a"), "NOT_PROVIDER"),
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
+        (ModFolderError.notLoadable("p"), "NOT_LOADABLE"),
         (ManifestError.permissionDefined("p"), "PERMISSION"),
         (ManifestError.fieldDefined("f"), "FIELD"),
         (ModStorageError.notAMod("x"), "MOD"),
@@ -66,6 +66,7 @@ struct GoldenTests {
             adding: "background = \"to test\"\n[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
                 + "\"deckit.privileged\" = \"to test\"\n\"deckit.reach-mods\" = \"to test\""
         )
+        try writeMod("f", in: "source", adding: "colour = \"blue\"")
         try writeMod("d", in: "spare")
         try writeMod("e", in: "spare", adding: "[permissions]\n\"deckit.privileged\" = \"to test\"")
         let requests = try lines(of: "session")

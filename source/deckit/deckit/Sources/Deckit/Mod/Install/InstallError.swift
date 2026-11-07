@@ -10,8 +10,6 @@ import Deck
 
 // Why a mod is not installed, or not removed.
 public enum InstallError: Refusal, Equatable {
-    // A mod deck would not load, and why.
-    case notLoadable(String)
     case installedThere
     case nested
     case occupied(id: String, folder: String)
@@ -24,9 +22,6 @@ public enum InstallError: Refusal, Equatable {
     // MARK: - Property
     public var message: String {
         switch self {
-        case let .notLoadable(problem):
-            problem
-
         case .installedThere:
             "that folder is already the installed one"
 

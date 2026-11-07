@@ -258,6 +258,48 @@ struct ServerTests {
         )
     }
 
+    @Test("initialize refuses a field handed in that deckit reads itself, with the kind FIELD")
+    func initializeRefusesOwnFieldHanded() throws {
+        // Given
+        // When
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","#
+                + #""implementations":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[],"fields":["main"]}}"#,
+            to: sut
+        )
+
+        // Then
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"#
+                    + #""message":"the manifest field main is defined twice","data":{"kind":"FIELD"}}}"#
+            ))
+        )
+    }
+
+    @Test("a mod found that does not load is read with why, its kind NOT_LOADABLE, and one that loads with none")
+    func modNotLoadableIsReadWithItsKind() throws {
+        // Given
+        try mod("a")
+        try mod("b", adding: #"colour = "blue""#)
+        _ = try send(initializeRequest, to: sut)
+
+        // When
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+
+        // Then
+        guard case let .array(mods)? = value(in: response, at: "result"), mods.count == 2 else {
+            Issue.record("catalog/read answered no two mods: \(response)")
+            return
+        }
+        #expect(value(in: mods[0], at: "problem") == nil)
+        #expect(
+            value(in: mods[1], at: "problem") == (try json(
+                #"{"message":"manifest.toml has \"colour\", which is not a manifest field","kind":"NOT_LOADABLE"}"#
+            ))
+        )
+    }
+
     @Test("what a run contributed comes back with it as deck reads it, and a user connects to its exports")
     func contributionsRoundTrip() throws {
         // Given

@@ -43,7 +43,10 @@ struct CatalogTests {
 
         // Then
         #expect(mods.map(\.manifest.id) == ["e", "a", "b", "c", "d"])
-        #expect(mods.last?.problem == #"main = "missing.js" names no file in the mod's folder"#)
+        #expect(
+            mods.last?.problem as? ModFolderError
+                == .notLoadable(#"main = "missing.js" names no file in the mod's folder"#)
+        )
     }
 
     @Test("what a mod's [contributes] declares is carried as written, and one of another shape fails it")
@@ -61,7 +64,8 @@ struct CatalogTests {
         #expect(mods[0].manifest.contributes == ["x/api": [.object(["title": .string("Open"), "size": .number(2)])]])
         #expect(mods[0].problem == nil)
         #expect(
-            mods[1].problem == #"contributes x/api must be a list of tables, as [[contributes."other/name"]] tables"#
+            mods[1].problem as? ModFolderError
+                == .notLoadable(#"contributes x/api must be a list of tables, as [[contributes."other/name"]] tables"#)
         )
         #expect(mods[2].manifest.contributes.isEmpty)
     }
@@ -212,7 +216,7 @@ struct CatalogTests {
 
         // Then
         #expect(throws: InstallError.installedThere) { try installed.get() }
-        #expect(throws: InstallError.notLoadable(#"main = "missing.js" names no file in the mod's folder"#)) {
+        #expect(throws: ModFolderError.notLoadable(#"main = "missing.js" names no file in the mod's folder"#)) {
             try unloadable.get()
         }
         let shadow = "c is read from \(source.appending(path: "c").path(percentEncoded: false)), which would hide the "
@@ -238,7 +242,10 @@ struct CatalogTests {
         // Then
         #expect(outcomes.map(\.outcome) == [.installed, .failed])
         #expect(again.map(\.outcome) == [.leftOut, .failed])
-        #expect(mods.map(\.problem) == [#"did not install: main = "missing.js" names no file in the mod's folder"#])
+        #expect(
+            mods.map { mod in mod.problem as? ModFolderError }
+                == [.notLoadable(#"main = "missing.js" names no file in the mod's folder"#)]
+        )
     }
 
     @Test("a mod the app ships that the host names a system mod is one across starts, and a copy from a folder is not")
@@ -282,11 +289,11 @@ struct CatalogTests {
 
         // Then
         #expect(outcomes.map(\.outcome) == [.installed, .failed])
-        #expect(throws: InstallError.notLoadable(problem)) { try installing.get() }
+        #expect(throws: ModFolderError.notLoadable(problem)) { try installing.get() }
         #expect(mods["s"]?.problem == nil)
         #expect(mods["s"].flatMap(Job.init)?.permissions == ["deckit.any"])
-        #expect(mods["n"]?.problem == "did not install: " + problem)
-        #expect(mods["r"]?.problem == problem)
+        #expect(mods["n"]?.problem as? ModFolderError == .notLoadable(problem))
+        #expect(mods["r"]?.problem as? ModFolderError == .notLoadable(problem))
     }
 
     @Test("the plan answers the permissions and background installing consents to, and a job has those defined here")
@@ -322,7 +329,10 @@ struct CatalogTests {
         let removed = Result { try sut.remove("b") }
 
         // Then
-        #expect(mods.map(\.problem) == [#"did not install: main = "missing.js" names no file in the mod's folder"#])
+        #expect(
+            mods.map { mod in mod.problem as? ModFolderError }
+                == [.notLoadable(#"main = "missing.js" names no file in the mod's folder"#)]
+        )
         #expect(installing.manifest.id == "b")
         #expect(!installing.replaces)
         #expect(throws: InstallError.notInstalled("b")) { try removed.get() }

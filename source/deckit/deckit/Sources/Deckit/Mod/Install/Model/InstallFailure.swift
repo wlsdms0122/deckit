@@ -9,10 +9,10 @@ import Foundation
 import Deck
 
 // A mod the app ships that did not install, as it ships it, and why.
-struct InstallFailure: Equatable {
+struct InstallFailure {
     // MARK: - Property
     let shipped: ShippedMod
-    let problem: String
+    let problem: any Error
 
     // MARK: - Initializer
     // MARK: - Public

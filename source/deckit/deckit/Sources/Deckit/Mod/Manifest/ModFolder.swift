@@ -41,19 +41,19 @@ struct ModFolder {
         reader.read(store.read(manifestFile(of: folder)) ?? "", fallback: folder.standardizedFileURL.lastPathComponent)
     }
 
-    // Why the mod in a folder does not load, as a `system` mod or not, or nil when it does.
-    func problem(of folder: URL, system: Bool) -> String? {
+    // What the mod in a folder is refused with, as a `system` mod or not, or nil when it loads.
+    func problem(of folder: URL, system: Bool) -> ModFolderError? {
         guard let text = store.read(manifestFile(of: folder)) else {
-            return "no \(reader.file) in \(folder.path(percentEncoded: false))"
+            return .notLoadable("no \(reader.file) in \(folder.path(percentEncoded: false))")
         }
         if let problem = reader.problem(of: text, system: system) {
-            return problem
+            return .notLoadable(problem)
         }
 
         let manifest = manifest(of: folder)
         let main = manifest.main ?? ""
         guard file(main, in: folder) != nil else {
-            return "main = \"\(main)\" names no file in the mod's folder"
+            return .notLoadable("main = \"\(main)\" names no file in the mod's folder")
         }
 
         return nil

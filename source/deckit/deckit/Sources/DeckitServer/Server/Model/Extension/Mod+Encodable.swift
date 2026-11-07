@@ -9,7 +9,8 @@ import Foundation
 import Deck
 import Deckit
 
-// Its folders as paths.
+// Its folders as paths, and why it does not load as its message and its kind, the kind absent for a problem that is
+// no refusal.
 extension Mod: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -26,6 +27,11 @@ extension Mod: Encodable {
         case entry
     }
 
+    private enum ProblemKeys: String, CodingKey {
+        case message
+        case kind
+    }
+
     // MARK: - Initializer
     // MARK: - Public
     public func encode(to encoder: any Encoder) throws {
@@ -36,7 +42,12 @@ extension Mod: Encodable {
         try container.encode(installed, forKey: .installed)
         try container.encode(shipped, forKey: .shipped)
         try container.encode(system, forKey: .system)
-        try container.encodeIfPresent(problem, forKey: .problem)
+        if let problem {
+            var why = container.nestedContainer(keyedBy: ProblemKeys.self, forKey: .problem)
+            let refusal = problem as? any Refusal
+            try why.encode(refusal?.message ?? problem.localizedDescription, forKey: .message)
+            try why.encodeIfPresent(refusal?.kind, forKey: .kind)
+        }
         try container.encode(hides.map { hidden in hidden.path(percentEncoded: false) }, forKey: .hides)
         try container.encode(revision, forKey: .revision)
         try container.encode(uses, forKey: .uses)

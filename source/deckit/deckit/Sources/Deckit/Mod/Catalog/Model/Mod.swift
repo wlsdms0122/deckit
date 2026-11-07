@@ -23,8 +23,9 @@ public struct Mod: Sendable {
     // Whether it is a system mod: a copy installed of what the app ships that the host names a system mod, or such a
     // mod that did not install.
     public let system: Bool
-    // Why it does not load, or nil when it does.
-    public internal(set) var problem: String?
+    // Why it does not load, or nil when it does: the refusal its folder is read with, or, for what the app ships that
+    // did not install, what its install failed with.
+    public internal(set) var problem: (any Error)?
     // Folders of the same id that are not read.
     public internal(set) var hides: [URL]
     // Two reads of a mod with one revision are the same code: a copy installed again, even of the same version, is

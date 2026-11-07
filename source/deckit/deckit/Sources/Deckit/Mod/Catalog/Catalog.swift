@@ -245,7 +245,7 @@ public final class Catalog {
                     installed: false,
                     shipped: true,
                     system: failure.shipped.system,
-                    problem: "did not install: " + failure.problem
+                    problem: failure.problem
                 )
             )
         }
@@ -259,7 +259,7 @@ public final class Catalog {
         installed: Bool,
         shipped: Bool,
         system: Bool,
-        problem: String?
+        problem: (any Error)?
     ) -> Mod {
         let revision = [
             source.path(percentEncoded: false),

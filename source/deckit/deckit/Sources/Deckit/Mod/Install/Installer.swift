@@ -41,16 +41,16 @@ final class Installer {
     }
 
     // MARK: - Public
-    // What installing a folder as a `system` mod or not would do, or a throw that says why not: a mod deck would not
-    // load, or a folder that holds the installed copy or is held by it, as copying would take the source with it.
-    // `refuse` adds the caller's own reason, or nil.
+    // What installing a folder as a `system` mod or not would do, or a throw that says why not: the refusal the folder
+    // is read with, or a folder that holds the installed copy or is held by it, as copying would take the source with
+    // it. `refuse` adds the caller's own reason, or nil.
     func planInstall(
         from source: URL,
         system: Bool,
         refuse: (Manifest) -> String? = { _ in nil }
     ) throws -> InstallPlan {
         if let problem = modFolder.problem(of: source, system: system) {
-            throw InstallError.notLoadable(problem)
+            throw problem
         }
 
         let manifest = modFolder.manifest(of: source)
@@ -177,8 +177,8 @@ final class Installer {
                 let manifest = try install(from: shipped.folder, system: shipped.system)
                 reports.append(InstallReport(id: id, outcome: .installed, version: manifest.version))
             } catch {
+                failures[id] = InstallFailure(shipped: shipped, problem: error)
                 let problem = (error as? any Refusal)?.message ?? error.localizedDescription
-                failures[id] = InstallFailure(shipped: shipped, problem: problem)
                 reports.append(InstallReport(id: id, outcome: .failed, problem: problem))
             }
         }
