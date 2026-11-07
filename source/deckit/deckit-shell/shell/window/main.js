@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
+import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered, `PAGES` the shell's pages, `OVERLAY` their overlays and `makeStage()` a stage to
 // lay them on (environment: SHELL.stage); `showWindow(control, { activates })`, `hideWindow(control)` and
@@ -36,15 +37,15 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
     }
 
     // MARK: - Private
-    // A window open while its mod's page goes is put away: the page in it is gone. The window of a mod gone from the
-    // catalog is ended, though its run may not have ended yet.
+    // A window open while its mod's page goes is put away: the page in it is gone. The window of a mod that no longer
+    // loads is ended, though its run may not have ended yet.
     function reconcile() {
-        const found = new Set(deckit.mods.list().map(({ id }) => id));
-        for (const [id, held] of windows) if (!found.has(id)) end(id, held);
+        const loaded = new Set(MODS.loaded(deckit.mods).map(({ id }) => id));
+        for (const [id, held] of windows) if (!loaded.has(id)) end(id, held);
         const running = new Map(
             deckit.mods
                 .runs()
-                .filter(({ run }) => found.has(run.mod.id) && run.state === 'running' && run.summary?.window)
+                .filter(({ run }) => loaded.has(run.mod.id) && run.state === 'running' && run.summary?.window)
                 .map(({ run, page }) => [run.mod.id, { run, page }])
         );
         for (const held of windows.values()) {

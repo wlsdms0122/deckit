@@ -4,8 +4,9 @@
 // shell's own keys (deckit-shell/shell/key/main): their table, the chords set kept in the shell's state, and the
 // privileged permission main holds a page to before it lists or changes them. And the panel (shell/panel/main) over a
 // stand-in for what connect answers: the manifest fields it names, a mod in front as a mod with deckit.mods asks,
-// launched when it does not run, what deckit refuses to keep, and the shell's keys and Escape as the keymap's monitor
-// tells them. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// launched when it does not run, the mods that load in the Dock, the list and its order, and no bundle that does not,
+// what deckit refuses to keep, and the shell's keys and Escape as the keymap's monitor tells them. Exits 1 with a line
+// for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -232,6 +233,22 @@ async function main() {
         left
     );
 
+    // A bundle that does not load, as deckit lists it, between two that do: it has no manifest fields and no run.
+    const broken = { id: 'broken', refusal: { stage: 'read', kind: 'NOT_LOADABLE', message: 'no main.js' } };
+    const listing = panelOver(createPanel, {
+        mods: [{ id: 'a', name: 'A', uses: {} }, broken, { id: 'b', name: 'B', uses: {} }],
+        fields: { a: { view: {} }, b: { view: {} } },
+        managers: ['switcher'],
+    });
+    listing.PANEL.start();
+    const inDock = (await listing.ask('frame-setup', {}, FRAME)).state.mods.map(({ id }) => id).join();
+    const switching = (await listing.ask('list', {}, 'switcher')).map(({ id }) => id).join();
+    await listing.ask('reorder', { ids: ['b', 'a'] }, FRAME);
+    check(
+        'the Dock, the list and its order hold the mods that load, and no bundle that does not',
+        inDock === 'a,b' && switching === 'a,b' && JSON.stringify(listing.state['panel-order']) === '["b","a"]',
+        { inDock, switching, order: listing.state['panel-order'] }
+    );
     const refusing = panelOver(createPanel, {
         mods: ['a', 'b'].map((id) => ({ id, name: id.toUpperCase(), uses: {} })),
         fields: { a: { view: {} }, b: { view: {} } },
@@ -366,7 +383,7 @@ function panelOver(
         mods: {
             notifications: [],
             list: () => mods,
-            shipped: () => mods.map(({ id }) => id),
+            shipped: () => mods.filter(({ refusal }) => !refusal).map(({ id }) => id),
             runs: () => runs,
             runOf: (id) =>
                 runs.find(({ run }) => run.mod.id === id)?.run ?? (keepers.includes(id) ? keeping(id) : null),

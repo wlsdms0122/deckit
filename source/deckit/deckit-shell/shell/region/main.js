@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as FIELD from '../panel/model/field.js';
+import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered.
 export function createRegion({ deckit }) {
@@ -37,7 +38,7 @@ export function createRegion({ deckit }) {
 
     // The interface the mod's view names as its parent, or null: it is a child whether or not a mod owns it.
     function interfaceOf(id) {
-        const mod = deckit.mods.list().find((one) => one.id === id);
+        const mod = MODS.loaded(deckit.mods).find((one) => one.id === id);
         return (mod && FIELD.viewOf(deckit.mods.fieldsOf(id), mod)?.parent) || null;
     }
 
@@ -126,7 +127,7 @@ export function createRegion({ deckit }) {
 
     // The interfaces a mod provides, by its manifest: main does not take a page's word for it.
     function providesOf(id) {
-        const mod = deckit.mods.list().find((one) => one.id === id);
+        const mod = MODS.loaded(deckit.mods).find((one) => one.id === id);
         return new Set(Object.keys(mod?.provides ?? {}));
     }
 
@@ -134,7 +135,7 @@ export function createRegion({ deckit }) {
     // parent hears its children as they change.
     function changed() {
         for (const region of every()) if (region.child && !holds(region, region.child)) region.child = null;
-        const parents = new Set([...sentChildren.keys(), ...deckit.mods.list().map(({ id }) => parentOf(id))]);
+        const parents = new Set([...sentChildren.keys(), ...MODS.loaded(deckit.mods).map(({ id }) => parentOf(id))]);
         for (const parent of parents) {
             if (!parent) continue;
             const children = childrenOf(parent);
@@ -150,7 +151,7 @@ export function createRegion({ deckit }) {
     // Interface -> its children, running or not, in the mods' order, for each interface `parent` provides.
     function childrenOf(parent) {
         if (!parent) return {};
-        const mods = deckit.mods.list();
+        const mods = MODS.loaded(deckit.mods);
         const children = {};
         for (const named of providesOf(parent))
             children[named] = mods

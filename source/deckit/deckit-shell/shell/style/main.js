@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as STYLE_PERMISSION from './model/permission.js';
+import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered.
 export function createStyle({ deckit }) {
@@ -39,8 +40,7 @@ export function createStyle({ deckit }) {
     // MARK: - Private
     // What the page of `modId`, or one the shell made for null, wears.
     function stylesFor(modId) {
-        return deckit.mods
-            .list()
+        return MODS.loaded(deckit.mods)
             .flatMap(({ id }) => {
                 const run = deckit.mods.runOf(id);
                 const given = [declared.get(id) || {}, (run?.state === 'running' && stylesOf(run)) || {}];
@@ -53,7 +53,7 @@ export function createStyle({ deckit }) {
     // left out.
     async function readDeclared() {
         const next = new Map();
-        for (const mod of deckit.mods.list()) {
+        for (const mod of MODS.loaded(deckit.mods)) {
             const files = deckit.mods.fieldsOf(mod.id)?.[FIELD];
             if (!mayStyle(mod) || !files || typeof files !== 'object') continue;
             const styles = {};

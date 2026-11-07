@@ -7,6 +7,7 @@ import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as FIELD from './model/field.js';
 import * as DOCK from './model/dock.js';
+import * as MODS from '../mods/index.js';
 import { createKey } from '../key/main.js';
 
 // `deckit` is what connect answered, `host` the app's answers, `PAGES` the shell's pages, `OVERLAY` their overlays and
@@ -301,8 +302,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     function firstDock() {
         if (dock) return dock;
         const shipped = new Set(deckit.mods.shipped());
-        return deckit.mods
-            .list()
+        return MODS.loaded(deckit.mods)
             .map(({ id }) => id)
             .filter((id) => shipped.has(id) && viewOf(id)?.parent === null);
     }
@@ -396,7 +396,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
 
     // The mods in the list's order: those the person placed, as they placed them, then the rest in the mods' order.
     function inOrder() {
-        const mods = new Map(deckit.mods.list().map((mod) => [mod.id, mod]));
+        const mods = new Map(MODS.loaded(deckit.mods).map((mod) => [mod.id, mod]));
         return LIST_ORDER.sorted([...mods.keys()], order).map((id) => mods.get(id));
     }
 
@@ -417,7 +417,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
 
     // The view the mod's manifest fields give, or null.
     function viewOf(id) {
-        const mod = deckit.mods.list().find((one) => one.id === id);
+        const mod = MODS.loaded(deckit.mods).find((one) => one.id === id);
         return mod ? FIELD.viewOf(deckit.mods.fieldsOf(id), mod) : null;
     }
 
@@ -647,7 +647,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     function broadcast() {
         const contents = frameContents();
         if (contents) PROTOCOL.state.send(contents, stateOf());
-        const mod = deckit.mods.list().find(({ id }) => id === current);
+        const mod = MODS.loaded(deckit.mods).find(({ id }) => id === current);
         const title = mod?.name || deckit.config.name;
         if (title !== titled) host.panelTitled((titled = title));
     }

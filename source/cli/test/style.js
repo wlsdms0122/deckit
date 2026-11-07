@@ -1,7 +1,8 @@
 // The styles a page wears (deckit-shell/shell/style/main): what mods with deckit.styles declare and what their running
 // runs give every page, and what they give a mod's page by its id, from the mod itself and from any other, in the load
-// order, and a declared file read as the core resolves it (deckit-shell/deckit/catalog). Exits 1 with a line for each
-// check that failed. The packages are ES modules, so they are imported as such.
+// order, a bundle that does not load passed over, and a declared file read as the core resolves it
+// (deckit-shell/deckit/catalog). Exits 1 with a line for each check that failed. The packages are ES modules, so they
+// are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -26,6 +27,8 @@ async function main() {
     };
     const mods = { ...Object.fromEntries(Object.keys(runs).map((id) => [id, mod(id)])), e: mod('e'), f: mod('f', []) };
     mods.c = mod('c', []);
+    // A bundle that does not load, as deckit lists it: it has no manifest, so it declares no styles.
+    mods.broken = { id: 'broken', refusal: { stage: 'read', kind: 'NOT_LOADABLE', message: 'no main.js' } };
     const fields = {
         a: { styles: { '*': 'all.css' } },
         e: { styles: { a: 'a.css', b: 'missing.css' } },
@@ -38,7 +41,7 @@ async function main() {
         mods: {
             list: () => Object.values(mods),
             runOf: (id) => runs[id] ?? null,
-            fieldsOf: (id) => fields[id] ?? {},
+            fieldsOf: (id) => (mods[id]?.refusal ? null : (fields[id] ?? {})),
             readFile: async (id, file) => files[`${id}/${file}`] ?? null,
             modOf: (page) => page.mod,
             observe() {},
@@ -62,6 +65,8 @@ async function main() {
     );
     const shell = current({}, { mod: null }).join();
     check("a page the shell made wears every page's styles alone", shell === 'a-declared,a-all,d-all', shell);
+    const refused = current({}, { mod: 'broken' }).join();
+    check('a bundle that does not load is passed over', refused === 'a-declared,a-all,d-all', refused);
     const declared = current({}, { mod: 'b' }).join();
     check('a file a mod declares that is not there is left out', declared === 'a-declared,a-all,d-all', declared);
 

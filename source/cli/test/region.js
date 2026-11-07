@@ -2,8 +2,9 @@
 // child is the child of the owner of the interface its view names as parent, at the major it uses, a region shows only
 // the children of its own interface, so a mod that gives regions for two keeps them apart, and a new owner takes a
 // child out of the old one's region and to the new one's children, a child that does not run launches as a region
-// shows it, and a view, as a mod's manifest fields give it, names as parent only an interface its mod uses. Exits 1
-// with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// shows it, a view, as a mod's manifest fields give it, names as parent only an interface its mod uses, and a bundle
+// that does not load is no child and has none. Exits 1 with a line for each check that failed. The packages are ES
+// modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -26,6 +27,8 @@ async function main() {
         { id: 'board', name: 'Board', provides: {}, uses: { 'dash/boards': 1 } },
         { id: 'tool', name: 'Tool', provides: { 'dash/tools': [1] }, uses: { 'dash/tools': 1 } },
         { id: 'idle', name: 'Idle', provides: {}, uses: { 'dash/boards': 1 } },
+        // A bundle that does not load, as deckit lists it: it has no manifest, so it is no child and gives no regions.
+        { id: 'broken', refusal: { stage: 'read', kind: 'NOT_LOADABLE', message: 'no main.js' } },
     ];
     // The manifest fields of each: every one a view, `board`, `tool` and `idle` naming a parent; `idle` does not run.
     const fields = {
@@ -44,7 +47,7 @@ async function main() {
     const pages = Object.fromEntries(mods.map(({ id }) => [id, { mod: id }]));
     const runs = Object.fromEntries(
         mods
-            .filter(({ id }) => id !== 'idle')
+            .filter(({ id, refusal }) => id !== 'idle' && !refusal)
             .map(({ id }) => [id, { mod: { id }, state: 'running', relaunches: false }])
     );
     const handlers = {};
@@ -101,6 +104,14 @@ async function main() {
         'a child is the child of the owner of its interface',
         REGION.parentOf('board') === 'dash' && REGION.interfaceOf('board') === 'dash/boards',
         [REGION.parentOf('board'), REGION.interfaceOf('board')]
+    );
+
+    check(
+        'a bundle that does not load is no child and has none',
+        REGION.interfaceOf('broken') === null &&
+            REGION.parentOf('broken') === null &&
+            JSON.stringify(channel('children')({}, pages.broken)) === '{}',
+        ''
     );
 
     let refused = '';
