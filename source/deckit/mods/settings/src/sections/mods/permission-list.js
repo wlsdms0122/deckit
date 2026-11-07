@@ -33,7 +33,7 @@ const PERMISSION_LIST_STYLE = `
         font: var(--deckit-type-body);
         opacity: 0.85;
     }
-    .settings-permission-means {
+    .settings-permission-description {
         margin-top: 4px;
         overflow-wrap: anywhere;
         font: var(--deckit-type-small);
@@ -85,8 +85,10 @@ function permissionList({ ui, permissions }) {
             head.append(ui.element('span', { className: 'settings-permission-name', text: permission.name }));
         head.append(ui.element('span', { className: 'settings-permission-id', text: permission.id }));
         words.append(head, ui.element('div', { className: 'settings-permission-reason', text: permission.reason }));
-        if (permission.means)
-            words.append(ui.element('div', { className: 'settings-permission-means', text: permission.means }));
+        if (permission.description)
+            words.append(
+                ui.element('div', { className: 'settings-permission-description', text: permission.description })
+            );
         if (permission.usable === false)
             words.append(
                 ui.element('div', {
