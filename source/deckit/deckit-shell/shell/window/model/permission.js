@@ -5,7 +5,7 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: OVERLAY_WINDOWS,
         name: 'Overlay Windows',
-        means: "It can show a window of its own over every app's, on every desktop, whichever app is in front.",
+        description: "It can show a window of its own over every app's, on every desktop, whichever app is in front.",
     }),
 ]);
 

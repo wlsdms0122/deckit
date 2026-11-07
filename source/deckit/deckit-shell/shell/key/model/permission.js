@@ -6,7 +6,7 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: SHELL_KEYS,
         name: 'Shell Keys',
-        means: "It can change the keys of the app's panel and Dock.",
+        description: "It can change the keys of the app's panel and Dock.",
         privileged: true,
     }),
 ]);

@@ -5,7 +5,7 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: FONTS,
         name: 'Fonts',
-        means: 'It can change the fonts and the text size every mod writes text in.',
+        description: 'It can change the fonts and the text size every mod writes text in.',
     }),
 ]);
 
