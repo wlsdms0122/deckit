@@ -388,7 +388,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             IDENTITY.whenPageEnds(sender, (ending) => crash(run, endedProblem(ending)));
             sandbox.lifecycles = 1;
             const source = await CATALOG.sourceOf(mod);
-            return { manifest: mod.manifest, contributes: mod.contributes, source, run: run.number };
+            return { manifest: mod.manifest, source, run: run.number };
         });
         PROTOCOL.described.on(({ run: number, summary, lifecycles }, sender) => {
             const sandbox = sandboxes.get(IDENTITY.modFrom(sender).id);

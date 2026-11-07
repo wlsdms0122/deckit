@@ -69,11 +69,11 @@ export function createApi({
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: factsOf(run), page }))),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),
-                // What the mod's manifest declares in [contributes], entries by interface, or null for no mod that
-                // loads.
-                contributesOf: (id) => {
+                // The manifest fields the UI named (`fields.define`) that the mod's manifest writes, by key, each as
+                // written, or null for no mod that loads.
+                fieldsOf: (id) => {
                     const mod = CATALOG.mods().find((each) => each.id === id);
-                    return mod ? frozen(mod.manifest.contributes) : null;
+                    return mod ? frozen(mod.manifest.fields) : null;
                 },
                 // The text of a file inside the mod's folder, by its path there, or null for none.
                 readFile: CATALOG.readFile,
