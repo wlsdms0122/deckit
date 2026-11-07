@@ -1,0 +1,21 @@
+case = 1
+name = "deckit-mods-is-answered-as-the-system-defines-it"
+note = "The system defines deckit.mods, named Mods, with its means, and not privileged, so a mod read in place that asks for it is taken and the permission is usable."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "deckit.mods", reason = "Lists the mods.", usable = true, name = "Mods", means = "It can see every installed mod, launch and quit them, add one from a folder, which gets every permission it asks for, and delete installed ones, with what they stored.", privileged = false },
+]

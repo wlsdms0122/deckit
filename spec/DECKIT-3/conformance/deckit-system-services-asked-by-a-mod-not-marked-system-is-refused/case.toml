@@ -1,0 +1,19 @@
+case = 1
+name = "deckit-system-services-asked-by-a-mod-not-marked-system-is-refused"
+note = "deckit.system-services is privileged, so a bundle read in place that asks for it is refused at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-c"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

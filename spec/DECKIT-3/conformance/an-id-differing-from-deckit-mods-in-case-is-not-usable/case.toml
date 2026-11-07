@@ -1,0 +1,21 @@
+case = 1
+name = "an-id-differing-from-deckit-mods-in-case-is-not-usable"
+note = "A permission asked for is the system's only where its id is the same sequence of scalar values as the one the system defines, so deckit.Mods is defined by nothing and is not usable."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "deckit.Mods", reason = "Lists the mods.", usable = false },
+]

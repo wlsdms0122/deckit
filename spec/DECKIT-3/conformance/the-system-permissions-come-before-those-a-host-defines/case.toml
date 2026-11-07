@@ -1,0 +1,23 @@
+case = 1
+name = "the-system-permissions-come-before-those-a-host-defines"
+note = "The system defines its own permissions before the host defines any, so a permission the system defines is answered ahead of one the host defines."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "case.sync", name = "Sync", means = "Syncs the pages." }]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "deckit.mods", reason = "Lists the mods.", usable = true, name = "Mods", means = "It can see every installed mod, launch and quit them, add one from a folder, which gets every permission it asks for, and delete installed ones, with what they stored.", privileged = false },
+    { id = "case.sync", reason = "Syncs the pages.", usable = true, name = "Sync", means = "Syncs the pages.", privileged = false },
+]
