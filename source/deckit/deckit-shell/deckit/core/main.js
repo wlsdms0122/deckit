@@ -17,8 +17,8 @@ export function createCore({ FOLDERS, LOG, core, home }) {
     // MARK: - Initializer
     // MARK: - Public
     // Once the app is ready, before any mod launches: what the mods are read against is handed over then, `permissions`
-    // those the layers on this host define.
-    function start({ permissions }) {
+    // those the layers on this host define and `fields` the manifest fields they read.
+    function start({ permissions, fields }) {
         connection = core.open({
             onMessage: receive,
             onLog: (line) => LOG.info('core:', line),
@@ -30,6 +30,7 @@ export function createCore({ FOLDERS, LOG, core, home }) {
             ship: FOLDERS.ship,
             sources: FOLDERS.sources,
             permissions,
+            fields,
         }).then((folders) => {
             kept = folders;
         });

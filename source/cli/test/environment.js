@@ -1,5 +1,6 @@
 // What an environment gives deckit (deckit-shell/environment): how a given object is held to it, that connect and
-// attach refuse an environment that lacks a member, and what connect answers the UI and the host app. Exits 1 with a
+// attach refuse an environment that lacks a member, that connect refuses a shipped folder with no system mark, and
+// what connect answers the UI and the host app. Exits 1 with a
 // line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -15,6 +16,7 @@ const USED = {
     restart: 'function',
     channels: { bind: 'function' },
     permissions: { define: 'function' },
+    fields: { define: 'function' },
     mods: {
         notifications: 'array',
         list: 'function',
@@ -121,6 +123,12 @@ async function main() {
     );
     const unknown = thrown(() => SHELL.connect(environment, { host, config: { colour: 'red' } }));
     check('connect refuses a configuration it does not read', /config sets colour/.test(unknown), unknown);
+    const unmarked = thrown(() => SHELL.connect(environment, { host, folders: { ship: ['/ship/a'] } }));
+    check(
+        'connect refuses a shipped folder with no system mark',
+        /folders\.ship lists \{ folder, system \}/.test(unmarked),
+        unmarked
+    );
     const answer = SHELL.connect(environment, { host, config: { id: 'test' } });
     check(
         'the environment is configured with what names what it keeps',

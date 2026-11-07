@@ -1,12 +1,21 @@
 // Deckit's client of the core (deckit-shell/deckit/core), checked over a stand-in for how the environment reaches the
-// core: what it sends first, how it waits for that, what an answer and a refusal come to, and that a core that ended
-// refuses everything after. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// core: what it sends first, the shipped folders with their system marks, the permissions the layers define with their
+// tier (deckit/permission) and the manifest fields they name (deckit/manifest-field), how it waits for that, what an
+// answer and a refusal come to, and that a core that ended refuses everything after. Exits 1 with a line for each check
+// that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+const thrown = (work) => {
+    try {
+        work();
+        return '';
+    } catch (error) {
+        return error.message;
+    }
+};
 const outcome = (promise) =>
     promise.then(
         (value) => ({ value }),
@@ -15,6 +24,8 @@ const outcome = (promise) =>
 
 async function main() {
     const { createCore } = await import(url('deckit-shell', 'deckit', 'core', 'main.js'));
+    const { createPermission } = await import(url('deckit-shell', 'deckit', 'permission', 'index.js'));
+    const { createManifestField } = await import(url('deckit-shell', 'deckit', 'manifest-field', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -38,17 +49,50 @@ async function main() {
         error: (...parts) => logged.push(['error', ...parts]),
     };
     const answer = (id, result) => listeners.onMessage(JSON.stringify({ jsonrpc: '2.0', id, result }));
-    const FOLDERS = { ship: ['/ship'], sources: [] };
+    const FOLDERS = {
+        ship: [
+            { folder: '/ship/a', system: true },
+            { folder: '/ship/b', system: false },
+        ],
+        sources: [],
+    };
     const CORE = createCore({ FOLDERS, LOG, core, home: '/home/deckit' });
+    const PERMISSION = createPermission();
+    PERMISSION.define({ id: 'a.b', name: 'B', means: 'It does b.' });
+    PERMISSION.define({ id: 'a.c', name: 'C', means: 'It does c.', privileged: true });
+    const MANIFEST_FIELD = createManifestField();
+    MANIFEST_FIELD.define('icon');
+    MANIFEST_FIELD.define('view');
+    check(
+        'a permission whose tier is no boolean is refused',
+        /no boolean/.test(thrown(() => PERMISSION.define({ id: 'a.d', name: 'D', means: 'd', privileged: 'yes' }))),
+        ''
+    );
+    check('a manifest field named twice is refused', /twice/.test(thrown(() => MANIFEST_FIELD.define('icon'))), '');
 
-    CORE.start({ permissions: [{ id: 'a.b' }, { id: 'a.c' }] });
+    CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() });
     const early = outcome(CORE.request('catalog/read', {}));
     await tick();
     check('initialize goes first, alone', sent.length === 1 && sent[0].method === 'initialize', sent);
+    const { params } = sent[0];
+    check('initialize carries the home', params.home === '/home/deckit', params);
     check(
-        'initialize carries the home and the permissions',
-        sent[0].params.home === '/home/deckit' && sent[0].params.permissions[1].id === 'a.c',
-        sent[0].params
+        'initialize carries each shipped folder with its system mark',
+        JSON.stringify(params.ship) === JSON.stringify(FOLDERS.ship),
+        params.ship
+    );
+    check(
+        'initialize carries the permissions, each with its tier, not privileged unless defined so',
+        JSON.stringify(params.permissions.map(({ id, privileged }) => [id, privileged])) ===
+            '[["a.b",false],["a.c",true]]',
+        params.permissions
+    );
+    check('initialize carries the manifest fields named', JSON.stringify(params.fields) === '["icon","view"]', params);
+    check(
+        'a permission or a manifest field is not defined once the core started',
+        /after the core started/.test(thrown(() => PERMISSION.define({ id: 'a.e', name: 'E', means: 'e' }))) &&
+            /after the core started/.test(thrown(() => MANIFEST_FIELD.define('keywords'))),
+        ''
     );
     answer(sent[0].id, {});
     await tick();

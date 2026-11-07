@@ -14,6 +14,7 @@ import { createStorage } from './deckit/storage/index.js';
 import * as BUILD from './deckit/build/index.js';
 import { createLog } from './deckit/log/main.js';
 import { createPermission } from './deckit/permission/index.js';
+import { createManifestField } from './deckit/manifest-field/index.js';
 import { createCatalog } from './deckit/catalog/index.js';
 import { createIdentity } from './deckit/identity/index.js';
 import { createRunner } from './deckit/runner/main.js';
@@ -48,7 +49,8 @@ import { createOverlay } from './shell/overlay/main.js';
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
 // keeps, and `name` is what a person reads.
 // `folders`: `home` is deckit's folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships,
-// installed at every start, and `sources` folders of mods read in place, ahead of installed ones.
+// installed at every start, each `{ folder, system }`, `system` whether the host app names it a system mod, and
+// `sources` folders of mods read in place, ahead of installed ones.
 const CONFIG = { id: 'deckit', name: 'Deckit' };
 const FOLDERS = { home: null, ship: [], sources: [] };
 const SHELL_CONFIG = { dock: null };
@@ -90,6 +92,7 @@ function connect(environment, { host, config = {}, folders = {} } = {}) {
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     refuseUnknown('config', config, Object.keys(CONFIG));
     refuseUnknown('folders', folders, Object.keys(FOLDERS));
+    refuseShip(folders.ship ?? FOLDERS.ship);
     connected = make({
         ENV,
         host,
@@ -155,6 +158,12 @@ function refuseUnknown(what, given, known) {
     if (unknown.length) throw new Error(`[deckit] ${what} sets ${unknown.join(', ')}, which deckit does not read`);
 }
 
+function refuseShip(ship) {
+    const marked = (mod) => typeof mod?.folder === 'string' && typeof mod.system === 'boolean';
+    if (!Array.isArray(ship) || !ship.every(marked))
+        throw new Error('[deckit] folders.ship lists { folder, system } for each mod folder the host app ships');
+}
+
 // Deckit in main, made of its parts, each handed what it uses of the environment.
 function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     ENV.configure({ id: CONFIG.id });
@@ -165,6 +174,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const CORE = createCore({ FOLDERS, LOG, core: ENV.core, home: HOME.folder });
     const STORAGE = createStorage({ CORE, LOG });
     const PERMISSION = createPermission();
+    const MANIFEST_FIELD = createManifestField();
     const CATALOG = createCatalog({ CORE, LOG, files: ENV.files });
     const IDENTITY = createIdentity({ pages: ENV.pages });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
@@ -211,6 +221,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         CATALOG,
         RUNNER,
         PERMISSION,
+        MANIFEST_FIELD,
         WEB,
         KEYMAP,
         MAIN_PROCESS,
@@ -232,16 +243,16 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         starting.push(listener);
     }
 
-    // The log starts first, then the core, which is handed the permissions the layers defined and hands over the
-    // state it keeps, and installs what the host app ships and reads the mods, before anything reads the mods or the
-    // state. Deckit's pages are served before any loads. What follows the mods' runs starts before the runner launches
-    // any.
+    // The log starts first, then the core, which is handed the permissions the layers defined and the manifest fields
+    // they named, and hands over the state it keeps, and installs what the host app ships and reads the mods, before
+    // anything reads the mods or the state. Deckit's pages are served before any loads. What follows the mods' runs
+    // starts before the runner launches any.
     async function start() {
         LOG.start({
             nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
         LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
-        CORE.start(PERMISSION.all());
+        CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() });
         await STORAGE.load();
         await CATALOG.load();
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);

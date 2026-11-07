@@ -12,6 +12,7 @@ export function createApi({
     CATALOG,
     RUNNER,
     PERMISSION,
+    MANIFEST_FIELD,
     WEB,
     KEYMAP,
     MAIN_PROCESS,
@@ -26,9 +27,10 @@ export function createApi({
 
     // MARK: - Public
     // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages, the
-    // pages where the chords mods take work, permissions for what the UI adds, their own state, the log, and the
-    // layers stacked over deckit on a mod's page. No more of deckit is theirs. Every fact it hands out is a frozen
-    // copy. `onStart(listener)` is how deckit is told what starts with it, and `restart()` the host app's.
+    // pages where the chords mods take work, permissions for what the UI adds and the manifest fields it reads, their
+    // own state, the log, and the layers stacked over deckit on a mod's page. No more of deckit is theirs. Every fact
+    // it hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it, and `restart()`
+    // the host app's.
     function make({ onStart, restart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
@@ -100,6 +102,8 @@ export function createApi({
             // listen(page): a page of the host app's or its shell's where the chords mods take work too.
             keymap: Object.freeze({ listen: (page) => KEYMAP.listen(page) }),
             permissions: Object.freeze({ define: PERMISSION.define }),
+            // define(key): a top-level manifest key the UI reads, named before deckit starts.
+            fields: Object.freeze({ define: MANIFEST_FIELD.define }),
             // What the host app and its shell keep of the person's, in a folder of their own beside deckit's state.
             state: STORAGE.stateIn('host'),
             web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
