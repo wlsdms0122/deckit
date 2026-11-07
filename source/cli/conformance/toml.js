@@ -1,11 +1,11 @@
-// The manifest text, the subset of TOML the bundle's DECKIT fixes (spec/DECKIT-2), read into values: a string, a
+// The manifest text, the language based on TOML the bundle's DECKIT fixes (spec/DECKIT-2), read into values: a string, a
 // number, a boolean, an array, or a table, an object with no prototype. What the text does not hold throws, with the
 // line it is on.
 const WS = /\p{White_Space}/u;
 const BARE = /[A-Za-z0-9_-]/;
 const DEPTH = 32;
-const MIN = -(2n ** 63n);
-const MAX = 2n ** 63n - 1n;
+const MAX = 2n ** 53n - 1n;
+const MIN = -MAX;
 
 function read(text) {
     const lines = text
@@ -193,7 +193,7 @@ function parseValue(cursor, depth) {
     if (!integer) cursor.fail('a value is none the manifest text holds');
     cursor.at += integer[0].length;
     const value = BigInt(integer[0]);
-    if (value < MIN || value > MAX) cursor.fail(`${integer[0]} is no signed 64-bit integer`);
+    if (value < MIN || value > MAX) cursor.fail(`${integer[0]} lies beyond ±(2^53 - 1)`);
     return Number(value);
 }
 

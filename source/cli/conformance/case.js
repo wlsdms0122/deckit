@@ -25,7 +25,10 @@ const is = {
     array: Array.isArray,
     table: TOML.isTable,
     name: (value) => typeof value === 'string' && NAME.test(value),
-    version: (value) => typeof value === 'string' && VERSION.test(value),
+    version: (value) =>
+        typeof value === 'string' &&
+        VERSION.test(value) &&
+        value.split('.').every((part) => BigInt(part) <= BigInt(Number.MAX_SAFE_INTEGER)),
     member: (value) => typeof value === 'string' && MEMBER.test(value),
     place: (value) => typeof value === 'string' && PLACE.test(value),
     seconds: (value) => Number.isInteger(value) && value >= 1,
