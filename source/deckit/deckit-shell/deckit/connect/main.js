@@ -160,31 +160,33 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         SETUP,
     });
     const starting = []; // what starts with deckit, before any mod launches: the UI on it
-    let started = false;
+    let told = false; // what starts with deckit has been told
 
     // What deckit's passages give, on every host.
     for (const model of DECKIT_PERMISSIONS) for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
-    const answer = API.make({ onStart, restart: () => host.restart() });
-    ENV.app.whenReady().then(start);
-    return answer;
+    const startup = ENV.app.whenReady().then(start);
+    startup.catch((error) => LOG.error('deckit did not start', error));
+    return API.make({ onStart, whenStarted: () => startup, restart: () => host.restart() });
 
     // `listener` is told once, as deckit starts once the app is ready, before any mod launches. It is handed over
     // before then.
     function onStart(listener) {
-        if (started) throw new Error('[deckit] what starts with deckit is handed over before the app is ready');
+        if (told) throw new Error('[deckit] what starts with deckit is handed over before the app is ready');
         starting.push(listener);
     }
 
     // The log starts first, then the core, which is handed the permissions the layers defined and the manifest fields
     // they named, and hands over the state it keeps, and installs what the host app ships and reads the mods, before
     // anything reads the mods or the state. Deckit's pages are served before any loads. What follows the mods' runs
-    // starts before the runner launches any.
+    // starts before the runner launches any. Resolves once the background mods have launched, or failed to. A core
+    // that refuses initialize refuses the start with its refusal, once all of this has started all the same, so what
+    // starts with deckit shows the core is down.
     async function start() {
         LOG.start({
             nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
         LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
-        CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() });
+        const initialized = CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() });
         await STORAGE.load();
         await CATALOG.load();
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
@@ -198,7 +200,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         MOD_FOLDER.start();
         RUNTIME.start();
         SETUP.start();
-        started = true;
+        told = true;
         // What fails to start with deckit fails alone: the mods run whatever it did.
         for (const listener of starting) {
             try {
@@ -217,7 +219,9 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             removed: MAIN_PROCESS.removed,
             erase: WEB.erase,
         });
-        RUNNER.start({ preparePage });
+        const launched = RUNNER.start({ preparePage });
+        await initialized;
+        await launched;
     }
 
     // A mod's page shows the web, is where the chords mods take work, and opens with the system what it opens: a

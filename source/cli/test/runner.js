@@ -1,12 +1,12 @@
 // The runner (deckit-shell/deckit/runner) over a stand-in for the environment's pages, messages and app: the core asked
-// to start, a run's page made, known as the mod's and set up before it loads, what the core is told as the page fails,
-// crashes or is replaced, a run's end asked of its page, what the page reports kept on its run while the core is told
-// `exportedIn` and `awaits` alone, a launch asked of the core with the mod that asks or none, once a run that
-// terminates has ended, a mod relaunched as it ends and launches again, the core asked first what the owners come to as
-// the catalog changes, with no new mod loaded for it and the owner change it delivers reaching the page that listens, a
-// changed mod that ran loaded again, a launch the core answers for a failed run done as told, a mod that quits its run,
-// the page closed, and the quit held while a run has not ended. Exits 1 with a line for each check that failed. The
-// packages are ES modules, so they are imported as such.
+// to start, the start done once each background mod has launched, a run's page made, known as the mod's and set up
+// before it loads, what the core is told as the page fails, crashes or is replaced, a run's end asked of its page, what
+// the page reports kept on its run while the core is told `exportedIn` and `awaits` alone, a launch asked of the core
+// with the mod that asks or none, once a run that terminates has ended, a mod relaunched as it ends and launches
+// again, the core asked first what the owners come to as the catalog changes, with no new mod loaded for it and the
+// owner change it delivers reaching the page that listens, a changed mod that ran loaded again, a launch the core
+// answers for a failed run done as told, a mod that quits its run, the page closed, and the quit held while a run has
+// not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -92,7 +92,8 @@ async function main() {
 
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages, app });
     createEvent({ CORE, LOG, IDENTITY, RUNNER }).start();
-    RUNNER.start({ preparePage: (page) => done.push(['prepare', page.modId]) });
+    let launchedAtStart = false;
+    RUNNER.start({ preparePage: (page) => done.push(['prepare', page.modId]) }).then(() => (launchedAtStart = true));
     await tick();
     const order = done.map(([what]) => what).join(' ');
     check(
@@ -106,6 +107,7 @@ async function main() {
         asked.map(({ method }) => method).join() === 'runner/start',
         asked
     );
+    check('the start is not done while a background mod launches', !launchedAtStart, RUNNER.runOf('a')?.state);
 
     const page = RUNNER.runs()[0].page;
     const crashes = () => methods('runner/crash').map(({ params }) => params.problem);
@@ -174,6 +176,8 @@ async function main() {
     fromPage('mod-started', { run: 1, summary: { view: true }, contributions });
     await tick();
     offLaunch();
+    await tick();
+    check('the start is done once each background mod has launched', launchedAtStart, RUNNER.runOf('a')?.state);
     const started = methods('runner/started').at(-1)?.params;
     check(
         'a run started tells the core exportedIn and awaits alone',

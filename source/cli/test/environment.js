@@ -145,6 +145,11 @@ async function main() {
             answer.window === undefined,
         Object.keys(answer.pages)
     );
+    check(
+        "connect's answer tells the host app when deckit has started, not before the app is ready",
+        answer.whenStarted() instanceof Promise && answer.whenStarted() === answer.whenStarted(),
+        typeof answer.whenStarted
+    );
     check('connect is called once', /once/.test(thrown(() => SHELL.connect(environment, { host }))), '');
     const other = thrown(() => SHELL.attach({ ...answer }, shellEnvironment, { host: uiHost }));
     check('attach refuses what connect did not answer', /takes what connect answered/.test(other), other);

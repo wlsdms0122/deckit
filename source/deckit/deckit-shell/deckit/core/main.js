@@ -16,7 +16,8 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
     // MARK: - Initializer
     // MARK: - Public
     // Once the app is ready, before any mod launches: what the mods are read against is handed over then, `permissions`
-    // those the layers on this host define and `fields` the manifest fields they read.
+    // those the layers on this host define and `fields` the manifest fields they read. Resolves once the core has
+    // answered initialize; rejects with what it refused it with, its kind on it, or, for a core that ended, ENDED.
     function start({ permissions, fields }) {
         connection = core.open({
             onMessage: receive,
@@ -40,6 +41,7 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
             LOG.error("deckit's core did not start", error);
             tellDown(`did not start: ${error.message || error}`);
         });
+        return ready;
     }
 
     // What the core answers. Asked before the core has answered initialize, it waits for that.

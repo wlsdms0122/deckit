@@ -30,11 +30,14 @@ export function createApi({
     // pages where the chords mods take work and the keys pressed there, permissions for what the UI adds and the
     // manifest fields it reads, their own state, the log, and the layers stacked over deckit on a mod's page. No more
     // of deckit is theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what
-    // starts with it, and `restart()` the host app's.
-    function make({ onStart, restart }) {
+    // starts with it, `whenStarted()` when it has started, and `restart()` the host app's.
+    function make({ onStart, whenStarted, restart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
             onStart,
+            // Resolves once deckit has started, the background mods launched or failed to. Rejects with what refused
+            // the start, its `kind` on it: what the core refused initialize with (FIELD, PERMISSION), or ENDED.
+            whenStarted,
             // stack(name): a layer, by its name, stacks over deckit on each mod's page that starts from now on.
             stack: SETUP.stack,
             // The core that answers nothing more, told once with why, so a person can be asked to restart the app.

@@ -2,7 +2,8 @@
 // core: what it sends first, the version of the mod contract it runs mods with, the shipped folders with their system
 // marks, the permissions the layers define with their tier (deckit/permission) and the manifest fields they name
 // (deckit/manifest-field), each refused with its kind, how it waits for that, what an answer and a refusal come to,
-// and that a core that ended refuses everything after. Exits 1 with a line for each check that failed. The packages
+// the start refused with the kind the core refuses initialize with, and that a core that ended refuses everything
+// after. Exits 1 with a line for each check that failed. The packages
 // are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -90,7 +91,7 @@ async function main() {
         kinds
     );
 
-    CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() });
+    const initialized = outcome(CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() }));
     const early = outcome(CORE.request('catalog/read', {}));
     await tick();
     check('initialize goes first, alone', sent.length === 1 && sent[0].method === 'initialize', sent);
@@ -118,6 +119,7 @@ async function main() {
         ''
     );
     answer(sent[0].id, {});
+    check('the start resolves once the core answered initialize', 'value' in (await initialized), await initialized);
     await tick();
     check('what was asked before initialize is sent once it is answered', sent[1]?.method === 'catalog/read', sent);
     answer(sent[1].id, [1, 2]);
@@ -159,6 +161,34 @@ async function main() {
     const after = await outcome(CORE.request('catalog/read', {}));
     check('a core that ended refuses what is asked after', after.kind === 'ENDED', after);
     check('nothing is sent to a core that ended', sent.length === before, sent.length);
+
+    // A core that refuses initialize refuses the start with its kind, and answers nothing more.
+    let refusing = null;
+    const coreRefusing = {
+        open(given) {
+            refusing = given;
+            return {
+                send: (line) =>
+                    refusing.onMessage(
+                        JSON.stringify({
+                            jsonrpc: '2.0',
+                            id: JSON.parse(line).id,
+                            error: { code: -32803, message: 'main is a field of the core', data: { kind: 'FIELD' } },
+                        })
+                    ),
+            };
+        },
+    };
+    const REFUSING = createCore({ FOLDERS, LOG, core: coreRefusing, home: '/home/deckit', api: '1.0.0' });
+    const downs = [];
+    REFUSING.onDown((why) => downs.push(why));
+    const start = await outcome(REFUSING.start({ permissions: [], fields: ['main'] }));
+    await tick();
+    check(
+        'a core that refuses initialize refuses the start with its kind, and is down',
+        start.kind === 'FIELD' && /main is a field/.test(start.error) && downs.length === 1,
+        { start, downs }
+    );
 
     for (const line of failed) console.error(line);
     if (failed.length) {
