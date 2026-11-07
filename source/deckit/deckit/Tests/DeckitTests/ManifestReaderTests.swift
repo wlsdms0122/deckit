@@ -125,9 +125,9 @@ struct ManifestReaderTests {
         )
     ]
 
-    private let mods = Permission(id: "deckit.mods", name: "Mods", means: "Every mod.")
-    private let network = Permission(id: "system.network", name: "Network", means: "The web.")
-    private let any = Permission(id: "deckit.any", name: "Any", means: "Any mod.", privileged: true)
+    private let mods = Permission(id: "deckit.mods", name: "Mods", description: "Every mod.")
+    private let network = Permission(id: "system.network", name: "Network", description: "The web.")
+    private let any = Permission(id: "deckit.any", name: "Any", description: "Any mod.", privileged: true)
     private let sut: ManifestReader
 
     // MARK: - Initializer
@@ -313,8 +313,8 @@ struct ManifestReaderTests {
     @Test("a permission and a field are defined once for each sequence of scalar values, one in two forms is two")
     func definitionsAreKeptBySequence() throws {
         // Given
-        let composed = Permission(id: "caf\u{E9}", name: "Composed", means: "One form.")
-        let decomposed = Permission(id: "cafe\u{301}", name: "Decomposed", means: "The other form.")
+        let composed = Permission(id: "caf\u{E9}", name: "Composed", description: "One form.")
+        let decomposed = Permission(id: "cafe\u{301}", name: "Decomposed", description: "The other form.")
         let text = Self.minimal + "[permissions]\n\"caf\u{E9}\" = \"One.\"\n\"cafe\u{301}\" = \"Two.\""
 
         // When

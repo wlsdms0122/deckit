@@ -239,7 +239,7 @@ struct ServerTests {
     @Test("initialize refuses deckit.mods handed in, as deckit defines it itself")
     func initializeRefusesModsPermissionHanded() throws {
         // Given
-        let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them.","privileged":false}"#
+        let permission = #"{"id":"deckit.mods","name":"Mods","description":"All of them.","privileged":false}"#
 
         // When
         let response = try send(

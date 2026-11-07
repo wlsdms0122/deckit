@@ -274,7 +274,7 @@ struct CatalogTests {
     @Test("a privileged permission is granted to a system mod, and a mod that is none asking for it does not get in")
     func privilegedPermissionIsForSystemMods() throws {
         // Given
-        let any = Permission(id: "deckit.any", name: "Any", means: "Any mod.", privileged: true)
+        let any = Permission(id: "deckit.any", name: "Any", description: "Any mod.", privileged: true)
         try write("s", in: ship, permissions: ["deckit.any"])
         try write("n", in: ship, permissions: ["deckit.any"])
         try write("r", in: source, permissions: ["deckit.any"])
@@ -299,7 +299,7 @@ struct CatalogTests {
     @Test("the plan answers the permissions and background installing consents to, and a job has those defined here")
     func installIsConsent() throws {
         // Given
-        let mods = Permission(id: "deckit.mods", name: "Mods", means: "Every mod.")
+        let mods = Permission(id: "deckit.mods", name: "Mods", description: "Every mod.")
         try write("a", in: source, background: "Runs a service", permissions: ["deckit.mods", "system.camera"])
         let sut = try catalog(permissions: [mods])
 

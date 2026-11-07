@@ -23,20 +23,20 @@ public final class Deckit {
     static let mods = Permission(
         id: "deckit.mods",
         name: "Mods",
-        means: "It can see every installed mod, launch and quit them, add one from a folder, which gets every "
+        description: "It can see every installed mod, launch and quit them, add one from a folder, which gets every "
             + "permission it asks for, and delete installed ones, with what they stored."
     )
     static let reachMods = Permission(
         id: "deckit.reach-mods",
         name: "Reach Mods",
-        means: "It connects to any mod by its id, which launches the mod if it does not run.",
+        description: "It connects to any mod by its id, which launches the mod if it does not run.",
         privileged: true
     )
     static let systemServices = Permission(
         id: "deckit.system-services",
         name: "System Services",
-        means: "It can act on other mods through the system's services: run their commands, change their keys and "
-            + "settings, and choose which mod opens an address.",
+        description: "It can act on other mods through the system's services: run their commands, change their keys "
+            + "and settings, and choose which mod opens an address.",
         privileged: true
     )
     private let now: () -> Date

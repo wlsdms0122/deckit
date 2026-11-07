@@ -15,7 +15,7 @@ extension PermissionRequest: Encodable {
     private enum CodingKeys: String, CodingKey {
         case id
         case name
-        case means
+        case description
         case privileged
         case reason
         case usable
@@ -27,7 +27,7 @@ extension PermissionRequest: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encodeIfPresent(permission?.name, forKey: .name)
-        try container.encodeIfPresent(permission?.means, forKey: .means)
+        try container.encodeIfPresent(permission?.description, forKey: .description)
         try container.encodeIfPresent(permission?.privileged, forKey: .privileged)
         try container.encode(reason, forKey: .reason)
         try container.encode(usable, forKey: .usable)

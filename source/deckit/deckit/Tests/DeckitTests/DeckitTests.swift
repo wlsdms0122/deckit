@@ -107,7 +107,7 @@ struct DeckitTests {
     func deckitDefinesModsPermission() throws {
         // Given
         try fixture.write("m", permissions: ["deckit.mods"])
-        let again = Permission(id: "deckit.mods", name: "Mods", means: "to test")
+        let again = Permission(id: "deckit.mods", name: "Mods", description: "to test")
 
         // When
         let sut = try fixture.deckit()
