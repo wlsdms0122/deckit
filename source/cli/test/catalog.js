@@ -67,7 +67,11 @@ async function main() {
             }),
             found('p', { system: false, fields: {} }),
             { ...found('r', { system: false, fields: {} }), problem: { kind: 'NOT_LOADABLE', message: 'no main.js' } },
-            { ...found('d', { system: false, fields: {} }), installed: false, problem: { message: 'the disk is full' } },
+            {
+                ...found('d', { system: false, fields: {} }),
+                installed: false,
+                problem: { message: 'the disk is full' },
+            },
         ],
         'catalog/interfaces': [],
         'erasure/uncleared': [],
