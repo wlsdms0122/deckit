@@ -171,6 +171,29 @@ async function main() {
         fields
     );
     check('the host app reads no fields of a mod that does not load', api.mods.fieldsOf('none') === null, '');
+    const hosted = api.mods.list();
+    check(
+        'the host app lists every mod found, in order',
+        hosted.map(({ id }) => id).join() === 's,p,r,d',
+        hosted.map(({ id }) => id)
+    );
+    check(
+        'the host app lists a mod that loads as its manifest was read',
+        JSON.stringify(hosted[0]) === JSON.stringify(answers['catalog/read'][0].manifest) && !('refusal' in hosted[0]),
+        hosted[0]
+    );
+    check(
+        'the host app lists a mod that does not load as its refusal at read, with its kind, null for no refusal',
+        JSON.stringify(hosted[2]) ===
+            '{"id":"r","refusal":{"stage":"read","kind":"NOT_LOADABLE","message":"no main.js"}}' &&
+            JSON.stringify(hosted[3].refusal) === '{"stage":"read","kind":null,"message":"the disk is full"}',
+        [hosted[2], hosted[3]]
+    );
+    check(
+        'what the host app lists is frozen',
+        Object.isFrozen(hosted) && Object.isFrozen(hosted[2].refusal) && Object.isFrozen(hosted[0].fields),
+        ''
+    );
 
     for (const line of failed) console.error(line);
     if (failed.length) {

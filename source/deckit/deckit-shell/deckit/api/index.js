@@ -42,7 +42,10 @@ export function createApi({
             restart,
             mods: Object.freeze({
                 notifications: NOTIFICATIONS,
-                list: () => Object.freeze(CATALOG.mods().map(manifestOf)),
+                // Every mod found, in the mods' order: one that loads as its manifest was read, and one that does not
+                // as `{ id, refusal: { stage, kind, message } }`, refused at `read`, `kind` null for a problem that is
+                // no refusal.
+                list: () => Object.freeze(CATALOG.found().map(listingOf)),
                 // The ids of the mods that load that the host app ships.
                 shipped: () =>
                     Object.freeze(
@@ -121,6 +124,11 @@ export function createApi({
     // MARK: - Private
     function manifestOf(mod) {
         return frozen(mod.manifest);
+    }
+
+    // Every problem the core lists against a mod it found is a refusal of its folder as it was read.
+    function listingOf(mod) {
+        return mod.problem ? frozen({ id: mod.id, refusal: { stage: 'read', ...mod.problem } }) : manifestOf(mod);
     }
 
     // What a run is, read only: its transitions are the runner's. What it reported is copied each time it changes.
