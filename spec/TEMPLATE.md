@@ -3,11 +3,13 @@
 Status: draft
 Area: system
 Supersedes: DECKIT-a, DECKIT-b
+Superseded-By: DECKIT-c
 
 <!--
-The shape of a DECKIT's SPEC.md. Copy this file to spec/DECKIT-N/SPEC.md and replace each part.
+The shape of a DECKIT's SPEC.md. Start one with `spec-series draft`, which takes the next number and copies this file.
 
-- The heading, the Status line and the Area line are required. Area is one of `system`, `shell`, `app` and `mods`. Supersedes is written only by a DECKIT that replaces others whole.
+- The heading, the Status line and the Area line are required. Area is one of `system`, `shell`, `app` and `mods`. Supersedes is written only by a DECKIT that replaces others whole. Superseded-By is written into a replaced DECKIT by `spec-series accept`, never by hand.
+- The lines under the heading are the fields a DECKIT's head may write, in this order.
 - Every section below is written in every DECKIT, in this order. A section with nothing to say keeps its heading and is left empty.
 - Rules is the only normative section. Everything else explains it and binds nothing.
 -->

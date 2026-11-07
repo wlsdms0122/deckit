@@ -1,6 +1,6 @@
 # Acceptance criteria
 
-A DECKIT moves from `draft` to `accepted` when every criterion below holds, and a review says which hold and which do not. Each criterion is a yes or a no with evidence beside it: a DECKIT sentence, a case, or a line a runner printed. A criterion nobody checked is a no.
+A DECKIT moves from `draft` to `accepted` when every criterion below holds, and a review says which hold and which do not. Each criterion is a yes or a no with evidence beside it: a DECKIT sentence, a case, or a line a runner printed. A criterion nobody checked is a no. Where `spec-series lint` checks a criterion, its passing is the evidence.
 
 The same criteria judge a change to accepted DECKITs (`change` mode) and the live set (`series` mode). There a no is a finding against what is already accepted.
 
@@ -23,6 +23,7 @@ A no here rejects the DECKIT, whatever else holds: the work belongs to a mod, a 
 - **B5. The words are standard and single.** The field's term (bundle, manifest, launch, lifecycle, sandbox, IPC, credential), one sense per word across the specification. No other operating system named. No history, and no rule hidden in a **Note.**
 - **B6. Another implementation could follow it.** Someone implementing Deckit in another host language, or on the web, could implement it from the text alone, without knowing Swift, Node or Electron.
 - **B7. A form is given whole and stated as what it is.** Every field, name, text, call and thing shown the DECKIT adds or touches is a table, a grammar, or a signature with its answer and its refusal kinds, not prose alone. No rule is phrased against the input that raised it ("an id holds no capital") where the form it belongs to can be stated instead.
+- **B8. It takes the operating systems' policy.** Where operating systems settle a question alike (how often a failed service starts again, how long a launch may take, what a failed start reports), the DECKIT takes that answer and states it in its own terms. A rule that departs from it says why in Alternatives considered.
 
 ## C. The cases are enough
 
@@ -34,7 +35,7 @@ A no here rejects the DECKIT, whatever else holds: the work belongs to a mod, a 
 
 ## D. The series stays straight
 
-- **D1. What it changes is listed and classed.** Every accepted DECKIT whose text must change is named, with the sentence and the change. Each is a supplement or a supersession. A supplement is shown by running the whole suite with the change and seeing no existing answer move.
+- **D1. What it changes is listed and classed.** Every accepted DECKIT whose text must change is named in the draft's `IMPACT.md`, or for `change` mode in the review's scope, with the sentence and the change: each place `spec-series impact` prints that restates or relies on what changes, and each link `spec-series lint --as` prints. Each is a supplement or a supersession. A supplement is shown by running the whole suite with the change and seeing no existing answer move.
 - **D2. Supersession is whole.** A superseding DECKIT restates everything it keeps. `Supersedes` names exactly the DECKITs it replaces, and no live DECKIT links to a superseded one.
 
 ## E. Nothing is left open
