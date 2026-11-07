@@ -7,10 +7,12 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The keys a mod cannot take alone: a chord taken from every page of the app with deckit.app-keys, or from every app
 // too with system.global-keys, its press told to the page of the mod that took it. A chord is one mod's at a time, and
-// let go when the mod's page ends. `keys` is the environment's.
+// let go when the mod's page ends. A layer over deckit monitors the keys pressed in those pages before any chord
+// taken. `keys` is the environment's.
 export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
     // MARK: - Property
     const taken = new Map(); // a chord, by its name -> { page, id, off, drop }, `off` the system's hold or null
+    const monitors = new Set(); // what looks at each key pressed before the chords taken, in the order it began
 
     // MARK: - Initializer
     // MARK: - Public
@@ -22,7 +24,15 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
     // Keystrokes in `target`, a page of the app, go by the chords taken: one pressed there is taken from the page and
     // told to its mod. Deckit listens on the pages mods run in and the web pages they show; an app hands its own.
     function listen(target) {
-        KEYS.capture(target, (pressed) => pressed.type === 'keydown' && press(keystrokeOf(pressed)));
+        KEYS.capture(target, (pressed) => pressed.type === 'keydown' && handle(target, keystrokeOf(pressed)));
+    }
+
+    // `handler(page, keystroke) -> taken` looks at each key pressed in a page listened to, `page` the one it was
+    // pressed in and `keystroke` `{ code, meta, control, alt, shift }`, before any chord taken: answering true takes
+    // it from the page, and no chord runs for it. Answers its off.
+    function monitor(handler) {
+        monitors.add(handler);
+        return () => monitors.delete(handler);
     }
 
     // MARK: - Private
@@ -64,6 +74,19 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         one.drop();
     }
 
+    // The monitors first, in order, then the chords taken: answers whether the key was taken. A monitor that throws
+    // takes nothing.
+    function handle(page, keystroke) {
+        for (const handler of monitors) {
+            try {
+                if (handler(page, keystroke)) return true;
+            } catch (error) {
+                LOG.error('a key monitor failed', error);
+            }
+        }
+        return press(keystroke);
+    }
+
     // Answers whether a chord taken was pressed.
     function press(keystroke) {
         const name = nameOf(keystroke);
@@ -93,5 +116,5 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         return [...held.filter(([on]) => on).map(([, label]) => label), code].join('+');
     }
 
-    return { start, listen };
+    return { start, listen, monitor };
 }

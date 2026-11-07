@@ -1,8 +1,9 @@
 // The keys hole (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a mod
 // with deckit.app-keys takes a chord in every page listened to, one with system.global-keys takes it as a system
 // hotkey too, and a press is told to the page of the mod that took it. A chord is one mod's at a time, a mod without
-// the permission for the scope is refused, and a chord is let go when released or when the mod's page ends.
-// Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// the permission for the scope is refused, and a chord is let go when released or when the mod's page ends. A monitor
+// looks at each key pressed in a page listened to before the chords, and what it takes runs none. Exits 1 with a line
+// for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -68,7 +69,9 @@ async function main() {
     };
     const end = (page) => [...(ends.get(page) || [])].forEach((undo) => undo({ replaced: true }));
     const warned = [];
-    const KEYMAP = createKeymap({ LOG: { warn: (line) => warned.push(line) }, IDENTITY, keys });
+    const errors = [];
+    const LOG = { warn: (line) => warned.push(line), error: (line) => errors.push(line) };
+    const KEYMAP = createKeymap({ LOG, IDENTITY, keys });
     KEYMAP.start();
     for (const page of [shell, a, g, n]) KEYMAP.listen(page);
 
@@ -104,6 +107,41 @@ async function main() {
     );
     check('a key released is not taken', press(shell, 'KeyK', { alt: true }, 'keyup') === false, tells);
     check('a chord no mod took is not taken', press(shell, 'KeyJ', { alt: true }) === false, tells);
+
+    // A monitor looks at each key pressed before the chords taken, and what it takes runs no chord.
+    const looked = []; // [page, keystroke]
+    let takes = true;
+    const off = KEYMAP.monitor((page, pressed) => looked.push([page, pressed]) && takes);
+    tells.length = 0;
+    check('a key a monitor takes is taken', press(n, 'KeyK', { alt: true }) === true, looked);
+    check(
+        'a monitor is handed the page it was pressed in and the keystroke',
+        looked.length === 1 &&
+            looked[0][0] === n &&
+            JSON.stringify(looked[0][1]) === JSON.stringify(keystroke('KeyK', { alt: true })),
+        looked
+    );
+    check('a key a monitor takes runs no chord', told().length === 0, told());
+    takes = false;
+    check('a key a monitor leaves goes to the chords', press(n, 'KeyK', { alt: true }) === true, told());
+    check('a key a monitor leaves runs the chord taken', told().length === 1, told());
+    looked.length = 0;
+    press(n, 'KeyK', { alt: true }, 'keyup');
+    check('a monitor looks at a key pressed, not released', looked.length === 0, looked);
+    off();
+    takes = true;
+    press(shell, 'KeyJ', { alt: true });
+    check('a monitor off looks no more', looked.length === 0, looked);
+    const offThrows = KEYMAP.monitor(() => {
+        throw new Error('broken');
+    });
+    tells.length = 0;
+    check(
+        'a monitor that throws takes nothing, and is logged',
+        press(n, 'KeyK', { alt: true }) === true && told().length === 1 && errors.length === 1,
+        errors
+    );
+    offThrows();
 
     // The permission is the scope's, and a chord is one mod's at a time.
     const global = await take(a, 2, keystroke('KeyG', { meta: true }), 'global');

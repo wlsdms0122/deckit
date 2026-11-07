@@ -27,10 +27,10 @@ export function createApi({
 
     // MARK: - Public
     // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages, the
-    // pages where the chords mods take work, permissions for what the UI adds and the manifest fields it reads, their
-    // own state, the log, and the layers stacked over deckit on a mod's page. No more of deckit is theirs. Every fact
-    // it hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it, and `restart()`
-    // the host app's.
+    // pages where the chords mods take work and the keys pressed there, permissions for what the UI adds and the
+    // manifest fields it reads, their own state, the log, and the layers stacked over deckit on a mod's page. No more
+    // of deckit is theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what
+    // starts with it, and `restart()` the host app's.
     function make({ onStart, restart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
@@ -100,7 +100,12 @@ export function createApi({
                 isPointing: IDENTITY.isPointing,
             }),
             // listen(page): a page of the host app's or its shell's where the chords mods take work too.
-            keymap: Object.freeze({ listen: (page) => KEYMAP.listen(page) }),
+            // monitor(handler(page, keystroke) -> taken) -> off: a look at each key pressed in a page listened to,
+            // before the chords mods take, taking it by answering true (deckit/keymap/main.js).
+            keymap: Object.freeze({
+                listen: (page) => KEYMAP.listen(page),
+                monitor: (handler) => KEYMAP.monitor(handler),
+            }),
             permissions: Object.freeze({ define: PERMISSION.define }),
             // define(key): a top-level manifest key the UI reads, named before deckit starts.
             fields: Object.freeze({ define: MANIFEST_FIELD.define }),
