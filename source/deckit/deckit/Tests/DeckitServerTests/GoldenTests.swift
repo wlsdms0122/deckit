@@ -62,7 +62,7 @@ struct GoldenTests {
             "c",
             in: "ship",
             adding: "background = \"to test\"\n[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
-                + "\"deckit.privileged\" = \"to test\""
+                + "\"deckit.privileged\" = \"to test\"\n\"deckit.reach-mods\" = \"to test\""
         )
         try writeMod("d", in: "spare")
         try writeMod("e", in: "spare", adding: "[permissions]\n\"deckit.privileged\" = \"to test\"")

@@ -221,6 +221,21 @@ final class Server {
             let params = try request.decodeParams(as: LifecycleParams.self)
             return answered(try deckit.ended(params.mod, run: params.run, lifecycle: params.lifecycle), by: deckit)
 
+        case "connection/reach":
+            let params = try request.decodeParams(as: ReachParams.self)
+            let effects = try deckit.reach(params.target, from: params.mod, run: params.run, lifecycle: params.lifecycle)
+            return answered(effects, by: deckit)
+
+        case "connection/release":
+            let params = try request.decodeParams(as: ReachParams.self)
+            let effects = try deckit.release(
+                params.target,
+                from: params.mod,
+                run: params.run,
+                lifecycle: params.lifecycle
+            )
+            return answered(effects, by: deckit)
+
         case "connection/refuse":
             deck.connections.refuse(try request.decodeParams(as: ConnectionParams.self).connection)
             return true

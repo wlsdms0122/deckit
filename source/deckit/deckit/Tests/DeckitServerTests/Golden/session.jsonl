@@ -17,6 +17,11 @@
 {"id":83,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":1,"mod":"b","run":1}}
 {"id":84,"jsonrpc":"2.0","method":"connection/refuse","params":{"connection":2}}
 {"id":85,"jsonrpc":"2.0","method":"connection/end","params":{"lifecycle":1,"mod":"b","run":1}}
+{"id":97,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":0,"mod":"b","run":1,"target":"a"}}
+{"id":98,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":0,"mod":"c","run":1}}
+{"id":99,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":1,"mod":"c","run":1,"target":"a"}}
+{"id":100,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":0,"mod":"c","run":1,"target":"d"}}
+{"id":101,"jsonrpc":"2.0","method":"connection/release","params":{"lifecycle":0,"mod":"c","run":1,"target":"d"}}
 {"id":13,"jsonrpc":"2.0","method":"event/listen","params":{"mod":"b","names":["a:saved","a/api:owner-changed"],"run":1}}
 {"id":14,"jsonrpc":"2.0","method":"event/emit","params":{"mod":"a","name":"saved","run":1}}
 {"id":15,"jsonrpc":"2.0","method":"record/write","params":{"key":"tabs","mod":"a","text":"[1]"}}
@@ -47,6 +52,7 @@
 {"id":53,"jsonrpc":"2.0","method":"runner/not-started","params":{"mod":"d","problem":"threw","run":1}}
 {"id":54,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a"]}}
 {"id":55,"jsonrpc":"2.0","method":"runner/stopped","params":{"mod":"a","run":1}}
+{"id":102,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":0,"mod":"c","run":1,"target":"a"}}
 {"id":56,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a"]}}
 {"id":94,"jsonrpc":"2.0","method":"runner/launch","params":{"by":"b","mod":"d"}}
 {"id":95,"jsonrpc":"2.0","method":"runner/launch","params":{"by":"a","mod":"b"}}
