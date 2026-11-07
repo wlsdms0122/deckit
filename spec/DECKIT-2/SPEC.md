@@ -241,7 +241,7 @@ A permission defined refuses the app's start at `call` with kind `PERMISSION` wh
 
 Two field names are one name, and two permission ids one id, when they are the same sequence of Unicode scalar values, as two keys are, wherever they are written, asked for or defined.
 
-**Note.** No case holds a definition whose `privileged` is not a boolean, or whose name or id is not a string a `key` writes, because [the case format](../DECKIT-1/SPEC.md) types each of them and a case cannot hand one.
+**Note.** No case holds a definition missing a required key, one whose `privileged` is not a boolean, or one whose name or id is not a string a `key` writes, because [the case format](../DECKIT-1/SPEC.md) types each of them and a case cannot hand one.
 
 **Note.** A host with fewer layers than the one a mod was written for still takes its bundle: a permission no layer defines is not usable, and a mod reads what it reaches as it runs. A field no layer adds is refused, because a field is read where the bundle is read and a misspelled one would otherwise pass unseen.
 
@@ -294,4 +294,4 @@ A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`,
 
 **Note.** A refusal's message is not measured, and an implementation says it as it likes. The cases under `conformance/` measure that a bundle is taken or refused at `read` with kind `NOT_LOADABLE`, and what it is answered.
 
-**Note.** Four sentences above are held by no case under `conformance/`, and each waits on what will hold it. That a folder of bundles passes over every name that begins with `.` waits on [the case format](../DECKIT-1/SPEC.md), whose `bundle-name` cannot begin with one. That a bundle installed from a folder is not a system mod waits on the catalog's DECKIT, which gives installing. That no run of a refused bundle starts waits on the lifecycle's DECKIT, whose states the `run` look reads. That the system's own permissions come first waits on the permissions' DECKIT, which fixes them.
+**Note.** Three sentences above are held by no case under `conformance/`, and each waits on what will hold it. That a bundle installed from a folder is not a system mod waits on the catalog's DECKIT, which gives installing. That no run of a refused bundle starts waits on the lifecycle's DECKIT, which fixes a run's states. That the system's own permissions come first waits on the permissions' DECKIT, which fixes them.

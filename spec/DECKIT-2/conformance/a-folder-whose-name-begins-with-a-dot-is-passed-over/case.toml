@@ -1,0 +1,17 @@
+case = 1
+name = "a-folder-whose-name-begins-with-a-dot-is-passed-over"
+note = "Where the system looks through a folder of bundles it passes over every name that begins with a dot, and lists nothing for it, though .shelf is a bundle."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes", ".shelf"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["notes"]
