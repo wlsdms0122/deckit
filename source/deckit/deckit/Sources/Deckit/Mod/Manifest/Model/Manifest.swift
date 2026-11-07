@@ -28,7 +28,7 @@ public struct Manifest: Sendable {
     // Interface -> the entries the mod declares to it, each handed to the interface's owner as written.
     public let contributes: [String: [JSONValue]]
     // Field -> what the manifest writes of it, as JSON writes it, of the fields the layers on deck add: theirs to read.
-    public let fields: [String: JSONValue]
+    public let fields: [JSONName: JSONValue]
 
     // MARK: - Initializer
     // MARK: - Public

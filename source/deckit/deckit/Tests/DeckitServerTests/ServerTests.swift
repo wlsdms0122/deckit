@@ -534,6 +534,28 @@ struct ServerTests {
         #expect(value(in: response, at: "error", "code") == .number(-32603))
     }
 
+    @Test("a field's table of keys of one canonical form is answered with both, each with its value")
+    func fieldKeysOfOneFormAreAnsweredApart() throws {
+        // Given
+        try mod("a", adding: "[view]\n\"caf\u{E9}\" = 1\n\"cafe\u{301}\" = 2")
+        let initialize = initializeRequest.replacing(#""fields":[]"#, with: #""fields":["view"]"#)
+        _ = try send(initialize, to: sut)
+
+        // When
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+
+        // Then
+        guard case let .array(mods)? = value(in: response, at: "result"), mods.count == 1 else {
+            Issue.record("catalog/read answered no one mod: \(response)")
+            return
+        }
+        #expect(value(in: mods[0], at: "problem") == nil)
+        #expect(
+            value(in: mods[0], at: "manifest", "fields")
+                == .object(["view": .object(["caf\u{E9}": .number(1), "cafe\u{301}": .number(2)])])
+        )
+    }
+
     // MARK: - Private
     private func mod(_ id: String, in parent: String? = nil, adding extra: String = "") throws {
         let folder = URL(filePath: parent ?? home + "source").appending(path: id)
@@ -551,7 +573,7 @@ struct ServerTests {
     private func value(in json: JSONValue, at path: String...) -> JSONValue? {
         path.reduce(json as JSONValue?) { value, key in
             guard case let .object(fields)? = value else { return nil }
-            return fields[key]
+            return fields[JSONName(key)]
         }
     }
 
@@ -560,6 +582,6 @@ struct ServerTests {
     }
 
     private func json(_ text: String) throws -> JSONValue {
-        try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8))
+        try JSONParser().parse(text)
     }
 }

@@ -72,7 +72,7 @@ struct ManifestReader {
             uses: used(of: raw["interfaces"]),
             permissions: requests(of: asked),
             contributes: contributed(of: raw["contributes"]),
-            fields: byText(raw.filter { key, _ in fields.contains(key) }.mapValues(JSONValue.init))
+            fields: byName(raw.filter { key, _ in fields.contains(key) }.mapValues(JSONValue.init))
         )
     }
 
@@ -345,6 +345,11 @@ struct ManifestReader {
     private func byText<Value>(_ table: [TOMLKey: Value]) -> [String: Value] {
         let pairs = table.sorted { one, other in one.key < other.key }.map { key, value in (key.text, value) }
         return Dictionary(pairs) { first, _ in first }
+    }
+
+    // A table by its keys as JSON names, each key one name.
+    private func byName<Value>(_ table: [TOMLKey: Value]) -> [JSONName: Value] {
+        Dictionary(uniqueKeysWithValues: table.map { key, value in (JSONName(key.text), value) })
     }
 
     private func quoted(_ names: [String]) -> String {

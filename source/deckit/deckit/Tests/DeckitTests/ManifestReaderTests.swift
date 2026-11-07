@@ -330,4 +330,30 @@ struct ManifestReaderTests {
         #expect(sut.problem(of: text, system: false) == nil)
         #expect(manifest.permissions.map(\.permission) == [composed, decomposed])
     }
+
+    @Test("two fields of one canonical form, and two keys of one form in a field's table, are each handed on apart")
+    func fieldKeysAreKeptBySequence() throws {
+        // Given
+        let text = Self.minimal
+            + "\"caf\u{E9}\" = 1\n\"cafe\u{301}\" = 2\n[view]\n\"caf\u{E9}\" = 3\nnested = { \"cafe\u{301}\" = 4 }"
+        let sut = try ManifestReader(
+            api: try #require(Version("1.0.0")),
+            permissions: [],
+            fields: ["caf\u{E9}", "cafe\u{301}", "view"],
+            store: Store()
+        )
+
+        // When
+        let manifest = sut.read(text, fallback: "folder")
+
+        // Then
+        #expect(sut.problem(of: text, system: false) == nil)
+        #expect(
+            manifest.fields == [
+                "caf\u{E9}": .number(1),
+                "cafe\u{301}": .number(2),
+                "view": .object(["caf\u{E9}": .number(3), "nested": .object(["cafe\u{301}": .number(4)])])
+            ]
+        )
+    }
 }

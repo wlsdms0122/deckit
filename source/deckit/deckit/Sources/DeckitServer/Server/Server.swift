@@ -14,11 +14,7 @@ import Deckit
 final class Server {
     // MARK: - Property
     private let decoder = JSONDecoder()
-    private let encoder = {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .sortedKeys
-        return encoder
-    }()
+    private let writer = JSONWriter()
     private var deckit: Deckit?
 
     // MARK: - Initializer
@@ -42,10 +38,10 @@ final class Server {
     // answered.
     func written(_ response: Response) -> Data {
         do {
-            return try encoder.encode(response)
+            return try writer.write(response)
         } catch {
             let failure = ResponseError(code: .internalError, message: "the answer could not be written: \(error)")
-            return (try? encoder.encode(Response.error(id: response.id, failure))) ?? Data()
+            return (try? writer.write(Response.error(id: response.id, failure))) ?? Data()
         }
     }
 

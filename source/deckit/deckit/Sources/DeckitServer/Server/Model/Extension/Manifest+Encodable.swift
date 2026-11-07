@@ -39,7 +39,7 @@ extension Manifest: Encodable {
         try container.encode(uses, forKey: .uses)
         try container.encode(permissions, forKey: .permissions)
         try container.encode(contributes, forKey: .contributes)
-        try container.encode(fields, forKey: .fields)
+        try container.encode(JSONValue.object(fields), forKey: .fields)
     }
 
     // MARK: - Private
