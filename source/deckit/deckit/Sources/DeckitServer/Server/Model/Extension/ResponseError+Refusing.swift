@@ -42,7 +42,7 @@ extension ResponseError {
                 "NOT_UP"
 
             case .outOfReach:
-                "OUT_OF_REACH"
+                "REFUSED"
             }
 
         case let error as InstallError:

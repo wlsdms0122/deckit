@@ -21,6 +21,8 @@ struct GoldenTests {
         (ConnectionError.notRunning("a"), "NOT_RUNNING"),
         (ConnectionError.ended, "ENDED_CONNECTION"),
         (ConnectionError.notAnEnd(mod: "a"), "NOT_AN_END"),
+        (ConnectionError.notUp(Endpoint(modId: "a", run: 1, lifecycle: 0)), "NOT_UP"),
+        (ConnectionError.outOfReach(mod: "b", client: "a"), "REFUSED"),
         (InstallError.notLoadable("p"), "NOT_LOADABLE"),
         (InstallError.installedThere, "INSTALLED_THERE"),
         (InstallError.nested, "NESTED"),
