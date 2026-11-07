@@ -173,7 +173,8 @@ public final class ConnectionBroker {
                 id: lastId,
                 name: name,
                 client: client,
-                service: exports
+                service: exports,
+                credential: Credential(modId: job.modId, permissions: job.permissions)
             )
             connections.append(connection)
             opened.append(connection)

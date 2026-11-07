@@ -21,7 +21,8 @@ public enum Effect: Sendable {
     case stop(modId: String, number: Int)
     // Close the mod's sandbox, which runs no more.
     case close(modId: String)
-    // Ask the service's page for the exports the connection reaches, and hand them to the client's.
+    // Ask the service's page for the exports the connection reaches, telling it the client's credential, and hand them
+    // to the client's.
     case connect(Connection)
     // Tell both pages the connection has ended.
     case disconnect(Connection)

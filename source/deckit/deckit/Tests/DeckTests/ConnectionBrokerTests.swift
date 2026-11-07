@@ -48,6 +48,23 @@ struct ConnectionBrokerTests {
         #expect(sut.changes().isEmpty)
     }
 
+    @Test("a connection tells its service the client's mod id and the ids of the permissions granted to its job")
+    func connectionCarriesTheClientsCredential() throws {
+        // Given
+        let dep = Job.fixture("dep", permissions: ["dep.secret"], provides: ["dep/api": [1]])
+        let a = Job.fixture("a", permissions: ["a.files", "a.network"], uses: ["dep/api": 1])
+        owners.provide([dep, a], keeping: [])
+        try start(dep, exportedIn: ["dep/api": 0])
+
+        _ = try runner.load([a])
+
+        // When
+        let connected = try sut.begin(mod: "a", run: 1, lifecycle: 0)
+
+        // Then
+        #expect(connected.map(\.credential) == [Credential(modId: "a", permissions: ["a.files", "a.network"])])
+    }
+
     @Test("exports opened in a lifecycle reach it and those above, and a user of the major the owner provides connects")
     func exportsReachTheirLifecycleAndAbove() throws {
         // Given

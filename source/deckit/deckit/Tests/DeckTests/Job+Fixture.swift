@@ -12,10 +12,11 @@ extension Job {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // A job of `id`, its entry `main.js` in a folder of its id, granted no permission.
+    // A job of `id`, its entry `main.js` in a folder of its id.
     static func fixture(
         _ id: String,
         revision: String = "1",
+        permissions: [String] = [],
         reaches: [String] = [],
         uses: [String: Int] = [:],
         provides: [String: [Int]] = [:]
@@ -24,7 +25,7 @@ extension Job {
             modId: id,
             revision: revision,
             entry: URL(filePath: "/mods/\(id)/main.js"),
-            permissions: [],
+            permissions: permissions,
             reaches: reaches,
             uses: uses,
             provides: provides
