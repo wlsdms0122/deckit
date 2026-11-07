@@ -1,0 +1,27 @@
+case = 1
+name = "a-bundle-read-in-place-is-listed-in-the-place-of-the-installed-one-it-hides"
+note = "A bundle read in place that hides an installed one is listed in the installed one's place, so mod-c read in place, hiding mod-c shipped first, is listed before mod-b."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-c", "mod-b"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-c", "mod-b"]
+
+[[step]]
+look = "mod"
+mod = "mod-c"
+part = "version"
+
+[step.expect]
+answers = "2.0.0"
+

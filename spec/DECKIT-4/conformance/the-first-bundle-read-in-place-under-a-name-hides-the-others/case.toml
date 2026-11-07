@@ -1,0 +1,26 @@
+case = 1
+name = "the-first-bundle-read-in-place-under-a-name-hides-the-others"
+note = "Bundles read in place are found by their folders' names, so of two folders holding mod-c, the one named mod-a is held and the one named mod-b is hidden."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-c"]
+
+[[step]]
+look = "mod"
+mod = "mod-c"
+part = "version"
+
+[step.expect]
+answers = "1.0.0"
+

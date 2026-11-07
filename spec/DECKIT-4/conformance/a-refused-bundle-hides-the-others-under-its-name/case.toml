@@ -1,0 +1,26 @@
+case = 1
+name = "a-refused-bundle-hides-the-others-under-its-name"
+note = "A bundle hides the others under its name whether or not it is taken, so mod-c in the folder mod-a, with no version, hides mod-c in the folder mod-b, and mod-c is refused."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-c"]
+
+[[step]]
+look = "mod"
+mod = "mod-c"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"
+
