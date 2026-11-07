@@ -46,7 +46,8 @@ export const release = CHANNEL.pageToMain('deckit-shell:connection-release', {
 });
 
 // The exports the page's run opened for an interface are asked for a connection: `{ id, name, mod: { id, name },
-// lifecycle }`, `mod` the client, answered with them, or null once that lifecycle has ended.
+// lifecycle, credential: { mod, permissions } }`, `mod` the client and `credential` the client's as the core holds it,
+// answered with them, or null once that lifecycle has ended.
 export const connect = CHANNEL.mainToPage('deckit-shell:connection-connect', { reply: true });
 // A connection of the page's `lifecycle` stands, to an interface it uses or a mod it reached by id: `{ id, name,
 // exports, lifecycle }`, as `begin` answers one.

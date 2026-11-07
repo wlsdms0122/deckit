@@ -8,7 +8,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // what crosses goes from page to page through here, never read. A lifecycle connects to the interfaces it uses as it
 // begins, and to a mod by its id as it asks, until it lets it go. A connection is handed to its client while it
 // stands, and so is one its service refused, with why: one that ended while its exports were asked for is left out.
-// The service is handed the client's id and name; the client, the name alone.
+// The service is handed the client's id, name and credential; the client, the name alone.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -79,6 +79,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
                 name: connection.name,
                 mod: { id: client.mod, name: mod?.name ?? client.mod },
                 lifecycle: service.lifecycle,
+                credential: connection.credential,
             });
             return exports && { ...named, exports };
         } catch (error) {

@@ -137,11 +137,18 @@ export function createConnection({ RUN }) {
     }
 
     // The exports for a new connection, made by the `connect` of the interface's exports, opened in `lifecycle`, or
-    // null once it has ended. `mod` is the dependent's id and name.
-    function answerConnect({ id, name: named, mod, lifecycle }) {
+    // null once it has ended. `mod` is the dependent's id and name, `credential` its mod id and permissions as the
+    // core holds them.
+    function answerConnect({ id, name: named, mod, lifecycle, credential }) {
         const registered = exporting.get(named);
         if (!registered || registered.lifecycle !== lifecycle) return null;
-        const connection = Object.freeze({ mod: Object.freeze({ id: mod.id, name: mod.name }) });
+        const connection = Object.freeze({
+            mod: Object.freeze({ id: mod.id, name: mod.name }),
+            credential: Object.freeze({
+                mod: credential.mod,
+                permissions: Object.freeze([...credential.permissions]),
+            }),
+        });
         const exports = registered.connect(connection);
         if (exports && typeof exports.then === 'function')
             throw new Error('exports.register(): connect() answers the exports, not a promise');

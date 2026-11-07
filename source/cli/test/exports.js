@@ -2,7 +2,7 @@
 // over a stand-in for the messages main and the page carry, with a layer stacking two lifecycles: exports registered by
 // interface, and for the mods that reach it by id under its own id, each once for the run, refused with why for an
 // interface the manifest does not provide, a second register, or one in the other lifecycle after one lifecycle opened
-// it; what main is told each opened in; the `connect` handed the client's id and name; and the client's
+// it; what main is told each opened in; the `connect` handed the client's id, name and credential; and the client's
 // `dependencies.onConnect`, by the interface it uses or the mod id it reaches, handed a connection that stands as its
 // lifecycle begins or comes later, a connection refused as a lifecycle begins a problem that ends nothing, and
 // `dependencies.reach` and `release`, a mod by its id asked of main and let go, refused with the core's kind. Exits 1
@@ -188,6 +188,7 @@ async function main() {
         id: 1,
         name: 'p/one',
         mod: { id: 'd', name: 'D' },
+        credential: { mod: 'd', permissions: ['p/read'] },
         lifecycle: 0,
     });
     check(
@@ -197,10 +198,19 @@ async function main() {
             seen.connected[0]?.mod.name === 'D',
         { one, connected: seen.connected }
     );
+    const credential = seen.connected[0]?.credential;
+    check(
+        "the service reads the dependent's credential, frozen",
+        JSON.stringify(credential) === '{"mod":"d","permissions":["p/read"]}' &&
+            Object.isFrozen(credential) &&
+            Object.isFrozen(credential.permissions),
+        credential
+    );
     const two = await ask('connection-connect', {
         id: 2,
         name: 'p/two',
         mod: { id: 'd', name: 'D' },
+        credential: { mod: 'd', permissions: ['p/read'] },
         lifecycle: 1,
     });
     check("another interface's exports answer its own connections", two?.value?.value?.two === true, two);
@@ -208,6 +218,7 @@ async function main() {
         id: 3,
         name: 'p/two',
         mod: { id: 'd', name: 'D' },
+        credential: { mod: 'd', permissions: ['p/read'] },
         lifecycle: 0,
     });
     check('an interface is not answered for a lifecycle that did not open it', wrong?.value === null, wrong);
@@ -215,6 +226,7 @@ async function main() {
         id: 4,
         name: 'p',
         mod: { id: 'd', name: 'D' },
+        credential: { mod: 'd', permissions: ['p/read'] },
         lifecycle: 0,
     });
     check(

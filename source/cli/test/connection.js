@@ -1,8 +1,9 @@
 // Connections in main (deckit-shell/deckit/connection/main.js) over a stand-in for the core, the runner and the
 // catalog: a run that listens for a name launches nothing from here, as it launches or as a lifecycle joins: the core
 // launches the mod a lifecycle waits for; a page's reach of a mod by its id and its release asked of the core for the
-// page's mod, through the runner, which does what the core answers, and the core's refusal handed back; and a
-// connection's end told to the pages of its client and its service, as the core names them. Exits 1 with a line for
+// page's mod, through the runner, which does what the core answers, and the core's refusal handed back; a connection
+// that stands asked of its service's page with the client's credential; and a connection's end told to the pages of
+// its client and its service, as the core names them. Exits 1 with a line for
 // each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -79,6 +80,30 @@ async function main() {
             JSON.stringify(ran.at(-1)) === '["connection/release",{"mod":"a","run":1,"lifecycle":0,"target":"b"}]',
         { released, ran }
     );
+
+    // A connection that stands: its service's page is asked for the exports, handed the client's credential.
+    const connected = effects.get('connect')({
+        connection: {
+            id: 6,
+            name: 'p/x',
+            client: { mod: 'a', run: 1, lifecycle: 0 },
+            service: { mod: 'b', run: 1, lifecycle: 0 },
+            credential: { mod: 'a', permissions: ['p/read'] },
+        },
+    });
+    await tick();
+    const [servicePage, question] = tells.find(([, message]) => message.channel === 'deckit-shell:connection-connect');
+    check(
+        "the service's page is asked for the exports with the client's credential",
+        servicePage.modId === 'b' &&
+            JSON.stringify(question.payload) ===
+                '{"id":6,"name":"p/x","mod":{"id":"a","name":"a"},"lifecycle":0,' +
+                    '"credential":{"mod":"a","permissions":["p/read"]}}',
+        question
+    );
+    heard.told(servicePage, { channel: question.channel, id: question.id, value: { value: {}, references: [] } });
+    await connected;
+    tells.length = 0;
 
     effects.get('disconnect')({
         connection: {
