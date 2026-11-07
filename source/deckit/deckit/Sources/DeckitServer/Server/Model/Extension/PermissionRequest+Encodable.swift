@@ -16,6 +16,7 @@ extension PermissionRequest: Encodable {
         case id
         case name
         case means
+        case privileged
         case reach
         case reason
         case usable
@@ -28,6 +29,7 @@ extension PermissionRequest: Encodable {
         try container.encode(id, forKey: .id)
         try container.encodeIfPresent(permission?.name, forKey: .name)
         try container.encodeIfPresent(permission?.means, forKey: .means)
+        try container.encodeIfPresent(permission?.privileged, forKey: .privileged)
         try container.encode(reach, forKey: .reach)
         try container.encode(reason, forKey: .reason)
         try container.encode(usable, forKey: .usable)

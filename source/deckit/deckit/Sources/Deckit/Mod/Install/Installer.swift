@@ -41,11 +41,15 @@ final class Installer {
     }
 
     // MARK: - Public
-    // What installing a folder would do, or a throw that says why not: a mod deck would not load, or a
-    // folder that holds the installed copy or is held by it, as copying would take the source with it. `refuse` adds
-    // the caller's own reason, or nil.
-    func planInstall(from source: URL, refuse: (Manifest) -> String? = { _ in nil }) throws -> InstallPlan {
-        if let problem = modFolder.problem(of: source) {
+    // What installing a folder as a `system` mod or not would do, or a throw that says why not: a mod deck would not
+    // load, or a folder that holds the installed copy or is held by it, as copying would take the source with it.
+    // `refuse` adds the caller's own reason, or nil.
+    func planInstall(
+        from source: URL,
+        system: Bool,
+        refuse: (Manifest) -> String? = { _ in nil }
+    ) throws -> InstallPlan {
+        if let problem = modFolder.problem(of: source, system: system) {
             throw InstallError.notLoadable(problem)
         }
 
@@ -78,7 +82,7 @@ final class Installer {
         system: Bool,
         refuse: (Manifest) -> String? = { _ in nil }
     ) throws -> Manifest {
-        let manifest = try planInstall(from: source, refuse: refuse).manifest
+        let manifest = try planInstall(from: source, system: system, refuse: refuse).manifest
         let staged = staging.appending(path: manifest.id)
         try store.remove(staged)
         try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)

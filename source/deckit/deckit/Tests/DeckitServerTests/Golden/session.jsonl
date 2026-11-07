@@ -1,4 +1,4 @@
-{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example"}],"ship":[{"folder":"@SHIP@/c","system":true}],"sources":["@SOURCE@"]}}
+{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example","privileged":false},{"id":"deckit.privileged","means":"A privileged example","name":"Privileged","privileged":true}],"ship":[{"folder":"@SHIP@/c","system":true}],"sources":["@SOURCE@"]}}
 {"id":2,"jsonrpc":"2.0","method":"catalog/install-shipped"}
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":86,"jsonrpc":"2.0","method":"catalog/interfaces"}
@@ -33,6 +33,7 @@
 {"id":33,"jsonrpc":"2.0","method":"storage/usage","params":{"mod":"a"}}
 {"id":46,"jsonrpc":"2.0","method":"catalog/plan-install","params":{"from":"@SPARE@/d"}}
 {"id":47,"jsonrpc":"2.0","method":"catalog/install","params":{"from":"@SPARE@/d"}}
+{"id":96,"jsonrpc":"2.0","method":"catalog/plan-install","params":{"from":"@SPARE@/e"}}
 {"id":49,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":87,"jsonrpc":"2.0","method":"catalog/pin","params":{"interface":"a/api","mod":"a"}}
 {"id":88,"jsonrpc":"2.0","method":"catalog/pin","params":{"interface":"x/none","mod":"a"}}

@@ -15,6 +15,7 @@ extension Permission: Codable {
         case id
         case name
         case means
+        case privileged
         case reach
     }
 
@@ -24,7 +25,8 @@ extension Permission: Codable {
         self.init(
             id: try container.decode(String.self, forKey: .id),
             name: try container.decode(String.self, forKey: .name),
-            means: try container.decode(String.self, forKey: .means)
+            means: try container.decode(String.self, forKey: .means),
+            privileged: try container.decode(Bool.self, forKey: .privileged)
         )
     }
 
@@ -34,6 +36,7 @@ extension Permission: Codable {
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(means, forKey: .means)
+        try container.encode(privileged, forKey: .privileged)
         try container.encode(reach, forKey: .reach)
     }
 

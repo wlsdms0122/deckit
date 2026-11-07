@@ -104,13 +104,14 @@ struct ManifestReaderTests {
 
     private let mods = Permission(id: "deckit.mods", name: "Mods", means: "Every mod.")
     private let network = Permission(id: "system.network", name: "Network", means: "The web.")
+    private let any = Permission(id: "deckit.any", name: "Any", means: "Any mod.", privileged: true)
     private let sut: ManifestReader
 
     // MARK: - Initializer
     init() throws {
         sut = try ManifestReader(
             api: try #require(Version("1.2.0")),
-            permissions: [mods, network],
+            permissions: [mods, network, any],
             fields: [],
             store: Store()
         )
@@ -145,7 +146,7 @@ struct ManifestReaderTests {
         let manifest = sut.read(text, fallback: "folder")
 
         // Then
-        #expect(sut.problem(of: text) == nil)
+        #expect(sut.problem(of: text, system: false) == nil)
         #expect(manifest.id == "notes")
         #expect(manifest.background == "Keeps the pages in sync")
         #expect(manifest.provides == ["notes/pages": [1, 2], "files/open": [0]])
@@ -178,17 +179,31 @@ struct ManifestReaderTests {
         // Then
         #expect(manifest.id == "folder")
         #expect(manifest.name == "folder")
-        #expect(sut.problem(of: text) == "manifest.toml: line 1: not a value this reads: ")
+        #expect(sut.problem(of: text, system: false) == "manifest.toml: line 1: not a value this reads: ")
     }
 
     @Test("what is wrong with a manifest is said", arguments: problems)
     func problemIsSaid(text: String, problem: String) {
         // Given
         // When
-        let said = sut.problem(of: text)
+        let said = sut.problem(of: text, system: false)
 
         // Then
         #expect(said == problem)
+    }
+
+    @Test("a privileged permission asked for is a problem but of a system mod")
+    func privilegedPermissionIsForSystemMods() {
+        // Given
+        let text = Self.minimal + #"[permissions]\#n"deckit.any" = "to reach"\#n"deckit.mods" = "to list""#
+
+        // When
+        let mod = sut.problem(of: text, system: false)
+        let system = sut.problem(of: text, system: true)
+
+        // Then
+        #expect(mod == #"permission "deckit.any" is granted only to a system mod"#)
+        #expect(system == nil)
     }
 
     @Test("a permission or a field defined twice is refused")

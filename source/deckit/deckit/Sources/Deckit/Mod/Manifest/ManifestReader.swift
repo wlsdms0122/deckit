@@ -75,8 +75,8 @@ struct ManifestReader {
         )
     }
 
-    // What is wrong with a manifest, or nil.
-    func problem(of text: String) -> String? {
+    // What is wrong with a manifest, or nil: of a mod that is not a `system` mod, asking for a privileged permission.
+    func problem(of text: String, system: Bool) -> String? {
         let raw: [String: TOMLValue]
         do {
             raw = try parser.parse(text)
@@ -115,7 +115,7 @@ struct ManifestReader {
         return mainProblem(raw)
             ?? backgroundProblem(raw)
             ?? interfacesProblem(raw)
-            ?? permissionsProblem(raw)
+            ?? permissionsProblem(raw, system: system)
             ?? contributesProblem(raw)
             ?? fieldsProblem(raw)
     }
@@ -225,7 +225,7 @@ struct ManifestReader {
         return nil
     }
 
-    private func permissionsProblem(_ raw: [String: TOMLValue]) -> String? {
+    private func permissionsProblem(_ raw: [String: TOMLValue], system: Bool) -> String? {
         guard let written = raw["permissions"] else { return nil }
 
         let example = "[permissions] table of name = \"why it is needed\", such as \"deckit.mods\" = \"…\""
@@ -240,6 +240,10 @@ struct ManifestReader {
             .sorted()
         guard unexplained.isEmpty else {
             return "permission \(quoted(unexplained)) needs the reason it is asked for, as text"
+        }
+        let privileged = permissions.filter { permission in permission.privileged && asked[permission.id] != nil }
+        guard system || privileged.isEmpty else {
+            return "permission \(quoted(privileged.map(\.id))) is granted only to a system mod"
         }
 
         return nil

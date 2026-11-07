@@ -58,8 +58,14 @@ struct GoldenTests {
                 + "[[contributes.\"a/api\"]]\ntitle = \"Size\"\nsize = 12"
         )
         try writeMod("b", in: "source", adding: "[interfaces]\nuses = { \"a/api\" = 1, \"a/own\" = 1 }")
-        try writeMod("c", in: "ship", adding: "background = \"to test\"\n[interfaces]\nprovides = { \"a/api\" = [1] }")
+        try writeMod(
+            "c",
+            in: "ship",
+            adding: "background = \"to test\"\n[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
+                + "\"deckit.privileged\" = \"to test\""
+        )
         try writeMod("d", in: "spare")
+        try writeMod("e", in: "spare", adding: "[permissions]\n\"deckit.privileged\" = \"to test\"")
         let requests = try lines(of: "session")
         let pinned = try lines(of: "answers")
         let sut = Server()

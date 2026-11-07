@@ -264,6 +264,31 @@ struct CatalogTests {
         #expect(replaced.map(\.system) == [false, false])
     }
 
+    @Test("a privileged permission is granted to a system mod, and a mod that is none asking for it does not get in")
+    func privilegedPermissionIsForSystemMods() throws {
+        // Given
+        let any = Permission(id: "deckit.any", name: "Any", means: "Any mod.", privileged: true)
+        try write("s", in: ship, permissions: ["deckit.any"])
+        try write("n", in: ship, permissions: ["deckit.any"])
+        try write("r", in: source, permissions: ["deckit.any"])
+        try write("f", in: root, permissions: ["deckit.any"])
+        let sut = try catalog(sources: [source], ship: ["s", "n"], system: ["s"], permissions: [any])
+        let problem = #"permission "deckit.any" is granted only to a system mod"#
+
+        // When
+        let outcomes = try sut.installShipped()
+        let installing = Result { try sut.planInstall(from: root.appending(path: "f")) }
+        let mods = Dictionary(uniqueKeysWithValues: sut.read().map { mod in (mod.manifest.id, mod) })
+
+        // Then
+        #expect(outcomes.map(\.outcome) == [.installed, .failed])
+        #expect(throws: InstallError.notLoadable(problem)) { try installing.get() }
+        #expect(mods["s"]?.problem == nil)
+        #expect(mods["s"].flatMap(Job.init)?.permissions == ["deckit.any"])
+        #expect(mods["n"]?.problem == "did not install: " + problem)
+        #expect(mods["r"]?.problem == problem)
+    }
+
     @Test("the plan answers the permissions and background installing consents to, and a job has those defined here")
     func installIsConsent() throws {
         // Given

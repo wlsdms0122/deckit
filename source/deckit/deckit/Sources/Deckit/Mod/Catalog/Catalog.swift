@@ -99,11 +99,11 @@ public final class Catalog {
         try ownerTable.pin(interface, to: id)
     }
 
+    // A mod installed from a folder is no system mod.
     public func planInstall(from source: URL) throws -> InstallPlan {
-        try installer.planInstall(from: source, refuse: shadow)
+        try installer.planInstall(from: source, system: false, refuse: shadow)
     }
 
-    // A mod installed from a folder is no system mod.
     public func install(from source: URL) throws -> Manifest {
         let manifest = try installer.install(from: source, system: false, refuse: shadow)
         installs[manifest.id, default: 0] += 1
@@ -208,7 +208,7 @@ public final class Catalog {
     // read where the app ships it, and does not load.
     private func list() -> [Mod] {
         let shipped = installer.shipped() ?? []
-        let system = installer.systemMods()
+        let systemMods = installer.systemMods()
         var found: [Mod] = []
         var places: [String: Int] = [:]
         for root in sources + [folder] {
@@ -220,6 +220,7 @@ public final class Catalog {
                 }
 
                 let installed = root == folder
+                let system = installed && systemMods.contains(manifest.id)
                 places[manifest.id] = found.count
                 found.append(
                     mod(
@@ -227,8 +228,8 @@ public final class Catalog {
                         in: source,
                         installed: installed,
                         shipped: installed && shipped.contains(manifest.id),
-                        system: installed && system.contains(manifest.id),
-                        problem: modFolder.problem(of: source)
+                        system: system,
+                        problem: modFolder.problem(of: source, system: system)
                     )
                 )
             }

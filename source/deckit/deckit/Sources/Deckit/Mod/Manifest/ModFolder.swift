@@ -41,12 +41,12 @@ struct ModFolder {
         reader.read(store.read(manifestFile(of: folder)) ?? "", fallback: folder.standardizedFileURL.lastPathComponent)
     }
 
-    // Why the mod in a folder does not load, or nil when it does.
-    func problem(of folder: URL) -> String? {
+    // Why the mod in a folder does not load, as a `system` mod or not, or nil when it does.
+    func problem(of folder: URL, system: Bool) -> String? {
         guard let text = store.read(manifestFile(of: folder)) else {
             return "no \(reader.file) in \(folder.path(percentEncoded: false))"
         }
-        if let problem = reader.problem(of: text) {
+        if let problem = reader.problem(of: text, system: system) {
             return problem
         }
 
