@@ -63,7 +63,7 @@ async function main() {
             found('s', {
                 system: true,
                 fields: { icon: '<svg/>', view: { sidebar: true } },
-                permissions: [{ ...REACH, reach: 'deckit', reason: 'It runs commands.', usable: true }],
+                permissions: [{ ...REACH, reason: 'It runs commands.', usable: true }],
             }),
             found('p', { system: false, fields: {} }),
             { ...found('r', { system: false, fields: {} }), problem: { kind: 'NOT_LOADABLE', message: 'no main.js' } },
