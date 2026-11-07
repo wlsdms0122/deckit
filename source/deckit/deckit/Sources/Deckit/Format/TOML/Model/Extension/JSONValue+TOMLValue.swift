@@ -11,7 +11,8 @@ import Deck
 extension JSONValue {
     // MARK: - Property
     // MARK: - Initializer
-    // `value` as JSON writes it: a table as an object, an integer as a number.
+    // `value` as JSON writes it: a table as an object, an integer as a number. An object's keys are Strings, which
+    // take two keys of one canonical form as one: of those, the key that comes first is kept.
     init(_ value: TOMLValue) {
         switch value {
         case let .string(text):
@@ -27,7 +28,10 @@ extension JSONValue {
             self = .array(values.map(JSONValue.init))
 
         case let .table(fields):
-            self = .object(fields.mapValues(JSONValue.init))
+            let pairs = fields.sorted { one, other in one.key < other.key }.map { key, value in
+                (key.text, JSONValue(value))
+            }
+            self = .object(Dictionary(pairs) { first, _ in first })
         }
     }
 

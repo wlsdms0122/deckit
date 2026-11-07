@@ -26,7 +26,7 @@ extension TOMLValue: CustomStringConvertible {
             "[\(values.map(\.description).joined(separator: ", "))]"
 
         case let .table(values):
-            "{ \(values.keys.sorted().map { key in "\(key) = \(values[key]!)" }.joined(separator: ", ")) }"
+            "{ \(values.keys.sorted().map { key in "\(key.text) = \(values[key]!)" }.joined(separator: ", ")) }"
         }
     }
 

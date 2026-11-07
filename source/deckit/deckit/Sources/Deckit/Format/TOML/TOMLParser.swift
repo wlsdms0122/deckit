@@ -36,13 +36,13 @@ struct TOMLParser {
 
     // MARK: - Initializer
     // MARK: - Public
-    func parse(_ text: String) throws(TOMLError) -> [String: TOMLValue] {
-        var root: [String: TOMLValue] = [:]
+    func parse(_ text: String) throws(TOMLError) -> [TOMLKey: TOMLValue] {
+        var root: [TOMLKey: TOMLValue] = [:]
         // The keys of the table the lines below the last header set, from the root.
-        var table: [String] = []
+        var table: [TOMLKey] = []
         // The tables a header named, and the arrays of tables, by their keys from the root.
-        var defined: Set<[String]> = []
-        var arrays: Set<[String]> = []
+        var defined: Set<[TOMLKey]> = []
+        var arrays: Set<[TOMLKey]> = []
         let lines = String(text.trimmingPrefix("\u{FEFF}"))
             .components(separatedBy: "\n")
             .map { line in line.hasSuffix("\r") ? String(line.dropLast()) : line }
@@ -68,7 +68,7 @@ struct TOMLParser {
                         values[key] = .array(tables + [.table([:])])
 
                     default:
-                        throw TOMLError(line: line, reason: "\(key) is set as a value, not as \(body)")
+                        throw TOMLError(line: line, reason: "\(key.text) is set as a value, not as \(body)")
                     }
                 }
                 arrays.insert(path)
@@ -97,7 +97,7 @@ struct TOMLParser {
             guard rawKey.wholeMatch(of: bareKey) != nil || rawKey.wholeMatch(of: quotedKey) != nil else {
                 throw TOMLError(line: line, reason: "not a key this reads: \(rawKey)")
             }
-            let key = rawKey.hasPrefix("\"") ? try unquote(rawKey, line: line) : rawKey
+            let key = TOMLKey(rawKey.hasPrefix("\"") ? try unquote(rawKey, line: line) : rawKey)
 
             var rest = String(body[body.index(after: equals)...])
             var depth = bracketDepth(rest)
@@ -111,11 +111,11 @@ struct TOMLParser {
             var source = rest[...]
             let value = try value(in: &source, depth: 0, line: line)
             guard source.allSatisfy(\.isWhitespace) else {
-                throw TOMLError(line: line, reason: "unexpected text after the value of \(key)")
+                throw TOMLError(line: line, reason: "unexpected text after the value of \(key.text)")
             }
 
             try change(&root, at: table[...], line: line) { values throws(TOMLError) in
-                guard values[key] == nil else { throw TOMLError(line: line, reason: "\(key) is set twice") }
+                guard values[key] == nil else { throw TOMLError(line: line, reason: "\(key.text) is set twice") }
                 values[key] = value
             }
         }
@@ -125,15 +125,15 @@ struct TOMLParser {
 
     // MARK: - Private
     // The keys a header names, `a."b/c"`, each bare or quoted, apart at dots.
-    private func keys(of header: Substring, line: Int) throws(TOMLError) -> [String] {
-        var keys: [String] = []
+    private func keys(of header: Substring, line: Int) throws(TOMLError) -> [TOMLKey] {
+        var keys: [TOMLKey] = []
         var source = header.drop(while: \.isWhitespace)
         while true {
             guard let match = source.prefixMatch(of: quotedKey) ?? source.prefixMatch(of: bareKey) else {
                 throw TOMLError(line: line, reason: "not a header this reads: [\(header)]")
             }
             let rawKey = String(match.output)
-            keys.append(rawKey.hasPrefix("\"") ? try unquote(rawKey, line: line) : rawKey)
+            keys.append(TOMLKey(rawKey.hasPrefix("\"") ? try unquote(rawKey, line: line) : rawKey))
             source = source[match.range.upperBound...].drop(while: \.isWhitespace)
             guard !source.isEmpty else { return keys }
             guard source.hasPrefix(".") else {
@@ -146,10 +146,10 @@ struct TOMLParser {
     // `change` made to the table `path` names inside `values`, each table on the way made where it is not there: a
     // key that holds an array of tables goes on in its last.
     private func change(
-        _ values: inout [String: TOMLValue],
-        at path: ArraySlice<String>,
+        _ values: inout [TOMLKey: TOMLValue],
+        at path: ArraySlice<TOMLKey>,
         line: Int,
-        _ change: (inout [String: TOMLValue]) throws(TOMLError) -> Void
+        _ change: (inout [TOMLKey: TOMLValue]) throws(TOMLError) -> Void
     ) throws(TOMLError) {
         guard let key = path.first else {
             try change(&values)
@@ -158,7 +158,7 @@ struct TOMLParser {
 
         switch values[key] {
         case .none:
-            var table: [String: TOMLValue] = [:]
+            var table: [TOMLKey: TOMLValue] = [:]
             try self.change(&table, at: path.dropFirst(), line: line, change)
             values[key] = .table(table)
 
@@ -168,14 +168,14 @@ struct TOMLParser {
 
         case var .array(tables)?:
             guard case var .table(last)? = tables.last else {
-                throw TOMLError(line: line, reason: "\(key) is set as a value, not as a table")
+                throw TOMLError(line: line, reason: "\(key.text) is set as a value, not as a table")
             }
             try self.change(&last, at: path.dropFirst(), line: line, change)
             tables[tables.count - 1] = .table(last)
             values[key] = .array(tables)
 
         default:
-            throw TOMLError(line: line, reason: "\(key) is set as a value, not as a table")
+            throw TOMLError(line: line, reason: "\(key.text) is set as a value, not as a table")
         }
     }
 
@@ -230,7 +230,7 @@ struct TOMLParser {
 
     // `{ key = value, … }` on one line, as TOML writes an inline table.
     private func inlineTable(in source: inout Substring, depth: Int, line: Int) throws(TOMLError) -> TOMLValue {
-        var values: [String: TOMLValue] = [:]
+        var values: [TOMLKey: TOMLValue] = [:]
         source = source.dropFirst().drop(while: \.isWhitespace)
         while !source.hasPrefix("}") {
             guard let match = source.prefixMatch(of: quotedKey) ?? source.prefixMatch(of: bareKey) else {
@@ -242,8 +242,8 @@ struct TOMLParser {
                 throw TOMLError(line: line, reason: "expected = after \(rawKey) in an inline table")
             }
             source = source.dropFirst()
-            let key = rawKey.hasPrefix("\"") ? try unquote(rawKey, line: line) : rawKey
-            guard values[key] == nil else { throw TOMLError(line: line, reason: "\(key) is set twice") }
+            let key = TOMLKey(rawKey.hasPrefix("\"") ? try unquote(rawKey, line: line) : rawKey)
+            guard values[key] == nil else { throw TOMLError(line: line, reason: "\(key.text) is set twice") }
 
             values[key] = try value(in: &source, depth: depth, line: line)
             source = source.drop(while: \.isWhitespace)

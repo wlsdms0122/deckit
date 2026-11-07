@@ -14,7 +14,7 @@ public enum TOMLValue: Equatable, Sendable {
     case integer(Int)
     case boolean(Bool)
     case array([TOMLValue])
-    case table([String: TOMLValue])
+    case table([TOMLKey: TOMLValue])
 
     // MARK: - Property
     // MARK: - Initializer

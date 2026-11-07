@@ -93,6 +93,24 @@ struct TOMLParserTests {
         )
     }
 
+    @Test("two keys are one only as the same sequence of Unicode scalar values, in a table and in an inline table")
+    func keysOfOtherScalarsAreTwo() throws {
+        // Given
+        let text = "\"caf\u{E9}\" = 1\n\"cafe\u{301}\" = 2\ninline = { \"\u{212B}\" = 3, \"\u{C5}\" = 4 }"
+
+        // When
+        let table = try sut.parse(text)
+
+        // Then
+        #expect(
+            table == [
+                TOMLKey("caf\u{E9}"): .integer(1),
+                TOMLKey("cafe\u{301}"): .integer(2),
+                "inline": .table([TOMLKey("\u{212B}"): .integer(3), TOMLKey("\u{C5}"): .integer(4)])
+            ]
+        )
+    }
+
     @Test(
         "what the subset does not read is refused by line",
         arguments: [

@@ -245,4 +245,42 @@ struct ManifestReaderTests {
         #expect(throws: ManifestError.fieldDefined("icon")) { try fieldTwice.get() }
         #expect(throws: ManifestError.fieldDefined("main")) { try ownField.get() }
     }
+
+    @Test("the permissions not defined come by their ids as Unicode scalar values, one past U+FFFF after one below")
+    func undefinedPermissionsComeByScalars() {
+        // Given
+        let text = Self.minimal + "[permissions]\n\"\\U0001d400\" = \"Bold.\"\n\"\\uff21\" = \"Wide.\"\n"
+            + "\"\\u212b\" = \"Angstrom.\"\n\"\\u00d0\" = \"Eth.\"\n\"deckit.mods\" = \"Mods.\""
+
+        // When
+        let manifest = sut.read(text, fallback: "folder")
+
+        // Then
+        #expect(sut.problem(of: text, system: false) == nil)
+        #expect(
+            manifest.permissions.map { request in TOMLKey(request.id) }
+                == ["deckit.mods", TOMLKey("\u{D0}"), TOMLKey("\u{212B}"), TOMLKey("\u{FF21}"), TOMLKey("\u{1D400}")]
+        )
+    }
+
+    @Test("a permission and a field are defined once for each sequence of scalar values, one in two forms is two")
+    func definitionsAreKeptBySequence() throws {
+        // Given
+        let composed = Permission(id: "caf\u{E9}", name: "Composed", means: "One form.")
+        let decomposed = Permission(id: "cafe\u{301}", name: "Decomposed", means: "The other form.")
+        let text = Self.minimal + "[permissions]\n\"caf\u{E9}\" = \"One.\"\n\"cafe\u{301}\" = \"Two.\""
+
+        // When
+        let sut = try ManifestReader(
+            api: try #require(Version("1.0.0")),
+            permissions: [composed, decomposed],
+            fields: ["caf\u{E9}", "cafe\u{301}"],
+            store: Store()
+        )
+        let manifest = sut.read(text, fallback: "folder")
+
+        // Then
+        #expect(sut.problem(of: text, system: false) == nil)
+        #expect(manifest.permissions.map(\.permission) == [composed, decomposed])
+    }
 }

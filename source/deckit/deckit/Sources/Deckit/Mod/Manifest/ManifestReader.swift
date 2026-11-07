@@ -16,7 +16,7 @@ struct ManifestReader {
     // MARK: - Property
     let file = "manifest.toml"
 
-    private let ownFields: Set<String> = [
+    private let ownFields: Set<TOMLKey> = [
         "id", "name", "version", "api", "main", "background", "interfaces", "permissions", "contributes"
     ]
     private let parser = TOMLParser()
@@ -24,7 +24,7 @@ struct ManifestReader {
     private let api: Version
     // In the order defined, as deckit hands them: its own first.
     private let permissions: [Permission]
-    private let fields: [String]
+    private let fields: Set<TOMLKey>
 
     // MARK: - Initializer
     init(
@@ -33,19 +33,21 @@ struct ManifestReader {
         fields: [String],
         store: Store
     ) throws {
-        var ids: Set<String> = []
+        var ids: Set<TOMLKey> = []
         for permission in permissions {
-            guard ids.insert(permission.id).inserted else { throw ManifestError.permissionDefined(permission.id) }
+            guard ids.insert(TOMLKey(permission.id)).inserted else {
+                throw ManifestError.permissionDefined(permission.id)
+            }
         }
         var names = ownFields
         for field in fields {
-            guard names.insert(field).inserted else { throw ManifestError.fieldDefined(field) }
+            guard names.insert(TOMLKey(field)).inserted else { throw ManifestError.fieldDefined(field) }
         }
 
         self.api = api
         self.store = store
         self.permissions = permissions
-        self.fields = fields
+        self.fields = Set(fields.map { field in TOMLKey(field) })
     }
 
     // MARK: - Public
@@ -56,7 +58,7 @@ struct ManifestReader {
         let named: String? = if case let .string(id) = raw["id"], !id.isEmpty { id } else { nil }
         let id = named ?? fallback
         let name = if case let .string(name) = raw["name"], !isBlank(name) { name } else { id }
-        let asked = if case let .table(asked) = raw["permissions"] { asked } else { [String: TOMLValue]() }
+        let asked = if case let .table(asked) = raw["permissions"] { asked } else { [TOMLKey: TOMLValue]() }
 
         return Manifest(
             id: id,
@@ -70,13 +72,13 @@ struct ManifestReader {
             uses: used(of: raw["interfaces"]),
             permissions: requests(of: asked),
             contributes: contributed(of: raw["contributes"]),
-            fields: raw.filter { key, _ in fields.contains(key) }.mapValues(JSONValue.init)
+            fields: byText(raw.filter { key, _ in fields.contains(key) }.mapValues(JSONValue.init))
         )
     }
 
     // What is wrong with a manifest, or nil: of a mod that is not a `system` mod, asking for a privileged permission.
     func problem(of text: String, system: Bool) -> String? {
-        let raw: [String: TOMLValue]
+        let raw: [TOMLKey: TOMLValue]
         do {
             raw = try parser.parse(text)
         } catch {
@@ -87,7 +89,7 @@ struct ManifestReader {
             .filter { key in !ownFields.contains(key) && !fields.contains(key) }
             .sorted()
         guard unknown.isEmpty else {
-            return "\(file) has \(quoted(unknown)), which is not a manifest field"
+            return "\(file) has \(quoted(unknown.map(\.text))), which is not a manifest field"
         }
         guard case let .string(id) = raw["id"], !id.isEmpty else {
             return "\(file) needs an id, as id = \"my-mod\""
@@ -133,7 +135,7 @@ struct ManifestReader {
     }
 
     // A path inside the mod's folder, "/" separated; whether a file is there is the folder's to say.
-    private func mainProblem(_ raw: [String: TOMLValue]) -> String? {
+    private func mainProblem(_ raw: [TOMLKey: TOMLValue]) -> String? {
         let example = "main = \"dist/main.js\""
         guard case let .string(main) = raw["main"], !isBlank(main) else {
             return "\(file) needs main, the file deck runs, as \(example)"
@@ -143,7 +145,7 @@ struct ManifestReader {
     }
 
     // The reason it asks to run in the background, when it asks.
-    private func backgroundProblem(_ raw: [String: TOMLValue]) -> String? {
+    private func backgroundProblem(_ raw: [TOMLKey: TOMLValue]) -> String? {
         guard let written = raw["background"] else { return nil }
         guard case let .string(reason) = written, !isBlank(reason) else {
             return "background must be the reason the mod asks to run in the background, as text, as "
@@ -177,7 +179,7 @@ struct ManifestReader {
 
     // The interfaces it provides, each at the majors it speaks of it, and those it uses, each at the major it speaks:
     // `provides = { "other/name" = [1, 2] }` and `uses = { "other/name" = 1 }`.
-    private func interfacesProblem(_ raw: [String: TOMLValue]) -> String? {
+    private func interfacesProblem(_ raw: [TOMLKey: TOMLValue]) -> String? {
         guard let written = raw["interfaces"] else { return nil }
 
         let provides = "provides = { \"other/name\" = [1] }"
@@ -187,7 +189,7 @@ struct ManifestReader {
         }
         let unknown = table.keys.filter { key in key != "provides" && key != "uses" }.sorted()
         guard unknown.isEmpty else {
-            return "interfaces has \(quoted(unknown)); it takes provides and uses"
+            return "interfaces has \(quoted(unknown.map(\.text))); it takes provides and uses"
         }
 
         if let written = table["provides"] {
@@ -195,14 +197,14 @@ struct ManifestReader {
                 return "interfaces.provides must be written as \(provides)"
             }
             for interface in provided.keys.sorted() {
-                if let problem = interfaceProblem(interface) {
-                    return "interfaces.provides \(interface): \(problem)"
+                if let problem = interfaceProblem(interface.text) {
+                    return "interfaces.provides \(interface.text): \(problem)"
                 }
                 guard case let .array(majors) = provided[interface]!,
                     !majors.isEmpty,
                     majors.allSatisfy(isMajor)
                 else {
-                    return "interfaces.provides \(interface) must be a list of majors, as [1], not "
+                    return "interfaces.provides \(interface.text) must be a list of majors, as [1], not "
                         + "\(provided[interface]!)"
                 }
             }
@@ -211,11 +213,11 @@ struct ManifestReader {
         if let written = table["uses"] {
             guard case let .table(used) = written else { return "interfaces.uses must be written as \(uses)" }
             for interface in used.keys.sorted() {
-                if let problem = interfaceProblem(interface) {
-                    return "interfaces.uses \(interface): \(problem)"
+                if let problem = interfaceProblem(interface.text) {
+                    return "interfaces.uses \(interface.text): \(problem)"
                 }
                 guard isMajor(used[interface]!) else {
-                    return "interfaces.uses \(interface) must be a major, as 1, not \(used[interface]!)"
+                    return "interfaces.uses \(interface.text) must be a major, as 1, not \(used[interface]!)"
                 }
             }
         }
@@ -223,7 +225,7 @@ struct ManifestReader {
         return nil
     }
 
-    private func permissionsProblem(_ raw: [String: TOMLValue], system: Bool) -> String? {
+    private func permissionsProblem(_ raw: [TOMLKey: TOMLValue], system: Bool) -> String? {
         guard let written = raw["permissions"] else { return nil }
 
         let example = "[permissions] table of name = \"why it is needed\", such as \"deckit.mods\" = \"…\""
@@ -237,9 +239,11 @@ struct ManifestReader {
             .keys
             .sorted()
         guard unexplained.isEmpty else {
-            return "permission \(quoted(unexplained)) needs the reason it is asked for, as text"
+            return "permission \(quoted(unexplained.map(\.text))) needs the reason it is asked for, as text"
         }
-        let privileged = permissions.filter { permission in permission.privileged && asked[permission.id] != nil }
+        let privileged = permissions.filter { permission in
+            permission.privileged && asked[TOMLKey(permission.id)] != nil
+        }
         guard system || privileged.isEmpty else {
             return "permission \(quoted(privileged.map(\.id))) is granted only to a system mod"
         }
@@ -249,7 +253,7 @@ struct ManifestReader {
 
     // Each interface by the entries declared to it, each a table whose shape is the interface's to define:
     // `[[contributes."other/name"]]`.
-    private func contributesProblem(_ raw: [String: TOMLValue]) -> String? {
+    private func contributesProblem(_ raw: [TOMLKey: TOMLValue]) -> String? {
         guard let written = raw["contributes"] else { return nil }
 
         let example = "[[contributes.\"other/name\"]] tables"
@@ -257,29 +261,31 @@ struct ManifestReader {
             return "contributes must be a [contributes] table of entry lists by interface, as \(example)"
         }
         for interface in table.keys.sorted() {
-            if let problem = interfaceProblem(interface) {
-                return "contributes \(interface): \(problem)"
+            if let problem = interfaceProblem(interface.text) {
+                return "contributes \(interface.text): \(problem)"
             }
             guard case let .array(entries) = table[interface]!,
                 entries.allSatisfy({ entry in if case .table = entry { true } else { false } })
             else {
-                return "contributes \(interface) must be a list of tables, as \(example)"
+                return "contributes \(interface.text) must be a list of tables, as \(example)"
             }
         }
 
         return nil
     }
 
-    // Those defined here first, in the order defined, then those not defined, by id.
-    private func requests(of asked: [String: TOMLValue]) -> [PermissionRequest] {
+    // Those defined here first, in the order defined, then those not defined, by id as keys come one after another.
+    private func requests(of asked: [TOMLKey: TOMLValue]) -> [PermissionRequest] {
         let requests = asked.sorted { one, other in one.key < other.key }.map { id, reason in
             PermissionRequest(
-                id: id,
+                id: id.text,
                 reason: written(reason).trimmingCharacters(in: .whitespacesAndNewlines),
-                permission: permissions.first { permission in permission.id == id }
+                permission: permissions.first { permission in TOMLKey(permission.id) == id }
             )
         }
-        let defined = permissions.compactMap { permission in requests.first { request in request.id == permission.id } }
+        let defined = permissions.compactMap { permission in
+            requests.first { request in TOMLKey(request.id) == TOMLKey(permission.id) }
+        }
 
         return defined + requests.filter { request in !request.usable }
     }
@@ -287,28 +293,28 @@ struct ManifestReader {
     // Each interface by the majors written that are majors.
     private func provided(of written: TOMLValue?) -> [String: [Int]] {
         guard case let .table(table) = written, case let .table(provided)? = table["provides"] else { return [:] }
-        return provided.mapValues { value in
+        return byText(provided.mapValues { value in
             guard case let .array(majors) = value else { return [] }
             return majors.compactMap(major)
-        }
+        })
     }
 
     // Each interface by the major written, of those written as a major.
     private func used(of written: TOMLValue?) -> [String: Int] {
         guard case let .table(table) = written, case let .table(used)? = table["uses"] else { return [:] }
-        return used.compactMapValues(major)
+        return byText(used.compactMapValues(major))
     }
 
     // Each interface by the entries written as tables, each as JSON writes it.
     private func contributed(of written: TOMLValue?) -> [String: [JSONValue]] {
         guard case let .table(table) = written else { return [:] }
-        return table.mapValues { value in
+        return byText(table.mapValues { value in
             guard case let .array(entries) = value else { return [] }
             return entries.compactMap { entry in
                 guard case .table = entry else { return nil }
                 return JSONValue(entry)
             }
-        }
+        })
     }
 
     private func major(_ value: TOMLValue) -> Int? {
@@ -329,6 +335,13 @@ struct ManifestReader {
     private func written(_ value: TOMLValue) -> String {
         guard case let .string(text) = value else { return value.description }
         return text
+    }
+
+    // A table by its keys' text, which takes two keys of one canonical form as one: of those, the key that comes first
+    // is kept.
+    private func byText<Value>(_ table: [TOMLKey: Value]) -> [String: Value] {
+        let pairs = table.sorted { one, other in one.key < other.key }.map { key, value in (key.text, value) }
+        return Dictionary(pairs) { first, _ in first }
     }
 
     private func quoted(_ names: [String]) -> String {
