@@ -103,8 +103,13 @@ function hostOf(host, refuse) {
     for (const [index, permission] of permissions.entries()) {
         if (!is.table(permission)) refuse(`host.permissions[${index}] is no table`);
         const where = `host.permissions[${index}].`;
-        keys(permission, { id: is.string, name: is.string, means: is.string, privileged: is.boolean }, where, refuse);
-        for (const required of ['id', 'name', 'means'])
+        keys(
+            permission,
+            { id: is.string, name: is.string, description: is.string, privileged: is.boolean },
+            where,
+            refuse
+        );
+        for (const required of ['id', 'name', 'description'])
             if (!(required in permission)) refuse(`${where}${required} is missing`);
     }
     const ship = host.ship ?? [];
