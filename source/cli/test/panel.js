@@ -4,8 +4,8 @@
 // shell's own keys (deckit-shell/shell/key/main): their table, the chords set kept in the shell's state, and the
 // privileged permission main holds a page to before it lists or changes them. And the panel (shell/panel/main) over a
 // stand-in for what connect answers: the manifest fields it names, a mod in front as a mod with deckit.mods asks,
-// launched when it does not run, and the shell's keys and Escape as the keymap's monitor tells them. Exits 1 with a
-// line for each check that failed. The packages are ES modules, so they are imported as such.
+// launched when it does not run, what deckit refuses to keep, and the shell's keys and Escape as the keymap's monitor
+// tells them. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -232,6 +232,17 @@ async function main() {
         left
     );
 
+    const refusing = panelOver(createPanel, {
+        mods: ['a', 'b'].map((id) => ({ id, name: id.toUpperCase(), uses: {} })),
+        fields: { a: { view: {} }, b: { view: {} } },
+        managers: [],
+        refusesWrites: true,
+    });
+    refusing.PANEL.start();
+    await new Promise((resolve) => setImmediate(resolve));
+    const held = (await refusing.ask('frame-setup', {}, FRAME)).state.mods.map(({ id }) => id).join();
+    check('the panel goes on with what deckit refuses to keep, as state it did not read', held === 'a,b', held);
+
     // The shell's keys, pressed in a page of the app where the panel is in front, run what they do.
     const keyed = panelOver(createPanel, {
         mods: ['a', 'b'].map((id) => ({ id, name: id.toUpperCase(), uses: {} })),
@@ -301,13 +312,14 @@ async function main() {
 
 // `createPanel` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
 // that hold deckit.mods, `keepers` those that hold deckit.shell-keys, `running` the mods whose views have joined,
-// `dock` as the host app hands it, `state` what the shell kept, and `answers` what a page answers main, by channel,
-// true where none is given. `ask(name, payload, mod)` asks one of the panel's channels as the page of `mod`, or as
-// the frame's for FRAME, and `askKey` one of the shell keys'. `press(page, keystroke)` is a key pressed in a page of
+// `dock` as the host app hands it, `state` what the shell kept, `answers` what a page answers main, by channel,
+// true where none is given, and `refusesWrites` deckit refusing every write to state, as it does state it did not
+// read. `ask(name, payload, mod)` asks one of the panel's channels as the page of `mod`, or as the frame's for FRAME,
+// and `askKey` one of the shell keys'. `press(page, keystroke)` is a key pressed in a page of
 // the app, or in the frame for FRAME, as the keymap's monitor is told it.
 function panelOver(
     createPanel,
-    { mods, fields, managers, keepers = [], running = [], dock = null, state = {}, answers = {} }
+    { mods, fields, managers, keepers = [], running = [], dock = null, state = {}, answers = {}, refusesWrites = false }
 ) {
     const handlers = {};
     const named = [];
@@ -338,7 +350,13 @@ function panelOver(
         channels: { bind: channel },
         fields: { define: (key) => named.push(key) },
         permissions: { define() {} },
-        state: { read: (key, fallback) => state[key] ?? fallback, write: async (key, value) => (state[key] = value) },
+        state: {
+            read: (key, fallback) => state[key] ?? fallback,
+            write: async (key, value) => {
+                if (refusesWrites) throw new Error('the state the core keeps was not read');
+                state[key] = value;
+            },
+        },
         keymap: { listen() {}, monitor: (handler) => monitors.push(handler) },
         core: { onDown() {} },
         pages: { whenEnds() {} },

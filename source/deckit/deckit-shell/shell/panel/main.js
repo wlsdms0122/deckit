@@ -72,8 +72,8 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         const arranged = deckit.state.read(ORDER, null);
         pinned = new Set(kept ?? firstDock());
         order = arranged ?? (kept ? [] : [...pinned]);
-        if (!kept) deckit.state.write(PINNED, [...pinned]);
-        if (!kept && !arranged) deckit.state.write(ORDER, order);
+        if (!kept) keep(PINNED, [...pinned]);
+        if (!kept && !arranged) keep(ORDER, order);
         KEY.start();
         deckit.keymap.monitor(monitor);
         stage = makeStage();
@@ -122,6 +122,12 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     }
 
     // MARK: - Private
+    // What the panel keeps between runs, as the person left it. The panel goes on with it whether deckit keeps it or
+    // refuses the write, as it does state it did not read; deckit logs why it refused.
+    function keep(key, value) {
+        deckit.state.write(key, value).catch(() => {});
+    }
+
     // The list and the frame are drawn in the frame's page alone, so what it tells is the person's: no mod's code
     // runs there. A mod's page tells only what is its own.
     function listen() {
@@ -276,7 +282,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         if (on === pinned.has(id)) return;
         if (on) pinned.add(id);
         else pinned.delete(id);
-        deckit.state.write(PINNED, [...pinned]);
+        keep(PINNED, [...pinned]);
         if (!on && current === id && !inPanel(id)) {
             current = null;
             if (!select(REGION.parentOf(id)) && !select(firstShown())) update();
@@ -400,7 +406,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
             inOrder().map(({ id }) => id),
             ids
         );
-        deckit.state.write(ORDER, order);
+        keep(ORDER, order);
         broadcast();
     }
 
@@ -654,7 +660,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
             ...Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined && value !== null)),
         };
         if (typeof change.width === 'number') shell.sizing = null;
-        deckit.state.write(SIDEBAR, sidebar);
+        keep(SIDEBAR, sidebar);
         move(before);
         update();
         broadcast();
