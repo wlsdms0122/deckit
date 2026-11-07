@@ -92,11 +92,11 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `found`:
     // every mod the catalog found, in the mods' order whether it loads or not, each its manifest, its `fields` the
     // manifest fields the layers named, with `installed`, whether it is a copy in the core's mods folder, `system`,
-    // whether it is a system mod, `problem`, why it does not load, `run`, its latest run's `state`, `problem`,
-    // `failed`, `relaunchLimited` and `launchedAt`, null for one with no sandbox, `hides`, folders of the same id that
-    // are not read, `launched`, while it starts or stops again, what its latest run that launched contributed, as
-    // `running` lists it, and `uses`, each interface it uses and what it comes to. `interfaces`: each interface's queue
-    // of providers and its owner, as the catalog read it.
+    // whether it is a system mod, `problem`, why it does not load, `{ kind, message }` (catalog/model/mod.js), `run`,
+    // its latest run's `state`, `problem`, `failed`, `relaunchLimited` and `launchedAt`, null for one with no sandbox,
+    // `hides`, folders of the same id that are not read, `launched`, while it starts or stops again, what its latest
+    // run that launched contributed, as `running` lists it, and `uses`, each interface it uses and what it comes to.
+    // `interfaces`: each interface's queue of providers and its owner, as the catalog read it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
@@ -109,7 +109,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
                     shipped: mod.shipped,
                     system: mod.system,
                     hides: mod.hides,
-                    problem: mod.problem ?? null,
+                    problem: mod.problem,
                     run: run && {
                         state: run.state,
                         problem: run.problem,

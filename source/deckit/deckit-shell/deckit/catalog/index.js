@@ -25,7 +25,7 @@ export function createCatalog({ CORE, LOG, files }) {
         } catch (error) {
             LOG.error('the mods were not read', error);
         }
-        for (const mod of all) if (mod.problem) LOG.warn(`mod ${mod.id} not loaded: ${mod.problem}`);
+        for (const mod of all) if (mod.problem) LOG.warn(`mod ${mod.id} not loaded: ${mod.problem.message}`);
     }
 
     // Every mod read, in the mods' order, each with whether it loads and why not, and the folders of the same id it
