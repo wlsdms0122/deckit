@@ -58,7 +58,7 @@ async function run(theCase, { folder, hostApp, electron }) {
                 base: host.base,
                 // The contract version deckit runs mods with, where the case names one (base "system").
                 ...(host.api === null ? {} : { api: host.api }),
-                preload: `preload-${host.base}.js`,
+                preload: 'preload.js',
                 home,
                 electron: path.join(folder, 'electron'),
                 downloads: path.join(folder, 'downloads'),

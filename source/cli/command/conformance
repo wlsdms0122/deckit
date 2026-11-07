@@ -29,8 +29,9 @@ function fail(message, code = 1) {
     process.exit(code);
 }
 
-// The host app's folder: the archive unpacked as deckit/, the runner's host entry beside it, and for each base the
-// preload every deckit page loads with, deckit's renderer bundle and, with the shell on, the shell's.
+// The host app's folder: the archive unpacked as deckit/, the runner's host entry beside it, and the preload every
+// deckit page loads with, deckit's renderer bundle and then the shell's, as every host loads them. The shell's layer
+// stacks on a page only where the host attached the shell, so a `system` host runs with no shell.
 function assemble(archive, to) {
     fs.rmSync(to, { recursive: true, force: true });
     const library = path.join(to, 'deckit');
@@ -38,18 +39,17 @@ function assemble(archive, to) {
     execFileSync('tar', ['-xzf', archive, '-C', library]);
     const built = JSON.parse(fs.readFileSync(path.join(library, 'deckit.json'), 'utf8'));
     const read = (bundle) => fs.readFileSync(path.join(library, built.bundles[bundle].file), 'utf8');
-    const preload = (shell) =>
+    const preload =
         [
             '(() => {',
             'const before = new Set(Object.keys(globalThis));',
             read('renderer'),
-            ...(shell ? [read('shell-renderer')] : []),
+            read('shell-renderer'),
             `const environment = ${built.bundles.renderer.global}.boot({ before });`,
-            ...(shell ? [`if (environment) ${built.bundles['shell-renderer'].global}.start(environment);`] : []),
+            `if (environment) ${built.bundles['shell-renderer'].global}.start(environment);`,
             '})();',
         ].join('\n;\n') + '\n';
-    fs.writeFileSync(path.join(to, 'preload-system.js'), preload(false));
-    fs.writeFileSync(path.join(to, 'preload-shell.js'), preload(true));
+    fs.writeFileSync(path.join(to, 'preload.js'), preload);
     fs.copyFileSync(path.join(root, 'source', 'cli', 'conformance', 'host.js'), path.join(to, 'host.js'));
     fs.writeFileSync(
         path.join(to, 'package.json'),
