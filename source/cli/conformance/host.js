@@ -71,21 +71,31 @@ socket.on('data', (chunk) => {
 });
 socket.on('close', () => app.exit(0));
 
-// What a look comes to: `{ answers }`, `{ refuses, kind, message }` for a bundle found and not taken, or `{ none }`
-// with what the host was given instead. deckit.mods.list() holds every bundle found, in its order.
+// What a look comes to: `{ answers }`, `{ refuses, kind, message }` for a bundle found and not taken or a run refused,
+// or `{ none }` with what the host was given instead. deckit.mods.list() holds every bundle found, in its order.
 function look({ look: what, mod, part }) {
     if (!deckit) return { none: 'deckit was not connected' };
     const found = deckit.mods.list();
     if (what === 'mods') return { answers: found.map(({ id }) => id) };
-    if (what !== 'mod') return { none: `this host answers no look ${what}` };
+    if (what !== 'mod' && what !== 'run') return { none: `this host answers no look ${what}` };
     const one = found.find((entry) => entry.id === mod);
     if (!one) return { none: `no bundle under the id ${mod} was found` };
     if (one.refusal) return { refuses: one.refusal.stage, kind: one.refusal.kind, message: one.refusal.message };
+    if (what === 'run') return runOf(mod);
     const answer = JSON.parse(JSON.stringify(one));
     if (part === undefined) return { answers: answer };
     return part in answer && answer[part] !== null
         ? { answers: answer[part] }
         : { none: `the bundle answers no ${part}` };
+}
+
+// What deckit answers of the mod's latest run: its state, or the refusal at launch it came to. A mod with no run since
+// the start does not run.
+function runOf(id) {
+    const run = deckit.mods.runOf(id);
+    if (!run) return { answers: 'notRunning' };
+    if (run.refusal) return { refuses: run.refusal.stage, kind: run.refusal.kind, message: run.refusal.message };
+    return { answers: run.state };
 }
 
 // A page deckit shows on its own, in a window of the environment's, shown without taking the keyboard.

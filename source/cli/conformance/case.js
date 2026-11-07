@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 1;
+const FORMAT = 2;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -39,7 +39,10 @@ const INPUTS = {
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
     mods: {},
+    run: { mod: [is.string, true] },
 };
+// The format that added an input or a look, where it is not 1.
+const ADDED = { run: 2 };
 
 // The case in `folder`: `{ name, note, host, steps, bundles }`, `bundles` each bundle's folder by its name.
 function read(folder) {
@@ -67,7 +70,7 @@ function read(folder) {
     if (written.name !== path.basename(folder)) refuse(`name is not the folder's name`);
 
     const host = hostOf(written.host, refuse);
-    const steps = written.step.map((step, index) => stepOf(step, index + 1, refuse));
+    const steps = written.step.map((step, index) => stepOf(step, index + 1, written.case, refuse));
     order(steps, refuse);
 
     const mods = path.join(folder, 'mods');
@@ -126,14 +129,15 @@ function hostOf(host, refuse) {
     };
 }
 
-function stepOf(step, number, refuse) {
+function stepOf(step, number, format, refuse) {
     const at = `step ${number}`;
     if (!is.table(step)) refuse(`${at} is no table`);
     if ('input' in step === 'look' in step) refuse(`${at} writes neither or both of input and look`);
     const kind = 'input' in step ? 'input' : 'look';
     const shapes = kind === 'input' ? INPUTS : LOOKS;
     const shape = shapes[step[kind]];
-    if (!shape) refuse(`${at}: ${kind} ${JSON.stringify(step[kind])} is none the format has`);
+    if (!shape || (ADDED[step[kind]] ?? 1) > format)
+        refuse(`${at}: ${kind} ${JSON.stringify(step[kind])} is none the format has`);
     const checks = Object.fromEntries(Object.entries(shape).map(([key, [check]]) => [key, check]));
     keys(step, { [kind]: is.string, ...checks, expect: is.table }, `${at}: `, refuse);
     for (const [key, [, required]] of Object.entries(shape))
