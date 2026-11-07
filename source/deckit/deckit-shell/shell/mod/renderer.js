@@ -18,7 +18,7 @@ import { createWindow } from '../window/renderer.js';
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// The shell as a layer on deckit in a mod's page (deckit-shell/deck/runner/renderer.js), stacked with what deckit
+// The shell as a layer on deckit in a mod's page (deckit/runner/renderer.js), stacked with what deckit
 // offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), and the handle `shell`:
 // the theme, the kit, `show()`, `iconOf(mod)`, `region(element, interface)`, `children`, `dropDestination(element,
 // options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the Dock on `mods`, with deckit.shell-keys the shell's
