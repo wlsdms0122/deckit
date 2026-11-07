@@ -84,7 +84,8 @@ export function createKey({ deckit }) {
         const modId = deckit.mods.modOf(page);
         const permissions = deckit.mods.runOf(modId)?.mod.permissions || [];
         if (permissions.some(({ id }) => id === KEY_PERMISSION.SHELL_KEYS)) return;
-        refuse(`${modId || 'the page'} does not have the ${KEY_PERMISSION.SHELL_KEYS} permission`);
+        const refused = new Error(`${modId || 'the page'} does not have the ${KEY_PERMISSION.SHELL_KEYS} permission`);
+        throw Object.assign(refused, { kind: 'NOT_PERMITTED' });
     }
 
     function refuse(why) {

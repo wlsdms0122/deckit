@@ -132,9 +132,9 @@ async function main() {
     };
     check(
         'a page without deckit.shell-keys neither lists nor changes them',
-        refusedTo(() => channel('list')({}, 'other')) === 'REFUSED' &&
-            refusedTo(() => channel('set')({ id: 'back', keystroke: null }, 'other')) === 'REFUSED' &&
-            refusedTo(() => channel('reset')({ id: 'back' }, 'other')) === 'REFUSED',
+        refusedTo(() => channel('list')({}, 'other')) === 'NOT_PERMITTED' &&
+            refusedTo(() => channel('set')({ id: 'back', keystroke: null }, 'other')) === 'NOT_PERMITTED' &&
+            refusedTo(() => channel('reset')({ id: 'back' }, 'other')) === 'NOT_PERMITTED',
         ''
     );
     const chosen = { code: 'KeyS', meta: true, alt: true };

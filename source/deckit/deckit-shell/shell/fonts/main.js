@@ -50,7 +50,7 @@ export function createFonts({ deckit, installed }) {
         const permissions = deckit.mods.runOf(modId)?.mod.permissions || [];
         if (permissions.some(({ id }) => id === FONTS_PERMISSION.FONTS)) return;
         const refused = new Error(`${modId || 'the page'} does not have the ${FONTS_PERMISSION.FONTS} permission`);
-        throw Object.assign(refused, { kind: 'REFUSED' });
+        throw Object.assign(refused, { kind: 'NOT_PERMITTED' });
     }
 
     return { start };
