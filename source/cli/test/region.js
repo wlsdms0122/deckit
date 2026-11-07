@@ -2,7 +2,8 @@
 // child is the child of the owner of the interface its view names as parent, at the major it uses, a region shows only
 // the children of its own interface, so a mod that gives regions for two keeps them apart, and a new owner takes a
 // child out of the old one's region and to the new one's children, a child that does not run launches as a region
-// shows it, and a view, as a mod's contributes declares it, names as parent only an interface its mod uses. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// shows it, and a view, as a mod's manifest fields give it, names as parent only an interface its mod uses. Exits 1
+// with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -26,8 +27,8 @@ async function main() {
         { id: 'tool', name: 'Tool', provides: { 'dash/tools': [1] }, uses: { 'dash/tools': 1 } },
         { id: 'idle', name: 'Idle', provides: {}, uses: { 'dash/boards': 1 } },
     ];
-    // What each declares: every one a view, `board`, `tool` and `idle` naming a parent; `idle` does not run.
-    const contributes = {
+    // The manifest fields of each: every one a view, `board`, `tool` and `idle` naming a parent; `idle` does not run.
+    const fields = {
         dash: { view: { sidebar: true } },
         other: { view: {} },
         board: { view: { parent: 'dash/boards' }, icon: '<svg/>' },
@@ -68,7 +69,7 @@ async function main() {
             },
             runOf: (id) => runs[id],
             runs: () => Object.values(runs).map((run) => ({ run, page: pages[run.mod.id] })),
-            contributesOf: (id) => contributes[id] ?? null,
+            fieldsOf: (id) => fields[id] ?? null,
             launch: async (id) => launched.push(id),
             modOf: (page) => page?.mod ?? null,
             observe: (name, observer) => ((observers[name] ||= []).push(observer), () => {}),
@@ -158,9 +159,9 @@ async function main() {
     check('the owner of the interface it names is no child', REGION.parentOf('tool') === null, '');
     check('a child with no parent is still a child', REGION.interfaceOf('tool') === 'dash/tools', '');
 
-    const DECLARED = await import(url('deckit-shell', 'shell', 'panel', 'model', 'declared.js'));
+    const FIELD = await import(url('deckit-shell', 'shell', 'panel', 'model', 'field.js'));
     const child = { uses: { 'dash/boards': 1 } };
-    const named = DECLARED.viewOf({ view: { parent: 'dash/boards', sidebar: true } }, child);
+    const named = FIELD.viewOf({ view: { parent: 'dash/boards', sidebar: true } }, child);
     check(
         'a view may name as parent an interface its mod uses',
         JSON.stringify(named) === JSON.stringify({ sidebar: true, parent: 'dash/boards' }),
@@ -168,25 +169,21 @@ async function main() {
     );
     check(
         'a view naming as parent an interface its mod does not use is left out',
-        DECLARED.viewOf({ view: { parent: 'dash/tools' } }, child) === null,
+        FIELD.viewOf({ view: { parent: 'dash/tools' } }, child) === null,
         ''
     );
     check(
-        'a mod that declares no view has none',
-        DECLARED.viewOf({}, child) === null && DECLARED.viewOf({ view: 'yes' }, child) === null,
+        'a mod whose fields give no view has none',
+        FIELD.viewOf({}, child) === null && FIELD.viewOf({ view: 'yes' }, child) === null,
         ''
     );
-    const keywords = DECLARED.keywordsOf({ keywords: ['files', 3, '', 'folder'] }).join();
-    check('the declared keywords are the words among them', keywords === 'files,folder', keywords);
-    check('an icon that is no text is left out', DECLARED.iconOf({ icon: 3 }) === '', '');
-    const form = DECLARED.formOf({
-        configuration: [{ key: 'size', type: 'number' }],
-        form: { size: { unit: ' px' }, gone: { placeholder: 'x' } },
-    });
+    const keywords = FIELD.keywordsOf({ keywords: ['files', 3, '', 'folder'] }).join();
+    check('the keywords field reads as the words among it', keywords === 'files,folder', keywords);
+    check('an icon that is no text is left out', FIELD.iconOf({ icon: 3 }) === '', '');
     check(
-        'a form hints only at what the configuration declares',
-        JSON.stringify(form) === JSON.stringify({ size: { unit: ' px' } }),
-        form
+        'the panel reads its manifest fields by the keys it names',
+        FIELD.KEYS.join() === 'view,icon,keywords',
+        FIELD.KEYS
     );
 
     if (failed.length) {

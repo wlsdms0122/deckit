@@ -54,11 +54,9 @@ export const guide = CHANNEL.mainToPage('deckit-shell:panel-guide');
 export const escape = CHANNEL.mainToPage('deckit-shell:panel-escape', { reply: true });
 // The sending mod asks to be on screen.
 export const show = CHANNEL.pageToMain('deckit-shell:panel-show', {});
-// The icon a mod is listed with, as its class says, or ''.
+// The icon a mod is listed with, as its manifest fields give it, or ''.
 export const icon = CHANNEL.pageToMain('deckit-shell:panel-icon', { mod: 'string' }, { reply: true, sync: true });
-// How a mod's configuration is drawn, as its class says: `{ key: { placeholder, unit, step, choices } }`.
-export const form = CHANNEL.pageToMain('deckit-shell:panel-form', { mod: 'string' }, { reply: true });
-// Every mod that declares a view, asked by a mod with deckit.mods, `[{ id, name, icon, keywords, pinned, running }]`
+// Every mod with a view, asked by a mod with deckit.mods, `[{ id, name, icon, keywords, pinned, running }]`
 // in the list's order, as the Dock marks them.
 export const list = CHANNEL.pageToMain('deckit-shell:panel-list', {}, { reply: true, sync: true });
 // The mods the person keeps in the Dock, asked by a mod with deckit.mods; and keeping one there or taking it out, asked

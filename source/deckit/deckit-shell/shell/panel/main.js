@@ -6,7 +6,7 @@ import * as PAGE from './model/page-name.js';
 import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as MATCH from '../../deckit/match/match.js';
-import * as MOD_DECLARED from './model/declared.js';
+import * as FIELD from './model/field.js';
 import * as DOCK from './model/dock.js';
 
 // `deckit` is what connect answered, `host` the app's answers, `PAGES` the shell's pages, `OVERLAY` their overlays and
@@ -54,8 +54,10 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     let order = []; // the ids of the mods, as the person arranged the Dock
 
     // MARK: - Initializer
+    for (const key of FIELD.KEYS) deckit.fields.define(key);
+
     // MARK: - Public
-    // The mods whose contributes declares a view, their pages on a stage the host app places, under the panel's frame,
+    // The mods whose manifest fields give a view, their pages on a stage the host app places, under the panel's frame,
     // and the Dock in its sidebar: the mods the person keeps there, running or not, and those running now. A mod whose
     // view names a parent is that one's child: its view is shown where a region of the parent's shows it, and in the
     // panel only once the person keeps it in the Dock.
@@ -152,8 +154,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
             return { guide, shown: sent.onScreen.has(sender) };
         });
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
-        PROTOCOL.icon.handle(({ mod }) => MOD_DECLARED.iconOf(deckit.mods.contributesOf(mod)));
-        PROTOCOL.form.handle(({ mod }) => MOD_DECLARED.formOf(deckit.mods.contributesOf(mod)));
+        PROTOCOL.icon.handle(({ mod }) => FIELD.iconOf(deckit.mods.fieldsOf(mod)));
         PROTOCOL.list.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);
             return listed();
@@ -337,7 +338,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
             .map(({ id, name }) => ({
                 value: id,
                 title: name,
-                keywords: MOD_DECLARED.keywordsOf(deckit.mods.contributesOf(id)),
+                keywords: FIELD.keywordsOf(deckit.mods.fieldsOf(id)),
             }));
         if (!partial.trim()) return candidates;
         return candidates
@@ -445,15 +446,15 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         broadcast();
     }
 
-    // Shown in the panel: a mod that declares a view naming no parent, or a child the person keeps in the Dock.
+    // Shown in the panel: a mod with a view naming no parent, or a child the person keeps in the Dock.
     function inPanel(id) {
         return !!viewOf(id) && (!REGION.interfaceOf(id) || pinned.has(id));
     }
 
-    // The view the mod's contributes declares, or null.
+    // The view the mod's manifest fields give, or null.
     function viewOf(id) {
         const mod = deckit.mods.list().find((one) => one.id === id);
-        return mod ? MOD_DECLARED.viewOf(deckit.mods.contributesOf(id), mod) : null;
+        return mod ? FIELD.viewOf(deckit.mods.fieldsOf(id), mod) : null;
     }
 
     // The mods' pages on screen while the panel is: the mod on screen, then the children its regions show.
@@ -639,7 +640,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         const mods = DOCK.items([...names.keys()], { pinned, running: runningIds() }).map((item) => ({
             ...item,
             name: names.get(item.id),
-            icon: MOD_DECLARED.iconOf(deckit.mods.contributesOf(item.id)),
+            icon: FIELD.iconOf(deckit.mods.fieldsOf(item.id)),
         }));
         return {
             mods,
@@ -651,18 +652,18 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         };
     }
 
-    // Every mod that declares a view, in the list's order, marked as the Dock marks them.
+    // Every mod with a view, in the list's order, marked as the Dock marks them.
     function listed() {
         const running = runningIds();
         return inOrder()
             .filter(({ id }) => viewOf(id))
             .map(({ id, name }) => {
-                const contributes = deckit.mods.contributesOf(id);
+                const fields = deckit.mods.fieldsOf(id);
                 return {
                     id,
                     name,
-                    icon: MOD_DECLARED.iconOf(contributes),
-                    keywords: MOD_DECLARED.keywordsOf(contributes),
+                    icon: FIELD.iconOf(fields),
+                    keywords: FIELD.keywordsOf(fields),
                     pinned: pinned.has(id),
                     running: running.has(id),
                 };

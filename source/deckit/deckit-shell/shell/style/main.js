@@ -7,13 +7,16 @@ export function createStyle({ deckit }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const EVERY_PAGE = '*';
+    const FIELD = 'styles'; // the manifest field read here, named to deckit before its core starts
     const pages = new Map(); // a page that wears styles -> the mod it runs, or null for a page the shell made
-    const declared = new Map(); // a mod's id -> { '<mod id>' | '*': css }, of the files its contributes declares
+    const declared = new Map(); // a mod's id -> { '<mod id>' | '*': css }, of the files its manifest's `styles` names
 
     // MARK: - Initializer
+    deckit.fields.define(FIELD);
+
     // MARK: - Public
     // A mod with `deckit.styles` styles other pages: by id that mod's page, its own among them, and by "*" every page,
-    // the shell's and every mod's. What its contributes declares under `styles`, a CSS file inside its folder for each,
+    // the shell's and every mod's. What its manifest field `styles` names, a CSS file inside its folder for each,
     // is worn from the time it is installed, running or not, and what its run registers while it runs. Each page wears
     // what applies to it in the mods' order, the later over the earlier, a mod's declared styles before its run's, so a
     // mod's styles go over those of the mods it requires.
@@ -51,7 +54,7 @@ export function createStyle({ deckit }) {
     async function readDeclared() {
         const next = new Map();
         for (const mod of deckit.mods.list()) {
-            const files = deckit.mods.contributesOf(mod.id)?.styles;
+            const files = deckit.mods.fieldsOf(mod.id)?.[FIELD];
             if (!mayStyle(mod) || !files || typeof files !== 'object') continue;
             const styles = {};
             for (const [target, file] of Object.entries(files)) {

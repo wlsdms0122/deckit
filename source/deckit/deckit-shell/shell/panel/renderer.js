@@ -27,8 +27,8 @@ const STYLE = `
 // MARK: - Initializer
 // MARK: - Public
 // The panel in a mod's page, its channels bound with `channels`: `mount(view)`, `show()`, by which the mod asks to be
-// on screen, `iconOf(mod)` and `formOf(mod)`, and `pins`, what a mod with deckit.mods reads and changes of the Dock:
-// `list()`, every mod that declares a view, as the Dock marks it, `pinned()`, the mods the person keeps in it,
+// on screen, `iconOf(mod)`, and `pins`, what a mod with deckit.mods reads and changes of the Dock:
+// `list()`, every mod with a view, as the Dock marks it, `pinned()`, the mods the person keeps in it,
 // `setPinned(id, pinned)`, and `open(id)`, a mod on screen as the person opens it.
 function createPanel({ channels }) {
     // MARK: - Property
@@ -184,12 +184,7 @@ function createPanel({ channels }) {
         return PROTOCOL.icon.invoke({ mod: String(mod) });
     }
 
-    // How a mod's configuration is drawn, by its id.
-    function formOf(mod) {
-        return PROTOCOL.form.invoke({ mod: String(mod) });
-    }
-
-    return Object.freeze({ mount, show, iconOf, formOf, pins });
+    return Object.freeze({ mount, show, iconOf, pins });
 }
 
 // Why what `shell.view` was handed is not a view, or ''.
@@ -197,14 +192,6 @@ function viewProblem(value) {
     if (value?.content?.nodeType !== Node.ELEMENT_NODE)
         return 'takes { content, sidebar, didAppear, didDisappear }, content an element';
     return '';
-}
-
-// A mod's local key runs only in its page in front, so one with nothing on screen, no view and no window, has only
-// its keys that work past it.
-function keyProblem(key, shown) {
-    return key.scope === 'local' && !shown
-        ? 'a mod with no view or window is never in front, so only a key that works past its page does'
-        : '';
 }
 
 // MARK: - Private
@@ -229,4 +216,4 @@ function element(tag, className) {
     return made;
 }
 
-export { createPanel, viewProblem, keyProblem };
+export { createPanel, viewProblem };

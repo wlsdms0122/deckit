@@ -6,10 +6,10 @@ import * as STYLE_PERMISSION from '../style/model/permission.js';
 import * as FONTS from '../fonts/renderer.js';
 import * as FONTS_PERMISSION from '../fonts/model/permission.js';
 import * as MOD_PERMISSION from '../../deckit/permission/index.js';
-import { createPanel, viewProblem, keyProblem } from '../panel/renderer.js';
+import { createPanel, viewProblem } from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion } from '../region/renderer.js';
-import * as DECLARED from '../panel/model/declared.js';
+import * as FIELD from '../panel/model/field.js';
 import { createDrop } from '../drop/renderer.js';
 import { createWindow } from '../window/renderer.js';
 
@@ -18,16 +18,16 @@ import { createWindow } from '../window/renderer.js';
 // MARK: - Public
 // The shell as a layer on deckit in a mod's page (deckit-shell/deck/runner/renderer.js), stacked with what deckit
 // offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), and the handle `shell`:
-// the theme, the kit, `show()`, `iconOf(mod)`, `formOf(mod)`, `region(element, interface)`, `children`,
+// the theme, the kit, `show()`, `iconOf(mod)`, `region(element, interface)`, `children`,
 // `dropDestination(element, options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the Dock on `mods`,
 // and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme,
 // the kit and the styles from just before attach().
 // Once attach() has ended, a view is laid where the panel's guide says, or a region's for a child, unless the page is
-// in a window of its own, and a key that is never in front is left out. A view is registered only by a mod whose
-// contributes declares one, with a sidebar only where it declares the view lends one. `WEB` is deckit's web in the
-// page, whose pages the shell hands the mod; `channels` binds the shell's channels in the page.
+// in a window of its own. A view is registered only by a mod whose manifest fields give one, with a sidebar only where
+// they say the view lends one. `WEB` is deckit's web in the page, whose pages the shell hands the mod; `channels` binds
+// the shell's channels in the page.
 function shellOf({ WEB, channels }) {
-    return ({ mod: running, contributes, deliver, fail, under: deckit }) => {
+    return ({ mod: running, deliver, fail, under: deckit }) => {
         const has = (permission) => running.permissions.some(({ id }) => id === permission);
         const WINDOW = createWindow({ running, fail, deliver, channels });
         const PANEL = createPanel({ channels });
@@ -41,7 +41,6 @@ function shellOf({ WEB, channels }) {
         let reported = {};
         let page = null; // the theme and the kit, once the page wears them
         let mounted = { unmount() {}, remove() {} };
-        deckit.blockKeysWhen(() => PRESENTATION.count() > 0);
         return {
             report: () => reported,
             lifecycles: [
@@ -50,7 +49,7 @@ function shellOf({ WEB, channels }) {
                     registrations: {
                         view: {
                             handle: 'shell',
-                            check: (value) => viewProblem(value) || declaredProblem(value),
+                            check: (value) => viewProblem(value) || fieldProblem(value),
                         },
                         ...(has(STYLE_PERMISSION.STYLES)
                             ? { styles: { handle: 'shell', check: STYLE.problemOf } }
@@ -67,7 +66,6 @@ function shellOf({ WEB, channels }) {
                             ui: page.ui,
                             show: PANEL.show,
                             iconOf: PANEL.iconOf,
-                            formOf: PANEL.formOf,
                             ...REGION.forScope(scope),
                             ...DROP.forScope(scope),
                             web: WEB.surfacesOf({ owner: { deliver, recordFailure: fail }, opener, scope }),
@@ -108,7 +106,6 @@ function shellOf({ WEB, channels }) {
                         }
                         const window = WINDOW.mount();
                         const styles = { ...(parts.styles || {}) };
-                        const shown = !!view || windowed;
                         reported = {
                             summary: {
                                 view: !!view,
@@ -117,18 +114,16 @@ function shellOf({ WEB, channels }) {
                             },
                             contributions: { styles },
                         };
-                        return { keyProblem: (key) => keyProblem(key, shown) };
                     },
                 }),
             ],
         };
 
-        // Why a view does not fit the view the mod's contributes declares, or ''.
-        function declaredProblem(value) {
-            const declared = DECLARED.viewOf(contributes, running);
-            if (!declared) return 'is for a mod whose contributes declares a view';
-            if (value.sidebar && !declared.sidebar)
-                return 'has a sidebar, which the view its contributes declares does not';
+        // Why a view does not fit the view the mod's manifest fields give, or ''.
+        function fieldProblem(value) {
+            const given = FIELD.viewOf(running.fields, running);
+            if (!given) return 'is for a mod whose manifest gives a view';
+            if (value.sidebar && !given.sidebar) return 'has a sidebar, which the view its manifest gives does not';
             return '';
         }
 

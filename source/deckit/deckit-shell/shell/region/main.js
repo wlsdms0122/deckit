@@ -1,6 +1,6 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
-import * as MOD_DECLARED from '../panel/model/declared.js';
+import * as FIELD from '../panel/model/field.js';
 
 // `deckit` is what connect answered.
 export function createRegion({ deckit }) {
@@ -13,7 +13,7 @@ export function createRegion({ deckit }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The places mods give in their views, and the children shown in them. A mod whose contributes declares a view
+    // The places mods give in their views, and the children shown in them. A mod whose manifest fields give a view
     // with an interface as its parent is a child, whether it runs or not; it is the child of the owner of that
     // interface, and is shown in a region that mod gives for it. As another owns it, or the view names another
     // interface, the child leaves the region it was in, and the owner now hears it among its children.
@@ -38,7 +38,7 @@ export function createRegion({ deckit }) {
     // The interface the mod's view names as its parent, or null: it is a child whether or not a mod owns it.
     function interfaceOf(id) {
         const mod = deckit.mods.list().find((one) => one.id === id);
-        return (mod && MOD_DECLARED.viewOf(deckit.mods.contributesOf(id), mod)?.parent) || null;
+        return (mod && FIELD.viewOf(deckit.mods.fieldsOf(id), mod)?.parent) || null;
     }
 
     // The mod whose regions the mod's view is shown in, the owner of the interface its view names, which the mod uses,
@@ -155,7 +155,7 @@ export function createRegion({ deckit }) {
         for (const named of providesOf(parent))
             children[named] = mods
                 .filter(({ id }) => interfaceOf(id) === named && parentOf(id) === parent)
-                .map(({ id, name }) => ({ id, name, icon: MOD_DECLARED.iconOf(deckit.mods.contributesOf(id)) }));
+                .map(({ id, name }) => ({ id, name, icon: FIELD.iconOf(deckit.mods.fieldsOf(id)) }));
         return children;
     }
 

@@ -26,7 +26,7 @@ async function main() {
     };
     const mods = { ...Object.fromEntries(Object.keys(runs).map((id) => [id, mod(id)])), e: mod('e'), f: mod('f', []) };
     mods.c = mod('c', []);
-    const contributes = {
+    const fields = {
         a: { styles: { '*': 'all.css' } },
         e: { styles: { a: 'a.css', b: 'missing.css' } },
         f: { styles: { a: 'a.css' } },
@@ -38,15 +38,18 @@ async function main() {
         mods: {
             list: () => Object.values(mods),
             runOf: (id) => runs[id] ?? null,
-            contributesOf: (id) => contributes[id] ?? {},
+            fieldsOf: (id) => fields[id] ?? {},
             readFile: async (id, file) => files[`${id}/${file}`] ?? null,
             modOf: (page) => page.mod,
             observe() {},
             onChange() {},
         },
         pages: { nameOf: () => 'panel', whenEnds() {} },
+        fields: { define: (key) => named.push(key) },
     };
+    const named = [];
     createStyle({ deckit }).start();
+    check('the styles a mod declares are read from its manifest field `styles`', named.join() === 'styles', named);
     await new Promise((resolve) => setImmediate(resolve));
     const current = Object.values(handlers)[0];
 
