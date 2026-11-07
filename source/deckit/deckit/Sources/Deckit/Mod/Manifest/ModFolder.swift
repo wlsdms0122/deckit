@@ -22,28 +22,27 @@ struct ModFolder {
     }
 
     // MARK: - Public
-    // The mod folders in `root`, in the order of their names exactly as on disk: on a disk that ignores case, a name
-    // matching only in another case is no mod's. A folder with no manifest is not a broken mod but no mod, and a dot
-    // name (.shipped) is deck's own.
+    // The mod folders in `root`, in the order of their names. A folder that holds no manifest, a regular file found as
+    // `file` finds one, is not a broken mod but no mod, and a dot name (.shipped) is deck's own.
     func mods(in root: URL) -> [URL] {
         ((try? store.names(in: root)) ?? [])
-            .filter { name in !name.hasPrefix(".") }
+            .filter { name in name.unicodeScalars.first != "." }
             .sorted()
             .map { name in root.appending(path: name) }
-            .filter { folder in
-                store.isFolder(folder)
-                    && FileManager.default.fileExists(atPath: manifestFile(of: folder).path(percentEncoded: false))
-            }
+            .filter { folder in store.isFolder(folder) && manifestFile(of: folder) != nil }
     }
 
     // What the manifest in a folder says. One that names no id is the folder's name.
     func manifest(of folder: URL) -> Manifest {
-        reader.read(store.read(manifestFile(of: folder)) ?? "", fallback: folder.standardizedFileURL.lastPathComponent)
+        reader.read(
+            manifestFile(of: folder).flatMap(store.read) ?? "",
+            fallback: folder.standardizedFileURL.lastPathComponent
+        )
     }
 
     // What the mod in a folder is refused with, as a `system` mod or not, or nil when it loads.
     func problem(of folder: URL, system: Bool) -> ModFolderError? {
-        guard let text = store.read(manifestFile(of: folder)) else {
+        guard let text = manifestFile(of: folder).flatMap(store.read) else {
             return .notLoadable("no \(reader.file) in \(folder.path(percentEncoded: false))")
         }
         if let problem = reader.problem(of: text, system: system) {
@@ -59,20 +58,32 @@ struct ModFolder {
         return nil
     }
 
-    // Where the file `path` names really is, or nil when that is no file inside the folder, by a link too.
+    // Where the file `path` names really is, or nil when that is no regular file inside the folder, by a link too.
+    // Each segment names the entry of the folder it is looked up in whose name is the same sequence of Unicode scalar
+    // values, found in that folder's listing: opening the name on a disk that ignores case or normalization finds an
+    // entry of another spelling too.
     func file(_ path: String, in folder: URL) -> URL? {
-        guard let root = realPath(folder.path(percentEncoded: false)),
-            let file = realPath(root + "/" + path),
-            file.hasPrefix(root.hasSuffix("/") ? root : root + "/"),
-            (try? FileManager.default.attributesOfItem(atPath: file))?[.type] as? FileAttributeType == .typeRegular
+        guard let root = realPath(folder.path(percentEncoded: false)) else { return nil }
+
+        var place = root
+        for segment in path.split(separator: "/", omittingEmptySubsequences: false) {
+            let names = (try? store.names(in: URL(filePath: place))) ?? []
+            guard names.contains(where: { name in name.unicodeScalars.elementsEqual(segment.unicodeScalars) }),
+                let resolved = realPath(place + "/" + segment)
+            else { return nil }
+
+            place = resolved
+        }
+        guard place.hasPrefix(root.hasSuffix("/") ? root : root + "/"),
+            (try? FileManager.default.attributesOfItem(atPath: place))?[.type] as? FileAttributeType == .typeRegular
         else { return nil }
 
-        return URL(filePath: file)
+        return URL(filePath: place)
     }
 
     // MARK: - Private
-    private func manifestFile(of folder: URL) -> URL {
-        folder.appending(path: reader.file)
+    private func manifestFile(of folder: URL) -> URL? {
+        file(reader.file, in: folder)
     }
 
     private func realPath(_ path: String) -> String? {
