@@ -1,9 +1,9 @@
 // Deckit's client of the core (deckit-shell/deckit/core), checked over a stand-in for how the environment reaches the
 // core: what it sends first, the version of the mod contract it runs mods with, the shipped folders with their system
 // marks, the permissions the layers define with their tier (deckit/permission) and the manifest fields they name
-// (deckit/manifest-field), how it waits for that, what an answer and a refusal come to, and that a core that ended
-// refuses everything after. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// (deckit/manifest-field), each refused with its kind, how it waits for that, what an answer and a refusal come to,
+// and that a core that ended refuses everything after. Exits 1 with a line for each check that failed. The packages
+// are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -15,6 +15,14 @@ const thrown = (work) => {
         return '';
     } catch (error) {
         return error.message;
+    }
+};
+const kindThrown = (work) => {
+    try {
+        work();
+        return null;
+    } catch (error) {
+        return error.kind ?? null;
     }
 };
 const outcome = (promise) =>
@@ -70,6 +78,17 @@ async function main() {
         ''
     );
     check('a manifest field named twice is refused', /twice/.test(thrown(() => MANIFEST_FIELD.define('icon'))), '');
+    const kinds = [
+        kindThrown(() => MANIFEST_FIELD.define('icon')),
+        kindThrown(() => MANIFEST_FIELD.define(1)),
+        kindThrown(() => PERMISSION.define({ id: 'a.b', name: 'B', means: 'It does b.' })),
+        kindThrown(() => PERMISSION.define({ id: 'a.f', name: ' ', means: 'f' })),
+    ];
+    check(
+        'a manifest field is refused of kind FIELD, and a permission of kind PERMISSION',
+        kinds.join() === 'FIELD,FIELD,PERMISSION,PERMISSION',
+        kinds
+    );
 
     CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() });
     const early = outcome(CORE.request('catalog/read', {}));
@@ -93,7 +112,9 @@ async function main() {
     check(
         'a permission or a manifest field is not defined once the core started',
         /after the core started/.test(thrown(() => PERMISSION.define({ id: 'a.e', name: 'E', means: 'e' }))) &&
-            /after the core started/.test(thrown(() => MANIFEST_FIELD.define('keywords'))),
+            /after the core started/.test(thrown(() => MANIFEST_FIELD.define('keywords'))) &&
+            kindThrown(() => PERMISSION.define({ id: 'a.e', name: 'E', means: 'e' })) === 'PERMISSION' &&
+            kindThrown(() => MANIFEST_FIELD.define('keywords')) === 'FIELD',
         ''
     );
     answer(sent[0].id, {});

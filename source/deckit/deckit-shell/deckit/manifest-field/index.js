@@ -7,11 +7,12 @@ export function createManifestField() {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A key a layer on this host reads, named once, before the core starts. The core refuses one of its own keys.
+    // A key a layer on this host reads, named once, before the core starts. Refused of kind FIELD; the core refuses
+    // one of its own keys, with the same kind.
     function define(key) {
-        if (handed) throw new Error(`[deckit] the manifest field ${key} is named after the core started`);
-        if (typeof key !== 'string' || !key.trim()) throw new Error("[deckit] a manifest field's key is no text");
-        if (named.includes(key)) throw new Error(`[deckit] the manifest field ${key} is named twice`);
+        if (handed) throw refusal(`the manifest field ${key} is named after the core started`);
+        if (typeof key !== 'string' || !key.trim()) throw refusal("a manifest field's key is no text");
+        if (named.includes(key)) throw refusal(`the manifest field ${key} is named twice`);
         named.push(key);
     }
 
@@ -22,6 +23,9 @@ export function createManifestField() {
     }
 
     // MARK: - Private
+    function refusal(message) {
+        return Object.assign(new Error(`[deckit] ${message}`), { kind: 'FIELD' });
+    }
 
     return { define, all };
 }

@@ -11,14 +11,14 @@ export function createPermission() {
     // MARK: - Initializer
     // MARK: - Public
     // A permission of a layer on this host: `name` and `means` are what a person reads before installing, and a
-    // `privileged` one is granted only to a system mod. Defined once, before the core starts.
+    // `privileged` one is granted only to a system mod. Defined once, before the core starts. Refused of kind
+    // PERMISSION; the core refuses one it defines itself, with the same kind.
     function define({ id, name, means, privileged = false }) {
-        if (handed) throw new Error(`[deckit] ${id} is defined after the core started`);
+        if (handed) throw refusal(`${id} is defined after the core started`);
         for (const [key, value] of Object.entries({ id, name, means }))
-            if (typeof value !== 'string' || !value.trim())
-                throw new Error(`[deckit] a permission's ${key} is no text`);
-        if (typeof privileged !== 'boolean') throw new Error(`[deckit] ${id} says privileged as no boolean`);
-        if (defined.some((permission) => permission.id === id)) throw new Error(`[deckit] ${id} is defined twice`);
+            if (typeof value !== 'string' || !value.trim()) throw refusal(`a permission's ${key} is no text`);
+        if (typeof privileged !== 'boolean') throw refusal(`${id} says privileged as no boolean`);
+        if (defined.some((permission) => permission.id === id)) throw refusal(`${id} is defined twice`);
         defined.push({ id, name, means, privileged });
     }
 
@@ -29,6 +29,9 @@ export function createPermission() {
     }
 
     // MARK: - Private
+    function refusal(message) {
+        return Object.assign(new Error(`[deckit] ${message}`), { kind: 'PERMISSION' });
+    }
 
     return { define, all };
 }
