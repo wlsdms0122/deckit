@@ -21,7 +21,7 @@ extension Job {
             revision: mod.revision,
             entry: entry,
             permissions: mod.manifest.permissions.filter(\.usable).map(\.id),
-            reaches: [],
+            reaches: .only([]),
             uses: mod.manifest.uses,
             provides: mod.manifest.provides
         )

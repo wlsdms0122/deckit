@@ -37,6 +37,12 @@ extension ResponseError {
 
             case .notAnEnd:
                 "NOT_AN_END"
+
+            case .notUp:
+                "NOT_UP"
+
+            case .outOfReach:
+                "OUT_OF_REACH"
             }
 
         case let error as InstallError:
