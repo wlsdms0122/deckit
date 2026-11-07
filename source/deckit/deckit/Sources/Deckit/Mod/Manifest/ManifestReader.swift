@@ -22,7 +22,7 @@ struct ManifestReader {
     private let parser = TOMLParser()
     private let store: Store
     private let api: Version
-    // The widest first: those that reach past the app, then those inside it, each in the order defined.
+    // In the order defined, as deckit hands them: its own first.
     private let permissions: [Permission]
     private let fields: [String]
 
@@ -44,9 +44,7 @@ struct ManifestReader {
 
         self.api = api
         self.store = store
-        self.permissions = PermissionReach.allCases.flatMap { reach in
-            permissions.filter { permission in permission.reach == reach }
-        }
+        self.permissions = permissions
         self.fields = fields
     }
 
@@ -272,7 +270,7 @@ struct ManifestReader {
         return nil
     }
 
-    // The widest first, those a layer defines in the order defined, then those none does.
+    // Those defined here first, in the order defined, then those not defined, by id.
     private func requests(of asked: [String: TOMLValue]) -> [PermissionRequest] {
         let requests = asked.sorted { one, other in one.key < other.key }.map { id, reason in
             PermissionRequest(
@@ -282,11 +280,8 @@ struct ManifestReader {
             )
         }
         let defined = permissions.compactMap { permission in requests.first { request in request.id == permission.id } }
-        let undefined = requests.filter { request in !request.usable }
 
-        return PermissionReach.allCases.flatMap { reach in
-            (defined + undefined).filter { request in request.reach == reach }
-        }
+        return defined + requests.filter { request in !request.usable }
     }
 
     // Each interface by the majors written that are majors.

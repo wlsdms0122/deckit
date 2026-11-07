@@ -16,9 +16,6 @@ public struct Permission: Equatable, Sendable {
     public let name: String
     public let means: String
     public let privileged: Bool
-    public var reach: PermissionReach {
-        PermissionReach(of: id)
-    }
 
     // MARK: - Initializer
     public init(id: String, name: String, means: String, privileged: Bool = false) {

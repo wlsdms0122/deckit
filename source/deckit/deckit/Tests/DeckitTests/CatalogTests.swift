@@ -310,8 +310,8 @@ struct CatalogTests {
 
         // Then
         #expect(plan.manifest.background == "Runs a service")
-        #expect(plan.manifest.permissions.map(\.id) == ["system.camera", "deckit.mods"])
-        #expect(plan.manifest.permissions.map(\.usable) == [false, true])
+        #expect(plan.manifest.permissions.map(\.id) == ["deckit.mods", "system.camera"])
+        #expect(plan.manifest.permissions.map(\.usable) == [true, false])
         #expect(job.permissions == ["deckit.mods"])
     }
 

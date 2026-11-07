@@ -18,9 +18,6 @@ public struct PermissionRequest: Equatable, Sendable {
     public var usable: Bool {
         permission != nil
     }
-    public var reach: PermissionReach {
-        PermissionReach(of: id)
-    }
 
     // MARK: - Initializer
     // MARK: - Public

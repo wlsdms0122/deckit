@@ -118,7 +118,7 @@ struct ManifestReaderTests {
     }
 
     // MARK: - Test
-    @Test("a manifest is read with its permissions, the widest first, and its entries by interface")
+    @Test("a manifest is read with its permissions, those defined first as defined, and its entries by interface")
     func manifestIsRead() throws {
         // Given
         let text = """
@@ -161,9 +161,9 @@ struct ManifestReaderTests {
         )
         #expect(
             manifest.permissions == [
+                PermissionRequest(id: mods.id, reason: "to list them", permission: mods),
                 PermissionRequest(id: network.id, reason: "to sync", permission: network),
-                PermissionRequest(id: "system.camera", reason: "to see", permission: nil),
-                PermissionRequest(id: mods.id, reason: "to list them", permission: mods)
+                PermissionRequest(id: "system.camera", reason: "to see", permission: nil)
             ]
         )
     }
