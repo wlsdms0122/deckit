@@ -201,7 +201,7 @@ async function main() {
     ];
     check(
         'a mod without deckit.mods is refused, and so is a mod with nothing to show',
-        refusals[0] === 'REFUSED' && refusals[1] !== '' && panel.launched.length === 1,
+        refusals[0] === 'NOT_PERMITTED' && refusals[1] !== '' && panel.launched.length === 1,
         refusals
     );
 
@@ -391,7 +391,7 @@ function panelOver(
             modOf: (sender) => sender?.mod ?? null,
             managerFrom: (sender) => {
                 if (managers.includes(sender?.mod)) return sender.mod;
-                throw Object.assign(new Error(`${sender?.mod} does not have deckit.mods`), { kind: 'REFUSED' });
+                throw Object.assign(new Error(`${sender?.mod} does not have deckit.mods`), { kind: 'NOT_PERMITTED' });
             },
             launch: async (id) => launched.push(id),
             observe() {},

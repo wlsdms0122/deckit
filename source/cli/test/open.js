@@ -35,7 +35,7 @@ async function main() {
             const mod = mods.get(page);
             if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
             if (permission && !mod.permissions.some(({ id }) => id === permission))
-                throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'REFUSED' });
+                throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
             return mod;
         },
     };

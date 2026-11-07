@@ -104,7 +104,7 @@ export function createIdentity({ pages: PAGES }) {
         if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
         if (permission && !mod.permissions.some(({ id }) => id === permission)) {
             throw Object.assign(new Error(`${mod.id} does not have the ${permission} permission`), {
-                kind: 'REFUSED',
+                kind: 'NOT_PERMITTED',
             });
         }
         return mod;
