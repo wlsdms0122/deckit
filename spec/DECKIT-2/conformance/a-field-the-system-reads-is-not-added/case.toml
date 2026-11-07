@@ -1,0 +1,15 @@
+case = 1
+name = "a-field-the-system-reads-is-not-added"
+note = "A field a layer or the host adds is a key the system does not read itself. A host that adds main, one of the system's fields, has its start refused at call with kind FIELD."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["main"]
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "FIELD"

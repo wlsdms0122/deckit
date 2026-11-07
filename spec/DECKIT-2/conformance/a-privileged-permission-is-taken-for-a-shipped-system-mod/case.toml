@@ -1,0 +1,23 @@
+case = 1
+name = "a-privileged-permission-is-taken-for-a-shipped-system-mod"
+note = "A bundle the host ships and marks system is a system mod, and a privileged permission it asks for is taken and usable, answered with its definition and its reach."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "case.drive", name = "Drive", means = "Drives every other mod.", privileged = true }]
+ship = ["driver"]
+system = ["driver"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "driver"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "case.drive", name = "Drive", means = "Drives every other mod.", privileged = true, reach = "app", reason = "Drives the other mods.", usable = true },
+]

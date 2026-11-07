@@ -1,0 +1,19 @@
+case = 1
+name = "an-api-of-an-earlier-minor-than-the-host-runs-is-taken"
+note = "A version of the same major and a greater minor satisfies another whatever their patches. A host that runs 1.2.0 satisfies 1.1.9, and the bundle is taken."
+
+[host]
+base = "system"
+api = "1.2.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "api"
+
+[step.expect]
+answers = "1.1.9"

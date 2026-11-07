@@ -1,0 +1,20 @@
+case = 1
+name = "a-privileged-permission-asked-by-a-mod-not-marked-system-is-refused"
+note = "A permission defined privileged is taken only for a system mod, one the host ships and marks system. A bundle read in place is none, and asking for it refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "case.drive", name = "Drive", means = "Drives every other mod.", privileged = true }]
+sources = ["driver"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "driver"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"
