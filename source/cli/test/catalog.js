@@ -56,7 +56,7 @@ async function main() {
     );
     // Mod s is a system mod granted a privileged permission and writes two fields; mod p is not, and writes none. Mod r
     // is refused as it is read, and mod d, shipped, did not install, with no refusal.
-    const REACH = { id: 'deckit.reach-mods', name: 'Reach Mods', means: 'It reaches.', privileged: true };
+    const REACH = { id: 'deckit.reach-mods', name: 'Reach Mods', description: 'It reaches.', privileged: true };
     const answers = {
         'catalog/install-shipped': [],
         'catalog/read': [

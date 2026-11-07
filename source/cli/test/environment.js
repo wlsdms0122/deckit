@@ -168,7 +168,7 @@ async function main() {
     );
     const attached = thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }));
     check('attach refused can be called again', attached === '', attached);
-    const shellKeys = { id: 'deckit.shell-keys', name: 'x', means: 'x' };
+    const shellKeys = { id: 'deckit.shell-keys', name: 'x', description: 'x' };
     const twice = thrown(() => answer.permissions.define(shellKeys));
     check('attach defines the permissions of the UI, the shell keys included', /defined twice/.test(twice), twice);
     check(

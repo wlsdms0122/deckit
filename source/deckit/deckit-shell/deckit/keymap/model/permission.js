@@ -7,12 +7,12 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: APP_KEYS,
         name: 'App Keys',
-        means: 'Its keys work wherever you are in the app, whatever is in front, and are taken from every page there.',
+        description: 'Its keys work wherever you are in the app, whatever is in front, and are taken from every page there.',
     }),
     Object.freeze({
         id: GLOBAL_KEYS,
         name: 'Global Keys',
-        means: 'Its keys work in every app, this one in front or not, and are taken from all of them.',
+        description: 'Its keys work in every app, this one in front or not, and are taken from all of them.',
     }),
 ]);
 

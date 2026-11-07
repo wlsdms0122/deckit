@@ -7,12 +7,12 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: CLIPBOARD_READ,
         name: 'Clipboard Read',
-        means: 'It can read what you copied, from any app.',
+        description: 'It can read what you copied, from any app.',
     }),
     Object.freeze({
         id: CLIPBOARD_WRITE,
         name: 'Clipboard Write',
-        means: 'It can replace what you copied with text of its own, which you then paste in any app.',
+        description: 'It can replace what you copied with text of its own, which you then paste in any app.',
     }),
 ]);
 

@@ -70,22 +70,24 @@ async function main() {
     };
     const CORE = createCore({ FOLDERS, LOG, core, home: '/home/deckit', api: '1.2.0' });
     const PERMISSION = createPermission();
-    PERMISSION.define({ id: 'a.b', name: 'B', means: 'It does b.' });
-    PERMISSION.define({ id: 'a.c', name: 'C', means: 'It does c.', privileged: true });
+    PERMISSION.define({ id: 'a.b', name: 'B', description: 'It does b.' });
+    PERMISSION.define({ id: 'a.c', name: 'C', description: 'It does c.', privileged: true });
     const MANIFEST_FIELD = createManifestField();
     MANIFEST_FIELD.define('icon');
     MANIFEST_FIELD.define('view');
     check(
         'a permission whose tier is no boolean is refused',
-        /no boolean/.test(thrown(() => PERMISSION.define({ id: 'a.d', name: 'D', means: 'd', privileged: 'yes' }))),
+        /no boolean/.test(
+            thrown(() => PERMISSION.define({ id: 'a.d', name: 'D', description: 'd', privileged: 'yes' }))
+        ),
         ''
     );
     check('a manifest field named twice is refused', /twice/.test(thrown(() => MANIFEST_FIELD.define('icon'))), '');
     const kinds = [
         kindThrown(() => MANIFEST_FIELD.define('icon')),
         kindThrown(() => MANIFEST_FIELD.define(1)),
-        kindThrown(() => PERMISSION.define({ id: 'a.b', name: 'B', means: 'It does b.' })),
-        kindThrown(() => PERMISSION.define({ id: 'a.f', name: ' ', means: 'f' })),
+        kindThrown(() => PERMISSION.define({ id: 'a.b', name: 'B', description: 'It does b.' })),
+        kindThrown(() => PERMISSION.define({ id: 'a.f', name: ' ', description: 'f' })),
     ];
     check(
         'a manifest field is refused of kind FIELD, and a permission of kind PERMISSION',
@@ -94,12 +96,13 @@ async function main() {
     );
     const blank = { field: createManifestField(), permission: createPermission() };
     blank.field.define('');
-    blank.permission.define({ id: ' ', name: 'Blank', means: 'It does nothing.' });
+    blank.permission.define({ id: ' ', name: 'Blank', description: 'It does nothing.' });
     check(
         'a field of a blank name and a permission of a blank id are taken, and a name of White_Space only is refused',
         JSON.stringify(blank.field.all().fields) === '[""]' &&
             blank.permission.all().permissions[0].id === ' ' &&
-            kindThrown(() => createPermission().define({ id: 'a.g', name: '\u0085', means: 'g' })) === 'PERMISSION',
+            kindThrown(() => createPermission().define({ id: 'a.g', name: '\u0085', description: 'g' })) ===
+                'PERMISSION',
         ''
     );
 
@@ -124,9 +127,9 @@ async function main() {
     check('initialize carries the manifest fields named', JSON.stringify(params.fields) === '["icon","view"]', params);
     check(
         'a permission or a manifest field is not defined once the core started',
-        /after the core started/.test(thrown(() => PERMISSION.define({ id: 'a.e', name: 'E', means: 'e' }))) &&
+        /after the core started/.test(thrown(() => PERMISSION.define({ id: 'a.e', name: 'E', description: 'e' }))) &&
             /after the core started/.test(thrown(() => MANIFEST_FIELD.define('keywords'))) &&
-            kindThrown(() => PERMISSION.define({ id: 'a.e', name: 'E', means: 'e' })) === 'PERMISSION' &&
+            kindThrown(() => PERMISSION.define({ id: 'a.e', name: 'E', description: 'e' })) === 'PERMISSION' &&
             kindThrown(() => MANIFEST_FIELD.define('keywords')) === 'FIELD',
         ''
     );
