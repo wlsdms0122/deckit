@@ -8,6 +8,7 @@ import * as TOKEN from '../ui/token/index.js';
 import * as MATCH from '../../deckit/match/match.js';
 import * as FIELD from './model/field.js';
 import * as DOCK from './model/dock.js';
+import { createKey } from '../key/main.js';
 
 // `deckit` is what connect answered, `host` the app's answers, `PAGES` the shell's pages, `OVERLAY` their overlays and
 // `makeStage()` a stage to lay them on (environment: SHELL.stage), and `dock` the ids of the mods the host app keeps in
@@ -33,9 +34,15 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         settling: null,
         moved: null,
     };
-    // What the shell declares its commands and keys under.
+    // What the shell declares its commands under.
     const PROVIDER = Object.freeze({ id: '@shell', name: 'Panel' });
-    const NAMED_KEYS = new Set(['back', 'forward']); // the panel's keys a tooltip names
+    const KEY = createKey({ deckit });
+    // What each of the shell's keys does, by its id.
+    const KEY_ACTIONS = Object.freeze({
+        toggleSidebar: () => setSidebar({ collapsed: !sidebar.collapsed }),
+        back: () => step(-1),
+        forward: () => step(1),
+    });
     const history = { list: [], at: -1 };
     let stage = null; // where the pages are laid, which the host app places
     let current = null;
@@ -67,6 +74,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         pinned = new Set(kept ?? firstDock());
         if (!kept) deckit.state.write(PINNED, [...pinned]);
         order = deckit.state.read(ORDER, []);
+        KEY.start();
         stage = makeStage();
         stage.whenResized(update);
         listen();
@@ -95,14 +103,22 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         return !!host.showsPanel(page);
     }
 
-    // Escape puts the panel away where the panel floats over something, once the page did not take it: the frame or a
-    // mod's page plays it out and answers whether it did. In its own window Escape is the window's.
+    // A keystroke in a deckit page, before the page has it: answers whether the panel took it. In the panel's page in
+    // front a chord of one of the shell's keys runs that key. Escape puts the panel away where the panel floats over
+    // something, once the page did not take it: the frame or a mod's page plays it out and answers whether it did. In
+    // its own window Escape is the window's.
     function monitor(page, keystroke) {
-        if (!isEscape(keystroke) || !dismisses(page)) return false;
-        PROTOCOL.escape
-            .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
-            .then((taken) => !taken && dismisses(page) && host.dismiss())
-            .catch(() => {});
+        if (isEscape(keystroke)) {
+            if (!dismisses(page)) return false;
+            PROTOCOL.escape
+                .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
+                .then((taken) => !taken && dismisses(page) && host.dismiss())
+                .catch(() => {});
+            return true;
+        }
+        const id = isActive(page) ? KEY.idOf(keystroke) : null;
+        if (!id) return false;
+        KEY_ACTIONS[id]();
         return true;
     }
 
@@ -138,9 +154,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
             sent.look = JSON.stringify(frameNow);
             return { glass: TOKEN.GLASS, look: frameNow, shown, state: stateOf() };
         });
-        PROTOCOL.chord.handle(({ action }, sender) =>
-            fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(PROVIDER.id, action) : ''
-        );
+        PROTOCOL.chord.handle(({ id }, sender) => (fromFrame(sender) ? KEY.chordOf(id) : ''));
         PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && (select(id) || (launchable(id) && open(id))));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
         PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && arrange(ids));
@@ -176,9 +190,9 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         PROTOCOL.restart.on((_payload, sender) => fromFrame(sender) && down && deckit.restart());
     }
 
-    // The frame's page is the shell's own, made once, over every mod's view where it draws.
-    // It opens its backdrop and its handle, and its overlay as every page the shell draws in does. A press there is the person's on the panel, so the
-    // keyboard goes back to the mod on screen.
+    // The frame's page is the shell's own, made once, over every mod's view where it draws. It opens its backdrop and
+    // its handle, and its overlay as every page the shell draws in does. A press there is the person's on the panel, so
+    // the keyboard goes back to the mod on screen.
     // It lays the frame out off screen too, since the mods are laid by it, and the panel has no frame without it: a
     // page that crashed is loaded again.
     function makeFrame() {
@@ -298,7 +312,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         return isActive(page) && look.dismissible;
     }
 
-    // `show` puts a mod on screen, by its id, its candidates every mod there is to show. The panel's keys run here.
+    // `show` puts a mod on screen, by its id, its candidates every mod there is to show.
     function declare() {
         deckit.commands
             .register(PROVIDER, {
@@ -317,17 +331,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
                 },
             })
             .catch((error) => deckit.log.error("the panel's commands were not declared", error));
-        deckit.keymap
-            .register(PROVIDER, {
-                toggleSidebar: {
-                    label: 'Toggle Sidebar',
-                    key: 'mod+\\',
-                    run: () => setSidebar({ collapsed: !sidebar.collapsed }),
-                },
-                back: { label: 'Back to the Previous Mod', key: 'ctrl+mod+[', run: () => step(-1) },
-                forward: { label: 'Forward to the Next Mod', key: 'ctrl+mod+]', run: () => step(1) },
-            })
-            .catch((error) => deckit.log.error("the panel's keys were not registered", error));
     }
 
     // The mods there are to show, `{ value, title, keywords }`, every one in the list's order for nothing typed and

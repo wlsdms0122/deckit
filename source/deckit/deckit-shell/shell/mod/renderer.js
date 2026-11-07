@@ -6,6 +6,8 @@ import * as STYLE_PERMISSION from '../style/model/permission.js';
 import * as FONTS from '../fonts/renderer.js';
 import * as FONTS_PERMISSION from '../fonts/model/permission.js';
 import * as MOD_PERMISSION from '../../deckit/permission/index.js';
+import * as KEYS from '../key/renderer.js';
+import * as KEY_PERMISSION from '../key/model/permission.js';
 import { createPanel, viewProblem } from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion } from '../region/renderer.js';
@@ -18,10 +20,10 @@ import { createWindow } from '../window/renderer.js';
 // MARK: - Public
 // The shell as a layer on deckit in a mod's page (deckit-shell/deck/runner/renderer.js), stacked with what deckit
 // offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), and the handle `shell`:
-// the theme, the kit, `show()`, `iconOf(mod)`, `region(element, interface)`, `children`,
-// `dropDestination(element, options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the Dock on `mods`,
-// and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme,
-// the kit and the styles from just before attach().
+// the theme, the kit, `show()`, `iconOf(mod)`, `region(element, interface)`, `children`, `dropDestination(element,
+// options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the Dock on `mods`, with deckit.shell-keys the shell's
+// own keys on `keys`, and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The
+// page wears the theme, the kit and the styles from just before attach().
 // Once attach() has ended, a view is laid where the panel's guide says, or a region's for a child, unless the page is
 // in a window of its own. A view is registered only by a mod whose manifest fields give one, with a sidebar only where
 // they say the view lends one. `WEB` is deckit's web in the page, whose pages the shell hands the mod; `channels` binds
@@ -72,6 +74,7 @@ function shellOf({ WEB, channels }) {
                             window: Object.freeze({ register: WINDOW.register }),
                             ...(has(FONTS_PERMISSION.FONTS) ? { fonts: FONTS.tool({ channels }) } : {}),
                             ...(has(MOD_PERMISSION.MODS) ? { mods: PANEL.pins } : {}),
+                            ...(has(KEY_PERMISSION.SHELL_KEYS) ? { keys: KEYS.tool({ channels }) } : {}),
                         });
                         try {
                             await instance.attach(handle, opener);

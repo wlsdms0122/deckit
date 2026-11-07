@@ -16,8 +16,8 @@ export const layout = CHANNEL.pageToMain('deckit-shell:panel-layout', {
     collapsed: 'boolean?',
     navHeight: 'number?',
 });
-// The chord of one of the panel's keys, `back` or `forward`, as it is bound now, or ''.
-export const chord = CHANNEL.pageToMain('deckit-shell:panel-chord', { action: 'string' }, { reply: true, sync: true });
+// The chord of one of the shell's keys, by its id, as a person reads it, or '' for none.
+export const chord = CHANNEL.pageToMain('deckit-shell:panel-chord', { id: 'string' }, { reply: true, sync: true });
 // Where the slot under the list is in the card: `top` px below its inside top, `bottom` px above its bottom.
 export const slot = CHANNEL.pageToMain('deckit-shell:panel-slot', { top: 'number', bottom: 'number' });
 // The sidebar's width as a drag of its handle draws it, until the drag ends and `layout` keeps it.

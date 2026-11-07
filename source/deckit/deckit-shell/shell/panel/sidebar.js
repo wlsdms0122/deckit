@@ -81,8 +81,9 @@ const STYLE = `
 // MARK: - Public
 // What the panel's sidebar holds: the Dock, and under it `slot`, where the mod on screen lays its own sidebar. What
 // it draws is main's (`update(state)`), and what the person changes is told back: `onPick`, `onStep`, `onReorder`,
-// `onKeep(id, pinned)`, `onQuit(id)`, `onLayout`. `onMove` hears the slot move as the list is sized. An item's menu
-// opens it, quits it while it runs, and keeps it in the Dock or takes it out.
+// `onKeep(id, pinned)`, `onQuit(id)`, `onLayout`. `onMove` hears the slot move as the list is sized. `chordOf(id)` is
+// the chord of one of the shell's keys, for a tooltip. An item's menu opens it, quits it while it runs, and keeps it in
+// the Dock or takes it out.
 function make({ ui, chordOf, onPick, onStep, onReorder, onKeep, onQuit, onLayout, onMove }) {
     KIT.addStyle(STYLE);
     let mods = [];
