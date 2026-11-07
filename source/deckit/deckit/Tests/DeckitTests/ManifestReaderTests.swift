@@ -246,6 +246,18 @@ struct ManifestReaderTests {
         #expect(throws: ManifestError.fieldDefined("main")) { try ownField.get() }
     }
 
+    @Test("a reason is answered without the scalar values of the property White_Space at its ends")
+    func reasonIsTrimmedByWhiteSpace() {
+        // Given
+        let text = Self.minimal + "[permissions]\n\"deckit.mods\" = \"\u{3000}\u{85}to list\u{A0}them\u{2028}\""
+
+        // When
+        let manifest = sut.read(text, fallback: "folder")
+
+        // Then
+        #expect(manifest.permissions.map(\.reason) == ["to list\u{A0}them"])
+    }
+
     @Test("the permissions not defined come by their ids as Unicode scalar values, one past U+FFFF after one below")
     func undefinedPermissionsComeByScalars() {
         // Given

@@ -279,7 +279,7 @@ struct ManifestReader {
         let requests = asked.sorted { one, other in one.key < other.key }.map { id, reason in
             PermissionRequest(
                 id: id.text,
-                reason: written(reason).trimmingCharacters(in: .whitespacesAndNewlines),
+                reason: trimmed(written(reason)),
                 permission: permissions.first { permission in TOMLKey(permission.id) == id }
             )
         }
@@ -348,7 +348,16 @@ struct ManifestReader {
         names.map { name in "\"\(name)\"" }.joined(separator: ", ")
     }
 
+    // Without the scalar values of the property White_Space at its ends.
+    private func trimmed(_ text: String) -> String {
+        let scalars = text.unicodeScalars.drop(while: \.properties.isWhitespace)
+        guard let last = scalars.lastIndex(where: { scalar in !scalar.properties.isWhitespace }) else { return "" }
+
+        return String(Substring(scalars[...last]))
+    }
+
+    // Holding no scalar value but those of the property White_Space.
     private func isBlank(_ text: String) -> Bool {
-        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        text.unicodeScalars.allSatisfy(\.properties.isWhitespace)
     }
 }

@@ -111,6 +111,25 @@ struct TOMLParserTests {
         )
     }
 
+    @Test("white space is each scalar value of the property White_Space but LF, and a string is read by scalar value")
+    func whiteSpaceIsEveryWhiteSpaceScalar() throws {
+        // Given
+        let text = "id\u{C}=\u{C}\"notes\"\n\u{2028}\nversion = \"1.0.0\"\u{85}\n[\u{3000}table\u{A0}]\n"
+            + "\"\u{301}\" =\u{2009}[\u{2029}1,\n2\u{B}]"
+
+        // When
+        let table = try sut.parse(text)
+
+        // Then
+        #expect(
+            table == [
+                "id": .string("notes"),
+                "version": .string("1.0.0"),
+                "table": .table([TOMLKey("\u{301}"): .array([.integer(1), .integer(2)])])
+            ]
+        )
+    }
+
     @Test(
         "what the subset does not read is refused by line",
         arguments: [
@@ -126,6 +145,8 @@ struct TOMLParserTests {
             ("just text", "line 1: expected key = value"),
             ("a = \"x\" y", "line 1: unexpected text after the value of a"),
             ("a = \"\\q\"", "line 1: unknown escape \\q"),
+            ("a = \"\\u+123\"", "line 1: unknown escape \\u"),
+            ("a = 1\nb\u{301} = 2", "line 2: not a key this reads: b\u{301}"),
             ("a = [1 2]", "line 1: expected , or ] in an array"),
             ("a = { b = 1 c = 2 }", "line 1: expected , or } in an inline table"),
             ("a = { b = 1, }", "line 1: an inline table ends with no , before }"),
