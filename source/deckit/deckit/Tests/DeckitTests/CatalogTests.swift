@@ -35,7 +35,7 @@ struct CatalogTests {
         try write("a", in: home.appending(path: "mods"))
         try write("d", in: home.appending(path: "mods"), main: nil)
         try write("e", in: ship)
-        let sut = try catalog(ship: [ship.appending(path: "e")])
+        let sut = try catalog(ship: ["e"])
         _ = try sut.installShipped()
 
         // When
@@ -186,7 +186,7 @@ struct CatalogTests {
         try write("x", in: source)
         try write("b", in: ship)
         try write("a", in: ship)
-        let sut = try catalog(ship: [ship.appending(path: "b"), ship.appending(path: "a")])
+        let sut = try catalog(ship: ["b", "a"])
         _ = try sut.install(from: source.appending(path: "x"))
 
         // When
@@ -225,7 +225,7 @@ struct CatalogTests {
         // Given
         try write("a", in: ship)
         try write("b", in: ship, main: nil)
-        let shipped = [ship.appending(path: "a"), ship.appending(path: "b")]
+        let shipped = ["a", "b"]
         let sut = try catalog(ship: shipped)
 
         // When
@@ -239,6 +239,29 @@ struct CatalogTests {
         #expect(outcomes.map(\.outcome) == [.installed, .failed])
         #expect(again.map(\.outcome) == [.leftOut, .failed])
         #expect(mods.map(\.problem) == [#"did not install: main = "missing.js" names no file in the mod's folder"#])
+    }
+
+    @Test("a mod the app ships that the host names a system mod is one across starts, and a copy from a folder is not")
+    func systemModIsRecorded() throws {
+        // Given
+        try write("s", in: ship)
+        try write("p", in: ship)
+        try write("s", in: source)
+        let sut = try catalog(ship: ["s", "p"], system: ["s"])
+        _ = try sut.installShipped()
+
+        // When
+        let installed = sut.mods()
+        let restarted = try catalog(ship: ["s", "p"], system: ["s"])
+        let kept = restarted.mods()
+        _ = try restarted.install(from: source.appending(path: "s"))
+        let replaced = restarted.mods()
+
+        // Then
+        #expect(installed.map(\.manifest.id) == ["s", "p"])
+        #expect(installed.map(\.system) == [true, false])
+        #expect(kept.map(\.system) == [true, false])
+        #expect(replaced.map(\.system) == [false, false])
     }
 
     @Test("the plan answers the permissions and background installing consents to, and a job has those defined here")
@@ -265,7 +288,7 @@ struct CatalogTests {
         // Given
         try write("b", in: ship, main: nil)
         try write("b", in: source)
-        let sut = try catalog(ship: [ship.appending(path: "b")])
+        let sut = try catalog(ship: ["b"])
 
         // When
         _ = try sut.installShipped()
@@ -336,7 +359,7 @@ struct CatalogTests {
         try write("a", in: source, provides: ["x/api": [1]])
         try write("f", in: source, main: nil, provides: ["x/api": [1]])
         try write("s", in: ship, provides: ["x/api": [1]])
-        let sut = try catalog(sources: [source], ship: [ship.appending(path: "s")])
+        let sut = try catalog(sources: [source], ship: ["s"])
         _ = try sut.installShipped()
 
         // When
@@ -587,7 +610,13 @@ struct CatalogTests {
     }
 
     // MARK: - Private
-    private func catalog(sources: [URL] = [], ship: [URL] = [], permissions: [Permission] = []) throws -> Catalog {
+    // `ship` names the mods the app ships from the ship folder, those in `system` named system mods.
+    private func catalog(
+        sources: [URL] = [],
+        ship: [String] = [],
+        system: Set<String> = [],
+        permissions: [Permission] = []
+    ) throws -> Catalog {
         let store = Store()
         let reader = try ManifestReader(
             api: try #require(Version("1.0.0")),
@@ -602,7 +631,13 @@ struct CatalogTests {
             sources: sources,
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
-            installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
+            installer: Installer(
+                home: home,
+                folder: folder,
+                ship: ship.map { id in ShippedMod(folder: self.ship.appending(path: id), system: system.contains(id)) },
+                modFolder: modFolder,
+                store: store
+            ),
             ownerTable: Deck(home: home).owners,
             store: store
         )

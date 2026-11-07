@@ -15,8 +15,9 @@ struct InitializeParams: Decodable {
     let home: String
     // The mod contract the mods are run with.
     let api: Version
-    // The folders of the mods the app ships, and of those read in place.
-    let ship: [String]
+    // The mods the app ships, each its folder and whether the host names it a system mod.
+    let ship: [ShippedMod]
+    // The folders of the mods read in place.
     let sources: [String]
     // Those the layers the driver runs define, beside deckit's own.
     let permissions: [Permission]

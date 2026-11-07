@@ -9,7 +9,7 @@ import Foundation
 import Deck
 
 // The copies of mods in deck's mods folder, each installed whole as mods/<id>, in the order they were installed, and
-// what the app ships installed by one rule.
+// what the app ships installed by one rule, with the system mods among them.
 final class Installer {
     // MARK: - Property
     private let folder: URL
@@ -19,7 +19,8 @@ final class Installer {
     // Inside the mods, so what removes them removes the lists too.
     private let shippedList: URL
     private let installedList: URL
-    private let ship: [URL]
+    private let systemList: URL
+    private let ship: [ShippedMod]
     private let modFolder: ModFolder
     private let store: Store
 
@@ -27,12 +28,13 @@ final class Installer {
     private(set) var failures: [String: InstallFailure] = [:]
 
     // MARK: - Initializer
-    // `folder` is deck's mods folder in `home`, and `ship` the folders of what the app ships.
-    init(home: URL, folder: URL, ship: [URL], modFolder: ModFolder, store: Store) {
+    // `folder` is deck's mods folder in `home`, and `ship` what the app ships.
+    init(home: URL, folder: URL, ship: [ShippedMod], modFolder: ModFolder, store: Store) {
         self.folder = folder
         self.staging = home.appending(path: ".mods-installing")
         self.shippedList = folder.appending(path: ".shipped")
         self.installedList = folder.appending(path: ".installed")
+        self.systemList = folder.appending(path: ".system")
         self.ship = ship
         self.modFolder = modFolder
         self.store = store
@@ -69,8 +71,13 @@ final class Installer {
     }
 
     // Installed as mods/<id>, every copy before it taken away wherever it was, so a file the new version dropped is
-    // not left to load. Only a whole staged copy takes the old one's place.
-    func install(from source: URL, refuse: (Manifest) -> String? = { _ in nil }) throws -> Manifest {
+    // not left to load. Only a whole staged copy takes the old one's place. It is a system mod from now on as `system`
+    // says: a copy installed over a system mod from anywhere else is not one.
+    func install(
+        from source: URL,
+        system: Bool,
+        refuse: (Manifest) -> String? = { _ in nil }
+    ) throws -> Manifest {
         let manifest = try planInstall(from: source, refuse: refuse).manifest
         let staged = staging.appending(path: manifest.id)
         try store.remove(staged)
@@ -86,6 +93,7 @@ final class Installer {
         if !order.contains(manifest.id) {
             try write(order + [manifest.id], to: installedList)
         }
+        try mark(manifest.id, system: system)
 
         return manifest
     }
@@ -97,6 +105,7 @@ final class Installer {
             try store.remove(copy)
         }
         try write(installOrder().filter { installed in installed != id }, to: installedList)
+        try mark(id, system: false)
     }
 
     // The ids installed, in the order each was first installed: one installed again keeps its place.
@@ -109,6 +118,11 @@ final class Installer {
         read(shippedList).map(Set.init)
     }
 
+    // The ids of the system mods installed.
+    func systemMods() -> Set<String> {
+        Set(read(systemList) ?? [])
+    }
+
     // What the app ships installed by one rule: a mod it shipped before and that is not installed now was removed by
     // the person, and stays out; the rest is installed. Removals are recorded nowhere else. An app that ships nothing
     // leaves what it shipped before as it is.
@@ -119,17 +133,17 @@ final class Installer {
         guard !ship.isEmpty else { return [] }
 
         var reports: [InstallReport] = []
-        var shipping: [String: URL] = [:]
+        var shipping: [String: ShippedMod] = [:]
         var order: [String] = []
-        for source in ship {
-            let id = modFolder.manifest(of: source).id
+        for shipped in ship {
+            let id = modFolder.manifest(of: shipped.folder).id
             guard shipping[id] == nil else {
-                let problem = "\(source.path(percentEncoded: false)) has its id too"
+                let problem = "\(shipped.folder.path(percentEncoded: false)) has its id too"
                 reports.append(InstallReport(id: id, outcome: .ignored, problem: problem))
                 continue
             }
 
-            shipping[id] = source
+            shipping[id] = shipped
             order.append(id)
         }
         let before = shipped()
@@ -149,17 +163,18 @@ final class Installer {
                 try store.remove(copy)
             }
             try write(installOrder().filter { installed in installed != id }, to: installedList)
+            try mark(id, system: false)
             reports.append(InstallReport(id: id, outcome: .dropped))
         }
         for id in taken {
-            guard let source = shipping[id] else { continue }
+            guard let shipped = shipping[id] else { continue }
 
             do {
-                let manifest = try install(from: source)
+                let manifest = try install(from: shipped.folder, system: shipped.system)
                 reports.append(InstallReport(id: id, outcome: .installed, version: manifest.version))
             } catch {
                 let problem = (error as? any Refusal)?.message ?? error.localizedDescription
-                failures[id] = InstallFailure(folder: source, problem: problem)
+                failures[id] = InstallFailure(shipped: shipped, problem: problem)
                 reports.append(InstallReport(id: id, outcome: .failed, problem: problem))
             }
         }
@@ -180,6 +195,13 @@ final class Installer {
 
     private func write(_ ids: [String], to list: URL) throws {
         try store.write(ids.map { id in id + "\n" }.joined(), to: list)
+    }
+
+    private func mark(_ id: String, system: Bool) throws {
+        let marked = read(systemList) ?? []
+        guard marked.contains(id) != system else { return }
+
+        try write(system ? marked + [id] : marked.filter { marked in marked != id }, to: systemList)
     }
 
     // The installed copies of each mod, by id, whatever their folders are named, in the order they are read: the first

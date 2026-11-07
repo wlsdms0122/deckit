@@ -28,13 +28,13 @@ public final class Deckit {
     private let now: () -> Date
 
     // MARK: - Initializer
-    // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
-    // place. A manifest is read against `api`, the mod contract the mods are run with, deckit's own permissions and
-    // `permissions`, those the layers the driver runs define, and `fields`, those the layers add to the manifest.
-    // `limit` is how often a mod's runs may fail, `now` the time a run fails at.
+    // `home` is deckit's folder, `ship` the mods the app ships, and `sources` folders of mods read in place. A manifest
+    // is read against `api`, the mod contract the mods are run with, deckit's own permissions and `permissions`, those
+    // the layers the driver runs define, and `fields`, those the layers add to the manifest. `limit` is how often a
+    // mod's runs may fail, `now` the time a run fails at.
     public init(
         home: URL,
-        ship: [URL],
+        ship: [ShippedMod],
         sources: [URL],
         api: Version,
         permissions: [Permission],

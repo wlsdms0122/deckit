@@ -103,8 +103,9 @@ public final class Catalog {
         try installer.planInstall(from: source, refuse: shadow)
     }
 
+    // A mod installed from a folder is no system mod.
     public func install(from source: URL) throws -> Manifest {
-        let manifest = try installer.install(from: source, refuse: shadow)
+        let manifest = try installer.install(from: source, system: false, refuse: shadow)
         installs[manifest.id, default: 0] += 1
         keptOwnership(of: ranked())
 
@@ -207,6 +208,7 @@ public final class Catalog {
     // read where the app ships it, and does not load.
     private func list() -> [Mod] {
         let shipped = installer.shipped() ?? []
+        let system = installer.systemMods()
         var found: [Mod] = []
         var places: [String: Int] = [:]
         for root in sources + [folder] {
@@ -225,6 +227,7 @@ public final class Catalog {
                         in: source,
                         installed: installed,
                         shipped: installed && shipped.contains(manifest.id),
+                        system: installed && system.contains(manifest.id),
                         problem: modFolder.problem(of: source)
                     )
                 )
@@ -236,10 +239,11 @@ public final class Catalog {
         where places[id] == nil {
             found.append(
                 mod(
-                    modFolder.manifest(of: failure.folder),
-                    in: failure.folder,
+                    modFolder.manifest(of: failure.shipped.folder),
+                    in: failure.shipped.folder,
                     installed: false,
                     shipped: true,
+                    system: failure.shipped.system,
                     problem: "did not install: " + failure.problem
                 )
             )
@@ -253,6 +257,7 @@ public final class Catalog {
         in source: URL,
         installed: Bool,
         shipped: Bool,
+        system: Bool,
         problem: String?
     ) -> Mod {
         let revision = [
@@ -267,6 +272,7 @@ public final class Catalog {
             data: dataFolder.folder(of: manifest.id),
             installed: installed,
             shipped: shipped,
+            system: system,
             problem: problem,
             hides: [],
             revision: revision.joined(separator: "\n"),

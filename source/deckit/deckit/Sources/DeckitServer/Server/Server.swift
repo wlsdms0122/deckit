@@ -86,7 +86,7 @@ final class Server {
             let params = try request.decodeParams(as: InitializeParams.self)
             let deckit = try Deckit(
                 home: URL(filePath: params.home, directoryHint: .isDirectory),
-                ship: params.ship.map { folder in URL(filePath: folder) },
+                ship: params.ship,
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
                 permissions: params.permissions
