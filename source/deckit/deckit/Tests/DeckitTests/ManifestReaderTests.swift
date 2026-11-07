@@ -26,6 +26,18 @@ struct ManifestReaderTests {
             #"main must be a path inside the mod's folder, as main = "dist/main.js", not "../x.js""#
         ),
         (
+            #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "lib//m.js""#,
+            #"main must be a path inside the mod's folder, as main = "dist/main.js", not "lib//m.js""#
+        ),
+        (
+            #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = """#,
+            #"main must be a path inside the mod's folder, as main = "dist/main.js", not """#
+        ),
+        (
+            #"id = "a"\#nversion = "9007199254740992.0.0""#,
+            #"version must be written as "MAJOR.MINOR.PATCH", not "9007199254740992.0.0""#
+        ),
+        (
             minimal + #"background = " ""#,
             #"background must be the reason the mod asks to run in the background, as text,"#
                 + #" as background = "Shows notifications as they come""#
@@ -55,15 +67,26 @@ struct ManifestReaderTests {
         ),
         (
             minimal + #"[interfaces]\#nprovides = { "b/c" = [] }"#,
-            #"interfaces.provides b/c must be a list of majors, as [1], not []"#
+            #"interfaces.provides b/c must be a list of majors, each greater than the one before it, as [1, 2], not []"#
         ),
         (
             minimal + #"[interfaces]\#nprovides = { "b/c" = 1 }"#,
-            #"interfaces.provides b/c must be a list of majors, as [1], not 1"#
+            #"interfaces.provides b/c must be a list of majors, each greater than the one before it, as [1, 2], not 1"#
         ),
         (
             minimal + #"[interfaces]\#nprovides = { "b/c" = ["1.0.0"] }"#,
-            #"interfaces.provides b/c must be a list of majors, as [1], not ["1.0.0"]"#
+            #"interfaces.provides b/c must be a list of majors, each greater than the one before it, as [1, 2],"#
+                + #" not ["1.0.0"]"#
+        ),
+        (
+            minimal + #"[interfaces]\#nprovides = { "b/c" = [2, 1] }"#,
+            #"interfaces.provides b/c must be a list of majors, each greater than the one before it, as [1, 2],"#
+                + #" not [2, 1]"#
+        ),
+        (
+            minimal + #"[interfaces]\#nprovides = { "b/c" = [1, 1] }"#,
+            #"interfaces.provides b/c must be a list of majors, each greater than the one before it, as [1, 2],"#
+                + #" not [1, 1]"#
         ),
         (
             minimal + #"[interfaces]\#nuses = { "b/c/d" = 1 }"#,
@@ -244,6 +267,18 @@ struct ManifestReaderTests {
         #expect(throws: ManifestError.permissionDefined("deckit.mods")) { try permissionTwice.get() }
         #expect(throws: ManifestError.fieldDefined("icon")) { try fieldTwice.get() }
         #expect(throws: ManifestError.fieldDefined("main")) { try ownField.get() }
+    }
+
+    @Test("main is judged by the path grammar alone, so one of a space is a path, and a version's parts reach 2^53 - 1")
+    func pathAndVersionAtTheirBounds() {
+        // Given
+        let text = #"id = "a"\#nversion = "9007199254740991.0.0"\#napi = "1.0.0"\#nmain = " ""#
+
+        // When
+        let problem = sut.problem(of: text, system: false)
+
+        // Then
+        #expect(problem == nil)
     }
 
     @Test("a reason is answered without the scalar values of the property White_Space at its ends")

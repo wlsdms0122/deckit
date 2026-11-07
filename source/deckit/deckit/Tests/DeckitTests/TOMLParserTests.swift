@@ -23,6 +23,7 @@ struct TOMLParserTests {
         let text = """
             \u{FEFF}id = "notes" # a comment
             count = -3
+            bounds = [9007199254740991, -9007199254740991, +007]
             on = true
             path = 'C:\\raw'
             list = [
@@ -46,6 +47,7 @@ struct TOMLParserTests {
             table == [
                 "id": .string("notes"),
                 "count": .integer(-3),
+                "bounds": .array([.integer(9_007_199_254_740_991), .integer(-9_007_199_254_740_991), .integer(7)]),
                 "on": .boolean(true),
                 "path": .string("C:\\raw"),
                 "list": .array([.string("a"), .string("b")]),
@@ -146,6 +148,18 @@ struct TOMLParserTests {
             ("a = \"x\" y", "line 1: unexpected text after the value of a"),
             ("a = \"\\q\"", "line 1: unknown escape \\q"),
             ("a = \"\\u+123\"", "line 1: unknown escape \\u"),
+            (
+                "a = 9007199254740992",
+                "line 1: an integer lies from -9007199254740991 to 9007199254740991, not 9007199254740992"
+            ),
+            (
+                "a = [-9007199254740992]",
+                "line 1: an integer lies from -9007199254740991 to 9007199254740991, not -9007199254740992"
+            ),
+            (
+                "a = 99999999999999999999",
+                "line 1: an integer lies from -9007199254740991 to 9007199254740991, not 99999999999999999999"
+            ),
             ("a = 1\nb\u{301} = 2", "line 2: not a key this reads: b\u{301}"),
             ("a = [1 2]", "line 1: expected , or ] in an array"),
             ("a = { b = 1 c = 2 }", "line 1: expected , or } in an inline table"),

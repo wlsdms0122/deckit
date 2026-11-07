@@ -137,7 +137,7 @@ struct ManifestReader {
     // A path inside the mod's folder, "/" separated; whether a file is there is the folder's to say.
     private func mainProblem(_ raw: [TOMLKey: TOMLValue]) -> String? {
         let example = "main = \"dist/main.js\""
-        guard case let .string(main) = raw["main"], !isBlank(main) else {
+        guard case let .string(main) = raw["main"] else {
             return "\(file) needs main, the file deck runs, as \(example)"
         }
 
@@ -155,10 +155,11 @@ struct ManifestReader {
         return nil
     }
 
+    // Segments apart at "/", each holding a scalar value and no "\\", and none "..".
     private func pathProblem(_ path: String, of field: String, example: String) -> String? {
-        guard !path.hasPrefix("/"),
-            !path.contains("\\"),
-            !path.split(separator: "/", omittingEmptySubsequences: false).contains("..")
+        let segments = path.unicodeScalars.split(separator: "/", omittingEmptySubsequences: false)
+        guard !path.unicodeScalars.contains("\\"),
+            segments.allSatisfy({ segment in !segment.isEmpty && !segment.elementsEqual("..".unicodeScalars) })
         else {
             return "\(field) must be a path inside the mod's folder, as \(example), not \(TOMLValue.string(path))"
         }
@@ -177,8 +178,8 @@ struct ManifestReader {
         return nil
     }
 
-    // The interfaces it provides, each at the majors it speaks of it, and those it uses, each at the major it speaks:
-    // `provides = { "other/name" = [1, 2] }` and `uses = { "other/name" = 1 }`.
+    // The interfaces it provides, each at the majors it speaks of it, each greater than the one before it, and those it
+    // uses, each at the major it speaks: `provides = { "other/name" = [1, 2] }` and `uses = { "other/name" = 1 }`.
     private func interfacesProblem(_ raw: [TOMLKey: TOMLValue]) -> String? {
         guard let written = raw["interfaces"] else { return nil }
 
@@ -200,12 +201,14 @@ struct ManifestReader {
                 if let problem = interfaceProblem(interface.text) {
                     return "interfaces.provides \(interface.text): \(problem)"
                 }
-                guard case let .array(majors) = provided[interface]!,
+                guard case let .array(written) = provided[interface]!,
+                    case let majors = written.compactMap(major),
                     !majors.isEmpty,
-                    majors.allSatisfy(isMajor)
+                    majors.count == written.count,
+                    zip(majors, majors.dropFirst()).allSatisfy(<)
                 else {
-                    return "interfaces.provides \(interface.text) must be a list of majors, as [1], not "
-                        + "\(provided[interface]!)"
+                    return "interfaces.provides \(interface.text) must be a list of majors, each greater than the one "
+                        + "before it, as [1, 2], not \(provided[interface]!)"
                 }
             }
         }

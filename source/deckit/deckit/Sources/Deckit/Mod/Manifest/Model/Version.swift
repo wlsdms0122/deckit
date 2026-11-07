@@ -8,7 +8,7 @@
 import Foundation
 import Deck
 
-// A version written "MAJOR.MINOR.PATCH".
+// A version written "MAJOR.MINOR.PATCH", each part a whole number of at most 2^53 - 1.
 public struct Version: Equatable, Sendable {
     // MARK: - Property
     public let major: Int
@@ -21,7 +21,8 @@ public struct Version: Equatable, Sendable {
         guard let match = written.wholeMatch(of: #/([0-9]+)\.([0-9]+)\.([0-9]+)/#),
             let major = Int(match.1),
             let minor = Int(match.2),
-            let patch = Int(match.3)
+            let patch = Int(match.3),
+            [major, minor, patch].allSatisfy({ part in part <= .largestInManifest })
         else { return nil }
 
         self.major = major

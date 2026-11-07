@@ -191,7 +191,12 @@ struct TOMLParser {
             source = source[match.range.upperBound...]
             return .boolean(match.1 == "true")
         }
-        if let match = source.prefixMatch(of: integer), let number = Int(match.output) {
+        if let match = source.prefixMatch(of: integer) {
+            let bound = Int.largestInManifest
+            guard let number = Int(match.output), (-bound ... bound).contains(number) else {
+                throw TOMLError(line: line, reason: "an integer lies from -\(bound) to \(bound), not \(match.output)")
+            }
+
             source = source[match.range.upperBound...]
             return .integer(number)
         }

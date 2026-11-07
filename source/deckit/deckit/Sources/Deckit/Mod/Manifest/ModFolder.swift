@@ -66,10 +66,10 @@ struct ModFolder {
         guard let root = realPath(folder.path(percentEncoded: false)) else { return nil }
 
         var place = root
-        for segment in path.split(separator: "/", omittingEmptySubsequences: false) {
+        for segment in path.unicodeScalars.split(separator: "/", omittingEmptySubsequences: false) {
             let names = (try? store.names(in: URL(filePath: place))) ?? []
-            guard names.contains(where: { name in name.unicodeScalars.elementsEqual(segment.unicodeScalars) }),
-                let resolved = realPath(place + "/" + segment)
+            guard names.contains(where: { name in name.unicodeScalars.elementsEqual(segment) }),
+                let resolved = realPath(place + "/" + String(Substring(segment)))
             else { return nil }
 
             place = resolved
