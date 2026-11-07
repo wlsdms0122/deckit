@@ -1,7 +1,7 @@
 // What an environment gives deckit (deckit-shell/environment): how a given object is held to it, that connect and
-// attach refuse an environment that lacks a member, that connect refuses a shipped folder with no system mark, and
-// what connect answers the UI and the host app. Exits 1 with a
-// line for each check that failed. The packages are ES modules, so they are imported as such.
+// attach refuse an environment that lacks a member, that connect refuses a shipped folder with no system mark, what
+// connect answers the UI and the host app, and that attach defines the UI's permissions. Exits 1 with a line for each
+// check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -163,6 +163,9 @@ async function main() {
     );
     const attached = thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }));
     check('attach refused can be called again', attached === '', attached);
+    const shellKeys = { id: 'deckit.shell-keys', name: 'x', means: 'x' };
+    const twice = thrown(() => answer.permissions.define(shellKeys));
+    check('attach defines the permissions of the UI, the shell keys included', /defined twice/.test(twice), twice);
     check(
         'attach is called once',
         /once/.test(thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }))),

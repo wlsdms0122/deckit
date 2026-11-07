@@ -12,8 +12,6 @@ export function createKey({ deckit }) {
     let keeping = Promise.resolve(); // the change being kept, which the next one waits for
 
     // MARK: - Initializer
-    for (const permission of KEY_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
-
     // MARK: - Public
     // The shell's own keys, each with its default chord, and the chords the person set, kept in the shell's state,
     // which a mod with deckit.shell-keys lists, sets and resets.

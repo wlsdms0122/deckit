@@ -3,6 +3,7 @@ import { checked } from '../../deckit/environment/index.js';
 import * as STYLE_PERMISSION from '../style/model/permission.js';
 import * as FONTS_PERMISSION from '../fonts/model/permission.js';
 import * as WINDOW_PERMISSION from '../window/model/permission.js';
+import * as KEY_PERMISSION from '../key/model/permission.js';
 import * as ENVIRONMENT from '../environment/index.js';
 import { createDrop } from '../drop/main.js';
 import { createPage } from '../page/main.js';
@@ -29,7 +30,7 @@ const ATTACH_ANSWERS = [
     'closeWindow',
 ];
 // The permissions the UI defines, in the order a person reads them.
-const SHELL_PERMISSIONS = [WINDOW_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION];
+const SHELL_PERMISSIONS = [WINDOW_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION, KEY_PERMISSION];
 // The UI is attached once, to what connect answered.
 let attached = false;
 

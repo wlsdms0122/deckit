@@ -15,6 +15,7 @@ async function main() {
     const LIST_ORDER = await import(url('deckit-shell', 'shell', 'panel', 'model', 'list-order.js'));
     const LAYOUT = await import(url('deckit-shell', 'shell', 'panel', 'model', 'layout.js'));
     const DOCK = await import(url('deckit-shell', 'shell', 'panel', 'model', 'dock.js'));
+    const KEY_PERMISSION = await import(url('deckit-shell', 'shell', 'key', 'model', 'permission.js'));
     const { createKey } = await import(url('deckit-shell', 'shell', 'key', 'main.js'));
     const { createPanel } = await import(url('deckit-shell', 'shell', 'panel', 'main.js'));
     const failed = [];
@@ -78,7 +79,6 @@ async function main() {
     );
 
     // The shell's keys, over a stand-in for what connect answers: `settings` holds deckit.shell-keys, `other` does not.
-    const defined = [];
     const handlers = {};
     const state = { 'panel-keys': { back: { code: 'KeyB', meta: true }, gone: null, forward: 'none' } };
     const written = [];
@@ -86,7 +86,6 @@ async function main() {
     const runs = { settings: holding('settings', ['deckit.shell-keys']), other: holding('other', ['deckit.mods']) };
     const deckit = {
         channels: { bind: (declared) => ({ handle: (handler) => (handlers[declared.channel] = handler) }) },
-        permissions: { define: (permission) => defined.push(permission) },
         state: {
             read: (key, fallback) => state[key] ?? fallback,
             write: async (key, value) => {
@@ -96,12 +95,15 @@ async function main() {
         },
         mods: { modOf: (page) => page.mod, runOf: (id) => runs[id] ?? null },
     };
-    const KEY = createKey({ deckit });
+    const [shellKeys] = KEY_PERMISSION.PERMISSIONS;
     check(
-        'the shell defines deckit.shell-keys as privileged',
-        defined.length === 1 && defined[0].id === 'deckit.shell-keys' && defined[0].privileged === true,
-        defined
+        'deckit.shell-keys is privileged',
+        KEY_PERMISSION.PERMISSIONS.length === 1 &&
+            shellKeys.id === 'deckit.shell-keys' &&
+            shellKeys.privileged === true,
+        KEY_PERMISSION.PERMISSIONS
     );
+    const KEY = createKey({ deckit });
     KEY.start();
     const channel = (name) => (payload, mod) => handlers[`deckit-shell:key-${name}`](payload, { mod });
     const listed = channel('list')({}, 'settings');
