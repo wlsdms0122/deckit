@@ -6,6 +6,7 @@ const TOML = require('./toml.js');
 
 const FORMAT = 1;
 const NAME = /^[a-z][a-z0-9-]*$/;
+const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const KIND = /^[A-Z][A-Z_]*$/;
 const STAGES = ['read', 'launch', 'call'];
@@ -25,7 +26,7 @@ const is = {
         typeof value === 'string' &&
         VERSION.test(value) &&
         value.split('.').every((part) => BigInt(part) <= BigInt(Number.MAX_SAFE_INTEGER)),
-    names: (value) => Array.isArray(value) && value.every(is.name),
+    bundles: (value) => Array.isArray(value) && value.every((one) => typeof one === 'string' && BUNDLE.test(one)),
     strings: (value) => Array.isArray(value) && value.every(is.string),
 };
 
@@ -69,13 +70,10 @@ function read(folder) {
     order(steps, refuse);
 
     const mods = path.join(folder, 'mods');
-    const laid = fs.existsSync(mods)
-        ? fs.readdirSync(mods, { withFileTypes: true }).filter((entry) => !entry.name.startsWith('.'))
+    const laid = fs.statSync(mods, { throwIfNoEntry: false })?.isDirectory()
+        ? fs.readdirSync(mods, { withFileTypes: true }).filter((entry) => entry.isDirectory())
         : [];
-    for (const entry of laid) {
-        if (!entry.isDirectory()) refuse(`mods/${entry.name} is no bundle's folder`);
-        if (!NAME.test(entry.name)) refuse(`mods/${entry.name} is no bundle-name`);
-    }
+    for (const entry of laid) if (!BUNDLE.test(entry.name)) refuse(`mods/${entry.name} is no bundle-name`);
     const bundles = Object.fromEntries(laid.map(({ name }) => [name, path.join(mods, name)]));
     const named = new Set([...host.ship, ...host.sources]);
     for (const name of named) if (!(name in bundles)) refuse(`${name} names no bundle in mods/`);
@@ -92,9 +90,9 @@ function hostOf(host, refuse) {
             api: is.version,
             fields: is.strings,
             permissions: is.array,
-            ship: is.names,
-            system: is.names,
-            sources: is.names,
+            ship: is.bundles,
+            system: is.bundles,
+            sources: is.bundles,
         },
         'host.',
         refuse
