@@ -202,6 +202,34 @@ async function main() {
         refusals
     );
 
+    const first = panelOver(createPanel, {
+        mods: ['a', 'b', 'c'].map((id) => ({ id, name: id.toUpperCase(), uses: {} })),
+        fields: { a: { view: {} }, b: { view: {} }, c: { view: {} } },
+        managers: [],
+        dock: ['c', 'a'],
+    });
+    first.PANEL.start();
+    const firstDock = (await first.ask('frame-setup', {}, FRAME)).state.mods.map(({ id }) => id).join();
+    check(
+        "at the first start the Dock keeps the host app's mods in the order it names them, as the shell's own order",
+        JSON.stringify(first.state['panel-order']) === '["c","a"]' && firstDock === 'c,a',
+        { state: first.state, firstDock }
+    );
+    const later = panelOver(createPanel, {
+        mods: ['a', 'b', 'c'].map((id) => ({ id, name: id.toUpperCase(), uses: {} })),
+        fields: { a: { view: {} }, b: { view: {} }, c: { view: {} } },
+        managers: [],
+        dock: ['c', 'a'],
+        state: { 'panel-pinned': ['a', 'b'], 'panel-order': ['b'] },
+    });
+    later.PANEL.start();
+    const left = (await later.ask('frame-setup', {}, FRAME)).state.mods.map(({ id }) => id).join();
+    check(
+        'later the Dock is as the person left it, whatever the host app names',
+        left === 'b,a' && JSON.stringify(later.state['panel-order']) === '["b"]',
+        left
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
@@ -211,14 +239,15 @@ async function main() {
 }
 
 // `createPanel` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
-// that hold deckit.mods, and `dock` as the host app hands it. `ask(name, payload, mod)` asks one of the panel's
-// channels as the page of `mod`.
+// that hold deckit.mods, `dock` as the host app hands it, and `state` what the shell kept. `ask(name, payload, mod)`
+// asks one of the panel's channels as the page of `mod`, or as the frame's for FRAME.
 function panelOver(createPanel, { mods, fields, managers, dock = null, state = {} }) {
     const handlers = {};
     const named = [];
     const launched = [];
     const shown = [];
-    const page = (mod) => ({ mod });
+    const frame = { mod: null };
+    const page = (mod) => (mod === FRAME ? frame : { mod });
     const channel = (declared) => ({
         handle: (handler) => (handlers[declared.channel] = handler),
         on: (handler) => (handlers[declared.channel] = handler),
@@ -262,7 +291,7 @@ function panelOver(createPanel, { mods, fields, managers, dock = null, state = {
             laidOut: () => new Map(),
             rectOf: () => null,
         },
-        PAGES: { open: () => page(null), whenFocused() {}, focus() {}, isAlive: () => true },
+        PAGES: { open: () => frame, whenFocused() {}, focus() {}, isAlive: () => true },
         OVERLAY: { onChange() {}, withOverlays: (laid) => laid, holdsKeyboard: () => false, ownerOf: (one) => one },
         makeStage: () => stage,
         deckit,
@@ -272,6 +301,8 @@ function panelOver(createPanel, { mods, fields, managers, dock = null, state = {
     const ask = async (name, payload, mod) => handlers[`deckit-shell:panel-${name}`](payload, page(mod));
     return { PANEL, named, launched, shown, state, ask };
 }
+
+const FRAME = Symbol('the frame');
 
 main().catch((error) => {
     console.error(error);

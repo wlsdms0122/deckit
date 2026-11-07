@@ -67,10 +67,13 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     // panel only once the person keeps it in the Dock.
     function start() {
         sidebar = { ...sidebar, ...deckit.state.read(SIDEBAR, {}) };
+        // At the first start the Dock's mods take their places in the order they are kept there.
         const kept = deckit.state.read(PINNED, null);
+        const arranged = deckit.state.read(ORDER, null);
         pinned = new Set(kept ?? firstDock());
+        order = arranged ?? (kept ? [] : [...pinned]);
         if (!kept) deckit.state.write(PINNED, [...pinned]);
-        order = deckit.state.read(ORDER, []);
+        if (!kept && !arranged) deckit.state.write(ORDER, order);
         KEY.start();
         stage = makeStage();
         stage.whenResized(update);
@@ -283,8 +286,8 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         return parent && !inPanel(id) ? parent : id;
     }
 
-    // What the Dock keeps at the first start: the mods the host app names, or else those it ships whose view names no
-    // parent.
+    // What the Dock keeps at the first start, in order: the mods the host app names, or else those it ships whose view
+    // names no parent, in the mods' order.
     function firstDock() {
         if (dock) return dock;
         const shipped = new Set(deckit.mods.shipped());
