@@ -1,7 +1,7 @@
 // The conformance runner's host app: Electron's main process embedding the deckit archive beside it as any host app
 // does, through the environment, connect and, for the shell, attach, set up as the case's [host] says. It reaches deckit
 // only through what connect answers, and talks to the runner over a socket, a JSON message a line: it says once
-// whether the start settled or was refused, answers each look it is asked, and quits when asked.
+// whether the start settled or was refused (deckit.whenStarted()), answers each look it is asked, and quits when asked.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -9,10 +9,6 @@ const { app, globalShortcut } = require('electron');
 
 const setup = JSON.parse(fs.readFileSync(process.env.DECKIT_CONFORMANCE_SETUP, 'utf8'));
 const LIBRARY = path.join(__dirname, 'deckit');
-// The states a run passes through between two others, as a run's facts name them.
-const MOVING = ['launching', 'terminating'];
-// How often whether the app has settled is looked at.
-const POLL = 50;
 
 // It never takes the person's screen, keyboard or chords: the runner hands every input itself.
 app.setPath('userData', setup.electron);
@@ -48,14 +44,18 @@ try {
     });
     deckit = DECKIT.connect(environment, {
         host: { notificationClicked: () => {}, restart: () => {} },
-        config: { id: 'deckit-conformance', name: 'Deckit conformance' },
+        config: {
+            id: 'deckit-conformance',
+            name: 'Deckit conformance',
+            ...(setup.api === undefined ? {} : { api: setup.api }),
+        },
         folders: { home: setup.home, ship: setup.ship, sources: setup.sources },
     });
     if (setup.base === 'shell') DECKIT.attach(deckit, environment, { host: shellHost() });
     for (const field of setup.fields) deckit.fields.define(field);
     for (const permission of setup.permissions) deckit.permissions.define(permission);
-    deckit.core.onDown((why) => refused(why));
-    deckit.onStart(() => whenStill().then(() => settle({})));
+    // The start is complete, the launches at start included, or refused with its kind.
+    deckit.whenStarted().then(() => settle({}), refused);
 } catch (error) {
     refused(error);
 }
@@ -72,32 +72,21 @@ socket.on('data', (chunk) => {
 });
 socket.on('close', () => app.exit(0));
 
-// What a look comes to: `{ answers }`, or `{ none }` with what the host was given instead.
+// What a look comes to: `{ answers }`, `{ refuses, kind, message }` for a bundle found and not taken, or `{ none }`
+// with what the host was given instead. deckit.mods.list() holds every bundle found, in its order.
 function look({ look: what, mod, part }) {
-    if (what === 'mods')
-        return { none: 'a host is given only the bundles that load (deckit.mods.list()), not every bundle found' };
+    if (!deckit) return { none: 'deckit was not connected' };
+    const found = deckit.mods.list();
+    if (what === 'mods') return { answers: found.map(({ id }) => id) };
     if (what !== 'mod') return { none: `this host answers no look ${what}` };
-    const found = deckit?.mods.list().find((one) => one.id === mod);
-    if (!found)
-        return {
-            none: `no bundle under the id ${mod} is given to a host, and no refusal: deckit.mods.list() gives only the bundles that load`,
-        };
-    const answer = JSON.parse(JSON.stringify(found));
+    const one = found.find((entry) => entry.id === mod);
+    if (!one) return { none: `no bundle under the id ${mod} was found` };
+    if (one.refusal) return { refuses: one.refusal.stage, kind: one.refusal.kind, message: one.refusal.message };
+    const answer = JSON.parse(JSON.stringify(one));
     if (part === undefined) return { answers: answer };
     return part in answer && answer[part] !== null
         ? { answers: answer[part] }
         : { none: `the bundle answers no ${part}` };
-}
-
-// Resolves once no run is between two states.
-function whenStill() {
-    return new Promise((resolve) => {
-        const poll = () => {
-            if (deckit.mods.runs().some(({ run }) => MOVING.includes(run.state))) setTimeout(poll, POLL);
-            else resolve();
-        };
-        setTimeout(poll, POLL);
-    });
 }
 
 // A page deckit shows on its own, in a window of the environment's, shown without taking the keyboard.

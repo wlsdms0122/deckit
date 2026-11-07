@@ -29,17 +29,11 @@ function cannotRun({ host, drive, steps }) {
     return null;
 }
 
-// Runs `theCase` in `folder`, made afresh, on the host app in `hostApp` that Electron at `electron` runs, a deckit that
-// runs mods with the contract `api`: `{ passed }`, or `{ passed: false, step, came, expected }` for its first step that
-// did not match, `step` null where the host could not be set up.
-async function run(theCase, { folder, hostApp, electron, api }) {
+// Runs `theCase` in `folder`, made afresh, on the host app in `hostApp` that Electron at `electron` runs: `{ passed }`,
+// or `{ passed: false, step, came, expected }` for its first step that did not match, `step` null where the host could
+// not be set up.
+async function run(theCase, { folder, hostApp, electron }) {
     const { host, bundles } = theCase;
-    if (host.base === 'system' && host.api !== api)
-        return {
-            passed: false,
-            step: null,
-            came: `a host is not set up that runs mods with ${host.api}: connect is handed no contract version, and this deckit runs mods with ${api} alone`,
-        };
     fs.rmSync(folder, { recursive: true, force: true });
     const home = path.join(folder, 'home');
     const sources = path.join(folder, 'sources');
@@ -61,6 +55,8 @@ async function run(theCase, { folder, hostApp, electron, api }) {
             {
                 port: server.address().port,
                 base: host.base,
+                // The contract version deckit runs mods with, where the case names one (base "system").
+                ...(host.api === null ? {} : { api: host.api }),
                 preload: `preload-${host.base}.js`,
                 home,
                 electron: path.join(folder, 'electron'),
