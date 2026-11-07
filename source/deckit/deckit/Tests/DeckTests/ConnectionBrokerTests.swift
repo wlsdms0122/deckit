@@ -22,11 +22,13 @@ struct ConnectionBrokerTests {
     }
 
     // MARK: - Test
-    @Test("a lifecycle that begins connects to the exports of the mods it reaches by id, and a message goes across")
+    @Test("a lifecycle that begins connects to the exports of the interfaces it uses, and a message goes across")
     func beginningLifecycleConnects() throws {
         // Given
-        let a = Job.fixture("a", reaches: ["dep"])
-        try start(.fixture("dep"), exportedIn: ["dep": 0])
+        let dep = Job.fixture("dep", provides: ["dep/api": [1]])
+        let a = Job.fixture("a", uses: ["dep/api": 1])
+        owners.provide([dep, a], keeping: [])
+        try start(dep, exportedIn: ["dep/api": 0])
         _ = try runner.load([a])
 
         // When
@@ -95,10 +97,11 @@ struct ConnectionBrokerTests {
         // Given
         let dep = Job.fixture("dep", provides: ["dep/api": [1]])
         owners.provide([dep], keeping: [])
-        try start(.fixture("a", reaches: ["dep"]))
+        try start(dep, exportedIn: ["dep/api": 0])
+        try start(.fixture("a", reaches: .only(["dep"])))
 
         // When
-        try start(dep, exportedIn: ["dep/api": 0])
+        try sut.reach("dep", from: Endpoint(modId: "a", run: 1, lifecycle: 0))
         let interfaceOnly = sut.changes()
         _ = try runner.joined("dep", run: 1, contributions: Contribution(exportedIn: ["dep": 0], awaits: [:]))
         let opened = sut.changes()
@@ -152,11 +155,12 @@ struct ConnectionBrokerTests {
         #expect(again.isEmpty)
     }
 
-    @Test("a lifecycle that reaches a mod that does not run is told it waits, once for each name, and none is launched")
+    @Test("a lifecycle that uses an interface whose owner does not run is told it waits, once, and none is launched")
     func waitIsToldOnce() throws {
         // Given
-        let a = Job.fixture("a", reaches: ["dep"], uses: ["x/api": 1])
-        owners.provide([.fixture("o", provides: ["x/api": [1]]), a], keeping: [])
+        let o = Job.fixture("o", provides: ["x/api": [1]])
+        let a = Job.fixture("a", uses: ["x/api": 1])
+        owners.provide([o, a], keeping: [])
         try start(a)
 
         // When
@@ -164,15 +168,130 @@ struct ConnectionBrokerTests {
         let second = sut.changes()
         _ = try sut.begin(mod: "a", run: 1, lifecycle: 1)
         let above = sut.changes()
+        let launched = runner.run(of: "o")
+        try start(o, exportedIn: ["x/api": 0])
+        let connected = sut.changes()
+
+        // Then
+        #expect(first.map(\.line) == ["wait a#1@0 for o by x/api"])
+        #expect(second.isEmpty)
+        #expect(above.map(\.line) == ["wait a#1@1 for o by x/api"])
+        #expect(launched == nil)
+        #expect(connected.map(\.line) == ["connect 1 a#1@0 -> o#1@0", "connect 2 a#1@1 -> o#1@0"])
+    }
+
+    @Test("a lifecycle that asks to reach a running mod by id connects to it, and one that does not ask reaches none")
+    func askToARunningModConnects() throws {
+        // Given
+        try start(.fixture("dep"), exportedIn: ["dep": 0])
+        try start(.fixture("a", reaches: .only(["dep"])))
+        _ = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+        let unasked = sut.changes()
+
+        // When
+        try sut.reach("dep", from: Endpoint(modId: "a", run: 1, lifecycle: 1))
+        let asked = sut.changes()
+        let reached = try sut.route(from: "a", run: 1, connection: 1)
+
+        // Then
+        #expect(unasked.isEmpty)
+        #expect(asked.map(\.line) == ["connect 1 a#1@1 -> dep#1@0"])
+        #expect(reached == Endpoint(modId: "dep", run: 1, lifecycle: 0))
+    }
+
+    @Test("an ask to reach a mod that does not run is told it waits once, none launched, and connects once it runs")
+    func askToAModNotRunningWaits() throws {
+        // Given
+        let client = Endpoint(modId: "a", run: 1, lifecycle: 0)
+        try start(.fixture("a", reaches: .only(["dep"])))
+
+        // When
+        try sut.reach("dep", from: client)
+        let first = sut.changes()
+        try sut.reach("dep", from: client)
+        let again = sut.changes()
+        let launched = runner.run(of: "dep")
         try start(.fixture("dep"), exportedIn: ["dep": 0])
         let connected = sut.changes()
 
         // Then
-        #expect(first.map(\.line) == ["wait a#1@0 for dep by dep", "wait a#1@0 for o by x/api"])
-        #expect(second.isEmpty)
-        #expect(above.map(\.line) == ["wait a#1@1 for dep by dep", "wait a#1@1 for o by x/api"])
+        #expect(first.map(\.line) == ["wait a#1@0 for dep by dep"])
+        #expect(again.isEmpty)
+        #expect(launched == nil)
+        #expect(connected.map(\.line) == ["connect 1 a#1@0 -> dep#1@0"])
+    }
+
+    @Test("a connection by id ends as its client releases the id or its lifecycle ends, and the ask goes with it")
+    func releaseEndsTheConnection() throws {
+        // Given
+        let lower = Endpoint(modId: "a", run: 1, lifecycle: 0)
+        let upper = Endpoint(modId: "a", run: 1, lifecycle: 1)
+        try start(.fixture("dep"), exportedIn: ["dep": 0])
+        try start(.fixture("a", reaches: .only(["dep"])))
+        _ = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+        try sut.reach("dep", from: lower)
+        try sut.reach("dep", from: upper)
+        let connected = sut.changes()
+
+        // When
+        sut.release("dep", from: lower)
+        let released = sut.changes()
+        sut.end(mod: "a", run: 1, lifecycle: 1)
+        let ended = sut.changes()
+        let begunAgain = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+
+        // Then
         #expect(connected.map(\.line) == ["connect 1 a#1@0 -> dep#1@0", "connect 2 a#1@1 -> dep#1@0"])
-        #expect(runner.run(of: "o") == nil)
+        #expect(released.map(\.line) == ["disconnect 1 a#1@0 -> dep#1@0"])
+        #expect(ended.map(\.line) == ["disconnect 2 a#1@1 -> dep#1@0"])
+        #expect(begunAgain.isEmpty)
+    }
+
+    @Test("an ask to reach an id the job may not reach, its own, or from a lifecycle not up is refused")
+    func askOutsideReachesIsRefused() throws {
+        // Given
+        try start(.fixture("dep"), exportedIn: ["dep": 0])
+        try start(.fixture("a", reaches: .only(["dep"])))
+        try start(.fixture("e", reaches: .every))
+
+        // When
+        let outside = Result { try sut.reach("b", from: Endpoint(modId: "a", run: 1, lifecycle: 0)) }
+        let own = Result { try sut.reach("e", from: Endpoint(modId: "e", run: 1, lifecycle: 0)) }
+        let notUp = Result { try sut.reach("dep", from: Endpoint(modId: "a", run: 1, lifecycle: 1)) }
+        let notRunning = Result { try sut.reach("dep", from: Endpoint(modId: "x", run: 1, lifecycle: 0)) }
+
+        // Then
+        #expect(throws: ConnectionError.outOfReach(mod: "b", client: "a")) { try outside.get() }
+        #expect(throws: ConnectionError.outOfReach(mod: "e", client: "e")) { try own.get() }
+        #expect(throws: ConnectionError.notUp(Endpoint(modId: "a", run: 1, lifecycle: 1))) { try notUp.get() }
+        #expect(throws: ConnectionError.notRunning("x")) { try notRunning.get() }
+        #expect(sut.changes().isEmpty)
+    }
+
+    @Test("a job that reaches every mod connects to any mod it asks for by id")
+    func everyModReachConnectsToAnyAsked() throws {
+        // Given
+        let client = Endpoint(modId: "e", run: 1, lifecycle: 0)
+        try start(.fixture("b"), exportedIn: ["b": 0])
+        try start(.fixture("c"), exportedIn: ["c": 0])
+        try start(.fixture("e", reaches: .every))
+
+        // When
+        let unasked = sut.changes()
+        try sut.reach("b", from: client)
+        try sut.reach("c", from: client)
+        try sut.reach("d", from: client)
+        let asked = sut.changes()
+
+        // Then
+        #expect(unasked.isEmpty)
+        #expect(
+            asked.map(\.line) == [
+                "connect 1 e#1@0 -> b#1@0",
+                "connect 2 e#1@0 -> c#1@0",
+                "wait e#1@0 for d by d"
+            ]
+        )
     }
 
     @Test("a connection its service's page refused is not made again while both its ends are up")

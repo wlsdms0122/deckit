@@ -17,7 +17,7 @@ extension Job {
         _ id: String,
         revision: String = "1",
         permissions: [String] = [],
-        reaches: [String] = [],
+        reaches: ModSet = .only([]),
         uses: [String: Int] = [:],
         provides: [String: [Int]] = [:]
     ) -> Job {

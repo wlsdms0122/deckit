@@ -105,8 +105,22 @@ public final class Deck {
         return withChanges([])
     }
 
+    // The `lifecycle`th lifecycle of the `run`th run of `id`, up, asks to reach the mod of `target` by its id, until it
+    // releases it or ends: it connects once that mod runs and opened its exports for those that reach it by id, and is
+    // told it waits while that mod does not run. Refused for an id its job may not reach, or its own.
+    public func reach(_ target: String, from id: String, run: Int, lifecycle: Int) throws -> [Effect] {
+        try connections.reach(target, from: Endpoint(modId: id, run: run, lifecycle: lifecycle))
+        return withChanges([])
+    }
+
+    // The lifecycle lets the mod of `target` go: its connection by the id ends.
+    public func release(_ target: String, from id: String, run: Int, lifecycle: Int) -> [Effect] {
+        connections.release(target, from: Endpoint(modId: id, run: run, lifecycle: lifecycle))
+        return withChanges([])
+    }
+
     // MARK: - Private
-    // What is wrong with what the run reaches by is recorded against it, and against each run that reaches it.
+    // What is wrong with what the run reaches by is recorded against it, and against each run that may reach it.
     private func judged(_ id: String, run number: Int, _ effects: [Effect]) throws -> [Effect] {
         var effects = effects
         if let run = runner.run(of: id), run.number == number {
@@ -115,7 +129,7 @@ public final class Deck {
             }
         }
         for job in runner.jobs() {
-            let names = job.reaches + job.uses.keys
+            let names = [id] + job.uses.keys
             guard names.contains(where: { name in connections.provider(of: name, for: job.modId) == id }),
                 let client = runner.run(of: job.modId)
             else { continue }

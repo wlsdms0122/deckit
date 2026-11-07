@@ -56,6 +56,22 @@ struct DeckTests {
         )
     }
 
+    @Test("a lifecycle that asks to reach a mod by id is told it waits, then connects as the mod runs, until released")
+    func reachIsAnswered() throws {
+        // Given
+        _ = try start(.fixture("a", reaches: .only(["dep"])))
+
+        // When
+        let asked = try sut.reach("dep", from: "a", run: 1, lifecycle: 0)
+        let started = try start(.fixture("dep"), exportedIn: ["dep": 0])
+        let released = sut.release("dep", from: "a", run: 1, lifecycle: 0)
+
+        // Then
+        #expect(asked.map(\.line) == ["wait a#1@0 for dep by dep"])
+        #expect(started.map(\.line).filter { line in line.hasPrefix("connect") } == ["connect 1 a#1@0 -> dep#1@0"])
+        #expect(released.map(\.line) == ["disconnect 1 a#1@0 -> dep#1@0"])
+    }
+
     // MARK: - Private
     // The job loads, begins its first lifecycle and starts, the exports for each name in `exportedIn` opened in the
     // lifecycle given. Answers the effects of its load and its start.

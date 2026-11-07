@@ -7,8 +7,8 @@
 
 import Foundation
 
-// What to run for a mod, handed whole by the caller. Its runs reach only what it names: a mod by id, the owner of an
-// interface it uses at the major it uses.
+// What to run for a mod, handed whole by the caller. Its runs reach only what it names: a mod by an id it may reach, as
+// a lifecycle asks, the owner of an interface it uses at the major it uses.
 public struct Job: Equatable, Sendable {
     // MARK: - Property
     public let modId: String
@@ -18,8 +18,8 @@ public struct Job: Equatable, Sendable {
     public let entry: URL
     // The ids of the permissions granted to it.
     public let permissions: [String]
-    // The ids of the mods it may reach by id.
-    public let reaches: [String]
+    // The mods it may reach by id.
+    public let reaches: ModSet
     // Interface -> the major of it it uses.
     public let uses: [String: Int]
     // Interface -> the majors of it it provides.
@@ -31,7 +31,7 @@ public struct Job: Equatable, Sendable {
         revision: String,
         entry: URL,
         permissions: [String],
-        reaches: [String],
+        reaches: ModSet,
         uses: [String: Int],
         provides: [String: [Int]]
     ) {

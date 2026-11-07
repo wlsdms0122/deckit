@@ -25,7 +25,11 @@ struct EventBusTests {
     @Test("an event goes, named after its mod, to the runs that listen to it, and only from a run that is running")
     func eventGoesToItsListeners() throws {
         // Given
-        _ = try runner.load([.fixture("a"), .fixture("b", reaches: ["a"]), .fixture("c", reaches: ["a"])])
+        _ = try runner.load([
+            .fixture("a"),
+            .fixture("b", reaches: .only(["a"])),
+            .fixture("c", reaches: .only(["a"]))
+        ])
         sut.listen(mod: "b", run: 1, names: ["a:status"])
         sut.listen(mod: "c", run: 1, names: ["a:other"])
 
@@ -44,7 +48,7 @@ struct EventBusTests {
     @Test("a run that has ended hears nothing, and what an older run listens to is not taken")
     func endedRunHearsNothing() throws {
         // Given
-        let b = Job.fixture("b", reaches: ["a"])
+        let b = Job.fixture("b", reaches: .only(["a"]))
         _ = try runner.load([.fixture("a"), b])
         _ = try runner.started("a", run: 1)
         _ = try runner.started("b", run: 1)
@@ -90,6 +94,34 @@ struct EventBusTests {
         #expect(status.listeners == ["a"])
         #expect(owner.listeners == ["a", "b"])
         #expect(own.listeners == ["c"])
+    }
+
+    @Test("a run that reaches every mod hears every mod's events, and of interfaces only those it uses or provides")
+    func everyModReachHearsEveryModsEvents() throws {
+        // Given
+        let jobs = [
+            Job.fixture("a", provides: ["a/api": [1]]),
+            .fixture("c"),
+            .fixture("e", reaches: .every, uses: ["c/api": 1])
+        ]
+        owners.provide(jobs, keeping: [])
+        _ = try runner.load(jobs)
+        for job in jobs {
+            _ = try runner.started(job.modId, run: 1)
+        }
+        sut.listen(mod: "e", run: 1, names: ["a:status", "c:status", "a/api:posted", "a/api:owner-changed"])
+
+        // When
+        let status = try sut.emit(mod: "a", run: 1, name: "status")
+        let other = try sut.emit(mod: "c", run: 1, name: "status")
+        let signal = try sut.emit(mod: "a", run: 1, name: "a/api:posted")
+        let owner = sut.announce(.owner, of: "a/api")
+
+        // Then
+        #expect(status.listeners == ["e"])
+        #expect(other.listeners == ["e"])
+        #expect(signal == EventDelivery(name: "a/api:posted", listeners: []))
+        #expect(owner.listeners.isEmpty)
     }
 
     @Test("the owner of an interface sends a signal named after the interface, and another mod only its own event")
