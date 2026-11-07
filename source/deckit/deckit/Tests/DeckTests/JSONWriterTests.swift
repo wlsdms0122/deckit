@@ -26,24 +26,27 @@ struct JSONWriterTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a value whose names are apart is written as JSONEncoder writes it, compact or pretty")
+    @Test("a value whose names are apart is written as the JSON value JSONEncoder writes, compact or pretty")
     func valueIsWrittenAsFoundationWritesIt() throws {
         // Given
-        let compact = JSONEncoder()
-        compact.outputFormatting = [.sortedKeys]
-        let pretty = JSONEncoder()
-        pretty.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let pretty = JSONWriter(options: [.prettyPrinted, .withoutEscapingSlashes])
 
         // When
         let written = try sut.write(Sample())
-        let writtenPretty = try JSONWriter(pretty: true, escapesSlashes: false).write(Sample())
+        let writtenPretty = try pretty.write(Sample())
 
         // Then
-        #expect(written == (try compact.encode(Sample())))
-        #expect(writtenPretty == (try pretty.encode(Sample())))
+        let expected = try JSONValue(data: encoder.encode(Sample()))
+        #expect(try JSONValue(data: written) == expected)
+        #expect(try JSONValue(data: writtenPretty) == expected)
+        #expect(!written.contains(UInt8(ascii: "\n")))
+        let layout = "{\n  \"empty\" : {\n    \"a9\" : [\n\n    ],"
+        #expect(String(decoding: writtenPretty, as: UTF8.self).hasPrefix(layout))
     }
 
-    @Test("two names of one canonical form are two members, in the order of their scalar values")
+    @Test("two names of one canonical form are two members, in a fixed order")
     func namesAreKeptBySequence() throws {
         // Given
         let value = JSONValue.object(["view": .object(["caf\u{E9}": .number(1), "cafe\u{301}": .number(2)])])
@@ -53,7 +56,7 @@ struct JSONWriterTests {
 
         // Then
         #expect(String(decoding: written, as: UTF8.self) == "{\"view\":{\"cafe\u{301}\":2,\"caf\u{E9}\":1}}")
-        #expect(try JSONParser().parse(String(decoding: written, as: UTF8.self)) == value)
+        #expect(try JSONValue(data: written) == value)
     }
 
     @Test("a number JSON does not write is refused")

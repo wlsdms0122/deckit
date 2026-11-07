@@ -7,8 +7,7 @@
 
 import Foundation
 
-// Encodes a value into a JSONNode, and is the container of a single value encoded there. A number is written as
-// Foundation's JSONEncoder writes it: an integer as its digits, a floating-point number without a trailing ".0".
+// Encodes a value into a JSONNode, and is the container of a single value encoded there.
 final class JSONNodeEncoder: Encoder, SingleValueEncodingContainer {
     // MARK: - Property
     let codingPath: [any CodingKey]
@@ -50,51 +49,51 @@ final class JSONNodeEncoder: Encoder, SingleValueEncodingContainer {
     }
 
     func encode(_ value: Double) throws {
-        node.hold(.number(try written(value)))
+        node.hold(.number(NSNumber(value: try finite(value))))
     }
 
     func encode(_ value: Float) throws {
-        node.hold(.number(try written(value)))
+        node.hold(.number(NSNumber(value: try finite(value))))
     }
 
     func encode(_ value: Int) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: Int8) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: Int16) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: Int32) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: Int64) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: UInt) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: UInt8) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: UInt16) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: UInt32) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode(_ value: UInt64) throws {
-        node.hold(.number(String(value)))
+        node.hold(.number(NSNumber(value: value)))
     }
 
     func encode<Value: Encodable>(_ value: Value) throws {
@@ -103,7 +102,7 @@ final class JSONNodeEncoder: Encoder, SingleValueEncodingContainer {
 
     // MARK: - Private
     // JSON writes no infinity and no NaN.
-    private func written<Number: BinaryFloatingPoint & LosslessStringConvertible>(_ value: Number) throws -> String {
+    private func finite<Number: BinaryFloatingPoint>(_ value: Number) throws -> Number {
         guard value.isFinite else {
             let context = EncodingError.Context(
                 codingPath: codingPath,
@@ -112,7 +111,6 @@ final class JSONNodeEncoder: Encoder, SingleValueEncodingContainer {
             throw EncodingError.invalidValue(value, context)
         }
 
-        let text = value.description
-        return text.hasSuffix(".0") ? String(text.dropLast(2)) : text
+        return value
     }
 }

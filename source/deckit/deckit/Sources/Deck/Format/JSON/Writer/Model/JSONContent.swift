@@ -7,12 +7,12 @@
 
 import Foundation
 
-// What a JSONNode holds: a number as it is written, an object by its members' names.
+// What a JSONNode holds: an object by its members' names.
 enum JSONContent {
     case empty
     case null
     case bool(Bool)
-    case number(String)
+    case number(NSNumber)
     case string(String)
     case array([JSONNode])
     case object([JSONName: JSONNode])

@@ -30,7 +30,7 @@ package struct DeckSettings {
     package func write(_ values: [String: JSONValue]) throws {
         let written = Dictionary(uniqueKeysWithValues: values.map { key, value in (JSONName(key), value) })
         let settings = try settings().merging(written) { _, value in value }
-        let writer = JSONWriter(pretty: true, escapesSlashes: false)
+        let writer = JSONWriter(options: [.prettyPrinted, .withoutEscapingSlashes])
         try store.write(String(decoding: try writer.write(JSONValue.object(settings)), as: UTF8.self), to: file)
     }
 
@@ -38,7 +38,7 @@ package struct DeckSettings {
     // None while there is no file yet.
     private func settings() throws -> [JSONName: JSONValue] {
         guard let text = store.read(file) else { return [:] }
-        guard case let .object(settings)? = try? JSONParser().parse(text) else {
+        guard case let .object(settings)? = try? JSONValue(data: Data(text.utf8)) else {
             throw DeckSettingsError.unreadable(file.lastPathComponent)
         }
 

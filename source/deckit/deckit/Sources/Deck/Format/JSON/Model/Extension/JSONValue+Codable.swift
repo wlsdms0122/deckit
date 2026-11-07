@@ -7,9 +7,8 @@
 
 import Foundation
 
-// An object through a container keyed by its names, so a coder that keeps each name it is given keeps two names of one
-// canonical form as two. Foundation's JSONDecoder and JSONEncoder key an object by Strings and take them as one:
-// JSONParser and JSONWriter keep them.
+// An object through a container keyed by its names, each name its own key: a coder keeps two names of one canonical
+// form as two while it keeps each key it is given apart, as JSONWriter does.
 extension JSONValue: Codable {
     // MARK: - Property
     // MARK: - Initializer
