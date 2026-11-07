@@ -24,7 +24,7 @@ final class OwnershipStore {
     // What is kept, or none of what the file does not keep as written here: it is a person's to edit.
     func read() -> Ownership {
         let queues: [String: [String]] = if case let .object(queues)? = settings.value(of: providersKey) {
-            queues.compactMapValues { value in
+            byText(queues).compactMapValues { value in
                 guard case let .array(ids) = value else { return nil }
                 return ids.compactMap { id in
                     guard case let .string(id) = id else { return nil }
@@ -35,7 +35,7 @@ final class OwnershipStore {
             [:]
         }
         let pins: [String: String] = if case let .object(pins)? = settings.value(of: pinsKey) {
-            pins.compactMapValues { value in
+            byText(pins).compactMapValues { value in
                 guard case let .string(id) = value else { return nil }
                 return id
             }
@@ -48,10 +48,20 @@ final class OwnershipStore {
 
     func write(_ ownership: Ownership) throws {
         try settings.write([
-            providersKey: .object(ownership.queues.mapValues { ids in .array(ids.map(JSONValue.string)) }),
-            pinsKey: .object(ownership.pins.mapValues(JSONValue.string))
+            providersKey: .object(byName(ownership.queues.mapValues { ids in .array(ids.map(JSONValue.string)) })),
+            pinsKey: .object(byName(ownership.pins.mapValues(JSONValue.string)))
         ])
     }
 
     // MARK: - Private
+    // An object by its names' text, which takes two names of one canonical form as one: of those, the name that comes
+    // first is kept.
+    private func byText(_ object: [JSONName: JSONValue]) -> [String: JSONValue] {
+        let pairs = object.sorted { one, other in one.key < other.key }.map { name, value in (name.text, value) }
+        return Dictionary(pairs) { first, _ in first }
+    }
+
+    private func byName(_ values: [String: JSONValue]) -> [JSONName: JSONValue] {
+        Dictionary(uniqueKeysWithValues: values.map { key, value in (JSONName(key), value) })
+    }
 }

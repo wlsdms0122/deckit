@@ -23,22 +23,22 @@ package struct DeckSettings {
     // MARK: - Public
     // What the file keeps under `key`, or nil while it keeps nothing there or does not read.
     package func value(of key: String) -> JSONValue? {
-        (try? settings())?[key]
+        (try? settings())?[JSONName(key)]
     }
 
     // Each value under its key, in one write.
     package func write(_ values: [String: JSONValue]) throws {
-        let settings = try settings().merging(values) { _, value in value }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        try store.write(String(decoding: try encoder.encode(JSONValue.object(settings)), as: UTF8.self), to: file)
+        let written = Dictionary(uniqueKeysWithValues: values.map { key, value in (JSONName(key), value) })
+        let settings = try settings().merging(written) { _, value in value }
+        let writer = JSONWriter(pretty: true, escapesSlashes: false)
+        try store.write(String(decoding: try writer.write(JSONValue.object(settings)), as: UTF8.self), to: file)
     }
 
     // MARK: - Private
     // None while there is no file yet.
-    private func settings() throws -> [String: JSONValue] {
+    private func settings() throws -> [JSONName: JSONValue] {
         guard let text = store.read(file) else { return [:] }
-        guard case let .object(settings)? = try? JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) else {
+        guard case let .object(settings)? = try? JSONParser().parse(text) else {
             throw DeckSettingsError.unreadable(file.lastPathComponent)
         }
 
