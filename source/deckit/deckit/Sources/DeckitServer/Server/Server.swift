@@ -89,7 +89,8 @@ final class Server {
                 ship: params.ship,
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
-                permissions: params.permissions
+                permissions: params.permissions,
+                fields: params.fields
             )
             self.deckit = deckit
 

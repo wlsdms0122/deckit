@@ -23,7 +23,7 @@ struct ServerTests {
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
         initializeParams = #"{"home":"\#(home)","implementations":{},"api":"1.0.0","ship":[],"#
-            + #""sources":["\#(home)source"],"permissions":[]}"#
+            + #""sources":["\#(home)source"],"permissions":[],"fields":[]}"#
         initializeRequest = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#
         sut = Server()
     }
@@ -245,7 +245,7 @@ struct ServerTests {
         let response = try send(
             #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","#
                 + #""implementations":{},"api":"1.0.0","ship":[],"sources":[],"#
-                + #""permissions":[\#(permission)]}}"#,
+                + #""permissions":[\#(permission)],"fields":[]}}"#,
             to: sut
         )
 

@@ -112,7 +112,7 @@ struct ManifestReaderTests {
         sut = try ManifestReader(
             api: try #require(Version("1.2.0")),
             permissions: [mods, network, any],
-            fields: [],
+            fields: ["icon", "view"],
             store: Store()
         )
     }
@@ -206,7 +206,25 @@ struct ManifestReaderTests {
         #expect(system == nil)
     }
 
-    @Test("a permission or a field defined twice is refused")
+    @Test("a field the layers add is read as written, as JSON writes it, and one not written is not there")
+    func addedFieldIsCarried() {
+        // Given
+        let text = Self.minimal + #"icon = "icon.png"\#n[view]\#nsize = [320, 200]\#nfloats = true"#
+
+        // When
+        let manifest = sut.read(text, fallback: "folder")
+
+        // Then
+        #expect(sut.problem(of: text, system: false) == nil)
+        #expect(
+            manifest.fields == [
+                "icon": .string("icon.png"),
+                "view": .object(["size": .array([.number(320), .number(200)]), "floats": .bool(true)])
+            ]
+        )
+    }
+
+    @Test("a permission or a field defined twice is refused, and a field deckit reads is defined already")
     func definitionTwiceIsRefused() throws {
         // Given
         let api = try #require(Version("1.0.0"))
@@ -216,24 +234,15 @@ struct ManifestReaderTests {
             try ManifestReader(api: api, permissions: [mods, mods], fields: [], store: Store())
         }
         let fieldTwice = Result {
-            try ManifestReader(api: api, permissions: [], fields: [MainField()], store: Store())
+            try ManifestReader(api: api, permissions: [], fields: ["icon", "icon"], store: Store())
+        }
+        let ownField = Result {
+            try ManifestReader(api: api, permissions: [], fields: ["main"], store: Store())
         }
 
         // Then
         #expect(throws: ManifestError.permissionDefined("deckit.mods")) { try permissionTwice.get() }
-        #expect(throws: ManifestError.fieldDefined("main")) { try fieldTwice.get() }
-    }
-}
-
-private struct MainField: ManifestField {
-    let name = "main"
-    let key = "main"
-
-    func read(_ written: TOMLValue?) -> String {
-        ""
-    }
-
-    func problem(of written: TOMLValue) -> String? {
-        nil
+        #expect(throws: ManifestError.fieldDefined("icon")) { try fieldTwice.get() }
+        #expect(throws: ManifestError.fieldDefined("main")) { try ownField.get() }
     }
 }

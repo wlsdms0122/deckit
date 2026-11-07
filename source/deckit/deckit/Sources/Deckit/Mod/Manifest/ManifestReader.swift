@@ -9,8 +9,9 @@ import Foundation
 import Deck
 
 // How deck reads a manifest: what it says, and what is wrong with it, against the mod contract `api` this deck speaks,
-// the permissions deckit and the layers on this host define, and the fields the layers on deck add. An interface is
-// named `<mod id>/<name>`, the name of the same characters as an id, and spoken at a major, a whole number from 0.
+// the permissions deckit and the layers on this host define, and the fields the layers on deck add, which it reads
+// none of. An interface is named `<mod id>/<name>`, the name of the same characters as an id, and spoken at a major, a
+// whole number from 0.
 struct ManifestReader {
     // MARK: - Property
     let file = "manifest.toml"
@@ -23,13 +24,13 @@ struct ManifestReader {
     private let api: Version
     // The widest first: those that reach past the app, then those inside it, each in the order defined.
     private let permissions: [Permission]
-    private let fields: [any ManifestField]
+    private let fields: [String]
 
     // MARK: - Initializer
     init(
         api: Version,
         permissions: [Permission],
-        fields: [any ManifestField],
+        fields: [String],
         store: Store
     ) throws {
         var ids: Set<String> = []
@@ -38,7 +39,7 @@ struct ManifestReader {
         }
         var names = ownFields
         for field in fields {
-            guard names.insert(field.name).inserted else { throw ManifestError.fieldDefined(field.name) }
+            guard names.insert(field).inserted else { throw ManifestError.fieldDefined(field) }
         }
 
         self.api = api
@@ -71,7 +72,7 @@ struct ManifestReader {
             uses: used(of: raw["interfaces"]),
             permissions: requests(of: asked),
             contributes: contributed(of: raw["contributes"]),
-            fields: Dictionary(uniqueKeysWithValues: fields.map { field in (field.key, field.read(raw[field.name])) })
+            fields: raw.filter { key, _ in fields.contains(key) }.mapValues(JSONValue.init)
         )
     }
 
@@ -85,7 +86,7 @@ struct ManifestReader {
         }
 
         let unknown = raw.keys
-            .filter { key in !ownFields.contains(key) && !fields.contains { field in field.name == key } }
+            .filter { key in !ownFields.contains(key) && !fields.contains(key) }
             .sorted()
         guard unknown.isEmpty else {
             return "\(file) has \(quoted(unknown)), which is not a manifest field"
@@ -117,7 +118,6 @@ struct ManifestReader {
             ?? interfacesProblem(raw)
             ?? permissionsProblem(raw, system: system)
             ?? contributesProblem(raw)
-            ?? fieldsProblem(raw)
     }
 
     // MARK: - Private
@@ -266,16 +266,6 @@ struct ManifestReader {
                 entries.allSatisfy({ entry in if case .table = entry { true } else { false } })
             else {
                 return "contributes \(interface) must be a list of tables, as \(example)"
-            }
-        }
-
-        return nil
-    }
-
-    private func fieldsProblem(_ raw: [String: TOMLValue]) -> String? {
-        for field in fields {
-            if let written = raw[field.name], let problem = field.problem(of: written) {
-                return problem
             }
         }
 

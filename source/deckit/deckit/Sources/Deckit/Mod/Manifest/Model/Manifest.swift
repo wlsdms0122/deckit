@@ -27,15 +27,10 @@ public struct Manifest: Sendable {
     public let permissions: [PermissionRequest]
     // Interface -> the entries the mod declares to it, each handed to the interface's owner as written.
     public let contributes: [String: [JSONValue]]
-    // What the layers' fields hold, by the key each is held under.
-    let fields: [String: any Sendable]
+    // Field -> what the manifest writes of it, as JSON writes it, of the fields the layers on deck add: theirs to read.
+    public let fields: [String: JSONValue]
 
     // MARK: - Initializer
     // MARK: - Public
-    // What the manifest holds of a field the layer that asks added to deck: the reader reads each added field into it.
-    public func value<Field: ManifestField>(of field: Field) -> Field.Value {
-        fields[field.key] as! Field.Value
-    }
-
     // MARK: - Private
 }

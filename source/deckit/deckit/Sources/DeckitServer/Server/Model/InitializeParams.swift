@@ -21,6 +21,8 @@ struct InitializeParams: Decodable {
     let sources: [String]
     // Those the layers the driver runs define, beside deckit's own.
     let permissions: [Permission]
+    // The manifest fields the layers the driver runs add.
+    let fields: [String]
 
     // MARK: - Initializer
     // MARK: - Public

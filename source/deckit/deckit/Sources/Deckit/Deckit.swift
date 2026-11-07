@@ -37,15 +37,15 @@ public final class Deckit {
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the mods the app ships, and `sources` folders of mods read in place. A manifest
     // is read against `api`, the mod contract the mods are run with, deckit's own permissions and `permissions`, those
-    // the layers the driver runs define, and `fields`, those the layers add to the manifest. `limit` is how often a
-    // mod's runs may fail, `now` the time a run fails at.
+    // the layers the driver runs define, and `fields`, the names of the fields the layers add to the manifest, whose
+    // values it carries for them. `limit` is how often a mod's runs may fail, `now` the time a run fails at.
     public init(
         home: URL,
         ship: [ShippedMod],
         sources: [URL],
         api: Version,
         permissions: [Permission],
-        fields: [any ManifestField] = [],
+        fields: [String] = [],
         limit: RelaunchLimit = RelaunchLimit(burst: 5, interval: 10),
         now: @escaping () -> Date = Date.init
     ) throws {

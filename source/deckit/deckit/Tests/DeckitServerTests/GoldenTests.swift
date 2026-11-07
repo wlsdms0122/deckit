@@ -53,7 +53,7 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "[interfaces]\nprovides = { \"a/api\" = [1], \"a/own\" = [1] }\n[permissions]\n"
+            adding: "icon = \"a.png\"\n[interfaces]\nprovides = { \"a/api\" = [1], \"a/own\" = [1] }\n[permissions]\n"
                 + "\"deckit.example\" = \"to test\"\n\"deckit.mods\" = \"to test\"\n\"system.example\" = \"to test\"\n"
                 + "[[contributes.\"a/api\"]]\ntitle = \"Size\"\nsize = 12"
         )

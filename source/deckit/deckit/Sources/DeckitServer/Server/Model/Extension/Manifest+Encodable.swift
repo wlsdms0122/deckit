@@ -22,6 +22,7 @@ extension Manifest: Encodable {
         case uses
         case permissions
         case contributes
+        case fields
     }
 
     // MARK: - Initializer
@@ -38,6 +39,7 @@ extension Manifest: Encodable {
         try container.encode(uses, forKey: .uses)
         try container.encode(permissions, forKey: .permissions)
         try container.encode(contributes, forKey: .contributes)
+        try container.encode(fields, forKey: .fields)
     }
 
     // MARK: - Private
