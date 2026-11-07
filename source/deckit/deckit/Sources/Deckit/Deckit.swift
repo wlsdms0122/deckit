@@ -18,8 +18,8 @@ public final class Deckit {
     public let runs: RunTable
     // A mod at the relaunch limit launches again only as its launch is asked.
     private var limit: RelaunchLimit
-    // The permissions deckit defines itself: a mod granted `mods` asks that another launch, and one granted
-    // `reachMods` may reach every mod by its id.
+    // The permissions deckit defines itself: a mod granted `mods` asks that another launch, one granted `reachMods`
+    // may reach every mod by its id, and the services let one granted `systemServices` act on other mods.
     static let mods = Permission(
         id: "deckit.mods",
         name: "Mods",
@@ -30,6 +30,13 @@ public final class Deckit {
         id: "deckit.reach-mods",
         name: "Reach Mods",
         means: "It connects to any mod by its id, which launches the mod if it does not run.",
+        privileged: true
+    )
+    static let systemServices = Permission(
+        id: "deckit.system-services",
+        name: "System Services",
+        means: "It can act on other mods through the system's services: run their commands, change their keys and "
+            + "settings, and choose which mod opens an address.",
         privileged: true
     )
     private let now: () -> Date
@@ -53,7 +60,7 @@ public final class Deckit {
         let deck = Deck(home: home)
         let reader = try ManifestReader(
             api: api,
-            permissions: [Deckit.mods, Deckit.reachMods] + permissions,
+            permissions: [Deckit.mods, Deckit.reachMods, Deckit.systemServices] + permissions,
             fields: fields,
             store: store
         )
