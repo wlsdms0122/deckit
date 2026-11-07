@@ -51,7 +51,7 @@ function read(folder) {
     } catch (error) {
         refuse(`case.toml does not read: ${error.message}`);
     }
-    if (!is.integer(written.case)) refuse('case is no integer');
+    if (!is.integer(written.case) || written.case < 1) refuse('case is no integer of at least 1');
     if (written.case !== FORMAT)
         throw new TooOld(`${path.basename(folder)}: this runner is too old for this case (format ${written.case})`);
 

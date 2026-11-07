@@ -72,9 +72,11 @@ function webKitStores() {
 }
 
 const main = async () => {
+    let series;
     let chosen;
     try {
-        chosen = SERIES.select(SERIES.read(spec), args);
+        series = SERIES.read(spec);
+        chosen = SERIES.select(series, args);
     } catch (error) {
         fail(`${error.message}\n${USAGE}`, 2);
     }
@@ -84,8 +86,11 @@ const main = async () => {
         );
 
     // A case the format does not take stops the run: the suite is what is wrong then.
+    const names = series.flatMap(({ cases }) => Object.keys(cases));
     const cases = [];
     for (const { deckit, name, folder } of chosen) {
+        if (names.filter((one) => one === name).length > 1)
+            fail(`not a case: ${name}: its name is another case's in the specification`);
         try {
             cases.push({ deckit, name, theCase: CASE.read(folder) });
         } catch (error) {
