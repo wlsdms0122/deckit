@@ -5,7 +5,6 @@ import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
 import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
-import * as MATCH from '../../deckit/match/match.js';
 import * as FIELD from './model/field.js';
 import * as DOCK from './model/dock.js';
 import { createKey } from '../key/main.js';
@@ -34,8 +33,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         settling: null,
         moved: null,
     };
-    // What the shell declares its commands under.
-    const PROVIDER = Object.freeze({ id: '@shell', name: 'Panel' });
     const KEY = createKey({ deckit });
     // What each of the shell's keys does, by its id.
     const KEY_ACTIONS = Object.freeze({
@@ -78,7 +75,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         stage = makeStage();
         stage.whenResized(update);
         listen();
-        declare();
         makeFrame();
         deckit.mods.onChange(reconcile);
         // Who is whose child changes with the runs, which reconcile hears too: a region's change is only layout.
@@ -122,9 +118,9 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         return true;
     }
 
-    // A mod on screen, asked by the mod itself, the shell's show command or an address it opened. One with no view in
-    // the panel has nothing to show. A child not in the list brings its parent, whose regions show what they show. One
-    // that does not run launches as the person opens it.
+    // A mod on screen, asked by the mod itself or by a mod with deckit.mods. One with no view in the panel has nothing
+    // to show. A child not in the list brings its parent, whose regions show what they show. One that does not run
+    // launches as the person opens it.
     function bringToFront(modId) {
         const front = frontOf(modId);
         if (select(front)) host.show();
@@ -310,54 +306,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     // Escape puts the panel away only where it floats over something.
     function dismisses(page) {
         return isActive(page) && look.dismissible;
-    }
-
-    // `show` puts a mod on screen, by its id, its candidates every mod there is to show.
-    function declare() {
-        deckit.commands
-            .register(PROVIDER, {
-                show: {
-                    description: 'Puts a mod on screen in the panel.',
-                    params: {
-                        type: 'object',
-                        properties: { mod: { type: 'string', title: 'Mod' } },
-                        required: ['mod'],
-                    },
-                    run: ({ mod }) => {
-                        if (!canBringToFront(mod)) throw new Error(`${mod} has nothing to show`);
-                        bringToFront(mod);
-                    },
-                    complete: (param, partial) => (param === 'mod' ? showable(partial) : []),
-                },
-            })
-            .catch((error) => deckit.log.error("the panel's commands were not declared", error));
-    }
-
-    // The mods there are to show, `{ value, title, keywords }`, every one in the list's order for nothing typed and
-    // otherwise those `partial` matches, best first.
-    function showable(partial) {
-        const candidates = inOrder()
-            .filter(({ id }) => canBringToFront(id))
-            .map(({ id, name }) => ({
-                value: id,
-                title: name,
-                keywords: FIELD.keywordsOf(deckit.mods.fieldsOf(id)),
-            }));
-        if (!partial.trim()) return candidates;
-        return candidates
-            .map((candidate) => ({
-                candidate,
-                found: MATCH.matchFields(
-                    [
-                        { text: candidate.title, name: true },
-                        { text: candidate.keywords.join(' '), weight: 0.8, cap: MATCH.TIER.INSIDE },
-                    ],
-                    partial
-                ),
-            }))
-            .filter(({ found }) => found)
-            .sort((left, right) => right.found.tier - left.found.tier || right.found.score - left.found.score)
-            .map(({ candidate }) => candidate);
     }
 
     // The pages of the mods that said they have something to show, as the mods run. A page shown stays while

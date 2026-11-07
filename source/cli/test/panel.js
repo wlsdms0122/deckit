@@ -2,8 +2,10 @@
 // rest as deckit lists them, and a drag that moves the ids it names among the places they held. The Dock's items
 // (model/dock): those kept, then those running. Where the frame's parts are (model/layout) at a panel's size. And the
 // shell's own keys (deckit-shell/shell/key/main): their table, the chords set kept in the shell's state, and the
-// privileged permission main holds a page to before it lists or changes them. Exits 1 with a line for each check that
-// failed. The packages are ES modules, so they are imported as such.
+// privileged permission main holds a page to before it lists or changes them. And the panel (shell/panel/main) over a
+// stand-in for what connect answers: the manifest fields it names, and a mod in front as a mod with deckit.mods asks,
+// launched when it does not run. Exits 1 with a line for each check that failed. The packages are ES modules, so they
+// are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -14,6 +16,7 @@ async function main() {
     const LAYOUT = await import(url('deckit-shell', 'shell', 'panel', 'model', 'layout.js'));
     const DOCK = await import(url('deckit-shell', 'shell', 'panel', 'model', 'dock.js'));
     const { createKey } = await import(url('deckit-shell', 'shell', 'key', 'main.js'));
+    const { createPanel } = await import(url('deckit-shell', 'shell', 'panel', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -161,12 +164,113 @@ async function main() {
         ''
     );
 
+    // The panel: `notes` has a view and does not run, `switcher` holds deckit.mods and has no view.
+    const panel = panelOver(createPanel, {
+        mods: [
+            { id: 'notes', name: 'Notes', uses: {} },
+            { id: 'switcher', name: 'Switcher', uses: {} },
+        ],
+        fields: { notes: { view: {} }, switcher: {} },
+        managers: ['switcher'],
+    });
+    check(
+        'the panel names the manifest fields it reads before deckit starts',
+        panel.named.join() === 'view,icon,keywords',
+        panel.named
+    );
+    let started = '';
+    try {
+        panel.PANEL.start();
+    } catch (error) {
+        started = error.message;
+    }
+    check('the panel starts on what connect answers', started === '', started);
+    const opening = panel.ask('open', { id: 'notes' }, 'switcher');
+    await opening;
+    check(
+        'a mod with deckit.mods puts a mod in front, which launches as it does not run',
+        panel.launched.join() === 'notes' && panel.shown.length === 1,
+        { launched: panel.launched, shown: panel.shown }
+    );
+    const refusals = [
+        await panel.ask('open', { id: 'notes' }, 'notes').then(() => '', (error) => error.kind || error.message),
+        await panel.ask('open', { id: 'switcher' }, 'switcher').then(() => '', (error) => error.message),
+    ];
+    check(
+        'a mod without deckit.mods is refused, and so is a mod with nothing to show',
+        refusals[0] === 'REFUSED' && refusals[1] !== '' && panel.launched.length === 1,
+        refusals
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
     }
     console.log(`ok: ${count} panel checks`);
     process.exit(0);
+}
+
+// `createPanel` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
+// that hold deckit.mods, and `dock` as the host app hands it. `ask(name, payload, mod)` asks one of the panel's
+// channels as the page of `mod`.
+function panelOver(createPanel, { mods, fields, managers, dock = null, state = {} }) {
+    const handlers = {};
+    const named = [];
+    const launched = [];
+    const shown = [];
+    const page = (mod) => ({ mod });
+    const channel = (declared) => ({
+        handle: (handler) => (handlers[declared.channel] = handler),
+        on: (handler) => (handlers[declared.channel] = handler),
+        send() {},
+        invoke: async () => true,
+    });
+    const deckit = {
+        config: { name: 'Deckit' },
+        channels: { bind: channel },
+        fields: { define: (key) => named.push(key) },
+        permissions: { define() {} },
+        state: { read: (key, fallback) => state[key] ?? fallback, write: async (key, value) => (state[key] = value) },
+        keymap: { listen() {} },
+        core: { onDown() {} },
+        pages: { whenEnds() {} },
+        web: { pageFor: () => null },
+        log: { error() {} },
+        mods: {
+            notifications: [],
+            list: () => mods,
+            shipped: () => mods.map(({ id }) => id),
+            runs: () => [],
+            runOf: () => null,
+            fieldsOf: (id) => fields[id] ?? null,
+            modOf: (sender) => sender?.mod ?? null,
+            managerFrom: (sender) => {
+                if (managers.includes(sender?.mod)) return sender.mod;
+                throw Object.assign(new Error(`${sender?.mod} does not have deckit.mods`), { kind: 'REFUSED' });
+            },
+            launch: async (id) => launched.push(id),
+            observe() {},
+            onChange() {},
+        },
+    };
+    const stage = { whenResized() {}, size: () => ({ width: 800, height: 600 }), lay() {}, show() {} };
+    const PANEL = createPanel({
+        REGION: {
+            onChange() {},
+            parentOf: () => null,
+            interfaceOf: () => null,
+            laidOut: () => new Map(),
+            rectOf: () => null,
+        },
+        PAGES: { open: () => page(null), whenFocused() {}, focus() {}, isAlive: () => true },
+        OVERLAY: { onChange() {}, withOverlays: (laid) => laid, holdsKeyboard: () => false, ownerOf: (one) => one },
+        makeStage: () => stage,
+        deckit,
+        host: { show: () => shown.push(true), showsPanel: () => true, panelTitled() {}, dismiss() {} },
+        dock,
+    });
+    const ask = async (name, payload, mod) => handlers[`deckit-shell:panel-${name}`](payload, page(mod));
+    return { PANEL, named, launched, shown, state, ask };
 }
 
 main().catch((error) => {
