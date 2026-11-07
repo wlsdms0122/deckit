@@ -154,12 +154,16 @@ function stepOf(step, number, refuse) {
     return { number, ...step, kind, what: step[kind], expect };
 }
 
-// `start` first, again only after a `quit`, and nothing after a start that is refused.
+// `start` first, again only after a `quit`, looks only while the app is started, and nothing after a start that is
+// refused.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
         if (index === 0 && step.what !== 'start') refuse('step 1 is no start');
-        if (step.kind !== 'input') continue;
+        if (step.kind !== 'input') {
+            if (!up) refuse(`step ${step.number} looks after a quit`);
+            continue;
+        }
         if (step.what === 'start') {
             if (up) refuse(`step ${step.number} starts the app before a quit`);
             up = true;
