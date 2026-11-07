@@ -1,0 +1,4 @@
+id = "notes"
+version = "1.0.0"
+api = "1.0.0"
+main = "../notes/main.js"

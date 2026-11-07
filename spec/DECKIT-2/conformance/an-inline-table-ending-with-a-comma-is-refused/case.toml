@@ -1,0 +1,20 @@
+case = 1
+name = "an-inline-table-ending-with-a-comma-is-refused"
+note = "An inline table holds no \",\" after its last key and value, and one that does refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

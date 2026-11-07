@@ -1,0 +1,20 @@
+case = 1
+name = "a-surrogate-escape-is-refused"
+note = "A \\u escape gives a Unicode scalar value; \\uD800 gives none and refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

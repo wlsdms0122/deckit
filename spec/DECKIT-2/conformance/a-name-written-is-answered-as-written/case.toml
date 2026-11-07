@@ -1,0 +1,19 @@
+case = 1
+name = "a-name-written-is-answered-as-written"
+note = "A name written is answered as written, its white space too."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "name"
+
+[step.expect]
+answers = " Notes "

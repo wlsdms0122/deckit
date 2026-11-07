@@ -1,0 +1,19 @@
+case = 1
+name = "majors-out-of-order-are-refused"
+note = "provides maps an interface to majors, each greater than the one before it. [2, 1] writes them out of order, and refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

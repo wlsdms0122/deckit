@@ -1,0 +1,21 @@
+case = 1
+name = "a-reason-is-answered-without-white-space-code-points-at-its-ends"
+note = "A reason is answered without the code points with White_Space at its ends: U+3000, U+2028, LF, U+000B and U+0085 are each dropped."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "case.sync", reason = "Syncs.", usable = false },
+]

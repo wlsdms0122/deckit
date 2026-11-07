@@ -1,0 +1,19 @@
+case = 1
+name = "an-id-of-64-code-points-is-taken"
+note = "An id is at most 64 code points; one of 64 is taken."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "nooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+part = "id"
+
+[step.expect]
+answers = "nooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"

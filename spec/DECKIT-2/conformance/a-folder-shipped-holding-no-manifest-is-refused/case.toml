@@ -1,0 +1,19 @@
+case = 1
+name = "a-folder-shipped-holding-no-manifest-is-refused"
+note = "A folder the system is handed to read as a bundle, and which holds no manifest.toml, is refused at read with kind NOT_LOADABLE."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

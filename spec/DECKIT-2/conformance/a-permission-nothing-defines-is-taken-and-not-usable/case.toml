@@ -1,6 +1,6 @@
 case = 1
 name = "a-permission-nothing-defines-is-taken-and-not-usable"
-note = "A permission that neither the system, a layer nor the host defines is taken and is not usable. Its reach is told by its id, and its reason is answered without the white space at its ends."
+note = "A permission asked for that neither the system, a layer nor the host defines leaves the bundle taken, and the permission is not usable."
 
 [host]
 base = "system"
@@ -17,5 +17,5 @@ part = "permissions"
 
 [step.expect]
 answers = [
-    { id = "system.case-camera", reach = "system", reason = "Takes a photo of a page.", usable = false },
+    { id = "system.case-camera", reason = "Takes a photo of a page.", usable = false },
 ]

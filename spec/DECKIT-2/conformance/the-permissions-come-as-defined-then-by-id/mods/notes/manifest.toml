@@ -1,0 +1,13 @@
+id = "notes"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+alpha = "Alpha."
+m-case = "M."
+"system.b-case" = "B."
+zeta = "Zeta."
+b-case = "B."
+"system.case-net" = "Net."
+"system.a-case" = "A."

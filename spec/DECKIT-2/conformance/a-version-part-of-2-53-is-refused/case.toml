@@ -1,0 +1,19 @@
+case = 1
+name = "a-version-part-of-2-53-is-refused"
+note = "A version's part is a number of at most 2^53 - 1. A version of 9007199254740992.0.0 refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

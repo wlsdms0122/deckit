@@ -1,0 +1,17 @@
+case = 1
+name = "a-folder-holding-no-manifest-is-passed-over"
+note = "A folder that holds no manifest.toml is not a bundle, and where the system looks through a folder of bundles it lists nothing for one."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes", "shelf"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["notes"]

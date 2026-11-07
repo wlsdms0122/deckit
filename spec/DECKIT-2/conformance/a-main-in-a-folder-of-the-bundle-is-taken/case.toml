@@ -1,0 +1,19 @@
+case = 1
+name = "a-main-in-a-folder-of-the-bundle-is-taken"
+note = "A path is segments apart at \"/\", resolved from the bundle's folder. A main of two segments naming a regular file inside the bundle is taken, and answered as written."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "main"
+
+[step.expect]
+answers = "lib/main.js"

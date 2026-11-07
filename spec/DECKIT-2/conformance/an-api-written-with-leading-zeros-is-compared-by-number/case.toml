@@ -1,0 +1,19 @@
+case = 1
+name = "an-api-written-with-leading-zeros-is-compared-by-number"
+note = "A version's parts are numbers, 1*DIGIT. 01.02.0 is the version 1.2.0, satisfied by a host that runs 1.2.0, and answered as written."
+
+[host]
+base = "system"
+api = "1.2.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "api"
+
+[step.expect]
+answers = "01.02.0"

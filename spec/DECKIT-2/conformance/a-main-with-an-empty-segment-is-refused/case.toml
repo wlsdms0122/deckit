@@ -1,0 +1,19 @@
+case = 1
+name = "a-main-with-an-empty-segment-is-refused"
+note = "A path's segment holds at least one code point. A main with two \"/\" in a row is refused at read, though the file system would find the file it names."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

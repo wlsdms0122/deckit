@@ -1,6 +1,6 @@
 case = 1
 name = "a-privileged-permission-is-taken-for-a-shipped-system-mod"
-note = "A bundle the host ships and marks system is a system mod, and a privileged permission it asks for is taken and usable, answered with its definition and its reach."
+note = "A bundle the host ships and marks system is a system mod, and it is taken though it asks for a privileged permission, which is usable."
 
 [host]
 base = "system"
@@ -19,5 +19,5 @@ part = "permissions"
 
 [step.expect]
 answers = [
-    { id = "case.drive", name = "Drive", means = "Drives every other mod.", privileged = true, reach = "app", reason = "Drives the other mods.", usable = true },
+    { id = "case.drive", name = "Drive", means = "Drives every other mod.", privileged = true, reason = "Drives the other mods.", usable = true },
 ]

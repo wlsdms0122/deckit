@@ -4,4 +4,4 @@ api = "1.0.0"
 main = "main.js"
 
 [permissions]
-"system.case-camera" = "  Takes a photo of a page. "
+"system.case-camera" = "Takes a photo of a page."

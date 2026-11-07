@@ -1,0 +1,19 @@
+case = 1
+name = "a-key-of-interfaces-but-provides-and-uses-is-refused"
+note = "interfaces holds provides and uses and no other key. offers refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

@@ -1,0 +1,28 @@
+case = 1
+name = "the-values-of-an-added-field-are-handed-as-written"
+note = "What the system hands on as written is a value, each TOML kind as one kind: a basic string with its escapes, a literal string without them, an integer as a number (007 as 7), a boolean, an array over lines with comments and a last comma, an inline table, and an array of tables."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "fields"
+
+[step.expect.answers.extra]
+text = "a\tb \u00e9 \U0001F600 \"q\" \\"
+literal = 'C:\path'
+zero = 7
+plus = 5
+minus = -3
+flag = false
+list = [1, "two", [3]]
+inline = { a = { b = 1 }, "c d" = [] }
+rows = [{ n = 1 }, { n = 2 }]

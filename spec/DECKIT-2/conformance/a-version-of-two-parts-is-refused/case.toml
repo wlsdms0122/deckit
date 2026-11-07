@@ -1,0 +1,19 @@
+case = 1
+name = "a-version-of-two-parts-is-refused"
+note = "A version is MAJOR.MINOR.PATCH. 1.0 refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

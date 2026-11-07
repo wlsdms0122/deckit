@@ -1,0 +1,25 @@
+case = 1
+name = "a-bundle-refused-is-listed-under-the-id-it-writes"
+note = "A bundle the system does not take, found in a folder of bundles, is listed under the id its manifest writes where its text reads, not under its folder's name."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["shelf"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["notes"]
+
+[[step]]
+look = "mod"
+mod = "notes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

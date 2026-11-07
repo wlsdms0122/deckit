@@ -1,0 +1,19 @@
+case = 1
+name = "contributed-entries-are-answered-in-the-order-written"
+note = "contributes maps an interface to an array of tables, which may be empty; each entry is handed as a value, in the order written."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "contributes"
+
+[step.expect]
+answers = { "notes/empty" = [], "switcher/actions" = [{ title = "New Page", command = "new-page" }, { title = "Open", command = "open" }] }

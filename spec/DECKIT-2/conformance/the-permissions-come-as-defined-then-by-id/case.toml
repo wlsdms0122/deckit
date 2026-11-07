@@ -1,0 +1,32 @@
+case = 1
+name = "the-permissions-come-as-defined-then-by-id"
+note = "Permissions asked for come with the usable ones first, in the order they were defined, and then the ones not usable, by their ids compared as Unicode scalar values."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [
+    { id = "zeta", name = "Zeta", means = "Last letter.", privileged = false },
+    { id = "system.case-net", name = "Net", means = "Reaches the network.", privileged = false },
+    { id = "alpha", name = "Alpha", means = "First letter.", privileged = false },
+]
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "zeta", reason = "Zeta.", usable = true, name = "Zeta", means = "Last letter.", privileged = false },
+    { id = "system.case-net", reason = "Net.", usable = true, name = "Net", means = "Reaches the network.", privileged = false },
+    { id = "alpha", reason = "Alpha.", usable = true, name = "Alpha", means = "First letter.", privileged = false },
+    { id = "b-case", reason = "B.", usable = false },
+    { id = "m-case", reason = "M.", usable = false },
+    { id = "system.a-case", reason = "A.", usable = false },
+    { id = "system.b-case", reason = "B.", usable = false },
+]

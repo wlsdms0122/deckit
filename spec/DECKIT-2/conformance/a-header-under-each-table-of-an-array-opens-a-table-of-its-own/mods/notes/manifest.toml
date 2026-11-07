@@ -1,0 +1,16 @@
+id = "notes"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."switcher/actions"]]
+title = "New Page"
+
+[contributes."switcher/actions".when]
+focused = true
+
+[[contributes."switcher/actions"]]
+title = "Delete Page"
+
+[contributes."switcher/actions".when]
+focused = false
