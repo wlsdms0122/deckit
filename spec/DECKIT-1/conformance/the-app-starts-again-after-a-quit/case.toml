@@ -1,0 +1,23 @@
+case = 1
+name = "the-app-starts-again-after-a-quit"
+note = "A quit is answered nothing, and a case starts the host app again only after a quit. The host app started again finds the bundle read in place."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["notes"]

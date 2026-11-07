@@ -1,0 +1,16 @@
+case = 1
+name = "a-file-beside-case-toml-is-not-the-cases"
+note = "What else a case's folder holds is not the case's: a file beside case.toml is passed over, and the case runs."
+
+[host]
+base = "system"
+api = "1.0.0"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = []
