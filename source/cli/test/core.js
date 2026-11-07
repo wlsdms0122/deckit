@@ -1,8 +1,9 @@
 // Deckit's client of the core (deckit-shell/deckit/core), checked over a stand-in for how the environment reaches the
-// core: what it sends first, the shipped folders with their system marks, the permissions the layers define with their
-// tier (deckit/permission) and the manifest fields they name (deckit/manifest-field), how it waits for that, what an
-// answer and a refusal come to, and that a core that ended refuses everything after. Exits 1 with a line for each check
-// that failed. The packages are ES modules, so they are imported as such.
+// core: what it sends first, the version of the mod contract it runs mods with, the shipped folders with their system
+// marks, the permissions the layers define with their tier (deckit/permission) and the manifest fields they name
+// (deckit/manifest-field), how it waits for that, what an answer and a refusal come to, and that a core that ended
+// refuses everything after. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -56,7 +57,7 @@ async function main() {
         ],
         sources: [],
     };
-    const CORE = createCore({ FOLDERS, LOG, core, home: '/home/deckit' });
+    const CORE = createCore({ FOLDERS, LOG, core, home: '/home/deckit', api: '1.2.0' });
     const PERMISSION = createPermission();
     PERMISSION.define({ id: 'a.b', name: 'B', means: 'It does b.' });
     PERMISSION.define({ id: 'a.c', name: 'C', means: 'It does c.', privileged: true });
@@ -76,6 +77,7 @@ async function main() {
     check('initialize goes first, alone', sent.length === 1 && sent[0].method === 'initialize', sent);
     const { params } = sent[0];
     check('initialize carries the home', params.home === '/home/deckit', params);
+    check('initialize carries the version of the mod contract the host app names', params.api === '1.2.0', params);
     check(
         'initialize carries each shipped folder with its system mark',
         JSON.stringify(params.ship) === JSON.stringify(FOLDERS.ship),

@@ -31,14 +31,16 @@ import { createModFolder } from '../mod-folder/main.js';
 import { createRuntime } from '../runtime/main.js';
 import { createSetup } from '../setup/main.js';
 import { createApi } from '../api/index.js';
+import { API } from '../contract/index.js';
 
 // MARK: - Property
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
-// keeps, and `name` is what a person reads.
+// keeps, `name` is what a person reads, and `api` the version of the mod contract deckit runs mods with, which the
+// core judges.
 // `folders`: `home` is deckit's folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships,
 // installed at every start, each `{ folder, system }`, `system` whether the host app names it a system mod, and
 // `sources` folders of mods read in place, ahead of installed ones.
-const CONFIG = { id: 'deckit', name: 'Deckit' };
+const CONFIG = { id: 'deckit', name: 'Deckit', api: API };
 const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process and its windows are its own.
 const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
@@ -101,7 +103,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const LOG = createLog({ log: ENV.log, reports: ENV.reports, about: ENV.about, folder: HOME.logs, name: CONFIG.id });
     // The channels are carried before anything crosses.
     IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
-    const CORE = createCore({ FOLDERS, LOG, core: ENV.core, home: HOME.folder });
+    const CORE = createCore({ FOLDERS, LOG, core: ENV.core, home: HOME.folder, api: CONFIG.api });
     const STORAGE = createStorage({ CORE, LOG });
     const PERMISSION = createPermission();
     const MANIFEST_FIELD = createManifestField();

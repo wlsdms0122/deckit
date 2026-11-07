@@ -1,9 +1,8 @@
 import * as MESSAGE from './message.js';
-import { API } from '../contract/index.js';
 
 // The core: deckit's own, which reads and installs the mods, and keeps what they store and the state. `core` is how
-// the environment reaches it, and `home` deckit's folder.
-export function createCore({ FOLDERS, LOG, core, home }) {
+// the environment reaches it, `home` deckit's folder, and `api` the version of the mod contract it runs mods with.
+export function createCore({ FOLDERS, LOG, core, home, api }) {
     // MARK: - Property
     const pending = new Map(); // request id -> { resolve, reject }
     let connection = null;
@@ -26,7 +25,7 @@ export function createCore({ FOLDERS, LOG, core, home }) {
         });
         ready = send('initialize', {
             home,
-            api: API,
+            api,
             ship: FOLDERS.ship,
             sources: FOLDERS.sources,
             permissions,
