@@ -19,6 +19,39 @@ main = "../shared.js"  # a file outside the bundle
 color = "blue"         # a key no one reads: passed over, or refused
 ```
 
+Three more, each a whole bundle read in place. A mod that is not a system mod asks for a permission its host defines privileged, and is refused as its bundle is read, or taken and refused only when it first calls:
+
+```toml
+id = "notes"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"case.drive" = "Drives the other mods."   # the host defines case.drive privileged
+```
+
+A bundle that is taken is answered to the host, and what the answer holds decides what every host can show of it: its name where none is written, its reason as written or trimmed, its permissions in which order:
+
+```toml
+id = "notes"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+zeta = " Syncs the pages. "
+alpha = "Takes a photo of a page."
+```
+
+A bundle that is refused is still a mod the host finds, and must be listed under some name for the host to say why it does not run: the id it writes, its folder's name, or none:
+
+```toml
+id = "notes"           # in a folder named shelf
+api = "1.0.0"          # no version: refused
+main = "main.js"
+```
+
 A layer on the system and a host add fields and permissions of their own (the shell adds the fields it draws a mod with), and a mod written for a host with more layers is read by a host with fewer. What such a bundle comes to cannot be left to each implementation either.
 
 ## Rules
@@ -38,9 +71,13 @@ segment = 1*( any code point but "/" and "\" )      ; and not ".."
 
 A path is resolved from the bundle's folder, following every link, and names a regular file whose resolved place is inside the bundle's resolved folder.
 
+A name the system looks up in a folder, each segment of a path and the name `manifest.toml`, names the entry of that folder whose name is the same sequence of Unicode scalar values. No case is folded and nothing is normalized.
+
+**Note.** On a file system that ignores case, or that takes two normalizations of a name as one, opening a name may find an entry of another spelling. An implementation there lists the folder and compares the names itself, for each segment of a path and for `manifest.toml`, which costs a listing for each name looked up.
+
 ### The manifest's text
 
-A manifest is UTF-8 text in a subset of TOML. A leading U+FEFF is dropped, the text is split into lines at LF, and a CR that ends a line is dropped. The notation is ABNF's; `ws` is any code point with the Unicode property White_Space, but LF.
+A manifest is UTF-8 text in a language based on TOML, which the grammar below gives whole. A leading U+FEFF is dropped, the text is split into lines at LF, and a CR that ends a line is dropped. The notation is ABNF's; `ws` is any code point with the Unicode property White_Space, but LF.
 
 ```
 manifest       = line *( LF line )
@@ -66,15 +103,17 @@ vs             = *( ws / LF )
 comment        = "#" *( any code point but LF )
 ```
 
+A key is the string it writes: a `bare-key` its code points, a `quoted-key` the string its `basic-string` gives. Two keys are the same key when they are the same sequence of Unicode scalar values, and nothing is normalized.
+
 What the grammar does not hold refuses the bundle at `read` with kind `NOT_LOADABLE`, and so does each of these:
 
 - An entry is one line. A `key-value` whose value holds more `[` than `]` outside its strings goes on to the next lines until they balance, and a comment may end each of those lines.
 - The key of a `key-value` is the text before the first `=` of its line, so a `quoted-key` there holds no `=`.
 - A `\u` or `\U` escape gives a Unicode scalar value.
-- An integer is one a signed 64-bit integer holds.
+- An integer lies from -(2^53 - 1) to 2^53 - 1, that is from -9007199254740991 to 9007199254740991.
 - Arrays and inline tables nest at most 32 deep.
 - A `key-value` sets its key in the table the last header opened, or in the root before any header. A key set twice in one table, an inline table among them, refuses.
-- A `table-header` opens the table at its path, making each table on the way. A path opened by a `table-header` twice refuses, and so does one that holds an array of tables.
+- A `table-header` opens the table its path reaches, making each table on the way. A table opened by a `table-header` twice refuses, and so does a `table-header` whose path ends at an array of tables.
 - An `array-header` adds a new table at the end of the array of tables at its path, making the array the first time. One whose path holds a value that no `array-header` made, or a table a `table-header` opened, refuses.
 - A header's path that goes through an array of tables goes on in its last table. A header's path that reaches a key holding any value but a table or an array of tables refuses.
 
@@ -82,7 +121,17 @@ A table holds no order: two manifests whose tables hold the same keys bound to t
 
 **Note.** The grammar has no floats, dates, times, multi-line strings, literal keys or dotted keys. A key that holds a `.` is quoted, `"system.network" = "…"`, because a bare `a.b = 1` would read in TOML as a table inside a table, and this reader reads no such thing rather than read it otherwise.
 
-**Note.** Two spellings differ from TOML 1.0: an integer with leading zeros, `007`, is read as 7, where TOML refuses it, and an array may end with a `,`, as TOML allows and an inline table does not.
+**Note.** Beyond what the grammar leaves out, the language takes some text TOML 1.0 refuses and refuses some it takes, so a TOML library does not read it as the rules above do. These are every such difference:
+
+- `ws` is every code point with White_Space but LF, where TOML has only space and tab.
+- A string and a comment take control characters, which TOML refuses.
+- A value with more `[` than `]` goes on over lines, so an inline table inside an open `[` may span lines, where TOML holds an inline table on one line.
+- A header may go on in a table an inline table wrote, `extra = { a = 1 }` then `[extra]`, where TOML refuses it.
+- An integer with leading zeros, `007`, is read as 7, where TOML refuses it.
+- An integer lies within ±(2^53 - 1), where TOML takes every integer a signed 64-bit integer holds.
+- A last `,` is no difference: an array may end with one and an inline table may not, as in TOML 1.0.
+
+**Note.** The bound on integers is the widest range in which every integer is a double-precision number that no other integer rounds to, so an integer is handed as the same number in every host language and on the web, and a case can measure it on both sides. A layer that needs a larger integer reads it written as a string.
 
 ### A manifest's values as values
 
@@ -120,7 +169,7 @@ interface = name-part "/" name-part
 name-part = ( lower / DIGIT ) *63( lower / DIGIT / "." / "_" / "-" )   ; holding no ".."
 lower     = %x61-7A                                                     ; a to z
 version   = number "." number "." number                               ; MAJOR.MINOR.PATCH
-number    = 1*DIGIT                                                     ; one a signed 64-bit integer holds
+number    = 1*DIGIT                                                     ; at most 2^53 - 1, 9007199254740991
 major     = an integer, at least 0
 ```
 
@@ -132,7 +181,7 @@ A table, whether a header or an inline table writes it, of `provides` and `uses`
 
 | key | value | what it says |
 |---|---|---|
-| `provides` | table: `interface` → a non-empty array of `major` | the interfaces the mod provides, each with the majors of it the mod speaks |
+| `provides` | table: `interface` → a non-empty array of `major`, each greater than the one before it | the interfaces the mod provides, each with the majors of it the mod speaks |
 | `uses` | table: `interface` → a `major` | the interfaces the mod uses, each with the one major of it the mod speaks |
 
 ```toml
@@ -152,9 +201,7 @@ A table: a permission's id → a string, not blank, that says why the mod asks f
 "system.network" = "Syncs the pages."
 ```
 
-A permission's id is any string a `key` writes. A permission no layer and no host on this host defines is taken, and is **not usable**: the mod runs without what it guards. A permission defined **privileged** is taken only for a system mod; asked for by any other, it refuses the bundle. A **system mod** is one whose bundle the host ships and marks system, and no other: a bundle read in place, or installed from a folder, is not one.
-
-A permission's **reach** is told by its id: one that begins with `system.` reaches past the app, and is of reach `system`; any other reaches inside it, and is of reach `app`.
+A permission's id is any string a `key` writes. Where a permission asked for is one that neither the system, a layer nor the host on this host defines, the bundle is still taken, and the permission is **not usable**: the mod runs without what it guards. A bundle that asks for a permission defined **privileged** is taken only when it is a system mod's, and any other refuses at `read` with kind `NOT_LOADABLE`. A **system mod** is one whose bundle the host ships and marks system, and no other: a bundle read in place, or installed from a folder, is not one.
 
 #### contributes
 
@@ -178,9 +225,30 @@ The host runs mods with one version of the mod contract. A bundle is taken only 
 
 Before the app starts, each layer on the system and the host may add manifest fields and define permissions. The system defines permissions of its own, which the permissions' DECKIT fixes.
 
-A **field** is added by its name, a string. The field is then a top-level key a manifest may write, with any value, and the system judges nothing of its value: it hands it on as written, as a value, to whatever reads it, and the layer or host that added it judges it where it reads it. Where a field added is one of the fields above, or is added twice, the app's start refuses at `call` with kind `FIELD`.
+A **field** is added as:
 
-A **permission** is defined by its `id`, a string; its `name` and its `means`, strings, not blank, shown wherever the permission is listed; and whether it is `privileged`, a boolean, `false` where not given. Where a permission's id is defined twice, by the system, a layer or the host, the app's start refuses at `call` with kind `PERMISSION`.
+| key | value | required | what it says |
+|---|---|---|---|
+| `name` | string: any string a `key` writes | yes | the field's name, the top-level key a manifest writes it by |
+
+The field is then a top-level key a manifest may write, with any value, and the system judges nothing of its value: it hands it on as written, as a value, to whatever reads it, and the layer or host that added it judges it where it reads it.
+
+A field added refuses the app's start at `call` with kind `FIELD` where it is not as the table gives, where its name is one of the fields above, or where it is added twice.
+
+A **permission** is defined as:
+
+| key | value | required | what it says |
+|---|---|---|---|
+| `id` | string: any string a `key` writes | yes | the permission's id, the key a manifest asks for it by |
+| `name` | string, not blank | yes | the name the permission is listed by |
+| `means` | string, not blank | yes | what the permission grants, shown wherever it is listed |
+| `privileged` | boolean | no | whether only a system mod may ask for it; `false` where not given |
+
+A permission defined refuses the app's start at `call` with kind `PERMISSION` where it is not as the table gives, or where its id is defined twice, by the system, a layer or the host.
+
+Two field names are one name, and two permission ids one id, when they are the same sequence of Unicode scalar values, as two keys are, wherever they are written, asked for or defined.
+
+**Note.** No case holds a definition whose `privileged` is not a boolean, or whose name or id is not a string a `key` writes, because [the case format](../DECKIT-1/SPEC.md) types each of them and a case cannot hand one.
 
 **Note.** A host with fewer layers than the one a mod was written for still takes its bundle: a permission no layer defines is not usable, and a mod reads what it reaches as it runs. A field no layer adds is refused, because a field is read where the bundle is read and a misspelled one would otherwise pass unseen.
 
@@ -205,12 +273,11 @@ Each permission asked for is answered as:
 | key | value |
 |---|---|
 | `id` | string: the id |
-| `reach` | `"system"` or `"app"` |
-| `reason` | string: what the manifest writes, without the white space at its ends |
+| `reason` | string: what the manifest writes, without the code points with White_Space at its ends |
 | `usable` | boolean: whether a layer or the host on this host, or the system, defines it |
 | `name`, `means`, `privileged` | as the permission is defined; absent where it is not usable |
 
-The permissions come with reach `system` first and reach `app` after. Within each reach, the usable ones come in the order they were defined, the system's own first, and then the ones not usable, by their ids compared as Unicode scalar values.
+The usable permissions come first, in the order they were defined, the system's own first. Then come the ones not usable, by their ids compared as Unicode scalar values: at the first place two ids differ, the one whose scalar value there is smaller comes first, and an id that the other begins with comes before it.
 
 A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`, and no run of it starts. Where it was found in a folder of bundles or shipped by the host, it is still listed, under the id its manifest writes where the manifest's text reads and its `id` is a non-empty string, and otherwise under its folder's name.
 
@@ -232,8 +299,6 @@ A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`,
 
 ## Notes
 
-**Note.** An added field's integer is handed as a number, and a number beyond 2^53 in size loses its last digits where the value travels as JSON does. A layer that needs a larger integer reads it written as a string.
-
 **Note.** A refusal's message is not measured, and an implementation says it as it likes. The cases under `conformance/` measure that a bundle is taken or refused at `read` with kind `NOT_LOADABLE`, and what it is answered.
 
-**Note.** No runner reads [the case format](../DECKIT-1/SPEC.md) at this commit, so the cases under `conformance/` have not run, and this DECKIT stays `draft` until they pass on an implementation pinned at this commit (criterion C5).
+**Note.** Four sentences above are held by no case under `conformance/`, and each waits on what will hold it. That a folder of bundles passes over every name that begins with `.` waits on [the case format](../DECKIT-1/SPEC.md), whose `bundle-name` cannot begin with one. That a bundle installed from a folder is not a system mod waits on the catalog's DECKIT, which gives installing. That no run of a refused bundle starts waits on the lifecycle's DECKIT, whose states the `run` look reads. That the system's own permissions come first waits on the permissions' DECKIT, which fixes them.
