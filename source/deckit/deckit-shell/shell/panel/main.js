@@ -75,6 +75,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         if (!kept) deckit.state.write(PINNED, [...pinned]);
         if (!kept && !arranged) deckit.state.write(ORDER, order);
         KEY.start();
+        deckit.keymap.monitor(monitor);
         stage = makeStage();
         stage.whenResized(update);
         listen();
@@ -100,25 +101,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     function isActive(page) {
         if (!shown || (page !== frameContents() && !onScreen().includes(page))) return false;
         return !!host.showsPanel(page);
-    }
-
-    // A keystroke in a deckit page, before the page has it: answers whether the panel took it. In the panel's page in
-    // front a chord of one of the shell's keys runs that key. Escape puts the panel away where the panel floats over
-    // something, once the page did not take it: the frame or a mod's page plays it out and answers whether it did. In
-    // its own window Escape is the window's.
-    function monitor(page, keystroke) {
-        if (isEscape(keystroke)) {
-            if (!dismisses(page)) return false;
-            PROTOCOL.escape
-                .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
-                .then((taken) => !taken && dismisses(page) && host.dismiss())
-                .catch(() => {});
-            return true;
-        }
-        const id = isActive(page) ? KEY.idOf(keystroke) : null;
-        if (!id) return false;
-        KEY_ACTIONS[id]();
-        return true;
     }
 
     // A mod on screen, asked by the mod itself or by a mod with deckit.mods. One with no view in the panel has nothing
@@ -187,6 +169,28 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
             bringToFront(id);
         });
         PROTOCOL.restart.on((_payload, sender) => fromFrame(sender) && down && deckit.restart());
+    }
+
+    // A key pressed in a page of the app, before the page has it: answers whether the panel took it. It is the key of
+    // the deckit page it was pressed in, or of the one whose overlay or web page that is. In the panel's page in front
+    // a chord of one of the shell's keys runs that key. Escape puts the panel away where the panel floats over
+    // something, once the page did not take it: the frame or a mod's page plays it out and answers whether it did. In
+    // its own window Escape is the window's.
+    function monitor(pressedIn, keystroke) {
+        const page = deckit.web.pageFor(OVERLAY.ownerOf(pressedIn));
+        if (!page) return false;
+        if (isEscape(keystroke)) {
+            if (!dismisses(page)) return false;
+            PROTOCOL.escape
+                .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
+                .then((taken) => !taken && dismisses(page) && host.dismiss())
+                .catch(() => {});
+            return true;
+        }
+        const id = isActive(page) ? KEY.idOf(keystroke) : null;
+        if (!id) return false;
+        KEY_ACTIONS[id]();
+        return true;
     }
 
     // The frame's page is the shell's own, made once, over every mod's view where it draws. It opens its backdrop and
@@ -798,7 +802,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
             shown: () => shown,
         },
         isActive,
-        monitor,
         bringToFront,
         canBringToFront,
     };

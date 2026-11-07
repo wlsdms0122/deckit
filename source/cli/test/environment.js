@@ -29,7 +29,7 @@ const USED = {
         managerFrom: 'function',
     },
     pages: { add: 'function', whenEnds: 'function', nameOf: 'function' },
-    keymap: { listen: 'function' },
+    keymap: { listen: 'function', monitor: 'function' },
     state: { read: 'function', write: 'function' },
     web: { pageFor: 'function', holdsKeyboard: 'function' },
     log: { warn: 'function' },

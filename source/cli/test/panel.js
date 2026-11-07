@@ -3,9 +3,9 @@
 // (model/dock): those kept, then those running. Where the frame's parts are (model/layout) at a panel's size. And the
 // shell's own keys (deckit-shell/shell/key/main): their table, the chords set kept in the shell's state, and the
 // privileged permission main holds a page to before it lists or changes them. And the panel (shell/panel/main) over a
-// stand-in for what connect answers: the manifest fields it names, and a mod in front as a mod with deckit.mods asks,
-// launched when it does not run. Exits 1 with a line for each check that failed. The packages are ES modules, so they
-// are imported as such.
+// stand-in for what connect answers: the manifest fields it names, a mod in front as a mod with deckit.mods asks,
+// launched when it does not run, and the shell's keys and Escape as the keymap's monitor tells them. Exits 1 with a
+// line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -232,6 +232,65 @@ async function main() {
         left
     );
 
+    // The shell's keys, pressed in a page of the app where the panel is in front, run what they do.
+    const keyed = panelOver(createPanel, {
+        mods: ['a', 'b'].map((id) => ({ id, name: id.toUpperCase(), uses: {} })),
+        fields: { a: { view: {} }, b: { view: {} } },
+        managers: [],
+        keepers: ['settings'],
+        running: ['a', 'b'],
+        answers: { 'deckit-shell:panel-escape': false },
+    });
+    keyed.PANEL.start();
+    const toggle = { code: 'Backslash', meta: true };
+    const collapsed = () => keyed.state['panel-frame']?.collapsed;
+    const front = async () => (await keyed.ask('frame-setup', {}, FRAME)).state.current;
+    check("a key pressed while the panel is not up is not the panel's", keyed.press(FRAME, toggle) === false, '');
+    keyed.PANEL.control.show();
+    check(
+        "the shell's key toggles the sidebar, pressed in the panel's frame",
+        keyed.press(FRAME, toggle) === true && collapsed() === true,
+        keyed.state['panel-frame']
+    );
+    check(
+        'and pressed in the page of the mod in front',
+        keyed.press(keyed.page('a'), toggle) === true && collapsed() === false,
+        keyed.state['panel-frame']
+    );
+    keyed.ask('pick', { id: 'b' }, FRAME);
+    const picked = await front();
+    keyed.press({ in: keyed.page('b') }, { code: 'BracketLeft', meta: true, control: true });
+    const back = await front();
+    keyed.press(FRAME, { code: 'BracketRight', meta: true, control: true });
+    const forward = await front();
+    check(
+        'back and forward go through the mods put in front, pressed in a web page shown in the mod in front too',
+        picked === 'b' && back === 'a' && forward === 'b',
+        { picked, back, forward }
+    );
+    check(
+        "a chord none of the shell's keys has is not the panel's",
+        keyed.press(FRAME, { code: 'KeyJ' }) === false,
+        ''
+    );
+    const rebound = { code: 'KeyS', meta: true, alt: true };
+    await keyed.askKey('set', { id: 'toggleSidebar', keystroke: rebound }, 'settings');
+    check(
+        'a chord set through shell.keys takes effect at once, and the one it had is no longer the key',
+        keyed.press(FRAME, toggle) === false && keyed.press(FRAME, rebound) === true && collapsed() === true,
+        keyed.state['panel-frame']
+    );
+    const escape = { code: 'Escape' };
+    check("in its own window Escape is the window's", keyed.press(FRAME, escape) === false, keyed.dismissed);
+    keyed.PANEL.control.present({ floating: true, dismissible: true });
+    const escaped = keyed.press(FRAME, escape);
+    await new Promise((resolve) => setImmediate(resolve));
+    check(
+        'Escape in the frame of a panel floating over something, the frame not taking it, puts the panel away',
+        escaped === true && keyed.dismissed.length === 1,
+        { escaped, dismissed: keyed.dismissed }
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
@@ -241,20 +300,38 @@ async function main() {
 }
 
 // `createPanel` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
-// that hold deckit.mods, `dock` as the host app hands it, and `state` what the shell kept. `ask(name, payload, mod)`
-// asks one of the panel's channels as the page of `mod`, or as the frame's for FRAME.
-function panelOver(createPanel, { mods, fields, managers, dock = null, state = {} }) {
+// that hold deckit.mods, `keepers` those that hold deckit.shell-keys, `running` the mods whose views have joined,
+// `dock` as the host app hands it, `state` what the shell kept, and `answers` what a page answers main, by channel,
+// true where none is given. `ask(name, payload, mod)` asks one of the panel's channels as the page of `mod`, or as
+// the frame's for FRAME, and `askKey` one of the shell keys'. `press(page, keystroke)` is a key pressed in a page of
+// the app, or in the frame for FRAME, as the keymap's monitor is told it.
+function panelOver(
+    createPanel,
+    { mods, fields, managers, keepers = [], running = [], dock = null, state = {}, answers = {} }
+) {
     const handlers = {};
     const named = [];
     const launched = [];
     const shown = [];
+    const dismissed = [];
+    const monitors = [];
     const frame = { mod: null };
-    const page = (mod) => (mod === FRAME ? frame : { mod });
+    const modPages = new Map();
+    const page = (mod) => {
+        if (mod === FRAME) return frame;
+        if (!modPages.has(mod)) modPages.set(mod, { mod });
+        return modPages.get(mod);
+    };
+    const runs = running.map((id) => ({
+        run: { mod: { id }, state: 'running', summary: { view: {} } },
+        page: page(id),
+    }));
+    const keeping = (id) => ({ mod: { id, permissions: [{ id: 'deckit.shell-keys' }] } });
     const channel = (declared) => ({
         handle: (handler) => (handlers[declared.channel] = handler),
         on: (handler) => (handlers[declared.channel] = handler),
         send() {},
-        invoke: async () => true,
+        invoke: async () => answers[declared.channel] ?? true,
     });
     const deckit = {
         config: { name: 'Deckit' },
@@ -262,17 +339,19 @@ function panelOver(createPanel, { mods, fields, managers, dock = null, state = {
         fields: { define: (key) => named.push(key) },
         permissions: { define() {} },
         state: { read: (key, fallback) => state[key] ?? fallback, write: async (key, value) => (state[key] = value) },
-        keymap: { listen() {} },
+        keymap: { listen() {}, monitor: (handler) => monitors.push(handler) },
         core: { onDown() {} },
         pages: { whenEnds() {} },
-        web: { pageFor: () => null },
+        // A web page is `{ in }`, shown in the page `in`.
+        web: { pageFor: (one) => one.in ?? one },
         log: { error() {} },
         mods: {
             notifications: [],
             list: () => mods,
             shipped: () => mods.map(({ id }) => id),
-            runs: () => [],
-            runOf: () => null,
+            runs: () => runs,
+            runOf: (id) =>
+                runs.find(({ run }) => run.mod.id === id)?.run ?? (keepers.includes(id) ? keeping(id) : null),
             fieldsOf: (id) => fields[id] ?? null,
             modOf: (sender) => sender?.mod ?? null,
             managerFrom: (sender) => {
@@ -297,11 +376,28 @@ function panelOver(createPanel, { mods, fields, managers, dock = null, state = {
         OVERLAY: { onChange() {}, withOverlays: (laid) => laid, holdsKeyboard: () => false, ownerOf: (one) => one },
         makeStage: () => stage,
         deckit,
-        host: { show: () => shown.push(true), showsPanel: () => true, panelTitled() {}, dismiss() {} },
+        host: {
+            show: () => shown.push(true),
+            showsPanel: () => true,
+            panelTitled() {},
+            dismiss: () => dismissed.push(true),
+        },
         dock,
     });
     const ask = async (name, payload, mod) => handlers[`deckit-shell:panel-${name}`](payload, page(mod));
-    return { PANEL, named, launched, shown, state, ask };
+    const askKey = async (name, payload, mod) => handlers[`deckit-shell:key-${name}`](payload, page(mod));
+    const press = (at, keystroke) =>
+        monitors.some((monitor) =>
+            monitor(at === FRAME ? frame : at, {
+                code: '',
+                meta: false,
+                control: false,
+                alt: false,
+                shift: false,
+                ...keystroke,
+            })
+        );
+    return { PANEL, named, launched, shown, dismissed, state, page, ask, askKey, press };
 }
 
 const FRAME = Symbol('the frame');
