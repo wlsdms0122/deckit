@@ -129,7 +129,6 @@ A table holds no order: two manifests whose tables hold the same keys bound to t
 - A header may go on in a table an inline table wrote, `extra = { a = 1 }` then `[extra]`, where TOML refuses it.
 - An integer with leading zeros, `007`, is read as 7, where TOML refuses it.
 - An integer lies within ±(2^53 - 1), where TOML takes every integer a signed 64-bit integer holds.
-- A last `,` is no difference: an array may end with one and an inline table may not, as in TOML 1.0.
 
 **Note.** The bound on integers is the widest range in which every integer is a double-precision number that no other integer rounds to, so an integer is handed as the same number in every host language and on the web, and a case can measure it on both sides. A layer that needs a larger integer reads it written as a string.
 
@@ -225,15 +224,9 @@ The host runs mods with one version of the mod contract. A bundle is taken only 
 
 Before the app starts, each layer on the system and the host may add manifest fields and define permissions. The system defines permissions of its own, which the permissions' DECKIT fixes.
 
-A **field** is added as:
+A **field** is added by its name, any string a `key` writes. The field is then a top-level key a manifest may write, with any value, and the system judges nothing of its value: it hands it on as written, as a value, to whatever reads it, and the layer or host that added it judges it where it reads it.
 
-| key | value | required | what it says |
-|---|---|---|---|
-| `name` | string: any string a `key` writes | yes | the field's name, the top-level key a manifest writes it by |
-
-The field is then a top-level key a manifest may write, with any value, and the system judges nothing of its value: it hands it on as written, as a value, to whatever reads it, and the layer or host that added it judges it where it reads it.
-
-A field added refuses the app's start at `call` with kind `FIELD` where it is not as the table gives, where its name is one of the fields above, or where it is added twice.
+A field added refuses the app's start at `call` with kind `FIELD` where its name is not a string, is one of the fields above, or is added twice.
 
 A **permission** is defined as:
 
@@ -277,7 +270,7 @@ Each permission asked for is answered as:
 | `usable` | boolean: whether a layer or the host on this host, or the system, defines it |
 | `name`, `means`, `privileged` | as the permission is defined; absent where it is not usable |
 
-The usable permissions come first, in the order they were defined, the system's own first. Then come the ones not usable, by their ids compared as Unicode scalar values: at the first place two ids differ, the one whose scalar value there is smaller comes first, and an id that the other begins with comes before it.
+The usable permissions come first, in the order they were defined, the system's own first. Then come the ones not usable, by their ids compared as Unicode scalar values: at the first place two ids differ, the one whose scalar value there is smaller comes first, and where one id is the other's beginning, the shorter comes first.
 
 A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`, and no run of it starts. Where it was found in a folder of bundles or shipped by the host, it is still listed, under the id its manifest writes where the manifest's text reads and its `id` is a non-empty string, and otherwise under its folder's name.
 
