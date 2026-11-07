@@ -1,7 +1,7 @@
 // The conformance runner's host app: Electron's main process embedding the deckit archive beside it as any host app
-// does, through the environment, connect and, for the shell, attach, set up as the case's [host] says. It reaches deckit
-// only through what connect answers, and talks to the runner over a socket, a JSON message a line: it says once
-// whether the start settled or was refused (deckit.whenStarted()), answers each look it is asked, and quits when asked.
+// does, through the environment and connect, set up as the case's [host] says. It reaches deckit only through what
+// connect answers, and talks to the runner over a socket, a JSON message a line: it says once whether the start settled
+// or was refused (deckit.whenStarted()), answers each look it is asked, and quits when asked.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -47,11 +47,10 @@ try {
         config: {
             id: 'deckit-conformance',
             name: 'Deckit conformance',
-            ...(setup.api === undefined ? {} : { api: setup.api }),
+            api: setup.api,
         },
         folders: { home: setup.home, ship: setup.ship, sources: setup.sources },
     });
-    if (setup.base === 'shell') DECKIT.attach(deckit, environment, { host: shellHost() });
     for (const field of setup.fields) deckit.fields.define(field);
     for (const permission of setup.permissions) deckit.permissions.define(permission);
     // The start is complete, the launches at start included, or refused with its kind.
@@ -97,16 +96,3 @@ function openWindow({ title = '', size = null, place }) {
     return window;
 }
 
-// Where the shell is shown: this host shows the shell nowhere, and answers each request it is made.
-function shellHost() {
-    return {
-        start: () => {},
-        showsPanel: () => false,
-        show: () => {},
-        dismiss: () => {},
-        panelTitled: () => {},
-        showWindow: () => {},
-        hideWindow: () => {},
-        closeWindow: () => {},
-    };
-}

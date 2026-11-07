@@ -8,12 +8,8 @@ const FORMAT = 1;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const KIND = /^[A-Z][A-Z_]*$/;
-const MEMBER = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)*$/;
-const PLACE = /^[a-z0-9._-]+(\/[a-z0-9._-]+)*$/;
 const STAGES = ['read', 'launch', 'call'];
-const BASES = ['system', 'shell', 'app'];
-const FUNCTION = 'case.function';
-const ANSWERS = 'case.answers';
+const BASES = ['system'];
 
 class NotACase extends Error {}
 class TooOld extends Error {}
@@ -29,9 +25,6 @@ const is = {
         typeof value === 'string' &&
         VERSION.test(value) &&
         value.split('.').every((part) => BigInt(part) <= BigInt(Number.MAX_SAFE_INTEGER)),
-    member: (value) => typeof value === 'string' && MEMBER.test(value),
-    place: (value) => typeof value === 'string' && PLACE.test(value),
-    seconds: (value) => Number.isInteger(value) && value >= 1,
     names: (value) => Array.isArray(value) && value.every(is.name),
     strings: (value) => Array.isArray(value) && value.every(is.string),
 };
@@ -40,21 +33,13 @@ const is = {
 const INPUTS = {
     start: {},
     quit: {},
-    call: { mod: [is.string, true], member: [is.member, true], args: [is.array, true] },
-    key: { chord: [is.string, true] },
-    click: { on: [is.place, true] },
-    type: { text: [is.string, true] },
-    time: { seconds: [is.seconds, true] },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
     mods: {},
-    run: { mod: [is.string, true] },
-    heard: { function: [is.string, true] },
-    shown: { at: [is.place, true] },
 };
 
-// The case in `folder`: `{ name, note, host, drive, steps, bundles }`, `bundles` each bundle's folder by its name.
+// The case in `folder`: `{ name, note, host, steps, bundles }`, `bundles` each bundle's folder by its name.
 function read(folder) {
     const refuse = (why) => {
         throw new NotACase(`${path.basename(folder)}: ${why}`);
@@ -71,7 +56,7 @@ function read(folder) {
 
     keys(
         written,
-        { case: is.integer, name: is.name, note: is.string, host: is.table, drive: is.names, step: is.array },
+        { case: is.integer, name: is.name, note: is.string, host: is.table, step: is.array },
         '',
         refuse
     );
@@ -80,10 +65,8 @@ function read(folder) {
     if (written.name !== path.basename(folder)) refuse(`name is not the folder's name`);
 
     const host = hostOf(written.host, refuse);
-    const drive = written.drive ?? [];
     const steps = written.step.map((step, index) => stepOf(step, index + 1, refuse));
     order(steps, refuse);
-    functions(steps, refuse);
 
     const mods = path.join(folder, 'mods');
     const laid = fs.existsSync(mods)
@@ -94,12 +77,11 @@ function read(folder) {
         if (!NAME.test(entry.name)) refuse(`mods/${entry.name} is no bundle-name`);
     }
     const bundles = Object.fromEntries(laid.map(({ name }) => [name, path.join(mods, name)]));
-    const named = new Set([...host.ship, ...host.sources, ...drive]);
+    const named = new Set([...host.ship, ...host.sources]);
     for (const name of named) if (!(name in bundles)) refuse(`${name} names no bundle in mods/`);
     for (const name of Object.keys(bundles)) if (!named.has(name)) refuse(`mods/${name} is named by no key`);
-    for (const name of drive) if (entryOf(bundles[name], refuse)) refuse(`${name} is driven and holds its main`);
 
-    return { name: written.name, note: written.note, host, drive, steps, bundles };
+    return { name: written.name, note: written.note, host, steps, bundles };
 }
 
 function hostOf(host, refuse) {
@@ -117,8 +99,7 @@ function hostOf(host, refuse) {
         'host.',
         refuse
     );
-    if (!('base' in host)) refuse('host.base is missing');
-    if ((host.base === 'system') !== 'api' in host) refuse('host.api is written with base "system", and only there');
+    for (const required of ['base', 'api']) if (!(required in host)) refuse(`host.${required} is missing`);
     const permissions = host.permissions ?? [];
     for (const [index, permission] of permissions.entries()) {
         if (!is.table(permission)) refuse(`host.permissions[${index}] is no table`);
@@ -132,7 +113,7 @@ function hostOf(host, refuse) {
     for (const name of system) if (!ship.includes(name)) refuse(`host.system names ${name}, which host.ship does not`);
     return {
         base: host.base,
-        api: host.api ?? null,
+        api: host.api,
         fields: host.fields ?? [],
         permissions,
         ship,
@@ -169,7 +150,7 @@ function stepOf(step, number, refuse) {
         if ('answers' in expect === 'refuses' in expect) refuse(`${at}: expect holds answers, or refuses and kind`);
         if ('refuses' in expect !== 'kind' in expect)
             refuse(`${at}: expect writes kind beside refuses, and only there`);
-        if ('answers' in expect && kind === 'input' && step.input !== 'call')
+        if ('answers' in expect && kind === 'input')
             refuse(`${at}: ${step.input} answers nothing, so expect writes no answers`);
     }
     return { number, ...step, kind, what: step[kind], expect };
@@ -191,36 +172,6 @@ function order(steps, refuse) {
     }
 }
 
-// The functions the calls hand, each name once in the case.
-function functions(steps, refuse) {
-    const names = new Set();
-    const walk = (value) => {
-        if (is.array(value)) return value.forEach(walk);
-        if (!is.table(value)) return;
-        const keys = Object.keys(value);
-        if (keys.includes(FUNCTION) && keys.every((key) => key === FUNCTION || key === ANSWERS)) {
-            if (!is.string(value[FUNCTION])) refuse(`${FUNCTION} is no string`);
-            if (names.has(value[FUNCTION])) refuse(`two functions are named ${value[FUNCTION]}`);
-            names.add(value[FUNCTION]);
-            return;
-        }
-        Object.values(value).forEach(walk);
-    };
-    for (const step of steps) if (step.what === 'call' && step.kind === 'input') walk(step.args);
-}
-
-// Whether the bundle holds the file its manifest's main names.
-function entryOf(bundle, refuse) {
-    let manifest;
-    try {
-        manifest = TOML.read(fs.readFileSync(path.join(bundle, 'manifest.toml'), 'utf8'));
-    } catch (error) {
-        refuse(`${path.basename(bundle)} is driven and its manifest does not read: ${error.message}`);
-    }
-    if (!is.string(manifest.main)) refuse(`${path.basename(bundle)} is driven and its main is no string`);
-    return fs.existsSync(path.join(bundle, manifest.main));
-}
-
 // Refuses a key of `table` that `checks` does not have, or a value its check does not take.
 function keys(table, checks, where, refuse) {
     for (const [key, value] of Object.entries(table)) {
@@ -229,4 +180,4 @@ function keys(table, checks, where, refuse) {
     }
 }
 
-module.exports = { read, NotACase, TooOld, FUNCTION, ANSWERS };
+module.exports = { read, NotACase, TooOld };

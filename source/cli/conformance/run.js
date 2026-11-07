@@ -9,26 +9,6 @@ const TOML = require('./toml.js');
 // How long the app is given to settle after an input.
 const SETTLE = 10000;
 
-// Why the runner does not take a case, or null: a base or a step it would measure against a DECKIT not yet written, or
-// a bundle to drive.
-function cannotRun({ host, drive, steps }) {
-    if (host.base === 'app')
-        return 'base "app" is Deckit.app as it ships, and its entry (deckit-app/main.js) takes no host a case adds to';
-    if (drive.length) return "a driven bundle's handle is the handle's DECKIT's, and none is written";
-    const why = {
-        call: "what a call's member names is the handle's DECKIT's, and none is written",
-        key: "a chord and where the keyboard is are the keys' and the shell's DECKITs', and none is written",
-        click: 'a place shown is named by the DECKIT that shows it, and none is written',
-        type: "where the keyboard is is the shell's DECKITs', and none is written",
-        time: "a host is given no clock of the app's to move",
-        run: "a run's states are the lifecycle's DECKIT's, and none is written",
-        heard: 'a function is handed by a driven bundle, and this runner drives none',
-        shown: 'a place shown is named by the DECKIT that shows it, and none is written',
-    };
-    for (const step of steps) if (why[step.what]) return `step ${step.number} (${step.what}): ${why[step.what]}`;
-    return null;
-}
-
 // Runs `theCase` in `folder`, made afresh, on the host app in `hostApp` that Electron at `electron` runs: `{ passed }`,
 // or `{ passed: false, step, came, expected }` for its first step that did not match, `step` null where the host could
 // not be set up.
@@ -55,9 +35,7 @@ async function run(theCase, { folder, hostApp, electron }) {
         JSON.stringify(
             {
                 port: server.address().port,
-                base: host.base,
-                // The contract version deckit runs mods with, where the case names one (base "system").
-                ...(host.api === null ? {} : { api: host.api }),
+                api: host.api,
                 preload: 'preload.js',
                 home,
                 electron: path.join(folder, 'electron'),
@@ -211,4 +189,4 @@ function describe(came) {
     return 'nothing';
 }
 
-module.exports = { cannotRun, run };
+module.exports = { run };
