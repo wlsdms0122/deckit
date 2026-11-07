@@ -11,7 +11,7 @@ export function createManifestField() {
     // one of its own keys, with the same kind.
     function define(key) {
         if (handed) throw refusal(`the manifest field ${key} is named after the core started`);
-        if (typeof key !== 'string' || !key.trim()) throw refusal("a manifest field's key is no text");
+        if (typeof key !== 'string') throw refusal("a manifest field's key is no text");
         if (named.includes(key)) throw refusal(`the manifest field ${key} is named twice`);
         named.push(key);
     }

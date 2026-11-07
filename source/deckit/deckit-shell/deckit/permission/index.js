@@ -1,5 +1,7 @@
 // Deckit's own permission, which Deckit defines itself: what a mod holds to drive mods, checked here too.
 const MODS = 'deckit.mods';
+// A text that holds a code point without the property White_Space.
+const NOT_BLANK = /\P{White_Space}/u;
 
 // The permissions the layers on this host define, each guarding what its layer adds and checked there. The core
 // reads every manifest against them beside its own, and one neither defines is not usable here.
@@ -15,8 +17,9 @@ export function createPermission() {
     // PERMISSION; the core refuses one it defines itself, with the same kind.
     function define({ id, name, means, privileged = false }) {
         if (handed) throw refusal(`${id} is defined after the core started`);
-        for (const [key, value] of Object.entries({ id, name, means }))
-            if (typeof value !== 'string' || !value.trim()) throw refusal(`a permission's ${key} is no text`);
+        if (typeof id !== 'string') throw refusal("a permission's id is no text");
+        for (const [key, value] of Object.entries({ name, means }))
+            if (typeof value !== 'string' || !NOT_BLANK.test(value)) throw refusal(`a permission's ${key} is blank`);
         if (typeof privileged !== 'boolean') throw refusal(`${id} says privileged as no boolean`);
         if (defined.some((permission) => permission.id === id)) throw refusal(`${id} is defined twice`);
         defined.push({ id, name, means, privileged });

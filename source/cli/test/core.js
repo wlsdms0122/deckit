@@ -92,6 +92,16 @@ async function main() {
         kinds.join() === 'FIELD,FIELD,PERMISSION,PERMISSION',
         kinds
     );
+    const blank = { field: createManifestField(), permission: createPermission() };
+    blank.field.define('');
+    blank.permission.define({ id: ' ', name: 'Blank', means: 'It does nothing.' });
+    check(
+        'a field of a blank name and a permission of a blank id are taken, and a name of White_Space only is refused',
+        JSON.stringify(blank.field.all().fields) === '[""]' &&
+            blank.permission.all().permissions[0].id === ' ' &&
+            kindThrown(() => createPermission().define({ id: 'a.g', name: '\u0085', means: 'g' })) === 'PERMISSION',
+        ''
+    );
 
     const initialized = outcome(CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() }));
     const early = outcome(CORE.request('catalog/read', {}));
