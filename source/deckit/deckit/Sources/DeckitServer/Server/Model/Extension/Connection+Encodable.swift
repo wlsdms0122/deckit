@@ -9,6 +9,7 @@ import Foundation
 import Deck
 import Deckit
 
+// With the client's credential, which its service is told.
 extension Connection: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -16,6 +17,7 @@ extension Connection: Encodable {
         case name
         case client
         case service
+        case credential
     }
 
     // MARK: - Initializer
@@ -26,6 +28,7 @@ extension Connection: Encodable {
         try container.encode(name, forKey: .name)
         try container.encode(client, forKey: .client)
         try container.encode(service, forKey: .service)
+        try container.encode(credential, forKey: .credential)
     }
 
     // MARK: - Private

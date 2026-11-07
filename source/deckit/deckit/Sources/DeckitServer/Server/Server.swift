@@ -223,7 +223,12 @@ final class Server {
 
         case "connection/reach":
             let params = try request.decodeParams(as: ReachParams.self)
-            let effects = try deckit.reach(params.target, from: params.mod, run: params.run, lifecycle: params.lifecycle)
+            let effects = try deckit.reach(
+                params.target,
+                from: params.mod,
+                run: params.run,
+                lifecycle: params.lifecycle
+            )
             return answered(effects, by: deckit)
 
         case "connection/release":

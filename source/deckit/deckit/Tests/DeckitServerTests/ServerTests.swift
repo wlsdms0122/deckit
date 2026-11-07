@@ -296,9 +296,57 @@ struct ServerTests {
             value(in: connected, at: "result")
                 == (try json(
                     #"[{"id":1,"name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0},"#
-                        + #""service":{"mod":"dep","run":1,"lifecycle":0}}]"#
+                        + #""service":{"mod":"dep","run":1,"lifecycle":0},"#
+                        + #""credential":{"mod":"a","permissions":[]}}]"#
                 ))
         )
+    }
+
+    @Test("a system mod granted deckit.reach-mods reaches a mod by id, which launches and connects with its credential")
+    func reachConnectsWithCredential() throws {
+        // Given
+        let ship = home + "ship"
+        try mod("t")
+        try mod("r", in: ship, adding: "[permissions]\n\"deckit.reach-mods\" = \"to test\"")
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","api":"1.0.0","#
+                + #""ship":[{"folder":"\#(ship)/r","system":true}],"sources":["\#(home)source"],"#
+                + #""permissions":[],"fields":[]}}"#,
+            to: sut
+        )
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/install-shipped"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":4,"method":"runner/load","params":{"mods":["r"]}}"#, to: sut)
+        let begin = #"{"jsonrpc":"2.0","id":5,"method":"connection/begin","params":"#
+        _ = try send(begin + #"{"mod":"r","run":1,"lifecycle":0}}"#, to: sut)
+        let reach = #"{"mod":"r","run":1,"lifecycle":0,"target":"t"}"#
+
+        // When
+        let reached = try send(#"{"jsonrpc":"2.0","id":6,"method":"connection/reach","params":\#(reach)}"#, to: sut)
+        _ = try send(begin + #"{"mod":"t","run":1,"lifecycle":0}}"#, to: sut)
+        let started = try send(
+            #"{"jsonrpc":"2.0","id":7,"method":"runner/started","#
+                + #""params":{"mod":"t","run":1,"contributions":{"exportedIn":{"t":0},"awaits":{}}}}"#,
+            to: sut
+        )
+        let released = try send(#"{"jsonrpc":"2.0","id":8,"method":"connection/release","params":\#(reach)}"#, to: sut)
+
+        // Then
+        let connection = #"{"id":1,"name":"t","client":{"mod":"r","run":1,"lifecycle":0},"#
+            + #""service":{"mod":"t","run":1,"lifecycle":0},"#
+            + #""credential":{"mod":"r","permissions":["deckit.reach-mods"]}}"#
+        guard case let .array(waited)? = value(in: reached, at: "result"),
+            case let .array(connected)? = value(in: started, at: "result")
+        else {
+            Issue.record("no effects in \(reached) or \(started)")
+            return
+        }
+        let wait = #"{"effect":"wait","mod":"t","name":"t","client":{"mod":"r","run":1,"lifecycle":0}}"#
+        #expect(waited.first == (try json(wait)))
+        #expect(waited.contains { effect in value(in: effect, at: "notification") == .string("willLaunch") })
+        #expect(connected.contains(try json(#"{"effect":"connect","connection":\#(connection)}"#)))
+        let disconnect = #"[{"effect":"disconnect","connection":\#(connection)}]"#
+        #expect(value(in: released, at: "result") == (try json(disconnect)))
     }
 
     @Test("a lifecycle that waits is answered as wait, with itself as its client")
@@ -445,8 +493,8 @@ struct ServerTests {
     }
 
     // MARK: - Private
-    private func mod(_ id: String, adding extra: String = "") throws {
-        let folder = URL(filePath: home + "source").appending(path: id)
+    private func mod(_ id: String, in parent: String? = nil, adding extra: String = "") throws {
+        let folder = URL(filePath: parent ?? home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let manifest = """
             id = "\(id)"
