@@ -1,0 +1,32 @@
+case = 2
+name = "a-background-mod-runs-again-at-the-next-start"
+note = "Each start of the app launches the background mods again, so mod-a runs after a quit and a second start."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "running"
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "running"
+
