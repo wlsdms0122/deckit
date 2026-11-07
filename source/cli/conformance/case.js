@@ -44,7 +44,7 @@ const LOOKS = {
 // The case in `folder`: `{ name, note, host, steps, bundles }`, `bundles` each bundle's folder by its name.
 function read(folder) {
     const refuse = (why) => {
-        throw new NotACase(`${path.basename(folder)}: ${why}`);
+        throw new NotACase(why);
     };
     let written;
     try {
@@ -54,7 +54,7 @@ function read(folder) {
     }
     if (!is.integer(written.case) || written.case < 1) refuse('case is no integer of at least 1');
     if (written.case > FORMAT)
-        throw new TooOld(`${path.basename(folder)}: this runner is too old for this case (format ${written.case})`);
+        throw new TooOld(`this runner is too old for this case (format ${written.case})`);
 
     keys(
         written,

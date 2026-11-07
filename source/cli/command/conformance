@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Runs the specification's conformance cases on deckit as it was just built (spec/DECKIT-1): the live set's, or those
 // of the DECKITs and the cases named, drafts too. Each case runs on a host app of the runner's own that embeds the
-// archive as any host app does, with a folder of its own under .build/conformance/runs/. Reports each case, and for one
-// that did not pass, its first step that did not match. Exits 1 unless every case passed.
+// archive as any host app does, with a folder of its own under .build/conformance/runs/. Reports each case's name, its
+// DECKIT and that DECKIT's status, and its outcome: passed, failed with its first step that did not match, too old, or
+// not laid out. A case that is not a case is reported and no case runs. Exits 1 unless every case passed.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -89,13 +90,15 @@ const main = async () => {
     const names = series.flatMap(({ cases }) => Object.keys(cases));
     const cases = [];
     for (const { deckit, name, folder } of chosen) {
+        const label = `${deckit.id} (${deckit.status}) ${name}`;
+        const notACase = (why) => fail(`${'not a case'.padEnd(13)}${label}\n${' '.repeat(13)}${why}`);
         if (names.filter((one) => one === name).length > 1)
-            fail(`not a case: ${name}: its name is another case's in the specification`);
+            notACase("its name is another case's in the specification");
         try {
-            cases.push({ deckit, name, theCase: CASE.read(folder) });
+            cases.push({ label, theCase: CASE.read(folder) });
         } catch (error) {
-            if (error instanceof CASE.TooOld) cases.push({ deckit, name, why: error.message });
-            else if (error instanceof CASE.NotACase) fail(`not a case: ${error.message}`);
+            if (error instanceof CASE.TooOld) cases.push({ label, why: error.message });
+            else if (error instanceof CASE.NotACase) notACase(error.message);
             else throw error;
         }
     }
@@ -109,28 +112,29 @@ const main = async () => {
         clean = webKitStores();
     }
 
-    const counts = { passed: 0, failed: 0, 'too old': 0 };
-    for (const { deckit, name, theCase, why } of cases) {
-        const label = `${deckit.id}${deckit.status === 'accepted' ? '' : ` (${deckit.status})`} ${name}`;
+    const counts = { passed: 0, failed: 0, 'too old': 0, 'not laid out': 0 };
+    const report = (outcome, label, ...lines) => {
+        counts[outcome]++;
+        console.log([`${outcome.padEnd(13)}${label}`, ...lines.map((line) => ' '.repeat(13) + line)].join('\n'));
+    };
+    for (const { label, theCase, why } of cases) {
         if (why) {
-            counts['too old']++;
-            console.log(`too old  ${label}\n         ${why}`);
+            report('too old', label, why);
             continue;
         }
-        const folder = path.join(OUT, 'runs', name);
-        const result = await RUN.run(theCase, { folder, hostApp, electron });
-        if (result.passed) {
-            counts.passed++;
-            console.log(`ok       ${label}`);
-            continue;
+        const result = await RUN.run(theCase, { folder: path.join(OUT, 'runs', theCase.name), hostApp, electron });
+        if (result.outcome === 'passed') report('passed', label);
+        else if (result.outcome === 'not laid out') report('not laid out', label, result.why);
+        else {
+            const { step } = result;
+            const what = [step.what, step.mod, step.part].filter(Boolean).join(' ');
+            report(
+                'failed',
+                label,
+                `step ${step.number} (${step.kind} ${what}) came to ${result.came}`,
+                `and expects ${result.expected}`
+            );
         }
-        counts.failed++;
-        const { step } = result;
-        const where = step
-            ? `step ${step.number} (${step.kind} ${[step.what, step.mod, step.part].filter(Boolean).join(' ')})`
-            : 'before step 1';
-        console.log(`FAIL     ${label}\n         ${where} came to ${result.came}`);
-        if (result.expected) console.log(`         and expects ${result.expected}`);
     }
     clean();
     const total = Object.values(counts).reduce((sum, count) => sum + count, 0);

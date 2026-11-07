@@ -9,9 +9,9 @@ const TOML = require('./toml.js');
 // How long the app is given to settle after an input.
 const SETTLE = 10000;
 
-// Runs `theCase` in `folder`, made afresh, on the host app in `hostApp` that Electron at `electron` runs: `{ passed }`,
-// or `{ passed: false, step, came, expected }` for its first step that did not match, `step` null where the host could
-// not be set up.
+// Runs `theCase` in `folder`, made afresh, on the host app in `hostApp` that Electron at `electron` runs. Comes to
+// `{ outcome }`: 'passed'; 'failed', with `step`, `came` and `expected` for its first step that did not match; or
+// 'not laid out', with `why`, and nothing of it runs.
 async function run(theCase, { folder, hostApp, electron }) {
     const { host, bundles } = theCase;
     fs.rmSync(folder, { recursive: true, force: true });
@@ -19,13 +19,18 @@ async function run(theCase, { folder, hostApp, electron }) {
     const sources = path.join(folder, 'sources');
     for (const made of [home, path.join(folder, 'electron'), path.join(folder, 'downloads')])
         fs.mkdirSync(made, { recursive: true });
-    for (const name of host.sources)
-        fs.cpSync(bundles[name], path.join(sources, name), { recursive: true, verbatimSymlinks: true });
-    const ship = host.ship.map((name) => {
-        const to = path.join(folder, 'ship', name);
-        fs.cpSync(bundles[name], to, { recursive: true, verbatimSymlinks: true });
-        return { folder: to, system: host.system.includes(name) };
-    });
+    const laid = [
+        ...host.sources.map((name) => [name, path.join(sources, name)]),
+        ...host.ship.map((name) => [name, path.join(folder, 'ship', name)]),
+    ];
+    for (const [name, to] of laid) {
+        const why = layOut(bundles[name], to);
+        if (why) return { outcome: 'not laid out', why: `${name}: ${why}` };
+    }
+    const ship = host.ship.map((name) => ({
+        folder: path.join(folder, 'ship', name),
+        system: host.system.includes(name),
+    }));
 
     const server = net.createServer();
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -55,14 +60,41 @@ async function run(theCase, { folder, hostApp, electron }) {
         for (const step of theCase.steps) {
             const came = await take(step, app);
             if (!matches(step.expect, came))
-                return { passed: false, step, came: describe(came), expected: describe(step.expect) };
+                return { outcome: 'failed', step, came: describe(came), expected: describe(step.expect) };
         }
-        return { passed: true };
+        return { outcome: 'passed' };
     } finally {
         await app.end();
         server.close();
         fs.closeSync(log);
     }
+}
+
+// Lays out the bundle at `from` as `to`, each file and folder as the case holds it and each link holding its target:
+// why it is not laid out as written, or null. Each folder laid out lists the entries of the case's, each by the same
+// Unicode scalar values, as a disk that folds case or normalization may not keep them.
+function layOut(from, to) {
+    try {
+        fs.cpSync(from, to, { recursive: true, verbatimSymlinks: true });
+    } catch (error) {
+        return error.message;
+    }
+    const differs = (written, laid) => {
+        const entries = fs.readdirSync(written, { withFileTypes: true });
+        const names = entries.map(({ name }) => name).sort();
+        const listed = fs.readdirSync(laid).sort();
+        if (names.length !== listed.length || names.some((name, at) => name !== listed[at])) {
+            const where = path.relative(from, written) || '.';
+            return `${where} lists ${JSON.stringify(listed)}, and the case holds ${JSON.stringify(names)}`;
+        }
+        for (const entry of entries)
+            if (entry.isDirectory()) {
+                const why = differs(path.join(written, entry.name), path.join(laid, entry.name));
+                if (why) return why;
+            }
+        return null;
+    };
+    return differs(from, to);
 }
 
 // What a step comes to: `{ answers }`, `{ refuses, kind, message }`, `{ none }` with why there is no answer, or `{}`
