@@ -34,13 +34,9 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
         }).then((folders) => {
             kept = folders;
         });
-        // A core that does not start is logged, as it ends or as it refuses what it is handed, and each request after
-        // it is refused with why.
-        ready.catch((error) => {
-            if (ended) return;
-            LOG.error("deckit's core did not start", error);
-            tellDown(`did not start: ${error.message || error}`);
-        });
+        // A core that does not start is down, and each request after it is refused with why. Its refusal is what
+        // started it to report.
+        ready.catch((error) => tellDown(`did not start: ${error.message || error}`));
         return ready;
     }
 

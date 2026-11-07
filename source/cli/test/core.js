@@ -2,9 +2,10 @@
 // core: what it sends first, the version of the mod contract it runs mods with, the shipped folders with their system
 // marks, the permissions the layers define with their tier (deckit/permission) and the manifest fields they name
 // (deckit/manifest-field), each refused with its kind, how it waits for that, what an answer and a refusal come to,
-// the start refused with the kind the core refuses initialize with, and that a core that ended refuses everything
-// after. Exits 1 with a line for each check that failed. The packages
-// are ES modules, so they are imported as such.
+// the start refused with the kind the core refuses initialize with and left to its caller to log, that a core that
+// ended refuses everything after, and the state over the core (deckit/storage) not written while it is not read, a
+// failure logged once. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -36,6 +37,7 @@ async function main() {
     const { createCore } = await import(url('deckit-shell', 'deckit', 'core', 'main.js'));
     const { createPermission } = await import(url('deckit-shell', 'deckit', 'permission', 'index.js'));
     const { createManifestField } = await import(url('deckit-shell', 'deckit', 'manifest-field', 'index.js'));
+    const { createStorage } = await import(url('deckit-shell', 'deckit', 'storage', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -179,7 +181,9 @@ async function main() {
             };
         },
     };
-    const REFUSING = createCore({ FOLDERS, LOG, core: coreRefusing, home: '/home/deckit', api: '1.0.0' });
+    const refusingLogged = [];
+    const REFUSING_LOG = { info() {}, warn() {}, error: (...parts) => refusingLogged.push(parts) };
+    const REFUSING = createCore({ FOLDERS, LOG: REFUSING_LOG, core: coreRefusing, home: '/home/deckit', api: '1.0.0' });
     const downs = [];
     REFUSING.onDown((why) => downs.push(why));
     const start = await outcome(REFUSING.start({ permissions: [], fields: ['main'] }));
@@ -188,6 +192,24 @@ async function main() {
         'a core that refuses initialize refuses the start with its kind, and is down',
         start.kind === 'FIELD' && /main is a field/.test(start.error) && downs.length === 1,
         { start, downs }
+    );
+    check('a core that refuses initialize logs nothing of it itself', refusingLogged.length === 0, refusingLogged);
+
+    // The state over a core that refused initialize: not read until it is, and not written over.
+    const UNREAD = createStorage({ CORE: REFUSING, LOG: REFUSING_LOG });
+    const unread = await outcome(UNREAD.state.write('arranged', 1));
+    check(
+        'state not read is not written, refused with why, and nothing is logged',
+        /was not read/.test(unread.error) && UNREAD.state.read('arranged') === null && refusingLogged.length === 0,
+        { unread, refusingLogged }
+    );
+    const UNREADABLE = createStorage({ CORE: REFUSING, LOG: REFUSING_LOG });
+    await UNREADABLE.load();
+    const unwritten = await outcome(UNREADABLE.state.write('arranged', 1));
+    check(
+        'state the core did not give is logged once as not read, and a write to it is refused with why',
+        refusingLogged.length === 1 && /not read/.test(refusingLogged[0][0]) && unwritten.kind === 'FIELD',
+        { refusingLogged, unwritten }
     );
 
     for (const line of failed) console.error(line);

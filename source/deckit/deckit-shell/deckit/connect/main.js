@@ -179,16 +179,21 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     // they named, and hands over the state it keeps, and installs what the host app ships and reads the mods, before
     // anything reads the mods or the state. Deckit's pages are served before any loads. What follows the mods' runs
     // starts before the runner launches any. Resolves once the background mods have launched, or failed to. A core
-    // that refuses initialize refuses the start with its refusal, once all of this has started all the same, so what
-    // starts with deckit shows the core is down.
+    // that refuses initialize is asked nothing more: what starts with deckit starts all the same, so it shows the core
+    // is down, and then the start is refused with that refusal, and no mod runs.
     async function start() {
         LOG.start({
             nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
         LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
-        const initialized = CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() });
-        await STORAGE.load();
-        await CATALOG.load();
+        const refusal = await CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() }).then(
+            () => null,
+            (error) => error
+        );
+        if (!refusal) {
+            await STORAGE.load();
+            await CATALOG.load();
+        }
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
         WEB.start();
         KEYMAP.start();
@@ -209,6 +214,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
                 LOG.error('what starts with deckit did not start', error);
             }
         }
+        if (refusal) throw refusal;
         RECORD.start();
         CONNECTION.start();
         EVENT.start();
@@ -219,9 +225,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             removed: MAIN_PROCESS.removed,
             erase: WEB.erase,
         });
-        const launched = RUNNER.start({ preparePage });
-        await initialized;
-        await launched;
+        await RUNNER.start({ preparePage });
     }
 
     // A mod's page shows the web, is where the chords mods take work, and opens with the system what it opens: a

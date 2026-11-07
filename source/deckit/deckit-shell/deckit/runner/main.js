@@ -33,7 +33,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // MARK: - Public
     // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show. The core launches the
     // background mods now. `preparePage(page, mod)` sets the page up, once deckit knows it as the mod's. Resolves once
-    // each background mod has launched, or failed to; rejects with why the core did not launch them.
+    // each background mod has launched, or failed to; rejects with why the core did not launch them, which is what
+    // started the runner to report.
     function start({ preparePage: prepare }) {
         preparePage = prepare;
         listen();
@@ -43,7 +44,6 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             return until(() => launching.every((id) => runOf(id)?.state !== 'launching'));
         });
         reconciled = launched;
-        reconciled.catch((error) => LOG.error('the background mods were not launched', error));
         // The app quits once every run has ended. Held as the app is about to quit, once the quit is decided, while
         // a run has not; a quit asked again meanwhile waits too. Then the quit is asked again and goes on as any quit
         // does. A quit the host app calls off leaves those runs ended, and the next quit terminates what launched
