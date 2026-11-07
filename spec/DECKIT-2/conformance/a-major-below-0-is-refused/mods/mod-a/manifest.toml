@@ -1,0 +1,7 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[interfaces]
+uses = { "mod-b/actions" = -1 }

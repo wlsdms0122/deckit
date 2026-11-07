@@ -5,14 +5,14 @@ note = "An interface is named <mod id>/<name>. A use of pages refuses the bundle
 [host]
 base = "system"
 api = "1.0.0"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 
 [step.expect]
 refuses = "read"

@@ -10,14 +10,14 @@ permissions = [
     { id = "system.case-net", name = "Net", means = "Reaches the network.", privileged = false },
     { id = "alpha", name = "Alpha", means = "First letter.", privileged = false },
 ]
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 part = "permissions"
 
 [step.expect]

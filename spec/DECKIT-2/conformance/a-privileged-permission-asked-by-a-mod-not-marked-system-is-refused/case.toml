@@ -6,14 +6,14 @@ note = "A permission defined privileged is taken only for a system mod, one the 
 base = "system"
 api = "1.0.0"
 permissions = [{ id = "case.drive", name = "Drive", means = "Drives every other mod.", privileged = true }]
-sources = ["driver"]
+sources = ["mod-c"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "driver"
+mod = "mod-c"
 
 [step.expect]
 refuses = "read"

@@ -5,7 +5,7 @@ note = "A bundle the system does not take, found in a folder of bundles, is list
 [host]
 base = "system"
 api = "1.0.0"
-sources = ["shelf"]
+sources = ["mod-b"]
 
 [[step]]
 input = "start"
@@ -14,11 +14,11 @@ input = "start"
 look = "mods"
 
 [step.expect]
-answers = ["notes"]
+answers = ["mod-a"]
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 
 [step.expect]
 refuses = "read"

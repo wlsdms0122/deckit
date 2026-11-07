@@ -5,14 +5,14 @@ note = "A version of the same major and a greater minor satisfies another whatev
 [host]
 base = "system"
 api = "1.2.0"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 part = "api"
 
 [step.expect]

@@ -5,14 +5,14 @@ note = "Permissions not usable come by their ids compared as Unicode scalar valu
 [host]
 base = "system"
 api = "1.0.0"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 part = "permissions"
 
 [step.expect]

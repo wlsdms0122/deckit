@@ -1,8 +1,0 @@
-id = "notes"
-version = "1.0.0"
-api = "1.0.0"
-main = "main.js"
-
-[permissions]
-"\U0001d400" = "Bold."
-"\uff21" = "Wide."

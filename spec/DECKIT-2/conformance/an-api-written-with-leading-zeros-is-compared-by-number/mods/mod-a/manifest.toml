@@ -1,0 +1,4 @@
+id = "mod-a"
+version = "1.0.0"
+api = "01.02.0"
+main = "main.js"

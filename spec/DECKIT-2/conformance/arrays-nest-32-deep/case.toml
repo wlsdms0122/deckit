@@ -6,14 +6,14 @@ note = "Arrays and inline tables nest at most 32 deep; an array 32 deep is taken
 base = "system"
 api = "1.0.0"
 fields = ["extra"]
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 part = "fields"
 
 [step.expect.answers]

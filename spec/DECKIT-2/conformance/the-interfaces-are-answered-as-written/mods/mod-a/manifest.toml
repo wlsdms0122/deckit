@@ -1,0 +1,8 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[interfaces]
+provides = { "mod-a/pages" = [0, 2] }
+uses = { "mod-b/actions" = 0 }

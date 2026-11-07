@@ -1,7 +1,0 @@
-id = "notes"
-version = "1.0.0"
-api = "1.0.0"
-main = "main.js"
-
-[permissions]
-"case.drive" = "Drives the other mods."

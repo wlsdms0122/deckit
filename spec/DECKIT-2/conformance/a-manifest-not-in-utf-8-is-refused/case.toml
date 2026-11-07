@@ -5,7 +5,7 @@ note = "A manifest is UTF-8 text. One holding a byte that is not UTF-8 does not 
 [host]
 base = "system"
 api = "1.0.0"
-sources = ["shelf"]
+sources = ["mod-b"]
 
 [[step]]
 input = "start"
@@ -14,11 +14,11 @@ input = "start"
 look = "mods"
 
 [step.expect]
-answers = ["shelf"]
+answers = ["mod-b"]
 
 [[step]]
 look = "mod"
-mod = "shelf"
+mod = "mod-b"
 
 [step.expect]
 refuses = "read"

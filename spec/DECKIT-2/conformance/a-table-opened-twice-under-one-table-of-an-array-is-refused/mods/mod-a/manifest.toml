@@ -1,0 +1,13 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."mod-a/actions"]]
+title = "New Page"
+
+[contributes."mod-a/actions".when]
+focused = true
+
+[contributes."mod-a/actions".when]
+empty = true

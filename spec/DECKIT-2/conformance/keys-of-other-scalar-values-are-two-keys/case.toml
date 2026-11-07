@@ -5,14 +5,14 @@ note = "Two keys are the same key only when they are the same sequence of Unicod
 [host]
 base = "system"
 api = "1.0.0"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 part = "permissions"
 
 [step.expect]

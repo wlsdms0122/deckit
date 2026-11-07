@@ -5,14 +5,14 @@ note = "A version's parts are numbers, 1*DIGIT. 01.02.0 is the version 1.2.0, sa
 [host]
 base = "system"
 api = "1.2.0"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 part = "api"
 
 [step.expect]

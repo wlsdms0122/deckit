@@ -1,18 +1,18 @@
 case = 1
 name = "an-id-in-capitals-is-refused"
-note = "An id is name-part, of lower-case letters, digits, \".\", \"_\" and \"-\". Notes refuses the bundle at read, which is listed under the id it writes."
+note = "An id is name-part, of lower-case letters, digits, \".\", \"_\" and \"-\". Mod-A refuses the bundle at read, which is listed under the id it writes."
 
 [host]
 base = "system"
 api = "1.0.0"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "Notes"
+mod = "Mod-A"
 
 [step.expect]
 refuses = "read"

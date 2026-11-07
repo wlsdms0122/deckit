@@ -6,14 +6,14 @@ note = "A permission is privileged only where defined so, false where not given,
 base = "system"
 api = "1.0.0"
 permissions = [{ id = "case.sync", name = "Sync", means = "Syncs the pages." }]
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 part = "permissions"
 
 [step.expect]

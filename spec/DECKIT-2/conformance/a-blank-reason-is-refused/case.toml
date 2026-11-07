@@ -5,14 +5,14 @@ note = "A permission asked for maps to a string, not blank, that says why. One o
 [host]
 base = "system"
 api = "1.0.0"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 
 [step.expect]
 refuses = "read"

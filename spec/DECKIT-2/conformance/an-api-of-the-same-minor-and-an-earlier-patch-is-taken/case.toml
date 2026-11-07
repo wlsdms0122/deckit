@@ -5,14 +5,14 @@ note = "Of the same minor, a version satisfies another whose patch is at most it
 [host]
 base = "system"
 api = "1.2.3"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 part = "api"
 
 [step.expect]

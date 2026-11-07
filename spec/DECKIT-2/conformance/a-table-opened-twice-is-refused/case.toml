@@ -6,14 +6,14 @@ note = "A table opened by a table-header twice refuses the bundle at read."
 base = "system"
 api = "1.0.0"
 fields = ["extra"]
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 
 [step.expect]
 refuses = "read"

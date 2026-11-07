@@ -1,8 +1,0 @@
-id = "notes"
-version = "1.0.0"
-api = "1.0.0"
-main = "main.js"
-
-[view]
-"caf\u00e9" = 1
-"cafe\u0301" = 2

@@ -1,0 +1,13 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[extra.rows]]
+n = 1
+
+[[extra.rows]]
+n = 2
+
+[extra.rows.more]
+m = 1

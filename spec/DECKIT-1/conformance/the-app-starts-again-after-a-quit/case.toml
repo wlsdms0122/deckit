@@ -5,7 +5,7 @@ note = "A quit is answered nothing, and a case starts the host app again only af
 [host]
 base = "system"
 api = "1.0.0"
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
@@ -20,4 +20,4 @@ input = "start"
 look = "mods"
 
 [step.expect]
-answers = ["notes"]
+answers = ["mod-a"]

@@ -6,14 +6,14 @@ note = "The key of a key-value is the text before the first \"=\" of its line, s
 base = "system"
 api = "1.0.0"
 fields = ["extra"]
-sources = ["notes"]
+sources = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 
 [step.expect]
 refuses = "read"

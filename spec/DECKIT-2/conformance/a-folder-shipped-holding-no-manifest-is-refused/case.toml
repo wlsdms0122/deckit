@@ -5,14 +5,14 @@ note = "A folder the system is handed to read as a bundle, and which holds no ma
 [host]
 base = "system"
 api = "1.0.0"
-ship = ["notes"]
+ship = ["mod-a"]
 
 [[step]]
 input = "start"
 
 [[step]]
 look = "mod"
-mod = "notes"
+mod = "mod-a"
 
 [step.expect]
 refuses = "read"

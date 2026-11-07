@@ -12,7 +12,7 @@ A mod arrives as a bundle: a folder holding a manifest, `manifest.toml`, and the
 The system reads a bundle before anything of the mod runs, and a mod author writes one bundle for every implementation. Two implementations that disagree about a bundle make one mod run on one and not on the other. Each of these is a bundle two implementations could answer differently without a rule:
 
 ```toml
-id = "Notes"           # Notes and notes are one folder on a file system that ignores case
+id = "Mod-A"           # Mod-A and mod-a are one folder on a file system that ignores case
 version = "1.0"        # read as 1.0.0, or refused
 api = "1.3.0"          # taken by a host that runs 1.2.0, or refused
 main = "../shared.js"  # a file outside the bundle
@@ -22,7 +22,7 @@ color = "blue"         # a key no one reads: passed over, or refused
 Three more, each a whole bundle read in place. A mod that is not a system mod asks for a permission its host defines privileged, and is refused as its bundle is read, or taken and refused only when it first calls:
 
 ```toml
-id = "notes"
+id = "mod-a"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
@@ -34,7 +34,7 @@ main = "main.js"
 A bundle that is taken is answered to the host, and what the answer holds decides what every host can show of it: its name where none is written, its reason as written or trimmed, its permissions in which order:
 
 ```toml
-id = "notes"
+id = "mod-a"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
@@ -47,7 +47,7 @@ alpha = "Takes a photo of a page."
 A bundle that is refused is still a mod the host finds, and must be listed under some name for the host to say why it does not run: the id it writes, its folder's name, or none:
 
 ```toml
-id = "notes"           # in a folder named shelf
+id = "mod-a"           # in a folder named mod-b
 api = "1.0.0"          # no version: refused
 main = "main.js"
 ```
@@ -172,7 +172,7 @@ number    = 1*DIGIT                                                     ; at mos
 major     = an integer, at least 0
 ```
 
-**Note.** An id is in lower case because each mod keeps what it stores under its id, and on a file system that ignores case `Notes` and `notes` are one folder while comparing as two ids.
+**Note.** An id is in lower case because each mod keeps what it stores under its id, and on a file system that ignores case `Mod-A` and `mod-a` are one folder while comparing as two ids.
 
 #### interfaces
 
@@ -185,8 +185,8 @@ A table, whether a header or an inline table writes it, of `provides` and `uses`
 
 ```toml
 [interfaces]
-provides = { "notes/pages" = [1, 2] }
-uses = { "switcher/actions" = 1 }
+provides = { "mod-a/pages" = [1, 2] }
+uses = { "mod-b/actions" = 1 }
 ```
 
 An interface is named `<mod id>/<name>`: the id of the mod that defines it, and a name. What providing and using come to (an interface's owner, the connections, a major that does not match) is the connections' DECKIT.
@@ -207,7 +207,7 @@ A permission's id is any string a `key` writes. Where a permission asked for is 
 A table: an `interface` → an array of tables, each an entry the mod declares to that interface. An array may be empty.
 
 ```toml
-[[contributes."switcher/actions"]]
+[[contributes."mod-b/actions"]]
 title = "New Page"
 command = "new-page"
 ```

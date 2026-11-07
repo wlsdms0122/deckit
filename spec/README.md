@@ -48,7 +48,7 @@ A refusal's **kind** is an upper-case name, `[A-Z][A-Z_]*`, fixed by the DECKIT 
 
 **Note.** A paragraph opening with **Note.** is not a requirement. It says what a rule is for, what an implementation is likely to get wrong, or what the rule would cost written another way. Removing every one of them removes nothing an implementation is held to, and the cases never measure one.
 
-**How the DECKITs write examples.** A block of TOML is manifest text as [the bundle](DECKIT-2/SPEC.md) reads it. An inline table, `{ id = "notes" }`, shows a value, and brackets, `[1, 2]`, a list.
+**How the DECKITs write examples.** A block of TOML is manifest text as [the bundle](DECKIT-2/SPEC.md) reads it. An inline table, `{ id = "mod-a" }`, shows a value, and brackets, `[1, 2]`, a list.
 
 ## How DECKITs work
 

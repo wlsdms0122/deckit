@@ -1,0 +1,15 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[contributes]
+"mod-a/empty" = []
+
+[[contributes."mod-b/actions"]]
+title = "New Page"
+command = "new-page"
+
+[[contributes."mod-b/actions"]]
+title = "Open"
+command = "open"
