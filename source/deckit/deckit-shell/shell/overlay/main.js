@@ -73,7 +73,7 @@ export function createOverlay({ deckit, PAGES }) {
         PAGES.allowSurface(page, SURFACE.NAME, (surface) => {
             if (overlays.get(page) !== held) return PAGES.close(surface);
             held.surface = surface;
-            deckit.keymap.listen(surface, { belongsTo: () => (held.presents ? null : page) });
+            deckit.keymap.listen(surface);
         });
         deckit.pages.whenEnds(page, ({ replaced }) => {
             if (overlays.get(page) !== held) return;
