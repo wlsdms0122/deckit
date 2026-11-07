@@ -1,7 +1,7 @@
 // The mods as the core reads them (deckit-shell/deckit/catalog), over a stand-in for the core: each with whether it is
 // a system mod, the manifest fields the layers named, by key, as written, and whether a permission is privileged; and
-// what a mod with deckit.mods (deckit/mods/main.js) and the host app (api/index.js) are answered of them. Exits 1 with
-// a line for each check that failed. The packages are ES modules, so they are imported as such.
+// what a mod with deckit.mods (deckit/mods/main.js) and the host app (deckit/api/index.js) are answered of them. Exits
+// 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -37,7 +37,7 @@ async function main() {
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const { createCatalog } = await import(url('deckit-shell', 'deckit', 'catalog', 'index.js'));
     const { createMods } = await import(url('deckit-shell', 'deckit', 'mods', 'main.js'));
-    const { createApi } = await import(url('deckit-shell', 'api', 'index.js'));
+    const { createApi } = await import(url('deckit-shell', 'deckit', 'api', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

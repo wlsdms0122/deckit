@@ -1,6 +1,6 @@
-import * as MOD_PERMISSION from '../deckit/permission/index.js';
-import * as LIFECYCLE from '../deckit/runner/model/lifecycle.js';
-import * as IPC from '../deckit/ipc/main.js';
+import * as MOD_PERMISSION from '../permission/index.js';
+import * as LIFECYCLE from '../runner/model/lifecycle.js';
+import * as IPC from '../ipc/main.js';
 
 // What connect answers.
 export function createApi({

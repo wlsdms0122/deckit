@@ -1,0 +1,233 @@
+import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
+import * as WEB_PERMISSION from '../web/model/permission.js';
+import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
+import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
+import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
+import * as OPEN_PERMISSION from '../open/model/permission.js';
+import * as ENVIRONMENT from '../environment/index.js';
+import * as IPC from '../ipc/main.js';
+import { createHome } from '../home/index.js';
+import { createStorage } from '../storage/index.js';
+import * as BUILD from '../build/index.js';
+import { createLog } from '../log/main.js';
+import { createPermission } from '../permission/index.js';
+import { createManifestField } from '../manifest-field/index.js';
+import { createCatalog } from '../catalog/index.js';
+import { createIdentity } from '../identity/index.js';
+import { createRunner } from '../runner/main.js';
+import { createRecord } from '../record/main.js';
+import { createConnection } from '../connection/main.js';
+import { createEvent } from '../event/main.js';
+import { createMods } from '../mods/main.js';
+import { createCore } from '../core/main.js';
+import { createWeb } from '../web/main.js';
+import { createKeymap } from '../keymap/main.js';
+import { createOpen } from '../open/main.js';
+import { createNotification } from '../notification/main.js';
+import { createClipboard } from '../clipboard/main.js';
+import { createContribution } from '../contribution/main.js';
+import { createMainProcess } from '../main-process/main.js';
+import { createModFolder } from '../mod-folder/main.js';
+import { createRuntime } from '../runtime/main.js';
+import { createSetup } from '../setup/main.js';
+import { createApi } from '../api/index.js';
+
+// MARK: - Property
+// What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
+// keeps, and `name` is what a person reads.
+// `folders`: `home` is deckit's folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships,
+// installed at every start, each `{ folder, system }`, `system` whether the host app names it a system mod, and
+// `sources` folders of mods read in place, ahead of installed ones.
+const CONFIG = { id: 'deckit', name: 'Deckit' };
+const FOLDERS = { home: null, ship: [], sources: [] };
+// What the host app answers deckit: the process and its windows are its own.
+const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
+// The permissions deckit's passages define, in the order a person reads them.
+const DECKIT_PERMISSIONS = [
+    MAIN_PROCESS_PERMISSION,
+    WEB_PERMISSION,
+    CLIPBOARD_PERMISSION,
+    NOTIFICATION_PERMISSION,
+    KEYMAP_PERMISSION,
+    OPEN_PERMISSION,
+];
+// Main's channels are the process's: deckit connects once.
+let connected = null;
+
+// MARK: - Public
+// How a host app starts deckit, once, before the app is ready: `environment` is what the environment deckit runs on
+// gives it (environment: MAIN), `host` answers what of deckit is the app's, and `config` and `folders` are its
+// configuration. Answers what the app and the UI on deckit reach of deckit (api/index.js).
+function connect(environment, { host, config = {}, folders = {} } = {}) {
+    if (connected) throw new Error('[deckit] connect is called once');
+    const ENV = ENVIRONMENT.checked(environment, ENVIRONMENT.MAIN, 'the environment');
+    const missing = CONNECT_ANSWERS.filter((name) => typeof host?.[name] !== 'function');
+    if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
+    refuseUnknown('config', config, Object.keys(CONFIG));
+    refuseUnknown('folders', folders, Object.keys(FOLDERS));
+    refuseShip(folders.ship ?? FOLDERS.ship);
+    connected = make({
+        ENV,
+        host,
+        config: Object.freeze({ ...CONFIG, ...config }),
+        folders: Object.freeze({ ...FOLDERS, ...folders }),
+    });
+    return connected;
+}
+
+// What connect answered, or null before it is called.
+function answered() {
+    return connected;
+}
+
+// Throws for a key of `given`, what a host app hands as `what`, that is none of `known`.
+function refuseUnknown(what, given, known) {
+    if (typeof given !== 'object' || !given) throw new Error(`[deckit] ${what} is not an object`);
+    const unknown = Object.keys(given).filter((key) => !known.includes(key));
+    if (unknown.length) throw new Error(`[deckit] ${what} sets ${unknown.join(', ')}, which deckit does not read`);
+}
+
+// MARK: - Private
+function refuseShip(ship) {
+    const marked = (mod) => typeof mod?.folder === 'string' && typeof mod.system === 'boolean';
+    if (!Array.isArray(ship) || !ship.every(marked))
+        throw new Error('[deckit] folders.ship lists { folder, system } for each mod folder the host app ships');
+}
+
+// Deckit in main, made of its parts, each handed what it uses of the environment.
+function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
+    ENV.configure({ id: CONFIG.id });
+    const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
+    const LOG = createLog({ log: ENV.log, reports: ENV.reports, about: ENV.about, folder: HOME.logs, name: CONFIG.id });
+    // The channels are carried before anything crosses.
+    IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
+    const CORE = createCore({ FOLDERS, LOG, core: ENV.core, home: HOME.folder });
+    const STORAGE = createStorage({ CORE, LOG });
+    const PERMISSION = createPermission();
+    const MANIFEST_FIELD = createManifestField();
+    const CATALOG = createCatalog({ CORE, LOG, files: ENV.files });
+    const IDENTITY = createIdentity({ pages: ENV.pages });
+    const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
+    const RECORD = createRecord({ CORE, IDENTITY });
+    const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER });
+    const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: ENV.pages });
+    const CONTRIBUTION = createContribution({ CORE, IDENTITY });
+    const KEYMAP = createKeymap({ LOG, IDENTITY, keys: ENV.keys });
+    const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
+    const OPEN = createOpen({ LOG, IDENTITY, open: ENV.open });
+    const NOTIFICATION = createNotification({
+        LOG,
+        IDENTITY,
+        clicked: () => host.notificationClicked(),
+        notifications: ENV.notifications,
+    });
+    const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
+    const MAIN_PROCESS = createMainProcess({
+        IDENTITY,
+        RUNNER,
+        mainProcess: ENV.mainProcess,
+        app: ENV.app,
+        files: ENV.files,
+    });
+    const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
+    const RUNTIME = createRuntime({
+        CONFIG,
+        CORE,
+        LOG,
+        IDENTITY,
+        restart: () => host.restart(),
+        about: ENV.about,
+        user: ENV.folders.user,
+        focused: ENV.keys.focused,
+    });
+    const SETUP = createSetup({ IDENTITY, web: ENV.web });
+    const API = createApi({
+        CONFIG,
+        CORE,
+        STORAGE,
+        LOG,
+        IDENTITY,
+        CATALOG,
+        RUNNER,
+        PERMISSION,
+        MANIFEST_FIELD,
+        WEB,
+        KEYMAP,
+        MAIN_PROCESS,
+        SETUP,
+    });
+    const starting = []; // what starts with deckit, before any mod launches: the UI on it
+    let started = false;
+
+    // What deckit's passages give, on every host.
+    for (const model of DECKIT_PERMISSIONS) for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
+    const answer = API.make({ onStart, restart: () => host.restart() });
+    ENV.app.whenReady().then(start);
+    return answer;
+
+    // `listener` is told once, as deckit starts once the app is ready, before any mod launches. It is handed over
+    // before then.
+    function onStart(listener) {
+        if (started) throw new Error('[deckit] what starts with deckit is handed over before the app is ready');
+        starting.push(listener);
+    }
+
+    // The log starts first, then the core, which is handed the permissions the layers defined and the manifest fields
+    // they named, and hands over the state it keeps, and installs what the host app ships and reads the mods, before
+    // anything reads the mods or the state. Deckit's pages are served before any loads. What follows the mods' runs
+    // starts before the runner launches any.
+    async function start() {
+        LOG.start({
+            nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
+        });
+        LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
+        CORE.start({ ...PERMISSION.all(), ...MANIFEST_FIELD.all() });
+        await STORAGE.load();
+        await CATALOG.load();
+        ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
+        WEB.start();
+        KEYMAP.start();
+        OPEN.start();
+        NOTIFICATION.start();
+        CLIPBOARD.start();
+        CONTRIBUTION.start();
+        MAIN_PROCESS.start();
+        MOD_FOLDER.start();
+        RUNTIME.start();
+        SETUP.start();
+        started = true;
+        // What fails to start with deckit fails alone: the mods run whatever it did.
+        for (const listener of starting) {
+            try {
+                listener();
+            } catch (error) {
+                LOG.error('what starts with deckit did not start', error);
+            }
+        }
+        RECORD.start();
+        CONNECTION.start();
+        EVENT.start();
+        MODS.start({
+            facts: (mod) => ({ mainProcess: MAIN_PROCESS.stateOf(mod.id) }),
+            onFactsChange: MAIN_PROCESS.onChange,
+            installed: MAIN_PROCESS.installed,
+            removed: MAIN_PROCESS.removed,
+            erase: WEB.erase,
+        });
+        RUNNER.start({ preparePage });
+    }
+
+    // A mod's page shows the web, is where the chords mods take work, and opens with the system what it opens: a
+    // window it asks for, and a link that leaves its origin, which deckit holds it to.
+    function preparePage(page) {
+        WEB.prepare(page);
+        KEYMAP.listen(page);
+        ENV.pages.watch(page, {
+            opens: (url, options) => OPEN.openFrom(page, url, options),
+            leaves: (url) => OPEN.openFrom(page, url),
+        });
+    }
+}
+
+export { connect, answered, refuseUnknown };
