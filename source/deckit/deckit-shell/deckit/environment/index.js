@@ -43,10 +43,10 @@ const MAIN = Object.freeze({
         // when the page's load did not complete, other than by another load replacing it; `ended()` each time the
         // page's document is replaced, by a main-frame navigation that commits, its first load's included; `gone(why)`
         // each time its process ends, the page living on; `destroyed()` once, as the page goes; `consoleError(message)`
-        // for what its console says as an error; `opens(url, { activates, target })` when it asks for a window, which
-        // it is not given, but for a surface `SHELL.pages.surfaces` lets it open, `activates` whether what opens comes
-        // forward and `target` the name it targets; and, for a mod's page, `leaves(url)` when its main frame asks to go
-        // outside the mod's origin. Answers `off()`, which stops this watch alone
+        // for what its console says as an error; `opens(url, { activates, target })` when it asks for a window the
+        // environment does not open for it, `activates` whether what opens comes forward and `target` the name it
+        // targets; and, for a mod's page, `leaves(url)` when its main frame asks to go outside the mod's origin.
+        // Answers `off()`, which stops this watch alone
         watch: 'function',
         // serve(folderOf), once the app is ready, before any page loads: deckit's pages served, a mod's page with the
         // files of the folder `folderOf(modId)` answers, or none where it answers null
