@@ -3,8 +3,9 @@
 // interface, and for the mods that reach it by id under its own id, each once for the run, refused with why for an
 // interface the manifest does not provide, a second register, or one in the other lifecycle after one lifecycle opened
 // it; what main is told each opened in; the `connect` handed the client's id and name; and the client's
-// `dependencies.onConnect`, by the mod id it reaches or the interface it uses, handed a connection that stands as its
-// lifecycle begins or comes later, and a connection refused as a lifecycle begins a problem that ends nothing. Exits 1
+// `dependencies.onConnect`, by the interface it uses or the mod id it reaches, handed a connection that stands as its
+// lifecycle begins or comes later, a connection refused as a lifecycle begins a problem that ends nothing, and
+// `dependencies.reach` and `release`, a mod by its id asked of main and let go, refused with the core's kind. Exits 1
 // with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -32,29 +33,42 @@ async function main() {
         name: 'P',
         main: 'main.js',
         provides: { 'p/one': [1], 'p/two': [1] },
-        uses: { 'q/optional': 1 },
+        uses: { 'q/used': 1, 'q/optional': 1 },
         permissions: [],
     };
     const tells = [];
+    const asks = [];
     let heard = null;
     const answers = {
         'deckit-shell:mod-load': () => ({ manifest: MANIFEST, source: '', run: 1 }),
         'deckit-shell:connection-begin': ({ lifecycle }) =>
             lifecycle === 0
-                ? [{ id: 10, name: 'q', exports: { value: { answer: 42 }, references: [] } }]
+                ? [{ id: 10, name: 'q/used', exports: { value: { answer: 42 }, references: [] } }]
                 : [{ id: 11, name: 'r', problem: 'r did not connect: refused' }],
+    };
+    // The core refuses to reach x, which the mod may not reach.
+    const refusals = {
+        'deckit-shell:connection-reach': ({ target }) =>
+            target === 'x' && { message: 'x is out of reach of p', kind: 'REFUSED' },
+    };
+    const answer = ({ channel, payload }) => {
+        asks.push({ channel, payload });
+        const error = refusals[channel]?.(payload);
+        return error ? { error } : { value: answers[channel]?.(payload) ?? null };
     };
     IPC.carry(
         {
             messages: {
                 listen: (listeners) => (heard = listeners),
                 tell: (message) => tells.push(message),
-                ask: async ({ channel, payload }) => ({ value: answers[channel]?.(payload) ?? null }),
-                askSync: ({ channel, payload }) => ({ value: answers[channel]?.(payload) ?? null }),
+                ask: async (message) => answer(message),
+                askSync: (message) => answer(message),
             },
         },
         { report: () => {} }
     );
+    const asked = (channel) =>
+        asks.filter((message) => message.channel === `deckit-shell:${channel}`).map(({ payload }) => payload);
     const told = (channel) => tells.filter((message) => message.channel === `deckit-shell:${channel}`);
     const payloads = (channel) => told(channel).map(({ payload }) => payload.payload ?? payload);
     let asking = 0;
@@ -66,13 +80,21 @@ async function main() {
         return tells.find((message) => message.id === id && message.channel === `deckit-shell:${channel}`);
     };
 
-    // The mod: it provides p/one and p/two, opens its own exports for the mods that reach it by id, and listens for q,
-    // a mod it reaches by id, and q/optional.
-    const seen = { connected: [], heard: [] };
+    // The mod: it provides p/one and p/two, opens its own exports for the mods that reach it by id, listens for q/used
+    // and q/optional, interfaces it uses, and reaches q by its id, and x, which it may not.
+    const seen = { connected: [], heard: [], reached: [], cut: [] };
     class Mod {
         start(deckit) {
-            seen.dependencies = Object.keys(deckit.dependencies);
-            deckit.dependencies.onConnect('q', (exports) => (seen.atBegin = exports.answer));
+            seen.dependencies = deckit.dependencies;
+            deckit.dependencies.onConnect('q/used', (exports) => (seen.atBegin = exports.answer));
+            deckit.dependencies.onConnect('q', (exports) => {
+                seen.reached.push(exports);
+                return () => seen.cut.push('q');
+            });
+            seen.reach = deckit.dependencies.reach('q');
+            seen.refused = deckit.dependencies
+                .reach('x')
+                .catch((error) => ({ message: error.message, kind: error.kind }));
             deckit.exports.register('p/one', {
                 connect: (connection) => {
                     seen.connected.push(connection);
@@ -113,7 +135,7 @@ async function main() {
 
     check(
         'a connection standing as its lifecycle begins reaches what listens for its name, beside onConnect alone',
-        seen.atBegin === 42 && seen.dependencies.join() === 'onConnect',
+        seen.atBegin === 42 && Object.keys(seen.dependencies).join() === 'onConnect,reach,release',
         seen
     );
     const problems = payloads('mod-problem').map(({ problem }) => problem);
@@ -157,7 +179,7 @@ async function main() {
     check('the summary says exports were opened', joined?.summary.exports === true, joined?.summary);
     check(
         'main is told the interfaces the run listens for, by the lowest lifecycle',
-        JSON.stringify(joined?.contributions.awaits) === '{"q":0,"q/optional":1}',
+        JSON.stringify(joined?.contributions.awaits) === '{"q/used":0,"q":0,"q/optional":1}',
         joined?.contributions
     );
 
@@ -217,6 +239,40 @@ async function main() {
         seen.heard.length === 1 && JSON.stringify(seen.heard[0]) === '{"optional":true}',
         seen.heard
     );
+
+    // A mod reached by its id: asked of main for the lifecycle, handed to what listens for its id once it stands, and
+    // let go.
+    await seen.reach;
+    check(
+        'a reach by id is asked of main for the lifecycle that asks',
+        JSON.stringify(asked('connection-reach')[0]) === '{"run":1,"lifecycle":0,"target":"q"}',
+        asked('connection-reach')
+    );
+    const refused = await seen.refused;
+    check(
+        'a reach the core refuses rejects with its kind',
+        refused?.kind === 'REFUSED' && /out of reach/.test(refused.message),
+        refused
+    );
+    heard.told({
+        channel: 'deckit-shell:connection-connected',
+        payload: { id: 30, name: 'q', exports: { value: { byId: true }, references: [] }, lifecycle: 0 },
+    });
+    for (let at = 0; at < 3; at++) await tick();
+    check(
+        'a mod reached by its id is handed to what listens for its id',
+        JSON.stringify(seen.reached) === '[{"byId":true}]',
+        seen.reached
+    );
+    await seen.dependencies.release('q');
+    check(
+        'a release is asked of main for the lifecycle and the id',
+        JSON.stringify(asked('connection-release-reach')) === '[{"run":1,"lifecycle":0,"target":"q"}]',
+        asked('connection-release-reach')
+    );
+    heard.told({ channel: 'deckit-shell:connection-disconnected', payload: { id: 30 } });
+    for (let at = 0; at < 3; at++) await tick();
+    check('the connection let go ends what its onConnect answered', seen.cut.join() === 'q', seen.cut);
 
     for (const line of failed) console.error(line);
     if (failed.length) {

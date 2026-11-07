@@ -5,9 +5,10 @@ import * as DECLARED from './protocol.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
-// what crosses goes from page to page through here, never read. A connection is handed to its client while it stands,
-// and so is one its service refused, with why: one that ended while its exports were asked for is left out. The
-// service is handed the client's id and name; the client, the name alone.
+// what crosses goes from page to page through here, never read. A lifecycle connects to the interfaces it uses as it
+// begins, and to a mod by its id as it asks, until it lets it go. A connection is handed to its client while it
+// stands, and so is one its service refused, with why: one that ended while its exports were asked for is left out.
+// The service is handed the client's id and name; the client, the name alone.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -27,6 +28,15 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             RUNNER.ask('connection/end', { mod, run, lifecycle }).catch((error) =>
                 LOG.error('the core did not take connection/end', error)
             );
+        });
+        // Asked through the runner, which does what the core answers: the mod reached launches if it does not run.
+        PROTOCOL.reach.handle(async ({ run, lifecycle, target }, sender) => {
+            const mod = IDENTITY.modFrom(sender).id;
+            await RUNNER.ask('connection/reach', { mod, run, lifecycle, target });
+        });
+        PROTOCOL.releaseReach.handle(async ({ run, lifecycle, target }, sender) => {
+            const mod = IDENTITY.modFrom(sender).id;
+            await RUNNER.ask('connection/release', { mod, run, lifecycle, target });
         });
         PROTOCOL.call.handle(async ({ run, connection, number, args }, sender) => {
             const other = await route(sender, run, connection);

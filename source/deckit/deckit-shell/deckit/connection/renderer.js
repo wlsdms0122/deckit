@@ -45,8 +45,10 @@ export function createConnection({ RUN }) {
     });
 
     // MARK: - Public
-    // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected)`, and the problems
-    // of the connections refused, each `{ name, problem }`. What `onConnect` adds is cut with `scope`.
+    // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected)`, `reach(id)` and
+    // `release(id)`, and the problems of the connections refused, each `{ name, problem }`. What `onConnect` adds is
+    // cut with `scope`. The interfaces the mod uses connect as the lifecycle begins; a mod by its id, as `reach` asks,
+    // until `release` lets it go or the lifecycle ends, its connection handed to what listens for its id.
     async function begin(lifecycle, scope) {
         begun.add(lifecycle);
         const answered = await PROTOCOL.begin.invoke({ run: RUN.number, lifecycle });
@@ -57,6 +59,8 @@ export function createConnection({ RUN }) {
         }
         const dependencies = Object.freeze({
             onConnect: (named, connected) => listen(lifecycle, String(named), connected, scope),
+            reach: (id) => PROTOCOL.reach.invoke({ run: RUN.number, lifecycle, target: String(id) }),
+            release: (id) => PROTOCOL.releaseReach.invoke({ run: RUN.number, lifecycle, target: String(id) }),
         });
         return { dependencies, problems };
     }
@@ -101,7 +105,7 @@ export function createConnection({ RUN }) {
         for (const listener of listening.get(lifecycle)?.get(named) ?? []) hand(entry, listener);
     }
 
-    // A connection that stands since the lifecycle began, or one its service refused, a problem against the run.
+    // A connection that stands after the lifecycle began, or one its service refused, a problem against the run.
     function opened(told) {
         if (!begun.has(told.lifecycle)) return;
         if (!told.problem) open(told);
