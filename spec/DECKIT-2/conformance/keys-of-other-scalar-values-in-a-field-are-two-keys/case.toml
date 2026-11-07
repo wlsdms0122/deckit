@@ -1,0 +1,21 @@
+case = 1
+name = "keys-of-other-scalar-values-in-a-field-are-two-keys"
+note = "Two keys are the same key only when they are the same sequence of Unicode scalar values. A table of an added field holding caf\u00e9 and cafe\u0301 is handed on with both keys."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["view"]
+sources = ["notes"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "notes"
+part = "fields"
+
+[step.expect.answers.view]
+"caf\u00e9" = 1
+"cafe\u0301" = 2

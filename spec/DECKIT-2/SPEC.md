@@ -66,7 +66,7 @@ A **path** a manifest names is a file inside the bundle:
 
 ```
 path    = segment *( "/" segment )
-segment = 1*( any code point but "/" and "\" )      ; and not ".."
+segment = 1*( any code point but "/" and "\" )      ; and not "." or ".."
 ```
 
 A path is resolved from the bundle's folder, following every link, and names a regular file whose resolved place is inside the bundle's resolved folder.
