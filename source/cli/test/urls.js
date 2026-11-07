@@ -1,6 +1,6 @@
 // The urls mod (mods/urls/src) over a stand-in for deckit: its address patterns, the handlers it reads from what mods
 // declare to deckit/urls, an address offered to them in turn on the exports they open for their id and then opened
-// outside the app, and the mod a client chooses for a scheme, kept in its records. Exits 1 with a line for each check
+// outside the app, and what a client chooses to open a scheme, kept in its records. Exits 1 with a line for each check
 // that failed.
 const path = require('path');
 
@@ -324,50 +324,118 @@ async function main() {
     );
     warnings.length = 0;
 
-    // Choosing the mod for a scheme.
+    // Choosing what opens a scheme.
     check('list refused', (await rejection(plain.list()))?.kind === 'REFUSED');
-    check('choose refused', (await rejection(plain.choose('https', 'browser')))?.kind === 'REFUSED');
-    check('no such scheme', (await rejection(settings.choose('gopher', 'browser')))?.kind === 'SCHEME');
-    check('no such mod there', (await rejection(settings.choose('https', 'mail')))?.kind === 'MOD');
+    check('choose refused', (await rejection(plain.choose('https', { mod: 'browser' })))?.kind === 'REFUSED');
+    check('no such scheme', (await rejection(settings.choose('gopher', { mod: 'browser' })))?.kind === 'SCHEME');
+    check('no such mod there', (await rejection(settings.choose('https', { mod: 'mail' })))?.kind === 'MOD');
+    for (const choice of ['browser', 7, {}, { system: false }, { mod: 7 }, { mod: 'browser', system: true }, []])
+        check(`${json(choice)} is no choice`, (await rejection(settings.choose('https', choice)))?.kind === 'CHOICE');
+    check(
+        'nothing outside for mailto',
+        (await rejection(settings.choose('mailto', { system: true })))?.kind === 'SYSTEM'
+    );
+    check(
+        'nothing outside for every scheme',
+        (await rejection(settings.choose('*', { system: true })))?.kind === 'SYSTEM'
+    );
     check('nothing kept', !store.has('chosen'));
-    const https = await settings.choose('HTTPS', 'any');
-    check('chosen', https.chosen === 'any' && https.mods[0].mod.id === 'any', https);
-    check('kept', store.get('chosen') === json({ https: 'any' }), store.get('chosen'));
+    const https = await settings.choose('HTTPS', { mod: 'any' });
+    check('chosen', json(https.chosen) === json({ mod: 'any' }) && https.mods[0].mod.id === 'any', https);
+    check('kept', store.get('chosen') === json({ https: { mod: 'any' } }), store.get('chosen'));
     taking.add('any');
     seen = await opened(plain, 'https://github.com/deckit/issues/1');
     check('the chosen first', json(seen) === json({ answer: true, offered: ['any'], outside: [] }), seen);
     taking.delete('any');
-    await settings.choose('https', 'github');
+    await settings.choose('https', { mod: 'github' });
     seen = await opened(plain, 'https://example.com');
     check('the chosen where it takes it', json(seen.offered) === json(['browser', 'any']), seen);
     seen = await opened(plain, 'https://github.com/deckit/issues/1');
     check('the chosen before a narrower', json(seen.offered) === json(['github', 'issues', 'browser', 'any']), seen);
-    await settings.choose('*', 'any');
-    check('every scheme chosen', (await settings.list()).find(({ scheme }) => scheme === '*').chosen === 'any');
+    await settings.choose('*', { mod: 'any' });
+    check('every scheme chosen', (await settings.list()).find(({ scheme }) => scheme === '*').chosen?.mod === 'any');
+
+    // A scheme chosen outside the app: offered to no mod, opened outside at once.
+    const system = await settings.choose('https', { system: true });
+    check(
+        'chosen outside',
+        json(system.chosen) === json({ system: true }) && system.mods[0].mod.id === 'issues',
+        system
+    );
+    check('kept outside', store.get('chosen') === json({ https: { system: true }, '*': { mod: 'any' } }));
+    taking.add('github');
+    seen = await opened(plain, 'https://github.com/deckit', { activates: false });
+    check(
+        'outside at once',
+        json(seen) === json({ answer: true, offered: [], outside: ['https://github.com/deckit'] }),
+        seen
+    );
+    check('outside as asked', json(outside[0]) === json(['https://github.com/deckit', { activates: false }]));
+    taking.delete('github');
+    seen = await opened(plain, 'http://example.com');
+    check('only the scheme chosen', json(seen.offered) === json(['browser', 'any']), seen);
+    await settings.choose('file', { system: true });
+    seen = await opened(plain, 'file:///Users/me/a.txt');
+    check('a file outside for a client that may not', json(seen) === json({ answer: false, offered: [], outside: [] }));
+    seen = await opened(opener, 'file:///Users/me/a.txt');
+    check(
+        'a file outside for a client that may',
+        json(seen) === json({ answer: true, offered: [], outside: ['file:///Users/me/a.txt'] }),
+        seen
+    );
+    const unchosen = await settings.choose('file', null);
+    check('outside no more', unchosen.chosen === null, unchosen);
+    seen = await opened(opener, 'file:///Users/me/a.txt');
+    check('a file to its mods again', json(seen.offered) === json(['files', 'any']), seen);
 
     // What was chosen holds across a restart, and an entry of another shape is left out.
-    store.set('chosen', json({ https: 'github', http: 7, mailto: 'gone' }));
+    store.set(
+        'chosen',
+        json({
+            https: { mod: 'github' },
+            http: { system: true },
+            file: 'files',
+            mailto: { mod: 'gone' },
+            chain: { mod: 'a-pass', system: true },
+            late: 7,
+        })
+    );
     const restarted = router(deckit, { within: 60, answerWithin: 40 }).exportsFor(
         connection('settings', ['deckit.system-services'])
     );
     const again = await restarted.list();
     check('told again after a restart', warnings.length === 9, warnings);
     warnings.length = 0;
-    const choices = again.map(({ scheme, chosen }) => `${scheme}:${chosen}`);
+    const choices = again.map(({ scheme, chosen }) => `${scheme}:${json(chosen)}`);
     check(
         'kept across a restart',
         json(choices) ===
-            json(['http:null', 'https:github', 'file:null', 'mailto:null', 'chain:null', 'late:null', '*:null']),
+            json([
+                'http:{"system":true}',
+                'https:{"mod":"github"}',
+                'file:null',
+                'mailto:null',
+                'chain:null',
+                'late:null',
+                '*:null',
+            ]),
         choices
     );
     const cleared = await restarted.choose('https', null);
     check('none', cleared.chosen === null && cleared.mods[0].mod.id === 'issues', cleared);
-    check('a choice of a mod gone is kept', store.get('chosen') === json({ mailto: 'gone' }), store.get('chosen'));
+    check(
+        'a choice of a mod gone is kept',
+        store.get('chosen') === json({ http: { system: true }, mailto: { mod: 'gone' } }),
+        store.get('chosen')
+    );
     refusingWrites = true;
-    check('a write refused', (await rejection(restarted.choose('https', 'browser')))?.message === 'the disk is full');
+    check(
+        'a write refused',
+        (await rejection(restarted.choose('https', { mod: 'browser' })))?.message === 'the disk is full'
+    );
     check('not chosen', (await restarted.list())[1].chosen === null);
     refusingWrites = false;
-    check('chosen after', (await restarted.choose('https', 'browser')).chosen === 'browser');
+    check('chosen after', (await restarted.choose('https', { mod: 'browser' })).chosen?.mod === 'browser');
 
     check('nothing logged', errors.length === 0 && warnings.length === 0, { errors, warnings });
 
