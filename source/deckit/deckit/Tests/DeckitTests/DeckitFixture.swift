@@ -10,12 +10,14 @@ import Testing
 @testable import Deck
 @testable import Deckit
 
-// The mods a test writes into a source folder, or a spare one to install from, and a deckit over them.
+// The mods a test writes into a source folder, a spare one to install from, or the app's as system mods, and a deckit
+// over them.
 struct DeckitFixture {
     // MARK: - Property
     private let home: URL
     private let source: URL
     private let spare: URL
+    private let ship: URL
 
     // MARK: - Initializer
     init(_ name: String) {
@@ -23,15 +25,18 @@ struct DeckitFixture {
         home = root.appending(path: "home")
         source = root.appending(path: "source")
         spare = root.appending(path: "spare")
+        ship = root.appending(path: "ship")
     }
 
     // MARK: - Public
     // `provides` and `uses` are the interfaces it provides and uses at major 1, `background` why it runs in the
     // background, and `contributes` the TOML of what it declares to interfaces, written after its other fields. A
-    // `spare` mod is not read until it is installed from `folder(of:)`.
+    // `spare` mod is not read until it is installed from `folder(of:)`, and a `system` one is shipped by the app as a
+    // system mod.
     func write(
         _ id: String,
         spare: Bool = false,
+        system: Bool = false,
         api: String = "1.0.0",
         background: String? = nil,
         permissions: [String] = [],
@@ -39,7 +44,7 @@ struct DeckitFixture {
         uses: [String] = [],
         contributes: String = ""
     ) throws {
-        let location = spare ? folder(of: id) : source.appending(path: id)
+        let location = spare ? folder(of: id) : (system ? ship : source).appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let asked = permissions.isEmpty
             ? ""
@@ -73,22 +78,26 @@ struct DeckitFixture {
         try FileManager.default.removeItem(at: source.appending(path: id))
     }
 
-    // A deckit over what is written, its mods read, which defines `permissions` and whose mods reach the relaunch
-    // limit as `limit` says, their runs failing at `now`.
+    // A deckit over what is written, what the app ships installed and its mods read, which defines `permissions` and
+    // whose mods reach the relaunch limit as `limit` says, their runs failing at `now`.
     func deckit(
         permissions: [Permission] = [],
         limit: RelaunchLimit = RelaunchLimit(burst: 5, interval: 10),
         now: @escaping () -> Date = Date.init
     ) throws -> Deckit {
+        let shipped = ((try? FileManager.default.contentsOfDirectory(atPath: ship.path(percentEncoded: false))) ?? [])
+            .sorted()
+            .map { id in ShippedMod(folder: ship.appending(path: id), system: true) }
         let sut = try Deckit(
             home: home,
-            ship: [],
+            ship: shipped,
             sources: [source],
             api: try #require(Version("1.0.0")),
             permissions: permissions,
             limit: limit,
             now: now
         )
+        _ = try sut.catalog.installShipped()
         _ = sut.readCatalog()
 
         return sut

@@ -18,12 +18,19 @@ public final class Deckit {
     public let runs: RunTable
     // A mod at the relaunch limit launches again only as its launch is asked.
     private var limit: RelaunchLimit
-    // The permission deckit defines itself: a mod granted it asks that another launch.
-    private static let mods = Permission(
+    // The permissions deckit defines itself: a mod granted `mods` asks that another launch, and one granted
+    // `reachMods` may reach every mod by its id.
+    static let mods = Permission(
         id: "deckit.mods",
         name: "Mods",
         means: "It can see every installed mod, add one from a folder, which gets every permission it asks for, and "
             + "delete installed ones, with what they stored."
+    )
+    static let reachMods = Permission(
+        id: "deckit.reach-mods",
+        name: "Reach Mods",
+        means: "It connects to any mod by its id, which launches the mod if it does not run.",
+        privileged: true
     )
     private let now: () -> Date
 
@@ -46,7 +53,7 @@ public final class Deckit {
         let deck = Deck(home: home)
         let reader = try ManifestReader(
             api: api,
-            permissions: [Deckit.mods] + permissions,
+            permissions: [Deckit.mods, Deckit.reachMods] + permissions,
             fields: fields,
             store: store
         )
@@ -145,6 +152,17 @@ public final class Deckit {
     // The `lifecycle`th lifecycle of the `run`th run of `id` has ended.
     public func ended(_ id: String, run: Int, lifecycle: Int) throws -> [Effect] {
         try observed(deck.ended(id, run: run, lifecycle: lifecycle))
+    }
+
+    // The `lifecycle`th lifecycle of the `run`th run of `id` asks to reach the mod `target` by its id, as deck reaches
+    // it: the mod it waits for launches.
+    public func reach(_ target: String, from id: String, run: Int, lifecycle: Int) throws -> [Effect] {
+        try observed(deck.reach(target, from: id, run: run, lifecycle: lifecycle))
+    }
+
+    // The lifecycle lets the mod `target` go, as deck releases it.
+    public func release(_ target: String, from id: String, run: Int, lifecycle: Int) throws -> [Effect] {
+        try observed(deck.release(target, from: id, run: run, lifecycle: lifecycle))
     }
 
     // MARK: - Private

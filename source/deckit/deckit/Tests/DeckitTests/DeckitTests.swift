@@ -162,6 +162,60 @@ struct DeckitTests {
         #expect(launches(in: effects) == ["p"])
     }
 
+    @Test("a mod granted deckit.reach-mods reaches any mod by id, which launches as it waits for it, and others none")
+    func reachModsReachesEveryMod() throws {
+        // Given
+        try fixture.write("t")
+        try fixture.write("n")
+        try fixture.write("r", system: true, permissions: ["deckit.reach-mods"])
+        let sut = try fixture.deckit()
+        _ = try sut.load(["r", "n"])
+        _ = try sut.deck.connections.begin(mod: "r", run: 1, lifecycle: 0)
+        _ = try sut.deck.connections.begin(mod: "n", run: 1, lifecycle: 0)
+
+        // When
+        let reached = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
+        let refused = #expect(throws: ConnectionError.self) { try sut.reach("t", from: "n", run: 1, lifecycle: 0) }
+
+        // Then
+        #expect(sut.deck.job(of: "r")?.reaches == .every)
+        #expect(sut.deck.job(of: "n")?.reaches == .only([]))
+        #expect(reached.contains { effect in
+            guard case let .wait(name, client, service) = effect else { return false }
+            return name == "t" && client.modId == "r" && service == "t"
+        })
+        #expect(launches(in: reached) == ["t"])
+        #expect(refused == .outOfReach(mod: "t", client: "n"))
+    }
+
+    @Test("a mod reached by id connects once it opens its exports for its id, and a release ends the connection")
+    func reachConnectsAndReleaseEnds() throws {
+        // Given
+        try fixture.write("t")
+        try fixture.write("r", system: true, permissions: ["deckit.reach-mods"])
+        let sut = try fixture.deckit()
+        _ = try sut.load(["r"])
+        _ = try sut.deck.connections.begin(mod: "r", run: 1, lifecycle: 0)
+        _ = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
+        _ = try sut.deck.connections.begin(mod: "t", run: 1, lifecycle: 0)
+
+        // When
+        let started = try sut.started("t", run: 1, contributions: Contribution(exportedIn: ["t": 0], awaits: [:]))
+        let released = try sut.release("t", from: "r", run: 1, lifecycle: 0)
+
+        // Then
+        let connected = started.compactMap { effect -> Connection? in
+            guard case let .connect(connection) = effect else { return nil }
+            return connection
+        }
+        #expect(connected.map(\.name) == ["t"])
+        #expect(connected.map(\.credential) == [Credential(modId: "r", permissions: ["deckit.reach-mods"])])
+        #expect(released.contains { effect in
+            guard case let .disconnect(connection) = effect else { return false }
+            return connection.name == "t" && connection.client.modId == "r"
+        })
+    }
+
     // MARK: - Private
     // The mods whose runs `effects` tell will launch, in order.
     private func launches(in effects: [Effect]) -> [String] {
