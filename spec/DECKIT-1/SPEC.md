@@ -37,7 +37,7 @@ bundle-name = lower *( lower / DIGIT / "-" )
 lower       = %x61-7A                      ; a to z
 ```
 
-`case.toml` is written in the manifest text [the bundle](../DECKIT-2/SPEC.md) fixes, and is read by the same reader. Its keys are these and no others:
+`case.toml` is written in the manifest text [the bundle](../DECKIT-2/SPEC.md) fixes, and is read by the same reader, so its integers lie within the same bound as a manifest's. Its keys are these and no others:
 
 | key | takes | required | what it says |
 |---|---|---|---|
@@ -59,7 +59,7 @@ A case **refuses as a case** when it writes any other key, a key under the wrong
 | `base` | `"system"`, `"shell"` or `"app"` | yes | what the host is before the case adds to it, below |
 | `api` | string, a version as [the bundle](../DECKIT-2/SPEC.md) writes one | with `base = "system"`, and only there | the mod contract the host runs mods with |
 | `fields` | array of strings | no | the manifest fields the host adds, in order |
-| `permissions` | array of tables `{ id, name, means, privileged }`, each a string but `privileged`, a boolean | no | the permissions the host defines, in order |
+| `permissions` | array of tables `{ id, name, means, privileged }`, each a string but `privileged`, a boolean, which may be left out and is `false` where not written | no | the permissions the host defines, in order |
 | `ship` | array of `bundle-name` | no | the bundles the host ships, in the order it ships them |
 | `system` | array of `bundle-name`, each one in `ship` | no | the bundles it ships that it marks system |
 | `sources` | array of `bundle-name` | no | the bundles it reads in place |
@@ -72,7 +72,7 @@ A case **refuses as a case** when it writes any other key, a key under the wrong
 
 What the case writes under `[host]` adds to the base: its fields and permissions after the base's, its bundles shipped after the base's. Where the case defines a field or a permission that its base or the system already defines, the start refuses as [the bundle](../DECKIT-2/SPEC.md) says, and that refusal is the answer to the `start` step.
 
-Each run of a case starts from nothing kept: the system's own folder is new and empty, and every bundle is laid out afresh where the runner keeps its run, never in the case's folder. The bundles in `sources` are laid side by side in one folder, which the host hands the system as a folder of bundles read in place. Each bundle in `ship` is handed as a bundle the host ships, marked system where `system` names it.
+Each run of a case starts from nothing kept: the system's own folder is new and empty, and every bundle is laid out afresh where the runner keeps its run, never in the case's folder. A bundle is laid out as written: each file and folder as the case holds it, and each link as a link holding the target it is written with, so that a link to a place inside the bundle points inside the bundle laid out. The bundles in `sources` are laid side by side in one folder, which the host hands the system as a folder of bundles read in place. Each bundle in `ship` is handed as a bundle the host ships, marked system where `system` names it.
 
 ### Driven bundles
 
