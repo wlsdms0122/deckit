@@ -8,8 +8,8 @@
 import Foundation
 import Deck
 
-// A folder a mod is in: its manifest, and the entry the manifest names. Who the mod is is the manifest's to say, not the
-// folder's name.
+// A folder a mod is in: its manifest, and the entry the manifest names. Who the mod is is the manifest's to say, not
+// the folder's name.
 struct ModFolder {
     // MARK: - Property
     private let reader: ManifestReader
