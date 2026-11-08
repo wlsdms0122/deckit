@@ -47,11 +47,11 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `mods.pin(interface, mod)` | the owner of an interface, as a person pins it | `deckit.mods` | the connections' DECKIT |
 | `mods.usage(id)` | what a mod has stored, in each place it is kept | `deckit.mods` | the storage DECKIT |
 | `mods.pick(options)` | a folder a person picks to install | `deckit.mods` | the embedding DECKIT |
-| `mods.reveal(id)` | a mod's folder, shown outside the app | `deckit.mods` | the DECKIT of opening outside the app |
+| `mods.reveal(id)` | a mod's folder, shown outside the app | `deckit.mods` | the DECKIT of files outside the app |
 | `mods.restartPending()`, `mods.restart()` | the mods that only a restart of the app finishes, and the restart | `deckit.mods` | the main process' DECKIT |
-| `openExternal(url, options)` | the request that hands the host an address to open outside the app | `system.file-handlers`, for the address of a file | the DECKIT of opening outside the app |
-| `reveal(path)` | a file, shown outside the app | `system.file-handlers` | the DECKIT of opening outside the app |
-| `fileURL(path)`, `filePath(url)` | the address of a file, and the file of an address | | the DECKIT of opening outside the app |
+| `openExternal(url, options)` | the request that hands the host an address to open outside the app | `system.file-handlers`, for the address of a file | [opening outside the app](../DECKIT-8/SPEC.md) |
+| `reveal(path)` | a file, shown outside the app | `system.file-handlers` | the DECKIT of files outside the app |
+| `fileURL(path)`, `filePath(url)` | the address of a file, and the file of an address | | the DECKIT of files outside the app |
 | `about()`, `active()` | what the host tells a mod of itself, and whether the app is in front | | the embedding DECKIT |
 | `storage` | what the mod stores | | the storage DECKIT |
 | `events` | the events the mod sends and hears | | the events' DECKIT |
