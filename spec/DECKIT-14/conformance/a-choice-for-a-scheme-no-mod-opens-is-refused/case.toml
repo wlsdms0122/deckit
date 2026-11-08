@@ -23,7 +23,6 @@ listener = true
 input = "call"
 mod = "mod-a"
 member = "choose"
-of = 2
 handed = true
 args = ["board", { system = true }]
 

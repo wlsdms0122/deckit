@@ -23,7 +23,6 @@ listener = true
 input = "call"
 mod = "mod-a"
 member = "choose"
-of = 2
 handed = true
 args = ["https", { mod = "mod-c" }]
 
@@ -34,7 +33,6 @@ answers = { scheme = "https", system = "browser", chosen = { mod = "mod-c" }, mo
 input = "call"
 mod = "mod-a"
 member = "open"
-of = 2
 handed = true
 args = ["https://example.com/"]
 

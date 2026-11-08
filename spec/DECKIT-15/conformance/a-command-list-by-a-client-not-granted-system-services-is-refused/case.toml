@@ -22,7 +22,6 @@ listener = true
 input = "call"
 mod = "mod-a"
 member = "list"
-of = 2
 handed = true
 
 [step.expect]

@@ -23,7 +23,6 @@ listener = true
 input = "call"
 mod = "mod-a"
 member = "choose"
-of = 2
 handed = true
 args = ["https", { mod = "mod-c" }]
 
@@ -31,7 +30,6 @@ args = ["https", { mod = "mod-c" }]
 input = "call"
 mod = "mod-a"
 member = "choose"
-of = 2
 handed = true
 args = ["https"]
 

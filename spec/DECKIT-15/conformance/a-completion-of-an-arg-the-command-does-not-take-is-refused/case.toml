@@ -23,7 +23,6 @@ listener = true
 input = "call"
 mod = "mod-a"
 member = "complete"
-of = 2
 handed = true
 args = ["mod-b", "echo", "size", ""]
 

@@ -23,7 +23,6 @@ listener = true
 input = "call"
 mod = "mod-a"
 member = "open"
-of = 2
 handed = true
 args = ["example.com"]
 
