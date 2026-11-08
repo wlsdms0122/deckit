@@ -6,20 +6,41 @@ const { interfacesSection } = require('./sections/interfaces/interfaces-section.
 const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
 const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
 const { modsSection } = require('./sections/mods/mods-section.js');
+const { onScreen } = require('./screen/on-screen.js');
 const { SECTION_STYLE } = require('./sections/section/section.js');
 const { tableOfContents } = require('./table-of-contents/table-of-contents.js');
 const { urlSchemesSection } = require('./sections/url-schemes/url-schemes-section.js');
 
+// The system's services Settings draws and changes, each by the name it is held under while it is connected.
+const SERVICES = { keys: 'deckit/keys', urls: 'deckit/urls', configuration: 'deckit/configuration' };
+
 class Settings {
+    // What the view has put on screen for the command to reach, while it is attached.
+    screen = onScreen('Settings');
+
+    // The command its manifest declares to `deckit/commands` is taken from the exports for its id, and runs on the
+    // view, failing, saying so, while Settings has no view open.
+    start(deckit) {
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (id !== 'show-settings-of') throw new Error(`Settings has no command ${id}`);
+                    await (await this.screen.reach()).showSettingsOf(args ?? {});
+                    return null;
+                },
+            }),
+        });
+    }
+
     attach(shell, deckit) {
         const { ui } = shell;
         const { util } = deckit;
         const APP_NAME = deckit.about().name;
 
-        // mod id -> the keys a mod had as the Keyboard section last drew it running: a key map lists a mod's keys only
-        // while it runs
-        const drawnKeys = new Map();
+        // name in SERVICES -> its exports while it is connected
+        const services = { keys: null, urls: null, configuration: null };
         let shown = false;
+        let drawing = 0;
 
         // In every rule of this mod, `line-height` comes after `font`: the shorthand resets it.
         ui.addStyle(`
@@ -49,7 +70,6 @@ class Settings {
             mods: deckit.mods,
             pins: shell.mods,
             dropDestination: shell.dropDestination,
-            everyScheme: deckit.urls.everyScheme,
             util,
             appName: APP_NAME,
             onChange: redraw,
@@ -58,16 +78,21 @@ class Settings {
         const modSettings = modSettingsSection({
             ui,
             theme: shell.theme,
-            modConfiguration: deckit.modConfiguration,
-            formOf: shell.formOf,
+            configuration: () => services.configuration,
             sources,
-            nameOf: (id) => deckit.mods.list().running.find((mod) => mod.id === id)?.name || id,
+            nameOf: (id) => deckit.mods.list().found.find((mod) => mod.id === id)?.name || id,
         });
-        const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
+        const urlSchemes = urlSchemesSection({ ui, urls: () => services.urls, appName: APP_NAME, onChange: redraw });
         const interfaces = interfacesSection({ ui, mods: deckit.mods });
         const activity = activitySection({ ui, mods: deckit.mods, onInterfaces: () => contents.go(interfaces) });
         const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts });
-        const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
+        const keyboard = keyboardSection({
+            ui,
+            keys: () => services.keys,
+            shellKeys: shell.keys,
+            appName: APP_NAME,
+            onChange: redraw,
+        });
         const sections = [mods, activity, general, modSettings, urlSchemes, interfaces, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
@@ -89,6 +114,18 @@ class Settings {
                 modSettings.draw();
             },
         });
+        // A service connected or gone changes what its section can draw.
+        for (const [name, named] of Object.entries(SERVICES))
+            deckit.dependencies.onConnect(named, (service) => {
+                services[name] = service;
+                if (name === 'configuration') modSettings.draw();
+                else if (shown) redraw();
+                return () => {
+                    services[name] = null;
+                    if (name === 'configuration') modSettings.draw();
+                    else if (shown) redraw();
+                };
+            });
 
         shell.view.register({
             content: page,
@@ -101,12 +138,6 @@ class Settings {
             didDisappear: () => {
                 shown = false;
                 keyboard.stopRecording();
-            },
-        });
-        deckit.commands.register({
-            'show-settings-of': {
-                run: showSettingsOf,
-                complete: (_param, partial) => settingsOf(partial),
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) =>
@@ -146,31 +177,23 @@ class Settings {
             general.draw();
             modSettings.draw();
         });
+        this.screen.set({ showSettingsOf: (args) => showSettingsOf(args, { ready: shell.show }) });
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
-        // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
-        // one, not as a mod gone and back.
-        function redraw() {
+        // A mod starting or stopping keeps what its run that launched showed (deckit.mods.list()'s `launched`), so a
+        // restart reads as one, not as a mod gone and back. A later drawing that starts while this one reads the
+        // services draws instead.
+        async function redraw() {
+            const turn = ++drawing;
+            const [shortcuts, schemes] = await Promise.all([keyboard.read(), urlSchemes.read()]);
+            if (turn !== drawing) return;
             const { found, running: now, interfaces: interfaceQueues } = deckit.mods.list();
-            const listed = deckit.keys.list();
-            const handlerLists = deckit.urls.list();
-            for (const mod of now)
-                drawnKeys.set(
-                    mod.id,
-                    listed.filter(({ provider }) => provider === mod.id)
-                );
             const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
             const running = [...now, ...restarting];
-            // A new run may have registered some of its keys already: those are the key map's.
-            const listedIds = new Set(listed.map(({ id }) => id));
-            const shortcuts = [
-                ...listed,
-                ...restarting.flatMap(({ id }) => drawnKeys.get(id) || []).filter(({ id }) => !listedIds.has(id)),
-            ];
-            mods.draw({ found, running, shortcuts, handlerLists });
+            mods.draw({ found, running, shortcuts, schemes });
             activity.draw(found);
             modSettings.draw();
-            urlSchemes.draw(handlerLists);
+            urlSchemes.draw(schemes);
             interfaces.draw(interfaceQueues);
             general.draw();
             keyboard.draw(shortcuts);
@@ -202,12 +225,12 @@ class Settings {
                 .map(({ candidate }) => candidate);
         }
 
-        // Asked of the mods with settings as they were last drawn, which the switcher listed.
-        // `ready()` is told once the mod is found to have settings.
+        // Asked of the mods with settings as they are drawn now. `ready()` is told once the mod is found to have
+        // settings.
         async function showSettingsOf({ mod: id }, { ready = () => {} } = {}) {
+            await modSettings.draw();
             if (!modSettings.groups().some((group) => group.id === id)) throw new Error(`${id} has no settings`);
             ready();
-            await modSettings.draw();
             requestAnimationFrame(() => {
                 const card = modSettings.cardOf(id);
                 if (!card) return;
@@ -215,6 +238,10 @@ class Settings {
                 modSettings.highlight(card);
             });
         }
+    }
+
+    detach() {
+        this.screen.set(null);
     }
 }
 
