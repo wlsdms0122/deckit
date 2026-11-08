@@ -70,16 +70,18 @@ async function run(theCase, { folder, hostApp, electron }) {
     }
 }
 
-// Lays out the bundle at `from` as `to`, each file and folder as the case holds it and each link holding its target:
-// why it is not laid out as written, or null. Each folder laid out lists the entries of the case's, each by the same
-// Unicode scalar values, as a disk that folds case or normalization may not keep them.
+// Lays out the bundle at `from` as `to`, a folder, a file or a link, each file and folder as the case holds it and each
+// link holding its target: why it is not laid out as written, or null. Each folder laid out lists the entries of the
+// case's, each by the same Unicode scalar values, as a disk that folds case or normalization may not keep them.
 function layOut(from, to) {
     try {
+        fs.mkdirSync(path.dirname(to), { recursive: true });
         fs.cpSync(from, to, { recursive: true, verbatimSymlinks: true });
     } catch (error) {
         return error.message;
     }
     const differs = (written, laid) => {
+        if (!fs.lstatSync(written).isDirectory()) return null;
         const entries = fs.readdirSync(written, { withFileTypes: true });
         const names = entries.map(({ name }) => name).sort();
         const listed = fs.readdirSync(laid).sort();

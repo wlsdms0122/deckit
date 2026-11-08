@@ -94,6 +94,44 @@ struct ModFolderTests {
         #expect(sut.problem(of: folder, system: false) == nil)
     }
 
+    @Test("a link's target names only the entries whose names are the same scalar values, as a path does")
+    func linkTargetMatchesExactly() throws {
+        // Given
+        try write("notes", main: "main.js", writing: "entry.js")
+        let folder = root.appending(path: "notes")
+        try FileManager.default.createSymbolicLink(
+            atPath: folder.appending(path: "entry.js").path(percentEncoded: false),
+            withDestinationPath: "Main.js"
+        )
+
+        // When
+        let file = sut.file("entry.js", in: folder)
+
+        // Then
+        #expect(file == nil)
+    }
+
+    @Test("a link among the mod folders is followed to the folder it names, and a regular file is no mod")
+    func linkAmongModsIsFollowed() throws {
+        // Given
+        try write("holder/notes", main: "main.js")
+        try FileManager.default.createSymbolicLink(
+            atPath: root.appending(path: "shelf").path(percentEncoded: false),
+            withDestinationPath: "holder/notes"
+        )
+        try FileManager.default.createSymbolicLink(
+            atPath: root.appending(path: "rack").path(percentEncoded: false),
+            withDestinationPath: "Holder/notes"
+        )
+        try Data("not a mod".utf8).write(to: root.appending(path: "file"))
+
+        // When
+        let mods = sut.mods(in: root)
+
+        // Then
+        #expect(mods.map(\.lastPathComponent) == ["shelf"])
+    }
+
     // MARK: - Private
     // A mod folder `name` holding the file `main` and a manifest at `manifest` whose main is `written`, or `main`. The
     // file is made by the bytes of its name as written: a URL's path holds a name decomposed.

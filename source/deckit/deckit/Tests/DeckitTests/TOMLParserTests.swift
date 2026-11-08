@@ -33,6 +33,7 @@ struct TOMLParserTests {
 
             [permissions]
             "deckit.mods" = "to list \\"them\\" \\u00e9"
+            "a=b" = 1
 
             [dependencies]
             dep = { version = "1.0.0", "optional" = true }
@@ -51,7 +52,7 @@ struct TOMLParserTests {
                 "on": .boolean(true),
                 "path": .string("C:\\raw"),
                 "list": .array([.string("a"), .string("b")]),
-                "permissions": .table(["deckit.mods": .string("to list \"them\" é")]),
+                "permissions": .table(["deckit.mods": .string("to list \"them\" é"), "a=b": .integer(1)]),
                 "dependencies": .table([
                     "dep": .table(["version": .string("1.0.0"), "optional": .boolean(true)]),
                     "empty": .table([:])
@@ -143,7 +144,7 @@ struct TOMLParserTests {
             ("a = [1]\n[[a]]", "line 2: a is set as a value, not as [[a]]"),
             ("a = 1\n[a.b]", "line 2: a is set as a value, not as a table"),
             ("[a b]", "line 1: not a header this reads: [a b]"),
-            ("a.b = 1", "line 1: a name with a dot is written in quotes: \"a.b\" = …"),
+            ("a.b = 1", "line 1: a name with a dot is written in quotes"),
             ("just text", "line 1: expected key = value"),
             ("a = \"x\" y", "line 1: unexpected text after the value of a"),
             ("a = \"\\q\"", "line 1: unknown escape \\q"),
@@ -160,7 +161,7 @@ struct TOMLParserTests {
                 "a = 99999999999999999999",
                 "line 1: an integer lies from -9007199254740991 to 9007199254740991, not 99999999999999999999"
             ),
-            ("a = 1\nb\u{301} = 2", "line 2: not a key this reads: b\u{301}"),
+            ("a = 1\nb\u{301} = 2", "line 2: expected key = value"),
             ("a = [1 2]", "line 1: expected , or ] in an array"),
             ("a = { b = 1 c = 2 }", "line 1: expected , or } in an inline table"),
             ("a = { b = 1, }", "line 1: an inline table ends with no , before }"),

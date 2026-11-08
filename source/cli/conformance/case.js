@@ -75,11 +75,14 @@ function read(folder) {
 
     const mods = path.join(folder, 'mods');
     const laid = fs.statSync(mods, { throwIfNoEntry: false })?.isDirectory()
-        ? fs.readdirSync(mods, { withFileTypes: true }).filter((entry) => entry.isDirectory())
+        ? fs.readdirSync(mods, { withFileTypes: true })
         : [];
     for (const entry of laid) if (!BUNDLE.test(entry.name)) refuse(`mods/${entry.name} is no bundle-name`);
     const bundles = Object.fromEntries(laid.map(({ name }) => [name, path.join(mods, name)]));
     const named = new Set([...host.ship, ...host.sources]);
+    for (const name of named)
+        if ([...host.ship, ...host.sources].filter((one) => one === name).length > 1)
+            refuse(`${name} is written twice in host.ship and host.sources`);
     for (const name of named) if (!(name in bundles)) refuse(`${name} names no bundle in mods/`);
     for (const name of Object.keys(bundles)) if (!named.has(name)) refuse(`mods/${name} is named by no key`);
 

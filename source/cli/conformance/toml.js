@@ -35,11 +35,10 @@ function read(text) {
             current = array ? appendTo(path, fail) : open(path, fail);
             continue;
         }
-        const equals = line.indexOf('=');
-        if (equals < 0) fail('a line is no entry');
-        const keyCursor = { text: line.slice(0, equals), at: start, fail };
+        const keyCursor = { text: line, at: start, fail };
         const name = key(keyCursor);
-        if (skip(keyCursor.text, keyCursor.at) !== keyCursor.text.length) fail('a key is followed by more than "="');
+        const equals = skip(line, keyCursor.at);
+        if (line[equals] !== '=') fail('a key is followed by more than "="');
         let value = '';
         let tail = line.slice(equals + 1);
         const state = { depth: 0, quote: null };
@@ -69,8 +68,9 @@ function read(text) {
                 continue;
             }
             const held = at[name];
-            if (arrays.has(held)) {
-                if (last) fail(`[${path.join('.')}] holds an array of tables`);
+            if (Array.isArray(held)) {
+                if (last) fail(`[${path.join('.')}] holds an array`);
+                if (!isTable(held.at(-1))) fail(`[${path.join('.')}] goes through an array ending in no table`);
                 at = held.at(-1);
             } else if (isTable(held)) {
                 if (last) {
@@ -96,7 +96,7 @@ function read(text) {
                 return made;
             }
             if (held === undefined) at = at[name] = table();
-            else if (arrays.has(held)) at = held.at(-1);
+            else if (Array.isArray(held) && isTable(held.at(-1))) at = held.at(-1);
             else if (isTable(held)) at = held;
             else fail(`[[${path.join('.')}]] goes through a value that is no table`);
         }

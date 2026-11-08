@@ -27,8 +27,6 @@ struct TOMLParser {
     private let arrayHeader = #/\[\[(.+)\]\]/#.dotMatchesNewlines().matchingSemantics(.unicodeScalar)
     private let bareKey = #/[A-Za-z0-9_-]+/#.matchingSemantics(.unicodeScalar)
     private let quotedKey = #/"(?:[^"\\]|\\.)*"/#.dotMatchesNewlines().matchingSemantics(.unicodeScalar)
-    // TOML reads a bare dotted key as a table inside a table; a dotted name is written in quotes.
-    private let dottedKey = #/[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+/#.matchingSemantics(.unicodeScalar)
     private let basicString = #/"(?:[^"\\]|\\.)*"/#.dotMatchesNewlines().matchingSemantics(.unicodeScalar)
     private let literalString = #/'[^']*'/#.matchingSemantics(.unicodeScalar)
     private let boolean = #/(true|false)(?![A-Za-z0-9_])/#.matchingSemantics(.unicodeScalar)
@@ -90,19 +88,18 @@ struct TOMLParser {
                 continue
             }
 
-            guard let equals = body.unicodeScalars.firstIndex(of: "=") else {
+            guard let match = body.prefixMatch(of: quotedKey) ?? body.prefixMatch(of: bareKey) else {
                 throw TOMLError(line: line, reason: "expected key = value")
             }
-            let rawKey = trimmed(body[..<equals])
-            guard rawKey.wholeMatch(of: dottedKey) == nil else {
-                throw TOMLError(line: line, reason: "a name with a dot is written in quotes: \"\(rawKey)\" = …")
+            let equals = dropping(body[match.range.upperBound...], while: isSpace)
+            guard starts(equals, with: "=") else {
+                // TOML reads a bare dotted key as a table inside a table.
+                let dotted = "a name with a dot is written in quotes"
+                throw TOMLError(line: line, reason: starts(equals, with: ".") ? dotted : "expected key = value")
             }
-            guard rawKey.wholeMatch(of: bareKey) != nil || rawKey.wholeMatch(of: quotedKey) != nil else {
-                throw TOMLError(line: line, reason: "not a key this reads: \(rawKey)")
-            }
-            let key = try self.key(rawKey, line: line)
+            let key = try self.key(match.output, line: line)
 
-            var rest = String(body[body.unicodeScalars.index(after: equals)...])
+            var rest = String(afterFirst(equals))
             var depth = bracketDepth(rest)
             while depth > 0 && index < lines.count {
                 let more = String(withoutComment(lines[index]))
