@@ -61,7 +61,7 @@ The system's other DECKITs define permissions of their own, each in a table of t
 
 - How a permission is defined, asked for, refused when privileged, answered usable or not, and ordered in the answer: [the bundle](../DECKIT-2/SPEC.md).
 - The requests `deckit.mods` guards: listing, installing and removing mods, in the catalog's DECKIT, and launching and quitting another mod, in the lifecycle's DECKIT.
-- The requests `deckit.reach-mods` guards, reaching a mod by its id, and what a mod providing an interface is told of the permissions its client is granted: the connections' DECKIT.
+- The request `deckit.reach-mods` guards, reaching a mod by its id, and what a service is told of the permissions its client is granted: [the connections](../DECKIT-9/SPEC.md).
 - The requests `deckit.system-services` guards: the DECKITs of the standard interfaces, `deckit/*`.
 - The handle a mod makes its requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
 - The permission `system.file-handlers` and the request it guards: [opening outside the app](../DECKIT-8/SPEC.md).
@@ -75,4 +75,4 @@ The system's other DECKITs define permissions of their own, each in a table of t
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That what a host asks is guarded by no permission: every case's host starts the app, quits it and looks, granted nothing. That a request is guarded by one permission at most: each DECKIT's table names one permission for a request, held by reading them. That a host names the guards of its own interfaces' requests waits on the connections' DECKIT, which gives a host interfaces of its own.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That what a host asks is guarded by no permission: every case's host starts the app, quits it and looks, granted nothing. That a request is guarded by one permission at most: each DECKIT's table names one permission for a request, held by reading them. That a host names the guards of its own interfaces' requests waits on the interfaces' DECKIT, which gives a host interfaces of its own.
