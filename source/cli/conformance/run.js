@@ -9,6 +9,8 @@ const TOML = require('./toml.js');
 
 // How long the app is given to settle after an input.
 const SETTLE = 10000;
+// The keys of a manifest the system reads itself (spec/DECKIT-2).
+const MANIFEST = ['id', 'name', 'version', 'api', 'main', 'background', 'interfaces', 'permissions', 'contributes'];
 
 // Runs `theCase` in `folder`, made afresh, on the host app in `hostApp` that Electron at `electron` runs. Comes to
 // `{ outcome }`: 'passed'; 'failed', with `step`, `came` and `expected` for its first step that did not match; or
@@ -30,10 +32,22 @@ async function run(theCase, { folder, hostApp, electron }) {
         const why = layOut(bundles[name], to);
         if (why) return { outcome: 'not laid out', why: `${name}: ${why}` };
     }
-    const ship = host.ship.map((name) => ({
-        folder: path.join(folder, 'ship', name),
-        system: host.system.includes(name),
-    }));
+    // The owner of each standard interface `owners` names, as the implementation ships it, marked system, then the
+    // case's own; the host adds each field an owner's manifest writes that the system does not read, before the case's.
+    const owners = [];
+    const fields = [];
+    for (const name of host.owners) {
+        const owner = ownerOf(name, path.join(hostApp, 'deckit', 'mods'));
+        if (!owner) return { outcome: 'not laid out', why: `the implementation ships no owner of ${name}` };
+        owners.push({ folder: owner.folder, system: true });
+        for (const field of Object.keys(owner.manifest))
+            if (!MANIFEST.includes(field) && !fields.includes(field)) fields.push(field);
+    }
+    for (const field of host.fields) if (!fields.includes(field)) fields.push(field);
+    const ship = [
+        ...owners,
+        ...host.ship.map((name) => ({ folder: path.join(folder, 'ship', name), system: host.system.includes(name) })),
+    ];
 
     const server = net.createServer();
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -52,7 +66,7 @@ async function run(theCase, { folder, hostApp, electron }) {
                 home,
                 electron: path.join(folder, 'electron'),
                 downloads: path.join(folder, 'downloads'),
-                fields: host.fields,
+                fields,
                 permissions: host.permissions,
                 ship,
                 sources: host.sources.length ? [sources] : [],
@@ -106,6 +120,19 @@ function layOut(from, to) {
     return differs(from, to);
 }
 
+// The bundle in `mods`, the mods the implementation ships, that provides the interface `name`, `{ folder, manifest }`,
+// or null.
+function ownerOf(name, mods) {
+    for (const entry of fs.existsSync(mods) ? fs.readdirSync(mods).sort() : []) {
+        const file = path.join(mods, entry, 'manifest.toml');
+        if (!fs.existsSync(file)) continue;
+        const manifest = TOML.read(fs.readFileSync(file, 'utf8'));
+        if (Object.hasOwn(manifest.interfaces?.provides ?? {}, name))
+            return { folder: path.join(mods, entry), manifest };
+    }
+    return null;
+}
+
 // What a step comes to: `{ answers }`, `{ refuses, kind, message }`, `{ none }` with why there is no answer, or `{}`
 // for an input answered with nothing. A call is handed the path of each bundle its folders name, then its args, then a
 // listener where it writes one, and names its place so that a later call can reach what it answered.
@@ -115,8 +142,8 @@ async function take(step, app, paths) {
     const { what, mod, part } = step;
     if (what === 'call') {
         const args = [...(step.folders ?? []).map((name) => paths[name]), ...(step.args ?? [])];
-        const { member, of = null, listener = false, number } = step;
-        return partOf(await app.ask({ input: what, mod, member, args, step: number, of, listener }), part);
+        const { member, of = null, listener = false, handed = false, number } = step;
+        return partOf(await app.ask({ input: what, mod, member, args, step: number, of, listener, handed }), part);
     }
     return partOf(await app.ask({ look: what, mod }), part);
 }

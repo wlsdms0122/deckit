@@ -5,12 +5,14 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 4;
+const FORMAT = 5;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const KIND = /^[A-Z][A-Z_]*$/;
 const MEMBER = /^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$/;
+// The name of a standard interface, as the bundle names an interface.
+const STANDARD = /^deckit\/[a-z][a-z0-9-]*$/;
 const STAGES = ['read', 'launch', 'call'];
 const BASES = ['system'];
 
@@ -31,6 +33,10 @@ const is = {
     bundles: (value) => Array.isArray(value) && value.every((one) => typeof one === 'string' && BUNDLE.test(one)),
     member: (value) => typeof value === 'string' && MEMBER.test(value),
     strings: (value) => Array.isArray(value) && value.every(is.string),
+    standards: (value) =>
+        Array.isArray(value) &&
+        value.every((one) => typeof one === 'string' && STANDARD.test(one)) &&
+        new Set(value).size === value.length,
 };
 
 // Each input and each look, by the keys it writes: `true` where it is required.
@@ -45,6 +51,7 @@ const INPUTS = {
         part: [is.string, false],
         of: [(value) => is.integer(value) && value >= 1, false],
         listener: [is.boolean, false],
+        handed: [is.boolean, false],
     },
 };
 const LOOKS = {
@@ -57,7 +64,9 @@ const LOOKS = {
 // The format that added an input or a look, where it is not 1.
 const ADDED = { run: 2, call: 3, opened: 3, heard: 4 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
-const KEYS_ADDED = { of: 4, listener: 4 };
+const KEYS_ADDED = { of: 4, listener: 4, handed: 5 };
+// The format that added a key of the host, where it is not 1.
+const HOST_KEYS_ADDED = { owners: 5 };
 // The inputs answered with nothing.
 const ANSWERLESS = ['start', 'quit'];
 
@@ -80,7 +89,7 @@ function read(folder) {
         if (!(required in written)) refuse(`${required} is missing`);
     if (written.name !== path.basename(folder)) refuse(`name is not the folder's name`);
 
-    const host = hostOf(written.host, refuse);
+    const host = hostOf(written.host, written.case, refuse);
     const steps = written.step.map((step, index) => stepOf(step, index + 1, written.case, refuse));
     order(steps, refuse);
 
@@ -100,7 +109,9 @@ function read(folder) {
     return { name: written.name, note: written.note, host, steps, bundles };
 }
 
-function hostOf(host, refuse) {
+function hostOf(host, format, refuse) {
+    for (const key of Object.keys(host))
+        if ((HOST_KEYS_ADDED[key] ?? 1) > format) refuse(`host.${key} is no key format ${format} has`);
     keys(
         host,
         {
@@ -111,6 +122,7 @@ function hostOf(host, refuse) {
             ship: is.bundles,
             system: is.bundles,
             sources: is.bundles,
+            owners: is.standards,
         },
         'host.',
         refuse
@@ -140,6 +152,7 @@ function hostOf(host, refuse) {
         ship,
         system,
         sources: host.sources ?? [],
+        owners: host.owners ?? [],
     };
 }
 
@@ -181,7 +194,7 @@ function stepOf(step, number, format, refuse) {
 }
 
 // `start` first, again only after a `quit`, calls and looks only while the app is started, nothing after a start that
-// is refused, and a call's `of` an earlier call of its mod.
+// is refused, a call's `of` an earlier call of its mod, and `handed` beside an `of` whose call hands a listener.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
@@ -189,6 +202,8 @@ function order(steps, refuse) {
         const of = step.of && steps[step.of - 1];
         if (step.of && !(step.of < step.number && of.what === 'call' && of.mod === step.mod))
             refuse(`step ${step.number}: of names no earlier call of ${step.mod}`);
+        if (step.handed && !(of && of.listener))
+            refuse(`step ${step.number}: handed is written with an of that names a call that hands a listener`);
         if (step.kind !== 'input' || step.what === 'call') {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? 'calls' : 'looks'} after a quit`);
             continue;
