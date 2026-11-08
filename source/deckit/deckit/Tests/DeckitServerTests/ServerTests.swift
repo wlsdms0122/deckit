@@ -425,9 +425,14 @@ struct ServerTests {
     @Test("a mod at the relaunch limit loads no more until a mod granted deckit.mods asks that it launch")
     func relaunchLimitResetsAsAsked() throws {
         // Given
+        let ship = home + "ship"
         try mod("a")
-        try mod("m", adding: "[permissions]\n\"deckit.mods\" = \"to test\"")
-        _ = try send(initializeRequest, to: sut)
+        try mod("m", in: ship, adding: "[permissions]\n\"deckit.mods\" = \"to test\"")
+        _ = try send(
+            initializeRequest.replacing(#""ship":[]"#, with: #""ship":[{"folder":"\#(ship)/m","system":true}]"#),
+            to: sut
+        )
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/install-shipped"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["m"]}}"#, to: sut)
         let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#

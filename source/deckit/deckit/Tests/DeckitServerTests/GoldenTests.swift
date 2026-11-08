@@ -56,7 +56,7 @@ struct GoldenTests {
             "a",
             in: "source",
             adding: "icon = \"a.png\"\n[interfaces]\nprovides = { \"a/api\" = [1], \"a/own\" = [1] }\n[permissions]\n"
-                + "\"deckit.example\" = \"to test\"\n\"deckit.mods\" = \"to test\"\n\"system.example\" = \"to test\"\n"
+                + "\"deckit.example\" = \"to test\"\n\"system.example\" = \"to test\"\n"
                 + "[[contributes.\"a/api\"]]\ntitle = \"Size\"\nsize = 12"
         )
         try writeMod("b", in: "source", adding: "[interfaces]\nuses = { \"a/api\" = 1, \"a/own\" = 1 }")
@@ -64,7 +64,7 @@ struct GoldenTests {
             "c",
             in: "ship",
             adding: "background = \"to test\"\n[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
-                + "\"deckit.privileged\" = \"to test\"\n\"deckit.reach-mods\" = \"to test\""
+                + "\"deckit.privileged\" = \"to test\"\n\"deckit.reach-mods\" = \"to test\"\n\"deckit.mods\" = \"to test\""
         )
         try writeMod("f", in: "source", adding: "colour = \"blue\"")
         try writeMod("d", in: "spare")

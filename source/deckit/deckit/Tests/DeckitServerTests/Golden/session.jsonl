@@ -55,7 +55,7 @@
 {"id":102,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":0,"mod":"c","run":1,"target":"a"}}
 {"id":56,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a"]}}
 {"id":94,"jsonrpc":"2.0","method":"runner/launch","params":{"by":"b","mod":"d"}}
-{"id":95,"jsonrpc":"2.0","method":"runner/launch","params":{"by":"a","mod":"b"}}
+{"id":95,"jsonrpc":"2.0","method":"runner/launch","params":{"by":"c","mod":"b"}}
 {"id":57,"jsonrpc":"2.0","method":"catalog/remove","params":{"id":"d"}}
 {"id":58,"jsonrpc":"2.0","method":"erasure/erase","params":{"mod":"d"}}
 {"id":59,"jsonrpc":"2.0","method":"erasure/uncleared"}

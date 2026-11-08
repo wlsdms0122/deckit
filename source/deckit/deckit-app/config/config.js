@@ -2,7 +2,7 @@
 const path = require('path');
 
 // The mods Deckit ships, in the order they take until the person changes it: the Dock keeps those with a view from
-// the first start, until the person changes it.
+// the first start, until the person changes it. Each is a system mod.
 const SHIPS = [
     'editor',
     'finder',
@@ -28,6 +28,6 @@ module.exports = {
     config: { id, name: 'Deckit' },
     folders: {
         home: data ? path.join(data, 'deckit') : null,
-        ship: SHIPS.map((id) => path.join(__dirname, '..', 'deckit', 'mods', id)),
+        ship: SHIPS.map((id) => ({ folder: path.join(__dirname, '..', 'deckit', 'mods', id), system: true })),
     },
 };
