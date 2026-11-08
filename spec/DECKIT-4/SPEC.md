@@ -133,7 +133,7 @@ A name shipped and removed stays out at each later start, under *What a host shi
 - What runs of a mod installed, replaced or removed while it runs, and which background mods launch in the catalog's order: the lifecycle's DECKIT.
 - What a mod stores, and what erasing it takes away: the storage DECKIT.
 - The handle a mod makes these requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
-- Being told that what `list` answers has changed: the events' DECKIT.
+- Being told that what `list` answers may have changed: [the events](../DECKIT-12/SPEC.md).
 - What a host hands as the folder read in place and the bundles it ships, and what it marks system: the embedding DECKIT.
 
 ## Alternatives considered
