@@ -1,7 +1,7 @@
 function createWindow({ CONFIG, THEME, windows }) {
     // MARK: - Property
-    // The bar over a view that fills the window, the bar's height included, whose buttons stand in the panel's top
-    // left, inside the sidebar card while it is open. The buttons are centred on the bar's height.
+    // The bar over a view that fills the window, the bar's height included: the desktop's strip in the host window.
+    // The buttons are centred on the bar's height.
     const FULL_SIZE_BAR = barOf({ height: 52, left: 20 });
     // The window's three buttons, from the first one's left edge to the last one's right.
     const BUTTONS_WIDTH = 52;
