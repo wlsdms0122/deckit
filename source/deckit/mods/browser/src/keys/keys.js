@@ -15,8 +15,9 @@ const NAMED = {
 // The window's own keys, while it is key: `keys` is `{ name: { key, run, fieldsKeep } }`, `key` a spec of modifiers
 // (`mod` for ⌘, `ctrl`, `alt`, `shift`) and a key joined by `+`, matched on the physical key, and `run()` what it does.
 // `listen(on)` takes them from the document `within` is in while on, before anything in it hears them, but for one
-// that is `fieldsKeep`, left to a field that has the keyboard. What a key throws is logged. `chordOf(name)` is a key's
-// chord as a person reads it, or '' for none.
+// that is `fieldsKeep`, left to a field that has the keyboard; a key a web page shown in it did not handle comes to
+// that document next, so they work there too. What a key throws is logged. `chordOf(name)` is a key's chord as a
+// person reads it, or '' for none.
 function viewKeys(keys, { log, within }) {
     const read = Object.entries(keys).map(([name, { key, run, fieldsKeep = false }]) => ({
         name,
