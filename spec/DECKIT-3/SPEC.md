@@ -75,4 +75,4 @@ The system's other DECKITs define permissions of their own, each in a table of t
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That what a host asks is guarded by no permission: every case's host starts the app, quits it and looks, granted nothing. That a request is guarded by one permission at most: each DECKIT's table names one permission for a request, held by reading them. That a host names the guards of its own interfaces' requests waits on the interfaces' DECKIT, which gives a host interfaces of its own.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That what a host asks is guarded by no permission: every case's host starts the app, quits it and looks, granted nothing. That a request is guarded by one permission at most: each DECKIT's table names one permission for a request, held by reading them. That a host names the guards of its own interfaces' requests waits on the embedding DECKIT, which gives a host interfaces of its own, as [the interfaces](../DECKIT-10/SPEC.md) fix what an interface is.

@@ -188,7 +188,7 @@ provides = { "mod-a/pages" = [1, 2] }
 uses = { "mod-b/actions" = 1 }
 ```
 
-An interface is named `<mod id>/<name>`: the id of the mod that defines it, and a name. What providing and using come to (an interface's owner, the connection to it, a major that does not match) is the interfaces' DECKIT, and what a connection is, [the connections](../DECKIT-9/SPEC.md).
+An interface is named `<mod id>/<name>`: the id of the mod that defines it, and a name. What providing and using come to (an interface's owner, the connection to it, a major that does not match) is [the interfaces](../DECKIT-10/SPEC.md)'s, and what a connection is, [the connections](../DECKIT-9/SPEC.md)'.
 
 #### permissions
 
@@ -276,7 +276,7 @@ A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`,
 ## Interactions
 
 - When a background mod launches, what launching evaluates of `main`, and what an entry that does not evaluate refuses at `launch`: the lifecycle's DECKIT.
-- What `provides`, `uses` and `contributes` come to: the interfaces' DECKIT. What a connection is: [the connections](../DECKIT-9/SPEC.md).
+- What `provides`, `uses` and `contributes` come to: [the interfaces](../DECKIT-10/SPEC.md). What a connection is: [the connections](../DECKIT-9/SPEC.md).
 - The permissions the system defines and what each one grants: the permissions' DECKIT.
 - What a host ships and marks system, and when it adds fields and defines permissions: the embedding DECKIT.
 - Two bundles of one id, which one is read, installing and removing: the catalog's DECKIT.

@@ -84,7 +84,7 @@ The client's id is handed once, in `credential`.
 
 ### What crosses
 
-The exports `connect` answers are handed to the client as a value. A value, as [the handle](../DECKIT-7/SPEC.md) fixes values, crosses as itself: a string, an integer or a boolean as the same, an array as an array of what each of its elements crosses as, in order, and a table as a table of the same keys, each bound to what its value crosses as. The client is handed a copy, and what it does with it changes nothing of what the service holds. What else crosses, a function among them, and a call of a function across a connection: the DECKIT of calls across a connection.
+The exports `connect` answers are handed to the client as a value. A value, as [the handle](../DECKIT-7/SPEC.md) fixes values, crosses as itself: a string, an integer or a boolean as the same, an array as an array of what each of its elements crosses as, in order, and a table as a table of the same keys, each bound to what its value crosses as. The client is handed a copy, and what it does with it changes nothing of what the service holds. What else crosses, a function among them, and a call of a function across a connection: [calls across a connection](../DECKIT-11/SPEC.md).
 
 ### Reaching a mod by its id
 
@@ -131,8 +131,8 @@ A `release` is refused only as [the handle](../DECKIT-7/SPEC.md) refuses a reque
 - A run's states, what launches a mod, the relaunch limit, a run that times out or fails to launch, and the refusals at `launch`: [the lifecycle](../DECKIT-5/SPEC.md).
 - A run's lifecycles, their order, when a lifecycle has started and when it ends: [the entry](../DECKIT-6/SPEC.md).
 - The handle that holds `exports` and `dependencies`, values, requests and the refusal `INVALID_ARGUMENT`: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
-- The interfaces a mod provides and uses, the connection to an interface's owner made as a lifecycle begins, and its other members of `exports` and `dependencies`: the interfaces' DECKIT.
-- A function that crosses a connection, a call of it, its answer and its refusal: the DECKIT of calls across a connection.
+- The interfaces a mod provides and uses, the connection to an interface's owner made as a lifecycle begins, and its other members of `exports` and `dependencies`: [the interfaces](../DECKIT-10/SPEC.md).
+- A function that crosses a connection, a call of it, its answer and its refusal: [calls across a connection](../DECKIT-11/SPEC.md).
 
 ## Alternatives considered
 

@@ -44,7 +44,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `mods.list()`, `mods.plan(folder)`, `mods.install(folder)`, `mods.remove(id, erase)` | the requests `list`, `plan`, `install` and `remove` | `deckit.mods` | [the catalog](../DECKIT-4/SPEC.md) |
 | `mods.launch(id)`, `mods.quit(id)`, `mods.relaunch(id)` | the requests `launch`, `quit` and `relaunch` | `deckit.mods` | [the lifecycle](../DECKIT-5/SPEC.md) |
 | `mods.onChange(listener)` | being told that what `mods.list()` answers may have changed | `deckit.mods` | the events' DECKIT |
-| `mods.pin(interface, mod)` | the owner of an interface, as a person pins it | `deckit.mods` | the interfaces' DECKIT |
+| `mods.pin(interface, mod)` | the owner of an interface, as a person pins it | `deckit.mods` | [the interfaces](../DECKIT-10/SPEC.md) |
 | `mods.usage(id)` | what a mod has stored, in each place it is kept | `deckit.mods` | the storage DECKIT |
 | `mods.pick(options)` | a folder a person picks to install | `deckit.mods` | the embedding DECKIT |
 | `mods.reveal(id)` | a mod's folder, shown outside the app | `deckit.mods` | the DECKIT of files outside the app |
@@ -57,7 +57,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `events` | the events the mod sends and hears | | the events' DECKIT |
 | `exports.register(exports)` | the exports the mod opens for its id | | [the connections](../DECKIT-9/SPEC.md) |
 | `dependencies.reach(id)`, `dependencies.release(id)` | reaching a mod by its id, and letting it go | `deckit.reach-mods`, for `reach` | [the connections](../DECKIT-9/SPEC.md) |
-| `exports.register(interface, exports)`, `exports.contributions(interface)`, `dependencies.onConnect(interface, listener)`, `dependencies.onRefuse(interface, listener)` | what the mod provides of an interface, and what it is connected to by one | | the interfaces' DECKIT |
+| `exports.register(interface, exports)`, `exports.contributions(interface)`, `dependencies.onConnect(interface, listener)`, `dependencies.onRefuse(interface, listener)` | what the mod provides of an interface, and what it is connected to by one | | [the interfaces](../DECKIT-10/SPEC.md) |
 | `web` | the mod's web sessions and downloads | each session's `fetch` `system.network`, `trust` `system.certificates`, `allow` and `revoke` `system.site-permissions`; a download's `reveal` and `open` `system.file-handlers` | the web sessions' DECKIT |
 | `keys.take(keystroke, run, options)` | a chord the mod takes | `deckit.app-keys` or `system.global-keys`, by where the chord works | the keys' DECKIT |
 | `clipboard.readText()`, `clipboard.writeText(text)` | what the person copied, read and replaced | `system.clipboard-read`, `system.clipboard-write` | the clipboard's DECKIT |
