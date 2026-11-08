@@ -2,8 +2,12 @@
 // each seat's own order, key window and minimized windows, a window another seat holds left to it, the key window
 // passed on as one closes or is minimized, and a frame no smaller than its minimum; and where windows go
 // (model/layout): a new one cascaded from the key window or centred, a restored one kept reachable, a resize held to
-// the minimum, zoom to the desktop but the Dock's sliver, and the frame's parts. Exits 1 with a line for each check that
-// failed. The packages are ES modules, so they are imported as such.
+// the minimum, zoom to the desktop but the Dock's sliver, and the frame's parts; and the desktop (desktop/main) over
+// stand-ins for what connect answers, the shell's pages and a stage: the pages laid in the local seat's order, the
+// keyboard and the host's title following its key window, the shell's keys, a frame restored and remembered by the
+// window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room and a zoomed window
+// following the desktop's size. Exits 1 with a line for each check that failed. The packages are ES modules, so they
+// are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -13,6 +17,7 @@ async function main() {
     const WM = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'window-manager.js'));
     const LAYOUT = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'layout.js'));
     const DOCK = await import(url('deckit-shell', 'shell', 'dock', 'model', 'dock.js'));
+    const { createDesktop } = await import(url('deckit-shell', 'shell', 'desktop', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -198,12 +203,232 @@ async function main() {
         parts
     );
 
+    // Mods `a` and `b`; windows 1 and 2 of `a`, 3 of `b`, each a stand-in for what the shell's windows make.
+    const desk = desktopOver(createDesktop, {
+        state: { 'window-frames': { a: { main: { x: 200, y: 100, width: 400, height: 300 } } } },
+    });
+    const pages = { a: { name: 'page-a' }, b: { name: 'page-b' } };
+    const windowOf = (id, mod, name) => ({
+        id,
+        mod,
+        name,
+        page: pages[mod],
+        surface: { name: `content-${id}` },
+        size: { width: 300, height: 200 },
+        minimum: { width: 0, height: 0 },
+    });
+    const one = windowOf(1, 'a', 'main');
+    const two = windowOf(2, 'a', 'other');
+    const three = windowOf(3, 'b', 'main');
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    for (const window of [one, two, three]) {
+        desk.desktop.open(window);
+        desk.openSurfaces(window.id);
+    }
+    const names = () => desk.laid().map(({ page }) => page.name);
+    check(
+        "the pages are laid in the local seat's order: the mods' pages, the backdrop, each window's frame, content and " +
+            "buttons, then the desktop's page",
+        names().join() ===
+            [
+                'page-a',
+                'page-b',
+                'backdrop',
+                ...[1, 2, 3].flatMap((id) => [`frame-${id}`, `content-${id}`, `buttons-${id}`]),
+                'desktop',
+            ].join(),
+        names()
+    );
+    check(
+        'a window opens where its mod left the window of its name, and cascades from the key window when it left none',
+        JSON.stringify(desk.frameOf(1)) === JSON.stringify({ x: 200, y: 100, width: 400, height: 300 }) &&
+            desk.frameOf(2).x === 224 &&
+            desk.frameOf(2).y === 124,
+        [desk.frameOf(1), desk.frameOf(2)]
+    );
+    check(
+        "the keyboard and the host's title are the key window's",
+        desk.focused.at(-1)?.name === 'content-3' && desk.titles.at(-1) === 'B' && desk.page().title === 'B',
+        { focused: desk.focused.at(-1), titles: desk.titles }
+    );
+    desk.fromPage('press', { id: 2 });
+    check(
+        "a press on a window's frame makes it key, in front",
+        desk.focused.at(-1)?.name === 'content-2' &&
+            desk.titles.at(-1) === 'A' &&
+            desk.page().dock.active === 'a' &&
+            names().at(-2) === 'buttons-2',
+        { focused: desk.focused.at(-1), titles: desk.titles, names: names() }
+    );
+    desk.press('Cycle Through Windows', one.surface);
+    check('the next window of the active mod comes in front', desk.desktop.isKey(one), names());
+    desk.press('Close Window', two.surface);
+    check(
+        'the key window closes, and the next in the order is key',
+        !names().includes('content-1') && desk.desktop.isKey(two),
+        names()
+    );
+    desk.press('Minimize Window', two.surface);
+    check(
+        'the key window minimizes, and the next is key',
+        !names().includes('content-2') && desk.desktop.isKey(three) && desk.titles.at(-1) === 'B',
+        { names: names(), titles: desk.titles }
+    );
+    const pressedOff = desk.press('Close Window', { name: 'elsewhere' });
+    check("a shell key in a page that is not the desktop's is not taken", pressedOff === false, pressedOff);
+
+    const activated = desk.desktop.activate('local', 'a');
+    check(
+        'a mod brought in front for a seat has its windows in front, those it minimized too, the front one key',
+        activated && names().includes('content-2') && desk.desktop.isKey(two) && !desk.desktop.activate('local', 'c'),
+        names()
+    );
+    check(
+        "the desktop's page is the local seat's screen, and no other page is",
+        desk.desktop.seatAt(desk.desktopPage) === 'local' && desk.desktop.seatAt(two.page) === null,
+        null
+    );
+
+    desk.fromPage('resize', { id: 2, phase: 'ended', x: 300, y: 200, width: 500, height: 400 });
+    check(
+        "a window's frame is remembered by its mod and its name",
+        JSON.stringify(desk.state['window-frames'].a.other) ===
+            JSON.stringify({ x: 300, y: 200, width: 500, height: 400 }),
+        desk.state['window-frames']
+    );
+
+    const inputOf = () => desk.laid().at(-1).input;
+    const sliver = inputOf();
+    desk.fromPage('dock', { out: true });
+    const out = inputOf();
+    check(
+        "the desktop's page takes the pointer at the host's bar and the Dock's sliver, and all of the Dock while it is out",
+        sliver.length === 2 &&
+            sliver[0].height === 28 &&
+            sliver[1].width === DOCK.SLIVER &&
+            sliver[1].y === 28 &&
+            out[1].width === DOCK.WIDTH,
+        { sliver, out }
+    );
+
+    desk.desktop.zoom(two);
+    desk.resize({ width: 1400, height: 900 });
+    check(
+        'a zoomed window fills the desktop again as it changes size',
+        JSON.stringify(desk.frameOf(2)) ===
+            JSON.stringify({ x: DOCK.SLIVER, y: 28, width: 1400 - DOCK.SLIVER, height: 900 - 28 }),
+        desk.frameOf(2)
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
     }
     console.log(`ok: ${count} desktop checks`);
     process.exit(0);
+}
+
+// `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage
+// 1200 by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
+// desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that
+// page, `page()` is what it was told last, and `press(name, page)` presses the shell's key `name` in `page`.
+function desktopOver(createDesktop, { state = {} }) {
+    const handlers = {};
+    const sent = [];
+    const holds = {};
+    const titles = [];
+    const focused = [];
+    const allowed = new Map(); // a surface's name -> its onOpen
+    let laid = [];
+    let size = { width: 1200, height: 800 };
+    let resized = () => {};
+    const desktopPage = { name: 'desktop' };
+    const mods = [
+        { id: 'a', name: 'A', uses: {} },
+        { id: 'b', name: 'B', uses: {} },
+    ];
+    const deckit = {
+        channels: {
+            bind: (declared) => ({
+                handle: (handler) => (handlers[declared.channel] = handler),
+                on: (handler) => (handlers[declared.channel] = handler),
+                send: (page, payload) => sent.push({ channel: declared.channel, page, payload }),
+            }),
+        },
+        state: {
+            read: (key, fallback) => state[key] ?? fallback,
+            write: async (key, value) => (state[key] = value),
+        },
+        log: { warn() {}, error() {} },
+        config: { name: 'Deckit' },
+        core: { onDown() {} },
+        pages: { whenEnds() {} },
+        web: { pageFor: () => null },
+        keymap: {
+            listen() {},
+            hold: (_keystroke, press, { name }) => {
+                holds[name] = press;
+                return () => {};
+            },
+        },
+        mods: {
+            list: () => mods,
+            runs: () => [],
+            fieldsOf: () => ({}),
+            notifications: [],
+            onChange() {},
+            observe() {},
+        },
+    };
+    const PAGES = {
+        open: (_name, { surfaces }) => {
+            for (const name of surfaces.names) allowed.set(name, (surface) => surfaces.onOpen(name, surface));
+            return desktopPage;
+        },
+        allowSurface: (_page, name, onOpen) => allowed.set(name, onOpen),
+        whenFocused() {},
+        isAlive: () => true,
+        focus: (page) => focused.push(page),
+        close() {},
+    };
+    const stage = {
+        whenResized: (listener) => (resized = listener),
+        size: () => size,
+        lay: (layers) => (laid = layers),
+        show() {},
+    };
+    const desktop = createDesktop({
+        REGION: { onChange() {}, show() {}, laidOut: () => new Map() },
+        PAGES,
+        OVERLAY: { onChange() {}, withOverlays: (layers) => layers, ownerOf: (page) => page },
+        makeStage: () => stage,
+        actionOnDoubleClick: () => 'zoom',
+        deckit,
+        host: { show() {}, showsPanel: () => true, panelTitled: (title) => titles.push(title) },
+    });
+    desktop.start({ WINDOWS: { close: (window) => desktop.close(window) }, DOCK: { items: () => [] } });
+    allowed.get('backdrop')({ name: 'backdrop' });
+    const frameOf = (id) => laid.find(({ page }) => page.name === `content-${id}`)?.rect ?? null;
+    return {
+        desktop,
+        desktopPage,
+        state,
+        titles,
+        focused,
+        laid: () => laid,
+        frameOf,
+        resize: (next) => {
+            size = next;
+            resized();
+        },
+        openSurfaces: (id) => {
+            for (const name of [`frame-${id}`, `buttons-${id}`]) allowed.get(name)({ name });
+        },
+        fromPage: (name, payload) => handlers[`deckit-shell:desktop-${name}`](payload, desktopPage),
+        page: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-state').at(-1).payload,
+        press: (name, page) => holds[name](page),
+    };
 }
 
 main().catch((error) => {
