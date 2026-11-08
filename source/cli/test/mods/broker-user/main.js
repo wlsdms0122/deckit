@@ -40,7 +40,7 @@ class BrokerUser {
             marks.same = `${await provider.keep(hello)} ${await provider.keep(hello)}`;
             marks.refused = await provider.refuse().then(
                 () => 'answered',
-                (error) => `${error.name} ${error.kind} ${error.message}`
+                (error) => `${error.stage} ${error.kind} ${error.message}`
             );
             await provider.ping(7);
         });

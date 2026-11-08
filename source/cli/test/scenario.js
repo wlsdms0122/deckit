@@ -1648,9 +1648,9 @@ async function run({
             same,
             await mark(user, 'same')
         );
-        const rejected = await until(async () => (await mark(user, 'refused')) === 'RangeError LATER not now', 4000);
+        const rejected = await until(async () => (await mark(user, 'refused')) === 'call LATER not now', 4000);
         check(
-            'what a function handed over throws reaches its caller with its name, kind and message',
+            'what a function handed over throws reaches its caller as a refusal at call, with its kind and message',
             rejected,
             await mark(user, 'refused')
         );
