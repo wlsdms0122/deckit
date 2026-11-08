@@ -72,20 +72,34 @@ function createViews() {
             watched?.addEventListener('focusin', leave, true);
         };
 
-        // Gone from the document once it was in it, the web page goes.
+        // Gone from the document once it was in it, the web page goes. Its place is read in the frames of the document
+        // it is in, or of this page's while that one is shown nowhere: a closing surface hands the next to the page.
+        const next = () => {
+            const view = element.ownerDocument.defaultView;
+            if (!view || view === window) return requestAnimationFrame(frame);
+            const asked = view.requestAnimationFrame(() => {
+                view.removeEventListener('pagehide', away);
+                frame();
+            });
+            const away = () => {
+                view.cancelAnimationFrame(asked);
+                requestAnimationFrame(frame);
+            };
+            view.addEventListener('pagehide', away, { once: true });
+        };
         const frame = () => {
             if (removed) return;
             if (!element.isConnected) {
                 if (connected) return remove();
-                return requestAnimationFrame(frame);
+                return next();
             }
             connected = true;
             if (watched !== element.ownerDocument) watch(element.ownerDocument);
             if (known !== null) place();
             leave();
-            requestAnimationFrame(frame);
+            next();
         };
-        requestAnimationFrame(frame);
+        next();
 
         function place() {
             const rect = element.getBoundingClientRect();
