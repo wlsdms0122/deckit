@@ -1893,7 +1893,7 @@ async function run({
             );
         }
         // A mod's web window is a window on the desktop: its web page under the title bar the shell draws, which holds
-        // its title, and it goes as the mod closes it.
+        // the page's title and its site, so a page cannot pass for another, and it goes as the mod closes it.
         const webUser = await page('deckit://web-user.mod');
         await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-open', { detail: '${FRONT_TAB}' }))`);
         // The desktop's web window: its frame, and the web page laid over it.
@@ -1906,18 +1906,23 @@ async function run({
         };
         const webAt = await until(async () => (await mark(webUser, 'at')) === FRONT_TAB, 8000);
         const shownIn = await until(webWindow, 3000);
-        const webTitle = await (
-            await pageById(shownIn?.frame.id)
-        )?.evaluate(`document.querySelector('.deckit-window-title:not([hidden])')?.textContent`);
+        const titleNow = async () =>
+            (await pageById((await webWindow())?.frame.id))?.evaluate(
+                `document.querySelector('.deckit-window-title:not([hidden])')?.textContent`
+            );
+        const webTitle = await until(
+            async () => /\(example\.com\)$/.test((await titleNow()) || '') && titleNow(),
+            3000
+        );
         // The frame's surface is the window grown by its shadow.
         const SHADOW = 32;
         check(
-            "a mod's web window is a window on the desktop, its page under the title bar the shell draws, with its title",
+            "a mod's web window is a window on the desktop, its page under the title bar the shell draws, with its site",
             webAt &&
                 shownIn &&
                 shownIn.content.rect.x === shownIn.frame.rect.x + SHADOW &&
                 shownIn.content.rect.y === shownIn.frame.rect.y + SHADOW + 38 &&
-                webTitle === 'Web User',
+                webTitle === 'Example Domain (example.com)',
             `${await mark(webUser, 'at')} ${webTitle} ${JSON.stringify(shownIn)}`
         );
         await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-close'))`);
