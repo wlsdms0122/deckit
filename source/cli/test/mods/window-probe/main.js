@@ -1,7 +1,8 @@
 // A mod with a window, which asks a main process module of its own whether it finds the window its page is shown in,
 // installs the folder the test hands it as a person would, by a press in its window, opens the mods the test names as a
-// person opens one the Dock does not keep, and takes files dropped on it. It is a system mod, which the test ships
-// with the app: it opens the switcher by its command and binds another mod's key again through the system's services.
+// person opens one the Dock does not keep, opens the file the test names through deckit/urls, and takes files dropped
+// on it. It is a system mod, which the test ships with the app: it opens the switcher by its command and binds another
+// mod's key again through the system's services.
 class WindowProbe {
     attach(shell, deckit) {
         const marks = document.documentElement.dataset;
@@ -35,6 +36,7 @@ class WindowProbe {
         );
         let commands = null;
         let keys = null;
+        let urls = null;
         deckit.dependencies.onConnect('deckit/commands', (connected) => {
             commands = connected;
             return () => (commands = null);
@@ -43,6 +45,13 @@ class WindowProbe {
             keys = connected;
             return () => (keys = null);
         });
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => (urls = null);
+        });
+        document.addEventListener('test-open', ({ detail: url }) =>
+            urls?.open(url).then((opened) => (marks.opened = String(opened)))
+        );
         document.addEventListener('test-switcher', () => commands?.run('switcher', 'show'));
         document.addEventListener('test-bind', ({ detail: { mod, command, keystroke } }) =>
             keys?.set(mod, command, keystroke).then(

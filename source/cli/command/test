@@ -85,7 +85,7 @@ const main = async () => {
     fs.mkdirSync(OUT, { recursive: true });
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-app-'));
     const data = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-data-'));
-    const files = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-files-'));
+    const files = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-files-')));
     // WebKit keeps what the app's pages store for the app that runs it, Electron's, under an id the data folder's own:
     // the stores that came while the test ran are its, and go with its folders.
     const stores = path.join(os.homedir(), 'Library', 'WebKit', bundleOf(electronApp()), 'WebsiteDataStore');
@@ -96,7 +96,7 @@ const main = async () => {
             if (!before.has(store)) fs.rmSync(path.join(stores, store), { recursive: true, force: true });
     });
     APP.assemble(archive, folder);
-    SCENARIO.seed({ data, files: fs.realpathSync(files), app: folder });
+    SCENARIO.seed({ data, files, app: folder });
     const log = path.join(OUT, 'log.txt');
     const app = launch({ app: folder, data, port, log, limit: LIMIT });
     const module = path.join(fs.realpathSync(folder), 'deckit', 'deckit-web.node');
@@ -107,7 +107,7 @@ const main = async () => {
     // The id the app runs under, as its configuration makes it of the data folder.
     process.env.DECKIT_DATA = data;
     const { id } = require(path.join(folder, 'config', 'config.js')).config;
-    const report = await SCENARIO.run({ ...devtools, endCore, logged, home: path.join(data, 'deckit'), id });
+    const report = await SCENARIO.run({ ...devtools, endCore, logged, home: path.join(data, 'deckit'), files, id });
     devtools.close();
     app.stop();
     await sleep(1000);

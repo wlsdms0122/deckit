@@ -153,6 +153,7 @@ async function run({
     endCore,
     logged,
     home,
+    files,
     id: appId,
 }) {
     const report = [];
@@ -247,13 +248,15 @@ async function run({
         const front = (await windowsNow()).filter(({ mod }) => mod === id).at(-1);
         return front ? pageById(front.content) : null;
     };
-    // The Dock's items as the desktop's page draws them: `{ id, running, active }` each, in order.
+    // The Dock's items as the desktop's page draws them: `{ id, running, active, attention }` each, in order.
     const dockNow = async () =>
         (await desktop?.evaluate(`[...document.querySelectorAll('.deckit-dock-item')].map((item) => ({
             id: item.dataset.modId,
             running: item.hasAttribute('data-running'),
             active: item.hasAttribute('data-active'),
+            attention: item.hasAttribute('data-attention'),
         }))`)) || [];
+    const asksAttention = async (id) => !!(await dockNow()).find((item) => item.id === id)?.attention;
     // A click on mod `id`'s Dock item.
     const dockClick = (id) =>
         desktop.evaluate(`document.querySelector('.deckit-dock-item[data-mod-id="${id}"]')?.click()`);
@@ -1767,8 +1770,10 @@ async function run({
         check('the switcher opens by its command', await until(async () => (await rowsOf()) > 0, 3000), await rowsOf());
         await query?.key('Escape', 'Escape', 0, 27);
         await until(async () => (await rowsOf()) === 0, 3000);
-        // A mod's windows on the desktop, as the window user opens them by name: each at the size it gives, in front as
-        // the key window, told as it appears and becomes key, the next cascaded from the key window. ⌘` brings the
+        // A mod's windows on the desktop, as the window user opens them by name: the first, opened on its own while
+        // another mod's window is key, right behind the key window, not key, its Dock item asking for attention until
+        // a click on it brings the window front as the key window; the next, opened as the active mod, in front as the
+        // key window, cascaded from it; each at the size it gives, told as it appears and becomes key. ⌘` brings the
         // other in front, ⌘M puts the key window into the mod's Dock item, which brings it back, zoom fills the desktop
         // but the Dock's sliver and the page sees its content resized, ⌘W closes the key window, and the mod runs on
         // with none until its Dock item calls its reopen(), which finds the window where it was left.
@@ -1785,18 +1790,44 @@ async function run({
                 await send('test-windows', null);
                 return mark(windowed, 'windows');
             };
+            const keyBefore = await keyMod();
             await send('test-window-open', { name: 'one', width: 420, height: 300 });
+            const opened = await until(async () => (await userWindows())[0], 4000);
+            await sleep(300);
+            const held = await windowsNow();
+            const keyAt = held.findIndex(({ key }) => key);
+            check(
+                "a window a mod opens on its own while another mod's window is key opens right behind the key window, " +
+                    'not key, its Dock item asking for attention',
+                !!keyBefore &&
+                    keyBefore !== 'window-user' &&
+                    held[keyAt]?.mod === keyBefore &&
+                    held[keyAt - 1]?.id === opened?.id &&
+                    !held[keyAt - 1].key &&
+                    (await asksAttention('window-user')),
+                JSON.stringify({
+                    windows: held.map(({ mod, key }) => mod + (key ? ' key' : '')),
+                    dock: (await dockNow()).find(({ id }) => id === 'window-user'),
+                })
+            );
+            await dockClick('window-user');
             const one = await until(async () => {
                 const [first] = await userWindows();
                 return first?.key && first;
             }, 4000);
             check(
-                "a mod's window opens at the size it gives, in front as the key window, the strip holding its mod's name",
-                one?.rect.width === 420 &&
-                    one.rect.height === 300 &&
+                "a click on a mod's Dock item brings its window front as the key window, the strip holding its mod's " +
+                    'name, and puts its mark for attention away',
+                one?.id === opened?.id &&
                     (await windowsNow()).at(-1)?.mod === 'window-user' &&
-                    (await stripTitle()) === 'Window User',
-                JSON.stringify({ one, title: await stripTitle() })
+                    (await stripTitle()) === 'Window User' &&
+                    !(await asksAttention('window-user')),
+                JSON.stringify({ one, title: await stripTitle(), dock: await dockNow() })
+            );
+            check(
+                "a mod's window opens at the size it gives",
+                one?.rect.width === 420 && one.rect.height === 300,
+                JSON.stringify(one?.rect)
             );
             check(
                 'a window is told it appeared, then that it became key',
@@ -1937,6 +1968,29 @@ async function run({
                 'the close button closes its window',
                 await until(async () => !(await userWindows()).length, 3000),
                 JSON.stringify(await userWindows())
+            );
+        }
+        // A file the active mod opens, the window probe through deckit/urls, which hands it to the Editor: the Editor
+        // brings its window front as the key window.
+        {
+            await show(PROBE);
+            const url = require('url').pathToFileURL(path.join(files, 'source', 'other.js')).href;
+            const probeKey = await keyMod();
+            await services?.evaluate(
+                `delete document.documentElement.dataset.opened; document.dispatchEvent(new CustomEvent('test-open', { detail: ${JSON.stringify(url)} }))`
+            );
+            const fileFront = await until(async () => {
+                const front = (await windowsNow()).at(-1);
+                return front?.mod === 'editor' && front.key && (await mark(services, 'opened')) === 'true';
+            }, 5000);
+            check(
+                'a file the active mod opens brings the window of the mod that opens it front as the key window',
+                probeKey === PROBE && fileFront && (await stripTitle()) === 'Editor',
+                JSON.stringify({
+                    before: probeKey,
+                    opened: await mark(services, 'opened'),
+                    windows: (await windowsNow()).map(({ mod, key }) => mod + (key ? ' key' : '')),
+                })
             );
         }
         // A mod's web window is a window on the desktop: its web page under the title bar the shell draws, which holds
