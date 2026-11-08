@@ -1,8 +1,41 @@
 # Calendar
 
-Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add. It asks to start with the app, so a meeting reminds whether or not its view was opened.
+Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add. It runs in the background from the start (`background` in its manifest), so a meeting reminds whether or not its view was opened.
 
-A meeting's notice is posted to `deckit/notifications` (MOD.md, Standard interfaces), as is the one Send a test posts. Pressing it runs Calendar's `show-date` command with the meeting's day, by a token Calendar minted: Calendar comes forward on that day. A notice is marked sent only once it was posted, so while no mod owns the interface, or the owner refuses it, it is posted again on the next check while the meeting is still due.
+A meeting's notice is posted to `deckit/notifications` (MOD.md, Standard interfaces), as is the one Send a test posts. Pressing it runs Calendar's `show-date` command with the meeting's day: Calendar comes forward on that day. A notice is marked sent only once it was posted, so while no mod owns the interface, or the owner refuses it, it is posted again on the next check while the meeting is still due.
+
+## Settings
+
+Declared in the manifest to `deckit/configuration` (see the Configuration mod), and read through it in `start`, where the reminders run.
+
+| Key | Title | What it is |
+|---|---|---|
+| `notify` | Notify me | how long before a meeting its notice comes: `off`, or `0`, `1`, `5`, `10`, `15` or `30` minutes, as text. Until it is read, no notice comes |
+
+Settings shows a Send a test button under it (`settings/buttons`), which runs `send-test`.
+
+## Commands
+
+What a CLI, the switcher, a notification or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Calendar opens for its id in `start`. Send a test runs with no screen; the others act on Calendar's view, and one run while Calendar has no view open fails, saying so.
+
+| Command | Title | Args | What it does |
+|---|---|---|---|
+| `send-test` | Send a Test Notification | | posts a notice now, the way a reminder looks, and answers what came of it, as text |
+| `show-date` | Show Date in Calendar | `date`, as YYYY-MM-DD | brings Calendar forward on that day |
+| `go-to-date` | Go to Date | `date`, as YYYY-MM-DD | shows that day in the view |
+| `show-view` | Show Calendar View | `view` (`day`, `week` or `month`) | shows the day, the week or the month view |
+
+The switcher (`switcher/actions`) offers the meeting on now and the next, an action for each view, Go to Today, Go to Date (a day typed as YYYY-MM-DD), Previous and Next, Add Calendar Account… and Send a Test Notification.
+
+## Keys
+
+The view's own shortcuts, which Calendar handles in its page while the view is in front.
+
+| Key | Action |
+|---|---|
+| ⌘T | today |
+| ⌘1, ⌘2, ⌘3 | the day, the week, the month view |
+| ⌘←, ⌘→ | the days before, the days after, except in a text field, where they move the caret |
 
 ## Adding accounts: `calendar/accounts`
 

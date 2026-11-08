@@ -6,6 +6,7 @@ const { paintPastNow } = require('../occurrence/paint.js');
 const { sidebar } = require('../sidebar/sidebar.js');
 const { switcher, inFront } = require('../switcher/switcher.js');
 const { timeGridView } = require('../views/time-grid-view.js');
+const { viewKeys } = require('../keys/keys.js');
 
 const MODES = [
     ['day', 'Day'],
@@ -13,9 +14,9 @@ const MODES = [
     ['month', 'Month'],
 ];
 
-// Calendar on screen: the view of `calendar` (calendar.js) at its mode and day, the sidebar, its keys and commands, and
-// what it adds to the switcher. It tells `calendar` the days it shows by `follow(range)`, so they are read. `screen` is
-// what `calendar` reaches it by; `end()` stops what it runs on its own and closes the questions it asked.
+// Calendar on screen: the view of `calendar` (calendar.js) at its mode and day, the sidebar, its own keys, and what it
+// adds to the switcher. It tells `calendar` the days it shows by `follow(range)`, so they are read. `screen` is what
+// `calendar` and the commands reach it by; `end()` stops what it runs on its own and closes the questions it asked.
 function calendarView({ calendar, shell, deckit, sendTest }) {
     const { theme, ui } = shell;
     const { values } = deckit.storage;
@@ -165,42 +166,47 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
 
     calendar.follow(rangeOf(mode, cursor));
 
+    // The view's own keys, while it is in front.
+    const keys = viewKeys(
+        {
+            today: { key: 'mod+t', run: goToToday },
+            dayView: { key: 'mod+1', run: () => showView({ view: 'day' }) },
+            weekView: { key: 'mod+2', run: () => showView({ view: 'week' }) },
+            monthView: { key: 'mod+3', run: () => showView({ view: 'month' }) },
+            // In a field ⌘← and ⌘→ move the caret.
+            previous: { key: 'mod+left', run: () => shift(-1), fieldsKeep: true },
+            next: { key: 'mod+right', run: () => shift(1), fieldsKeep: true },
+        },
+        { log: 'calendar' }
+    );
+
     return {
         content,
         sidebar: side.element,
         didAppear() {
             visible = true;
+            keys.listen(true);
             calendar.read();
             render();
             calendar.follow(rangeOf(mode, cursor));
         },
         didDisappear() {
             visible = false;
+            keys.listen(false);
             detail.close();
-        },
-        keys: {
-            today: { label: 'Go to Today', key: 'mod+t', run: goToToday },
-            dayView: { label: 'Day view', key: 'mod+1', run: () => showView({ view: 'day' }) },
-            weekView: { label: 'Week view', key: 'mod+2', run: () => showView({ view: 'week' }) },
-            monthView: { label: 'Month view', key: 'mod+3', run: () => showView({ view: 'month' }) },
-            previous: { label: 'Previous', key: 'mod+left', run: () => shift(-1) },
-            next: { label: 'Next', key: 'mod+right', run: () => shift(1) },
-        },
-        commands: {
-            'go-to-date': { run: goToDate },
-            'show-date': { run: (args) => (goToDate(args), shell.show()) },
-            'show-view': { run: showView },
         },
         actions,
         screen: {
             changed: render,
             reveal: shell.show,
-            showDate,
+            goToDate,
+            showView,
             prompt,
         },
         // A sign-in waiting on a question closed here hears `false`, as when the person closes it.
         end() {
             visible = false;
+            keys.listen(false);
             clearInterval(ticking);
             resizing.disconnect();
             for (const close of [...asking]) close();
@@ -235,11 +241,6 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     function goTo(date, next) {
         cursor = startOfDay(date);
         setMode(next || mode);
-    }
-
-    function showDate(date) {
-        shell.show();
-        goTo(date);
     }
 
     function setMode(next) {

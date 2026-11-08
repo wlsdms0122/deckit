@@ -1,16 +1,40 @@
 const { calendar } = require('./calendar/calendar.js');
 const { calendarView } = require('./calendar/view.js');
 const { notice } = require('./notice/notice.js');
+const { onScreen } = require('./screen/on-screen.js');
+const { settingsOf } = require('./settings/settings.js');
 
 class Calendar {
-    // What the view has put on screen for the function side to reach (calendar.js), while it is attached.
-    screen = null;
+    // What the view has put on screen for the function side (calendar.js) and the commands to reach, while it is
+    // attached.
+    screen = onScreen('Calendar');
 
+    // The commands its manifest declares to `deckit/commands` are taken from the exports for its id: Send a test runs
+    // with no screen, and the others on the view, failing, saying so, while Calendar has no view open.
     start(deckit) {
+        const settings = settingsOf();
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
         const notices = notice(deckit);
-        this.calendar = calendar({ deckit, screen: () => this.screen, notice: notices });
+        this.calendar = calendar({ deckit, settings, screen: () => this.screen.now(), notice: notices });
         this.sendTest = () => sendTest(deckit, notices);
-        deckit.commands.register({ 'send-test': { run: this.sendTest } });
+        const commands = {
+            'send-test': this.sendTest,
+            'show-date': async (args) => {
+                const screen = await this.screen.reach();
+                screen.goToDate(args);
+                screen.reveal();
+            },
+            'go-to-date': async (args) => (await this.screen.reach()).goToDate(args),
+            'show-view': async (args) => (await this.screen.reach()).showView(args),
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Calendar has no command ${id}`);
+                    return (await commands[id](args ?? {})) ?? null;
+                },
+            }),
+        });
         deckit.exports.register('calendar/accounts', {
             connect: (connection) => ({
                 setProvider: (provider) => {
@@ -27,10 +51,8 @@ class Calendar {
 
     attach(shell, deckit) {
         this.view = calendarView({ calendar: this.calendar, shell, deckit, sendTest: this.sendTest });
-        const { content, sidebar, didAppear, didDisappear, keys, commands, actions } = this.view;
+        const { content, sidebar, didAppear, didDisappear, actions } = this.view;
         shell.view.register({ content, sidebar, didAppear, didDisappear });
-        deckit.keys.register(keys);
-        deckit.commands.register(commands);
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
         deckit.dependencies.onConnect('settings/buttons', (settings) =>
             settings.setButtons({
@@ -45,11 +67,11 @@ class Calendar {
                 run: this.sendTest,
             })
         );
-        this.screen = this.view.screen;
+        this.screen.set(this.view.screen);
     }
 
     detach() {
-        this.screen = null;
+        this.screen.set(null);
         this.view?.end();
         this.view = null;
     }

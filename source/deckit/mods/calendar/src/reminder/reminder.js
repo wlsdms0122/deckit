@@ -15,14 +15,13 @@ function leadText(lead) {
     return lead === null ? 'Off' : lead === 0 ? 'At start time' : `${lead} min before`;
 }
 
-// A notice before each meeting the person attends, as the configuration's `notify` says. `occurrences(from, to)`
-// answers what reminds, and `notice` posts it (notice.js). `stop()` ends the checks.
-function reminder({ deckit, records, occurrences, notice }) {
-    const { configuration } = deckit;
+// A notice before each meeting the person attends, as the setting `notify` of `settings` (settings.js) says.
+// `occurrences(from, to)` answers what reminds, and `notice` posts it (notice.js). `stop()` ends the checks.
+function reminder({ settings, records, occurrences, notice }) {
     // A notice still on its way, so a check does not send it again.
     const pending = new Set();
 
-    configuration.on((key) => {
+    settings.on((key) => {
         if (key === 'notify') check();
     });
     const checking = setInterval(check, CHECK_MS);
@@ -50,10 +49,11 @@ function reminder({ deckit, records, occurrences, notice }) {
         }
     }
 
-    // The lead in minutes, or null when the person turned notices off. The configuration holds it as text.
+    // The lead in minutes, or null when the person turned notices off or the setting is not read yet, so nothing is
+    // announced before it is. The setting holds it as text.
     function lead() {
-        const chosen = configuration.get('notify');
-        if (chosen === 'off') return null;
+        const chosen = settings.get('notify');
+        if (chosen === null || chosen === 'off') return null;
         return REMINDER_LEADS.includes(Number(chosen)) ? Number(chosen) : DEFAULT_LEAD;
     }
 

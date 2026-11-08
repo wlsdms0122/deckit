@@ -12,13 +12,7 @@ function notice(deckit) {
     // Answers whether it was posted: false while no owner is connected. A post the owner refuses rejects.
     async function post({ title, body, date }) {
         if (!notifications) return false;
-        const token = await deckit.commands.tokens.mint('show-date', { date: dayText(date) });
-        try {
-            await notifications.post({ title, body, token });
-        } catch (error) {
-            deckit.commands.tokens.cancel(token).catch(() => {});
-            throw error;
-        }
+        await notifications.post({ title, body, command: 'show-date', args: { date: dayText(date) } });
         return true;
     }
 
