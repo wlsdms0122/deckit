@@ -5,9 +5,10 @@
 // the minimum, zoom to the desktop but the Dock's sliver, and the frame's parts; and the desktop (desktop/main) over
 // stand-ins for what connect answers, the shell's pages and a stage: the pages laid in the local seat's order, the
 // keyboard and the host's title following its key window, the shell's keys, a frame restored and remembered by the
-// window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room and a zoomed window
-// following the desktop's size. Exits 1 with a line for each check that failed. The packages are ES modules, so they
-// are imported as such.
+// window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window
+// following the desktop's size and any other kept reachable as it shrinks, and a titled window's content under the
+// title bar the shell draws, its title told and its drag. Exits 1 with a line for each check that failed. The packages
+// are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -319,6 +320,52 @@ async function main() {
         JSON.stringify(desk.frameOf(2)) ===
             JSON.stringify({ x: DOCK.SLIVER, y: 28, width: 1400 - DOCK.SLIVER, height: 900 - 28 }),
         desk.frameOf(2)
+    );
+
+    desk.fromPage('resize', { id: 3, phase: 'ended', x: 1300, y: 700, width: 300, height: 200 });
+    desk.resize({ width: 800, height: 500 });
+    const smaller = LAYOUT.desktopOf({ width: 800, height: 500 }, 28);
+    check(
+        'as the desktop shrinks, a window not zoomed is moved where its title bar can be reached, and a zoomed one fills it',
+        JSON.stringify(desk.frameOf(3)) ===
+            JSON.stringify(LAYOUT.kept({ x: 1300, y: 700, width: 300, height: 200 }, smaller)) &&
+            JSON.stringify(desk.frameOf(2)) === JSON.stringify(LAYOUT.zoomedIn(smaller)),
+        [desk.frameOf(3), desk.frameOf(2)]
+    );
+
+    const four = { ...windowOf(4, 'b', 'web'), title: 'Site' };
+    desk.desktop.open(four);
+    desk.openSurfaces(4);
+    const framed = desk.laid().find(({ page }) => page.name === 'frame-4');
+    const titledFrame = {
+        ...desk.frameOf(4),
+        y: desk.frameOf(4).y - LAYOUT.TITLE_BAR.height,
+        height: 200 + LAYOUT.TITLE_BAR.height,
+    };
+    check(
+        "a titled window's content is laid under the title bar the shell draws, which takes the pointer in its frame",
+        framed.rect.y + LAYOUT.SHADOW + LAYOUT.TITLE_BAR.height === desk.frameOf(4).y &&
+            desk.frameOf(4).height === 200 &&
+            JSON.stringify(framed.input.at(-1)) === JSON.stringify(LAYOUT.titleBarOf(titledFrame)),
+        { framed, content: desk.frameOf(4) }
+    );
+    desk.desktop.setTitle(four, 'Other');
+    const told = desk.page().windows;
+    check(
+        "the desktop's page is told a titled window's title as it changes, and null for any other",
+        told.find(({ id }) => id === 4).title === 'Other' && told.find(({ id }) => id === 3).title === null,
+        told
+    );
+    const before = desk.frameOf(4);
+    desk.fromPage('move', { id: 4, phase: 'began', dx: 0, dy: 0 });
+    desk.fromPage('move', { id: 4, phase: 'changed', dx: -10, dy: 5 });
+    desk.fromPage('move', { id: 4, phase: 'ended', dx: -10, dy: 5 });
+    check(
+        "a drag of a titled window's title bar moves it, and its frame is remembered by its name",
+        desk.frameOf(4).x === before.x - 10 &&
+            desk.frameOf(4).y === before.y + 5 &&
+            desk.state['window-frames'].b.web.y === before.y + 5 - LAYOUT.TITLE_BAR.height,
+        { frame: desk.frameOf(4), kept: desk.state['window-frames'].b }
     );
 
     if (failed.length) {
