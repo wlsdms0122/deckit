@@ -79,20 +79,20 @@ final class WebEngine {
             return arguments[index]
         }
         let page = { () throws -> WebPage in
-            let id = Int(try self.node.number(try argument(0)))
+            let id = try self.node.integer(try argument(0))
             guard let page = self.pages[id] else { throw NodeError(message: "no web page \(id)") }
 
             return page
         }
         let string = { (index: Int) throws -> String in try self.node.string(try argument(index)) }
         let window = { (index: Int) throws -> Window in
-            let id = Int(try self.node.number(try argument(index)))
+            let id = try self.node.integer(try argument(index))
             guard let window = self.windows[id] else { throw NodeError(message: "no window \(id)") }
 
             return window
         }
         let stage = { () throws -> Stage in
-            let id = Int(try self.node.number(try argument(0)))
+            let id = try self.node.integer(try argument(0))
             guard let stage = self.stages[id] else { throw NodeError(message: "no stage \(id)") }
 
             return stage
@@ -163,7 +163,7 @@ final class WebEngine {
             let store = try storeOf(try string(0))
             let request = try WebRequest(try argument(1), in: node)
             let options = try argument(2)
-            guard let limit = try node.member(options, "limit").map({ Int(try node.number($0)) }) else {
+            guard let limit = try node.member(options, "limit").map({ try node.integer($0) }) else {
                 throw NodeError(message: "fetch takes { limit, applicationName, cookieLifetime }")
             }
             let applicationName = try node.member(options, "applicationName").map { try node.string($0) } ?? ""
@@ -199,7 +199,7 @@ final class WebEngine {
             pages[closed.id] = nil
 
         case .cancelDownload:
-            downloads[Int(try node.number(try argument(0)))]?.cancel()
+            downloads[try node.integer(try argument(0))]?.cancel()
 
         case .safariVersion:
             let version = Bundle(path: "/Applications/Safari.app")?
@@ -386,7 +386,7 @@ final class WebEngine {
         case .layStage:
             try stage().lay(try node.array(try argument(1)).map { layer in
                 guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
-                let page = Int(try node.number(id))
+                let page = try node.integer(id)
                 guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
                 if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
                     return (laid, nil, [], nil)
@@ -551,7 +551,7 @@ final class WebEngine {
     }
 
     private func window(at value: napi_value) throws -> Window {
-        let id = Int(try node.number(value))
+        let id = try node.integer(value)
         guard let window = windows[id] else { throw NodeError(message: "no window \(id)") }
 
         return window
