@@ -84,7 +84,7 @@ function attach(deckit, environment, { host, config = {} } = {}) {
         DESKTOP.start({ WINDOWS, DOCK });
         WINDOWS.start();
         DOCK.start();
-        host.start({ setTheme: THEME.set, panel: DESKTOP.control });
+        host.start({ setTheme: THEME.set, panel: DESKTOP.control, openWindow: WINDOWS.openWeb });
     });
 }
 

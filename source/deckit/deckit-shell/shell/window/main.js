@@ -14,8 +14,12 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
     const OVERLAY_LEVEL = 'overlay';
     // The size a window opens at where its mod gives none.
     const SIZE = Object.freeze({ width: 720, height: 480 });
-    // id -> { id, mod, page, name, level, size, minimum, surface, sent, host }: `surface` its content once the page
-    // opened it, `sent` what the page was last told of it, and `host` an overlay window's `{ control, stage, key }`.
+    // The name the frame of a web page's window is remembered by.
+    const WEB = 'web';
+    // id -> { id, mod, page, name, level, size, minimum, surface, sent, host, title, web }: `surface` its content once
+    // the page opened it, `sent` what the page was last told of it, `host` an overlay window's `{ control, stage, key }`;
+    // and for a web page's window, `title`, what its title bar holds, and `web`, `{ closed }`, the listeners of its
+    // close.
     const windows = new Map();
     const heard = new Set(); // the pages whose end closes their windows
     let count = 0;
@@ -55,6 +59,45 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         const own = [...windows.values()].filter((window) => window.page === page);
         if (own.some(({ level }) => level === NORMAL)) return null;
         return own.find(({ host }) => host?.stage) ?? null;
+    }
+
+    // A web page in a window of the app's, as the environment asks the host app for one (`openWindow({ title, size,
+    // page })`): a normal window of the mod whose page shows the web page, its content, under the title bar the shell
+    // draws. Answers what the environment drives of it: `setTitle(text)`, `close()`, and `on('close', listener)`, its
+    // off answered, heard once as the window closes, however it closes.
+    function openWeb({ title = '', size = null, page: content }) {
+        const page = deckit.web.pageFor(content);
+        const mod = page && deckit.mods.modOf(page);
+        if (!mod) throw new Error('only a web page a mod shows opens a window');
+        const id = ++count;
+        const window = {
+            id,
+            mod,
+            page,
+            name: WEB,
+            level: NORMAL,
+            size: { width: size?.width ?? SIZE.width, height: size?.height ?? SIZE.height },
+            minimum: { width: 0, height: 0 },
+            surface: content,
+            sent: '',
+            host: null,
+            title: String(title),
+            web: { closed: new Set() },
+        };
+        windows.set(id, window);
+        closesWith(page);
+        PAGES.whenFocused(content, () => focused(window));
+        DESKTOP.open(window);
+        layOverlayWindowsOf(page);
+        return Object.freeze({
+            setTitle: (text) => DESKTOP.setTitle(window, text),
+            close: () => close(window),
+            on: (event, listener) => {
+                if (event !== 'close') return () => {};
+                window.web.closed.add(listener);
+                return () => window.web.closed.delete(listener);
+            },
+        });
     }
 
     // The mod's page hears its instance's reopen().
@@ -107,6 +150,8 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
             surface: null,
             sent: '',
             host: null,
+            title: null,
+            web: null,
         };
         windows.set(id, window);
         closesWith(page);
@@ -136,7 +181,8 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         if (window.level === NORMAL) DESKTOP.orderFront(window);
     }
 
-    // Closed, wherever it is, and the page told, unless the page is what went.
+    // Closed, wherever it is, and the page told, unless the page is what went; a web page's window tells those who
+    // listen to its close instead, the environment closing the web page.
     function close(window) {
         if (windows.get(window.id) !== window) return;
         windows.delete(window.id);
@@ -144,6 +190,10 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
             DESKTOP.close(window);
             layOverlayWindowsOf(window.page);
         } else sink(window);
+        if (window.web) {
+            for (const listener of [...window.web.closed]) listener();
+            return;
+        }
         if (window.surface) PAGES.close(window.surface);
         if (PAGES.isAlive(window.page)) PROTOCOL.closed.send(window.page, { id: window.id });
     }
@@ -249,9 +299,10 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         for (const other of windows.values()) if (other.page === page && other.host?.stage) lay(other);
     }
 
-    // Each page told of its windows as they change.
+    // Each page told of the windows it opened as they change.
     function tell() {
         for (const window of windows.values()) {
+            if (window.web) continue;
             const state =
                 window.level === NORMAL
                     ? DESKTOP.stateOf(window)
@@ -269,5 +320,5 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         if (holder) lay(holder);
     }
 
-    return { start, of, pageOf, holderOf, reopen, keyboardOf, relay, close };
+    return { start, openWeb, of, pageOf, holderOf, reopen, keyboardOf, relay, close };
 }

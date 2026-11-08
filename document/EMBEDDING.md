@@ -101,12 +101,13 @@ When the host app quits, once every window has closed, deck holds the quit at `w
 
 The keyboard in a window is the host app's to give. macOS hands it to the window each time the window comes forward, not to a page in it, so the host app gives it to the page as the window takes it (the window's `key`): `controls.panel.focus()` for the panel, `control.focus()` for a mod's window, and `focus()` for a window `openWindow` asked for.
 
-What `controls` holds, `{ setTheme, panel }`:
+What `controls` holds, `{ setTheme, panel, openWindow }`:
 
 | | |
 |---|---|
 | `controls.panel` | `glass`, the strength the panel lays its colour over the blur at, for a surface beside it to match, and the panel lays it under itself too, so a page of the host app's under it lays none; `place(window, { bounds, onClose })`, which puts it in one of the host app's windows as a stage's `place` does (so a mod's main process module can find the window its page is shown in); `contains(page)`, whether a page is one the panel shows, a web page in one or the overlay over one; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the host app makes; `present({ floating, dismissible, titleBar })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
 | `controls.setTheme(theme)` | the host app's colours, for every page the shell draws. Each page takes a new one in place: no mod launches again |
+| `controls.openWindow({ title, size, page })` | a web page in a window, as the environment asks the host app's `openWindow` for one: a window on the desktop of the mod whose page shows `page`, its content, under a title bar the shell draws holding `title`, `size` the content's. Answers `{ setTitle(text), close(), on('close', listener) }`, `on` answering its off. The host app answers its `openWindow` with it |
 
 Moving the panel is a re-parent: mods keep their sandboxes and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, whether Escape with nothing else to close puts it away, and, filling a window whose title bar lies over the panel's top, `titleBar: { height, controlsWidth }`: the bar's height and the width the window's buttons take at its start. The sidebar and the content then reach up under the bar: the sidebar's top drags the window, and the content's is the mod's title bar area (MOD.md, `shell.view.register`).
 

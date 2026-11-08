@@ -79,10 +79,14 @@ export function createPage({ deckit, pages }) {
     }
 
     // MARK: - Private
-    // A page of deck's (a mod's, or one that runs none) or a surface one opened: any other is refused.
+    // A page of deck's (a mod's, or one that runs none), a surface one opened, or a web page a mod's shows: any other
+    // is refused.
     function known(page) {
         if (deckit.pages.nameOf(page) || deckit.mods.modOf(page) || surfacePages.has(page)) return;
-        throw new Error("[deckit] it takes a page of deck's: a mod's, one that runs none, or a surface one opened");
+        if (deckit.web.pageFor(page)) return;
+        throw new Error(
+            "[deckit] it takes a page of deck's: a mod's, one that runs none, a surface one opened or a web page a mod's shows"
+        );
     }
 
     // The paths of the files last dropped on the page from outside the app.

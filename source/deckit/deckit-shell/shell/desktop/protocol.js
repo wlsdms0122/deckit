@@ -3,8 +3,10 @@ import * as CHANNEL from '../../deckit/channel/index.js';
 
 // Answers { glass, state } at once: the page is built in one pass.
 export const setup = CHANNEL.pageToMain('deckit-shell:desktop-setup', {}, { reply: true, sync: true });
-// `{ windows: [{ id, frame, key, minimum }], strip, title, dock, down }`: the windows on the screen of the seat at the
-// host window, `frame` on the stage, `key` whether it is that seat's key window, `minimum` the size it is never below;
+// `{ windows: [{ id, frame, key, minimum, title }], strip, title, dock, down }`: the windows on the screen of the seat at
+// the host window, `frame` on the stage, `key` whether it is that seat's key window, `minimum` the size it is never
+// below, `title` what the title bar the shell draws over a titled window's content holds, or null for a window whose
+// content draws its own;
 // `strip` `{ height, controlsWidth }`, the host window's bar over the page's top, which drags the host window, and the
 // width its controls take from its start; `title`, the name of the mod whose window is that seat's key window, or the
 // app's; `dock` `{ items, active }`, the Dock's items (dock/main.js items) and the id of that same mod, or null; and
@@ -23,6 +25,15 @@ export const resize = CHANNEL.pageToMain('deckit-shell:desktop-resize', {
     width: 'number',
     height: 'number',
 });
+// A drag of a titled window's title bar, `dx`, `dy` from the press on the screen: `phase` 'began', 'changed', then
+// 'ended' as the drag ends; and the second press of a double click there.
+export const move = CHANNEL.pageToMain('deckit-shell:desktop-move', {
+    id: 'number',
+    phase: 'string',
+    dx: 'number',
+    dy: 'number',
+});
+export const doubleClick = CHANNEL.pageToMain('deckit-shell:desktop-double-click', { id: 'number' });
 // The Dock slid `out` as the pointer came near, or back in to its sliver: where it takes the pointer.
 export const dock = CHANNEL.pageToMain('deckit-shell:desktop-dock', { out: 'boolean' });
 // The person asks for the app to restart, deckit's core having gone down.

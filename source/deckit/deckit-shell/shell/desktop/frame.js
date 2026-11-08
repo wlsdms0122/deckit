@@ -9,8 +9,8 @@ import * as DOCK from '../dock/view.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
-// Each frame's surface is the window grown by its shadow: the window's material at its middle, the edges that resize
-// it just outside it, as model/layout.js partsOf has them.
+// Each frame's surface is the window grown by its shadow: the window's material at its middle, the title bar of a
+// titled window at its top, the edges that resize it just outside it, as model/layout.js partsOf has them.
 const { SHADOW, EDGE, RADIUS, BUTTON, TITLE_BAR } = LAYOUT;
 const STYLE = `
     .deckit-desktop-strip {
@@ -43,6 +43,20 @@ const STYLE = `
         box-shadow: 0 0 0 1px var(--deckit-divider), var(--deckit-shadow-lifted);
     }
     .deckit-window-material[data-key] { box-shadow: 0 0 0 1px var(--deckit-divider), var(--deckit-shadow-raised); }
+    .deckit-window-title {
+        position: fixed;
+        top: ${SHADOW}px;
+        left: ${SHADOW}px;
+        right: ${SHADOW}px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: ${TITLE_BAR.height}px;
+        box-sizing: border-box;
+        padding: 0 ${TITLE_BAR.controlsWidth}px;
+        border-bottom: 1px solid var(--deckit-divider);
+    }
+    .deckit-window-title[hidden] { display: none; }
     .deckit-window-edge { position: fixed; }
     .deckit-window-edge[data-edge='top'] { top: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
     .deckit-window-edge[data-edge='bottom'] { bottom: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
@@ -131,23 +145,30 @@ function boot(theme, channels) {
         }
         for (const window of state.windows) {
             if (!drawn.has(window.id)) drawn.set(window.id, frameOf(window.id));
-            const { material, buttons } = drawn.get(window.id);
+            const { material, bar, text, buttons } = drawn.get(window.id);
             material.toggleAttribute('data-key', window.key);
             buttons.toggleAttribute('data-key', window.key);
+            bar.hidden = window.title === null;
+            text.textContent = window.title ?? '';
         }
     }
 
-    // A window's frame and buttons, in the two documents main lets this page open for it.
+    // A window's frame and buttons, in the two documents main lets this page open for it: a titled window's frame has
+    // its title bar too.
     function frameOf(id) {
         const frame = surface(PAGE.frameOf(id));
         const material = element(frame.document, 'div', 'deckit-window-material');
+        const bar = element(frame.document, 'div', 'deckit-window-title');
+        const text = element(frame.document, 'span', 'deckit-desktop-title');
+        bar.append(text);
+        bar.addEventListener('pointerdown', (down) => move(id, bar, down));
         const edges = EDGES.map((edge) => {
             const band = element(frame.document, 'div', 'deckit-window-edge');
             band.dataset.edge = edge;
             band.addEventListener('pointerdown', (down) => resize(id, edge, band, down));
             return band;
         });
-        frame.document.body.append(material, ...edges);
+        frame.document.body.append(material, bar, ...edges);
 
         const held = surface(PAGE.buttonsOf(id));
         const buttons = element(held.document, 'div', 'deckit-window-buttons');
@@ -163,7 +184,30 @@ function boot(theme, channels) {
             buttons.append(button);
         });
         held.document.body.append(buttons);
-        return { material, buttons, off: [frame.off, held.off] };
+        return { material, bar, text, buttons, off: [frame.off, held.off] };
+    }
+
+    // A drag of a titled window's title bar, read on the screen, as the surface moves with the frame. The second press
+    // of a double click is the title bar's.
+    function move(id, bar, down) {
+        if (down.button !== 0) return;
+        down.preventDefault();
+        PROTOCOL.press.send({ id });
+        if (down.detail === 2) return PROTOCOL.doubleClick.send({ id });
+        bar.setPointerCapture(down.pointerId);
+        const send = (phase, event) =>
+            PROTOCOL.move.send({ id, phase, dx: event.screenX - down.screenX, dy: event.screenY - down.screenY });
+        const moved = (event) => send('changed', event);
+        const up = (event) => {
+            bar.removeEventListener('pointermove', moved);
+            bar.removeEventListener('pointerup', up);
+            bar.removeEventListener('pointercancel', up);
+            send('ended', event);
+        };
+        bar.addEventListener('pointermove', moved);
+        bar.addEventListener('pointerup', up);
+        bar.addEventListener('pointercancel', up);
+        send('began', down);
     }
 
     // A drag of an edge, read on the screen, as the surface moves with the frame: the frame main is told as it goes,

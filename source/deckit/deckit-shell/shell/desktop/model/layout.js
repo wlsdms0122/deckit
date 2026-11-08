@@ -110,6 +110,22 @@ function partsOf(frame) {
     return { rect, window, edges, buttons, titleBar: { ...TITLE_BAR } };
 }
 
+// A titled window, one whose content draws no title bar of its own, has the shell's over it: the frame `size` big
+// holds the content and that bar, and the content is laid in the frame below it.
+function framedSize(size, titled) {
+    return titled ? { width: size.width, height: size.height + TITLE_BAR.height } : size;
+}
+
+function contentOf(frame, titled) {
+    if (!titled) return frame;
+    return { ...frame, y: frame.y + TITLE_BAR.height, height: Math.max(0, frame.height - TITLE_BAR.height) };
+}
+
+// The title bar the shell draws for a titled window, in the frame's surface (partsOf `rect`).
+function titleBarOf(frame) {
+    return { x: SHADOW, y: SHADOW, width: frame.width, height: TITLE_BAR.height };
+}
+
 // MARK: - Private
 function rounded({ x, y, width, height }) {
     return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
@@ -130,4 +146,7 @@ export {
     kept,
     resized,
     partsOf,
+    framedSize,
+    contentOf,
+    titleBarOf,
 };

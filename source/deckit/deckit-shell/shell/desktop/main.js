@@ -70,12 +70,16 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         });
     }
 
-    // A normal window opens where it was last left, or cascaded from the key window, in front and the key window.
+    // A normal window opens where its mod last left the window of its name, or cascaded from the key window where it
+    // left none or one of that name is open, in front and the key window. A window with a `title` is titled: the shell
+    // draws its title bar, holding the title, over its content.
     function open(window) {
         const desktopNow = area();
         const after = keyWindow() && MANAGER.frameOf(keyWindow().id);
-        const restored = frames[window.mod]?.[window.name] ?? null;
-        const frame = LAYOUT.placed({ size: window.size, restored, after, desktop: desktopNow });
+        const twin = [...windows.values()].some(({ mod, name }) => mod === window.mod && name === window.name);
+        const restored = (!twin && frames[window.mod]?.[window.name]) || null;
+        const size = LAYOUT.framedSize(window.size, isTitled(window));
+        const frame = LAYOUT.placed({ size, restored, after, desktop: desktopNow });
         windows.set(window.id, window);
         for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)])
             PAGES.allowSurface(desktop.page, name, (surface) => openSurface(name, surface));
@@ -121,8 +125,8 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         update();
     }
 
-    // A drag of the content's drag regions, `dx`, `dy` from the press: the window follows, and is left where its title
-    // bar can be reached.
+    // A drag of the content's drag regions, or of the title bar of a titled window, `dx`, `dy` from the press: the
+    // window follows, and is left where its title bar can be reached.
     function move(window, phase, dx, dy) {
         if (phase === 'began') {
             moving = { id: window.id, from: MANAGER.frameOf(window.id) };
@@ -176,6 +180,13 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // Whether the window is the local seat's key window.
     function isKey(window) {
         return MANAGER.keyOf(LOCAL) === window.id;
+    }
+
+    // The title a titled window's title bar holds now.
+    function setTitle(window, title) {
+        if (!windows.has(window.id)) return;
+        window.title = String(title);
+        update();
     }
 
     // Hears each change to the windows: answers its off.
@@ -242,6 +253,8 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
                 update();
             })
         );
+        PROTOCOL.move.on(known((window, { phase, dx, dy }) => move(window, phase, dx, dy)));
+        PROTOCOL.doubleClick.on(known(doubleClick));
         PROTOCOL.dock.on(
             fromPage(({ out }) => {
                 dockOut = out;
@@ -284,6 +297,10 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         for (const surface of dropped) PAGES.close(surface);
     }
 
+    function isTitled(window) {
+        return typeof window.title === 'string';
+    }
+
     // The local seat's key window, or null.
     function keyWindow() {
         return windows.get(MANAGER.keyOf(LOCAL)) ?? null;
@@ -294,9 +311,19 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         return LAYOUT.desktopOf(stage.size(), strip.height);
     }
 
-    // The desktop changed size: a zoomed window fills it again.
+    // The desktop changed size: a zoomed window fills it again, and any other is moved where its title bar can be
+    // reached. A desktop with no room yet, its stage in no window, moves none.
     function resized() {
-        MANAGER.fitZoomed(LAYOUT.zoomedIn(area()));
+        const desktopNow = area();
+        MANAGER.fitZoomed(LAYOUT.zoomedIn(desktopNow));
+        if (desktopNow.width && desktopNow.height) {
+            for (const id of windows.keys()) {
+                const frame = MANAGER.frameOf(id);
+                const kept = LAYOUT.kept(frame, desktopNow);
+                if (!MANAGER.isZoomed(id) && (kept.x !== frame.x || kept.y !== frame.y))
+                    MANAGER.setFrame(LOCAL, id, kept);
+            }
+        }
         update();
     }
 
@@ -330,16 +357,20 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
                 ...[...pages].map((page) => ({ page, rect: front.get(page) ?? area(), input: [] })),
                 ...(backdrop ? [{ page: backdrop, rect: full }] : []),
                 ...view.flatMap(({ id, frame }) => {
-                    const { surface: content } = windows.get(id);
+                    const window = windows.get(id);
+                    const titled = isTitled(window);
                     const parts = LAYOUT.partsOf(frame);
                     const clip = { ...frame, cornerRadius: LAYOUT.RADIUS };
                     return [
                         surface(PAGE.frameOf(id)) && {
                             page: surface(PAGE.frameOf(id)),
                             rect: parts.rect,
-                            input: parts.edges.map(({ rect }) => rect),
+                            input: [
+                                ...parts.edges.map(({ rect }) => rect),
+                                ...(titled ? [LAYOUT.titleBarOf(frame)] : []),
+                            ],
                         },
-                        content && { page: content, rect: frame, clip },
+                        window.surface && { page: window.surface, rect: LAYOUT.contentOf(frame, titled), clip },
                         ...children
                             .filter(({ window }) => window === id)
                             .map(({ page, rect }) => ({ page, rect, clip })),
@@ -400,6 +431,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
                 frame,
                 key: id === key,
                 minimum: LAYOUT.minimumOf(windows.get(id).minimum),
+                title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),
             strip,
             title: titleOf(windows.get(key)),
@@ -494,6 +526,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         move,
         doubleClick,
         activate,
+        setTitle,
         seatAt,
         // The seat at the host window, the one seat the host gives: what a mod asks is done by it.
         localSeat: LOCAL,
