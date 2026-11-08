@@ -1,8 +1,8 @@
 // What the mods post to deckit/notifications: kept in a record, let through at a rate for each sender, queued, and shown
 // as a toast while the app is in front and a drawer for toasts is there, or else as a notification of the system's. A
-// press runs the token the sender handed, and takes the notification away.
+// press runs the command of the sender's it names, and takes the notification away.
 const KEY = 'notifications';
-// How many the record keeps: the oldest goes, with its tokens.
+// How many the record keeps: the oldest goes.
 const KEEP = 100;
 // A sender's notifications beyond `count` within `within` milliseconds are kept and listed, not shown.
 const RATE = Object.freeze({ count: 3, within: 10000 });
@@ -10,8 +10,9 @@ const RATE = Object.freeze({ count: 3, within: 10000 });
 const TOASTS = 3;
 const INTERFACE = 'deckit/notifications';
 
-// `deckit` is the function lifecycle's handle; `now()` the time in milliseconds.
-function center(deckit, { now = Date.now } = {}) {
+// `deckit` is the function lifecycle's handle; `commands()` the owner of deckit/commands while one is connected, or
+// null; `now()` the time in milliseconds.
+function center(deckit, { commands = () => null, now = Date.now } = {}) {
     // MARK: - Property
     const kept = deckit.storage.records.get(KEY, []); // newest first
     const sent = new Map(); // mod id -> when its notifications were shown, within the rate's window
@@ -33,7 +34,7 @@ function center(deckit, { now = Date.now } = {}) {
         });
     }
 
-    // The record, newest first, without the tokens it holds.
+    // The record, newest first, without the commands a press runs.
     function list() {
         return kept.map(({ id, mod, title, body, posted, actions }) => ({
             id,
@@ -45,18 +46,20 @@ function center(deckit, { now = Date.now } = {}) {
         }));
     }
 
-    // The person pressed a notification, or its `action`th action: its token runs, and it is taken away.
+    // The person pressed a notification, or its `action`th action: it is taken away, and the command it names runs
+    // on its sender through deckit/commands, which launches the sender if it does not run.
     async function press(id, action = null) {
         const notification = kept.find((each) => each.id === id);
         if (!notification) return;
-        const token = action === null ? notification.token : notification.actions[action]?.token;
+        const pressed = action === null ? notification : notification.actions[action];
         take(notification);
+        if (!pressed?.command) return;
         try {
-            if (token) await deckit.commands.tokens.run(token);
+            const owner = commands();
+            if (!owner) throw new Error('no mod runs commands now');
+            await owner.run(notification.mod.id, pressed.command, pressed.args);
         } catch (error) {
             console.error(`[notifications] ${notification.title || notification.body} did not run`, error);
-        } finally {
-            release(notification);
         }
     }
 
@@ -65,7 +68,6 @@ function center(deckit, { now = Date.now } = {}) {
         const notification = kept.find((each) => each.id === id && (of === null || each.mod.id === of));
         if (!notification) return false;
         take(notification);
-        release(notification);
         return true;
     }
 
@@ -94,30 +96,44 @@ function center(deckit, { now = Date.now } = {}) {
     }
 
     // MARK: - Private
-    async function post(mod, { title = '', body = '', silent = false, token = null, actions = [] } = {}) {
+    async function post(
+        mod,
+        { title = '', body = '', silent = false, command = null, args = null, actions = [] } = {}
+    ) {
         if (typeof title !== 'string' || typeof body !== 'string' || !(title || body))
             throw new TypeError('post takes { title, body }, text, one of them not empty');
-        if (token !== null && typeof token !== 'string') throw new TypeError('a token is a command token');
-        if (!Array.isArray(actions) || actions.some((action) => !action?.title || typeof action.token !== 'string'))
-            throw new TypeError('actions are [{ title, token }]');
+        if (!runs({ command, args })) throw new TypeError("a command is the id of one of the sender's, args a table");
+        if (!Array.isArray(actions) || actions.some((action) => !action?.title || !runs(action) || !action.command))
+            throw new TypeError('actions are [{ title, command, args }]');
         const notification = {
             id: newId(),
             mod,
             title,
             body,
             silent: !!silent,
-            token,
-            actions: actions.map((action) => ({ title: String(action.title), token: action.token })),
+            ...ran({ command, args }),
+            actions: actions.map((action) => ({ title: String(action.title), ...ran(action) })),
             posted: now(),
         };
         kept.unshift(notification);
-        for (const old of kept.splice(KEEP)) release(old);
+        kept.splice(KEEP);
         changed('posted', notification.id);
         if (allowed(mod.id)) {
             queue.push(notification);
             drain();
         }
         return notification.id;
+    }
+
+    // Whether `command` is none or a command's id, and `args` none or a table.
+    function runs({ command = null, args = null }) {
+        if (command !== null && (typeof command !== 'string' || !command)) return false;
+        return args === null || (typeof args === 'object' && !Array.isArray(args));
+    }
+
+    // What a press runs, as it is kept: a command with its args, `{}` for none, or no command.
+    function ran({ command = null, args = null }) {
+        return command ? { command, args: args ?? {} } : { command: null, args: null };
     }
 
     // Unguessable and never repeated, across runs too.
@@ -180,11 +196,6 @@ function center(deckit, { now = Date.now } = {}) {
         if (toasts.delete(notification.id)) drawer?.hide(notification.id);
         changed('removed', notification.id);
         drain();
-    }
-
-    function release(notification) {
-        for (const token of [notification.token, ...notification.actions.map((action) => action.token)])
-            if (token) deckit.commands.tokens.release(token).catch(() => {});
     }
 
     function changed(signal, id) {
