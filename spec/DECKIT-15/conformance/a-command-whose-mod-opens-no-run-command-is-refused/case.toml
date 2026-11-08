@@ -1,0 +1,32 @@
+case = 5
+name = "a-command-whose-mod-opens-no-run-command-is-refused"
+note = "run is refused at call with kind COMMAND where the exports the mod opens for its id have no runCommand. mod-b declares today and opens {}."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/commands"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "run"
+of = 2
+handed = true
+args = ["mod-b", "today"]
+
+[step.expect]
+refuses = "call"
+kind = "COMMAND"

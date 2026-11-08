@@ -1,0 +1,32 @@
+case = 5
+name = "a-command-that-throws-a-kind-is-refused-with-it"
+note = "run is refused at call with the kind the command threw. mod-b's runCommand throws an error of kind BUSY."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/commands"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "run"
+of = 2
+handed = true
+args = ["mod-b", "today"]
+
+[step.expect]
+refuses = "call"
+kind = "BUSY"
