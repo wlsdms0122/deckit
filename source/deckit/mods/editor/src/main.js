@@ -32,15 +32,16 @@ class Editor {
     // folders of the open files no longer watched.
     end = null;
 
-    // What the view has put on screen for the commands and the addresses to reach, while it is attached.
+    // What attach has put on screen for the commands, the addresses and reopen() to reach, while it is attached:
+    // `openWindow()` opens Editor's window, or orders it front where it is open.
     screen = null;
 
     // The commands its manifest declares to `deckit/commands`, and the `file` addresses it declares to `deckit/urls`,
-    // each taken from the exports for its id and run on the view. A command run while Editor has no view open says so,
-    // and an address that comes then is passed on.
+    // each taken from the exports for its id and run on the workspaces in its window, open or not. A command run while
+    // Editor is not attached says so, and an address that comes then is passed on.
     start(deckit) {
         const onScreen = () => {
-            if (!this.screen) throw new Error('Editor has no view open');
+            if (!this.screen) throw new Error('Editor has no window to open');
             return this.screen;
         };
         const commands = {
@@ -194,7 +195,7 @@ class Editor {
             onReload: (file) => reload(file, true),
             onKeepMine: keepMine,
         });
-        // The view's own keys, while it is in front, made before what draws their chords.
+        // The window's own keys, while it is key, made before what draws their chords.
         const keys = viewKeys(
             {
                 quickOpen: { key: 'mod+p', run: () => openQuickly() },
@@ -218,7 +219,7 @@ class Editor {
                 goToLine: { key: 'mod+l', run: () => askLine() },
                 wrapLines: { key: 'alt+z', run: () => wrapLines() },
             },
-            { log: 'editor' }
+            { log: 'editor', within: content }
         );
         this.endKeys = () => keys.listen(false);
         const emptyEditor = emptyState({
@@ -315,20 +316,27 @@ class Editor {
             .restore({ openFolder, openInBackground: (path) => tryOpen(path, { background: true, last: true }) })
             .then(paint);
 
-        shell.view.register({
-            content,
+        // The files beside the sidebar's workspaces, whose width and fold are kept as the person leaves them.
+        const split = ui.splitView({
             sidebar: sidePanel.element,
-            didAppear() {
-                keys.listen(true);
-                checkDisk();
-                workspaces.front()?.tree?.refresh();
-                workspaces.listFiles(workspaces.front(), true);
-                workspaces.current()?.view.focus();
-            },
-            didDisappear() {
-                keys.listen(false);
-            },
+            content,
+            ...store.get('sidebar', {}),
+            onChange: (kept) => store.set('sidebar', kept),
         });
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear() {
+                    checkDisk();
+                    workspaces.front()?.tree?.refresh();
+                    workspaces.listFiles(workspaces.front(), true);
+                    workspaces.current()?.view.focus();
+                },
+                didBecomeKey: () => keys.listen(true),
+                didResignKey: () => keys.listen(false),
+            });
+        openWindow();
         // Its own, so a search of the switcher and one in Open Quickly do not cancel each other.
         const actionRanker = ranker({ paths: true });
         const noFolder = () => (workspaces.front()?.root ? '' : 'Open a folder first');
@@ -368,7 +376,7 @@ class Editor {
             recentFolders: recent.unopened,
             filesOf: (workspace, query) =>
                 filesFound(workspace, query, { listFiles: workspaces.listFiles, ranker: actionRanker }),
-            show: shell.show,
+            show: openWindow,
             does: {
                 open: goToFile,
                 'open-folder': openFolderAt,
@@ -394,7 +402,7 @@ class Editor {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
-        this.screen = { goToFile, openFolderAt, openFile };
+        this.screen = { openWindow, goToFile, openFolderAt, openFile };
 
         function heardDiskState(file) {
             if (disk.isDirty(file)) drafts.keepSoon();
@@ -483,7 +491,7 @@ class Editor {
         async function openFile(path, { activates }) {
             const background = activates === false;
             const opened = !!(await tryOpen(path, { background })).file;
-            if (opened && !background) shell.show();
+            if (opened && !background) openWindow();
             return opened;
         }
 
@@ -714,6 +722,11 @@ class Editor {
             paint();
             return done;
         }
+    }
+
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
     }
 
     detach() {

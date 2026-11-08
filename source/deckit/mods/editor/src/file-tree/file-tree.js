@@ -76,7 +76,7 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         repaint: draw,
         reveal,
         focus: () => element.focus({ preventScroll: true }),
-        picked: () => (element.contains(document.activeElement) && selected ? entryAt(selected) : null),
+        picked: () => (element.contains(element.ownerDocument.activeElement) && selected ? entryAt(selected) : null),
         nameAt,
         follow,
     };

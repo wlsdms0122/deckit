@@ -121,6 +121,7 @@ function workspaceSearch({ ui, fileSystem, root, folders, ranker, onOpen, onRepl
             folderField.set('');
             setFolders([...scope.folders, item.relative]);
         },
+        over: element,
     });
     const folderField = ui.field({
         placeholder: 'In folder',
@@ -234,7 +235,7 @@ function workspaceSearch({ ui, fileSystem, root, folders, ranker, onOpen, onRepl
             if (!ranked) return;
             found = ranked.filter((relative) => !scope.folders.includes(relative)).slice(0, SUGGESTED);
         } catch {}
-        if (turn !== suggestionTurn || document.activeElement !== folderField.input) return;
+        if (turn !== suggestionTurn || folderField.input.ownerDocument.activeElement !== folderField.input) return;
         if (!found.length) return folderSuggestions.close();
         folderSuggestions.show(
             found.map((relative) => ({
