@@ -1,7 +1,7 @@
 // The Switcher's list (mods/switcher/src/switcher/switcher.js) over a stand-in for deckit, the shell and the list it
 // draws: the actions mods declare to switcher/actions are listed under their mods beside those a run set, one with a
-// token runs it through deckit and one with none is read only, and none is listed while the switcher does not own the
-// interface. Exits 1 with a line for each check that failed.
+// command runs it through deckit/commands and one with none is read only, and none is listed while the switcher does
+// not own the interface. Exits 1 with a line for each check that failed.
 const path = require('path');
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -26,20 +26,18 @@ async function main() {
     let owns = true;
     const ran = [];
     const contributions = [
-        { mod: { id: 'a', name: 'A' }, entry: { label: 'Show Log', keywords: ['log'] }, token: 'token-1' },
+        {
+            mod: { id: 'a', name: 'A' },
+            entry: { label: 'Show Log', keywords: ['log'], command: 'show-log', args: { lines: 10 } },
+        },
         { mod: { id: 'a', name: 'A' }, entry: { label: 'Read Only' } },
-        { mod: { id: 'b', name: 'B' }, entry: { hint: 'no label' }, token: 'token-2' },
+        { mod: { id: 'b', name: 'B' }, entry: { hint: 'no label', command: 'show' } },
     ];
+    const commands = { run: async (mod, id, args) => (ran.push([mod, id, args]), null) };
     const deckit = {
         util: {},
         storage: { records: { get: (_key, fallback) => fallback, set: () => {} } },
-        commands: {
-            list: async () => [],
-            complete: async () => [],
-            run: async () => null,
-            tokens: { run: async (token) => (ran.push(token), null) },
-        },
-        provider: async (id) => ({ id, name: id.toUpperCase() }),
+        mods: { list: () => ({ found: [{ id: 'a', name: 'A' }], running: [], interfaces: {} }) },
         exports: {
             contributions: async (name) => {
                 if (!owns) throw Object.assign(new Error(`does not own ${name}`), { kind: 'NOT_OWNER' });
@@ -47,10 +45,10 @@ async function main() {
             },
         },
     };
-    const shell = { ui: {}, theme: {}, iconOf: () => '' };
+    const shell = { ui: {}, theme: {}, iconOf: () => '', mods: { list: () => [], open: async () => {} } };
     const window = { open: () => {}, close: () => {} };
     const given = new Map([[{ mod: { id: 'a', name: 'A' } }, { list: () => [{ label: 'Set', value: 1 }] }]]);
-    const list = switcher(shell, deckit, window, given);
+    const list = switcher(shell, deckit, window, given, { commands: () => commands });
 
     await list.show();
     const items = opened[0]?.items ?? [];
@@ -62,13 +60,17 @@ async function main() {
     );
     check(
         'a declared action keeps the data it was declared with',
-        items[1]?.keywords === 'log' && items[1]?.token === 'token-1',
+        items[1]?.keywords === 'log' && items[1]?.command === 'show-log' && items[1]?.args?.lines === 10,
         items[1]
     );
     check('a declared action with no command is read only', items[2]?.run === undefined, items[2]);
     await items[1].run();
     await tick();
-    check('picking a declared action runs its token through deckit', ran.join() === 'token-1', ran);
+    check(
+        'picking a declared action runs its command through deckit/commands',
+        JSON.stringify(ran) === JSON.stringify([['a', 'show-log', { lines: 10 }]]),
+        ran
+    );
 
     list.putAway();
     owns = false;
