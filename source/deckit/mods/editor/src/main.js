@@ -155,6 +155,7 @@ class Editor {
             createView: (text, path) => {
                 const made = code.create(text, path, { inset: minimap.inset() });
                 stage.append(made.box);
+                made.view.setRoot(stage.ownerDocument);
                 return made;
             },
             scrollEffect: code.scrollEffect,
@@ -327,7 +328,9 @@ class Editor {
             shell.windows.open({
                 name: 'main',
                 content: split.element,
+                // The engine puts its rules in the document it is told it is in, the window's, each time one opens.
                 didAppear() {
+                    for (const file of workspaces.files()) file.view.setRoot(stage.ownerDocument);
                     checkDisk();
                     workspaces.front()?.tree?.refresh();
                     workspaces.listFiles(workspaces.front(), true);
