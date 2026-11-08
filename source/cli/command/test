@@ -59,6 +59,7 @@ const main = async () => {
         'desktop.js',
         'window.js',
         'dock.js',
+        'host.js',
         'key.js',
         'style.js',
         'region.js',

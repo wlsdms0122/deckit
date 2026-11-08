@@ -1,7 +1,8 @@
 // What an environment gives deckit (deckit-shell/environment): how a given object is held to it, that connect and
 // attach refuse an environment that lacks a member, that connect refuses a shipped folder with no system mark, what
-// connect answers the UI and the host app, and that attach defines the UI's permissions. Exits 1 with a line for each
-// check that failed. The packages are ES modules, so they are imported as such.
+// connect answers the UI and the host app, that Deckit.app answers what connect and attach ask of a host app, and that
+// attach defines the UI's permissions. Exits 1 with a line for each check that failed. The packages are ES modules,
+// so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -127,7 +128,10 @@ async function main() {
         /folders\.ship lists \{ folder, system \}/.test(unmarked),
         unmarked
     );
-    const answer = SHELL.connect(environment, { host, config: { id: 'test' } });
+    // Deckit.app's own host app, over windows and a theme that are never asked for before it starts.
+    const { createApp } = require(path.join(__dirname, '..', '..', 'deckit', 'deckit-app', 'app', 'app.js'));
+    const deckitApp = createApp({ WINDOW: {}, THEME: {} }).make({ restart() {} });
+    const answer = SHELL.connect(environment, { host: deckitApp, config: { id: 'test' } });
     check(
         'the environment is configured with what names what it keeps',
         configured.length === 1 && configured[0].id === 'test',
@@ -164,8 +168,8 @@ async function main() {
         /does not answer show, desktopTitled/.test(unanswered),
         unanswered
     );
-    const attached = thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }));
-    check('attach refused can be called again', attached === '', attached);
+    const attached = thrown(() => SHELL.attach(answer, shellEnvironment, { host: deckitApp }));
+    check("attach refused can be called again, and takes Deckit.app's answers", attached === '', attached);
     const shellKeys = { id: 'deckit.shell-keys', name: 'x', description: 'x' };
     const twice = thrown(() => answer.permissions.define(shellKeys));
     check('attach defines the permissions of the UI, the shell keys included', /defined twice/.test(twice), twice);
