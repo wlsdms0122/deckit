@@ -141,11 +141,17 @@ public final class Deckit {
     // no mod is listed under.
     public func quit(_ id: String, by asker: String?) throws -> [Effect] {
         try permit(asker)
-        guard catalog.lastRead.contains(where: { mod in mod.manifest.id == id }) else {
-            throw LaunchError.notInstalled(id)
-        }
+        try listedOnly(id)
 
         return try unload([id])
+    }
+
+    // What deck keeps of the mod `id`, in each place it keeps it. Refused for an id no mod is listed under, as `quit`
+    // refuses it.
+    public func usage(_ id: String) throws -> StorageUsage {
+        try listedOnly(id)
+
+        return try deck.storage.usage(principal: id)
     }
 
     // The mods named unload: a sandbox whose run has ended closes once the catalog no longer has its mod as it runs it.
@@ -245,12 +251,18 @@ public final class Deckit {
         throw LaunchError.notPermitted(mod: asker, permission: Deckit.mods.id)
     }
 
-    // Refused for an id no mod is listed under, and for one whose mod does not load.
-    private func listed(_ id: String) throws {
+    // Refused for an id no mod is listed under, as the catalog was last read.
+    @discardableResult
+    private func listedOnly(_ id: String) throws -> Mod {
         guard let mod = catalog.lastRead.first(where: { mod in mod.manifest.id == id }) else {
             throw LaunchError.notInstalled(id)
         }
-        guard let problem = mod.problem else { return }
+        return mod
+    }
+
+    // Refused for an id no mod is listed under, and for one whose mod does not load.
+    private func listed(_ id: String) throws {
+        guard let problem = try listedOnly(id).problem else { return }
         throw ModFolderError.notLoadable((problem as? any Refusal)?.message ?? problem.localizedDescription)
     }
 

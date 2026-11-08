@@ -96,7 +96,7 @@ struct DeckitTests {
         #expect(try #require(sut.deck.run(of: "b")).state == .running)
     }
 
-    @Test("a launch or a quit of an id no mod is listed under is refused, and a launch of a mod that does not load")
+    @Test("a launch, quit or usage of an unlisted id is refused, and a launch of a mod that does not load")
     func launchOfUnknownIdIsRefused() throws {
         // Given
         try fixture.write("bad", api: "9.0.0")
@@ -105,12 +105,15 @@ struct DeckitTests {
         // When
         let unknown = #expect(throws: LaunchError.self) { try sut.launch("x", by: nil) }
         let quit = #expect(throws: LaunchError.self) { try sut.quit("x", by: nil) }
+        let usage = #expect(throws: LaunchError.self) { try sut.usage("x") }
         let refused = #expect(throws: ModFolderError.self) { try sut.launch("bad", by: nil) }
 
         // Then
         #expect(unknown == .notInstalled("x"))
         #expect(quit == .notInstalled("x"))
+        #expect(usage == .notInstalled("x"))
         #expect(refused != nil)
+        #expect(try sut.usage("bad").records.count == 0)
     }
 
     @Test("a failed run of a mod that does not run in the background does not launch again")
