@@ -1,7 +1,8 @@
 // The mods as the core reads them (deckit-shell/deckit/catalog), over a stand-in for the core: each with whether it is
 // a system mod, the manifest fields the layers named, by key, as written, whether a permission is privileged, and why
-// one does not load, with its kind; and what a mod with deckit.mods (deckit/mods/main.js) and the host app
-// (deckit/api/index.js) are answered of them. Exits 1 with a line for each check that failed. The packages are ES
+// one does not load, with its kind; what a mod with deckit.mods (deckit/mods/main.js) is answered of them, a launch it
+// asks made in its name and a refusal of a request answered with its stage and kind; and what the host app
+// (deckit/api/index.js) is answered of them. Exits 1 with a line for each check that failed. The packages are ES
 // modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -121,16 +122,22 @@ async function main() {
         modOf: (page) => ({ id: page.mod }),
         whenPageEnds: () => {},
     };
+    const launches = [];
     const RUNNER = {
         runOf: () => null,
         launchedOf: () => null,
         observe: () => () => {},
         onProblem: () => () => {},
+        launch: async (id, by) => {
+            launches.push([id, by]);
+            if (id === 'r')
+                throw Object.assign(new Error('r did not launch'), { stage: 'launch', kind: 'NOT_LAUNCHED' });
+        },
     };
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: { clearStorage: async () => {} } });
     MODS.start({ facts: () => ({}), installed: async () => ({}), removed: () => {}, erase: async () => {} });
     await tick();
-    const listed = await heard.askedSync(PAGE, { channel: 'deckit-shell:mods', payload: {} });
+    const listed = await heard.asked(PAGE, { channel: 'deckit-shell:mods', payload: {} });
     const entries = listed?.value?.found ?? [];
     check(
         'deckit.mods lists each mod with whether it is a system mod',
@@ -150,6 +157,19 @@ async function main() {
             entries[2]?.problem?.message === 'no main.js' &&
             entries[3]?.problem?.kind === null,
         entries.map(({ problem }) => problem)
+    );
+
+    const launched = await heard.asked(PAGE, { channel: 'deckit-shell:mods-launch', payload: { id: 'p' } });
+    check(
+        'a launch a mod asks is made in its name',
+        JSON.stringify(launches) === '[["p","s"]]' && 'value' in launched && !launched.error,
+        { launches, launched }
+    );
+    const refusedLaunch = await heard.asked(PAGE, { channel: 'deckit-shell:mods-launch', payload: { id: 'r' } });
+    check(
+        'a request refused is answered with its stage and kind',
+        JSON.stringify(refusedLaunch.error) === '{"message":"r did not launch","kind":"NOT_LAUNCHED","stage":"launch"}',
+        refusedLaunch
     );
 
     // The host app reads a mod's fields.

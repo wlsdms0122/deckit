@@ -145,7 +145,7 @@ async function main() {
         STORAGE: { values: () => ({}), records: () => ({}) },
         CONNECTION: createConnection({ RUN }),
         EVENT: { forScope: () => ({}) },
-        MODS: {},
+        MODS: { tool: () => ({}) },
         modules: { evaluate: () => Mod },
     });
     await RUNNER.start({ layers: [layer] });
@@ -188,19 +188,18 @@ async function main() {
         problems.some((problem) => /a lifecycle under it opened its own id/.test(problem)),
         problems
     );
-    const started = payloads('mod-started')[0];
-    const joined = payloads('mod-joined').at(-1);
+    const started = payloads('mod-started');
     check(
-        "main is told the lifecycle each interface and the mod's own exports were opened in, these by its id",
-        JSON.stringify(started?.contributions.exportedIn) === '{"p/one":0,"p":0}' &&
-            JSON.stringify(joined?.contributions.exportedIn) === '{"p/one":0,"p":0,"p/two":1}',
-        { started, joined }
+        "main is told the run started once, after each lifecycle, with the lifecycle each interface and the mod's own " +
+            'exports were opened in, these by its id',
+        started.length === 1 && JSON.stringify(started[0].contributions.exportedIn) === '{"p/one":0,"p":0,"p/two":1}',
+        started
     );
-    check('the summary says exports were opened', joined?.summary.exports === true, joined?.summary);
+    check('the summary says exports were opened', started[0]?.summary.exports === true, started[0]?.summary);
     check(
         'main is told the interfaces the run listens for, by the lowest lifecycle',
-        JSON.stringify(joined?.contributions.awaits) === '{"q/used":0,"q":0,"q/optional":1}',
-        joined?.contributions
+        JSON.stringify(started[0]?.contributions.awaits) === '{"q/used":0,"q":0,"q/optional":1}',
+        started[0]?.contributions
     );
 
     // The dependency's end: each connection asks the exports of its name, opened in that lifecycle.

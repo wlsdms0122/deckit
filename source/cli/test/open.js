@@ -1,8 +1,8 @@
 // Opening outside the app (deckit-shell/deckit/open/main.js) over a stand-in for the system and the pages: an address
-// of the web opens in the browser, brought forward unless asked not to; a file opens in its app only for a mod with
-// system.file-handlers, and only one on this machine; an address of any other scheme opens nowhere. Revealing a file
-// takes system.file-handlers. Exits 1 with a line for each check that failed. The packages are ES modules, so they
-// are imported as such.
+// of the web is handed the browser as the URL Standard serializes it, brought forward unless asked not to; a file opens
+// in its app only for a mod with system.file-handlers, refused NOT_PERMITTED otherwise, and only one on this host; what
+// is no URL, or a URL of any other scheme, is refused UNSUPPORTED_URL. Revealing a file takes system.file-handlers.
+// Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -54,10 +54,14 @@ async function main() {
     };
     const open = (page, address, activates = true) => ask(page, 'deckit-shell:open', { url: address, activates });
 
+    const refusalOf = ({ error }) => error && `${error.stage} ${error.kind}`;
     const web = await open(plain, 'https://example.com');
     check(
-        'an address of the web opens in the browser, brought forward',
-        web.value === true && opened[0]?.[0] === 'url' && opened[0][1] === 'https://example.com' &&
+        'the web is handed the browser as the URL Standard serializes it, brought forward, answering nothing',
+        web.value === undefined &&
+            !web.error &&
+            opened[0]?.[0] === 'url' &&
+            opened[0][1] === 'https://example.com/' &&
             opened[0][2].activate === true,
         { web, opened }
     );
@@ -65,29 +69,51 @@ async function main() {
     await open(plain, 'HTTP://example.com', false);
     check(
         'a scheme is read in any case, and the browser is left behind when asked',
-        opened[0]?.[0] === 'url' && opened[0][2].activate === false,
+        opened[0]?.[0] === 'url' && opened[0][1] === 'http://example.com/' && opened[0][2].activate === false,
         opened
     );
     opened.length = 0;
     const other = await open(plain, 'test-open:probe');
-    check('an address of another scheme opens nowhere', other.value === false && !opened.length, { other, opened });
+    check(
+        'an address of another scheme is refused at call, UNSUPPORTED_URL',
+        refusalOf(other) === 'call UNSUPPORTED_URL' && !opened.length,
+        {
+            other,
+            opened,
+        }
+    );
     const nothing = await open(plain, 'no address');
-    check('what names no scheme opens nowhere', nothing.value === false && !opened.length, { nothing, opened });
+    check(
+        'what is no URL is refused at call, UNSUPPORTED_URL',
+        refusalOf(nothing) === 'call UNSUPPORTED_URL' && !opened.length,
+        {
+            nothing,
+            opened,
+        }
+    );
 
     const refused = await open(plain, 'file:///Users/me/a%20b.txt');
-    check('a file opens nowhere for a mod without system.file-handlers', refused.value === false && !opened.length, {
-        refused,
-        opened,
-    });
+    check(
+        'a file is refused at call, NOT_PERMITTED, for a mod without system.file-handlers',
+        refusalOf(refused) === 'call NOT_PERMITTED' && !opened.length,
+        { refused, opened }
+    );
     const file = await open(files, 'file:///Users/me/a%20b.txt');
     check(
         'a file opens in its app for a mod with system.file-handlers, by its path',
-        file.value === true && opened[0]?.[0] === 'file' && opened[0][1] === '/Users/me/a b.txt',
+        !file.error && opened[0]?.[0] === 'file' && opened[0][1] === '/Users/me/a b.txt',
         { file, opened }
     );
     opened.length = 0;
     const remote = await open(files, 'file://elsewhere/a.txt');
-    check('a file on another machine opens nowhere', remote.value === false && !opened.length, { remote, opened });
+    check(
+        'a file on another host is refused, UNSUPPORTED_URL',
+        refusalOf(remote) === 'call UNSUPPORTED_URL' && !opened.length,
+        {
+            remote,
+            opened,
+        }
+    );
 
     // What a page opens by itself, a window or a link that leaves, goes the same way.
     OPEN.openFrom(plain, 'https://example.org', { activates: true, target: 'x' });
@@ -95,7 +121,7 @@ async function main() {
     await new Promise((resolve) => setImmediate(resolve));
     check(
         'what a page opens by itself opens as an address it asks to open',
-        opened.length === 1 && opened[0][1] === 'https://example.org',
+        opened.length === 1 && opened[0][1] === 'https://example.org/',
         opened
     );
     opened.length = 0;

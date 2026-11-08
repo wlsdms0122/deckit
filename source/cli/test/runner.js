@@ -149,7 +149,7 @@ async function main() {
     check('the core is told once the page answered', methods('runner/stopped').length === 1, asked);
     stopping();
     RUNNER.unload(['a']).catch(() => {});
-    await later(2100);
+    await later(5100);
     check('the core is told once stop() ran out of time', methods('runner/stopped').length === 2, asked);
     gone = true;
     stopping();
@@ -172,9 +172,9 @@ async function main() {
     );
     stopping();
     RUNNER.unload(['a']).catch(() => {});
-    await later(2100);
+    await later(5100);
     check('a run of two lifecycles is not ended by one limit', methods('runner/stopped').length === 3, asked);
-    await later(2000);
+    await later(5000);
     check('a run of two lifecycles ends within two limits', methods('runner/stopped').length === 4, asked);
     const contributions = { exportedIn: { 'p/x': 0 }, awaits: { q: 1 }, commands: [{ name: 'go' }] };
     answers.set('runner/started', [[told('didLaunch', 'running', 'a', { contributions: { exportedIn: {} } })]]);
@@ -199,19 +199,9 @@ async function main() {
             summaryAtLaunch?.view === true,
         { run: RUNNER.runOf('a'), summaryAtLaunch }
     );
-    fromPage('mod-joined', { run: 1, summary: { view: false }, contributions: { ...contributions, awaits: {} } });
+    fromPage('mod-started', { run: 9, summary: { view: false }, contributions });
     await tick();
-    const joined = methods('runner/joined').at(-1)?.params;
-    check(
-        'a lifecycle joined tells the core exportedIn and awaits alone, and the run keeps what the page reported',
-        JSON.stringify(joined?.contributions) === '{"exportedIn":{"p/x":0},"awaits":{}}' &&
-            !('summary' in joined) &&
-            RUNNER.runOf('a').summary?.view === false,
-        joined
-    );
-    fromPage('mod-joined', { run: 9, summary: { view: true }, contributions });
-    await tick();
-    check('what an older run reports is not kept on the latest', RUNNER.runOf('a').summary?.view === false, null);
+    check('what an older run reports is not kept on the latest', RUNNER.runOf('a').summary?.view === true, null);
 
     // A launch: asked of the core with the mod that asks, or none for the shell, once a run that terminates has ended;
     // resolved once it has launched, or failed to. One the core refuses rejects.

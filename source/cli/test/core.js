@@ -1,11 +1,11 @@
 // Deckit's client of the core (deckit-shell/deckit/core), checked over a stand-in for how the environment reaches the
 // core: what it sends first, the version of the mod contract it runs mods with, the shipped folders with their system
 // marks, the permissions the layers define with their tier (deckit/permission) and the manifest fields they name
-// (deckit/manifest-field), each refused with its kind, how it waits for that, what an answer and a refusal come to,
-// the start refused with the kind the core refuses initialize with and left to its caller to log, that a core that
-// ended refuses everything after, and the state over the core (deckit/storage) not written while it is not read, a
-// failure logged once. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// (deckit/manifest-field), each refused with its kind, how it waits for that, what an answer and a refusal, with its
+// kind and stage, come to, the start refused with the kind the core refuses initialize with and left to its caller to
+// log, that a core that ended refuses everything after, and the state over the core (deckit/storage) not written while
+// it is not read, a failure logged once. Exits 1 with a line for each check that failed. The packages are ES modules,
+// so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -30,7 +30,7 @@ const kindThrown = (work) => {
 const outcome = (promise) =>
     promise.then(
         (value) => ({ value }),
-        (error) => ({ error: error.message, kind: error.kind ?? null })
+        (error) => ({ error: error.message, kind: error.kind ?? null, stage: error.stage ?? null })
     );
 
 async function main() {
@@ -144,10 +144,18 @@ async function main() {
     const refused = outcome(CORE.request('state/write', {}));
     await tick();
     listeners.onMessage(
-        JSON.stringify({ jsonrpc: '2.0', id: sent[2].id, error: { message: 'no', data: { kind: 'RESERVED' } } })
+        JSON.stringify({
+            jsonrpc: '2.0',
+            id: sent[2].id,
+            error: { message: 'no', data: { kind: 'RESERVED', stage: 'call' } },
+        })
     );
     const refusal = await refused;
-    check('a refusal rejects with its kind', refusal.error === 'no' && refusal.kind === 'RESERVED', refusal);
+    check(
+        'a refusal rejects with its kind and stage',
+        refusal.error === 'no' && refusal.kind === 'RESERVED' && refusal.stage === 'call',
+        refusal
+    );
 
     listeners.onMessage('not json');
     listeners.onMessage(JSON.stringify({ jsonrpc: '2.0', id: 999, result: null }));

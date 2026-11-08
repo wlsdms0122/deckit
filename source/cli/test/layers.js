@@ -2,8 +2,13 @@
 // a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's
 // handle, which opens an address outside the app with openExternal and takes a chord only for a mod with
 // deckit.app-keys or system.global-keys; a press of the chord runs what took it, and the chord is let go once the
-// lifecycle that took it ends. Exits 1 with a line for each check that failed. The packages are ES modules, so they
-// are imported as such.
+// lifecycle that took it ends. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and two layers over
+// it: the run is told started once, after the lifecycle over deckit's has ended as its start threw, none over it
+// started; and the handle of a mod granted nothing: `mods` on it, each request refused at call with NOT_PERMITTED
+// before its arguments are read, `quit()` a promise, and `openExternal` refused NOT_PERMITTED for a file, then
+// INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request refused INVALID_ARGUMENT for an
+// argument of another type and asked of main otherwise. Exits 1 with a line for each check that failed. The packages
+// are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -35,7 +40,16 @@ async function main() {
                     return { value: message.channel === 'deckit-shell:keymap-take' };
                 },
                 askSync: (message) => ({
-                    value: message.channel === 'deckit-shell:runtime-about' ? { home: '/h' } : null,
+                    value:
+                        message.channel === 'deckit-shell:runtime-about'
+                            ? { home: '/h' }
+                            : message.channel === 'deckit-shell:mod-load'
+                              ? {
+                                    manifest: { id: 'm', name: 'M', main: 'main.js', permissions: [] },
+                                    source: '',
+                                    run: 1,
+                                }
+                              : null,
                 }),
             },
         },
@@ -115,6 +129,144 @@ async function main() {
     const instance = { start: (given) => (plainHanded = given) };
     await plain.lifecycles[0].start(instance, { deckit: { exports: {} } }, makeScope());
     check('a mod with neither key permission takes no chord', plainHanded && !plainHanded.keys, plainHanded);
+
+    // The runner with deckit, a layer whose lifecycle throws as it starts, and one over that.
+    const { createRun } = await import(url('deckit-shell', 'deckit', 'runner', 'run.js'));
+    const { createRunner } = await import(url('deckit-shell', 'deckit', 'runner', 'renderer.js'));
+    const { createMods } = await import(url('deckit-shell', 'deckit', 'mods', 'renderer.js'));
+    console.warn = () => {};
+    const order = [];
+    let given = null;
+    class Mod {
+        start(deckit) {
+            given = deckit;
+            order.push('start');
+        }
+
+        attach() {
+            order.push('attach');
+            throw new Error('no screen');
+        }
+
+        detach() {
+            order.push('detach');
+        }
+    }
+    const stacked = (method, start, end) => ({
+        method,
+        registrations: {},
+        start,
+        end,
+        join: () => {},
+    });
+    const attaching = ({ under }) => ({
+        lifecycles: [
+            under.lifecycle(
+                stacked(
+                    'attach',
+                    async (instance) => instance.attach(),
+                    async (instance) => instance.detach()
+                )
+            ),
+        ],
+        over: under,
+    });
+    const above = ({ under }) => ({
+        lifecycles: [
+            under.lifecycle(
+                stacked(
+                    'above',
+                    async () => order.push('above'),
+                    async () => {}
+                )
+            ),
+        ],
+    });
+    const RUN = createRun();
+    const runner = createRunner({
+        RUN,
+        STORAGE: { values: () => ({}), records: () => ({}) },
+        CONNECTION: { begin: async () => ({}), give: () => {}, leave: () => {}, awaited: () => ({}) },
+        EVENT: { forScope: () => ({}) },
+        MODS: createMods({ RUN }),
+        modules: { evaluate: () => Mod },
+    });
+    sent.length = 0;
+    const deckitLayer = createMod({
+        WEB: { forMod: () => ({}) },
+        NOTIFICATION: { listen: () => {}, notificationsOf: () => ({}) },
+        KEYMAP: createKeymap(),
+    }).layer;
+    await runner.start({ layers: [deckitLayer, attaching, above] });
+    const channels = sent.map(({ channel }) => channel.replace('deckit-shell:', ''));
+    check(
+        'a lifecycle over deckit that throws as it starts ends alone, and none over it starts',
+        order.join() === 'start,attach,detach',
+        order
+    );
+    check(
+        'the run is told started once, after the lifecycle that threw has ended, and not as not started',
+        channels.filter((channel) => channel === 'mod-started').length === 1 &&
+            channels.indexOf('mod-started') > channels.indexOf('mod-problem') &&
+            !channels.includes('mod-not-started'),
+        channels
+    );
+
+    const refusalOf = (promise) =>
+        promise.then(
+            () => 'fulfilled',
+            (error) => `${error.stage} ${error.kind}`
+        );
+    check(
+        'mods is on the handle of a mod granted nothing, and refuses at call with NOT_PERMITTED',
+        typeof given?.mods?.list === 'function' && (await refusalOf(given.mods.list())) === 'call NOT_PERMITTED',
+        Object.keys(given?.mods ?? {})
+    );
+    check(
+        'the permission is refused before the arguments are read',
+        (await refusalOf(given.mods.launch(5))) === 'call NOT_PERMITTED',
+        ''
+    );
+    sent.length = 0;
+    const quitting = given.quit();
+    check(
+        'quit() answers a promise fulfilled once the end is asked',
+        quitting instanceof Promise &&
+            (await quitting) === undefined &&
+            sent.some(({ channel }) => channel === 'deckit-shell:mod-quit'),
+        sent
+    );
+    check(
+        'openExternal of a file is refused NOT_PERMITTED to a mod without system.file-handlers, before its arguments',
+        (await refusalOf(given.openExternal('file:///a.txt', 5))) === 'call NOT_PERMITTED',
+        ''
+    );
+    check(
+        'openExternal is refused INVALID_ARGUMENT for an argument of another type',
+        (await refusalOf(given.openExternal(5))) === 'call INVALID_ARGUMENT' &&
+            (await refusalOf(given.openExternal('https://example.com', { activates: 'no' }))) ===
+                'call INVALID_ARGUMENT',
+        ''
+    );
+
+    const granted = createMods({ RUN: { mod: { id: 'g', permissions: [{ id: 'deckit.mods' }] } } }).tool(
+        {},
+        makeScope()
+    );
+    sent.length = 0;
+    check(
+        'a request with an argument of another type is refused INVALID_ARGUMENT, and none read as a string',
+        (await refusalOf(granted.launch(5))) === 'call INVALID_ARGUMENT' &&
+            (await refusalOf(granted.remove('x'))) === 'call INVALID_ARGUMENT' &&
+            !sent.length,
+        sent
+    );
+    await granted.launch('x', 'past the signature');
+    check(
+        'a request is asked of main with its arguments, none past the signature',
+        JSON.stringify(sent.at(-1)) === '{"channel":"deckit-shell:mods-launch","payload":{"id":"x"}}',
+        sent
+    );
 
     for (const line of failed) console.error(line);
     if (failed.length) {
