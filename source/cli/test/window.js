@@ -1,11 +1,12 @@
 // The windows mods open (deckit-shell/shell/window/main), over stand-ins for what connect answers, the shell's pages,
 // their overlays, the desktop and the host app: a normal window opened on the desktop at its size, one of a name per
-// run, an overlay window only with its permission and in a floating window of the host app's, the mod's page laid in
-// that window under its content until the page has a normal window and again once it has none, the content's keys
-// and presses heard and the page told of its window, a window closed by its page and with its page, the keyboard of a
-// page going to its key window's content, and a web page's window: on the desktop for the mod whose page shows it,
-// titled, closed however it closes with those who listen told once. Exits 1 with a line for each check that failed.
-// The packages are ES modules, so they are imported as such.
+// run, a window opened or ordered front without taking the keyboard and one made key and ordered front, an overlay
+// window only with its permission and in a floating window of the host app's, the mod's page laid in that window under
+// its content until the page has a normal window and again once it has none, the content's keys and presses heard and
+// the page told of its window, a window closed by its page and with its page, the keyboard of a page going to its key
+// window's content, and a web page's window: on the desktop for the mod whose page shows it, titled, closed however it
+// closes with those who listen told once. Exits 1 with a line for each check that failed. The packages are ES modules,
+// so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -40,6 +41,26 @@ async function main() {
         again.id === first.id && desktop.opened.length === 1 && desktop.fronted.at(-1)?.activates === true,
         { again, fronted: desktop.fronted }
     );
+    shell.fromPage('open', pages.a, { name: 'main', activates: false });
+    const quiet = shell.fromPage('open', pages.a, { name: 'quiet', activates: false });
+    check(
+        'a window opened without activating, or the one of its name ordered front so, leaves the key window where it is',
+        desktop.fronted.at(-1)?.key === false &&
+            desktop.opened.at(-1).id === quiet.id &&
+            desktop.opened.at(-1).activates === false &&
+            opened.activates === true,
+        { fronted: desktop.fronted.at(-1), opened: desktop.opened.at(-1) }
+    );
+    shell.fromPage('order-front', pages.a, { id: first.id });
+    const ordered = desktop.fronted.at(-1);
+    shell.fromPage('make-key-and-order-front', pages.a, { id: first.id });
+    const made = desktop.fronted.at(-1);
+    check(
+        'a window ordered front by its page stays out of the key window, and one made key takes it with the host window',
+        ordered.key === false && made.key === true && made.activates === true,
+        { ordered, made }
+    );
+    shell.fromPage('close', pages.a, { id: quiet.id });
 
     let refused = null;
     try {
@@ -75,6 +96,22 @@ async function main() {
         shown?.control.mod === 'b' && shown.control.width === 400 && shown.activates === true,
         shown
     );
+    shell.fromPage('order-front', pages.b, { id: float.id });
+    const frontOnly = host.shown.at(-1);
+    shell.fromPage('make-key-and-order-front', pages.b, { id: float.id });
+    const keyToo = host.shown.at(-1);
+    const toast = shell.fromPage('open', pages.b, { name: 'toast', level: 'overlay', activates: false });
+    const toastShown = host.shown.at(-1);
+    check(
+        'an overlay window ordered front, or opened without activating, leaves the keyboard where it is; made key, ' +
+            'it takes it',
+        frontOnly.activates === false &&
+            keyToo.activates === true &&
+            toastShown.control.name === 'toast' &&
+            toastShown.activates === false,
+        { frontOnly, keyToo, toastShown }
+    );
+    shell.fromPage('close', pages.b, { id: toast.id });
     shown.control.place({ name: 'host-window' });
     const stage = shell.stages.at(-1);
     const floatContent = { name: 'content-b' };
@@ -228,9 +265,11 @@ function windowsOver(createWindows) {
     };
     const OVERLAY = { onChange() {}, withOverlays: (laid) => laid, ownerOf: (page) => page };
     const DESKTOP = {
-        open: (window) => desktop.opened.push(window),
+        open: (window, { activates = true } = {}) => desktop.opened.push({ ...window, activates }),
         close: (window) => desktop.closed.push(window.id),
-        orderFront: (window, { activates = false } = {}) => desktop.fronted.push({ id: window.id, activates }),
+        orderFront: (window) => desktop.fronted.push({ id: window.id, key: false, activates: false }),
+        makeKeyAndOrderFront: (window, { activates = false } = {}) =>
+            desktop.fronted.push({ id: window.id, key: true, activates }),
         setTitle: (_window, title) => desktop.titles.push(title),
         minimize() {},
         zoom() {},

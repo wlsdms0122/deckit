@@ -4,11 +4,11 @@
 // (model/layout): a new one cascaded from the key window or centred, a restored one kept reachable, a resize held to
 // the minimum, zoom to the desktop but the Dock's sliver, and the frame's parts; and the desktop (desktop/main) over
 // stand-ins for what connect answers, the shell's pages and a stage: the pages laid in the local seat's order, the
-// keyboard and the host's title following its key window, the shell's keys, a frame restored and remembered by the
-// window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window
-// following the desktop's size and any other kept reachable as it shrinks, and a titled window's content under the
-// title bar the shell draws, its title told and its drag. Exits 1 with a line for each check that failed. The packages
-// are ES modules, so they are imported as such.
+// keyboard and the host's title following its key window, a window ordered front or opened without taking it, the
+// shell's keys, a frame restored and remembered by the window's name, a mod's windows brought in front for a seat from
+// the Dock, the Dock's pointer room, a zoomed window following the desktop's size and any other kept reachable as it
+// shrinks, and a titled window's content under the title bar the shell draws, its title told and its drag. Exits 1
+// with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -262,6 +262,34 @@ async function main() {
             names().at(-2) === 'buttons-2',
         { focused: desk.focused.at(-1), titles: desk.titles, names: names() }
     );
+    const keyboardBefore = desk.focused.length;
+    desk.desktop.orderFront(three);
+    check(
+        'a window ordered front comes in front and leaves the key window and the keyboard where they are',
+        names().at(-2) === 'buttons-3' &&
+            desk.desktop.isKey(two) &&
+            desk.focused.length === keyboardBefore &&
+            desk.hostShown() === 0,
+        { names: names(), focused: desk.focused.slice(keyboardBefore) }
+    );
+    desk.desktop.makeKeyAndOrderFront(two, { activates: true });
+    check(
+        'a window made key and ordered front takes the keyboard, the host window coming up as it activates',
+        names().at(-2) === 'buttons-2' &&
+            desk.desktop.isKey(two) &&
+            desk.focused.at(-1)?.name === 'content-2' &&
+            desk.hostShown() === 1,
+        { names: names(), shown: desk.hostShown() }
+    );
+    const toast = windowOf(9, 'b', 'toast');
+    desk.desktop.open(toast, { activates: false });
+    desk.openSurfaces(9);
+    check(
+        'a window opened without activating comes in front, the key window left where it is',
+        names().at(-2) === 'buttons-9' && desk.desktop.isKey(two) && desk.focused.at(-1)?.name === 'content-2',
+        names()
+    );
+    desk.desktop.close(toast);
     desk.press('Cycle Through Windows', one.surface);
     check('the next window of the active mod comes in front', desk.desktop.isKey(one), names());
     desk.press('Close Window', two.surface);
@@ -453,6 +481,7 @@ function desktopOver(createDesktop, { state = {} }) {
         lay: (layers) => (laid = layers),
         show() {},
     };
+    let hostShown = 0;
     const desktop = createDesktop({
         REGION: { onChange() {}, show() {}, laidOut: () => new Map() },
         PAGES,
@@ -460,7 +489,7 @@ function desktopOver(createDesktop, { state = {} }) {
         makeStage: () => stage,
         actionOnDoubleClick: () => 'zoom',
         deckit,
-        host: { show() {}, desktopTitled: (title) => titles.push(title) },
+        host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
     });
     desktop.start({ WINDOWS: { close: (window) => desktop.close(window) }, DOCK: { items: () => [] } });
     allowed.get('backdrop')({ name: 'backdrop' });
@@ -471,6 +500,7 @@ function desktopOver(createDesktop, { state = {} }) {
         state,
         titles,
         focused,
+        hostShown: () => hostShown,
         laid: () => laid,
         frameOf,
         resize: (next) => {
