@@ -6,16 +6,20 @@ const UNMET = 'UNMET_DEPENDENCY';
 
 // MARK: - Initializer
 // MARK: - Public
-// The dependencies the `[dependencies]` table of package.toml names, mod id -> requirement, in the order written:
+// The dependencies a package file names in its `[dependencies]` table, mod id -> requirement, in the order written:
 // `[{ id, requirement, installed, satisfied }]`, `installed` the version of the mod of that id among `found`, as
-// deckit.mods lists them, or null for none, and `satisfied` whether the requirement takes it. Refused of kind
-// REQUIREMENT for a requirement not written in the syntax `requirementOf` reads.
-function dependenciesOf(table, found) {
-    return Object.entries(table ?? {}).map(([id, requirement]) => {
-        const read = requirementOf(requirement);
-        if (!read) throw refusal('REQUIREMENT', `${id} = ${JSON.stringify(requirement)} is no version requirement`);
+// deckit.mods lists them, or null for none, and `satisfied` whether the requirement takes it. `read` is what the file
+// holds. Refused of kind PACKAGE for a `dependencies` that is no table, and REQUIREMENT for a requirement not written
+// in the syntax `requirementOf` reads.
+function dependenciesOf(read, found) {
+    const table = read.dependencies ?? {};
+    if (typeof table !== 'object' || Array.isArray(table))
+        throw refusal('PACKAGE', 'package.toml: dependencies is no table');
+    return Object.entries(table).map(([id, requirement]) => {
+        const range = requirementOf(requirement);
+        if (!range) throw refusal('REQUIREMENT', `${id} = ${JSON.stringify(requirement)} is no version requirement`);
         const installed = found.find((mod) => mod.id === id)?.version ?? null;
-        return { id, requirement, installed, satisfied: installed !== null && takes(read, installed) };
+        return { id, requirement, installed, satisfied: installed !== null && takes(range, installed) };
     });
 }
 
@@ -36,4 +40,4 @@ function refusal(kind, message) {
     return Object.assign(new Error(message), { kind });
 }
 
-module.exports = { dependenciesOf, unmetOf, UNMET };
+module.exports = { dependenciesOf, unmetOf };
