@@ -1298,6 +1298,12 @@ async function run({
             const tabId = await until(async () => (await shownAt()) === plain && browser?.evaluate(shownPage), 5000);
             const held = `document.activeElement?.dataset.webPage`;
             await until(async () => (await browser?.evaluate(held)) === String(tabId), 3000);
+            // A page takes input once it is on screen, laid in its window's stage.
+            const laidPage = async () =>
+                (await laidNow()).some(({ stages }) =>
+                    stages.some(({ pages: laid }) => laid.some(({ id }) => String(id) === String(tabId)))
+                );
+            await until(laidPage, 3000);
             await main(`return webkit.sendKey(${Number(tabId)}, { code: 'KeyW', key: 'w', meta: true })`);
             const closedTab = await until(async () => (await browser?.evaluate(tabCount)) === before, 3000);
             check(
