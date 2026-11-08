@@ -52,9 +52,13 @@ class Note {
         const { theme, ui } = shell;
         const { storage, util } = deckit;
         const settings = settingsOf();
-        // An address in a note opens in the mod that opens it, or outside the app while `deckit/urls` is not connected.
+        // An address in a note opens through `deckit/urls`; one asked while it is not connected is logged.
         let urls = null;
-        const openURL = (url) => (urls ? urls.open(url) : deckit.urls.open(url));
+        const openURL = async (url) => {
+            if (urls) return urls.open(url);
+            console.warn(`[note] ${url} did not open: deckit/urls is not connected`);
+            return false;
+        };
         const STYLE = `
             .note {
                 position: relative;

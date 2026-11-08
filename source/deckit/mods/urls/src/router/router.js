@@ -77,7 +77,7 @@ function router(deckit, { within, answerWithin = ANSWER_WITHIN } = {}) {
         const route = routeOf(await handlers(), chosen, address, { opensFiles });
         for (const handler of route.handlers) if (await offer(handler.mod, address, options)) return true;
         if (!route.system) return false;
-        return (await deckit.urls.open(address, options)) === true;
+        return (await deckit.openExternal(address, options)) === true;
     }
 
     // Whether the mod `mod` took `address`: only a plain true takes it. One that does not launch, has no `openURL`,

@@ -23,11 +23,11 @@ keywords = [
 
 [permissions]
 "system.main-process" = "Reads, writes and searches the files and folders you open, and puts the ones you delete in the Trash."
-"system.file-handlers" = "Show in Finder in a file's menu shows it in Finder, and a file that is not text opens in the app this Mac opens it with."
+"system.file-handlers" = "Show in Finder in a file's menu shows it in Finder, and a file that is not text opens in the mod or the app that opens it."
 "system.clipboard-write" = "Copy Path and Copy Relative Path in a file's menu put its path on the clipboard."
 
 [interfaces]
-uses = { "deckit/configuration" = 1, "switcher/actions" = 1 }
+uses = { "deckit/configuration" = 1, "deckit/urls" = 1, "switcher/actions" = 1 }
 
 [[contributes."deckit/configuration"]]
 key = "fontSize"

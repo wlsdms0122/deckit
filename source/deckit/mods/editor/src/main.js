@@ -67,6 +67,13 @@ class Editor {
         const settings = settingsOf();
         const { ranker } = util;
         const engine = EditorEngine;
+        // A file that is not text opens through `deckit/urls`; one asked while it is not connected is logged.
+        let urls = null;
+        const openURL = async (url) => {
+            if (urls) return urls.open(url);
+            console.warn(`[editor] ${url} did not open: deckit/urls is not connected`);
+            return false;
+        };
         const fileSystem = await deckit.mainProcess('main-process/file-system.js');
 
         const workspaces = workspaceModel({
@@ -135,7 +142,7 @@ class Editor {
         });
         const { open, tryOpen, openAt, keep } = fileOpener({
             ui,
-            openURL: deckit.urls.open,
+            openURL,
             fileURL: deckit.fileURL,
             fileSystem,
             workspaces,
@@ -292,6 +299,12 @@ class Editor {
             if (key === 'minimap') placeMinimap();
         });
         deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => {
+                if (urls === connected) urls = null;
+            };
+        });
         fileSystem.on('changed', (folder) => {
             for (const file of workspaces.files())
                 if (folderHolding(file) === folder) disk.check(file).catch(() => false);

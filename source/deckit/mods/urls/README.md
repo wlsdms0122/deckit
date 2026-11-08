@@ -35,7 +35,7 @@ A mod is reached by its id as its turn comes, which launches it if it does not r
 
 A scheme you chose to open outside the app offers its addresses to no mod: each opens outside the app at once.
 
-When no mod takes it, an address of `http` or `https` opens in the system browser, and one of `file` in the app for that file, through `deckit.urls.open`. An address of another scheme opens nowhere.
+When no mod takes it, an address of `http` or `https` opens in the system browser, and one of `file` in the app for that file, through `deckit.openExternal`. An address of another scheme opens nowhere.
 
 An address with no scheme, or of one that is no place, goes nowhere. A `file` address goes nowhere for a client that does not hold `system.file-handlers`, whoever would open it.
 
@@ -100,7 +100,7 @@ A call that does not hold `deckit.system-services` rejects with kind `REFUSED`. 
 | `MOD`    | the mod of `{ mod: id }` is not in the scheme's list                             |
 | `SYSTEM` | `{ system: true }` for a scheme nothing opens outside the app, its `system` null |
 
-`open` does not reject for an address no one took: it resolves to false. It rejects only as `deckit.urls.open` does.
+`open` does not reject for an address no one took: it resolves to false. It rejects only as `deckit.openExternal` does.
 
 ## What a mod answers
 

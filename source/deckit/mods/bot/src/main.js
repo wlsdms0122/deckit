@@ -45,9 +45,13 @@ class Bot {
         const settings = settingsOf();
         const bot = await deckit.mainProcess('main-process/bot/bot.js');
         const places = () => Object.fromEntries(PLACES.map((key) => [key, settings.get(key)]));
-        // An address in a note opens in the mod that opens it, or outside the app while `deckit/urls` is not connected.
+        // An address in a note opens through `deckit/urls`; one asked while it is not connected is logged.
         let urls = null;
-        const openURL = (url) => (urls ? urls.open(url) : deckit.urls.open(url));
+        const openURL = async (url) => {
+            if (urls) return urls.open(url);
+            console.warn(`[bot] ${url} did not open: deckit/urls is not connected`);
+            return false;
+        };
 
         const content = document.createElement('div');
         Object.assign(content.style, {

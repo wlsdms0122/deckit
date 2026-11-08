@@ -147,11 +147,9 @@ async function main() {
         },
         exports: { contributions: async (name) => (name === 'deckit/urls' ? contributions : []) },
         storage: { records },
-        urls: {
-            open: async (address, options) => {
-                outside.push([address, options]);
-                return outsideAnswers;
-            },
+        openExternal: async (address, options) => {
+            outside.push([address, options]);
+            return outsideAnswers;
         },
     };
 

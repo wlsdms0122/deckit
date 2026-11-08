@@ -52,10 +52,14 @@ class Finder {
         const { storage, util } = deckit;
         const { values, records } = storage;
         const settings = settingsOf();
-        // A file opens in the mod that opens its address, or outside the app while `deckit/urls` is not connected; with
-        // the default app, outside the app always.
+        // A file opens through `deckit/urls`, logged while it is not connected; with the default app, outside the app.
         let urls = null;
-        const openURL = (url, { usesDefaultApp }) => (urls && !usesDefaultApp ? urls.open(url) : deckit.urls.open(url));
+        const openURL = async (url, { usesDefaultApp }) => {
+            if (usesDefaultApp) return deckit.openExternal(url);
+            if (urls) return urls.open(url);
+            console.warn(`[finder] ${url} did not open: deckit/urls is not connected`);
+            return false;
+        };
         // Every folder, icon and file change goes through this module, so a Finder whose module cannot start shows
         // nothing.
         const disk = await deckit.mainProcess('main-process/disk.js');

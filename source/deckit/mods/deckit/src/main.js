@@ -8,13 +8,19 @@ class Deckit {
     start(deckit) {
         const { util } = deckit;
         const APP_NAME = deckit.about().name;
-        // An address opens in the mod that opens it, or outside the app while `deckit/urls` is not connected.
+        // An address opens through `deckit/urls`; one asked while it is not connected is logged.
         let urls = null;
         deckit.dependencies.onConnect('deckit/urls', (connected) => {
             urls = connected;
             return () => (urls = null);
         });
-        const address = openAddress({ open: (url) => (urls ? urls.open(url) : deckit.urls.open(url)) });
+        const address = openAddress({
+            open: async (url) => {
+                if (urls) return urls.open(url);
+                console.warn(`[deckit] ${url} did not open: deckit/urls is not connected`);
+                return false;
+            },
+        });
         const STATES = { launching: 'Starting', running: 'Running', notRunning: 'Not running' };
 
         const commands = {
