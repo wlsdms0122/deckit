@@ -65,38 +65,50 @@ const PERMISSION_ICONS = {
 };
 const PERMISSION_ICON = 'info';
 
+// The row of a mod that asks to run in the background, drawn with its reason.
+const BACKGROUND = {
+    icon: 'clock',
+    name: 'In the background',
+    description: 'It starts with the app and runs while the app is open.',
+};
+
 // The permissions a mod asks for: each one's name, id, the mod's reason and what it lets the mod do, and whether this
-// app gives it. One this app does not give has only its id and the reason.
-function permissionList({ ui, permissions }) {
+// app gives it. One this app does not give has only its id and the reason. `background`, the mod's reason to run in
+// the background, is a row first where it has one.
+function permissionList({ ui, permissions, background = null }) {
     const element = ui.element('div', { className: 'settings-permissions' });
 
+    if (background) element.append(row({ ...BACKGROUND, reason: background }));
     for (const permission of permissions) element.append(permissionRow(permission));
     return { element };
 
     function permissionRow(permission) {
-        const row = ui.element('div', { className: 'settings-permission' });
-        const icon = ui.element('div', { className: 'settings-permission-icon' });
-        const words = ui.element('div');
-        const head = ui.element('div', { className: 'settings-permission-head' });
-
-        icon.innerHTML = ui.icon(PERMISSION_ICONS[permission.id] || PERMISSION_ICON, { size: 15 });
-        if (permission.name)
-            head.append(ui.element('span', { className: 'settings-permission-name', text: permission.name }));
-        head.append(ui.element('span', { className: 'settings-permission-id', text: permission.id }));
-        words.append(head, ui.element('div', { className: 'settings-permission-reason', text: permission.reason }));
-        if (permission.description)
-            words.append(
-                ui.element('div', { className: 'settings-permission-description', text: permission.description })
-            );
+        const icon = PERMISSION_ICONS[permission.id] || PERMISSION_ICON;
+        const drawn = row({ ...permission, icon });
         if (permission.usable === false)
-            words.append(
+            drawn.lastChild.append(
                 ui.element('div', {
                     className: 'settings-permission-unusable',
                     text: 'This app does not give it, so the mod runs without it.',
                 })
             );
-        row.append(icon, words);
-        return row;
+        return drawn;
+    }
+
+    function row({ icon: glyph, name, id, reason, description }) {
+        const element = ui.element('div', { className: 'settings-permission' });
+        const icon = ui.element('div', { className: 'settings-permission-icon' });
+        const words = ui.element('div');
+        const head = ui.element('div', { className: 'settings-permission-head' });
+
+        icon.innerHTML = ui.icon(glyph, { size: 15 });
+        if (name) head.append(ui.element('span', { className: 'settings-permission-name', text: name }));
+        if (id) head.append(ui.element('span', { className: 'settings-permission-id', text: id }));
+        words.append(head, ui.element('div', { className: 'settings-permission-reason', text: reason }));
+        if (description)
+            words.append(ui.element('div', { className: 'settings-permission-description', text: description }));
+        element.append(icon, words);
+        return element;
     }
 }
 

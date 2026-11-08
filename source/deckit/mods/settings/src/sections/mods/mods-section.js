@@ -289,7 +289,7 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
             if (refused.length) ui.toast(refusalText(refused));
             return;
         }
-        const asking = plans.filter((plan) => plan.permissions.length > 0);
+        const asking = plans.filter((plan) => plan.permissions.length > 0 || plan.background);
         const replacing = plans.filter((plan) => plan.replaces);
         if (!asking.length && !replacing.length) return installPicked(plans, refused);
         const one = plans.length === 1;
@@ -338,7 +338,7 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
                 element.append(
                     ui.element('div', { className: 'settings-install-mod', text: `${nameAndVersion(plan)} asks for:` })
                 );
-            element.append(permissionList({ ui, permissions: plan.permissions }).element);
+            element.append(permissionList({ ui, permissions: plan.permissions, background: plan.background }).element);
         }
         element.append(
             ui.element('div', {
