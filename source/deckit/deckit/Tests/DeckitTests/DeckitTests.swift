@@ -275,6 +275,33 @@ struct DeckitTests {
         })
     }
 
+    @Test("a mod reached by id that runs with no exports for it is refused, launched no more, and a new reach connects")
+    func reachOfAModWithoutExportsIsRefused() throws {
+        // Given
+        try fixture.write("t")
+        try fixture.write("r", system: true, permissions: ["deckit.reach-mods"])
+        let sut = try fixture.deckit()
+        _ = try sut.load(["r"])
+        _ = try sut.deck.connections.begin(principal: "r", run: 1, lifecycle: 0)
+        _ = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
+        _ = try sut.deck.connections.begin(principal: "t", run: 1, lifecycle: 0)
+
+        // When
+        let started = try sut.started("t", run: 1, contributions: Contribution(exportedIn: [:], awaits: [:]))
+        _ = try sut.release("t", from: "r", run: 1, lifecycle: 0)
+        _ = try sut.joined("t", run: 1, contributions: Contribution(exportedIn: ["t": 0], awaits: [:]))
+        let again = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
+
+        // Then
+        #expect(refusals(in: started) == [.notExported(name: "t", principal: "t")])
+        #expect(launches(in: started) == [])
+        #expect(launches(in: again) == [])
+        #expect(again.contains { effect in
+            guard case let .connect(connection) = effect else { return false }
+            return connection.name == "t" && connection.client.principal == "r"
+        })
+    }
+
     @Test("a lifecycle that waits for a mod is told what a launch of it is refused with, nothing while it may launch")
     func waitIsToldTheLaunchRefusal() throws {
         // Given
@@ -395,6 +422,14 @@ struct DeckitTests {
         effects.compactMap { effect in
             guard case let .wait(_, client, service) = effect else { return nil }
             return "\(client.principal) for \(service)"
+        }
+    }
+
+    // What `effects` tell the lifecycles that reach are refused with, in order.
+    private func refusals(in effects: [Effect]) -> [ConnectionError] {
+        effects.compactMap { effect in
+            guard case let .refuse(_, _, refusal) = effect else { return nil }
+            return refusal
         }
     }
 
