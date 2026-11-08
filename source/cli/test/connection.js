@@ -2,9 +2,10 @@
 // catalog: a run that listens for a name launches nothing from here, as it launches or as a lifecycle joins: the core
 // launches the mod a lifecycle waits for; a page's reach of a mod by its id and its release asked of the core for the
 // page's mod, through the runner, which does what the core answers, and the core's refusal handed back; a connection
-// that stands asked of its service's page with the client's credential; and a connection's end told to the pages of
-// its client and its service, as the core names them. Exits 1 with a line for
-// each check that failed. The packages are ES modules, so they are imported as such.
+// that stands asked of its service's page with the client's credential, and one its service refuses told its client as
+// a refusal at call; a lifecycle that waits for a mod the core does not launch told so, with the refusal, on its page;
+// and a connection's end told to the pages of its client and its service, as the core names them. Exits 1 with a line
+// for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -103,6 +104,50 @@ async function main() {
     );
     heard.told(servicePage, { channel: question.channel, id: question.id, value: { value: {}, references: [] } });
     await connected;
+    tells.length = 0;
+
+    // A connection its service refuses: the client is told the refusal, of the kind the service threw.
+    const refusedConnection = effects.get('connect')({
+        connection: {
+            id: 8,
+            name: 'p/x',
+            client: { mod: 'a', run: 1, lifecycle: 0 },
+            service: { mod: 'b', run: 1, lifecycle: 0 },
+            credential: { mod: 'a', permissions: [] },
+        },
+    });
+    await tick();
+    const [refuser, refusedQuestion] = tells.find(
+        ([, message]) => message.channel === 'deckit-shell:connection-connect'
+    );
+    heard.told(refuser, {
+        channel: refusedQuestion.channel,
+        id: refusedQuestion.id,
+        error: { message: 'no connections here', kind: null },
+    });
+    await refusedConnection;
+    const told = tells.find(([, message]) => message.channel === 'deckit-shell:connection-connected');
+    check(
+        'a connection its service refuses is told its client as a refusal at call',
+        told?.[0].modId === 'a' &&
+            JSON.stringify(told[1].payload) ===
+                '{"id":8,"name":"p/x","refusal":{"stage":"call","kind":"REFUSED",' +
+                    '"message":"p/x did not connect: no connections here"},"lifecycle":0}',
+        told
+    );
+    tells.length = 0;
+
+    // A lifecycle that waits: told on its page where the core does not launch the mod, and nothing where it does.
+    const refusal = { stage: 'launch', kind: 'NOT_INSTALLED', message: 'no mod is listed under d' };
+    effects.get('wait')({ effect: 'wait', mod: 'd', name: 'd', client: { mod: 'c', run: 1, lifecycle: 2 }, refusal });
+    effects.get('wait')({ effect: 'wait', mod: 'e', name: 'e', client: { mod: 'c', run: 1, lifecycle: 2 } });
+    const waits = tells.map(([page, message]) => [page.modId, message.channel, message.payload]);
+    check(
+        'a lifecycle that waits for a mod the core does not launch is told the refusal on its page, and no other',
+        JSON.stringify(waits) ===
+            JSON.stringify([['c', 'deckit-shell:connection-unreached', { lifecycle: 2, name: 'd', refusal }]]),
+        waits
+    );
     tells.length = 0;
 
     effects.get('disconnect')({

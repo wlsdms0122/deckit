@@ -8,7 +8,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // what crosses goes from page to page through here, never read. A lifecycle connects to the interfaces it uses as it
 // begins, and to a mod by its id as it asks, until it lets it go. A connection is handed to its client while it
 // stands, and so is one its service refused, with why: one that ended while its exports were asked for is left out.
-// The service is handed the client's id, name and credential; the client, the name alone.
+// A lifecycle that waits for a mod the core will not launch is told what that mod is refused with. The service is
+// handed the client's id, name and credential; the client, the name alone.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -21,7 +22,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             const connections = await CORE.request('connection/begin', { mod, run, lifecycle });
             for (const connection of connections) standing.add(connection.id);
             const opened = await Promise.all(connections.map(open));
-            return opened.filter((one) => one && (one.problem || standing.has(one.id)));
+            return opened.filter((one) => one && (one.refusal || standing.has(one.id)));
         });
         PROTOCOL.end.on(({ run, lifecycle }, sender) => {
             const mod = IDENTITY.modFrom(sender).id;
@@ -51,8 +52,12 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             standing.add(connection.id);
             const opened = await open(connection);
             const page = IDENTITY.pageOf(connection.client.mod);
-            if (page && opened && (opened.problem || standing.has(connection.id)))
+            if (page && opened && (opened.refusal || standing.has(connection.id)))
                 PROTOCOL.connected.send(page, { ...opened, lifecycle: connection.client.lifecycle });
+        });
+        RUNNER.handleEffect('wait', ({ name, client, refusal }) => {
+            const page = refusal && IDENTITY.pageOf(client.mod);
+            if (page) PROTOCOL.unreached.send(page, { lifecycle: client.lifecycle, name, refusal });
         });
         RUNNER.handleEffect('disconnect', ({ connection }) => {
             standing.delete(connection.id);
@@ -65,8 +70,9 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
 
     // MARK: - Private
     // The exports the connection reaches, as its service's page answers them for it, or why it refused them: the core
-    // keeps it down from then on. One whose service's lifecycle ended while they were asked for was not refused, and
-    // is null. What the client is handed names the mod id or the interface, never the mod that owns an interface.
+    // keeps it down from then on, a refusal at `call` of the kind the service threw, REFUSED for none. One whose
+    // service's lifecycle ended while they were asked for was not refused, and is null. What the client is handed
+    // names the mod id or the interface, never the mod that owns an interface.
     async function open(connection) {
         const { id, client, service } = connection;
         const named = { id, name: connection.name };
@@ -85,7 +91,8 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
         } catch (error) {
             if (!standing.delete(id)) return null;
             CORE.request('connection/refuse', { connection: id }).catch(() => {});
-            return { ...named, problem: `${connection.name} did not connect: ${error.message || error}` };
+            const message = `${connection.name} did not connect: ${error.message || error}`;
+            return { ...named, refusal: { stage: 'call', kind: error.kind ?? 'REFUSED', message } };
         }
     }
 

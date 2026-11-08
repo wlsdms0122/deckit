@@ -93,8 +93,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             begun.push(entry);
             const { handles } = registry;
             try {
-                const { dependencies, problems } = await CONNECTION.begin(index, scope);
-                for (const { problem } of problems) fail(problem);
+                const dependencies = await CONNECTION.begin(index, scope);
                 handles[given.handle] = { ...membersOf({ given, scope, dependencies }), ...handles[given.handle] };
                 await lifecycle.start(instance, handles, scope);
                 if (stopping) return;

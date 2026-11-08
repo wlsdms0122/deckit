@@ -5,7 +5,8 @@
 import * as CHANNEL from '../channel/index.js';
 
 // A lifecycle of the page's run begins: answered with the connections it has from now on to the interfaces it uses,
-// each `{ id, name, exports }`, or with `problem` in place of `exports` for one the service refused.
+// each `{ id, name, exports }`, or with `refusal`, `{ stage, kind, message }`, in place of `exports` for one the
+// service refused.
 export const begin = CHANNEL.pageToMain(
     'deckit-shell:connection-begin',
     { run: 'number', lifecycle: 'number' },
@@ -17,7 +18,8 @@ export const begin = CHANNEL.pageToMain(
 export const end = CHANNEL.pageToMain('deckit-shell:connection-end', { run: 'number', lifecycle: 'number' });
 // A lifecycle of the page's run asks to reach the mod `target` by its id, until it lets it go or ends: answered once
 // the core took the ask, which launches the mod if it does not run, and the connection told with `connected` once it
-// stands. Refused with why: `REFUSED` for an id the mod may not reach, `NOT_UP` for a lifecycle not begun or ended.
+// stands, or `unreached` where the mod does not launch. Refused with why: `REFUSED` for an id the mod may not reach,
+// `NOT_UP` for a lifecycle not begun or ended.
 export const reach = CHANNEL.pageToMain(
     'deckit-shell:connection-reach',
     { run: 'number', lifecycle: 'number', target: 'string' },
@@ -52,6 +54,9 @@ export const connect = CHANNEL.mainToPage('deckit-shell:connection-connect', { r
 // A connection of the page's `lifecycle` stands, to an interface it uses or a mod it reached by id: `{ id, name,
 // exports, lifecycle }`, as `begin` answers one.
 export const connected = CHANNEL.mainToPage('deckit-shell:connection-connected');
+// A lifecycle of the page's waits for a mod the core does not launch for it, reached by `name`, a mod id or an
+// interface: `{ lifecycle, name, refusal }`, `refusal` `{ stage, kind, message }`, what that mod is refused with.
+export const unreached = CHANNEL.mainToPage('deckit-shell:connection-unreached');
 // A connection has ended: `{ id }`.
 export const disconnected = CHANNEL.mainToPage('deckit-shell:connection-disconnected');
 // A function the page handed over on a connection is called: `{ connection, number, args }`, answered as `call` is.

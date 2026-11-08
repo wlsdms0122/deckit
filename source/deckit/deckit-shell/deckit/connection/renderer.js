@@ -9,8 +9,9 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // functions it handed over, by number, and the references it was handed, by number, and drops both as the connection
 // ends. A reference is a function that calls the other end and resolves with what that answers; one the page holds no
 // more is let go on the other end. A function the page was handed is never handed on: what calls the far end is always
-// the mod connected to it. The end that depends knows the name alone, never the mod that owns an interface. `RUN` is
-// the page's run.
+// the mod connected to it. The end that depends knows the name alone, never the mod that owns an interface. A refusal,
+// of a mod the core does not launch or a connection its service refused, reaches the code as an error with its `kind`
+// and `stage`. `RUN` is the page's run.
 export function createConnection({ RUN }) {
     // MARK: - Property
     // Connection id -> { id, name, lifecycle, dependent, given, held, exporting, connection, exports, cleanups,
@@ -30,6 +31,14 @@ export function createConnection({ RUN }) {
     });
     // Lifecycle -> interface -> the listeners its `onConnect` added.
     const listening = new Map();
+    // Lifecycle -> interface -> the listeners its `onRefuse` added.
+    const refusing = new Map();
+    // Lifecycle -> interface -> the error of the refusal told last, while no connection by it stands.
+    const refusals = new Map();
+    // Lifecycle -> mod id -> { count, asked, pending, order }: how many reaches of it are not let go, whether the core
+    // holds the ask, the reaches that wait for its connection, each `{ resolve, reject }`, and what was asked of main
+    // last, so what is asked after it goes after it.
+    const reaching = new Map();
     const begun = new Set(); // the lifecycles begun and not left
     // Interface -> { lifecycle, connect, disconnect }, once the lifecycle that opened its exports has joined.
     const exporting = new Map();
@@ -37,6 +46,7 @@ export function createConnection({ RUN }) {
     // MARK: - Initializer
     PROTOCOL.connect.handle((asked) => answerConnect(asked));
     PROTOCOL.connected.on((told) => opened(told));
+    PROTOCOL.unreached.on(({ lifecycle, name: named, refusal }) => refuse(lifecycle, named, refusal));
     PROTOCOL.disconnected.on(({ id }) => ended(id));
     PROTOCOL.called.handle((asked) => answerCall(asked));
     PROTOCOL.released.on(({ connection, number, count }) => {
@@ -45,24 +55,25 @@ export function createConnection({ RUN }) {
     });
 
     // MARK: - Public
-    // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected)`, `reach(id)` and
-    // `release(id)`, and the problems of the connections refused, each `{ name, problem }`. What `onConnect` adds is
-    // cut with `scope`. The interfaces the mod uses connect as the lifecycle begins; a mod by its id, as `reach` asks,
-    // until `release` lets it go or the lifecycle ends, its connection handed to what listens for its id.
+    // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected)`,
+    // `onRefuse(name, refused) -> off`, `reach(id)` and `release(id)`. What `onConnect` and `onRefuse` add is cut with
+    // `scope`. The interfaces the mod uses connect as the lifecycle begins, and `onRefuse` hears each refusal of one,
+    // the last at once while no connection by it stands. A mod by its id connects as `reach` asks, until as many
+    // `release`s let it go or the lifecycle ends, its connection handed to what listens for its id too: `reach`
+    // resolves with its exports once it stands, and rejects with the first refusal, which lets the ask go.
     async function begin(lifecycle, scope) {
         begun.add(lifecycle);
         const answered = await PROTOCOL.begin.invoke({ run: RUN.number, lifecycle });
-        const problems = [];
         for (const told of answered) {
-            if (told.problem) problems.push({ name: told.name, problem: told.problem });
+            if (told.refusal) refuse(lifecycle, told.name, told.refusal);
             else open({ ...told, lifecycle });
         }
-        const dependencies = Object.freeze({
+        return Object.freeze({
             onConnect: (named, connected) => listen(lifecycle, String(named), connected, scope),
-            reach: (id) => PROTOCOL.reach.invoke({ run: RUN.number, lifecycle, target: String(id) }),
-            release: (id) => PROTOCOL.releaseReach.invoke({ run: RUN.number, lifecycle, target: String(id) }),
+            onRefuse: (named, refused) => listenRefusals(lifecycle, String(named), refused, scope),
+            reach: (id) => reach(lifecycle, String(id)),
+            release: (id) => release(lifecycle, String(id)),
         });
-        return { dependencies, problems };
     }
 
     // The exports of `named`, an interface, opened in `lifecycle`, which answer each connection for it from now on:
@@ -90,26 +101,119 @@ export function createConnection({ RUN }) {
         }
         for (const [named, registered] of [...exporting])
             if (registered.lifecycle === lifecycle) exporting.delete(named);
+        const ended = refusalOf({ stage: 'call', kind: 'NOT_UP', message: 'the lifecycle that reached it has ended' });
+        for (const reached of reaching.get(lifecycle)?.values() ?? [])
+            for (const { reject } of reached.pending) reject(ended);
+        reaching.delete(lifecycle);
         listening.delete(lifecycle);
+        refusing.delete(lifecycle);
+        refusals.delete(lifecycle);
         begun.delete(lifecycle);
         PROTOCOL.end.send({ run: RUN.number, lifecycle });
     }
 
     // MARK: - Private
-    // A connection the page depends on, its exports read and handed to what listens for its name, as it comes and
-    // goes.
+    // A connection the page depends on, its exports read and handed to the reaches that wait for it and to what
+    // listens for its name, as it comes and goes.
     function open({ id, name: named, lifecycle, exports }) {
         const entry = makeEntry({ id, named, lifecycle, dependent: true });
         entry.exports = WIRE.materialize(exports, (number) => referenceOf(entry, number));
         connections.set(id, entry);
+        refusals.get(lifecycle)?.delete(named);
+        const reached = reaching.get(lifecycle)?.get(named);
+        for (const { resolve } of reached?.pending.splice(0) ?? []) resolve(entry.exports);
         for (const listener of listening.get(lifecycle)?.get(named) ?? []) hand(entry, listener);
     }
 
-    // A connection that stands after the lifecycle began, or one its service refused, a problem against the run.
+    // A connection that stands after the lifecycle began, or one its service refused.
     function opened(told) {
         if (!begun.has(told.lifecycle)) return;
-        if (!told.problem) open(told);
-        else RUN.fail(told.problem);
+        if (!told.refusal) open(told);
+        else refuse(told.lifecycle, told.name, told.refusal);
+    }
+
+    // A refusal told for `named` in `lifecycle`: a mod reached by its id rejects the reaches that wait for it and the
+    // ask goes, so a later reach asks again; an interface's is handed to what listens for its refusals.
+    function refuse(lifecycle, named, refusal) {
+        if (!begun.has(lifecycle)) return;
+        const error = refusalOf(refusal);
+        const reached = reaching.get(lifecycle)?.get(named);
+        if (reached) {
+            if (!reached.asked) return;
+            reached.asked = false;
+            const pending = reached.pending.splice(0);
+            reached.count -= pending.length;
+            ask(reached, PROTOCOL.releaseReach, lifecycle, named).catch(() => {});
+            for (const { reject } of pending) reject(error);
+            return;
+        }
+        if (!refusals.has(lifecycle)) refusals.set(lifecycle, new Map());
+        refusals.get(lifecycle).set(named, error);
+        for (const listener of refusing.get(lifecycle)?.get(named) ?? [])
+            RUN.deliver('dependencies.onRefuse()', listener, error);
+    }
+
+    function listenRefusals(lifecycle, named, refused, scope) {
+        if (typeof refused !== 'function') throw new Error('dependencies.onRefuse() takes an interface and a function');
+        if (!refusing.has(lifecycle)) refusing.set(lifecycle, new Map());
+        const byInterface = refusing.get(lifecycle);
+        if (!byInterface.has(named)) byInterface.set(named, new Set());
+        byInterface.get(named).add(refused);
+        const last = refusals.get(lifecycle)?.get(named);
+        if (last) RUN.deliver('dependencies.onRefuse()', refused, last);
+        return scope.add(() => byInterface.get(named)?.delete(refused));
+    }
+
+    // One more reach of the mod `id`: resolves with the exports of its connection once it stands, at once where it
+    // does, and asks the core where it does not hold the ask.
+    function reach(lifecycle, id) {
+        if (!begun.has(lifecycle))
+            return Promise.reject(refusalOf({ stage: 'call', kind: 'NOT_UP', message: 'the lifecycle has ended' }));
+        if (!reaching.has(lifecycle)) reaching.set(lifecycle, new Map());
+        const byId = reaching.get(lifecycle);
+        if (!byId.has(id)) byId.set(id, { count: 0, asked: false, pending: [], order: Promise.resolve() });
+        const reached = byId.get(id);
+        reached.count += 1;
+        const standing = [...connections.values()].find(
+            (entry) => entry.dependent && entry.lifecycle === lifecycle && entry.name === id
+        );
+        if (standing && reached.asked) return Promise.resolve(standing.exports);
+        const connected = new Promise((resolve, reject) => reached.pending.push({ resolve, reject }));
+        if (!reached.asked) {
+            reached.asked = true;
+            ask(reached, PROTOCOL.reach, lifecycle, id).catch((error) => {
+                reached.asked = false;
+                const pending = reached.pending.splice(0);
+                reached.count -= pending.length;
+                const refused = Object.assign(error, { stage: 'call' });
+                for (const { reject } of pending) reject(refused);
+            });
+        }
+        return connected;
+    }
+
+    // One reach of the mod `id` let go: once none is left, the core lets the ask go, and the reaches that still wait
+    // reject. Resolves once main took what it was asked.
+    function release(lifecycle, id) {
+        const reached = reaching.get(lifecycle)?.get(id);
+        if (!reached?.count) return Promise.resolve();
+        reached.count -= 1;
+        if (reached.count || !reached.asked) return reached.order;
+        reached.asked = false;
+        const gone = refusalOf({ stage: 'call', kind: null, message: `${id} was let go before it connected` });
+        for (const { reject } of reached.pending.splice(0)) reject(gone);
+        return ask(reached, PROTOCOL.releaseReach, lifecycle, id);
+    }
+
+    // `channel` asked of main for the reach of `id`, after what was asked for it before.
+    function ask(reached, channel, lifecycle, id) {
+        const asked = reached.order.then(() => channel.invoke({ run: RUN.number, lifecycle, target: id }));
+        reached.order = asked.catch(() => {});
+        return asked;
+    }
+
+    function refusalOf({ stage, kind, message }) {
+        return Object.assign(new Error(message), { kind: kind ?? null, stage });
     }
 
     function listen(lifecycle, named, connected, scope) {

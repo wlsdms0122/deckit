@@ -4,9 +4,12 @@
 // interface the manifest does not provide, a second register, or one in the other lifecycle after one lifecycle opened
 // it; what main is told each opened in; the `connect` handed the client's id, name and credential; and the client's
 // `dependencies.onConnect`, by the interface it uses or the mod id it reaches, handed a connection that stands as its
-// lifecycle begins or comes later, a connection refused as a lifecycle begins a problem that ends nothing, and
-// `dependencies.reach` and `release`, a mod by its id asked of main and let go, refused with the core's kind. Exits 1
-// with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// lifecycle begins or comes later; `dependencies.onRefuse` handed a connection refused as a lifecycle begins, no
+// problem against the run, and a mod an interface reaches that does not launch; and `dependencies.reach` and
+// `release`: a mod by its id asked of main once while reached, answered with its exports once its connection stands,
+// let go by as many releases, in the order asked, rejected with the core's kind or with what a mod that does not launch
+// is refused with, which lets the ask go. Exits 1 with a line for each check that failed. The packages are ES modules,
+// so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -44,7 +47,13 @@ async function main() {
         'deckit-shell:connection-begin': ({ lifecycle }) =>
             lifecycle === 0
                 ? [{ id: 10, name: 'q/used', exports: { value: { answer: 42 }, references: [] } }]
-                : [{ id: 11, name: 'r', problem: 'r did not connect: refused' }],
+                : [
+                      {
+                          id: 11,
+                          name: 'r',
+                          refusal: { stage: 'call', kind: 'REFUSED', message: 'r did not connect: refused' },
+                      },
+                  ],
     };
     // The core refuses to reach x, which the mod may not reach.
     const refusals = {
@@ -82,7 +91,8 @@ async function main() {
 
     // The mod: it provides p/one and p/two, opens its own exports for the mods that reach it by id, listens for q/used
     // and q/optional, interfaces it uses, and reaches q by its id, and x, which it may not.
-    const seen = { connected: [], heard: [], reached: [], cut: [] };
+    const seen = { connected: [], heard: [], reached: [], cut: [], refusals: [] };
+    const refusalOf = (error) => ({ message: error.message, kind: error.kind, stage: error.stage });
     class Mod {
         start(deckit) {
             seen.dependencies = deckit.dependencies;
@@ -92,9 +102,9 @@ async function main() {
                 return () => seen.cut.push('q');
             });
             seen.reach = deckit.dependencies.reach('q');
-            seen.refused = deckit.dependencies
-                .reach('x')
-                .catch((error) => ({ message: error.message, kind: error.kind }));
+            seen.again = deckit.dependencies.reach('q');
+            seen.refused = deckit.dependencies.reach('x').catch(refusalOf);
+            seen.unreached = deckit.dependencies.reach('g').catch(refusalOf);
             deckit.exports.register('p/one', {
                 connect: (connection) => {
                     seen.connected.push(connection);
@@ -111,6 +121,8 @@ async function main() {
             deckit.exports.register({ connect: () => ({}) });
             deckit.exports.register('p/two', { connect: () => ({ two: true }) });
             deckit.dependencies.onConnect('q/optional', (exports) => seen.heard.push(exports));
+            deckit.dependencies.onRefuse('r', (error) => seen.refusals.push(['r', refusalOf(error)]));
+            deckit.dependencies.onRefuse('q/optional', (error) => seen.refusals.push(['q/optional', refusalOf(error)]));
         }
     }
     const lifecycleOf = (method) => ({
@@ -135,16 +147,18 @@ async function main() {
 
     check(
         'a connection standing as its lifecycle begins reaches what listens for its name, beside onConnect alone',
-        seen.atBegin === 42 && Object.keys(seen.dependencies).join() === 'onConnect,reach,release',
+        seen.atBegin === 42 && Object.keys(seen.dependencies).join() === 'onConnect,onRefuse,reach,release',
         seen
     );
     const problems = payloads('mod-problem').map(({ problem }) => problem);
     check(
-        'a connection refused as a lifecycle begins is a problem against the run, and the lifecycle goes on',
-        problems.includes('r did not connect: refused') &&
+        'a connection refused as a lifecycle begins is heard by onRefuse added after, and the lifecycle goes on',
+        !problems.some((problem) => /did not connect/.test(problem)) &&
+            JSON.stringify(seen.refusals) ===
+                '[["r",{"message":"r did not connect: refused","kind":"REFUSED","stage":"call"}]]' &&
             JSON.stringify(seen.heard) === '[]' &&
             !payloads('mod-not-started').length,
-        problems
+        { problems, refusals: seen.refusals }
     );
     check(
         'a second register of an interface is refused on the row',
@@ -235,7 +249,24 @@ async function main() {
         own
     );
 
-    // The dependent's end: a connection that comes and goes is handed to what listens for its interface.
+    // The dependent's end: a mod an interface reaches that does not launch is heard by what listens for its refusals.
+    heard.told({
+        channel: 'deckit-shell:connection-unreached',
+        payload: {
+            lifecycle: 1,
+            name: 'q/optional',
+            refusal: { stage: 'launch', kind: 'RELAUNCH_LIMIT', message: 'q is at the relaunch limit' },
+        },
+    });
+    for (let at = 0; at < 3; at++) await tick();
+    check(
+        'onRefuse hears a mod an interface reaches that does not launch, with its kind and stage',
+        JSON.stringify(seen.refusals[1]) ===
+            '["q/optional",{"message":"q is at the relaunch limit","kind":"RELAUNCH_LIMIT","stage":"launch"}]',
+        seen.refusals
+    );
+
+    // A connection that comes and goes is handed to what listens for its interface.
     heard.told({
         channel: 'deckit-shell:connection-connected',
         payload: {
@@ -254,27 +285,51 @@ async function main() {
 
     // A mod reached by its id: asked of main for the lifecycle, handed to what listens for its id once it stands, and
     // let go.
-    await seen.reach;
+    const targets = (channel) => asked(channel).map(({ target }) => target);
     check(
-        'a reach by id is asked of main for the lifecycle that asks',
-        JSON.stringify(asked('connection-reach')[0]) === '{"run":1,"lifecycle":0,"target":"q"}',
+        'a reach by id is asked of main for the lifecycle that asks, once while it is reached',
+        JSON.stringify(asked('connection-reach')[0]) === '{"run":1,"lifecycle":0,"target":"q"}' &&
+            targets('connection-reach').filter((target) => target === 'q').length === 1,
         asked('connection-reach')
     );
     const refused = await seen.refused;
     check(
-        'a reach the core refuses rejects with its kind',
-        refused?.kind === 'REFUSED' && /out of reach/.test(refused.message),
+        'a reach the core refuses rejects with its kind, at call',
+        refused?.kind === 'REFUSED' && refused.stage === 'call' && /out of reach/.test(refused.message),
         refused
     );
+    let settled = false;
+    seen.reach.then(() => (settled = true));
+    for (let at = 0; at < 3; at++) await tick();
+    check('a reach does not answer before its connection stands', !settled, settled);
     heard.told({
         channel: 'deckit-shell:connection-connected',
         payload: { id: 30, name: 'q', exports: { value: { byId: true }, references: [] }, lifecycle: 0 },
     });
     for (let at = 0; at < 3; at++) await tick();
+    const [first, second] = await Promise.all([seen.reach, seen.again]);
+    check(
+        'each reach of a mod by its id answers the exports of its connection once it stands',
+        JSON.stringify([first, second]) === '[{"byId":true},{"byId":true}]',
+        [first, second]
+    );
     check(
         'a mod reached by its id is handed to what listens for its id',
         JSON.stringify(seen.reached) === '[{"byId":true}]',
         seen.reached
+    );
+    const third = await seen.dependencies.reach('q');
+    check(
+        'a reach of a mod whose connection stands answers at once, asking main nothing',
+        third?.byId === true && targets('connection-reach').filter((target) => target === 'q').length === 1,
+        { third, asked: asked('connection-reach') }
+    );
+    await seen.dependencies.release('q');
+    await seen.dependencies.release('q');
+    check(
+        'a reach is let go by as many releases: main is asked nothing while one is left',
+        !asked('connection-release-reach').length,
+        asked('connection-release-reach')
     );
     await seen.dependencies.release('q');
     check(
@@ -282,6 +337,44 @@ async function main() {
         JSON.stringify(asked('connection-release-reach')) === '[{"run":1,"lifecycle":0,"target":"q"}]',
         asked('connection-release-reach')
     );
+
+    // A mod reached by its id that does not launch: the reach rejects with its refusal, and the ask goes.
+    heard.told({
+        channel: 'deckit-shell:connection-unreached',
+        payload: {
+            lifecycle: 0,
+            name: 'g',
+            refusal: { stage: 'launch', kind: 'NOT_INSTALLED', message: 'no mod is listed under g' },
+        },
+    });
+    for (let at = 0; at < 3; at++) await tick();
+    check(
+        'a reach of a mod that does not launch rejects with its kind and stage',
+        JSON.stringify(await seen.unreached) ===
+            '{"message":"no mod is listed under g","kind":"NOT_INSTALLED","stage":"launch"}',
+        await seen.unreached
+    );
+    check(
+        'a reach refused lets the ask go',
+        targets('connection-release-reach').join() === 'q,g',
+        asked('connection-release-reach')
+    );
+    const again = seen.dependencies.reach('g');
+    again.catch(() => {});
+    for (let at = 0; at < 3; at++) await tick();
+    check(
+        'a reach after a refusal asks main again',
+        targets('connection-reach').filter((target) => target === 'g').length === 2,
+        asked('connection-reach')
+    );
+    seen.dependencies.reach('h').catch(() => {});
+    seen.dependencies.release('h');
+    seen.dependencies.reach('h').catch(() => {});
+    for (let at = 0; at < 5; at++) await tick();
+    const order = asks
+        .filter(({ channel, payload }) => /connection-(release-)?reach$/.test(channel) && payload.target === 'h')
+        .map(({ channel }) => channel.replace('deckit-shell:connection-', ''));
+    check('a release is asked before a reach asked after it', order.join() === 'reach,release-reach,reach', order);
     heard.told({ channel: 'deckit-shell:connection-disconnected', payload: { id: 30 } });
     for (let at = 0; at < 3; at++) await tick();
     check('the connection let go ends what its onConnect answered', seen.cut.join() === 'q', seen.cut);

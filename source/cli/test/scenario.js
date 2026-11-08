@@ -1423,12 +1423,15 @@ async function run({
                 ),
             4000
         );
-        // Using an interface is never required: the user starts without the connection refused.
+        // Using an interface is never required: the user starts without the connection refused, and hears the refusal.
         const refusedPage = await page('deckit://broker-refused.mod');
         check(
-            "a connection the owner of an interface refuses is said in its user's row, which starts without it",
-            refusedRow && (await mark(refusedPage, 'started')) === '1',
-            `${await settings.evaluate(refusedFailure)} started: ${await mark(refusedPage, 'started')}`
+            'a connection the owner of an interface refuses is heard by its user, which starts without it',
+            refusedRow &&
+                (await mark(refusedPage, 'started')) === '1' &&
+                (await mark(refusedPage, 'refused')) === 'call REFUSED',
+            `${await settings.evaluate(refusedFailure)} started: ${await mark(refusedPage, 'started')} ` +
+                `refused: ${await mark(refusedPage, 'refused')}`
         );
         const failureBoxes = `(() => {
             const row = ${rowOf('Broker Refused')};
