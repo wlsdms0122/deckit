@@ -8,7 +8,8 @@
 // problem against the run, and a mod an interface reaches that does not launch; and `dependencies.reach` and
 // `release`: a mod by its id asked of main once while reached, answered with its exports once its connection stands,
 // let go by as many releases, in the order asked, rejected with the core's kind or with what a mod that does not launch
-// is refused with, which lets the ask go. Exits 1 with a line for each check that failed. The packages are ES modules,
+// is refused with, which lets the ask go; and what is declared to an interface handed with the declaring mod's
+// credential, frozen. Exits 1 with a line for each check that failed. The packages are ES modules,
 // so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -21,6 +22,7 @@ async function main() {
     const { createRun } = await import(url('deckit-shell', 'deckit', 'runner', 'run.js'));
     const { createRunner } = await import(url('deckit-shell', 'deckit', 'runner', 'renderer.js'));
     const { createConnection } = await import(url('deckit-shell', 'deckit', 'connection', 'renderer.js'));
+    const CONTRIBUTION = await import(url('deckit-shell', 'deckit', 'contribution', 'renderer.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -44,6 +46,9 @@ async function main() {
     let heard = null;
     const answers = {
         'deckit-shell:mod-load': () => ({ manifest: MANIFEST, source: '', run: 1 }),
+        'deckit-shell:contributions': () => [
+            { mod: { id: 'a', name: 'A' }, credential: { mod: 'a', permissions: ['p/read'] }, entry: { key: 1 } },
+        ],
         'deckit-shell:connection-begin': ({ lifecycle }) =>
             lifecycle === 0
                 ? [{ id: 10, name: 'q/used', exports: { value: { answer: 42 }, references: [] } }]
@@ -378,6 +383,17 @@ async function main() {
     heard.told({ channel: 'deckit-shell:connection-disconnected', payload: { id: 30 } });
     for (let at = 0; at < 3; at++) await tick();
     check('the connection let go ends what its onConnect answered', seen.cut.join() === 'q', seen.cut);
+
+    // What is declared to an interface: each entry with the declaring mod's credential, frozen.
+    const [declared] = await CONTRIBUTION.contributions('p/one');
+    check(
+        "an entry declared to an interface is handed with the declaring mod's credential, frozen",
+        JSON.stringify(declared) ===
+            '{"mod":{"id":"a","name":"A"},"credential":{"mod":"a","permissions":["p/read"]},"entry":{"key":1}}' &&
+            Object.isFrozen(declared.credential) &&
+            Object.isFrozen(declared.credential.permissions),
+        declared
+    );
 
     for (const line of failed) console.error(line);
     if (failed.length) {
