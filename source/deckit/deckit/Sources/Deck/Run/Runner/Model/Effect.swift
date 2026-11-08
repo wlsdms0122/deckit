@@ -33,8 +33,9 @@ public enum Effect: Sendable {
     case deliver(EventDelivery)
     // The client lifecycle reaches `service` by `name`, and `service` does not run: deck does not launch it.
     case wait(name: String, client: Endpoint, service: String)
-    // Tell the client lifecycle's page it is refused what it reaches by `name`, as `refusal` says: the principal runs
-    // with no exports for the name that reach the lifecycle.
+    // Tell the client lifecycle's page it is refused what it reaches by `name`, as `refusal` says: the interface's
+    // owner does not provide the major it uses, or the principal runs with no exports for the name that reach the
+    // lifecycle.
     case refuse(name: String, client: Endpoint, refusal: ConnectionError)
 
     // MARK: - Property

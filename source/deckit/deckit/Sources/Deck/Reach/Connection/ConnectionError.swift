@@ -17,6 +17,8 @@ public enum ConnectionError: Refusal, Equatable {
     case outOfReach(principal: String, client: String)
     // The principal runs with no exports for the name that reach the lifecycle that reaches it by it.
     case notExported(name: String, principal: String)
+    // The owner of the interface does not provide the major the lifecycle that reaches it by it uses.
+    case unsupportedVersion(name: String, principal: String, major: Int)
 
     // MARK: - Property
     public var message: String {
@@ -41,6 +43,9 @@ public enum ConnectionError: Refusal, Equatable {
 
         case let .notExported(name, principal):
             "\(principal) runs with no exports for \(name) that reach the lifecycle"
+
+        case let .unsupportedVersion(name, principal, major):
+            "\(principal) does not provide major \(major) of \(name)"
         }
     }
 

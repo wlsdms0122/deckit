@@ -11,13 +11,13 @@ import Foundation
 // exports another principal opened for that name. By a principal its `reaches` holds, as the lifecycle asks for it and
 // until it releases it, the exports that principal opened for those that reach it by id; a principal reaches no one by
 // its own id. By an interface in its `uses`, from as the lifecycle begins, the exports the interface's owner opened for
-// it, while the owner provides the major it uses; a principal that owns an interface it uses reaches no one by it.
-// Exports opened in lifecycle g reach the lifecycles stacked at g and above. A connection stands from when both
-// lifecycles are up, the client's run launching or running and the service's running, until either lifecycle ends, the
-// client releases the id or the interface has another owner. A lifecycle is up from when its page begins it until its
-// page says it ended, or its run has ended. A lifecycle that reaches a principal with no run, or whose run has ended,
-// waits for it, and deck tells so once; one that reaches a principal that runs with no exports for the name that reach
-// the lifecycle is refused and told once.
+// it; a principal that owns an interface it uses reaches no one by it. Exports opened in lifecycle g reach the
+// lifecycles stacked at g and above. A connection stands from when both lifecycles are up, the client's run launching
+// or running and the service's running, until either lifecycle ends, the client releases the id or the interface has
+// another owner. A lifecycle is up from when its page begins it until its page says it ended, or its run has ended. A
+// lifecycle that reaches a principal with no run, or whose run has ended, waits for it, and deck tells so once. One
+// whose interface's owner does not provide the major it uses is refused and told once, and waits for no one; one that
+// reaches a principal that runs with no exports for the name that reach the lifecycle is refused and told once.
 public final class ConnectionBroker {
     // MARK: - Property
     private let runner: Runner
@@ -32,8 +32,8 @@ public final class ConnectionBroker {
     private var refused: [(name: String, ends: [Endpoint])] = []
     // The lifecycles told they wait for a principal that does not run, by name, while they still wait.
     private var waiting: [(name: String, client: Endpoint, service: String)] = []
-    // The lifecycles told a principal that runs has no exports for them, by name, while it still has none.
-    private var unexported: [(name: String, client: Endpoint, service: String)] = []
+    // The lifecycles told they are refused what they reach by a name, while they still are.
+    private var refusing: [(name: String, client: Endpoint, refusal: ConnectionError)] = []
     private var lastId = 0
 
     // MARK: - Initializer
@@ -102,9 +102,9 @@ public final class ConnectionBroker {
     }
 
     // The connections that ended since, then those that stand since and were not answered to a beginning lifecycle,
-    // then the lifecycles that began to wait for a principal that does not run, then those refused since by one that
-    // runs with no exports for them. A run that ended has no lifecycle up, a connection by an id ends as its client
-    // releases it, and one to an interface's owner as it has another.
+    // then the lifecycles that began to wait for a principal that does not run, then those refused since what they
+    // reach by a name. A run that ended has no lifecycle up, a connection by an id ends as its client releases it, and
+    // one to an interface's owner as it has another.
     func changes() -> [Effect] {
         up = up.filter { id, up in
             runner.run(of: id).map { run in run.number == up.run && run.state != .notRunning } ?? false
@@ -124,30 +124,28 @@ public final class ConnectionBroker {
         }
         var effects = ended.map(Effect.disconnect)
         var waits: [(name: String, client: Endpoint, service: String)] = []
-        var unexported: [(name: String, client: Endpoint, service: String)] = []
+        var refusals: [(name: String, client: Endpoint, refusal: ConnectionError)] = []
         for (id, up) in up.sorted(by: { one, other in one.key < other.key }) {
             for lifecycle in up.lifecycles.sorted() {
                 let client = Endpoint(principal: id, run: up.run, lifecycle: lifecycle)
                 guard isUp(client) else { continue }
                 effects += open(for: client).map(Effect.connect)
                 waits += self.waits(of: client)
-                unexported += refusals(of: client)
+                refusals += self.refusals(of: client)
             }
         }
         let waited = waiting
         waiting = waits
         effects += waits.filter { wait in !Self.told(wait, in: waited) }
             .map { wait in Effect.wait(name: wait.name, client: wait.client, service: wait.service) }
-        let toldUnexported = self.unexported
-        self.unexported = unexported
-        effects += unexported.filter { refusal in !Self.told(refusal, in: toldUnexported) }
-            .map { refusal in
-                Effect.refuse(
-                    name: refusal.name,
-                    client: refusal.client,
-                    refusal: .notExported(name: refusal.name, principal: refusal.service)
-                )
+        let toldBefore = refusing
+        refusing = refusals
+        effects += refusals.filter { refusal in
+            !toldBefore.contains { other in
+                other.name == refusal.name && other.client == refusal.client && other.refusal == refusal.refusal
             }
+        }
+        .map { refusal in Effect.refuse(name: refusal.name, client: refusal.client, refusal: refusal.refusal) }
 
         return effects
     }
@@ -190,8 +188,7 @@ public final class ConnectionBroker {
         var opened: [Connection] = []
         for name in names(of: client) {
             guard let id = provider(of: name, for: job.principal),
-                let other = runner.job(of: id),
-                takes(other, by: name, for: job),
+                takes(id, by: name, for: job),
                 let otherRun = runner.run(of: id),
                 otherRun.state == .running,
                 let lifecycle = otherRun.contributions?.exportedIn[name],
@@ -224,31 +221,35 @@ public final class ConnectionBroker {
         return opened
     }
 
-    // The names the client lifecycle reaches by whose principal has no run or one that has ended, each with that
-    // principal: one that terminates is waited for once its run has ended, when it can launch again.
+    // The names the client lifecycle reaches by whose principal it takes has no run or one that has ended, each with
+    // that principal: one that terminates is waited for once its run has ended, when it can launch again.
     private func waits(of client: Endpoint) -> [(name: String, client: Endpoint, service: String)] {
-        names(of: client).compactMap { name in
-            guard let id = provider(of: name, for: client.principal) else { return nil }
+        guard let job = runner.job(of: client.principal) else { return [] }
+
+        return names(of: client).compactMap { name in
+            guard let id = provider(of: name, for: client.principal), takes(id, by: name, for: job) else { return nil }
             let state = runner.run(of: id)?.state ?? .notRunning
             guard state == .notRunning else { return nil }
             return (name, client, id)
         }
     }
 
-    // The names the client lifecycle reaches by whose principal it takes runs and has no exports for the name that
-    // reach the lifecycle, each with that principal.
-    private func refusals(of client: Endpoint) -> [(name: String, client: Endpoint, service: String)] {
+    // The names the client lifecycle is refused what it reaches by, each with why: an owner that does not provide the
+    // major it uses, whether it runs or not, or a principal it takes that runs with no exports for the name that reach
+    // the lifecycle.
+    private func refusals(of client: Endpoint) -> [(name: String, client: Endpoint, refusal: ConnectionError)] {
         guard let job = runner.job(of: client.principal) else { return [] }
 
         return names(of: client).compactMap { name in
-            guard let id = provider(of: name, for: client.principal),
-                let other = runner.job(of: id),
-                takes(other, by: name, for: job),
-                let run = runner.run(of: id),
+            guard let id = provider(of: name, for: client.principal) else { return nil }
+            if let major = job.uses[name], !takes(id, by: name, for: job) {
+                return (name, client, .unsupportedVersion(name: name, principal: id, major: major))
+            }
+            guard let run = runner.run(of: id),
                 run.state == .running,
                 !(run.contributions?.exportedIn[name].map { lifecycle in lifecycle <= client.lifecycle } ?? false)
             else { return nil }
-            return (name, client, id)
+            return (name, client, .notExported(name: name, principal: id))
         }
     }
 
@@ -260,12 +261,12 @@ public final class ConnectionBroker {
         told.contains { other in other.name == one.name && other.client == one.client && other.service == one.service }
     }
 
-    // Whether `client` takes `provider` by `name`: any principal it reaches by id, an owner that provides the major it
-    // uses.
-    private func takes(_ provider: Job, by name: String, for client: Job) -> Bool {
+    // Whether `client` takes the principal `id` by `name`: any principal it reaches by id, an owner that provides the
+    // major it uses, whether it runs or not.
+    private func takes(_ id: String, by name: String, for client: Job) -> Bool {
         guard let major = client.uses[name] else { return true }
 
-        return provider.provides[name]?.contains(major) ?? false
+        return owners.majors(of: name, by: id).contains(major)
     }
 
     private func mayReach(_ id: String, for job: Job) -> Bool {

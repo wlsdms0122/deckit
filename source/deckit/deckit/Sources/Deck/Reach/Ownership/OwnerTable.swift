@@ -38,9 +38,9 @@ public final class OwnerTable {
         return joined
     }
 
-    // As the person's: `id` owns `interface` from now on, whichever provider is first in its queue, until its pin is
-    // cleared, for nil, or the principal leaves the queue. Refused for a principal that did not provide it as the jobs
-    // were last provided.
+    // `id` owns `interface` from now on, whoever asked for it, whichever provider is first in its queue, until its pin
+    // is cleared, for nil, or the principal leaves the queue. Refused for a principal that did not provide it as the
+    // jobs were last provided.
     public func pin(_ interface: String, to id: String?) throws {
         let pinned = try store.read().pinned(interface, to: id, among: providers)
         try store.write(pinned)
@@ -49,6 +49,11 @@ public final class OwnerTable {
 
     func owner(of interface: String) -> String? {
         ownership.owner(of: interface)
+    }
+
+    // The majors of `interface` the principal `id` provided as the jobs were last provided, whether it runs or not.
+    func majors(of interface: String, by id: String) -> [Int] {
+        providers.first { job in job.principal == id }?.provides[interface] ?? []
     }
 
     // MARK: - Private

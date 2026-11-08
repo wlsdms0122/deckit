@@ -67,7 +67,7 @@ struct ConnectionBrokerTests {
         #expect(connected.map(\.credential) == [Credential(principal: "a", permissions: ["a.files", "a.network"])])
     }
 
-    @Test("exports opened in a lifecycle reach it and those above, and a user of the major the owner provides connects")
+    @Test("exports opened in a lifecycle reach it and those above, and a user of a major the owner lacks is refused")
     func exportsReachTheirLifecycleAndAbove() throws {
         // Given
         let dep = Job.fixture("dep", provides: ["dep/api": [1, 2]])
@@ -89,7 +89,9 @@ struct ConnectionBrokerTests {
         #expect(
             started.map(\.line) == [
                 "connect 1 a#1@1 -> dep#1@1",
-                "refuse a#1@0 by dep/api: dep runs with no exports for dep/api that reach the lifecycle"
+                "refuse a#1@0 by dep/api: dep runs with no exports for dep/api that reach the lifecycle",
+                "refuse old#1@0 by dep/api: dep does not provide major 0 of dep/api",
+                "refuse old#1@1 by dep/api: dep does not provide major 0 of dep/api"
             ]
         )
     }
@@ -469,7 +471,7 @@ struct ConnectionBrokerTests {
         #expect(again.isEmpty)
     }
 
-    @Test("an owner not providing the major a principal uses is as none to it, and another owner that does connects")
+    @Test("an owner not providing the major a principal uses refuses it once, and another owner that does connects")
     func ownerOfAnotherMajorDoesNotConnect() throws {
         // Given
         let b = Job.fixture("b", provides: ["x/api": [2]])
@@ -481,13 +483,31 @@ struct ConnectionBrokerTests {
 
         // When
         try start(a)
-        let unspoken = sut.changes()
+        let refused = sut.changes()
+        let again = sut.changes()
         try owners.pin("x/api", to: "c")
         let spoken = sut.changes()
 
         // Then
-        #expect(unspoken.isEmpty)
+        #expect(refused.map(\.line) == ["refuse a#1@0 by x/api: b does not provide major 1 of x/api"])
+        #expect(again.isEmpty)
         #expect(spoken.map(\.line) == ["connect 1 a#1@0 -> c#1@0"])
+    }
+
+    @Test("an owner that does not run and lacks the major a principal uses refuses it, and is not waited for")
+    func ownerOfAnotherMajorIsNotWaitedFor() throws {
+        // Given
+        let o = Job.fixture("o", provides: ["x/api": [1]])
+        let a = Job.fixture("a", uses: ["x/api": 2])
+        owners.provide([o, a], keeping: [])
+
+        // When
+        try start(a)
+        let refused = sut.changes()
+
+        // Then
+        #expect(refused.map(\.line) == ["refuse a#1@0 by x/api: o does not provide major 2 of x/api"])
+        #expect(runner.run(of: "o") == nil)
     }
 
     // MARK: - Private
