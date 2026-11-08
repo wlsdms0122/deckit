@@ -5,17 +5,55 @@ const { sessionPicker } = require('./forge/sessions/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 
-// The configuration keys that say where llmemory and the brain are, handed to the main process together.
+// The settings that say where llmemory and the brain are, handed to the main process together.
 const PLACES = ['llmemory', 'brain'];
 
+// What Bot calls on `forge/sessions`.
+const FORGE = ['sessions', 'session', 'start', 'stop', 'restart', 'log', 'call', 'dispatch', 'runSchedule', 'run'];
+
 class Bot {
+    // What the view has put on screen for the commands to reach, while it is attached.
+    screen = null;
+
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the view,
+    // and one run while Bot has none open says so.
+    start(deckit) {
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Bot has no view open');
+            return this.screen;
+        };
+        const commands = {
+            show: (args) => onScreen().show(args),
+            'show-services': () => onScreen().show({ view: 'supervisor' }),
+            'show-brain': () => onScreen().show({ view: 'brain' }),
+            'show-workflows': () => onScreen().show({ view: 'workflows' }),
+            'show-schedules': () => onScreen().show({ view: 'schedules' }),
+            'choose-session': (args) => onScreen().chooseSession(args),
+            'find-in-brain': () => onScreen().show({ view: 'brain' }),
+            'search-brain': (args) => onScreen().searchBrain(args),
+            'read-note': (args) => onScreen().readNote(args),
+            'brain-back': () => onScreen().brainBack(),
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Bot has no command ${id}`);
+                    await commands[id](args ?? {});
+                },
+            }),
+        });
+    }
+
     async attach(shell, deckit) {
         const { ui } = shell;
         const store = deckit.storage.values;
-        const forge = deckit.dependencies.forge;
+        const forge = forgeOf();
+        const settings = settingsOf();
         const bot = await deckit.mainProcess('main-process/bot/bot.js');
-        const places = () => Object.fromEntries(PLACES.map((key) => [key, deckit.configuration.get(key)]));
-        await bot.use(places());
+        const places = () => Object.fromEntries(PLACES.map((key) => [key, settings.get(key)]));
+        // An address in a note opens in the mod that opens it, or outside the app while `deckit/urls` is not connected.
+        let urls = null;
+        const openURL = (url) => (urls ? urls.open(url) : deckit.urls.open(url));
 
         const content = document.createElement('div');
         Object.assign(content.style, {
@@ -81,7 +119,7 @@ class Bot {
                 system: 'LLMemory',
                 label: 'Brain',
                 icon: 'search',
-                view: brainView({ shell, deckit, bot }),
+                view: brainView({ shell, deckit, bot, settings, openURL }),
             },
         ];
         const modeOf = (key) => MODES.find((entry) => entry.key === key) || MODES[0];
@@ -192,32 +230,6 @@ class Bot {
                 hide();
             },
         });
-        deckit.commands.register({
-            show: {
-                run: (args) => {
-                    showView(args);
-                    shell.show();
-                },
-            },
-            'choose-session': {
-                run: chooseSession,
-                complete: (_param, partial) => picker.candidates(partial),
-            },
-            'search-brain': { run: searchBrain },
-            'read-note': {
-                run: readNote,
-                complete: (_param, partial, { signal }) => brain.notesFor(partial, { signal }),
-            },
-        });
-        const viewKey = (view, key) => ({ label: modeOf(view).label, key, run: () => showView({ view }) });
-        deckit.keys.register({
-            services: viewKey('supervisor', 'mod+1'),
-            brain: viewKey('brain', 'mod+2'),
-            workflows: viewKey('workflows', 'mod+3'),
-            schedules: viewKey('schedules', 'mod+4'),
-            searchBrain: { label: 'Search the brain', key: 'mod+f', run: () => showView({ view: 'brain' }) },
-            brainBack: { label: 'Back to the Note Before', key: 'mod+[', run: brainBack },
-        });
         const actions = switcher({
             ui,
             modes: MODES,
@@ -244,6 +256,30 @@ class Bot {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('forge/sessions', (sessions) => forge.connect(sessions));
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => {
+                if (urls === connected) urls = null;
+            };
+        });
+        settings.on((key) => {
+            if (PLACES.includes(key))
+                bot.use(places()).then((renewed) => {
+                    if (renewed) brain.reload();
+                });
+        });
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
+        this.screen = {
+            show: (args) => {
+                showView(args);
+                shell.show();
+            },
+            chooseSession,
+            searchBrain,
+            readNote,
+            brainBack,
+        };
 
         function showView({ view, session }) {
             if (!MODES.some((entry) => entry.key === view)) throw new Error(`Bot has no view ${view}`);
@@ -270,14 +306,67 @@ class Bot {
             if (mode.key !== 'brain') throw new Error('Brain is not shown');
             brain.back();
         }
+    }
 
-        deckit.configuration.on((key) => {
-            if (PLACES.includes(key))
-                bot.use(places()).then((renewed) => {
-                    if (renewed) brain.reload();
-                });
-        });
+    detach() {
+        this.screen = null;
     }
 }
 
 module.exports = Bot;
+
+// What Bot calls on `forge/sessions`, the members of FORGE, held while Forge is connected: `connect(sessions)` hands
+// them over, and answers what lets them go. A call while none is held rejects, as one forge does not answer does, and
+// the views show it so.
+function forgeOf() {
+    let held = null;
+    const forge = Object.fromEntries(
+        FORGE.map((name) => [
+            name,
+            async (...args) => {
+                if (!held) throw new Error('Forge is not connected');
+                return held[name](...args);
+            },
+        ])
+    );
+    forge.connect = (sessions) => {
+        held = sessions;
+        return () => {
+            if (held === sessions) held = null;
+        };
+    };
+    return forge;
+}
+
+// Bot's settings as `deckit/configuration` last told them, read at once by the views: `get(key)`, `set(key, value)`
+// while it is connected, and `on(listener)`, which hears each key as it changes and every key as they are first read.
+// `connect(configuration)` hands the interface over, and answers what lets it go; what was read stays.
+function settingsOf() {
+    let configuration = null;
+    let values = {};
+    const listeners = new Set();
+    const tell = (key) => {
+        for (const listener of listeners) listener(key);
+    };
+    return {
+        get: (key) => values[key],
+        set: (key, value) => configuration?.set(key, value),
+        on: (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
+        connect: async (given) => {
+            configuration = given;
+            await given.onChange((key, value) => {
+                if (configuration !== given) return;
+                values = { ...values, [key]: value };
+                tell(key);
+            });
+            values = await given.values();
+            for (const key of Object.keys(values)) tell(key);
+            return () => {
+                if (configuration === given) configuration = null;
+            };
+        },
+    };
+}

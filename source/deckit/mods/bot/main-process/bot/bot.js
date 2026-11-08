@@ -1,6 +1,6 @@
-// The bot's brain, where its configuration says it is: `use(configuration)` gives it, before anything is asked and
-// again when it changes, and answers whether it is served anew. A command left empty is the one on the login shell's
-// PATH, and `~` at the start of a path is the home folder.
+// The bot's brain, where its settings say it is: `use(configuration)` gives it, as the settings are read and again when
+// they change, and answers whether it is served anew; until it first does, every method tells it is not serving. A
+// command left empty is the one on the login shell's PATH, and `~` at the start of a path is the home folder.
 module.exports = () => {
     const os = require('os');
     const path = require('path');
@@ -53,7 +53,8 @@ module.exports = () => {
     };
 
     const brain = () => {
-        if (!served) throw new Error('Bot is not serving the brain: the mod has not started or has stopped');
+        if (!served)
+            throw new Error('Bot is not serving the brain: its settings are not read yet, or the mod has stopped');
         if (served.problem) throw new Error(served.problem);
         return served.brain;
     };
