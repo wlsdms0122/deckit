@@ -4,14 +4,16 @@
 // interface the manifest does not provide, a second register, or one in the other lifecycle after one lifecycle opened
 // it; what main is told each opened in; the `connect` handed the client's id, name and credential; and the client's
 // `dependencies.onConnect`, by the interface it uses or the mod id it reaches, handed a connection that stands as its
-// lifecycle begins or comes later; `dependencies.onRefuse` handed a connection refused as a lifecycle begins, no
-// problem against the run, and a mod an interface reaches that does not launch; and `dependencies.reach` and `release`:
-// a mod by its id asked of main once while reached, answered with its exports once its connection stands, let go by as
-// many releases, in the order asked, rejected with the core's kind, with what a mod that does not launch is refused
-// with, with NOT_EXPORTED for one that runs with no exports for it, or with the kind its page refused the connection
-// with, each of which lets the ask go, a reach after it a new connection; and what is declared to an interface handed
-// with the declaring mod's credential, frozen. Exits 1 with a line for each check that failed. The packages are ES
-// modules, so they are imported as such.
+// lifecycle begins or comes later, and answering what removes its listener; a call of a function the page handed over
+// answered with what it threw as `{ stage, kind, message }`, and refused ENDED for one let go or a connection that has
+// ended; `dependencies.onRefuse` handed a connection refused as a lifecycle begins, no problem against the run, and a
+// mod an interface reaches that does not launch; and `dependencies.reach` and `release`: a mod by its id asked of main
+// once while reached, answered with its exports once its connection stands, let go by as many releases, in the order
+// asked, rejected with the core's kind, with what a mod that does not launch is refused with, with NOT_EXPORTED for one
+// that runs with no exports for it, or with the kind its page refused the connection with, each of which lets the ask
+// go, a reach after it a new connection; and what is declared to an interface handed with the declaring mod's
+// credential, frozen. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported
+// as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -97,7 +99,7 @@ async function main() {
 
     // The mod: it provides p/one and p/two, opens its own exports for the mods that reach it by id, listens for q/used
     // and q/optional, interfaces it uses, and reaches q by its id, and x, which it may not.
-    const seen = { connected: [], heard: [], reached: [], cut: [], refusals: [] };
+    const seen = { connected: [], heard: [], unheard: [], reached: [], cut: [], refusals: [] };
     const refusalOf = (error) => ({ message: error.message, kind: error.kind, stage: error.stage });
     class Mod {
         start(deckit) {
@@ -126,8 +128,13 @@ async function main() {
         attach(deckit) {
             deckit.exports.register('p/one', { connect: () => ({}) });
             deckit.exports.register({ connect: () => ({}) });
-            deckit.exports.register('p/two', { connect: () => ({ two: true }) });
+            const busy = () => {
+                throw Object.assign(new TypeError('busy'), { kind: 'BUSY' });
+            };
+            deckit.exports.register('p/two', { connect: () => ({ two: true, busy }) });
             deckit.dependencies.onConnect('q/optional', (exports) => seen.heard.push(exports));
+            seen.off = deckit.dependencies.onConnect('q/optional', (exports) => seen.unheard.push(exports));
+            seen.off();
             deckit.dependencies.onRefuse('r', (error) => seen.refusals.push(['r', refusalOf(error)]));
             deckit.dependencies.onRefuse('q/optional', (error) => seen.refusals.push(['q/optional', refusalOf(error)]));
         }
@@ -232,6 +239,19 @@ async function main() {
         lifecycle: 1,
     });
     check("another interface's exports answer its own connections", two?.value?.value?.two === true, two);
+    const thrown = await ask('connection-called', { connection: 2, number: 1, args: { value: [], references: [] } });
+    check(
+        'a call whose function throws answers the refusal as stage, kind and message alone',
+        JSON.stringify(thrown?.value) === '{"thrown":{"stage":"call","kind":"BUSY","message":"busy"}}',
+        thrown
+    );
+    const letGo = await ask('connection-called', { connection: 2, number: 9, args: { value: [], references: [] } });
+    const unknown = await ask('connection-called', { connection: 99, number: 1, args: { value: [], references: [] } });
+    check(
+        'a call of a function let go, or on a connection that has ended, is refused at call, ENDED',
+        [letGo, unknown].every(({ error } = {}) => error?.kind === 'ENDED' && error.stage === 'call'),
+        { letGo, unknown }
+    );
     const wrong = await ask('connection-connect', {
         id: 3,
         name: 'p/two',
@@ -285,6 +305,11 @@ async function main() {
         'onConnect hears a connection of the interface it names, handed its exports alone',
         seen.heard.length === 1 && JSON.stringify(seen.heard[0]) === '{"optional":true}',
         seen.heard
+    );
+    check(
+        'onConnect answers a function that removes its listener',
+        typeof seen.off === 'function' && seen.unheard.length === 0,
+        seen.unheard
     );
 
     // A mod reached by its id: asked of main for the lifecycle, handed to what listens for its id once it stands, and

@@ -32,8 +32,9 @@ export const releaseReach = CHANNEL.pageToMain(
     { run: 'number', lifecycle: 'number', target: 'string' },
     { reply: true }
 );
-// A function the other end handed over is called: answered with `{ returned }`, or `{ thrown: { name, message, kind }
-// }` for what it threw, `kind` REFUSED where it threw none or one that is not a kind.
+// A function the other end handed over is called: answered with `{ returned }`, or `{ thrown: { stage, kind, message }
+// }` for what it threw, `kind` REFUSED where it threw none or one that is not a kind. Refused at `call` with kind ENDED
+// once the connection has ended or the function is let go.
 export const call = CHANNEL.pageToMain(
     'deckit-shell:connection-call',
     { run: 'number', connection: 'number', number: 'number', args: 'object' },
@@ -56,8 +57,9 @@ export const connect = CHANNEL.mainToPage('deckit-shell:connection-connect', { r
 // exports, lifecycle }`, as `begin` answers one.
 export const connected = CHANNEL.mainToPage('deckit-shell:connection-connected');
 // A lifecycle of the page's is refused what it reaches by `name`, a mod id or an interface: a mod the core does not
-// launch for it, or one that runs with no exports for it. `{ lifecycle, name, refusal }`, `refusal` `{ stage, kind,
-// message }`, what that mod is refused with at launch, or NOT_EXPORTED at call.
+// launch for it, an interface's owner that does not provide the major it uses, or one that runs with no exports for it.
+// `{ lifecycle, name, refusal }`, `refusal` `{ stage, kind, message }`, what that mod is refused with at launch, or
+// UNSUPPORTED_VERSION or NOT_EXPORTED at call.
 export const unreached = CHANNEL.mainToPage('deckit-shell:connection-unreached');
 // A connection has ended: `{ id }`.
 export const disconnected = CHANNEL.mainToPage('deckit-shell:connection-disconnected');

@@ -11,12 +11,13 @@ const KIND = /^[A-Z][A-Z_]*$/; // a refusal's kind
 // The page's ends of its connections, each for a name, a mod id or an interface. For each it keeps a table of the
 // functions it handed over, by number, and the references it was handed, by number, and drops both as the connection
 // ends. A reference is a function that calls the other end and resolves with what that answers, or rejects at `call`
-// with the kind the function threw, REFUSED for none or one that is not a kind, ENDED once the connection has ended,
-// and INVALID_ARGUMENT for what it is called with that does not cross; one the page holds no more is let go on the
-// other end. A function the page was handed is never handed on: what calls the far end is always the mod connected to
-// it. The end that depends knows the name alone, never the mod that owns an interface. A refusal,
-// of a mod the core does not launch, one that runs with no exports for it or a connection its service refused, reaches
-// the code as an error with its `kind` and `stage`. `RUN` is the page's run.
+// with the kind the function threw, REFUSED for none or one that is not a kind, ENDED once the connection has ended or
+// the function is let go, and INVALID_ARGUMENT for what it is called with that does not cross; one the page holds no
+// more is let go on the other end. A function the page was handed is never handed on: what calls the far end is always
+// the mod connected to it. The end that depends knows the name alone, never the mod that owns an interface. A refusal,
+// of a mod the core does not launch, an owner that does not provide the major the mod uses, one that runs with no
+// exports for it or a connection its service refused, reaches the code as an error with its `kind` and `stage`, and
+// crosses as `{ stage, kind, message }`. `RUN` is the page's run.
 export function createConnection({ RUN }) {
     // MARK: - Property
     // Connection id -> { id, name, lifecycle, dependent, given, held, exporting, connection, exports, cleanups,
@@ -60,7 +61,7 @@ export function createConnection({ RUN }) {
     });
 
     // MARK: - Public
-    // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected)`,
+    // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected) -> off`,
     // `onRefuse(name, refused) -> off`, and the requests `reach(id)` and `release(id)`, `reach` refused NOT_PERMITTED
     // for a mod not granted deckit.reach-mods. What `onConnect` and `onRefuse` add is cut with `scope`. The interfaces
     // the mod uses connect as the lifecycle begins, and `onRefuse` hears each refusal of one, the last at once while no
@@ -236,7 +237,7 @@ export function createConnection({ RUN }) {
         for (const entry of connections.values()) {
             if (entry.dependent && entry.lifecycle === lifecycle && entry.name === named) hand(entry, connected);
         }
-        scope.add(() => byInterface.get(named)?.delete(connected));
+        return scope.add(() => byInterface.get(named)?.delete(connected));
     }
 
     // The exports go to a listener, and what it answers is called as the connection ends while the listener's
@@ -288,14 +289,17 @@ export function createConnection({ RUN }) {
     async function answerCall({ connection, number, args }) {
         const entry = connections.get(connection);
         const given = entry?.given.byNumber.get(number);
-        if (!given) throw new Error('that function was let go');
+        if (!given) {
+            const message = entry ? 'that function was let go' : 'the connection has ended';
+            throw refusalOf({ stage: 'call', kind: 'ENDED', message });
+        }
         try {
             const read = WIRE.materialize(args, (inner) => referenceOf(entry, inner));
             const returned = await given.function.apply(given.holder, read);
             return { returned: describe(entry, returned) };
         } catch (error) {
             const kind = typeof error?.kind === 'string' && KIND.test(error.kind) ? error.kind : 'REFUSED';
-            return { thrown: { name: String(error?.name ?? 'Error'), message: String(error?.message ?? error), kind } };
+            return { thrown: { stage: 'call', kind, message: String(error?.message ?? error) } };
         }
     }
 
@@ -382,10 +386,7 @@ export function createConnection({ RUN }) {
                 number,
                 args: described,
             });
-            if (answer.thrown) {
-                const { name, message, kind } = answer.thrown;
-                throw Object.assign(new Error(message), { name, kind, stage: 'call' });
-            }
+            if (answer.thrown) throw refusalOf(answer.thrown);
             return WIRE.materialize(answer.returned, (inner) => referenceOf(entry, inner));
         };
         handed.add(reference);

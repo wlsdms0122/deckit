@@ -7,12 +7,12 @@ const KIND = /^[A-Z][A-Z_]*$/; // a refusal's kind
 
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
 // what crosses goes from page to page through here, never read. A lifecycle connects to the interfaces it uses as it
-// begins, and to a mod by its id as it asks, until it lets it go. A connection is handed to its client while it
-// stands, and so is one its service refused, with why: one that ended while its exports were asked for is left out.
-// A lifecycle that waits for a mod the core will not launch is told what that mod is refused with, and one the core
-// refuses what it reaches, a mod that runs with no exports for it, is told that refusal. The service is handed the
-// client's name and credential, which holds its id; the client, the name alone. A call and a reach are told to
-// `REQUEST` as the requests of one mod of another.
+// begins, and to a mod by its id as it asks, until it lets it go. A connection is handed to its client while it stands,
+// and so is one its service refused, with why: one that ended while its exports were asked for is left out. A lifecycle
+// that waits for a mod the core will not launch is told what that mod is refused with, and one the core refuses what it
+// reaches, an interface's owner that does not provide the major it uses or a mod that runs with no exports for it, is
+// told that refusal. The service is handed the client's name and credential, which holds its id; the client, the name
+// alone. A call and a reach are told to `REQUEST` as the requests of one mod of another.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
