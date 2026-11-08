@@ -97,9 +97,9 @@ public final class Catalog {
         return store.read(file)
     }
 
-    // As the person's: `id` owns `interface` from now on, whichever provider is first in its queue, until its pin is
-    // cleared, for nil, or the mod leaves the queue. Refused for a mod that does not provide the interface now, one
-    // kept in its queue with a problem too. Settled once the mods are read again.
+    // A request `deckit.mods` guards, whoever asked: `id` owns `interface` from now on, whichever provider is first in
+    // its queue, until its pin is cleared, for nil, or the mod leaves the queue. Refused for a mod that does not provide
+    // the interface now, one kept in its queue with a problem too. Settled once the mods are read again.
     public func pin(_ interface: String, to id: String?) throws {
         keptOwnership(of: ranked())
         try ownerTable.pin(interface, to: id)
