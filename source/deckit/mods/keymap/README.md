@@ -99,7 +99,7 @@ A call that does not hold `deckit.system-services` rejects with kind `NOT_PERMIT
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `INVALID_ARGUMENT` | an argument of another type, or a `keystroke` that names a key a spec cannot or breaks the rule a chord follows (Declaring keys) |
 | `NOT_DECLARED`     | the mod declares no key for that command                                                                                             |
-| `NOT_RUNNING`      | `deckit/commands` is not connected, so no command is known                                                                           |
+| `NOT_CONNECTED`    | `deckit/commands` is not connected, so no command is known                                                                           |
 
 ## A press
 

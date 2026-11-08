@@ -184,7 +184,7 @@ async function main() {
     const own = keymapped.exportsFor(connection('calendar', []));
 
     // Before deckit/commands connects nothing is known, and nothing is taken.
-    check('not connected', (await rejection(settings.list()))?.kind === 'NOT_RUNNING');
+    check('not connected', (await rejection(settings.list()))?.kind === 'NOT_CONNECTED');
     check('nothing taken', takes.length === 0, takes);
     check('no chord yet', (await own.chordOf('today')) === '');
 

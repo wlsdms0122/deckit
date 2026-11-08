@@ -127,7 +127,7 @@ function keymap(deckit) {
 
     // The bindings resolved again from what is declared, and the chords taken made theirs.
     async function refresh() {
-        if (!commands) throw refusal('NOT_RUNNING', `${COMMANDS} is not connected, so no command is known`);
+        if (!commands) throw refusal('NOT_CONNECTED', `${COMMANDS} is not connected, so no command is known`);
         const read = keysOf(await declared, await listed);
         for (const { mod, problem } of read.refused) warn(`${mod.id}: ${problem}`);
         refused = read.refused;
