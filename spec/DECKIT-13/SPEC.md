@@ -35,7 +35,7 @@ Where `usage` answers a size on one implementation and a count of files on anoth
 
 `storage`, a member of [the handle](../DECKIT-7/SPEC.md), is a table of two members, `records` and `values`. No permission guards either. What a mod stores through either is its own: a mod reads only what its own runs stored, and no other mod reads it.
 
-A stored **value** is a value as [the handle](../DECKIT-7/SPEC.md) fixes values, and storage takes nothing else: neither a null, nor anything else a mod's code holds, in an array or a table of it or as the value itself. It is read back as a copy: what a run does with what it read changes nothing of what is stored.
+A stored **value** is a value as [the handle](../DECKIT-7/SPEC.md) fixes values, and storage takes nothing else: neither a null, nor anything else a mod's code holds, in an array or a table of it or as the value itself. A key of a table bound to no value is left out of it, as [the handle](../DECKIT-7/SPEC.md) fixes, and is not read back. It is read back as a copy: what a run does with what it read changes nothing of what is stored.
 
 A member of either that stores something is refused at `call` with kind `QUOTA_EXCEEDED`, and nothing of it is done, where the place it is kept has no room for it. A write the system does not make is told only as its refusal, and is no problem of the run, as [the lifecycle](../DECKIT-5/SPEC.md) fixes one.
 
