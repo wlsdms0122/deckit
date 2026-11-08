@@ -1,6 +1,6 @@
 // A headless mod that opens the exports of broker-screen/takes in attach: `take(ask)` calls what it is handed. It marks
 // on its page who each connection is from, and, as one ends, whether it is the connection its exports were made for. It
-// names broker-provider as optional at a version the provider is not, so it runs without it.
+// uses broker-provider/broker at a major its owner does not provide, so it reaches no one by it.
 class BrokerScreen {
     attach(shell, deckit) {
         const marks = document.documentElement.dataset;

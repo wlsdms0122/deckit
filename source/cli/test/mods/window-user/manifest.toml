@@ -3,6 +3,3 @@ name = "Window User"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-
-[permissions]
-"deckit.command-registry" = "to test opening the switcher by its command"

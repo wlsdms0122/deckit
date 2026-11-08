@@ -3,7 +3,9 @@ name = "Open User"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-urls = ["test-open:*"]
 
 [interfaces]
-uses = { "switcher/actions" = 1 }
+uses = { "deckit/urls" = 1, "switcher/actions" = 1 }
+
+[[contributes."deckit/urls"]]
+scheme = "test-open"

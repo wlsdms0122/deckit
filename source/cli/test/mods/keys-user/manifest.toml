@@ -3,8 +3,15 @@ name = "Keys User"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-contributes = "contributes.json"
 
-[permissions]
-"deckit.app-keys" = "to test a key that works anywhere in the app"
-"deckit.keymap" = "to test binding and recording a chord"
+[interfaces]
+uses = { "deckit/keys" = 1 }
+
+[[contributes."deckit/commands"]]
+id = "mark"
+title = "Mark"
+
+[[contributes."deckit/keys"]]
+command = "mark"
+keystroke = "mod+shift+9"
+scope = "app"

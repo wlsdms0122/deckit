@@ -5,7 +5,4 @@ api = "1.0.0"
 main = "main.js"
 
 [interfaces]
-uses = { "broker-screen/takes" = 1, "broker-absent/none" = 1 }
-
-[dependencies]
-broker-provider = "1.0.0"
+uses = { "broker-provider/broker" = 1, "broker-screen/takes" = 1, "broker-absent/none" = 1 }

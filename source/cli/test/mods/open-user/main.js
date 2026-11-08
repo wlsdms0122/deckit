@@ -1,16 +1,25 @@
-// A headless mod that asks for every address of a scheme of its own and answers one query in the switcher with an
-// action that marks its page. The test opens an address by an event it sends the page, types the query in the
-// switcher, and reads the marks.
+// A headless mod that opens every address of a scheme of its own and answers one query in the switcher with an action
+// that marks its page. The test opens an address through deckit/urls by an event it sends the page, types the query in
+// the switcher, and reads the marks.
 class OpenUser {
     start(deckit) {
         const marks = document.documentElement.dataset;
-        deckit.urls.register((url) => {
-            marks.opened = url;
-            return true;
+        deckit.exports.register({
+            connect: () => ({
+                openURL: (url) => {
+                    marks.opened = url;
+                    return true;
+                },
+            }),
+        });
+        let urls = null;
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => (urls = null);
         });
         document.addEventListener(
             'test-open',
-            async ({ detail: url }) => (marks.answered = String(await deckit.urls.open(url)))
+            async ({ detail: url }) => (marks.answered = String(await urls?.open(url, { activates: false })))
         );
     }
 

@@ -4,5 +4,5 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 
-[dependencies]
-broker-refuser = "1.0.0"
+[interfaces]
+uses = { "broker-refuser/refusals" = 1 }

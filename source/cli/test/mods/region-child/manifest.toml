@@ -3,7 +3,7 @@ name = "Region Child"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-contributes = "contributes.json"
+view = { parent = "region-parent/boards" }
 
 [interfaces]
 uses = { "region-parent/boards" = 1 }

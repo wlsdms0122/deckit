@@ -92,7 +92,7 @@ const main = async () => {
             if (!before.has(store)) fs.rmSync(path.join(stores, store), { recursive: true, force: true });
     });
     APP.assemble(archive, folder);
-    SCENARIO.seed({ data, files: fs.realpathSync(files) });
+    SCENARIO.seed({ data, files: fs.realpathSync(files), app: folder });
     const log = path.join(OUT, 'log.txt');
     const app = launch({ app: folder, data, port, log, limit: LIMIT });
     const module = path.join(fs.realpathSync(folder), 'deckit', 'deckit-web.node');

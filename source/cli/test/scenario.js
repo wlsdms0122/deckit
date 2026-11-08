@@ -7,8 +7,10 @@ const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 // The mods Deckit.app ships with a view, which the Dock keeps from the first start: every one but Deckit, which has
 // none, and the Switcher and Notifications, windows.
 const VIEWS = 8;
-// The test's own mods with a view, which the Dock lists once they run: the region parent and the window probe. Its
-// region child is in no list.
+// The test's own mods with a view: the window probe, which the test ships with the app as a system mod, so the Dock
+// keeps it from the first start too, and the region parent, which the Dock lists once it runs. Its region child is in
+// no list.
+const PROBE = 'window-probe';
 const TEST_VIEWS = 2;
 // The test's own mods the person opens though the panel does not list them: each shows nothing there, and no work asks
 // for it.
@@ -25,19 +27,25 @@ const FRONT_TAB = 'https://example.com/';
 const BEHIND_TAB = 'https://example.org/';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
-// The test's own mods, installed, one of them asking for addresses as it may not, Settings placed second in the
-// panel's list, as a person would have arranged it, an order that puts a mod before the one it requires, and what
-// REMOVED left.
-function seed({ data, files }) {
+// The test's own mods, installed, one of them declaring addresses as it may not, the window probe shipped with the app
+// assembled in `app` as a system mod, Settings placed second in the panel's list, as a person would have arranged it,
+// and what REMOVED left, noted as not cleared yet.
+function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
+    fs.rmSync(path.join(mods, PROBE), { recursive: true });
+    shipProbe({ data, app });
     const next = path.join(data, NEXT_CHILD);
     fs.cpSync(path.join(__dirname, 'mods', 'region-child'), next, { recursive: true });
     fs.appendFileSync(path.join(next, 'main.js'), '// The next revision.\n');
     fs.mkdirSync(path.join(mods, BROKEN), { recursive: true });
     fs.writeFileSync(
         path.join(mods, BROKEN, 'manifest.toml'),
-        `id = "${BROKEN}"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\nurls = ["*", "https:*"]\n`
+        [
+            `id = "${BROKEN}"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\n`,
+            '[[contributes."deckit/urls"]]\nscheme = "*"\n',
+            '[[contributes."deckit/urls"]]\nscheme = "https"\n',
+        ].join('\n')
     );
     fs.writeFileSync(path.join(mods, BROKEN, 'main.js'), 'module.exports = class { start() {} };\n');
     const contents = {
@@ -67,19 +75,32 @@ function seed({ data, files }) {
         path.join(data, 'deckit', 'state', 'host', 'panel-order.json'),
         JSON.stringify(['editor', 'settings'])
     );
-    fs.writeFileSync(path.join(data, 'deckit', 'state', 'uncleared.json'), JSON.stringify([REMOVED]));
-    fs.writeFileSync(
-        path.join(data, 'deckit', 'deck.json'),
-        JSON.stringify({ order: ['broker-user', 'broker-provider'] })
-    );
+    fs.writeFileSync(path.join(data, 'deckit', 'deck.json'), JSON.stringify({ uncleared: [REMOVED] }));
     for (const kept of [
         ['records', REMOVED, 'tabs.json'],
-        ['principal-state', 'configuration', `${REMOVED}.json`],
         ['data', REMOVED, 'a.txt'],
     ]) {
         fs.mkdirSync(path.dirname(path.join(data, 'deckit', ...kept)), { recursive: true });
         fs.writeFileSync(path.join(data, 'deckit', ...kept), '{}');
     }
+}
+
+// The window probe, put beside the data, shipped with the app assembled in `app` after the mods it ships, a system mod:
+// what it asks for is granted only to one. The app's configuration is kept under another name and handed on with it.
+function shipProbe({ data, app }) {
+    const folder = path.join(data, PROBE);
+    fs.cpSync(path.join(__dirname, 'mods', PROBE), folder, { recursive: true });
+    const config = path.join(app, 'config', 'config.js');
+    fs.renameSync(config, path.join(app, 'config', 'shipped.js'));
+    fs.writeFileSync(
+        config,
+        [
+            "const shipped = require('./shipped.js');",
+            `const probe = { folder: ${JSON.stringify(folder)}, system: true };`,
+            'module.exports = { ...shipped, folders: { ...shipped.folders, ship: [...shipped.folders.ship, probe] } };',
+            '',
+        ].join('\n')
+    );
 }
 
 // The data store WebKit keeps the session `partition` spells in: a UUID made from its name.
@@ -219,14 +240,14 @@ async function run({
     };
 
     await sleep(9000);
-    // Only the startup mods run as the app starts. The Dock keeps the shipped mods that declare a view, running or not,
-    // and each is opened from it as a person opens it, the Editor last, so it is on screen. The test's mods with a view
-    // are opened from the Mods mod, and come into the Dock as they run. The region child comes as its parent places
-    // it, the test's mods the panel does not show are opened as a person opens them, and the rest run as their work
+    // Only the background mods run as the app starts. The Dock keeps the shipped mods that declare a view, running or
+    // not, the window probe among them, and each is opened from it as a person opens it, the Editor last, so it is on
+    // screen. The region parent is opened from the Mods mod, and comes into the Dock as it runs. The region child comes
+    // as its parent places it, the test's mods the panel does not show are opened as a person opens them, and the rest run as their work
     // asks for them.
     const launchedAtStart = (await targets()).map(({ url }) => url);
     check(
-        'a startup mod runs as the app starts',
+        'a background mod runs as the app starts',
         launchedAtStart.some((url) => url.startsWith('deckit://switcher.mod')),
         launchedAtStart.join(' ')
     );
@@ -236,7 +257,7 @@ async function run({
         launchedAtStart.join(' ')
     );
     check(
-        'a mod not in the startup list does not run as the app starts',
+        'a mod that is not a background mod does not run as the app starts',
         !launchedAtStart.some((url) => url.startsWith('deckit://editor.mod')),
         launchedAtStart.join(' ')
     );
@@ -252,7 +273,10 @@ async function run({
     const listedAtStart = (await until(async () => ((await listedIds()) || []).length && listedIds())) || [];
     check(
         'the Dock keeps the shipped mods that declare a view before they run',
-        listedAtStart.length === VIEWS && !listedAtStart.includes('deckit') && !listedAtStart.includes('region-parent'),
+        listedAtStart.length === VIEWS + 1 &&
+            listedAtStart.includes(PROBE) &&
+            !listedAtStart.includes('deckit') &&
+            !listedAtStart.includes('region-parent'),
         listedAtStart
     );
     for (const id of listedAtStart) {
@@ -286,12 +310,10 @@ async function run({
         JSON.stringify(searched)
     );
     await allMods?.shot('mods');
-    for (const id of ['region-parent', 'window-probe']) {
-        await allMods?.evaluate(`document.querySelector('.mods-search .deckit-field-clear')?.click()`);
-        await allMods?.evaluate(`document.querySelector('.mods-item[data-mod-id="${id}"]').click()`);
-        await until(() => page(`deckit://${id}.mod`), 4000);
-        await sleep(300);
-    }
+    await allMods?.evaluate(`document.querySelector('.mods-search .deckit-field-clear')?.click()`);
+    await allMods?.evaluate(`document.querySelector('.mods-item[data-mod-id="region-parent"]').click()`);
+    await until(() => page('deckit://region-parent.mod'), 4000);
+    await sleep(300);
     const docked = await until(
         async () => ((await listedIds()) || []).length === VIEWS + TEST_VIEWS && listedIds(),
         4000
@@ -299,12 +321,12 @@ async function run({
     check(
         'a mod opened from the Mods mod comes into the Dock as it runs, marked running',
         Array.isArray(docked) &&
-            docked.slice(-TEST_VIEWS).join() === 'region-parent,window-probe' &&
-            (await listFrame.evaluate(`!!document.querySelector('[data-mod-id="window-probe"] .deckit-mod-running')`)),
+            docked.at(-1) === 'region-parent' &&
+            (await listFrame.evaluate(`!!document.querySelector('[data-mod-id="region-parent"] .deckit-mod-running')`)),
         JSON.stringify(docked)
     );
     // The test's mods that show nothing the list holds and that no work asks for are opened as a person opens a mod
-    // the list does not show, from the window probe's page; the mods they require launch with them.
+    // the list does not show, from the window probe's page; the owners of the interfaces they use launch with them.
     const probe = await until(() => page('deckit://window-probe.mod'), 4000);
     await probe?.evaluate(
         `document.dispatchEvent(new CustomEvent('test-load', { detail: ${JSON.stringify(OPENED)} }))`
@@ -314,7 +336,7 @@ async function run({
         8000
     );
     check(
-        'a mod the list does not show runs as the person opens it, with the mods it requires',
+        'a mod the list does not show runs as the person opens it, with the owners of the interfaces it uses',
         loaded === OPENED.join() && !!(await page('deckit://broker-provider.mod')),
         loaded
     );
@@ -453,20 +475,13 @@ async function run({
         const frameKept = path.join(home, 'state', 'host', 'panel-frame.json');
         const sidebarKept = await until(() => fs.existsSync(frameKept), 2000);
         check("the shell's state is kept by the core", sidebarKept, frameKept);
-        const order = JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).order;
-        check(
-            'the order keeps the places it was given, and what is installed takes its own',
-            order.slice(0, 2).join() === 'broker-user,broker-provider' && order.includes('settings'),
-            order
-        );
         const notesKept = path.join(home, 'data', 'note');
         const notesMade = await until(() => fs.existsSync(notesKept), 3000);
         check("a main process module keeps what it keeps in its mod's data folder", notesMade, notesKept);
         const left = () =>
-            [`records/${REMOVED}`, `data/${REMOVED}`, `principal-state/configuration/${REMOVED}.json`].filter((kept) =>
-                fs.existsSync(path.join(home, kept))
-            );
-        const uncleared = () => fs.readFileSync(path.join(home, 'state', 'uncleared.json'), 'utf8');
+            [`records/${REMOVED}`, `data/${REMOVED}`].filter((kept) => fs.existsSync(path.join(home, kept)));
+        const uncleared = () =>
+            JSON.stringify(JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).uncleared ?? []);
         const erased = await until(() => !left().length && uncleared() === '[]', 4000);
         check('what a mod removed with its data left is erased at start', erased, `${left()} ${uncleared()}`);
         await note?.shot('note');
@@ -488,10 +503,19 @@ async function run({
             text.slice(0, 400)
         );
         check('settings lists the mods with versions', versions.test(text), '');
+        // URLs leaves out an entry beside a mod's "*", which takes every address: the mod is in each scheme's list by
+        // its "*" alone, as Settings' URL Schemes lists them.
+        const starred = `[...document.querySelectorAll('.settings-handler')]
+            .filter((row) => row.querySelector('.settings-handler-name')?.textContent === '${BROKEN}')
+            .map((row) => row.querySelector('.settings-scheme-patterns')?.textContent)`;
+        const listedBy = await until(async () => {
+            const found = (await settings?.evaluate(starred)) || [];
+            return found.length > 1 && found;
+        }, 3000);
         check(
-            "a mod's urls are judged by the core",
-            text.includes('"*" already takes every address'),
-            text.slice(text.indexOf(BROKEN) - 100, text.indexOf(BROKEN) + 200)
+            'a mod\'s addresses are judged by the URLs mod, which leaves out an entry beside its "*"',
+            Array.isArray(listedBy) && listedBy.every((patterns) => patterns === 'every address'),
+            JSON.stringify(listedBy || (await settings?.evaluate(starred)))
         );
         const selectable = await settings?.evaluate(`({
             unprefixed: CSS.supports('user-select', 'text'),
@@ -508,11 +532,13 @@ async function run({
         await sleep(200);
         await settings?.shot('settings-activity');
         const activityText = (await settings?.evaluate(`${activity}.innerText`)) || '';
+        // Running: each mod that runs, a background one said so; then each background mod with its reason.
+        const [running, background] = activityText.split(/\nIn the background\n/);
         check(
-            'Activity lists the running mods with why each runs, and the startup list',
-            /Switcher[\s\S]*Started with the app/.test(activityText) &&
-                /Editor[\s\S]*Opened by you/.test(activityText) &&
-                /Starting with the app[\s\S]*Notifications/.test(activityText),
+            'Activity lists the running mods, the background ones said so, and the background mods with why',
+            /Switcher\s+Running\s+In the background/.test(running) &&
+                /Editor\s+Running/.test(running) &&
+                /Notifications\s+Takes the notifications mods send/.test(background || ''),
             activityText.slice(0, 600)
         );
         const interfaces = `[...document.querySelectorAll('.settings-section')].find((section) => section.querySelector('.settings-section-title').textContent === 'Interfaces')`;
@@ -683,51 +709,8 @@ async function run({
         );
         await sleep(400);
         check('a press outside puts a menu away', !(await settingsOverlay.evaluate(menus)), '');
-        // Dragging the provider below the mod that requires it changes the rows only; applied, deck refuses it, and
-        // the order it keeps stays.
         const rowOf = (name) =>
             `[...document.querySelectorAll('.settings-mod')].find((row) => row.querySelector('.settings-mod-name')?.textContent === ${JSON.stringify(name)})`;
-        const keptOrder = () => JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).order.join();
-        const orderBefore = keptOrder();
-        await settings?.evaluate(`${rowOf('Broker Provider')}.scrollIntoView({ block: 'center' })`);
-        await settings?.drag(rowOf('Broker Provider'), rowOf('Broker User'));
-        const ordering = await until(
-            () => settings.evaluate(`document.querySelector('.settings-order')?.hidden === false`),
-            2000
-        );
-        await settings?.evaluate(`document.querySelector('.settings-order').scrollIntoView({ block: 'center' })`);
-        await settings?.press('.settings-order [data-variant="primary"]');
-        const refusal = `document.querySelector('.settings-order-text[data-refused]')?.textContent || ''`;
-        await until(async () => (await settings.evaluate(refusal)).includes('Could not apply'), 3000);
-        const refused = await settings?.evaluate(refusal);
-        check(
-            'an order that puts a mod before one it requires is not applied, and says why',
-            ordering && refused.includes('broker-user requires broker-provider') && keptOrder() === orderBefore,
-            `${ordering} ${refused} ${keptOrder()}`
-        );
-        await settings?.press('.settings-order button:not([data-variant])');
-        const reverted = await until(() => settings.evaluate(`document.querySelector('.settings-order').hidden`), 2000);
-        check('reverting draws the order deck keeps', reverted, '');
-        // The last two rows swapped and applied are the order deck keeps.
-        const lastRows = (place) => `[...document.querySelectorAll('.settings-mod')].at(${place})`;
-        const rowNames = `[...document.querySelectorAll('.settings-mod')].map((row) => row.querySelector('.settings-mod-name')?.textContent).join()`;
-        const rowsBefore = await settings?.evaluate(rowNames);
-        await settings?.evaluate(`${lastRows(-1)}.scrollIntoView({ block: 'center' })`);
-        await settings?.drag(lastRows(-2), lastRows(-1));
-        await until(() => settings.evaluate(`document.querySelector('.settings-order')?.hidden === false`), 2000);
-        await settings?.evaluate(`document.querySelector('.settings-order').scrollIntoView({ block: 'center' })`);
-        await settings?.press('.settings-order [data-variant="primary"]');
-        const applied = await until(() => keptOrder() !== orderBefore, 3000);
-        const swapped = rowsBefore.split(',');
-        swapped.push(...swapped.splice(-2).reverse());
-        check(
-            'an order applied is the one deck keeps',
-            applied &&
-                (await settings.evaluate(rowNames)) === swapped.join() &&
-                keptOrder().split(',').length === swapped.length &&
-                (await settings.evaluate(`document.querySelector('.settings-order').hidden`)),
-            `${orderBefore} -> ${keptOrder()}`
-        );
         await settings?.evaluate(`document.querySelector('.settings-body').scrollTo({ top: 0, behavior: 'instant' })`);
         // A mod's row, opened, tells what the mod has in each place deck keeps it, as the disk holds it.
         const filesIn = (folder) =>
@@ -749,7 +732,10 @@ async function run({
         const told = [
             counted(filesIn(path.join(home, 'data', 'editor')), 'data file'),
             counted(filesIn(path.join(home, 'records', 'editor')), 'record'),
-            ...(fs.existsSync(path.join(home, 'principal-state')) ? fs.readdirSync(path.join(home, 'principal-state')) : [])
+            ...(fs.existsSync(path.join(home, 'principal-state'))
+                ? fs.readdirSync(path.join(home, 'principal-state'))
+                : []
+            )
                 .filter((name) => fs.existsSync(path.join(home, 'principal-state', name, 'editor.json')))
                 .sort(),
         ].filter(Boolean);
@@ -1359,16 +1345,16 @@ async function run({
             await (await page(`deckit://${id}.mod`))?.shot('screen-' + id);
             await panelShot('panel-' + id, id);
         }
-        // Bot runs only while the Forge mod it requires runs, and draws its sessions from what Forge exports.
+        // Bot draws its sessions from forge/sessions, which Forge provides.
         check(
-            'Bot shows on the Forge mod it requires',
+            'Bot shows, using the interface Forge provides',
             (await visibility('bot')) === 'visible',
-            await visibility('bot')
+            `${await current()} on screen, Bot laid shown: ${await laidShown('bot')}`
         );
 
-        // What mods give each other over a connection, judged by the core: the exports a required mod opened in start,
-        // in its dependent's start; functions handed either way, each called on the page that handed it; the exports a
-        // mod opened in attach, in its dependent's attach as they connect; and an event one sends, which is public.
+        // What mods give each other over a connection, judged by the core: the exports a mod opened in start for an
+        // interface, in its user's start; functions handed either way, each called on the page that handed it; the
+        // exports a mod opened in attach, in its user's attach as they connect; and a signal its owner sends of it.
         const provider = await page('deckit://broker-provider.mod');
         const user = await page('deckit://broker-user.mod');
         // The screen is launched for the connection the user listens for as its attach runs.
@@ -1376,7 +1362,7 @@ async function run({
         const mark = (session, name) => session?.evaluate(`document.documentElement.dataset.${name}`);
         const asked = await until(async () => (await mark(user, 'asked')) === '42 broker-user', 4000);
         check(
-            'a call reaches the exports a required mod opened in start, made for the mod that connected',
+            'a call reaches the exports a mod opened in start for an interface, made for the mod that connected',
             asked,
             await mark(user, 'asked')
         );
@@ -1405,12 +1391,12 @@ async function run({
             await mark(user, 'refused')
         );
         check(
-            'a mod runs while no mod provides an interface it uses, its dependencies holding the mod it requires alone',
-            asked && (await mark(user, 'lasting')) === 'broker-provider',
+            'a mod runs while no mod provides an interface it uses, connected to the one provided alone',
+            asked && (await mark(user, 'lasting')) === 'broker-provider/broker',
             await mark(user, 'lasting')
         );
         const pinged = await until(async () => (await mark(user, 'pinged')) === '7', 4000);
-        check('an event reaches the mod that listens to it', pinged, await mark(user, 'pinged'));
+        check('a signal of an interface reaches the mod that uses it and listens', pinged, await mark(user, 'pinged'));
         const screened = await until(
             async () =>
                 (await mark(screen, 'connected')) === 'broker-user' &&
@@ -1418,7 +1404,7 @@ async function run({
             4000
         );
         check(
-            "the exports a mod opened in attach reach its dependent's attach as they connect, made for the mod that connected",
+            "the exports a mod opened in attach reach its user's attach as they connect, made for the mod that connected",
             screened,
             `${await mark(screen, 'connected')} ${await mark(user, 'wrapped')}`
         );
@@ -1431,14 +1417,17 @@ async function run({
         const refusedFailure = `${rowOf('Broker Refused')}?.querySelector('.settings-mod-failure')?.textContent || ''`;
         const refusedRow = await until(
             async () =>
-                /broker-refuser did not connect: .*no connections here/.test(await settings.evaluate(refusedFailure)),
+                /broker-refuser\/refusals did not connect: .*no connections here/.test(
+                    await settings.evaluate(refusedFailure)
+                ),
             4000
         );
+        // Using an interface is never required: the user starts without the connection refused.
         const refusedPage = await page('deckit://broker-refused.mod');
         check(
-            'a required connection its dependency refuses does not start its dependent, and its row says why',
-            refusedRow && !(await mark(refusedPage, 'started')),
-            await settings.evaluate(refusedFailure)
+            "a connection the owner of an interface refuses is said in its user's row, which starts without it",
+            refusedRow && (await mark(refusedPage, 'started')) === '1',
+            `${await settings.evaluate(refusedFailure)} started: ${await mark(refusedPage, 'started')}`
         );
         const failureBoxes = `(() => {
             const row = ${rowOf('Broker Refused')};
@@ -1456,18 +1445,18 @@ async function run({
         const mismatched = await until(
             async () =>
                 (await settings.evaluate(screenNote)).includes(
-                    'uses broker-provider 2.0.0, and broker-provider is 1.0.0, so it runs without it'
+                    'uses broker-provider/broker 2, and its owner broker-provider provides it at 1, so it reaches no one'
                 ),
             4000
         );
         check(
-            'an optional dependency at a version it does not take is not there, and the row says why, quietly',
+            'an interface used at a major its owner does not provide reaches no one, and the row says why, quietly',
             mismatched,
             await settings.evaluate(screenNote)
         );
 
-        // Keys, as the core resolves them: a mod's key that works anywhere in the app, declared, launching its mod as
-        // it is pressed, bound again, and a chord recorded.
+        // Keys, as Keymap runs them: a mod's key that works anywhere in the app, declared to run its command,
+        // launching its mod as it is pressed, and bound again by the window probe, a system mod, through deckit/keys.
         await show('editor');
         check(
             'a mod with a declared key does not run before the key is pressed',
@@ -1482,18 +1471,25 @@ async function run({
             pressed,
             await mark(keys, 'pressed')
         );
-        await keys?.evaluate(`document.dispatchEvent(new CustomEvent('test-bind', { detail: 'mod+shift+8' }))`);
-        const rebound = await until(async () => /8/.test((await mark(keys, 'chord')) || ''), 3000);
+        const services = await page(`deckit://${PROBE}.mod`);
+        const keystroke = { code: 'Digit8', meta: true, control: false, alt: false, shift: true };
+        const binding = { mod: 'keys-user', command: 'mark', keystroke };
+        await services?.evaluate(
+            `document.dispatchEvent(new CustomEvent('test-bind', { detail: ${JSON.stringify(binding)} }))`
+        );
+        const bound = await until(async () => (await mark(services, 'bound')) === '⇧⌘8', 3000);
+        await keys?.evaluate(`document.dispatchEvent(new CustomEvent('test-chord'))`);
+        const chordRead = await until(async () => (await mark(keys, 'chord')) === '⇧⌘8', 3000);
         await editor.key('8', 'Digit8', META | SHIFT, 56);
         const moved = await until(async () => (await mark(keys, 'pressed')) === '2', 3000);
-        check('a key bound again runs on its new chord', rebound && moved, await mark(keys, 'chord'));
-        await keys?.evaluate(`document.dispatchEvent(new CustomEvent('test-record'))`);
-        await editor.key('k', 'KeyK', META, 75);
-        const recorded = await until(async () => (await mark(keys, 'recorded')) === '{"spec":"cmd+k"}', 3000);
-        check('a chord typed to be bound is recorded', recorded, await mark(keys, 'recorded'));
+        check(
+            'a key bound again runs on its new chord, which its mod reads',
+            bound && chordRead && moved,
+            `${await mark(services, 'bound')} ${await mark(keys, 'chord')} ${await mark(keys, 'pressed')}`
+        );
 
-        // Addresses and queries, as the core routes them: an address of a scheme a mod asks for reaches it, one under a
-        // path another mod asks for reaches that one first, and what a mod resolves is in the switcher and runs.
+        // Addresses and queries, as URLs routes them: an address of a scheme a mod declares reaches it, one under a path
+        // another mod declares reaches that one first, and what a mod resolves is in the switcher and runs.
         const opener = await page('deckit://open-user.mod');
         const openFrom = (url) =>
             opener?.evaluate(
@@ -1539,12 +1535,13 @@ async function run({
         const picked = await until(async () => (await mark(opener, 'ran')) === '1', 3000);
         check('what a mod resolves is in the switcher and runs', resolved && picked, `${resolved} ${picked}`);
 
-        // The switcher opens by its command too, and a mod's own window holds its page at the size the mod gives.
+        // The switcher opens by its command too, run by the window probe, a system mod, through deckit/commands, and a
+        // mod's own window holds its page at the size the mod gives.
         const rowsOf = async () => query?.evaluate(`document.querySelectorAll('.switcher-row').length`);
         await query?.key('Escape', 'Escape', 0, 27);
         await until(async () => (await rowsOf()) === 0, 3000);
         const windowed = await page('deckit://window-user.mod');
-        await windowed?.evaluate(`document.dispatchEvent(new CustomEvent('test-switcher'))`);
+        await services?.evaluate(`document.dispatchEvent(new CustomEvent('test-switcher'))`);
         check('the switcher opens by its command', await until(async () => (await rowsOf()) > 0, 3000), await rowsOf());
         await query?.key('Escape', 'Escape', 0, 27);
         await until(async () => (await rowsOf()) === 0, 3000);
@@ -1725,13 +1722,13 @@ async function run({
         const back = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
         check('unfolding the sidebar brings the region back', back, await child.evaluate(seen));
 
-        // The owner of an interface whose page loads again by itself ends its connections: the dependent's onConnect
+        // The owner of an interface whose page loads again by itself ends its connections: the user's onConnect
         // cleanup runs, and the owner's next run connects again.
         const screens = Number(await mark(user, 'screens'));
         await screen?.evaluate('location.reload()');
         const cleaned = await until(async () => (await mark(user, 'cleaned')) === '1', 4000);
         check(
-            "a dependency that ends calls the cleanup its dependent's onConnect answered",
+            "an owner that ends calls the cleanup its user's onConnect answered",
             cleaned,
             await mark(user, 'cleaned')
         );
@@ -1741,28 +1738,33 @@ async function run({
                 (await mark(screen, 'connected')) === 'broker-user',
             6000
         );
-        check('a dependency that runs again connects again', reconnected, await mark(user, 'screens'));
+        check('an owner that runs again connects again', reconnected, await mark(user, 'screens'));
 
-        // A mod's page loading again by itself ends the runs of the mods that require it, and they stay down; the mod
-        // restarted from Settings brings them back, each in a new document. A child in a region uses its parent's
-        // interface, which no mod requires, so it runs on.
+        // A mod's page loading again by itself ends its run: a mod that uses an interface it owns runs on, as a child
+        // in a region does as its parent runs again, and the owner of an interface it used hears its connection end. A
+        // mod restarted from Settings runs again, in a new document.
         const started = `performance.timeOrigin`;
         const origin = await user?.evaluate(started);
         const childOrigin = await child.evaluate(started);
         await provider?.evaluate('location.reload()');
         await parent.evaluate('location.reload()');
         await sleep(1500);
-        check('a mod whose requirement ran again stays down', (await user?.evaluate(started)) === origin, '');
+        check("a mod whose interface's owner ran again runs on", (await user?.evaluate(started)) === origin, '');
         check('a child whose parent ran again runs on', (await child.evaluate(started)) === childOrigin, '');
+        await user?.evaluate('location.reload()');
         const disconnected = await until(async () => (await mark(screen, 'disconnected')) === 'broker-user true', 3000);
         check(
-            "a dependent that ends is heard by its dependency's disconnect, with the connection its connect was given",
+            "a user that ends is heard by its owner's disconnect, with the connection its connect was given",
             disconnected,
             await mark(screen, 'disconnected')
         );
+        const providerOrigin = await (await page('deckit://broker-provider.mod'))?.evaluate(started);
         await settings?.evaluate(`${rowOf('Broker Provider')}.querySelector('[title^="Restart this mod"]').click()`);
-        const relaunched = await until(async () => (await user?.evaluate(started)) !== origin, 6000);
-        check('a mod restarted from Settings brings back the mods that require it', relaunched, '');
+        const relaunched = await until(async () => {
+            const now = await (await page('deckit://broker-provider.mod'))?.evaluate(started);
+            return typeof now === 'number' && now !== providerOrigin;
+        }, 6000);
+        check('a mod restarted from Settings runs again, in a new document', relaunched, '');
 
         // A shown mod's next revision installed over it: its page is replaced while the panel lays it, the new one
         // loads, and the panel goes on laying it in its region. The probe's row lies past what the frame's page
