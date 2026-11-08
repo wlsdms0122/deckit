@@ -1,6 +1,6 @@
 case = 5
 name = "a-scheme-chosen-outside-the-app-that-nothing-opens-there-is-refused"
-note = "choose(scheme, { system = true }) is refused at call with kind SYSTEM where nothing opens the scheme outside the app. mod-b declares board, and mod-a chooses outside the app for it."
+note = "choose(scheme, { system = true }) is refused at call with kind NOT_HANDLER where nothing opens the scheme outside the app. mod-b declares board, and mod-a chooses outside the app for it."
 
 [host]
 base = "system"
@@ -28,4 +28,4 @@ args = ["board", { system = true }]
 
 [step.expect]
 refuses = "call"
-kind = "SYSTEM"
+kind = "NOT_HANDLER"

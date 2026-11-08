@@ -1,6 +1,6 @@
 case = 5
 name = "a-command-a-mod-does-not-declare-is-refused"
-note = "run is refused at call with kind COMMAND where the mod declares no command of the id. mod-b declares today and echo, and mod-a runs its note."
+note = "run is refused at call with kind NOT_DECLARED where the mod declares no command of the id. mod-b declares today and echo, and mod-a runs its note."
 
 [host]
 base = "system"
@@ -28,4 +28,4 @@ args = ["mod-b", "note"]
 
 [step.expect]
 refuses = "call"
-kind = "COMMAND"
+kind = "NOT_DECLARED"

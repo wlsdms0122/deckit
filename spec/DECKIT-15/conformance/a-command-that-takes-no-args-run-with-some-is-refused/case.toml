@@ -1,6 +1,6 @@
 case = 5
 name = "a-command-that-takes-no-args-run-with-some-is-refused"
-note = "run is refused at call with kind ARGUMENTS where the command declares no params and args hold a key. today takes none, and mod-a runs it with { day = 1 }."
+note = "run is refused at call with kind INVALID_ARGUMENT where the command declares no params and args hold a key. today takes none, and mod-a runs it with { day = 1 }."
 
 [host]
 base = "system"
@@ -28,4 +28,4 @@ args = ["mod-b", "today", { day = 1 }]
 
 [step.expect]
 refuses = "call"
-kind = "ARGUMENTS"
+kind = "INVALID_ARGUMENT"

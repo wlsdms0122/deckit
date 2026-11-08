@@ -1,0 +1,9 @@
+id = "mod-b"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."deckit/commands"]]
+id = "echo"
+title = "Echo"
+params = { type = "object", properties = { text = { type = "string", title = "Text" } }, required = ["text"] }

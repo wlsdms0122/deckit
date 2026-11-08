@@ -1,6 +1,6 @@
 case = 5
 name = "a-command-run-with-args-that-do-not-fit-its-params-is-refused"
-note = "run is refused at call with kind ARGUMENTS where args do not fit the command's params. echo requires text, and mod-a runs it with {}."
+note = "run is refused at call with kind INVALID_ARGUMENT where args do not fit the command's params. echo requires text, and mod-a runs it with {}."
 
 [host]
 base = "system"
@@ -28,4 +28,4 @@ args = ["mod-b", "echo", {}]
 
 [step.expect]
 refuses = "call"
-kind = "ARGUMENTS"
+kind = "INVALID_ARGUMENT"

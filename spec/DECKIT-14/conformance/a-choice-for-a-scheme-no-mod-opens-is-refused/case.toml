@@ -1,6 +1,6 @@
 case = 5
 name = "a-choice-for-a-scheme-no-mod-opens-is-refused"
-note = "choose is refused at call with kind SCHEME where the scheme has no list. mod-a chooses for board, which no mod declares."
+note = "choose is refused at call with kind NOT_LISTED where the scheme has no list. mod-a chooses for board, which no mod declares."
 
 [host]
 base = "system"
@@ -28,4 +28,4 @@ args = ["board", { system = true }]
 
 [step.expect]
 refuses = "call"
-kind = "SCHEME"
+kind = "NOT_LISTED"

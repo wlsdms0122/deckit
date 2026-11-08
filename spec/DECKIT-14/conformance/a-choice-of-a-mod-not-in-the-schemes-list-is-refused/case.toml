@@ -1,6 +1,6 @@
 case = 5
 name = "a-choice-of-a-mod-not-in-the-schemes-list-is-refused"
-note = "choose is refused at call with kind MOD where the mod chosen is not in the scheme's list. mod-b declares board, and mod-a chooses mod-b for https."
+note = "choose is refused at call with kind NOT_HANDLER where the mod chosen is not in the scheme's list. mod-b declares board, and mod-a chooses mod-b for https."
 
 [host]
 base = "system"
@@ -28,4 +28,4 @@ args = ["https", { mod = "mod-b" }]
 
 [step.expect]
 refuses = "call"
-kind = "MOD"
+kind = "NOT_HANDLER"

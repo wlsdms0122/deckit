@@ -1,6 +1,6 @@
 case = 5
 name = "a-completion-of-an-arg-the-command-does-not-take-is-refused"
-note = "complete is refused at call with kind ARGUMENTS where param is no property of the command's params. mod-a completes the arg size of echo, which takes text."
+note = "complete is refused at call with kind INVALID_ARGUMENT where param is no property of the command's params. mod-a completes the arg size of echo, which takes text."
 
 [host]
 base = "system"
@@ -28,4 +28,4 @@ args = ["mod-b", "echo", "size", ""]
 
 [step.expect]
 refuses = "call"
-kind = "ARGUMENTS"
+kind = "INVALID_ARGUMENT"

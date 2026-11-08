@@ -1,6 +1,6 @@
 case = 5
 name = "a-command-whose-mod-opens-no-run-command-is-refused"
-note = "run is refused at call with kind COMMAND where the exports the mod opens for its id have no runCommand. mod-b declares today and opens {}."
+note = "run is refused at call with kind NOT_EXPORTED where the exports the mod opens for its id have no runCommand. mod-b declares today and opens {}."
 
 [host]
 base = "system"
@@ -28,4 +28,4 @@ args = ["mod-b", "today"]
 
 [step.expect]
 refuses = "call"
-kind = "COMMAND"
+kind = "NOT_EXPORTED"
