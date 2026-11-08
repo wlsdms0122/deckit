@@ -1,0 +1,17 @@
+id = "mod-b"
+name = "MOD B"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"deckit.app-keys" = "Its keys work anywhere in the app."
+
+[[contributes."deckit/commands"]]
+id = "echo"
+title = "Echo"
+params = { type = "object", properties = { text = { type = "string" } }, required = ["text"] }
+
+[[contributes."deckit/keys"]]
+command = "echo"
+keystroke = "ctrl+alt+e"

@@ -1,0 +1,20 @@
+id = "mod-b"
+name = "MOD B"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"deckit.app-keys" = "Its keys work anywhere in the app."
+
+[[contributes."deckit/commands"]]
+id = "today"
+title = "Show Today"
+
+[[contributes."deckit/commands"]]
+id = "week"
+title = "Show Week"
+
+[[contributes."deckit/keys"]]
+command = "month"
+keystroke = "ctrl+alt+m"

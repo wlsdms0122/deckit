@@ -1,0 +1,50 @@
+case = 5
+name = "a-key-set-is-kept-as-the-host-app-starts-again"
+note = "What is set is kept by the owner in its storage, so a key stays bound to it as the host app starts again. mod-a sets the key of today to ctrl+alt+k, and the host app quits and starts."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["mod-b", "today", { code = "KeyK", meta = false, control = true, alt = true, shift = false }]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "keys"
+
+[step.expect]
+answers = [{ mod = { id = "mod-b", name = "MOD B" }, command = "today", title = "Show Today", scope = "app", defaultKeystroke = { code = "KeyT", meta = false, control = true, alt = true, shift = false }, keystroke = { code = "KeyK", meta = false, control = true, alt = true, shift = false }, chord = "⌃⌥K", changed = true, active = true, issues = [] }]

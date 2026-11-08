@@ -1,0 +1,31 @@
+case = 5
+name = "a-chord-of-a-command-of-another-type-is-refused"
+note = "chordOf is refused at call with kind INVALID_ARGUMENT where command is not a string. mod-a asks for the chord of 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "chordOf"
+handed = true
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

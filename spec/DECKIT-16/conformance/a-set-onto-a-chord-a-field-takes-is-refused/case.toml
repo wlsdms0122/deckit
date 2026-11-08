@@ -1,0 +1,31 @@
+case = 5
+name = "a-set-onto-a-chord-a-field-takes-is-refused"
+note = "set is refused at call with kind INVALID_ARGUMENT where keystroke is a chord a text field with focus takes. mod-a sets the key of today to cmd+v."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["mod-b", "today", { code = "KeyV", meta = true, control = false, alt = false, shift = false }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

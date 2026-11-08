@@ -1,0 +1,31 @@
+case = 5
+name = "a-set-with-no-modifier-is-refused"
+note = "set is refused at call with kind INVALID_ARGUMENT where keystroke holds none of meta, control and alt. mod-a sets the key of today to shift and k."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["mod-b", "today", { code = "KeyK", meta = false, control = false, alt = false, shift = true }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

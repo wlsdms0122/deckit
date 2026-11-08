@@ -1,0 +1,29 @@
+case = 5
+name = "a-list-answers-each-key-the-mods-declare"
+note = "list answers each key declared to deckit/keys, app keys in the catalog's order and then the order written, each bound to its default, with its command's title, its scope, app where it is left out, its keystroke and its chord as a person reads it. mod-b declares keys for today and week, and mod-c one for note in a spec of other words and case."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+
+[step.expect]
+answers = { keys = [{ mod = { id = "mod-b", name = "MOD B" }, command = "today", title = "Show Today", scope = "app", defaultKeystroke = { code = "KeyT", meta = false, control = true, alt = true, shift = false }, keystroke = { code = "KeyT", meta = false, control = true, alt = true, shift = false }, chord = "⌃⌥T", changed = false, active = true, issues = [] }, { mod = { id = "mod-b", name = "MOD B" }, command = "week", title = "Show Week", scope = "app", defaultKeystroke = { code = "KeyW", meta = false, control = true, alt = true, shift = false }, keystroke = { code = "KeyW", meta = false, control = true, alt = true, shift = false }, chord = "⌃⌥W", changed = false, active = true, issues = [] }, { mod = { id = "mod-c", name = "mod-c" }, command = "note", title = "New Note", scope = "app", defaultKeystroke = { code = "KeyN", meta = false, control = true, alt = true, shift = false }, keystroke = { code = "KeyN", meta = false, control = true, alt = true, shift = false }, chord = "⌃⌥N", changed = false, active = true, issues = [] }], refused = [] }

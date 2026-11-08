@@ -1,0 +1,30 @@
+case = 5
+name = "a-key-of-the-first-mod-listed-runs-on-a-chord-two-share-by-default"
+note = "Of two keys of one scope on one chord by default, the first listed runs, and the other does not: its chord, as chordOf answers it, is empty. mod-b, listed first, declares a key for today on ctrl+alt+t, and mod-a one for note on the same chord."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-b", "mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "chordOf"
+handed = true
+args = ["note"]
+
+[step.expect]
+answers = ""

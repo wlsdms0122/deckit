@@ -1,0 +1,16 @@
+id = "mod-c"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"deckit.app-keys" = "Its keys work anywhere in the app."
+
+[[contributes."deckit/commands"]]
+id = "note"
+title = "New Note"
+
+[[contributes."deckit/keys"]]
+command = "note"
+keystroke = "Ctrl+Opt+N"
+scope = "app"

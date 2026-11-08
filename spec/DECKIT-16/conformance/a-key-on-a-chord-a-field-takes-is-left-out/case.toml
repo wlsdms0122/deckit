@@ -1,0 +1,30 @@
+case = 5
+name = "a-key-on-a-chord-a-field-takes-is-left-out"
+note = "An entry on a chord a text field with focus takes is left out. mod-b declares a key for today on cmd+v."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "keys"
+
+[step.expect]
+answers = []
