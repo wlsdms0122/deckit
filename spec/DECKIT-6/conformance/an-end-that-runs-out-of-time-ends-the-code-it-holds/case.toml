@@ -1,0 +1,36 @@
+case = 3
+name = "an-end-that-runs-out-of-time-ends-the-code-it-holds"
+note = "A run whose end runs out of time is notRunning whatever its code is doing, and its sandbox has ended with it. The stop of mod-b sets a timer that hands the host an address every 6 seconds and answers a promise that never settles; the quit ends mod-b's run once its 5 seconds have run out, and mod-a then launches mod-c, whose start waits 3 seconds, so the timer would have gone off before the look."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-c"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []
