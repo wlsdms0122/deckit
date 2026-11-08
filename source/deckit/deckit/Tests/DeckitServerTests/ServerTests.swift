@@ -422,6 +422,42 @@ struct ServerTests {
         )
     }
 
+    @Test("a lifecycle using an interface whose owner runs with no exports for it is answered as refuse, at call")
+    func reachWithoutExportsIsRefused() throws {
+        // Given
+        _ = try send(initializeRequest, to: sut)
+        try mod("dep", adding: #"[interfaces]\#nprovides = { "dep/api" = [1] }"#)
+        try mod("a", adding: #"[interfaces]\#nuses = { "dep/api" = 1 }"#)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a","dep"]}}"#, to: sut)
+        let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
+        _ = try send(begin + #"{"mod":"a","run":1,"lifecycle":0}}"#, to: sut)
+        _ = try send(begin + #"{"mod":"dep","run":1,"lifecycle":0}}"#, to: sut)
+        let started = #"{"exportedIn":{},"awaits":{}}}}"#
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":{"mod":"a","run":1,"contributions":"#
+                + started,
+            to: sut
+        )
+
+        // When
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"runner/started","params":{"mod":"dep","run":1,"contributions":"#
+                + started,
+            to: sut
+        )
+
+        // Then
+        guard case let .array(effects)? = value(in: response, at: "result") else {
+            Issue.record("no effects in \(response)")
+            return
+        }
+        let refuse = #"{"effect":"refuse","name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0},"#
+            + #""refusal":{"stage":"call","kind":"NOT_EXPORTED","#
+            + #""message":"dep runs with no exports for dep/api that reach the lifecycle"}}"#
+        #expect(effects.contains(try json(refuse)))
+    }
+
     @Test("a lifecycle that waits for a mod whose run fails to launch is answered as wait again, with that refusal")
     func failedRunIsToldToItsWaiter() throws {
         // Given

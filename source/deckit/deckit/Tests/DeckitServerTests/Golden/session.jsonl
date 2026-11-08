@@ -23,6 +23,8 @@
 {"id":99,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":1,"mod":"c","run":1,"target":"a"}}
 {"id":100,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":0,"mod":"c","run":1,"target":"d"}}
 {"id":101,"jsonrpc":"2.0","method":"connection/release","params":{"lifecycle":0,"mod":"c","run":1,"target":"d"}}
+{"id":123,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":0,"mod":"c","run":1,"target":"b"}}
+{"id":124,"jsonrpc":"2.0","method":"connection/release","params":{"lifecycle":0,"mod":"c","run":1,"target":"b"}}
 {"id":13,"jsonrpc":"2.0","method":"event/listen","params":{"mod":"b","names":["a:saved","a/api:owner-changed"],"run":1}}
 {"id":14,"jsonrpc":"2.0","method":"event/emit","params":{"mod":"a","name":"saved","run":1}}
 {"id":15,"jsonrpc":"2.0","method":"record/write","params":{"key":"tabs","mod":"a","text":"[1]"}}

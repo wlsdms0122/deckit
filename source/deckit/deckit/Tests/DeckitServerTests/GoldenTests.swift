@@ -23,6 +23,7 @@ struct GoldenTests {
         (ConnectionError.notAnEnd(principal: "a"), "NOT_AN_END"),
         (ConnectionError.notUp(Endpoint(principal: "a", run: 1, lifecycle: 0)), "NOT_UP"),
         (ConnectionError.outOfReach(principal: "b", client: "a"), "REFUSED"),
+        (ConnectionError.notExported(name: "b", principal: "b"), "NOT_EXPORTED"),
         (InstallError.nested, "NESTED"),
         (InstallError.notInstalled("a"), "NOT_INSTALLED"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),

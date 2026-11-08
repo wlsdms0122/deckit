@@ -10,7 +10,8 @@ import Deck
 import Deckit
 
 // An effect as the driver reads it: deck's, with the mod a sandbox opens for as the catalog reads it, what a run is
-// refused with at launch and what a lifecycle that waits is told the mod it waits for is refused with.
+// refused with at launch, what a lifecycle that waits is told the mod it waits for is refused with, and what one that
+// reaches is refused with.
 struct EffectAnswer {
     // MARK: - Property
     let effect: Effect
@@ -32,6 +33,10 @@ struct EffectAnswer {
         case let .wait(_, _, service):
             found = nil
             refusal = deckit.refusal(reaching: service)
+
+        case let .refuse(_, _, refused):
+            found = nil
+            refusal = refused
 
         default:
             found = nil
