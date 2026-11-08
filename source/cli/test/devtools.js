@@ -236,19 +236,25 @@ function connect({ port, shots, module }) {
 }
 
 // A connection to a DevTools protocol target at `url`: `send(method, params)` resolves to the answer, or to an error
-// after 5 seconds.
+// after 5 seconds, or at once once the target has gone.
 async function open(url) {
     const socket = new WebSocket(url);
     await new Promise((resolve, reject) => ((socket.onopen = resolve), (socket.onerror = reject)));
     let id = 0;
     const waiting = new Map();
+    const gone = { error: { message: 'the target has gone' } };
     socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
         waiting.get(message.id)?.(message);
         waiting.delete(message.id);
     };
+    socket.onclose = () => {
+        for (const resolve of waiting.values()) resolve(gone);
+        waiting.clear();
+    };
     const send = (method, params = {}) =>
         new Promise((resolve) => {
+            if (socket.readyState !== WebSocket.OPEN) return resolve(gone);
             const n = ++id;
             waiting.set(n, resolve);
             setTimeout(() => waiting.delete(n) && resolve({ error: { message: method + ' timed out' } }), 5000);

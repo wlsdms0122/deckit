@@ -303,11 +303,11 @@ async function run({
 
     await sleep(9000);
     const desktop = await until(() => page('deckit://desktop'));
-    // Only the background mods run as the app starts. The Dock keeps the shipped apps, running or not, the window probe
-    // among them, and each is opened from it as a person opens it, the Editor last, so it is in front. The region parent
-    // is opened from the Mods mod, and comes into the Dock as it runs. The region child comes as its parent places it,
-    // the test's mods the Dock does not keep are opened as a person opens them, and the rest run as their work asks
-    // for them.
+    // Only the background mods, and the mods whose interfaces they use, run as the app starts. The Dock keeps the
+    // shipped apps, running or not, the window probe among them, and each is opened from it as a person opens it, the
+    // Editor last, so it is in front. The region parent is opened from the Mods mod, and comes into the Dock as it
+    // runs. The region child comes as its parent places it, the test's mods the Dock does not keep are opened as a
+    // person opens them, and the rest run as their work asks for them.
     const launchedAtStart = (await targets()).map(({ url }) => url);
     check(
         'a background mod runs as the app starts',
@@ -324,20 +324,25 @@ async function run({
         !launchedAtStart.some((url) => url.startsWith('deckit://editor.mod')),
         launchedAtStart.join(' ')
     );
+    // A background app, Calendar, runs as the app starts, and Settings, whose interface it uses, with it; each opens
+    // its window as it attaches.
+    const runsAtStart = (id) => launchedAtStart.some((url) => url.startsWith(`deckit://${id}.mod`));
     const dockedAtStart = (await until(async () => (await dockNow()).length && dockNow())) || [];
     const idsAtStart = dockedAtStart.map(({ id }) => id);
     check(
-        'the Dock keeps the shipped apps before they run, and no accessory',
+        'the Dock keeps the shipped apps, running or not, and no accessory',
         idsAtStart.length === APPS + 1 &&
             idsAtStart.includes(PROBE) &&
             !['deckit', 'switcher', 'notifications', 'region-parent'].some((id) => idsAtStart.includes(id)) &&
-            !dockedAtStart.some(({ running }) => running),
+            dockedAtStart.every(({ id, running }) => running === runsAtStart(id)),
         JSON.stringify(dockedAtStart)
     );
+    const windowsAtLaunch = await windowsNow();
+    const keyAtLaunch = windowsAtLaunch.find(({ key }) => key)?.mod ?? 'deckit';
     check(
-        "the desktop starts with no window, its strip holding the app's name",
-        !(await windowsNow()).length && (await stripTitle()) === 'Deckit',
-        await stripTitle()
+        "the desktop starts with the windows of the apps that run, its strip holding the key one's name",
+        windowsAtLaunch.every(({ mod }) => runsAtStart(mod)) && (await stripTitle())?.toLowerCase() === keyAtLaunch,
+        JSON.stringify({ windows: windowsAtLaunch.map(({ mod }) => mod), title: await stripTitle() })
     );
     // The Dock slides out as the pointer comes to its sliver at the desktop's edge, the only part of the desktop's page
     // that takes the pointer there, and its item is pressed as a person presses it.
