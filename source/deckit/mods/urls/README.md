@@ -37,7 +37,7 @@ A scheme you chose to open outside the app offers its addresses to no mod: each 
 
 When no mod takes it, an address of `http` or `https` opens in the system browser, and one of `file` in the app for that file, through `deckit.openExternal`. An address of another scheme opens nowhere.
 
-An address with no scheme, or of one that is no place, goes nowhere. A `file` address goes nowhere for a client that does not hold `system.file-handlers`, whoever would open it.
+An address with no scheme, or of one that is no place, goes nowhere. A `file` address is refused with kind `NOT_PERMITTED` for a client that does not hold `system.file-handlers`, whoever would open it.
 
 ## Providing `deckit/urls`
 
@@ -75,8 +75,8 @@ A scheme as `list()` answers it:
 | Field    | What it is                                                                                                                                                                                                   |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `scheme` | the scheme, lower case, or `*`: the list of an address whose scheme no mod declares                                                                                                                          |
-| `system` | what opens it outside the app when no mod takes it, `browser` or `file`, or null for nothing                                                                                                                 |
-| `chosen` | what you chose to open it, as Choices says                                                                                                                                                                   |
+| `system` | what opens it outside the app when no mod takes it, `browser` or `file`, left out for nothing                                                                                                                 |
+| `chosen` | what you chose to open it, as Choices says, left out for none                                                                                                                                                |
 | `mods`   | `[{ mod, patterns }]`, `mod` its `{ id, name }` and `patterns` as it wrote them (`<scheme>:*` for none, `*` for every scheme): the chosen first, then by its widest pattern, the narrowest first, then by id |
 
 ### Choices
@@ -86,21 +86,20 @@ What opens a scheme is one of three, of shapes that differ so no mod id reads as
 | Choice             | What it is                                                                               |
 | ------------------ | ---------------------------------------------------------------------------------------- |
 | `{ mod: id }`      | the mod of that id first, where its patterns take the address, then the others           |
-| `{ system: true }` | outside the app at once, offered to no mod: only for a scheme whose `system` is not null |
-| null               | none: the mods in turn, then outside the app                                             |
+| `{ system: true }` | outside the app at once, offered to no mod: only for a scheme that has a `system`        |
+| left out           | none: the mods in turn, then outside the app                                             |
 
-What you chose is kept in URLs' storage across runs. A mod chosen is kept while it is gone, so it is chosen again as it comes back, and `list()` answers null for it meanwhile. A kept value of another shape is left out.
+What you chose is kept in URLs' storage across runs. A mod chosen is kept while it is gone, so it is chosen again as it comes back, and `list()` leaves `chosen` out meanwhile. A kept value of another shape is left out.
 
-A call that does not hold `deckit.system-services` rejects with kind `REFUSED`. `choose` rejects with why, the `kind` saying which:
+A call that does not hold `deckit.system-services` rejects with kind `NOT_PERMITTED`. An argument of another type rejects with kind `INVALID_ARGUMENT`, as does a `choice` that is none of the three. `choose` rejects with why, the `kind` saying which:
 
 | Kind     | Why                                                                              |
 | -------- | -------------------------------------------------------------------------------- |
 | `SCHEME` | no mod opens an address of `scheme`                                              |
-| `CHOICE` | `choice` is none of the three                                                    |
 | `MOD`    | the mod of `{ mod: id }` is not in the scheme's list                             |
-| `SYSTEM` | `{ system: true }` for a scheme nothing opens outside the app, its `system` null |
+| `SYSTEM` | `{ system: true }` for a scheme nothing opens outside the app, with no `system`  |
 
-`open` does not reject for an address no one took: it resolves to false. It rejects only as `deckit.openExternal` does.
+`open` does not reject for an address no one took: it resolves to false, as it does where `deckit.openExternal` refuses the address.
 
 ## What a mod answers
 

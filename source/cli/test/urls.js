@@ -207,7 +207,6 @@ async function main() {
             json({
                 scheme: 'https',
                 system: 'browser',
-                chosen: null,
                 mods: [
                     { mod: mod('issues'), patterns: ['https://github.com/deckit/issues*', 'https://github.com/x*'] },
                     { mod: mod('github'), patterns: ['https://github.com/*'] },
@@ -217,7 +216,7 @@ async function main() {
             }),
         lists[1]
     );
-    check('no system', lists[3].system === null && lists[2].system === 'file', lists.slice(2, 4));
+    check('no system', lists[3].system === undefined && lists[2].system === 'file', lists.slice(2, 4));
     check('warned', warnings.length === 9, warnings);
     check(
         'refused as warned',
@@ -298,8 +297,10 @@ async function main() {
         );
 
     // A file only for a client that may open files.
-    seen = await opened(plain, 'file:///Users/me/a.txt');
-    check('a file for a client that may not', json(seen) === json({ answer: false, offered: [], outside: [] }), seen);
+    check(
+        'a file for a client that may not',
+        (await rejection(plain.open('file:///Users/me/a.txt')))?.kind === 'NOT_PERMITTED'
+    );
     seen = await opened(opener, 'file:///Users/me/a.txt');
     check(
         'a file for a client that may',
@@ -355,12 +356,24 @@ async function main() {
     warnings.length = 0;
 
     // Choosing what opens a scheme.
-    check('list refused', (await rejection(plain.list()))?.kind === 'REFUSED');
-    check('choose refused', (await rejection(plain.choose('https', { mod: 'browser' })))?.kind === 'REFUSED');
+    check('list refused', (await rejection(plain.list()))?.kind === 'NOT_PERMITTED');
+    check('choose refused', (await rejection(plain.choose('https', { mod: 'browser' })))?.kind === 'NOT_PERMITTED');
+    check(
+        'a scheme of another type',
+        (await rejection(settings.choose(7, { mod: 'browser' })))?.kind === 'INVALID_ARGUMENT'
+    );
+    for (const [url, options] of [[7], [['https://a.b']], ['https://a.b', 'x'], ['https://a.b', { activates: 1 }]])
+        check(
+            `${json([url, options])} is refused`,
+            (await rejection(plain.open(url, options)))?.kind === 'INVALID_ARGUMENT'
+        );
     check('no such scheme', (await rejection(settings.choose('gopher', { mod: 'browser' })))?.kind === 'SCHEME');
     check('no such mod there', (await rejection(settings.choose('https', { mod: 'mail' })))?.kind === 'MOD');
     for (const choice of ['browser', 7, {}, { system: false }, { mod: 7 }, { mod: 'browser', system: true }, []])
-        check(`${json(choice)} is no choice`, (await rejection(settings.choose('https', choice)))?.kind === 'CHOICE');
+        check(
+            `${json(choice)} is no choice`,
+            (await rejection(settings.choose('https', choice)))?.kind === 'INVALID_ARGUMENT'
+        );
     check(
         'nothing outside for mailto',
         (await rejection(settings.choose('mailto', { system: true })))?.kind === 'SYSTEM'
@@ -408,8 +421,10 @@ async function main() {
     seen = await opened(plain, 'http://example.com');
     check('only the scheme chosen', json(seen.offered) === json(['browser', 'any']), seen);
     await settings.choose('file', { system: true });
-    seen = await opened(plain, 'file:///Users/me/a.txt');
-    check('a file outside for a client that may not', json(seen) === json({ answer: false, offered: [], outside: [] }));
+    check(
+        'a file outside for a client that may not',
+        (await rejection(plain.open('FILE:///Users/me/a.txt')))?.kind === 'NOT_PERMITTED'
+    );
     seen = await opened(opener, 'file:///Users/me/a.txt');
     check(
         'a file outside for a client that may',
@@ -417,7 +432,7 @@ async function main() {
         seen
     );
     const unchosen = await settings.choose('file', null);
-    check('outside no more', unchosen.chosen === null, unchosen);
+    check('outside no more', unchosen.chosen === undefined, unchosen);
     seen = await opened(opener, 'file:///Users/me/a.txt');
     check('a file to its mods again', json(seen.offered) === json(['files', 'any']), seen);
 
@@ -437,7 +452,7 @@ async function main() {
     const again = (await restarted.list()).schemes;
     check('told again after a restart', warnings.length === 9, warnings);
     warnings.length = 0;
-    const choices = again.map(({ scheme, chosen }) => `${scheme}:${json(chosen)}`);
+    const choices = again.map(({ scheme, chosen }) => `${scheme}:${json(chosen ?? null)}`);
     check(
         'kept across a restart',
         json(choices) ===
@@ -453,7 +468,7 @@ async function main() {
         choices
     );
     const cleared = await restarted.choose('https', null);
-    check('none', cleared.chosen === null && cleared.mods[0].mod.id === 'issues', cleared);
+    check('none', cleared.chosen === undefined && cleared.mods[0].mod.id === 'issues', cleared);
     check(
         'a choice of a mod gone is kept',
         store.get('chosen') === json({ http: { system: true }, mailto: { mod: 'gone' } }),
@@ -464,7 +479,7 @@ async function main() {
         'a write refused',
         (await rejection(restarted.choose('https', { mod: 'browser' })))?.message === 'the disk is full'
     );
-    check('not chosen', (await restarted.list()).schemes[1].chosen === null);
+    check('not chosen', (await restarted.list()).schemes[1].chosen === undefined);
     refusingWrites = false;
     check('chosen after', (await restarted.choose('https', { mod: 'browser' })).chosen?.mod === 'browser');
 

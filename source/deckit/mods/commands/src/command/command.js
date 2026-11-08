@@ -8,7 +8,7 @@ const ID = /^[A-Za-z0-9_-]+$/;
 // MARK: - Public
 // The commands in what mods declare to deckit/commands, as `contributions` answers it, `[{ mod, credential, entry }]`:
 // `{ commands, refused }`, `commands` each `{ mod: { id, name }, id, title, keywords, params }`, in the mods' order and
-// then the order declared, `params` null for one that takes no args. An entry that cannot be used, or a second of one
+// then the order declared, `params` left out for one that takes no args. An entry that cannot be used, or a second of one
 // id from one mod, is left out, in `refused` as `{ mod, entry, problem }`.
 function commandsOf(contributions) {
     const commands = [];
@@ -37,17 +37,15 @@ function commandsOf(contributions) {
             id: entry.id,
             title: entry.title,
             keywords: entry.keywords ?? [],
-            params: entry.params ?? null,
+            ...(entry.params !== undefined && { params: entry.params }),
         });
     }
     return { commands, refused };
 }
 
-// Why `args`, as a client hands them, do not fit what `command` takes, or null. One that takes no args takes none or
-// `{}`.
+// Why `args`, a table or left out, do not fit what `command` takes, or null. One that takes no args takes none or `{}`.
 function problemOfArgs(command, args) {
-    if (holdsFunction(args)) return 'args are JSON, and these hold a function';
-    if (command.params === null)
+    if (command.params === undefined)
         return args == null || (isObject(args) && !Object.keys(args).length) ? null : 'it takes no args';
     return problemOfValue(args ?? {}, command.params, 'args');
 }

@@ -146,11 +146,11 @@ async function main() {
     const client = commands.exportsFor(credential(['deckit.system-services']));
 
     // Refused without the permission.
-    check('list refused', (await rejection(outsider.list()))?.kind === 'REFUSED');
-    check('run refused', (await rejection(outsider.run('calendar', 'today')))?.kind === 'REFUSED');
+    check('list refused', (await rejection(outsider.list()))?.kind === 'NOT_PERMITTED');
+    check('run refused', (await rejection(outsider.run('calendar', 'today')))?.kind === 'NOT_PERMITTED');
     check(
         'complete refused',
-        (await rejection(outsider.complete('calendar', 'open-event', 'view', '')))?.kind === 'REFUSED'
+        (await rejection(outsider.complete('calendar', 'open-event', 'view', '')))?.kind === 'NOT_PERMITTED'
     );
     check('refused reaches nothing', asked.length === 0, asked);
 
@@ -179,7 +179,6 @@ async function main() {
                 id: 'today',
                 title: 'Show Today',
                 keywords: ['day'],
-                params: null,
             }),
         listed[0]
     );
@@ -212,7 +211,14 @@ async function main() {
     check('enum', (await kinds('calendar', 'open-event', { start: 1, view: 'year' })) === 'ARGUMENTS');
     check('items', (await kinds('calendar', 'open-event', { start: 1, tags: ['a', 2] })) === 'ARGUMENTS');
     check('oneOf', (await kinds('calendar', 'open-event', { start: 1, mode: 'c' })) === 'ARGUMENTS');
-    check('function in args', (await kinds('calendar', 'open-event', { start: 1, f: () => 1 })) === 'ARGUMENTS');
+    for (const [mod, id, args] of [
+        [1, 'today'],
+        ['calendar', 1],
+        ['calendar', 'today', 'x'],
+        ['calendar', 'today', []],
+    ])
+        check(`run ${JSON.stringify([mod, id, args])} refused`, (await kinds(mod, id, args)) === 'INVALID_ARGUMENT');
+    check('function in args', (await kinds('calendar', 'open-event', { start: 1, f: () => 1 })) === 'INVALID_ARGUMENT');
     check('checked reaches nothing', asked.length === 0, asked);
 
     // A run reaches, runs, and lets go.
@@ -220,7 +226,7 @@ async function main() {
     check('{} for none', JSON.stringify(ran[0]) === JSON.stringify(['calendar', 'today', {}]), ran);
     check('{} is none', JSON.stringify(await client.run('calendar', 'today', {})) === JSON.stringify({ day: 7 }));
     const fit = { start: 3, view: 'week', tags: ['x'], mode: 'b' };
-    check('undefined is null', (await client.run('calendar', 'open-event', fit)) === null);
+    check('undefined is nothing', (await client.run('calendar', 'open-event', fit)) === undefined);
     check('args handed', JSON.stringify(ran[2]) === JSON.stringify(['calendar', 'open-event', fit]), ran);
     await ticks();
     check(
@@ -303,7 +309,7 @@ async function main() {
     check('complete takes no args', (await completing('calendar', 'today', 'x', '')) === 'ARGUMENTS');
     check(
         'complete function in args',
-        (await completing('calendar', 'open-event', 'view', '', { f: () => 1 })) === 'ARGUMENTS'
+        (await completing('calendar', 'open-event', 'view', '', { f: () => 1 })) === 'INVALID_ARGUMENT'
     );
     check('complete checked reaches nothing', asked.length === 0, asked);
     const offered = await client.complete('calendar', 'open-event', 'view', 'w', { start: 3 });

@@ -22,11 +22,11 @@ function registry(deckit) {
 
     // MARK: - Public
     // The exports for a connection: a client that does not hold deckit.system-services is refused each call, kind
-    // `REFUSED`.
+    // `NOT_PERMITTED`.
     function exportsFor(connection) {
         if (connection.credential.permissions.includes(SYSTEM_SERVICES)) return Object.freeze({ list, run, complete });
         const refuse = async () => {
-            throw refusal('REFUSED', `${connection.mod.name} does not hold ${SYSTEM_SERVICES}`);
+            throw refusal('NOT_PERMITTED', `${connection.mod.name} does not hold ${SYSTEM_SERVICES}`);
         };
         return Object.freeze({ list: refuse, run: refuse, complete: refuse });
     }
@@ -39,8 +39,10 @@ function registry(deckit) {
     }
 
     // The command `id` of the mod `mod`, run with `args` on the exports the mod opens for its id, reached for the run,
-    // which launches it if it does not run: answers its result, JSON or null, and rejects with why it did not run.
-    async function run(mod, id, args = null) {
+    // which launches it if it does not run: answers its result, a value or nothing, and rejects with why it did not run.
+    async function run(mod, id, args) {
+        if (typeof mod !== 'string' || typeof id !== 'string' || !isArgs(args))
+            throw refusal('INVALID_ARGUMENT', 'run takes (mod, id, args), mod and id strings and args a table');
         const command = await declaredCommand(mod, id);
         const problem = problemOfArgs(command, args);
         if (problem) throw refusal('ARGUMENTS', `${command.title} cannot run: ${problem}`);
@@ -53,20 +55,24 @@ function registry(deckit) {
         } finally {
             letGo(mod);
         }
-        if (holdsFunction(result)) throw new Error(`${command.title} answered a function: a command answers JSON`);
-        return result ?? null;
+        if (holdsFunction(result)) throw new Error(`${command.title} answered a function: a command answers a value`);
+        return result ?? undefined;
     }
 
     // What the mod `mod` offers for the arg `param` of its command `id`, typed so far as `partial`, with `args` the args
     // filled so far: `[{ value, title, hint, keywords }]` as `completeCommand` on the exports the mod opens for its id
     // answers it, reached for the asking. A mod whose exports have no completeCommand, or that is not reached, offers
     // none.
-    async function complete(mod, id, param, partial = '', args = null) {
+    async function complete(mod, id, param, partial = '', args) {
+        const strings = [mod, id, param, partial].every((one) => typeof one === 'string');
+        if (!strings || !isArgs(args))
+            throw refusal(
+                'INVALID_ARGUMENT',
+                'complete takes (mod, id, param, partial, args), each a string but args, a table'
+            );
         const command = await declaredCommand(mod, id);
         if (!Object.hasOwn(command.params?.properties ?? {}, param))
             throw refusal('ARGUMENTS', `${command.title} takes no arg "${param}"`);
-        if (holdsFunction(args))
-            throw refusal('ARGUMENTS', `${command.title}: args are JSON, and these hold a function`);
         let exports;
         try {
             exports = await dependencies.reach(mod);
@@ -95,6 +101,11 @@ function registry(deckit) {
 
     function read() {
         return deckit.exports.contributions(INTERFACE);
+    }
+
+    // Whether `args` are a table of values, or left out.
+    function isArgs(args) {
+        return args == null || (typeof args === 'object' && !Array.isArray(args) && !holdsFunction(args));
     }
 
     function letGo(mod) {
