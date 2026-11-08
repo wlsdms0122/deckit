@@ -9,8 +9,8 @@ import Foundation
 import Deck
 import Deckit
 
-// `{ mod: { id, name }, credential: { mod, permissions }, entry }`: `mod` as a connection names the mod on its other
-// end, and `credential` as a connection's is written.
+// `{ mod: { name }, credential: { mod, permissions }, entry }`: `mod` and `credential` as a connection's are written,
+// the declaring mod's id in `credential` alone.
 extension Declaration: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -20,7 +20,6 @@ extension Declaration: Encodable {
     }
 
     private enum ModKeys: String, CodingKey {
-        case id
         case name
     }
 
@@ -34,7 +33,6 @@ extension Declaration: Encodable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         var mod = container.nestedContainer(keyedBy: ModKeys.self, forKey: .mod)
-        try mod.encode(self.mod, forKey: .id)
         try mod.encode(name, forKey: .name)
         var credential = container.nestedContainer(keyedBy: CredentialKeys.self, forKey: .credential)
         try credential.encode(self.mod, forKey: .mod)
