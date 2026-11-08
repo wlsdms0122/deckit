@@ -55,9 +55,11 @@ It moves between them by these steps and no others:
 | its code has ended it, or the time its end is given has run out | `terminating` | `notRunning` |
 | its sandbox ends | `launching`, `running`, `terminating` | `notRunning` |
 
+A run's code runs in a **sandbox** of the run's, which ends as the run moves to `notRunning`, by whichever step: once a run has ended, nothing of its code runs.
+
 Launching evaluates the file `main` names as the mod's entry. What the entry exports, what starting the mod's code is and when it has started, and the time a run's end is given: [the entry](../DECKIT-6/SPEC.md).
 
-A run **fails to launch** when evaluating its entry throws, or when its code does not start, and its sandbox is then ended at once. A run **times out** when its code has not started 20 seconds after it launched, and it then moves as a run that fails to launch. A run **crashes** when its sandbox ends while it has not ended. A run **failed** when it failed to launch, timed out, or crashed before its end was asked.
+A run **fails to launch** when evaluating its entry throws, or when its code does not start, and its sandbox then ends at once. A run **times out** when its code has not started 20 seconds after it launched, and it then moves as a run that fails to launch. A run **crashes** when its sandbox ends while it has not ended. A run **failed** when it failed to launch, timed out, or crashed before its end was asked.
 
 ### What launches a mod
 
