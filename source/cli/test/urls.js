@@ -124,7 +124,7 @@ async function main() {
         },
     };
     const outside = []; // [address, options], each opened outside the app
-    let outsideAnswers = true;
+    let outsideOpens = true;
     const deckit = {
         dependencies: {
             reach: async (id) => {
@@ -148,7 +148,7 @@ async function main() {
         storage: { records },
         openExternal: async (address, options) => {
             outside.push([address, options]);
-            return outsideAnswers;
+            if (!outsideOpens) throw refusal(`${address} is not opened`, 'UNSUPPORTED_URL', 'call');
         },
     };
 
@@ -253,7 +253,7 @@ async function main() {
         json(offers[0]) === json(['issues', 'https://github.com/deckit/issues/1', { activates: true }]),
         offers[0]
     );
-    outsideAnswers = false;
+    outsideOpens = false;
     seen = await opened(plain, 'https://example.com', { activates: false });
     check(
         'what the hole answers',
@@ -265,7 +265,14 @@ async function main() {
         offers.every(([, , options]) => options.activates === false) && outside.length === 1,
         offers
     );
-    outsideAnswers = true;
+    check(
+        'a refusal outside the app is logged',
+        json(warnings) ===
+            json(['[urls] https://example.com did not open outside the app: https://example.com is not opened']),
+        warnings
+    );
+    warnings.length = 0;
+    outsideOpens = true;
     taking.add('github');
     seen = await opened(plain, 'https://GitHub.com/deckit');
     check(

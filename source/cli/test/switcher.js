@@ -37,7 +37,7 @@ async function main() {
     const deckit = {
         util: {},
         storage: { records: { get: (_key, fallback) => fallback, set: () => {} } },
-        mods: { list: () => ({ found: [{ id: 'a', name: 'A' }], running: [], interfaces: {} }) },
+        mods: { list: async () => ({ found: [{ id: 'a', name: 'A' }], running: [], interfaces: {} }) },
         exports: {
             contributions: async (name) => {
                 if (!owns) throw Object.assign(new Error(`does not own ${name}`), { kind: 'NOT_OWNER' });
