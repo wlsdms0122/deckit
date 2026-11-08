@@ -1,0 +1,21 @@
+case = 4
+name = "the-usage-by-a-mod-not-granted-mods-is-refused"
+note = "deckit.mods guards mods.usage: a mod not granted it is refused at call with kind NOT_PERMITTED. mod-a, granted nothing, asks the usage of mod-b."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

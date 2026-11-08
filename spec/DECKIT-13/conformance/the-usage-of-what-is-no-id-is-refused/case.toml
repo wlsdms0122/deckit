@@ -1,0 +1,22 @@
+case = 4
+name = "the-usage-of-what-is-no-id-is-refused"
+note = "mods.usage takes an id as the bundle names one: one that is not is refused at call with kind MOD. mod-a asks the usage of Mod-B."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["Mod-B"]
+
+[step.expect]
+refuses = "call"
+kind = "MOD"

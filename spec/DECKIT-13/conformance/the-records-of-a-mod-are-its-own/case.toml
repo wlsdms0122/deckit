@@ -1,0 +1,34 @@
+case = 4
+name = "the-records-of-a-mod-are-its-own"
+note = "A mod reads only its own records. mod-a sets note, and mod-b's get of note answers its fallback."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.records.set"
+args = ["note", 1]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "storage.records.get"
+args = ["note", "none"]
+
+[step.expect]
+answers = "none"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "storage.records.keys"
+
+[step.expect]
+answers = []

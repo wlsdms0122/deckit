@@ -1,0 +1,30 @@
+case = 4
+name = "a-record-whose-value-is-left-out-is-refused"
+note = "set takes a value: one left out is refused at call with kind INVALID_ARGUMENT, and nothing is kept. mod-a sets note with no value, and get of note answers its fallback."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.records.set"
+args = ["note"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.records.get"
+args = ["note", "none"]
+
+[step.expect]
+answers = "none"

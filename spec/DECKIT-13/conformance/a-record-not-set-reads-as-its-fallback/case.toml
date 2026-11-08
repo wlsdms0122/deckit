@@ -1,0 +1,20 @@
+case = 4
+name = "a-record-not-set-reads-as-its-fallback"
+note = "get of a key no record is kept under answers the fallback it is handed. mod-a gets note with the fallback none."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.records.get"
+args = ["note", "none"]
+
+[step.expect]
+answers = "none"
