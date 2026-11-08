@@ -43,7 +43,7 @@ A key of `app` and one of `global` on one chord do not contend: the `app` one ru
 
 A chord another mod took through the keys hole (`deckit.keys.take`) runs none of the keys on it (`taken`), until that mod lets it go and the keys are read again. A `global` chord the system does not give works in the app only (`unavailable`).
 
-The shell's own keys (`shell.keys`) are the shell's, not the keymap's. In the pages of the app the shell looks at a key pressed before the keymap does: a key on a chord the shell holds does not run while the shell takes that chord, and runs elsewhere. A `global` chord the system gives reaches no page, so there it runs before the shell's.
+The shell's own keys (`shell.keys`) are the shell's, not the keymap's, and hold their chords in the same table as the chords Keymap takes, from before Keymap starts: a key on a chord the shell holds is `taken` and runs nowhere, its message naming the shell's key.
 
 ## Providing `deckit/keys`
 

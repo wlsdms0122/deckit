@@ -42,7 +42,7 @@ A card for each scheme `deckit/urls` lists, with the mods that open its addresse
 
 ## Keyboard
 
-The app's own keys, those of its panel and Dock (`shell.keys`, with `deckit.shell-keys`), and every key the mods declare to `deckit/keys` (`list()`), each with where it works and what keeps it from working: another key on its chord, a chord another mod took, or one the system does not give. A click records a new chord from the next press in Settings' page, set through `set` (the shell's `set(id, keystroke)`, the keymap's `set(mod, command, keystroke)`): Esc cancels, ⌫ clears it. A chord refused says why on the key. A changed key goes back to its default with `reset`.
+The app's own keys, those of its panel and Dock (`shell.keys`, with `deckit.shell-keys`), and every key the mods declare to `deckit/keys` (`list()`), each with where it works and what keeps it from working: another key on its chord, a chord one of the app's own keys holds or another mod took, or one the system does not give. A click records a new chord from the next press in Settings' page (`shell.keys.record`), set through `set` (the shell's `set(id, keystroke)`, the keymap's `set(mod, command, keystroke)`): Esc cancels, ⌫ clears it. A chord refused says why on the key. A changed key goes back to its default with `reset`.
 
 ## General
 
@@ -82,9 +82,9 @@ A button is data, and what it does is `run(value)`, given the `value` the mod kn
 
 ## Permissions
 
-| Permission               | Why                                                                                                                                                         |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deckit.mods`            | Mods and Activity: lists every mod, installs, removes, restarts and quits them, keeps one in the Dock, pins the owner of an interface, and restarts the app |
-| `deckit.system-services` | Keyboard, URL Schemes and Mod Settings: lists and sets every mod's keys, what opens each scheme, and every mod's settings                                   |
-| `deckit.shell-keys`      | Keyboard: lists and sets the app's own keys                                                                                                                 |
-| `deckit.fonts`           | General: sets the fonts and the text size                                                                                                                   |
+| Permission               | Why                                                                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `deckit.mods`            | Mods and Activity: lists every mod, installs, removes, restarts and quits them, keeps one in the Dock, pins the owner of an interface, and restarts the app  |
+| `deckit.system-services` | Keyboard, URL Schemes and Mod Settings: lists and sets every mod's keys, what opens each scheme, and every mod's settings; Mods: what the services leave out |
+| `deckit.shell-keys`      | Keyboard: lists and sets the app's own keys                                                                                                                  |
+| `deckit.fonts`           | General: sets the fonts and the text size                                                                                                                    |

@@ -35,9 +35,9 @@ const WRITTEN = {
 // The codes of the modifiers themselves: a press of one alone is no chord yet.
 const MODIFIER_CODES = /^(Meta|Control|Alt|Shift)(Left|Right)$|^(CapsLock|Fn|OS)/;
 
-// The Keyboard section: the app's own keys (shell.keys, under `appName`) and every mod's (`deckit/keys`, `keys()`
-// while it is connected), recorded anew by a click, with what keeps one from working. `onChange` hears that a key was
-// set here.
+// The Keyboard section: the app's own keys (shell.keys, under `appName`, listed where it has `list`) and every mod's
+// (`deckit/keys`, `keys()` while it is connected), recorded anew by a click through `shell.keys.record`, with what
+// keeps one from working. `onChange` hears that a key was set here.
 function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
     const TITLE = 'Keyboard';
     const KEYWORDS = ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys'];
@@ -49,6 +49,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
 
     let recording = null; // the key a chord is recorded for, and the end of its recording: { id, end }
     let drawAfterRecording = false;
+    let appKeys = []; // the app's keys, as last drawn
     const cardFills = new WeakMap(); // card -> its fill(group)
     const cellFills = new WeakMap(); // shortcut cell -> its fill(shortcut)
 
@@ -125,7 +126,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
         };
         const none = { keys: [], refused: [] };
         const [own, declared] = await Promise.all([
-            shellKeys ? Promise.resolve(shellKeys.list()).catch(unread("the app's keys", [])) : [],
+            shellKeys.list ? Promise.resolve(shellKeys.list()).catch(unread("the app's keys", [])) : [],
             keys() ? keys().list().catch(unread("the mods' keys", none)) : none,
         ]);
         return { shortcuts: [...own.map(shellShortcut), ...declared.keys.map(modShortcut)], refused: declared.refused };
@@ -141,6 +142,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
         recording?.end();
         recording = null;
         drawAfterRecording = false;
+        appKeys = shortcuts.filter((shortcut) => shortcut.shell);
         const conflicted = shortcuts.filter((shortcut) => shortcut.issues.length).length;
         conflicts.element.textContent = `${conflicted} conflict${conflicted === 1 ? '' : 's'}`;
         conflicts.element.hidden = !conflicted;
@@ -204,8 +206,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
             stopRecording();
             chord.textContent = 'Press a shortcut…';
             chord.toggleAttribute('data-recording', true);
-            const end = record((keystroke) => {
-                end();
+            const end = record(shellKeys.record, (keystroke) => {
                 recording = null;
                 const waited = drawAfterRecording;
                 drawAfterRecording = false;
@@ -245,7 +246,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
             reset.element.toggleAttribute('data-unchanged', !shortcut.changed);
             for (const note of notes) note.remove();
             notes = shortcut.issues.map((issue) =>
-                ui.element('div', { className: 'settings-issue', text: issueText(shortcut, issue) })
+                ui.element('div', { className: 'settings-issue', text: issueText(shortcut, issue, appKeyOn) })
             );
             cell.append(...notes);
         }
@@ -258,6 +259,12 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
         return keys().set(shortcut.mod.id, shortcut.command, keystroke);
     }
 
+    // The app's key on the chord of `shortcut`, as `{ title }` with the app's name, or null.
+    function appKeyOn(shortcut) {
+        const found = appKeys.find((key) => sameChord(key.keystroke, shortcut.keystroke));
+        return found ? { title: `${appName}'s ${found.title}` } : null;
+    }
+
     async function resetKey(shortcut) {
         if (shortcut.shell) return shellKeys.reset(shortcut.command);
         if (!keys()) throw new Error('The keymap is not running');
@@ -265,28 +272,20 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
     }
 }
 
-// The next press in the page that is not a modifier alone, taken from whatever else would hear it, as
-// `onRecorded(keystroke)`: `{ code, meta, control, alt, shift }`, null for ⌫ or ⌦ alone, which clears the key, or
-// undefined for Esc alone, which cancels. Answers what ends the recording.
-function record(onRecorded) {
-    const take = (event) => {
-        if (!event.code || MODIFIER_CODES.test(event.code)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const keystroke = {
-            code: event.code,
-            meta: event.metaKey,
-            control: event.ctrlKey,
-            alt: event.altKey,
-            shift: event.shiftKey,
-        };
+// The next press in the page that is not a modifier alone, as `recordKeys` (`shell.keys.record`) hands it, taken from
+// whatever else would hear it, as `onRecorded(keystroke)`: `{ code, meta, control, alt, shift }`, null for ⌫ or ⌦
+// alone, which clears the key, or undefined for Esc alone, which cancels. The recording stops at that press. Answers
+// what ends it before.
+function record(recordKeys, onRecorded) {
+    const stop = recordKeys((keystroke) => {
+        if (!keystroke.code || MODIFIER_CODES.test(keystroke.code)) return;
+        stop();
         const bare = MODIFIERS.every(([name]) => !keystroke[name]);
-        if (bare && event.code === 'Escape') onRecorded(undefined);
-        else if (bare && (event.code === 'Backspace' || event.code === 'Delete')) onRecorded(null);
-        else onRecorded(keystroke);
-    };
-    window.addEventListener('keydown', take, true);
-    return () => window.removeEventListener('keydown', take, true);
+        if (bare && keystroke.code === 'Escape') onRecorded(undefined);
+        else if (bare && (keystroke.code === 'Backspace' || keystroke.code === 'Delete')) onRecorded(null);
+        else onRecorded({ ...keystroke });
+    });
+    return stop;
 }
 
 // One of the app's keys as shell.keys lists it, `{ id, name, defaultKeystroke, keystroke }`, as the section draws a
@@ -326,12 +325,16 @@ function sameChord(one, other) {
     return one.code === other.code && MODIFIERS.every(([name]) => !!one[name] === !!other[name]);
 }
 
-// What keeps a key from working, in words, from an issue `deckit/keys` lists, `other` the key that has its chord.
-function issueText(shortcut, { kind, message, other }) {
+// What keeps a key from working, in words, from an issue `deckit/keys` lists, `other` the key that has its chord. A
+// chord taken is the app's key that holds it, as `appKeyOn(shortcut)` finds it, or another mod's.
+function issueText(shortcut, { kind, message, other }, appKeyOn) {
     const name = !other ? '' : other.mod.id === shortcut.mod.id ? other.title : `${other.mod.name} ${other.title}`;
     if (kind === 'held') return `Not applied: ${shortcut.chord} is already ${name}`;
     if (kind === 'shadowed') return `Never runs: ${shortcut.chord} is ${name}`;
-    if (kind === 'taken') return `Never runs: another mod took ${shortcut.chord}`;
+    if (kind === 'taken') {
+        const appKey = appKeyOn(shortcut);
+        return `Never runs: ${shortcut.chord} is ${appKey ? appKey.title : 'taken by another mod'}`;
+    }
     if (kind === 'unavailable') return `In the app only: the system does not give ${shortcut.chord}`;
     return message;
 }
