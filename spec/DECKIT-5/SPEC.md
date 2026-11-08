@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-A mod runs in runs, one at a time. This DECKIT fixes a run's states and the steps between them, what launches a mod and what ends its run, which runs fail, which background mods launch again after a run fails and when the relaunch limit stops them, the refusals at `launch`, and the requests a mod granted `deckit.mods` makes to launch a mod, to quit one and to launch one again.
+A mod runs in runs, one at a time. This DECKIT fixes a run's states and the steps between them, what launches a mod and what ends its run, which runs fail, which background mods launch again after a run fails and when the relaunch limit stops them, the refusals at `launch`, the requests a mod granted `deckit.mods` makes to launch a mod, to quit one and to launch one again, and the request `quit()` through which a mod quits itself.
 
 ## Motivation
 
@@ -81,7 +81,7 @@ A mod is **at the relaunch limit** once five of its runs have failed within 10 s
 The end of a mod's run is asked:
 
 - by a `quit` or `relaunch` request;
-- by the mod itself, as the handle's DECKIT says;
+- by the mod itself, as *A mod quitting itself* says;
 - as the app quits, of every run that has not ended. The app quits once each of them is `notRunning`;
 - once the catalog no longer holds, under the mod's name, the bundle the run is of. Where the run was launching or running, the mod then launches again, from the bundle the catalog holds under its name now, if it holds one.
 
@@ -115,13 +115,27 @@ A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one,
 
 `relaunch` asks the end of the run of the mod under `id`, as `quit` does, and once that run is `notRunning`, launches the mod, as `launch` does, with its answer and its refusals. A mod whose run is `notRunning`, or that has no run, is launched.
 
+### A mod quitting itself
+
+`quit()`, a member of [the handle](../DECKIT-7/SPEC.md), is the request through which a run asks its own end:
+
+| request | takes | answers | refused with |
+|---|---|---|---|
+| `quit()` | nothing | nothing, once the run's end is asked | |
+
+It asks the end of the run whose handle it is called on, as `quit` asks the end of a run: a run that is `launching` or `running` moves to `terminating`, and one that is `terminating` is left as it is. A handle a layer hands its lifecycles is the run's, as [the handle](../DECKIT-7/SPEC.md) says, and `quit()` through it asks the end of the same run. No permission guards it, and it is never refused.
+
+A run whose end `quit()` asked has not failed, as *A run* says, whether it was `launching` or `running`: a background mod is not launched again for it, and once it has ended, what the system answers of it is `"notRunning"`.
+
+**Note.** `quit()` answers once the end is asked, and not once the run has ended as `quit` does: the run's code ends with the run, so an answer given only then would reach no code.
+
 ## Interactions
 
 - What a bundle is, which bundles are taken, the `background` key, and the refusal at `read`: [the bundle](../DECKIT-2/SPEC.md).
 - `deckit.mods`, and the refusal of a request made by a mod not granted it: [the permissions](../DECKIT-3/SPEC.md).
 - Which bundle the catalog holds under a name, the catalog's order, what a host ships, and installing and removing a bundle: [the catalog](../DECKIT-4/SPEC.md).
 - What the entry exports, what a run needs of it, what starting and ending the mod's code is, and the time a run's end is given: [the entry](../DECKIT-6/SPEC.md).
-- A mod quitting itself: the handle's DECKIT. The handle a mod makes these requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
+- The handle a mod makes these requests through, `quit()` among its members, and a handle a layer hands its lifecycles: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
 - A lifecycle that waits for a mod, and what a run that ends does to its connections: the connections' DECKIT.
 - Being told that a run has moved: the events' DECKIT.
 - When the app has quit, as a host is told it: the embedding DECKIT. What a host is given of the runs: [the case format](../DECKIT-1/SPEC.md).
@@ -135,8 +149,9 @@ A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one,
 - Launching again every mod whose run failed. A mod that is not a background mod launches because something asked it to, and whether to ask again is that asker's.
 - One kind for every launch that does not come to run. A launch out of time is a code that did not answer, which what reads the refusal treats apart from a code that threw, and a mod at the limit is one nothing launches by itself.
 - A kind for each way a launch fails to start: an entry that throws, a class that is not one, a start that throws. What reads the refusal does one thing with each, and the reason is the refusal's message.
+- A mod quitting itself through `quit` of `deckit.mods`. That permission reaches every mod, which a mod that only ends itself has no need of, and its answer comes once the run has ended, when the code that waits for it has ended too.
 - No `relaunch` request, a `quit` and then a `launch`. Between the two another request may launch the mod, and the mod that asked may be the one quit, so its own launch would never be asked.
 
 ## Notes
 
-**Note.** Several sentences above are held by no case under `conformance/`, each for its reason. A lifecycle that waits for a mod waits on the connections' DECKIT. `TIMED_OUT` of `launch` and `relaunch`: a launch out of time takes longer than a step may take to settle. A `launch` asked while the app quits, and a mod asked to launch while its run is `terminating`: steps settle one at a time, so no step comes while the app quits or a run is between two states. A crash: no bundle can end its own sandbox through what a mod is given. What the app's quit does but let the next start come: [the case format](../DECKIT-1/SPEC.md) looks at nothing after a `quit`. That background mods launch in the catalog's order: no look of the case format shows which run launched first, until the events' DECKIT tells each move. The 20 seconds of a launch and the 10 seconds of the limit: a time input is not in the case format, and a launch out of time takes longer than a step may take to settle. That the limit is five runs, and not four or six: no state is carried from one run to the next, so no bundle can fail four times and then start, and what the system answers of a run gives no count. That each start begins with nothing counted: a mod at the limit as the app quit comes to it again at the next start, counted afresh or not.
+**Note.** Several sentences above are held by no case under `conformance/`, each for its reason. A lifecycle that waits for a mod waits on the connections' DECKIT. `TIMED_OUT` of `launch` and `relaunch`: a launch out of time takes longer than a step may take to settle. A `launch` asked while the app quits, and a mod asked to launch while its run is `terminating`: steps settle one at a time, so no step comes while the app quits or a run is between two states. A crash: no bundle can end its own sandbox through what a mod is given. What the app's quit does but let the next start come: [the case format](../DECKIT-1/SPEC.md) looks at nothing after a `quit`. That background mods launch in the catalog's order: no look of the case format shows which run launched first, until the events' DECKIT tells each move. The 20 seconds of a launch and the 10 seconds of the limit: a time input is not in the case format, and a launch out of time takes longer than a step may take to settle. That the limit is five runs, and not four or six: no state is carried from one run to the next, so no bundle can fail four times and then start, and what the system answers of a run gives no count. That each start begins with nothing counted: a mod at the limit as the app quit comes to it again at the next start, counted afresh or not. That `quit()` answers once the end is asked: [the case format](../DECKIT-1/SPEC.md) compares no answer of an input that answers nothing. That `quit()` leaves a run that is `terminating` as it is, and asks the end of the run through a layer's handle: no step comes while a run is between two states, and no case's host stacks a layer a case writes.
