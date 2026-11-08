@@ -5,7 +5,8 @@
 // looks at each key pressed in a page listened to before the chords, and what it takes runs none. A chord a layer
 // holds is in the same table: its first holder keeps it, a mod's take of it is refused with the holder's name, and a
 // press its handler leaves is the page's. A page that records is handed each key pressed in it before anything else,
-// until it stops or ends. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// until it stops or ends. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
