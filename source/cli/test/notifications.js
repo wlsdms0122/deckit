@@ -46,8 +46,8 @@ async function main() {
     const commands = { run: async (mod, command, args) => (ran.push([mod, command, args]), null) };
     const sut = center(deckit, { commands: () => commands, now: () => time });
     const json = (value) => JSON.stringify(value);
-    const calendar = sut.exportsFor({ mod: { id: 'calendar', name: 'Calendar' } });
-    const browser = sut.exportsFor({ mod: { id: 'browser', name: 'Browser' } });
+    const calendar = sut.exportsFor({ mod: { name: 'Calendar' }, credential: { mod: 'calendar', permissions: [] } });
+    const browser = sut.exportsFor({ mod: { name: 'Browser' }, credential: { mod: 'browser', permissions: [] } });
 
     // While the app is not in front, the system shows it.
     const first = await calendar.post({

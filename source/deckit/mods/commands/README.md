@@ -67,7 +67,7 @@ Every call needs `deckit.system-services`: a client that does not hold it is con
 | `COMMAND` | the mod declares no such command, or for `run` its exports for its id have no `runCommand` |
 | `ARGUMENTS` | for `run` `args` do not fit its `params`, for `complete` its `params` have no `param`; or `args` hold a function |
 
-A mod that `run` does not reach rejects with the reach's kind and stage: at `launch` one the system does not launch (`NOT_INSTALLED`, `NOT_LOADABLE`, `RELAUNCH_LIMIT`) or one whose run failed (`NOT_LAUNCHED`, `TIMED_OUT`), at `call` one that opens no exports for its id (`NOT_EXPORTED`) or a reach the core refuses (`REFUSED`, `NOT_UP`). A throw of the command or of its completion is handed to the client as the mod threw it, with its `kind`, and a completion that answers no list, or a function in one, rejects. A mod running a command of its own calls its own code, and needs nothing of Commands.
+A mod that `run` does not reach rejects with the reach's kind and stage: at `launch` one the system does not launch (`NOT_INSTALLED`, `NOT_LOADABLE`, `RELAUNCH_LIMIT`) or one whose run failed (`NOT_LAUNCHED`, `TIMED_OUT`), at `call` one that opens no exports for its id (`NOT_EXPORTED`), one whose service refuses the connection (the kind it refuses with, or `REFUSED`), or a reach of a lifecycle that has ended (`ENDED`). A throw of the command or of its completion is handed to the client as the mod threw it, with its `kind`, and a completion that answers no list, or a function in one, rejects. A mod running a command of its own calls its own code, and needs nothing of Commands.
 
 ## What a mod answers
 

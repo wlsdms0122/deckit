@@ -22,13 +22,13 @@ function runs(forge) {
     return { dispatch, runSchedule, run, forget };
 
     async function dispatch(connection, session, name, inputs, onRun) {
-        const accepted = await forge.call(session, 'workflow.dispatch', { name, inputs }, connection.mod.id);
+        const accepted = await forge.call(session, 'workflow.dispatch', { name, inputs }, connection.credential.mod);
         claim(connection, accepted.workflow_id, onRun);
         return { id: MARK + accepted.workflow_id, ...accepted };
     }
 
     async function runSchedule(connection, session, id, onRun) {
-        const accepted = await forge.runSchedule(session, id, connection.mod.id);
+        const accepted = await forge.runSchedule(session, id, connection.credential.mod);
         claim(connection, accepted.workflow_id, onRun);
         return { id: MARK + accepted.workflow_id, ...accepted };
     }
@@ -38,7 +38,7 @@ function runs(forge) {
     async function run(connection, handle, onRun) {
         if (typeof handle !== 'string' || !handle.startsWith(MARK)) return null;
         const id = handle.slice(MARK.length);
-        if (owners.get(id) !== connection.mod.id) return null;
+        if (owners.get(id) !== connection.credential.mod) return null;
         if (onRun) listen(connection, id, onRun);
         const found = await forge.run(id);
         if (found?.status !== 'running') drop(connection, id);
@@ -51,7 +51,7 @@ function runs(forge) {
     }
 
     function claim(connection, id, onRun) {
-        owners.set(id, connection.mod.id);
+        owners.set(id, connection.credential.mod);
         if (onRun) listen(connection, id, onRun);
         const change = early.get(id);
         early.delete(id);

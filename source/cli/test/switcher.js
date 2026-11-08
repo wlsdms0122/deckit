@@ -54,7 +54,8 @@ async function main() {
         mods: { list: () => [], open: async () => {} },
         windows: { open: () => ({ close: () => {} }) },
     };
-    const given = new Map([[{ mod: { id: 'a', name: 'A' } }, { list: () => [{ label: 'Set', value: 1 }] }]]);
+    const connection = { mod: { name: 'A' }, credential: { mod: 'a', permissions: [] } };
+    const given = new Map([[connection, { list: () => [{ label: 'Set', value: 1 }] }]]);
     const list = switcher(shell, deckit, given, { commands: () => commands });
 
     await list.show();

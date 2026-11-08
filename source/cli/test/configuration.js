@@ -94,7 +94,7 @@ async function main() {
     };
 
     const settings = configuration(deckit);
-    const connection = (id, permissions) => ({ mod: mod(id), credential: { mod: id, permissions } });
+    const connection = (id, permissions) => ({ mod: { name: mod(id).name }, credential: { mod: id, permissions } });
     const settingsConnection = connection('settings', ['deckit.system-services']);
     const system = settings.exportsFor(settingsConnection);
     const editorConnection = connection('editor', []);

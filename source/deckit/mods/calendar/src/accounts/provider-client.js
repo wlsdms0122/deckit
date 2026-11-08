@@ -40,7 +40,7 @@ function providerClient({ records, onSigningIn, prompt }) {
     }
 
     function providers() {
-        return Object.fromEntries([...given].map(([connection, provider]) => [connection.mod.id, provider]));
+        return Object.fromEntries([...given].map(([connection, provider]) => [connection.credential.mod, provider]));
     }
 
     function providerOf(account) {

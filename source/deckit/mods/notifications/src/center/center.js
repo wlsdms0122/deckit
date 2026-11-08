@@ -26,7 +26,7 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
     // MARK: - Public
     // The exports for a connection: what a sender posts is its own.
     function exportsFor(connection) {
-        const mod = { id: connection.mod.id, name: connection.mod.name };
+        const mod = { id: connection.credential.mod, name: connection.mod.name };
         return Object.freeze({
             post: (notification) => post(mod, notification),
             remove: async (id) => remove(id, { of: mod.id }),

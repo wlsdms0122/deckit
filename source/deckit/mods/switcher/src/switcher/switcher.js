@@ -179,7 +179,7 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
 
     // What each mod set, `[mod id, { list, now, search, run }]`.
     function currentSources() {
-        return [...given].map(([connection, source]) => [connection.mod.id, source]);
+        return [...given].map(([connection, source]) => [connection.credential.mod, source]);
     }
 
     function commandsOwner() {

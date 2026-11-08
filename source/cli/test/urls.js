@@ -173,7 +173,7 @@ async function main() {
     exportsOf.set('stuck', { openURL: () => new Promise(() => {}) });
 
     const urls = router(deckit);
-    const connection = (id, permissions) => ({ mod: mod(id), credential: { mod: id, permissions } });
+    const connection = (id, permissions) => ({ mod: { name: mod(id).name }, credential: { mod: id, permissions } });
     const settings = urls.exportsFor(connection('settings', ['deckit.system-services']));
     const plain = urls.exportsFor(connection('note', []));
     const opener = urls.exportsFor(connection('finder', ['system.file-handlers']));

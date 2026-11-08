@@ -173,7 +173,7 @@ async function main() {
             },
         },
     });
-    const connection = (id, permissions) => ({ mod: mod(id, id), credential: { mod: id, permissions } });
+    const connection = (id, permissions) => ({ mod: { name: id }, credential: { mod: id, permissions } });
 
     const keymapped = keymap(deckitOf());
     const settings = keymapped.exportsFor(connection('settings', ['deckit.system-services']));

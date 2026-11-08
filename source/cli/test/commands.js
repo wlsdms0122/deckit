@@ -133,7 +133,7 @@ async function main() {
 
     const commands = registry(deckit);
     const credential = (permissions) => ({
-        mod: { id: 'switcher', name: 'Switcher' },
+        mod: { name: 'Switcher' },
         credential: { mod: 'switcher', permissions },
     });
     const outsider = commands.exportsFor(credential(['deckit.mods']));

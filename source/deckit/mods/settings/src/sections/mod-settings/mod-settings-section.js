@@ -83,7 +83,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
     function buttonsOf() {
         return Promise.all(
             [...sources].map(async ([connection, source]) => {
-                const mod = connection.mod.id;
+                const mod = connection.credential.mod;
                 try {
                     const listed = typeof source.list === 'function' ? await source.list() : [];
                     return [mod, (Array.isArray(listed) ? listed : []).map((action) => buttonOf(mod, action))];
@@ -241,7 +241,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
                 answer.hidden = true;
                 let text = '';
                 try {
-                    const source = [...sources].find(([connection]) => connection.mod.id === mod)?.[1];
+                    const source = [...sources].find(([connection]) => connection.credential.mod === mod)?.[1];
                     if (typeof source?.run !== 'function') throw new Error(`${nameOf(mod)} is not running`);
                     const said = await source.run(value);
                     text = typeof said === 'string' ? said : '';
