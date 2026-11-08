@@ -1,7 +1,7 @@
 // The Notifications mod's center (mods/notifications/src/center/center.js) over a stand-in for deckit: what a sender
 // posts through its connection is listed, signalled and kept, removed only by its sender, let through at the rate and
 // queued behind the toasts on screen, shown as the system's while the app is not in front, and a press runs the
-// sender's token and releases it. Then a sender, Calendar's notices, with an owner to post to and with none. Exits 1
+// sender's command through deckit/commands. Then a sender, Calendar's notices, with an owner to post to and with none. Exits 1
 // with a line for each check that failed.
 const path = require('path');
 
@@ -24,8 +24,7 @@ async function main() {
     let active = false;
     const records = new Map();
     const emitted = [];
-    const ran = [];
-    const released = [];
+    const ran = []; // [mod, command, args]
     const system = []; // { title, press }
     const deckit = {
         storage: {
@@ -36,12 +35,6 @@ async function main() {
         },
         events: { emit: (name, ...args) => emitted.push([name, ...args]) },
         active: async () => active,
-        commands: {
-            tokens: {
-                run: async (token) => (ran.push(token), null),
-                release: async (token) => released.push(token),
-            },
-        },
         notifications: {
             show: async ({ title }) => {
                 const shown = { title, press: null };
@@ -50,17 +43,24 @@ async function main() {
             },
         },
     };
-    const sut = center(deckit, { now: () => time });
+    const commands = { run: async (mod, command, args) => (ran.push([mod, command, args]), null) };
+    const sut = center(deckit, { commands: () => commands, now: () => time });
+    const json = (value) => JSON.stringify(value);
     const calendar = sut.exportsFor({ mod: { id: 'calendar', name: 'Calendar' } });
     const browser = sut.exportsFor({ mod: { id: 'browser', name: 'Browser' } });
 
     // While the app is not in front, the system shows it.
-    const first = await calendar.post({ title: 'Standup', body: 'in 5 min', token: 'token-1' });
+    const first = await calendar.post({
+        title: 'Standup',
+        body: 'in 5 min',
+        command: 'show-date',
+        args: { date: '2026-11-06' },
+    });
     await ticks();
     const listed = await browser.list();
     check(
-        'a post is listed for any sender, with its sender, and without its token',
-        listed.length === 1 && listed[0].id === first && listed[0].mod.name === 'Calendar' && !('token' in listed[0]),
+        'a post is listed for any sender, with its sender, and without its command',
+        listed.length === 1 && listed[0].id === first && listed[0].mod.name === 'Calendar' && !('command' in listed[0]),
         listed
     );
     check(
@@ -73,24 +73,35 @@ async function main() {
 
     system[0].press();
     await ticks();
-    check('a press on the system’s runs the sender’s token', ran.join() === 'token-1', ran);
-    check('a press releases the token once it ran', released.join() === 'token-1', released);
+    check(
+        'a press on the system’s runs the sender’s command with its args',
+        json(ran) === json([['calendar', 'show-date', { date: '2026-11-06' }]]),
+        ran
+    );
     check('a pressed notification is taken away', (await calendar.list()).length === 0, await calendar.list());
 
     // Removing is the sender's own.
     const second = await calendar.post({
         title: 'Review',
-        token: 'token-2',
-        actions: [{ title: 'Snooze', token: 'token-3' }],
+        command: 'review',
+        actions: [{ title: 'Snooze', command: 'snooze', args: { minutes: 5 } }],
     });
     await ticks();
     check('another sender does not remove it', (await browser.remove(second)) === false, null);
     check('its sender removes it', (await calendar.remove(second)) === true, null);
-    check('a removal releases its tokens', released.slice(1).join() === 'token-2,token-3', released);
+    check('a removal runs nothing', ran.length === 1, ran);
     check(
         'a removal is signalled as removed',
         emitted.some(([name, id]) => name === 'deckit/notifications:removed' && id === second),
         emitted
+    );
+    check(
+        'an action that names no command is refused',
+        await browser.post({ title: 'x', actions: [{ title: 'Open' }] }).then(
+            () => false,
+            () => true
+        ),
+        null
     );
     check(
         'a post with neither title nor body is refused',
@@ -121,7 +132,13 @@ async function main() {
     const posts = [];
     for (let index = 0; index < TOASTS + 1; index++) {
         time += RATE.within;
-        posts.push(await calendar.post({ title: `t${index}`, token: `toast-${index}` }));
+        posts.push(
+            await calendar.post({
+                title: `t${index}`,
+                command: 'show',
+                actions: [{ title: 'Snooze', command: 'snooze', args: { minutes: index } }],
+            })
+        );
     }
     await ticks(20);
     check(
@@ -133,8 +150,18 @@ async function main() {
     await ticks();
     check('a toast gone lets the queued one out', drawn.at(-1) === posts[TOASTS], drawn);
     await sut.press(posts[1]);
-    check('a press on a toast runs its token', ran.at(-1) === 'toast-1', ran);
+    check(
+        'a press on a toast runs its command, `{}` for no args',
+        json(ran.at(-1)) === json(['calendar', 'show', {}]),
+        ran
+    );
     check('a pressed toast is taken off the screen', hidden.includes(posts[1]), hidden);
+    await sut.press(posts[2], 0);
+    check(
+        'a press on an action runs its own command',
+        json(ran.at(-1)) === json(['calendar', 'snooze', { minutes: 2 }]),
+        ran
+    );
 
     // A sender, Calendar's notices: none is posted while no owner is connected, and one is once an owner is, with a
     // token of its own command; a post the owner's ended connection rejects gives its token back.
