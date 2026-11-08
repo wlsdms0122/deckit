@@ -89,10 +89,15 @@ export function createPage({ deckit, pages }) {
         );
     }
 
+    // The surface named `name` the page has open, or null.
+    function surfaceOf(page, name) {
+        return openable.get(page)?.opened.get(name) ?? null;
+    }
+
     // The paths of the files last dropped on the page from outside the app.
     function droppedFiles(page) {
         return isAlive(page) ? pages.droppedFiles(page) : [];
     }
 
-    return { open, allowSurface, isAlive, focus, close, whenFocused, droppedFiles };
+    return { open, allowSurface, isAlive, focus, close, whenFocused, surfaceOf, droppedFiles };
 }

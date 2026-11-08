@@ -28,22 +28,28 @@ export function createDrop({ deliver, channels }) {
 
     // MARK: - Private
     // A drag over a child of the element enters the child before it leaves the element, so the element is over while
-    // it has entered more than it has left. A drop ends the drag wherever it lands. Once off, the destination tells
-    // nothing more, a drop it took before included.
+    // it has entered more than it has left. A drop ends the drag wherever it lands in the document the element is in
+    // then, the page's or a surface it opened. Once off, the destination tells nothing more, a drop it took before
+    // included.
     function make(element, { onDrop, onTargeted }, scope) {
         let entered = 0;
         let live = true;
+        let over = null; // the window of the document the drag is over the element in
         const target = (on) => onTargeted && deliver('dropDestination() onTargeted()', onTargeted, on);
         const end = () => {
             if (!entered) return;
             entered = 0;
+            over.removeEventListener('drop', end, true);
             target(false);
         };
         const listeners = {
             dragenter: (event) => {
                 if (!carriesFiles(event)) return;
                 event.preventDefault();
-                if (entered++ === 0) target(true);
+                if (entered++ > 0) return;
+                over = element.ownerDocument.defaultView;
+                over.addEventListener('drop', end, true);
+                target(true);
             },
             dragover: (event) => {
                 if (!carriesFiles(event)) return;
@@ -52,7 +58,8 @@ export function createDrop({ deliver, channels }) {
             },
             dragleave: (event) => {
                 if (!carriesFiles(event) || !entered) return;
-                if (--entered === 0) target(false);
+                if (entered === 1) end();
+                else entered--;
             },
             drop: (event) => {
                 if (!carriesFiles(event) || !event.isTrusted) return;
@@ -60,19 +67,19 @@ export function createDrop({ deliver, channels }) {
                 event.stopPropagation();
                 const box = element.getBoundingClientRect();
                 const at = { x: event.clientX - box.left, y: event.clientY - box.top };
+                const view = element.ownerDocument.defaultView;
+                const surface = view === window ? null : view.name;
                 end();
                 deliver('dropDestination() onDrop()', async () => {
-                    const paths = await PROTOCOL.files.invoke();
+                    const paths = await PROTOCOL.files.invoke({ surface });
                     if (live && paths.length) await onDrop(paths, at);
                 });
             },
         };
         for (const [type, listener] of Object.entries(listeners)) element.addEventListener(type, listener);
-        window.addEventListener('drop', end, true);
         return scope.add(() => {
             live = false;
             for (const [type, listener] of Object.entries(listeners)) element.removeEventListener(type, listener);
-            window.removeEventListener('drop', end, true);
             end();
         });
     }
