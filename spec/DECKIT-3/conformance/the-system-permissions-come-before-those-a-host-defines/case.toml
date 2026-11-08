@@ -6,7 +6,8 @@ note = "The system defines its own permissions before the host defines any, so a
 base = "system"
 api = "1.0.0"
 permissions = [{ id = "case.sync", name = "Sync", description = "Syncs the pages." }]
-sources = ["mod-a"]
+ship = ["mod-a"]
+system = ["mod-a"]
 
 [[step]]
 input = "start"
@@ -18,6 +19,6 @@ part = "permissions"
 
 [step.expect]
 answers = [
-    { id = "deckit.mods", reason = "Lists the mods.", usable = true, name = "Mods", description = "It can see every installed mod, launch and quit them, add one from a folder, which gets every permission it asks for, and delete installed ones, with what they stored.", privileged = false },
+    { id = "deckit.mods", reason = "Lists the mods.", usable = true, name = "Mods", description = "It can see every mod, launch and quit them, add one from a folder and delete installed ones, with what they stored.", privileged = true },
     { id = "case.sync", reason = "Syncs the pages.", usable = true, name = "Sync", description = "Syncs the pages.", privileged = false },
 ]

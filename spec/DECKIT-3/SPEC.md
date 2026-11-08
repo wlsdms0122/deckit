@@ -27,7 +27,7 @@ Whether `deckit.mods` is usable on every host, what it is listed as, and whether
 
 The same mod, granted nothing, asks that another mod launch. The check sits where the request is handled, inside the system, so a host cannot make two implementations agree on it: one could refuse with one kind, another with another, and a third could let it through.
 
-A host that defines `deckit.mods` itself gives one id two definitions, and which one a mod is granted cannot be left to each implementation either.
+A host that defines `deckit.mods` itself defines an id twice, which [the bundle](../DECKIT-2/SPEC.md) refuses as the host app starts. That holds alike only where every implementation defines the same ids.
 
 ## Rules
 
@@ -37,9 +37,9 @@ A mod is granted exactly the permissions that the system answers usable for the 
 
 ### A request a permission guards
 
-The DECKIT that fixes a request the system or a layer handles names the permission that guards it, where one does. A permission guards the requests named for it and no others.
+The DECKIT that fixes a request the system or a layer handles names the permission that guards it, where one does, and a host names those of the requests of its own interfaces. A request is guarded by one permission at most, and a permission guards the requests named for it and no others.
 
-A request a permission guards, made by a mod that is not granted that permission, is refused at `call` with kind `NOT_PERMITTED`, whichever of the system, a layer or the host defines the permission, and nothing of the request is done.
+A request a permission guards, made by a mod that is not granted that permission, is refused at `call` with kind `NOT_PERMITTED`, whichever of the system, a layer or the host defines the permission, and nothing of the request is done. The permission is checked before anything else of the request, so a mod not granted it is refused with `NOT_PERMITTED` whatever else the request would be refused with.
 
 ### The system's own permissions
 
@@ -47,7 +47,7 @@ The system defines these permissions, as [the bundle](../DECKIT-2/SPEC.md) defin
 
 | id | name | description | privileged |
 |---|---|---|---|
-| `deckit.mods` | `Mods` | `It can see every installed mod, launch and quit them, add one from a folder, which gets every permission it asks for, and delete installed ones, with what they stored.` | `false` |
+| `deckit.mods` | `Mods` | `It can see every mod, launch and quit them, add one from a folder and delete installed ones, with what they stored.` | `true` |
 | `deckit.reach-mods` | `Reach Mods` | `It connects to any mod by its id, which launches the mod if it does not run.` | `true` |
 | `deckit.system-services` | `System Services` | `It can act on other mods through the system's services: run their commands, change their keys and settings, and choose which mod opens an address.` | `true` |
 
@@ -74,4 +74,4 @@ The system's other DECKITs define permissions of their own, each in a table of t
 
 ## Notes
 
-**Note.** Three sentences above are held by no case under `conformance/`, and each waits on what will hold it. That a request a permission guards is refused, and that a host's requests are guarded by none, wait on the handle's DECKIT, which adds to [the case format](../DECKIT-1/SPEC.md) the input that hands a request: no input the format has now is one a permission guards. That the other DECKITs' permissions follow this table's waits on the first of them to define one.
+**Note.** Some sentences above are held by no case under `conformance/`, and each waits on what will hold it. That a request a permission guards is refused, before anything else of it, that a host's requests are guarded by none, that a request is guarded by one permission at most, and that a host names the guards of its own interfaces' requests wait on the handle's DECKIT, which adds to [the case format](../DECKIT-1/SPEC.md) the input that hands a request: no input the format has now is one a permission guards. That the other DECKITs' permissions follow this table's waits on the first of them to define one.

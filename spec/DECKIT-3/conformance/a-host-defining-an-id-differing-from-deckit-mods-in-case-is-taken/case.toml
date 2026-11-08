@@ -1,0 +1,11 @@
+case = 1
+name = "a-host-defining-an-id-differing-from-deckit-mods-in-case-is-taken"
+note = "Two permission ids are one id only when they are the same sequence of Unicode scalar values, so a host that defines deckit.Mods does not define the system's deckit.mods a second time, and starts."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "deckit.Mods", name = "Mods", description = "Manages the mods." }]
+
+[[step]]
+input = "start"
