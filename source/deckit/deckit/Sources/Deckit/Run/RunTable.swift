@@ -13,28 +13,33 @@ public final class RunTable {
     // MARK: - Property
     // Mod id -> the entry of its latest run.
     private var entries: [String: RunEntry] = [:]
+    // Mod id -> the entry of the run before its latest: what is told of a run as the next one begins is still its own.
+    private var previous: [String: RunEntry] = [:]
 
     // MARK: - Initializer
     init() {}
 
     // MARK: - Public
-    // The entry of `run`, while it is its mod's latest.
+    // The entry of `run`, while it is its mod's latest or the one before.
     public func entry(of run: Run) -> RunEntry? {
-        guard let entry = entries[run.modId], entry.number == run.number else { return nil }
-        return entry
+        [entries[run.modId], previous[run.modId]].compactMap { entry in entry }.first { entry in
+            entry.number == run.number
+        }
     }
 
     func begin(_ run: Run) {
+        previous[run.modId] = entries[run.modId]
         entries[run.modId] = RunEntry(number: run.number)
     }
 
-    func limitRelaunch(_ run: Run) {
-        update(run) { entry in entry.relaunchLimited = true }
+    func timeOut(_ run: Run) {
+        update(run) { entry in entry.timedOut = true }
     }
 
     // MARK: - Private
+    // The entry of `run`, while it is its mod's latest.
     private func update(_ run: Run, _ change: (inout RunEntry) -> Void) {
-        guard var entry = entry(of: run) else { return }
+        guard var entry = entries[run.modId], entry.number == run.number else { return }
         change(&entry)
         entries[run.modId] = entry
     }

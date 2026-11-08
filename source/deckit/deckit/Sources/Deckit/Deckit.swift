@@ -112,13 +112,24 @@ public final class Deckit {
 
     // The mod `id` launches as asked: what it failed before is forgotten first, which takes it off the relaunch
     // limit. `asker` is the mod that asks, refused unless it is granted `deckit.mods`; with none, nothing is checked.
+    // Refused for an id no mod is listed under, and for one whose mod does not load, as the catalog was last read.
     public func launch(_ id: String, by asker: String?) throws -> [Effect] {
-        if let asker, !(deck.job(of: asker)?.permissions.contains(Deckit.mods.id) ?? false) {
-            throw LaunchError.notPermitted(mod: asker, permission: Deckit.mods.id)
-        }
+        try permit(asker)
+        try listed(id)
         limit.reset(id)
 
         return try observed(deck.load(jobs(of: [id])))
+    }
+
+    // The mod `id` quits as asked, as `unload` unloads it. `asker` is refused as `launch` refuses it, and so is an id
+    // no mod is listed under.
+    public func quit(_ id: String, by asker: String?) throws -> [Effect] {
+        try permit(asker)
+        guard catalog.lastRead.contains(where: { mod in mod.manifest.id == id }) else {
+            throw LaunchError.notInstalled(id)
+        }
+
+        return try unload([id])
     }
 
     // The mods named unload: a sandbox whose run has ended closes once the catalog no longer has its mod as it runs it.
@@ -149,6 +160,30 @@ public final class Deckit {
         try observed(deck.notStarted(id, run: run, problem: problem))
     }
 
+    // The `run`th run of `id`, launching, has not started in time: it fails to launch, timed out.
+    public func timedOut(_ id: String, run number: Int) throws -> [Effect] {
+        guard let run = deck.run(of: id), run.number == number, run.state == .launching else { return [] }
+        runs.timeOut(run)
+
+        return try observed(deck.notStarted(id, run: number, problem: "its code did not start in time"))
+    }
+
+    // What `run` is refused with at launch once it has ended, the first that is so: its mod at the relaunch limit, it
+    // timed out, it did not launch. Nil while it has not ended, and for one that ended otherwise.
+    public func refusal(of run: Run) -> LaunchError? {
+        guard run.state == .notRunning, let entry = runs.entry(of: run) else { return nil }
+        if limit.isReached(by: run.modId) {
+            return .relaunchLimit(run.modId)
+        }
+        let problem = run.problem ?? ""
+        if entry.timedOut {
+            return .timedOut(mod: run.modId, problem: problem)
+        }
+        guard run.failed, run.contributions == nil else { return nil }
+
+        return .notLaunched(mod: run.modId, problem: problem)
+    }
+
     public func crashed(_ id: String, run: Int, problem: String) throws -> [Effect] {
         try observed(deck.crashed(id, run: run, problem: problem))
     }
@@ -174,6 +209,20 @@ public final class Deckit {
     }
 
     // MARK: - Private
+    private func permit(_ asker: String?) throws {
+        guard let asker, !(deck.job(of: asker)?.permissions.contains(Deckit.mods.id) ?? false) else { return }
+        throw LaunchError.notPermitted(mod: asker, permission: Deckit.mods.id)
+    }
+
+    // Refused for an id no mod is listed under, and for one whose mod does not load.
+    private func listed(_ id: String) throws {
+        guard let mod = catalog.lastRead.first(where: { mod in mod.manifest.id == id }) else {
+            throw LaunchError.notInstalled(id)
+        }
+        guard let problem = mod.problem else { return }
+        throw ModFolderError.notLoadable((problem as? any Refusal)?.message ?? problem.localizedDescription)
+    }
+
     // The jobs of the mods named that load, as the catalog was last read and in its order, but for those at the
     // relaunch limit.
     private func jobs(of ids: [String]) -> [Job] {
@@ -199,9 +248,9 @@ public final class Deckit {
                 case let .tell(.willLaunch, run):
                     runs.begin(run)
 
-                case let .tell(.didTerminate, run):
-                    if run.failed, limit.fail(run.modId, at: now()) {
-                        runs.limitRelaunch(run)
+                case let .tell(_, run) where run.state == .notRunning:
+                    if run.failed {
+                        limit.fail(run.modId, at: now())
                     }
                     if run.failed, isBackground(run.modId) {
                         launching.append(run.modId)

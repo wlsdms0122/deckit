@@ -10,7 +10,8 @@ import Deck
 import Deckit
 
 // Each as `effect`, its name, with the mod's id as `mod` and a run's number as `run`, as main names them in what it
-// asks; the mod a sandbox opens for is `found`, as the catalog reads it. A run's `contributions` are deck's keys. An
+// asks; the mod a sandbox opens for is `found`, as the catalog reads it. A run's `contributions` are deck's keys, and
+// what it is refused with at launch is `refusal`, `{ stage, kind, message }`, `stage` "launch". An
 // event delivered is `name` and `listeners`, as `event/emit` answers it. A lifecycle that waits is `wait`, with the
 // mod it waits for as `mod`, the name it reaches it by as `name` and itself as `client`.
 extension EffectAnswer: Encodable {
@@ -23,12 +24,18 @@ extension EffectAnswer: Encodable {
         case run
         case state
         case failed
-        case relaunchLimited
+        case refusal
         case problem
         case contributions
         case connection
         case name
         case client
+    }
+
+    private enum RefusalKeys: String, CodingKey {
+        case stage
+        case kind
+        case message
     }
 
     // MARK: - Initializer
@@ -93,7 +100,12 @@ extension EffectAnswer: Encodable {
         try container.encode(run.number, forKey: .run)
         try container.encode(run.state, forKey: .state)
         try container.encode(run.failed, forKey: .failed)
-        try container.encode(entry?.relaunchLimited ?? false, forKey: .relaunchLimited)
+        if let refusal {
+            var refused = container.nestedContainer(keyedBy: RefusalKeys.self, forKey: .refusal)
+            try refused.encode("launch", forKey: .stage)
+            try refused.encodeIfPresent(refusal.kind, forKey: .kind)
+            try refused.encode(refusal.message, forKey: .message)
+        }
         try container.encodeIfPresent(run.problem, forKey: .problem)
         try container.encodeIfPresent(run.contributions, forKey: .contributions)
     }

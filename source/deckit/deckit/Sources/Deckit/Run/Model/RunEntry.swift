@@ -11,8 +11,8 @@ import Foundation
 public struct RunEntry: Sendable {
     // MARK: - Property
     public let number: Int
-    // Whether its mod reached the relaunch limit as it failed.
-    public internal(set) var relaunchLimited = false
+    // Whether its code did not start in time.
+    public internal(set) var timedOut = false
 
     // MARK: - Initializer
     init(number: Int) {

@@ -9,13 +9,13 @@ import Foundation
 import Deck
 import Deckit
 
-// An effect as the driver reads it: deck's, with the mod a sandbox opens for as the catalog reads it and what deckit
-// keeps of a run.
+// An effect as the driver reads it: deck's, with the mod a sandbox opens for as the catalog reads it and what a run is
+// refused with at launch.
 struct EffectAnswer {
     // MARK: - Property
     let effect: Effect
     let found: Mod?
-    let entry: RunEntry?
+    let refusal: LaunchError?
 
     // MARK: - Initializer
     init(_ effect: Effect, of deckit: Deckit) {
@@ -23,15 +23,15 @@ struct EffectAnswer {
         switch effect {
         case let .open(job):
             found = deckit.catalog.loading.first { mod in mod.manifest.id == job.modId }
-            entry = nil
+            refusal = nil
 
         case let .tell(_, run), let .keep(run):
             found = nil
-            entry = deckit.runs.entry(of: run)
+            refusal = deckit.refusal(of: run)
 
         default:
             found = nil
-            entry = nil
+            refusal = nil
         }
     }
 

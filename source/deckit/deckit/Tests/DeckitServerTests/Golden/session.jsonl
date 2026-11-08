@@ -50,6 +50,8 @@
 {"id":51,"jsonrpc":"2.0","method":"runner/problem","params":{"mod":"a","problem":"slow","run":1}}
 {"id":52,"jsonrpc":"2.0","method":"runner/crash","params":{"mod":"b","problem":"gone","run":1}}
 {"id":53,"jsonrpc":"2.0","method":"runner/not-started","params":{"mod":"d","problem":"threw","run":1}}
+{"id":120,"jsonrpc":"2.0","method":"runner/quit","params":{"mod":"x"}}
+{"id":121,"jsonrpc":"2.0","method":"runner/timed-out","params":{"mod":"d","run":1}}
 {"id":54,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a"]}}
 {"id":55,"jsonrpc":"2.0","method":"runner/stopped","params":{"mod":"a","run":1}}
 {"id":102,"jsonrpc":"2.0","method":"connection/reach","params":{"lifecycle":0,"mod":"c","run":1,"target":"a"}}

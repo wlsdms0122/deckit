@@ -72,6 +72,18 @@ extension Refusal {
             switch error {
             case .notPermitted:
                 "NOT_PERMITTED"
+
+            case .notInstalled:
+                "NOT_INSTALLED"
+
+            case .relaunchLimit:
+                "RELAUNCH_LIMIT"
+
+            case .timedOut:
+                "TIMED_OUT"
+
+            case .notLaunched:
+                "NOT_LAUNCHED"
             }
 
         case let error as DeclarationError:

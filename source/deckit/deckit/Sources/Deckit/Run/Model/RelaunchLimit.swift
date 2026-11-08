@@ -29,14 +29,13 @@ public struct RelaunchLimit: Sendable {
         reached.contains(id)
     }
 
-    // A run of the mod failed at `date`. Answers whether the mod reached the limit by it.
-    mutating func fail(_ id: String, at date: Date) -> Bool {
+    // A run of the mod failed at `date`.
+    mutating func fail(_ id: String, at date: Date) {
         let recent = (failures[id] ?? []).filter { failure in date.timeIntervalSince(failure) < interval } + [date]
         failures[id] = recent
-        guard recent.count >= burst else { return false }
+        guard recent.count >= burst else { return }
 
         reached.insert(id)
-        return true
     }
 
     // What the mod failed before is forgotten.

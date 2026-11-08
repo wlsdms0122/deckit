@@ -51,7 +51,66 @@ struct DeckitTests {
         let ended = try #require(sut.deck.run(of: "b"))
         #expect(ended.number == 2)
         #expect(ended.state == .notRunning)
-        #expect(sut.runs.entry(of: ended)?.relaunchLimited == true)
+        #expect(sut.refusal(of: ended) == .relaunchLimit("b"))
+    }
+
+    @Test("a background mod whose launch fails launches again at once, and its run is refused as it did not launch")
+    func failedLaunchLaunchesAgain() throws {
+        // Given
+        try fixture.write("b", background: "to sync")
+        let sut = try fixture.deckit()
+        _ = try sut.start()
+
+        // When
+        let effects = try sut.notStarted("b", run: 1, problem: "threw")
+
+        // Then
+        #expect(launches(in: effects) == ["b"])
+        let failed = try #require(effects.compactMap { effect -> Run? in
+            guard case let .tell(.didFailToLaunch, run) = effect else { return nil }
+            return run
+        }.first)
+        #expect(failed.state == .notRunning)
+        #expect(sut.refusal(of: failed) == .notLaunched(mod: "b", problem: "threw"))
+        #expect(try sut.refusal(of: #require(sut.deck.run(of: "b"))) == nil)
+    }
+
+    @Test("a run whose code does not start in time fails to launch, timed out, and one that launched is not timed out")
+    func launchTimesOut() throws {
+        // Given
+        try fixture.write("a")
+        try fixture.write("b")
+        let sut = try fixture.deckit()
+        _ = try sut.load(["a", "b"])
+        _ = try sut.started("b", run: 1, contributions: Contribution(exportedIn: [:], awaits: [:]))
+
+        // When
+        _ = try sut.timedOut("a", run: 1)
+        let late = try sut.timedOut("b", run: 1)
+
+        // Then
+        let run = try #require(sut.deck.run(of: "a"))
+        #expect(run.state == .notRunning)
+        #expect(sut.refusal(of: run) == .timedOut(mod: "a", problem: "its code did not start in time"))
+        #expect(late.isEmpty)
+        #expect(try #require(sut.deck.run(of: "b")).state == .running)
+    }
+
+    @Test("a launch or a quit of an id no mod is listed under is refused, and a launch of a mod that does not load")
+    func launchOfUnknownIdIsRefused() throws {
+        // Given
+        try fixture.write("bad", api: "9.0.0")
+        let sut = try fixture.deckit()
+
+        // When
+        let unknown = #expect(throws: LaunchError.self) { try sut.launch("x", by: nil) }
+        let quit = #expect(throws: LaunchError.self) { try sut.quit("x", by: nil) }
+        let refused = #expect(throws: ModFolderError.self) { try sut.launch("bad", by: nil) }
+
+        // Then
+        #expect(unknown == .notInstalled("x"))
+        #expect(quit == .notInstalled("x"))
+        #expect(refused != nil)
     }
 
     @Test("a failed run of a mod that does not run in the background does not launch again")

@@ -180,6 +180,10 @@ final class Server {
         case "runner/unload":
             return answered(try deckit.unload(request.decodeParams(as: ModsParams.self).mods), by: deckit)
 
+        case "runner/quit":
+            let params = try request.decodeParams(as: LaunchParams.self)
+            return answered(try deckit.quit(params.mod, by: params.by), by: deckit)
+
         case "runner/started":
             let params = try request.decodeParams(as: StartedParams.self)
             let effects = try deckit.started(params.mod, run: params.run, contributions: params.contributions)
@@ -197,6 +201,10 @@ final class Server {
         case "runner/not-started":
             let params = try request.decodeParams(as: RunProblemParams.self)
             return answered(try deckit.notStarted(params.mod, run: params.run, problem: params.problem), by: deckit)
+
+        case "runner/timed-out":
+            let params = try request.decodeParams(as: RunParams.self)
+            return answered(try deckit.timedOut(params.mod, run: params.run), by: deckit)
 
         case "runner/crash":
             let params = try request.decodeParams(as: RunProblemParams.self)
