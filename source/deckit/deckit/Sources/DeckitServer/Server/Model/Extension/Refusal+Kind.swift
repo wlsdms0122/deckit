@@ -31,10 +31,10 @@ extension Refusal {
             case .notAnEnd:
                 "NOT_AN_END"
 
-            case .notUp:
+            case .lifecycleEnded:
                 "NOT_UP"
 
-            case .outOfReach:
+            case .ownId, .outOfReach:
                 "REFUSED"
 
             case .notExported:

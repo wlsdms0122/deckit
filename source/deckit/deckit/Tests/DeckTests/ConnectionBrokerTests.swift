@@ -275,23 +275,27 @@ struct ConnectionBrokerTests {
         #expect(begunAgain.isEmpty)
     }
 
-    @Test("an ask to reach an id the job may not reach, its own, or from a lifecycle not up is refused")
+    @Test("an ask to reach an id the job may not reach, its own, or from a lifecycle that has ended is refused")
     func askOutsideReachesIsRefused() throws {
         // Given
         try start(.fixture("dep"), exportedIn: ["dep": 0])
         try start(.fixture("a", reaches: .only(["dep"])))
         try start(.fixture("e", reaches: .every))
+        _ = try sut.begin(principal: "a", run: 1, lifecycle: 1)
+        sut.end(principal: "a", run: 1, lifecycle: 1)
 
         // When
         let outside = Result { try sut.reach("b", from: Endpoint(principal: "a", run: 1, lifecycle: 0)) }
         let own = Result { try sut.reach("e", from: Endpoint(principal: "e", run: 1, lifecycle: 0)) }
-        let notUp = Result { try sut.reach("dep", from: Endpoint(principal: "a", run: 1, lifecycle: 1)) }
+        let ended = Result { try sut.reach("dep", from: Endpoint(principal: "a", run: 1, lifecycle: 1)) }
         let notRunning = Result { try sut.reach("dep", from: Endpoint(principal: "x", run: 1, lifecycle: 0)) }
 
         // Then
         #expect(throws: ConnectionError.outOfReach(principal: "b", client: "a")) { try outside.get() }
-        #expect(throws: ConnectionError.outOfReach(principal: "e", client: "e")) { try own.get() }
-        #expect(throws: ConnectionError.notUp(Endpoint(principal: "a", run: 1, lifecycle: 1))) { try notUp.get() }
+        #expect(throws: ConnectionError.ownId("e")) { try own.get() }
+        #expect(throws: ConnectionError.lifecycleEnded(Endpoint(principal: "a", run: 1, lifecycle: 1))) {
+            try ended.get()
+        }
         #expect(throws: ConnectionError.notRunning("x")) { try notRunning.get() }
         #expect(sut.changes().isEmpty)
     }

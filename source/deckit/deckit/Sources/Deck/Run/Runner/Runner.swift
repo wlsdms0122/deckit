@@ -37,32 +37,32 @@ final class Runner {
         sandbox(of: id)?.run
     }
 
-    // Each job launches, in the order given, its page loaded anew. One whose principal's run has not ended is left as
-    // it is. One of another revision than its principal's sandbox launches in a new sandbox.
+    // Each job launches, in the order given, its page loaded anew. One whose principal's run launches or runs is left
+    // as it is, and one whose run terminates launches once that run has ended. One of another revision than its
+    // principal's sandbox launches in a new sandbox.
     func load(_ jobs: [Job]) throws -> [Effect] {
         try decide {
             for job in jobs {
-                let sandbox = sandbox(of: job.principal)
-                guard (sandbox?.state ?? .notRunning) == .notRunning else { continue }
+                switch sandbox(of: job.principal)?.state ?? .notRunning {
+                case .notRunning:
+                    start(job)
 
-                let run = nextRun(of: job.principal)
-                if let sandbox, sandbox.job.revision == job.revision {
-                    sandbox.run = run
-                    launch(sandbox)
-                } else {
-                    if let sandbox {
-                        close(sandbox)
-                    }
-                    open(job, run: run)
+                case .terminating:
+                    sandbox(of: job.principal)?.next = job
+
+                case .launching, .running:
+                    break
                 }
             }
         }
     }
 
-    // Each principal named whose run has not ended terminates, and the sandbox of one whose run has ended closes.
+    // Each principal named whose run has not ended terminates, and the sandbox of one whose run has ended closes. A
+    // job kept to launch once a run ends is dropped.
     func unload(_ ids: [String]) throws -> [Effect] {
         try decide {
             for sandbox in sandboxes where ids.contains(sandbox.job.principal) {
+                sandbox.next = nil
                 if sandbox.state == .notRunning {
                     close(sandbox)
                 } else {
@@ -116,16 +116,38 @@ final class Runner {
     }
 
     // MARK: - Private
-    // What one fact comes to. A terminating run's end is asked once.
+    // What one fact comes to. A job kept while a run terminated launches once that run has ended, and a terminating
+    // run's end is asked once.
     private func decide(_ fact: () throws -> Void) throws -> [Effect] {
         effects = []
         try fact()
+        for sandbox in sandboxes where sandbox.state == .notRunning {
+            guard let job = sandbox.next else { continue }
+            sandbox.next = nil
+            start(job)
+        }
         for sandbox in sandboxes where sandbox.state == .terminating && !sandbox.stopAsked {
             sandbox.stopAsked = true
             effects.append(.stop(principal: sandbox.job.principal, number: sandbox.run.number))
         }
 
         return effects
+    }
+
+    // The job's principal, whose run has ended or which has no sandbox, launches the job, in a new sandbox where its
+    // sandbox runs another revision.
+    private func start(_ job: Job) {
+        let sandbox = sandbox(of: job.principal)
+        let run = nextRun(of: job.principal)
+        if let sandbox, sandbox.job.revision == job.revision {
+            sandbox.run = run
+            launch(sandbox)
+        } else {
+            if let sandbox {
+                close(sandbox)
+            }
+            open(job, run: run)
+        }
     }
 
     private func open(_ job: Job, run: Run) {

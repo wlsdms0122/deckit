@@ -14,6 +14,8 @@ final class Sandbox {
     // Its latest run.
     var run: Run
     var stopAsked = false
+    // The job to launch once its run has ended, asked while it terminated.
+    var next: Job?
     var state: RunState {
         run.state
     }

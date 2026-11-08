@@ -19,7 +19,7 @@
 {"id":85,"jsonrpc":"2.0","result":[]}
 {"error":{"code":-32803,"data":{"kind":"NOT_PERMITTED","stage":"call"},"message":"b does not have the deckit.reach-mods permission"},"id":97,"jsonrpc":"2.0"}
 {"id":98,"jsonrpc":"2.0","result":[]}
-{"error":{"code":-32803,"data":{"kind":"NOT_UP","stage":"call"},"message":"lifecycle 1 of run 1 of c is not up"},"id":99,"jsonrpc":"2.0"}
+{"error":{"code":-32803,"data":{"kind":"NOT_UP","stage":"call"},"message":"lifecycle 1 of run 1 of c has ended or has not begun"},"id":99,"jsonrpc":"2.0"}
 {"id":100,"jsonrpc":"2.0","result":[{"client":{"lifecycle":0,"mod":"c","run":1},"effect":"wait","mod":"d","name":"d","refusal":{"kind":"NOT_INSTALLED","message":"no mod is listed under d","stage":"call"}}]}
 {"id":101,"jsonrpc":"2.0","result":[]}
 {"id":123,"jsonrpc":"2.0","result":[{"client":{"lifecycle":0,"mod":"c","run":1},"effect":"refuse","name":"b","refusal":{"kind":"NOT_EXPORTED","message":"b runs with no exports for b that reach the lifecycle","stage":"call"}}]}

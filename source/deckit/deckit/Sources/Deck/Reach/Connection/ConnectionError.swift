@@ -11,7 +11,9 @@ public enum ConnectionError: Refusal, Equatable {
     case notRunning(String)
     case ended
     case notAnEnd(principal: String)
-    case notUp(Endpoint)
+    // The lifecycle has ended, or has not begun.
+    case lifecycleEnded(Endpoint)
+    case ownId(String)
     case outOfReach(principal: String, client: String)
     // The principal runs with no exports for the name that reach the lifecycle that reaches it by it.
     case notExported(name: String, principal: String)
@@ -28,8 +30,11 @@ public enum ConnectionError: Refusal, Equatable {
         case let .notAnEnd(principal):
             "\(principal) is not an end of that connection"
 
-        case let .notUp(endpoint):
-            "lifecycle \(endpoint.lifecycle) of run \(endpoint.run) of \(endpoint.principal) is not up"
+        case let .lifecycleEnded(endpoint):
+            "lifecycle \(endpoint.lifecycle) of run \(endpoint.run) of \(endpoint.principal) has ended or has not begun"
+
+        case let .ownId(principal):
+            "\(principal) reaches no one by its own id"
 
         case let .outOfReach(principal, client):
             "\(client) may not reach \(principal) by id"

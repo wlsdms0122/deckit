@@ -133,7 +133,7 @@ struct RunnerTests {
         #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "kill a"])
     }
 
-    @Test("a principal whose run has not ended is left as it is, and one that ended launches again in its sandbox")
+    @Test("a principal whose run launches or runs is left as it is, and one that ended launches again in its sandbox")
     func loadLaunchesOnlyWhatEnded() throws {
         // Given
         let sut = Runner()
@@ -142,14 +142,61 @@ struct RunnerTests {
         // When
         let running = try sut.load([.fixture("a")])
         _ = try sut.unload(["a"])
-        let terminating = try sut.load([.fixture("a")])
         _ = try sut.stopped("a", run: 1)
         let ended = try sut.load([.fixture("a")])
+        let launching = try sut.load([.fixture("a")])
 
         // Then
         #expect(running.isEmpty)
-        #expect(terminating.isEmpty)
         #expect(describe(ended) == ["tell willLaunch a 2 launching", "loadPage a"])
+        #expect(launching.isEmpty)
+    }
+
+    @Test("a job loaded as its principal's run terminates launches once it has ended, in a new sandbox for a new revision")
+    func loadAsARunTerminatesLaunchesOnceItEnded() throws {
+        // Given
+        let sut = Runner()
+        try launch(["a", "b"], with: sut)
+        _ = try sut.unload(["a", "b"])
+
+        // When
+        let terminating = try sut.load([.fixture("a"), .fixture("b", revision: "2")])
+        let a = try sut.stopped("a", run: 1)
+        let b = try sut.stopped("b", run: 1)
+
+        // Then
+        #expect(terminating.isEmpty)
+        #expect(
+            describe(a) == ["tell didTerminate a 1 notRunning", "kill a", "tell willLaunch a 2 launching", "loadPage a"]
+        )
+        #expect(
+            describe(b) == [
+                "tell didTerminate b 1 notRunning",
+                "kill b",
+                "close b",
+                "open b",
+                "tell willLaunch b 2 launching",
+                "loadPage b"
+            ]
+        )
+        #expect(sut.job(of: "b")?.revision == "2")
+    }
+
+    @Test("a job loaded as its principal's run terminates is dropped as the principal unloads before that run ends")
+    func unloadDropsTheLoadKept() throws {
+        // Given
+        let sut = Runner()
+        try launch(["a"], with: sut)
+        _ = try sut.unload(["a"])
+        _ = try sut.load([.fixture("a")])
+
+        // When
+        let unloaded = try sut.unload(["a"])
+        let stopped = try sut.stopped("a", run: 1)
+
+        // Then
+        #expect(unloaded.isEmpty)
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "kill a"])
     }
 
     @Test("a sandbox stays once its run has ended, and closes as it is unloaded")

@@ -16,8 +16,8 @@ import Foundation
 // lifecycles are up, the client's run launching or running and the service's running, until either lifecycle ends, the
 // client releases the id or the interface has another owner. A lifecycle is up from when its page begins it until its
 // page says it ended, or its run has ended. A lifecycle that reaches a principal with no run, or whose run has ended,
-// waits for it, and deck tells so once; one that reaches a principal that runs with no exports for the name that reach the lifecycle is
-// refused and told once.
+// waits for it, and deck tells so once; one that reaches a principal that runs with no exports for the name that reach
+// the lifecycle is refused and told once.
 public final class ConnectionBroker {
     // MARK: - Property
     private let runner: Runner
@@ -67,8 +67,9 @@ public final class ConnectionBroker {
             run.number == client.run,
             run.state == .launching || run.state == .running
         else { throw .notRunning(client.principal) }
-        guard isUp(client) else { throw .notUp(client) }
-        guard let job = runner.job(of: client.principal), mayReach(id, for: job) else {
+        guard isUp(client) else { throw .lifecycleEnded(client) }
+        guard id != client.principal else { throw .ownId(client.principal) }
+        guard let job = runner.job(of: client.principal), job.reaches.contains(id) else {
             throw .outOfReach(principal: id, client: client.principal)
         }
 
