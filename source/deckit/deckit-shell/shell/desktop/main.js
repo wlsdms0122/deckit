@@ -3,6 +3,7 @@ import * as DECLARED from './protocol.js';
 import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
 import * as WM from './model/window-manager.js';
+import * as ACTIVATION_MODEL from './model/activation.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as MODS from '../mods/index.js';
@@ -18,12 +19,19 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // The seat at the host window: the person at this machine.
     const LOCAL = 'local';
     const MANAGER = WM.createWindowManager();
+    const ACTIVATION = ACTIVATION_MODEL.createActivation();
     const KEY = createKey({ deckit });
     // What each of the shell's keys does, by its id, to the local seat's key window.
     const KEY_ACTIONS = Object.freeze({
         closeWindow: () => keyWindow() && WINDOWS.close(keyWindow()),
         minimizeWindow: () => keyWindow() && minimize(keyWindow()),
         cycleWindows,
+    });
+    // Which mods may activate for a seat, as its input and the requests mods make of one another hand it on.
+    const activation = Object.freeze({
+        input: ACTIVATION.input,
+        request: ACTIVATION.request,
+        mayActivate: ACTIVATION.mayActivate,
     });
     const windows = new Map(); // id -> a normal window, as WINDOWS made it, while it is open
     const listeners = new Set();
@@ -47,12 +55,20 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // the seat's order, each its content between the frame under it and the buttons over it with the children its
     // regions show, and the Dock and the host's bar over them, `DOCK` giving the Dock's items. Each mod's page with a
     // window there is laid under the backdrop, at its front window, so what its overlay draws for a window lands over
-    // that window.
+    // that window. The machine's keyboard is the local seat's: a key pressed in a page reaches the mod whose page it
+    // is, a chord the mod that took it.
     function start(given) {
         WINDOWS = given.WINDOWS;
         DOCK = given.DOCK;
         frames = deckit.state.read(FRAMES, {});
         MANAGER.addSeat(LOCAL);
+        ACTIVATION.addSeat(LOCAL);
+        deckit.mods.onRequest(({ from, to }) => ACTIVATION.request(from, to));
+        deckit.keymap.monitor((page) => {
+            ACTIVATION.input(LOCAL, modAt(page));
+            return false;
+        });
+        deckit.keymap.onChord((mod) => ACTIVATION.input(LOCAL, mod));
         KEY.start(pressKey);
         stage = makeStage();
         stage.whenResized(resized);
@@ -71,9 +87,8 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     }
 
     // A normal window opens where its mod last left the window of its name, or cascaded from the key window where it
-    // left none or one of that name is open, in front: the key window, the host window coming up too, unless
-    // `activates` is false. A window with a `title` is titled: the shell draws its title bar, holding the title, over
-    // its content.
+    // left none or one of that name is open, brought forward as orderFront brings it. A window with a `title` is
+    // titled: the shell draws its title bar, holding the title, over its content.
     function open(window, { activates = true } = {}) {
         const desktopNow = area();
         const after = keyWindow() && MANAGER.frameOf(keyWindow().id);
@@ -84,14 +99,15 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         windows.set(window.id, window);
         for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)])
             PAGES.allowSurface(desktop.page, name, (surface) => openSurface(name, surface));
-        MANAGER.open(LOCAL, window.id, { frame, minimum: LAYOUT.minimumOf(window.minimum) }, { activates });
-        update();
-        if (activates) host.show();
+        MANAGER.open(LOCAL, window.id, { frame, minimum: LAYOUT.minimumOf(window.minimum) });
+        orderFront(window, { activates });
     }
 
+    // A mod left with no window open asks for no seat's attention.
     function close(window) {
         if (!windows.delete(window.id)) return;
         MANAGER.close(LOCAL, window.id);
+        if (![...windows.values()].some(({ mod }) => mod === window.mod)) ACTIVATION.cancelAttention(window.mod);
         if (moving?.id === window.id) moving = null;
         for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)]) {
             const surface = desktop.surfaces.get(name);
@@ -101,19 +117,28 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         update();
     }
 
-    // In front, the key window left where it is.
-    function orderFront(window) {
+    // Brought forward for the local seat as its mod asks: where the mod may activate for the seat, in front, and the
+    // key window with the host window coming up unless `activates` is false; where it may not, right behind the key
+    // window, not key, its mod asking for the seat's attention.
+    function orderFront(window, { activates = true } = {}) {
         if (!windows.has(window.id)) return;
-        MANAGER.orderFront(LOCAL, window.id, { activates: false });
+        const may = ACTIVATION.mayActivate(LOCAL, window.mod);
+        if (may) MANAGER.orderFront(LOCAL, window.id, { activates });
+        else {
+            MANAGER.orderBehindKey(LOCAL, window.id);
+            ACTIVATION.requestAttention(LOCAL, window.mod);
+        }
         update();
+        if (may && activates) host.show();
     }
 
-    // The key window, in front; `activates` brings the host window up too.
-    function makeKeyAndOrderFront(window, { activates = false } = {}) {
+    // The local seat pressed in the window, on its frame or in its content: its input reached the window's mod, and
+    // the window comes in front as its key window.
+    function press(window) {
         if (!windows.has(window.id)) return;
+        ACTIVATION.input(LOCAL, window.mod);
         MANAGER.orderFront(LOCAL, window.id);
         update();
-        if (activates) host.show();
     }
 
     function minimize(window) {
@@ -139,7 +164,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     function move(window, phase, dx, dy) {
         if (phase === 'began') {
             moving = { id: window.id, from: MANAGER.frameOf(window.id) };
-            makeKeyAndOrderFront(window);
+            press(window);
             return;
         }
         if (moving?.id !== window.id) return;
@@ -159,11 +184,17 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         else if (action === 'minimize') minimize(window);
     }
 
-    // Each of the mod's windows in front for `seat`, in the order it had them, those it minimized too, the front one
-    // key: answers whether the mod has any.
+    // Each of the mod's windows brought forward for `seat`, in the order it had them, those it minimized too, as
+    // orderFront brings one: in front, the front one key, where the mod may activate for the seat. Answers whether
+    // the mod has any.
     function activate(seat, mod) {
         const ids = MANAGER.orderOf(seat).filter((id) => windows.get(id).mod === mod);
-        for (const id of ids) MANAGER.orderFront(seat, id);
+        const may = ACTIVATION.mayActivate(seat, mod);
+        for (const id of ids) {
+            if (may) MANAGER.orderFront(seat, id);
+            else MANAGER.orderBehindKey(seat, id);
+        }
+        if (ids.length && !may) ACTIVATION.requestAttention(seat, mod);
         if (ids.length) update();
         return ids.length > 0;
     }
@@ -207,6 +238,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // Laid again, the desktop's page told, the keyboard given to a new key window, the host's title and each listener.
     function update() {
         if (!stage) return;
+        ACTIVATION.setActive(LOCAL, WINDOWS.keyOverlay()?.mod ?? keyWindow()?.mod ?? null);
         layout();
         tellPage();
         const key = keyWindow();
@@ -233,11 +265,17 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         keep(FRAMES, frames);
     }
 
-    // The desktop's page draws alone, so what it tells is the person's: no mod's code runs there.
+    // The desktop's page draws alone, so what it tells is the person's: no mod's code runs there. What it tells of a
+    // window is the local seat's input, which reaches that window's mod.
     function listen() {
         const fromPage = (handler) => (payload, sender) => sender === desktop.page && handler(payload);
         const known = (handler) =>
-            fromPage(({ id, ...payload }) => windows.has(id) && handler(windows.get(id), payload));
+            fromPage(({ id, ...payload }) => {
+                const window = windows.get(id);
+                if (!window) return;
+                ACTIVATION.input(LOCAL, window.mod);
+                handler(window, payload);
+            });
         PROTOCOL.setup.handle((_payload, sender) => {
             if (sender !== desktop.page)
                 throw Object.assign(new Error("only the desktop's page asks this"), { kind: 'REFUSED' });
@@ -246,7 +284,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
             desktop.sent = JSON.stringify(state);
             return { glass: TOKEN.GLASS, state };
         });
-        PROTOCOL.press.on(known((window) => makeKeyAndOrderFront(window)));
+        PROTOCOL.press.on(known(press));
         PROTOCOL.button.on(
             known((window, { button }) => {
                 if (button === 'close') WINDOWS.close(window);
@@ -308,6 +346,13 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
 
     function isTitled(window) {
         return typeof window.title === 'string';
+    }
+
+    // The mod whose page a page of the app is, the content of its window, a web page it shows or an overlay of one,
+    // or null.
+    function modAt(page) {
+        const owner = OVERLAY.ownerOf(page);
+        return deckit.mods.modOf(WINDOWS.pageOf(deckit.web.pageFor(owner) ?? owner));
     }
 
     // The local seat's key window, or null.
@@ -450,7 +495,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
             })),
             strip,
             title: titleOf(windows.get(key)),
-            dock: { items: DOCK.items(), active },
+            dock: { items: DOCK.items(), active, attention: ACTIVATION.attentionOf(LOCAL) },
             down: down && { name: deckit.config.name, why: down },
         };
     }
@@ -506,7 +551,9 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         const ids = MANAGER.orderOf(LOCAL).filter(
             (id) => windows.get(id).mod === key.mod && !MANAGER.isMinimized(LOCAL, id)
         );
-        if (ids.length > 1) makeKeyAndOrderFront(windows.get(ids[0]));
+        if (ids.length <= 1) return;
+        MANAGER.orderFront(LOCAL, ids[0]);
+        update();
     }
 
     function show() {
@@ -535,13 +582,14 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         open,
         close,
         orderFront,
-        makeKeyAndOrderFront,
+        press,
         minimize,
         zoom,
         resize,
         move,
         doubleClick,
         activate,
+        activation,
         setTitle,
         seatAt,
         // The seat at the host window, the one seat the host gives: what a mod asks is done by it.

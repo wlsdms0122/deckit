@@ -4,7 +4,8 @@
 // answers: the app mods it keeps at the first start, as the host app names them or as it ships them, then as the person
 // left them, the list a mod with deckit.mods reads, which holds the app mods that load and no bundle that does not and
 // no accessory, and a mod opened from it, launched when it does not run, its windows in front when it does, or its
-// reopen() with none open, as the local seat; and what the person does to it in the desktop's page, done by the seat
+// reopen() with none open, as the local seat, asked by the mod that opens it, the host window coming up only as the
+// mod may activate; and what the person does to it in the desktop's page, done by the seat
 // whose screen that is: an item clicked, a mod quit, kept or taken out, the kept ones reordered, each drawn again, and
 // nothing a mod's page sends there. Exits 1 with a line for each check that failed. The packages are ES modules, so
 // they are imported as such.
@@ -119,17 +120,34 @@ async function main() {
         managers: ['switcher'],
         running: ['b', 'c'],
         windowed: ['b'],
+        active: ['switcher'],
     });
     opening.DOCK.start();
     for (const id of ids3) await opening.ask('open', { id }, 'switcher');
     check(
-        'a mod opened launches as it does not run, its windows come in front as it does, or its reopen() with none open',
+        'a mod opened launches as it does not run, its windows come in front as it does, or its reopen() with none ' +
+            'open, asked by the mod that opens it, the host window coming up as it may activate',
         opening.launched.join() === 'a' &&
             opening.activated.join() === 'local:b,local:c' &&
             opening.reopened.length === 1 &&
             opening.reopened[0].mod === 'c' &&
+            opening.requests.join() === 'switcher>a,switcher>b,switcher>c' &&
             opening.shown.length === 3,
         opening
+    );
+    const quietly = dockOver(createDock, {
+        mods: named([...ids3, 'switcher']),
+        fields: { ...apps(), switcher: { activationPolicy: 'accessory' } },
+        managers: ['switcher'],
+        running: ['b'],
+        windowed: ['b'],
+    });
+    quietly.DOCK.start();
+    await quietly.ask('open', { id: 'b' }, 'switcher');
+    check(
+        'a mod opened by one that may not activate leaves the host window down',
+        quietly.activated.join() === 'local:b' && quietly.shown.length === 0,
+        quietly
     );
     const accessory = await opening.ask('open', { id: 'switcher' }, 'switcher').then(
         () => '',
@@ -148,10 +166,12 @@ async function main() {
     clicking.DOCK.start();
     for (const id of ids3) clicking.click('click', { id });
     check(
-        "a click on an item is the desktop page's seat's: it launches, has the windows come in front or reopens",
+        "a click on an item is the desktop page's seat's input reaching its mod: it launches, has the windows come in " +
+            'front or reopens, the host window coming up',
         clicking.launched.join() === 'a' &&
             clicking.activated.join() === 'local:b,local:c' &&
             clicking.reopened.length === 1 &&
+            clicking.inputs.join() === 'local:a,local:b,local:c' &&
             clicking.shown.length === 3,
         clicking
     );
@@ -247,15 +267,29 @@ function named(ids) {
 }
 
 // `createDock` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
-// that hold deckit.mods, `running` the mods that run, as `runs` lists them for a test to change, `windowed` those of
-// them with a window open, `dock` as the host app hands it, `state` what the shell kept, and `refusesWrites` deckit
-// refusing every write to state, as it does state it did not read. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and
-// `click(name, payload)` sends one as the desktop's page, the local seat's screen.
+// that hold deckit.mods, `active` those that may activate for the local seat, `running` the mods that run, as `runs`
+// lists them for a test to change, `windowed` those of them with a window open, `dock` as the host app hands it,
+// `state` what the shell kept, and `refusesWrites` deckit refusing every write to state, as it does state it did not
+// read. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and `click(name, payload)`
+// sends one as the desktop's page, the local seat's screen.
 function dockOver(
     createDock,
-    { mods, fields, managers = [], running = [], windowed = [], dock = null, state = {}, refusesWrites = false }
+    {
+        mods,
+        fields,
+        managers = [],
+        running = [],
+        windowed = [],
+        active = [],
+        dock = null,
+        state = {},
+        refusesWrites = false,
+    }
 ) {
     const handlers = {};
+    const requests = [];
+    const inputs = [];
+    let handed = new Set();
     const launched = [];
     const activated = [];
     const reopened = [];
@@ -300,6 +334,17 @@ function dockOver(
             activate: (seat, id) => activated.push(`${seat}:${id}`) > 0 && windowed.includes(id),
             seatAt: (sender) => (sender === desktopPage ? 'local' : null),
             localSeat: 'local',
+            activation: {
+                input: (seat, id) => {
+                    inputs.push(`${seat}:${id}`);
+                    handed = new Set([id]);
+                },
+                request: (from, to) => {
+                    requests.push(`${from}>${to}`);
+                    if (active.includes(from) || handed.has(from)) handed.add(to);
+                },
+                mayActivate: (_seat, id) => active.includes(id) || handed.has(id),
+            },
             update: () => updates.push(true),
         },
         WINDOWS: { reopen: (one) => reopened.push(one) },
@@ -309,7 +354,7 @@ function dockOver(
     const ask = async (name, payload, mod) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, page(mod));
     // One of the Dock's channels sent from the desktop's page.
     const click = (name, payload) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, desktopPage);
-    return { DOCK, state, runs, launched, activated, reopened, shown, quit, updates, ask, click };
+    return { DOCK, state, runs, launched, activated, reopened, shown, quit, updates, requests, inputs, ask, click };
 }
 
 function kebab(name) {

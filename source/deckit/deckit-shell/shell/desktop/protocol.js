@@ -9,8 +9,9 @@ export const setup = CHANNEL.pageToMain('deckit-shell:desktop-setup', {}, { repl
 // content draws its own;
 // `strip` `{ height, controlsWidth }`, the host window's bar over the page's top, which drags the host window, and the
 // width its controls take from its start; `title`, the name of the mod whose window is that seat's key window, or the
-// app's; `dock` `{ items, active }`, the Dock's items (dock/main.js items) and the id of that same mod, or null; and
-// `down` `{ name, why }` once deckit's core answers nothing more, or null.
+// app's; `dock` `{ items, active, attention }`, the Dock's items (dock/main.js items), the id of that same mod, or
+// null, and the ids of the mods that ask for that seat's attention; and `down` `{ name, why }` once deckit's core
+// answers nothing more, or null.
 export const state = CHANNEL.mainToPage('deckit-shell:desktop-state');
 // A press on a window's frame or its buttons.
 export const press = CHANNEL.pageToMain('deckit-shell:desktop-press', { id: 'number' });

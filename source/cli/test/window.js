@@ -1,7 +1,8 @@
 // The windows mods open (deckit-shell/shell/window/main), over stand-ins for what connect answers, the shell's pages,
 // their overlays, the desktop and the host app: a normal window opened on the desktop at its size, one of a name per
 // run, a window opened or ordered front without taking the keyboard and one made key and ordered front, an overlay
-// window only with its permission and in a floating window of the host app's, the mod's page laid in that window under
+// window only with its permission and in a floating window of the host app's, taking the keyboard only where its mod
+// may activate, and its taking it the local seat's input, the mod's page laid in that window under
 // its content until the page has a normal window and again once it has none, the content's keys and presses heard and
 // the page told of its window, a window closed by its page and with its page, the keyboard of a page going to its key
 // window's content, and a web page's window: on the desktop for the mod whose page shows it, titled, closed however it
@@ -80,6 +81,8 @@ async function main() {
             ),
         { listened: shell.listened, sent }
     );
+    shell.focus(content);
+    check("a press in the content is the person's on its window", desktop.pressed.at(-1) === first.id, null);
     desktop.key = first.id;
     check(
         "a page's keyboard goes to its key window's content, and a page with none keeps its own",
@@ -87,7 +90,11 @@ async function main() {
         null
     );
     shell.focus(content);
-    check("a press in the content is the person's on its window", desktop.fronted.at(-1)?.id === first.id, null);
+    check(
+        "the key window's content taking the keyboard is no press on its window",
+        desktop.pressed.length === 1,
+        desktop.pressed
+    );
 
     const float = shell.fromPage('open', pages.b, { name: 'float', level: 'overlay', width: 400, height: 300 });
     const shown = host.shown.at(-1);
@@ -111,6 +118,22 @@ async function main() {
             toastShown.activates === false,
         { frontOnly, keyToo, toastShown }
     );
+    desktop.may.delete('b');
+    shell.fromPage('make-key-and-order-front', pages.b, { id: float.id });
+    const held = host.shown.at(-1);
+    check(
+        'an overlay window of a mod that may not activate shows without the keyboard',
+        held.activates === false,
+        held
+    );
+    shown.control.focus();
+    check(
+        "an overlay window taking the keyboard is the local seat's input reaching its mod, the active mod's window",
+        desktop.inputs.at(-1) === 'local:b' && shell.windows.keyOverlay()?.mod === 'b',
+        desktop.inputs
+    );
+    shown.control.didResignKey();
+    desktop.may.add('b');
     shell.fromPage('close', pages.b, { id: toast.id });
     shown.control.place({ name: 'host-window' });
     const stage = shell.stages.at(-1);
@@ -162,7 +185,7 @@ async function main() {
         desktop.titles
     );
     shell.focus(site);
-    check("a press in the web page is the person's on its window", desktop.fronted.at(-1)?.id === webWindow.id, null);
+    check("a press in the web page is the person's on its window", desktop.pressed.at(-1) === webWindow.id, null);
     const sentBefore = sent.length;
     shell.windows.relay(pages.a);
     desktop.change();
@@ -213,8 +236,9 @@ async function main() {
 // permission. `fromPage(name, page, payload)` sends a window channel as `page` and answers what it answers;
 // `openSurface(name, surface)` has a page open a window's content; `focus(page)` and `end(page)` are a page taking the
 // keyboard and its document ending; `webOf` maps a web page to the mod's page that shows it. `desktop` records what the
-// desktop was asked, `key` the id of its key window; `host` what the host app was asked; `stages` the stages made, each
-// with what it laid last; `sent` what the pages were told, by the channel's last word.
+// desktop was asked, `key` the id of its key window, `may` the mods that may activate for the local seat; `host` what
+// the host app was asked; `stages` the stages made, each with what it laid last; `sent` what the pages were told, by
+// the channel's last word.
 function windowsOver(createWindows) {
     const handlers = {};
     const sent = [];
@@ -236,6 +260,9 @@ function windowsOver(createWindows) {
         opened: [],
         closed: [],
         fronted: [],
+        pressed: [],
+        inputs: [],
+        may: new Set(['b']),
         titles: [],
         key: null,
         change: () => changes.forEach((listener) => listener()),
@@ -267,16 +294,21 @@ function windowsOver(createWindows) {
     const DESKTOP = {
         open: (window, { activates = true } = {}) => desktop.opened.push({ ...window, activates }),
         close: (window) => desktop.closed.push(window.id),
-        orderFront: (window) => desktop.fronted.push({ id: window.id, key: false, activates: false }),
-        makeKeyAndOrderFront: (window, { activates = false } = {}) =>
-            desktop.fronted.push({ id: window.id, key: true, activates }),
+        orderFront: (window, { activates = true } = {}) =>
+            desktop.fronted.push({ id: window.id, key: activates, activates }),
+        press: (window) => desktop.pressed.push(window.id),
+        localSeat: 'local',
+        activation: {
+            input: (seat, mod) => desktop.inputs.push(`${seat}:${mod}`),
+            mayActivate: (seat, mod) => seat === 'local' && desktop.may.has(mod),
+        },
         setTitle: (_window, title) => desktop.titles.push(title),
         minimize() {},
         zoom() {},
         move() {},
         doubleClick() {},
         resize() {},
-        update() {},
+        update: () => changes.forEach((listener) => listener()),
         isKey: (window) => window.id === desktop.key,
         stateOf: (window) => ({
             shown: true,

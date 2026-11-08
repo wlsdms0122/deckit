@@ -19,8 +19,9 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
     // MARK: - Initializer
     // MARK: - Public
     // The Dock: the app mods the person keeps there, running or not, then those running now. The desktop's page draws
-    // it, and what the person does there is done by the seat whose screen it is. A mod with deckit.mods reads and
-    // changes it, and opens a mod as the person does from it, as the local seat.
+    // it, and what the person does there is done by the seat whose screen it is, a click its input reaching the mod
+    // clicked. A mod with deckit.mods reads and changes it, and opens a mod as the person does from it, as the local
+    // seat, asking that mod.
     function start() {
         // At the first start the Dock's mods take their places in the order they are kept there.
         const kept = deckit.state.read(PINNED, null);
@@ -43,15 +44,21 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
             setPinned(id, on);
         });
         PROTOCOL.open.handle(({ id }, sender) => {
-            deckit.mods.managerFrom(sender);
+            const from = deckit.mods.managerFrom(sender);
             if (!isApp(id)) throw new Error(`${id} is no app`);
+            DESKTOP.activation.request(from, id);
             open(id, DESKTOP.localSeat);
         });
         const bySeat = (handler) => (payload, sender) => {
             const seat = DESKTOP.seatAt(sender);
             if (seat) handler(payload, seat);
         };
-        PROTOCOL.click.on(bySeat(({ id }, seat) => open(id, seat)));
+        PROTOCOL.click.on(
+            bySeat(({ id }, seat) => {
+                DESKTOP.activation.input(seat, id);
+                open(id, seat);
+            })
+        );
         PROTOCOL.quit.on(bySeat(({ id }) => quit(id)));
         PROTOCOL.keep.on(bySeat(({ id, pinned: on }) => setPinned(id, on)));
         PROTOCOL.reorder.on(bySeat(({ ids }) => arrange(ids)));
@@ -70,8 +77,9 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         }));
     }
 
-    // A mod opened from its Dock item by `seat`: one that does not run launches; one that runs has its windows come in
-    // front for that seat, or, with none open, its instance's reopen(). The host window comes up.
+    // A mod opened from its Dock item by `seat`: one that does not run launches; one that runs has its windows brought
+    // forward for that seat, or, with none open, its instance's reopen(). The host window comes up where the mod may
+    // activate for the seat.
     function open(id, seat) {
         const run = deckit.mods.runOf(id);
         if (!run || (run.state === 'notRunning' && !run.relaunches))
@@ -80,7 +88,7 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
             const page = deckit.mods.runs().find((each) => each.run.mod.id === id)?.page;
             if (page) WINDOWS.reopen(page);
         }
-        host.show();
+        if (DESKTOP.activation.mayActivate(seat, id)) host.show();
     }
 
     // MARK: - Private

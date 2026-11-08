@@ -71,20 +71,23 @@ const STYLE = `
         background: currentColor;
         opacity: 0.6;
     }
+    .deckit-dock-item[data-attention]::before { background: var(--deckit-accent); opacity: 1; }
 `;
 
 // MARK: - Initializer
 // MARK: - Public
 // The Dock, drawn in the desktop's page at the desktop's left edge: the items kept there, which a drag puts in another
-// order, then those running only. A running item has a dot, and the active mod's item is marked. It is in but for its
-// sliver until the pointer comes, and stays out while the pointer is over it, a press holds it or its menu is open;
-// `onOut(out)` hears it slide out and back. A click on an item opens its mod, and its menu shows it, quits it while it
-// runs, and keeps it in the Dock or takes it out, each told to main over `channels`. `ui` is the page's kit.
+// order, then those running only. A running item has a dot, in the accent where its mod asks for attention, and the
+// active mod's item is marked. It is in but for its sliver until the pointer comes, and stays out while the pointer is
+// over it, a press holds it or its menu is open; `onOut(out)` hears it slide out and back. A click on an item opens its
+// mod, and its menu shows it, quits it while it runs, and keeps it in the Dock or takes it out, each told to main over
+// `channels`. `ui` is the page's kit.
 function make({ ui, channels, onOut }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     ui.addStyle(STYLE);
     let items = [];
     let active = null;
+    let attention = new Set(); // the ids of the mods that ask for attention
     let out = false;
     let pointed = false; // whether the pointer is over the Dock
     let holds = 0; // the presses and menus that keep it out
@@ -160,9 +163,10 @@ function make({ ui, channels, onOut }) {
         });
     });
 
-    // `dock` `{ items, active }`, as main tells it.
+    // `dock` `{ items, active, attention }`, as main tells it.
     function update(dock) {
         active = dock.active;
+        attention = new Set(dock.attention);
         items = dock.items;
         draw(
             items.filter(({ pinned }) => pinned),
@@ -194,8 +198,10 @@ function make({ ui, channels, onOut }) {
     function paint(row, item) {
         row.toggleAttribute('data-active', item.id === active);
         row.toggleAttribute('data-running', item.running);
+        row.toggleAttribute('data-attention', attention.has(item.id));
         row.title = item.name;
-        row.setAttribute('aria-label', item.running ? `${item.name}, running` : item.name);
+        const states = [item.running && 'running', attention.has(item.id) && 'asks for attention'].filter(Boolean);
+        row.setAttribute('aria-label', [item.name, ...states].join(', '));
         const drawn = JSON.stringify([item.icon, item.name]);
         if (row.dataset.drawn === drawn) return;
         row.dataset.drawn = drawn;

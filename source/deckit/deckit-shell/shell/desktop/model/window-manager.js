@@ -28,11 +28,11 @@ function createWindowManager() {
         seats.delete(seat);
     }
 
-    // A window opens, `by` a seat: in front for every seat, and `by`'s key window unless `activates` is false.
-    function open(by, id, { frame, minimum }, { activates = true } = {}) {
+    // A window opens, `by` a seat: right behind each seat's key window, or in front for a seat with none. A seat it is
+    // brought forward for orders it front.
+    function open(_by, id, { frame, minimum }) {
         windows.set(id, { frame: fitted(frame, minimum), minimum, zoomed: null, holders: new Set() });
-        for (const seat of seats.values()) seat.order.push(id);
-        return activates ? makeKey(by, id) : null;
+        for (const seat of seats.values()) seat.order = behindKey(seat, id);
     }
 
     // A window closes for every seat; a seat whose key window it was makes key the next in its order.
@@ -55,6 +55,17 @@ function createWindowManager() {
         seat.minimized.delete(id);
         seat.order = [...seat.order.filter((one) => one !== id), id];
         return activates ? makeKey(by, id) : null;
+    }
+
+    // Right behind `by`'s key window in its order, or in front where it has none, out of what it minimized, and not
+    // key: one in front of the key window already stays there.
+    function orderBehindKey(by, id) {
+        const seat = seats.get(by);
+        if (!seat || !windows.has(id)) return;
+        seat.minimized.delete(id);
+        const key = seat.order.indexOf(seat.key);
+        if (key >= 0 && seat.order.indexOf(id) > key) return;
+        seat.order = behindKey(seat, id);
     }
 
     // `by`'s key window, and held by it, unless another seat holds it: answers KEY or HELD.
@@ -156,6 +167,13 @@ function createWindowManager() {
         if (id !== undefined) makeKey(name, id);
     }
 
+    // The seat's order with `id` right behind its key window, or in front where it has none.
+    function behindKey(seat, id) {
+        const order = seat.order.filter((one) => one !== id);
+        const key = order.indexOf(seat.key);
+        return key < 0 ? [...order, id] : [...order.slice(0, key), id, ...order.slice(key)];
+    }
+
     function fitted({ x, y, width, height }, minimum) {
         return { x, y, width: Math.max(width, minimum.width), height: Math.max(height, minimum.height) };
     }
@@ -166,6 +184,7 @@ function createWindowManager() {
         open,
         close,
         orderFront,
+        orderBehindKey,
         makeKey,
         minimize,
         setFrame,

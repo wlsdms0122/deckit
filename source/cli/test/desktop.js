@@ -1,15 +1,18 @@
 // The desktop's window manager (deckit-shell/shell/desktop/model/window-manager): the windows every seat shares and
-// each seat's own order, key window and minimized windows, a window another seat holds left to it, the key window
-// passed on as one closes or is minimized, and a frame no smaller than its minimum; and where windows go
-// (model/layout): a new one cascaded from the key window or centred, a restored one kept reachable, a resize held to
-// the minimum, zoom to the desktop but the Dock's sliver, and the frame's parts; and the desktop (desktop/main) over
-// stand-ins for what connect answers, the shell's pages and a stage: the pages laid in the local seat's order, the
-// keyboard and the host's title following its key window, the host window coming up as a window opens to activate, a
-// window ordered front or opened without taking it, the shell's keys, a frame restored and remembered by the window's
-// name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window following
-// the desktop's size and any other kept reachable as it shrinks, and a titled window's content under the title bar the
-// shell draws, its title told and its drag. Exits 1 with a line for each check that failed. The packages are ES
-// modules, so they are imported as such.
+// each seat's own order, key window and minimized windows, a window opened right behind each seat's key window, a
+// window another seat holds left to it, the key window passed on as one closes or is minimized, a window ordered behind
+// the key window, and a frame no smaller than its minimum; which mods may activate for a seat (model/activation): the
+// mod its input reaches and those asked along the chain, until its next input, and the mods that ask for its attention;
+// and where windows go (model/layout): a new one cascaded from the key window or centred, a restored one kept
+// reachable, a resize held to the minimum, zoom to the desktop but the Dock's sliver, and the frame's parts; and the
+// desktop (desktop/main) over stand-ins for what connect answers, the shell's pages and a stage: the pages laid in the
+// local seat's order, no window key at start, the keyboard and the host's title following its key window, a window
+// brought forward in front and key, the host window coming up, only by a mod that may activate, and right behind the
+// key window, its mod asking for attention, by one that may not, a window ordered front or opened without taking the
+// keyboard, the shell's keys, a frame restored and remembered by the window's name, a mod's windows brought in front
+// for a seat from the Dock, the Dock's pointer room, a zoomed window following the desktop's size and any other kept
+// reachable as it shrinks, and a titled window's content under the title bar the shell draws, its title told and its
+// drag. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -17,6 +20,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 
 async function main() {
     const WM = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'window-manager.js'));
+    const ACTIVATION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'activation.js'));
     const LAYOUT = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'layout.js'));
     const DOCK = await import(url('deckit-shell', 'shell', 'dock', 'model', 'dock.js'));
     const { createDesktop } = await import(url('deckit-shell', 'shell', 'desktop', 'main.js'));
@@ -38,12 +42,19 @@ async function main() {
             .viewOf(seat)
             .map(({ id }) => id)
             .join();
-    const opened = manager.open('me', 1, { frame: at(0), minimum });
+    manager.open('me', 1, { frame: at(0), minimum });
+    const opened = manager.orderFront('me', 1);
     manager.open('me', 2, { frame: at(10), minimum });
     check(
-        'a window opens in front for every seat, the key window of the seat that opened it',
-        opened === WM.KEY && order('me') === '1,2' && order('you') === '1,2' && manager.keyOf('me') === 2,
+        "a window opens right behind each seat's key window, or in front for a seat with none, and is no key window",
+        order('me') === '2,1' && order('you') === '1,2' && manager.keyOf('me') === 1 && manager.keyOf('you') === null,
         { me: order('me'), you: order('you'), key: manager.keyOf('me') }
+    );
+    manager.orderFront('me', 2);
+    check(
+        'a window a seat orders front is in front, its key window',
+        opened === WM.KEY && order('me') === '1,2' && manager.keyOf('me') === 2,
+        { me: order('me'), key: manager.keyOf('me') }
     );
     check(
         'the key window is held by its seat alone, and is no key window of the seat that did not make it key',
@@ -67,11 +78,11 @@ async function main() {
         manager.keyOf('me'),
         manager.keyOf('you'),
     ]);
-    manager.open('me', 3, { frame: at(20), minimum }, { activates: false });
+    manager.open('me', 3, { frame: at(20), minimum });
     check(
-        'a window opened without activating leaves the key window where it is',
-        manager.keyOf('me') === 2 && order('me') === '2,1,3',
-        { key: manager.keyOf('me'), order: order('me') }
+        "a window opened leaves each seat's key window where it is, in front of it",
+        manager.keyOf('me') === 2 && order('me') === '3,2,1' && order('you') === '2,3,1',
+        { key: manager.keyOf('me'), me: order('me'), you: order('you') }
     );
     manager.orderFront('me', 3);
     check('making another window key lets go of the one before', !manager.isKey(2) && manager.keyOf('me') === 3, '');
@@ -80,7 +91,7 @@ async function main() {
     check(
         "a seat's minimized window leaves its view alone, and its key window is the next it does not minimize",
         order('me') === '2,1' &&
-            order('you') === '2,1,3' &&
+            order('you') === '2,3,1' &&
             manager.isMinimized('me', 3) &&
             manager.isShown(3) &&
             manager.keyOf('me') === 2,
@@ -148,6 +159,73 @@ async function main() {
     manager.addSeat('late');
     check('a seat that sits down sees every window open', order('late') === '2,3', order('late'));
 
+    // A window ordered behind the key window, as a mod that may not activate brings one forward.
+    const behind = WM.createWindowManager();
+    behind.addSeat('me');
+    for (const id of [1, 2, 3]) behind.open('me', id, { frame: at(0), minimum });
+    behind.orderFront('me', 2);
+    behind.minimize('me', 1);
+    behind.orderBehindKey('me', 1);
+    const behindOrder = () => behind.orderOf('me').join();
+    check(
+        'a window ordered behind the key window is right behind it, out of what the seat minimized, not key',
+        behindOrder() === '3,1,2' && behind.keyOf('me') === 2 && !behind.isMinimized('me', 1),
+        behindOrder()
+    );
+    behind.orderFront('me', 3, { activates: false });
+    behind.orderBehindKey('me', 3);
+    check(
+        'a window in front of the key window already stays there',
+        behindOrder() === '1,2,3' && behind.keyOf('me') === 2,
+        behindOrder()
+    );
+
+    // Which mods may activate for a seat.
+    const activation = ACTIVATION.createActivation();
+    activation.addSeat('me');
+    activation.addSeat('you');
+    check(
+        'a seat with no key window and no input hands activation to no mod',
+        !activation.mayActivate('me', 'a') && !activation.mayActivate('me', null),
+        ''
+    );
+    activation.input('me', 'a');
+    activation.request('a', 'b');
+    activation.request('b', 'c');
+    activation.request('x', 'y');
+    check(
+        "the mod a seat's input reaches may activate for it, and each mod one that may asks, along the chain",
+        ['a', 'b', 'c'].every((mod) => activation.mayActivate('me', mod)) &&
+            !activation.mayActivate('me', 'y') &&
+            !activation.mayActivate('you', 'b'),
+        ''
+    );
+    activation.setActive('me', 'c');
+    activation.input('me', 'd');
+    check(
+        "the seat's next input ends what it handed: the mod it reaches and its active mod may activate",
+        activation.mayActivate('me', 'd') &&
+            activation.mayActivate('me', 'c') &&
+            !activation.mayActivate('me', 'a') &&
+            !activation.mayActivate('me', 'b'),
+        ''
+    );
+    activation.requestAttention('me', 'e');
+    activation.requestAttention('me', 'f');
+    activation.requestAttention('you', 'e');
+    activation.setActive('me', 'f');
+    check(
+        'a mod asks for attention until it is the active mod',
+        activation.attentionOf('me').join() === 'e' && activation.attentionOf('you').join() === 'e',
+        activation.attentionOf('me')
+    );
+    activation.cancelAttention('e');
+    check(
+        'a mod with no window open asks no seat for attention',
+        !activation.attentionOf('me').length && !activation.attentionOf('you').length,
+        activation.attentionOf('you')
+    );
+
     // Where windows go, on a desktop under a 40 px strip.
     const desktop = LAYOUT.desktopOf({ width: 1000, height: 700 }, 40);
     check(
@@ -209,13 +287,13 @@ async function main() {
     const desk = desktopOver(createDesktop, {
         state: { 'window-frames': { a: { main: { x: 200, y: 100, width: 400, height: 300 } } } },
     });
-    const pages = { a: { name: 'page-a' }, b: { name: 'page-b' } };
+    const pages = { a: { name: 'page-a', mod: 'a' }, b: { name: 'page-b', mod: 'b' }, c: { name: 'page-c', mod: 'c' } };
     const windowOf = (id, mod, name) => ({
         id,
         mod,
         name,
         page: pages[mod],
-        surface: { name: `content-${id}` },
+        surface: { name: `content-${id}`, of: pages[mod] },
         size: { width: 300, height: 200 },
         minimum: { width: 0, height: 0 },
     });
@@ -224,11 +302,30 @@ async function main() {
     const three = windowOf(3, 'b', 'main');
     desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
     desk.desktop.control.show();
-    for (const window of [one, two, three]) {
-        desk.desktop.open(window);
-        desk.openSurfaces(window.id);
-    }
     const names = () => desk.laid().map(({ page }) => page.name);
+    desk.desktop.open(one);
+    desk.openSurfaces(1);
+    check(
+        'at start no window takes the keyboard by itself: one a mod opens is in front, not key, its mod asking for ' +
+            'attention, the host window left down',
+        names().at(-2) === 'buttons-1' &&
+            !desk.desktop.isKey(one) &&
+            !desk.focused.some(({ name }) => name === 'content-1') &&
+            desk.hostShown() === 0 &&
+            JSON.stringify(desk.page().dock.attention) === '["a"]',
+        { names: names(), shown: desk.hostShown(), dock: desk.page().dock }
+    );
+    desk.fromPage('press', { id: 1 });
+    check(
+        'a press on a window makes it key, its mod the active mod, which asks for no attention',
+        desk.desktop.isKey(one) && desk.page().dock.active === 'a' && !desk.page().dock.attention.length,
+        desk.page().dock
+    );
+    desk.desktop.open(two);
+    desk.openSurfaces(2);
+    desk.request('a', 'b');
+    desk.desktop.open(three);
+    desk.openSurfaces(3);
     check(
         "the pages are laid in the local seat's order: the mods' pages, the backdrop, each window's frame, content and " +
             "buttons, then the desktop's page",
@@ -254,7 +351,11 @@ async function main() {
         desk.focused.at(-1)?.name === 'content-3' && desk.titles.at(-1) === 'B' && desk.page().title === 'B',
         { focused: desk.focused.at(-1), titles: desk.titles }
     );
-    check('a window opened to activate brings the host window up', desk.hostShown() === 3, desk.hostShown());
+    check(
+        'a window the active mod opens, or a mod it asked, is in front and key, the host window coming up',
+        desk.hostShown() === 2,
+        desk.hostShown()
+    );
     desk.fromPage('press', { id: 2 });
     check(
         "a press on a window's frame makes it key, in front",
@@ -266,25 +367,73 @@ async function main() {
     );
     const keyboardBefore = desk.focused.length;
     const hostBefore = desk.hostShown();
-    desk.desktop.orderFront(three);
+
+    // b, which the seat's input no longer reaches, brings windows forward on its own; c too, which has one alone.
+    const reminder = windowOf(5, 'b', 'reminder');
+    desk.desktop.open(reminder);
+    desk.openSurfaces(5);
     check(
-        'a window ordered front comes in front and leaves the key window and the keyboard where they are',
-        names().at(-2) === 'buttons-3' &&
+        'a window a mod that may not activate opens goes right behind the key window, not key, the host window left ' +
+            'down, and its mod asks for attention',
+        names().at(-2) === 'buttons-2' &&
+            names().at(-5) === 'buttons-5' &&
             desk.desktop.isKey(two) &&
             desk.focused.length === keyboardBefore &&
-            desk.hostShown() === hostBefore,
-        { names: names(), focused: desk.focused.slice(keyboardBefore) }
+            desk.hostShown() === hostBefore &&
+            JSON.stringify(desk.page().dock.attention) === '["b"]',
+        { names: names(), shown: desk.hostShown(), dock: desk.page().dock }
     );
-    desk.desktop.makeKeyAndOrderFront(two, { activates: true });
+    desk.desktop.orderFront(three);
     check(
-        'a window made key and ordered front takes the keyboard, the host window coming up as it activates',
+        'a window such a mod orders front goes right behind the key window too',
+        names().at(-5) === 'buttons-3' && desk.desktop.isKey(two) && desk.hostShown() === hostBefore,
+        names()
+    );
+    const lone = windowOf(6, 'c', 'main');
+    desk.desktop.open(lone);
+    desk.desktop.close(lone);
+    desk.desktop.close(reminder);
+    check(
+        'a mod asks for attention until it has no window open',
+        JSON.stringify(desk.page().dock.attention) === '["b"]',
+        desk.page().dock
+    );
+    desk.chord('b');
+    desk.desktop.orderFront(three);
+    check(
+        'a chord that reaches a mod lets it activate: its window comes in front and key, the host window coming up',
+        names().at(-2) === 'buttons-3' &&
+            desk.desktop.isKey(three) &&
+            desk.hostShown() === hostBefore + 1 &&
+            !desk.page().dock.attention.length,
+        { names: names(), dock: desk.page().dock }
+    );
+    desk.key(three.surface);
+    desk.desktop.orderFront(two);
+    check(
+        'a key pressed in a window ends what the seat handed before: the mod it reached is the one that may activate',
+        names().at(-5) === 'buttons-2' && desk.desktop.isKey(three),
+        names()
+    );
+    desk.fromPage('press', { id: 2 });
+
+    desk.desktop.orderFront(one, { activates: false });
+    check(
+        'a window the active mod orders front comes in front and leaves the key window and the keyboard where they are',
+        names().at(-2) === 'buttons-1' && desk.desktop.isKey(two) && desk.focused.at(-1)?.name === 'content-2',
+        { names: names(), focused: desk.focused.at(-1) }
+    );
+    const shownBefore = desk.hostShown();
+    desk.desktop.orderFront(two);
+    check(
+        'a window the active mod makes key and orders front takes the keyboard, the host window coming up',
         names().at(-2) === 'buttons-2' &&
             desk.desktop.isKey(two) &&
             desk.focused.at(-1)?.name === 'content-2' &&
-            desk.hostShown() === hostBefore + 1,
+            desk.hostShown() === shownBefore + 1,
         { names: names(), shown: desk.hostShown() }
     );
-    const toast = windowOf(9, 'b', 'toast');
+    const toast = windowOf(9, 'a', 'toast');
     desk.desktop.open(toast, { activates: false });
     desk.openSurfaces(9);
     check(
@@ -292,7 +441,7 @@ async function main() {
         names().at(-2) === 'buttons-9' &&
             desk.desktop.isKey(two) &&
             desk.focused.at(-1)?.name === 'content-2' &&
-            desk.hostShown() === hostBefore + 1,
+            desk.hostShown() === shownBefore + 1,
         names()
     );
     desk.desktop.close(toast);
@@ -321,6 +470,7 @@ async function main() {
         pressedHidden
     );
 
+    desk.desktop.activation.input('local', 'a');
     const activated = desk.desktop.activate('local', 'a');
     check(
         'a mod brought in front for a seat has its windows in front, those it minimized too, the front one key',
@@ -422,7 +572,8 @@ async function main() {
 // 1200 by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
 // desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that
 // page, `page()` is what it was told last, and `press(name, page)` presses the shell's key `name` in `page`, which
-// the page did not handle.
+// the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it, `key(page)` a
+// key pressed in a page and `chord(mod)` a chord told to a mod.
 function desktopOver(createDesktop, { state = {} }) {
     const handlers = {};
     const sent = [];
@@ -434,6 +585,7 @@ function desktopOver(createDesktop, { state = {} }) {
     let size = { width: 1200, height: 800 };
     let resized = () => {};
     const desktopPage = { name: 'desktop' };
+    const heard = { requests: null, monitor: null, chords: null };
     const mods = [
         { id: 'a', name: 'A', uses: {} },
         { id: 'b', name: 'B', uses: {} },
@@ -457,6 +609,8 @@ function desktopOver(createDesktop, { state = {} }) {
         web: { pageFor: () => null },
         keymap: {
             listen() {},
+            monitor: (handler) => (heard.monitor = handler),
+            onChord: (listener) => (heard.chords = listener),
             hold: (_keystroke, press, { name }) => {
                 holds[name] = press;
                 return () => {};
@@ -466,6 +620,8 @@ function desktopOver(createDesktop, { state = {} }) {
             list: () => mods,
             runs: () => [],
             fieldsOf: () => ({}),
+            modOf: (page) => page?.mod ?? null,
+            onRequest: (listener) => (heard.requests = listener),
             notifications: [],
             onChange() {},
             observe() {},
@@ -498,7 +654,14 @@ function desktopOver(createDesktop, { state = {} }) {
         deckit,
         host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
     });
-    desktop.start({ WINDOWS: { close: (window) => desktop.close(window) }, DOCK: { items: () => [] } });
+    desktop.start({
+        WINDOWS: {
+            close: (window) => desktop.close(window),
+            keyOverlay: () => null,
+            pageOf: (page) => page.of ?? page,
+        },
+        DOCK: { items: () => [] },
+    });
     allowed.get('backdrop')({ name: 'backdrop' });
     const frameOf = (id) => laid.find(({ page }) => page.name === `content-${id}`)?.rect ?? null;
     return {
@@ -520,6 +683,9 @@ function desktopOver(createDesktop, { state = {} }) {
         fromPage: (name, payload) => handlers[`deckit-shell:desktop-${name}`](payload, desktopPage),
         page: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-state').at(-1).payload,
         press: (name, page) => holds[name](page),
+        request: (from, to) => heard.requests({ from, to }),
+        key: (page) => heard.monitor(page, { code: 'KeyA' }),
+        chord: (mod) => heard.chords(mod),
     };
 }
 
