@@ -45,7 +45,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `mods.launch(id)`, `mods.quit(id)`, `mods.relaunch(id)` | the requests `launch`, `quit` and `relaunch` | `deckit.mods` | [the lifecycle](../DECKIT-5/SPEC.md) |
 | `mods.onChange(listener)` | being told that what `mods.list()` answers may have changed | `deckit.mods` | [the events](../DECKIT-12/SPEC.md) |
 | `mods.pin(interface, mod)` | the owner of an interface, as a person pins it | `deckit.mods` | [the interfaces](../DECKIT-10/SPEC.md) |
-| `mods.usage(id)` | what a mod has stored, in each place it is kept | `deckit.mods` | the storage DECKIT |
+| `mods.usage(id)` | what a mod has stored, in each place it is kept | `deckit.mods` | [the storage](../DECKIT-13/SPEC.md) |
 | `mods.pick(options)` | a folder a person picks to install | `deckit.mods` | the embedding DECKIT |
 | `mods.reveal(id)` | a mod's folder, shown outside the app | `deckit.mods` | the DECKIT of files outside the app |
 | `mods.restartPending()`, `mods.restart()` | the mods that only a restart of the app finishes, and the restart | `deckit.mods` | the main process' DECKIT |
@@ -53,7 +53,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `reveal(path)` | a file, shown outside the app | `system.file-handlers` | the DECKIT of files outside the app |
 | `fileURL(path)`, `filePath(url)` | the address of a file, and the file of an address | | the DECKIT of files outside the app |
 | `about()`, `active()` | what the host tells a mod of itself, and whether the app is in front | | the embedding DECKIT |
-| `storage` | what the mod stores | | the storage DECKIT |
+| `storage` | what the mod stores | | [the storage](../DECKIT-13/SPEC.md) |
 | `events` | the events the mod sends and hears | | [the events](../DECKIT-12/SPEC.md) |
 | `exports.register(exports)` | the exports the mod opens for its id | | [the connections](../DECKIT-9/SPEC.md) |
 | `dependencies.reach(id)`, `dependencies.release(id)` | reaching a mod by its id, and letting it go | `deckit.reach-mods`, for `reach` | [the connections](../DECKIT-9/SPEC.md) |
