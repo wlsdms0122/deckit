@@ -7,7 +7,7 @@ const { section } = require('../section/section.js');
 
 // The Mods section: every mod found in their order, what each contributes, and installing and removing them.
 // `onChange` hears that a mod was installed, removed, restarted or pinned here. Failures and what was done are told
-// in a toast. `mods` is deckit.mods; `pins`, the panel's pins (shell.mods), or nothing under a shell that has none;
+// in a toast. `mods` is deckit.mods; `pins`, the Dock's pins (shell.mods), or nothing under a shell that has none;
 // `dropDestination` the shell's.
 function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange }) {
     const TITLE = 'Mods';

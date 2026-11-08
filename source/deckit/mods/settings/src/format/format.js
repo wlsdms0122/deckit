@@ -47,7 +47,6 @@ function contributionsOf({ contributes = {}, fields = {}, provides = {}, backgro
         if (entries) labels.push(`${entries} ${entries === 1 ? one : many}`);
     };
     if (fields.view) labels.push('view');
-    if (fields.view?.sidebar) labels.push('sidebar');
     if (background) labels.push('background');
     count('deckit/commands', 'command', 'commands');
     count('deckit/keys', 'key', 'keys');

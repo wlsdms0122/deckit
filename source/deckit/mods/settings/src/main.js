@@ -17,19 +17,22 @@ const SERVICES = {
     configuration: 'deckit/configuration',
     commands: 'deckit/commands',
 };
+// Where the sidebar's width and fold are kept, as the person leaves them.
+const SIDEBAR = 'sidebar';
 
 class Settings {
-    // What the view has put on screen for the command to reach, while it is attached.
+    // What attach has put on screen for the command and reopen() to reach, while it is attached: `openWindow()` opens
+    // Settings' window, or orders it front where it is open.
     screen = null;
 
     // The command its manifest declares to `deckit/commands` is taken from the exports for its id, and runs on the
-    // view, failing, saying so, while Settings has no view open.
+    // window, opening it where it is closed, failing, saying so, while Settings is not attached.
     start(deckit) {
         deckit.exports.register({
             connect: () => ({
                 runCommand: async (id, args) => {
                     if (id !== 'show-settings-of') throw new Error(`Settings has no command ${id}`);
-                    if (!this.screen) throw new Error('Settings has no view open');
+                    if (!this.screen) throw new Error('Settings has no window to open');
                     await this.screen.showSettingsOf(args ?? {});
                     return null;
                 },
@@ -133,19 +136,26 @@ class Settings {
                 };
             });
 
-        shell.view.register({
-            content: page,
+        // The table of contents beside the sections; a key being recorded stops as the keyboard leaves the window.
+        const split = ui.splitView({
             sidebar: contents.element,
-            didAppear: () => {
-                shown = true;
-                redraw();
-                contents.follow();
-            },
-            didDisappear: () => {
-                shown = false;
-                keyboard.stopRecording();
-            },
+            content: page,
+            ...deckit.storage.values.get(SIDEBAR, {}),
+            onChange: (kept) => deckit.storage.values.set(SIDEBAR, kept),
         });
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear: () => {
+                    shown = true;
+                    redraw();
+                    contents.follow();
+                },
+                didResignKey: () => keyboard.stopRecording(),
+                didDisappear: () => (shown = false),
+            });
+        openWindow();
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) =>
             quickSwitcher.setActions({
                 list: () => [
@@ -170,9 +180,9 @@ class Settings {
                         : [],
                 run: async ({ action, index, mod }) => {
                     if (action === 'show-section') {
-                        shell.show();
+                        openWindow();
                         requestAnimationFrame(() => contents.go(sections[index]));
-                    } else await showSettingsOf({ mod }, { ready: shell.show });
+                    } else await showSettingsOf({ mod }, { ready: openWindow });
                 },
             })
         );
@@ -183,7 +193,7 @@ class Settings {
             general.draw();
             modSettings.draw();
         });
-        this.screen = { showSettingsOf: (args) => showSettingsOf(args, { ready: shell.show }) };
+        this.screen = { openWindow, showSettingsOf: (args) => showSettingsOf(args, { ready: openWindow }) };
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         // A mod starting or stopping keeps what its run that launched showed (deckit.mods.list()'s `launched`), so a
@@ -272,6 +282,11 @@ class Settings {
                 modSettings.highlight(card);
             });
         }
+    }
+
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
     }
 
     detach() {

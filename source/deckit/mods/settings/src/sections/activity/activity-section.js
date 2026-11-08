@@ -6,14 +6,14 @@ const STATE_WORDS = { launching: 'Starting', running: 'Running', terminating: 'S
 // How often the time a mod has run for is drawn again while the section is in the page.
 const TICK_MS = 30000;
 
-// The Activity section: every mod running now, with a view or without, its run's state, how long it has run and what
+// The Activity section: every mod running now, an app or not, its run's state, how long it has run and what
 // is wrong with it, with a quit and a restart; and the background list, each mod whose manifest asks to run in the
 // background, with its reason. `mods` is deckit.mods; `onInterfaces()` shows the Interfaces section.
 function activitySection({ ui, mods, onInterfaces }) {
     const TITLE = 'Activity';
     const KEYWORDS = ['활동', '실행', '백그라운드', 'activity', 'running', 'quit', 'background'];
     const DESCRIPTION =
-        'The mods running now, with a view or without, and for how long. Quit one, or restart it. Below, the mods ' +
+        'The mods running now, apps or not, and for how long. Quit one, or restart it. Below, the mods ' +
         'that run in the background, which start with the app, and why each asks to.';
 
     const runFills = new WeakMap(); // run row -> its fill(mod)

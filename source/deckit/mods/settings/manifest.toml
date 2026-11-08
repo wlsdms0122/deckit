@@ -13,7 +13,7 @@ uses = { "deckit/commands" = 1, "deckit/configuration" = 1, "deckit/keys" = 1, "
 [permissions]
 "deckit.mods" = "Its Mods section installs a mod from a folder you pick, removes installed ones, restarts a mod or the app, shows a mod's folder in Finder, keeps a mod in the Dock, and chooses the mod that owns an interface. Its Activity section quits and restarts running mods."
 "deckit.system-services" = "Its Keyboard section lists every mod's keys and sets the chord you choose, its URL Schemes section chooses what opens each scheme, and its Mod Settings section shows and changes every mod's settings, and its Mods section shows on a mod's row what it declares that the app leaves out."
-"deckit.shell-keys" = "Its Keyboard section shows the keys of the app's panel and Dock and sets the chord you choose."
+"deckit.shell-keys" = "Its Keyboard section shows the keys of the app's windows and sets the chord you choose."
 "deckit.fonts" = "Its General section sets the fonts and the text size mods write text in."
 
 [[contributes."deckit/commands"]]

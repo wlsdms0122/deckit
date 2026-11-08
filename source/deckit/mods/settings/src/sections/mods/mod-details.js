@@ -63,8 +63,9 @@ const MOD_DETAILS_STYLE = `
     .settings-details-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 `;
 
-// What an opened mod row shows: the interfaces it uses, where its view is shown, its permissions, the addresses it
-// opens, its keys and where it lives. `onPinnedChange` hears the person keep a mod in the Dock or take it out.
+// What an opened mod row shows: the interfaces it uses, in which mod's window its view is shown, its permissions, the
+// addresses it opens, its keys and where it lives. `onPinnedChange` hears the person keep a mod in the Dock or take it
+// out.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the slow
 // duration, as content entering the row.
 function modDetails({ ui, mods, pins, util, onPinnedChange }) {
@@ -97,7 +98,7 @@ function modDetails({ ui, mods, pins, util, onPinnedChange }) {
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
         if (mod.uses?.length) addPart('Interfaces', chipRow(useChips(mod.uses)));
-        if (mod.view?.parent && pins) addPart('Sidebar', sidebarPin());
+        if (mod.view?.parent && pins) addPart('View', viewPin());
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
         if (mod.schemes.length) addPart('Opens', chipRow(openingChips(mod.schemes)));
@@ -146,9 +147,9 @@ function modDetails({ ui, mods, pins, util, onPinnedChange }) {
         });
     }
 
-    // A child's view is shown in the view of the owner of the interface it names as parent, and in the Dock
-    // as well once the person pins it there.
-    function sidebarPin() {
+    // A child's view is shown in a region of the window of the owner of the interface it names as parent, and in the
+    // Dock as well once the person pins it there.
+    function viewPin() {
         const parent = (mod.uses || []).find((use) => use.interface === mod.view.parent);
         const { id } = mod;
         const pin = ui.element('div', { className: 'settings-details-switch' });

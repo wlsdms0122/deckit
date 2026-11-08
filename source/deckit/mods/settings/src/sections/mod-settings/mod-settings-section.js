@@ -176,7 +176,8 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
             if (declared === shape) {
                 // A button has no value: everything it shows is in its shape. A control being typed in keeps what is
                 // typed.
-                if (!item.runs && !control.element.contains(document.activeElement)) control.set(valueOf(item));
+                if (!item.runs && !control.element.contains(control.element.ownerDocument.activeElement))
+                    control.set(valueOf(item));
                 return;
             }
             shape = declared;
