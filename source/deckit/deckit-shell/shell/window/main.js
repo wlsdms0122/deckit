@@ -33,7 +33,8 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         PROTOCOL.close.on(bySender(close));
         PROTOCOL.minimize.on(bySender((window) => window.level === NORMAL && DESKTOP.minimize(window)));
         PROTOCOL.zoom.on(bySender((window) => window.level === NORMAL && DESKTOP.zoom(window)));
-        PROTOCOL.orderFront.on(bySender(orderFront));
+        PROTOCOL.orderFront.on(bySender((window) => orderFront(window, { activates: false })));
+        PROTOCOL.makeKeyAndOrderFront.on(bySender((window) => orderFront(window)));
         PROTOCOL.resize.on(bySender(resize));
         PROTOCOL.move.on(
             bySender((window, { phase, dx, dy }) => window.level === NORMAL && DESKTOP.move(window, phase, dx, dy))
@@ -122,14 +123,14 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         };
     }
 
-    // One window of a name per run: the one open orders front. An overlay window is only for a mod that holds the
-    // permission, whatever its page says.
-    function open(page, { name, level, width, height, minWidth, minHeight }) {
+    // One window of a name per run: the one open orders front. It comes up as the key window unless `activates` is
+    // false. An overlay window is only for a mod that holds the permission, whatever its page says.
+    function open(page, { name, level, width, height, minWidth, minHeight, activates = true }) {
         const mod = deckit.mods.modOf(page);
         if (!mod) throw new Error('only a mod opens windows');
         const same = [...windows.values()].find((window) => window.page === page && window.name === name);
         if (same) {
-            orderFront(same);
+            orderFront(same, { activates });
             return { id: same.id, surface: SURFACE.nameOf(same.id) };
         }
         const overlay = level === OVERLAY_LEVEL;
@@ -156,9 +157,9 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         windows.set(id, window);
         closesWith(page);
         PAGES.allowSurface(page, SURFACE.nameOf(id), (surface) => opened(window, surface));
-        if (overlay) float(window);
+        if (overlay) float(window, { activates });
         else {
-            DESKTOP.open(window);
+            DESKTOP.open(window, { activates });
             layOverlayWindowsOf(page);
         }
         return { id, surface: SURFACE.nameOf(id) };
@@ -178,7 +179,7 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
 
     function focused(window) {
         if (windows.get(window.id) !== window) return;
-        if (window.level === NORMAL) DESKTOP.orderFront(window);
+        if (window.level === NORMAL) DESKTOP.makeKeyAndOrderFront(window);
     }
 
     // Closed, wherever it is, and the page told, unless the page is what went; a web page's window tells those who
@@ -198,10 +199,11 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         if (PAGES.isAlive(window.page)) PROTOCOL.closed.send(window.page, { id: window.id });
     }
 
-    // As the mod asks: the host window it is in comes up too.
-    function orderFront(window) {
-        if (window.level === NORMAL) DESKTOP.orderFront(window, { activates: true });
-        else showWindow(window.host.control, { activates: true });
+    // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false.
+    function orderFront(window, { activates = true } = {}) {
+        if (window.level !== NORMAL) showWindow(window.host.control, { activates });
+        else if (activates) DESKTOP.makeKeyAndOrderFront(window, { activates });
+        else DESKTOP.orderFront(window);
     }
 
     function resize(window, size) {
@@ -223,8 +225,9 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         });
     }
 
-    // An overlay window floats in a window of the host app's, which the host closes as it is done with it.
-    function float(window) {
+    // An overlay window floats in a window of the host app's, which the host closes as it is done with it, taking the
+    // keyboard unless `activates` is false.
+    function float(window, { activates }) {
         const host = { control: null, stage: null, unheard: null, key: false };
         host.control = Object.freeze({
             mod: window.mod,
@@ -253,7 +256,7 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
             didResignKey: () => setKey(window, false),
         });
         window.host = host;
-        showWindow(host.control, { activates: true });
+        showWindow(host.control, { activates });
     }
 
     function setKey(window, on) {

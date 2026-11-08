@@ -47,13 +47,14 @@ function createWindowManager() {
         }
     }
 
-    // In front in `by`'s order, out of what it minimized, and its key window: answers as makeKey does.
-    function orderFront(by, id) {
+    // In front in `by`'s order, out of what it minimized, and its key window unless `activates` is false: answers as
+    // makeKey does, or null.
+    function orderFront(by, id, { activates = true } = {}) {
         const seat = seats.get(by);
         if (!seat || !windows.has(id)) return null;
         seat.minimized.delete(id);
         seat.order = [...seat.order.filter((one) => one !== id), id];
-        return makeKey(by, id);
+        return activates ? makeKey(by, id) : null;
     }
 
     // `by`'s key window, and held by it, unless another seat holds it: answers KEY or HELD.

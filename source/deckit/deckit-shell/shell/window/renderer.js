@@ -45,8 +45,9 @@ function createWindows({ running, deliver, channels, drags }) {
     PROTOCOL.reopen.on(() => reopened?.());
 
     // MARK: - Public
-    // `open(options)` opens a window, or orders front the one of its name open, and answers it; `list()` answers the
-    // windows open, in the order they opened.
+    // `open(options)` opens a window, or orders front the one of its name open, and answers it: the key window, as
+    // `makeKeyAndOrderFront()` puts it, or with `activates` false in front as `orderFront()` puts it, the keyboard left
+    // where it is. `list()` answers the windows open, in the order they opened.
     function forScope(scope) {
         scope.add(() => {
             for (const id of open.keys()) PROTOCOL.close.send({ id });
@@ -75,8 +76,8 @@ function createWindows({ running, deliver, channels, drags }) {
     function opened(options) {
         const problem = problemOf(options, running);
         if (problem) throw new TypeError(`shell.windows.open() ${problem}`);
-        const { name, level = 'normal', width, height, minWidth, minHeight } = options;
-        const { id, surface } = PROTOCOL.open.invoke({ name, level, width, height, minWidth, minHeight });
+        const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
+        const { id, surface } = PROTOCOL.open.invoke({ name, level, width, height, minWidth, minHeight, activates });
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
         const document = view.document;
@@ -109,6 +110,7 @@ function createWindows({ running, deliver, channels, drags }) {
             minimize: () => PROTOCOL.minimize.send({ id }),
             zoom: () => PROTOCOL.zoom.send({ id }),
             orderFront: () => PROTOCOL.orderFront.send({ id }),
+            makeKeyAndOrderFront: () => PROTOCOL.makeKeyAndOrderFront.send({ id }),
             resize(width, height) {
                 if (!positive(width) || !positive(height))
                     throw new TypeError('resize takes a width and a height above 0');
@@ -176,7 +178,7 @@ function createWindows({ running, deliver, channels, drags }) {
 function problemOf(options, running) {
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
-        return `takes { name, content, level, width, height, minWidth, minHeight, ${CALLBACKS.join(', ')} }, name a text and content an element`;
+        return `takes { name, content, level, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.join(' or ')}`;
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;

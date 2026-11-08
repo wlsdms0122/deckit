@@ -71,9 +71,9 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     }
 
     // A normal window opens where its mod last left the window of its name, or cascaded from the key window where it
-    // left none or one of that name is open, in front and the key window. A window with a `title` is titled: the shell
-    // draws its title bar, holding the title, over its content.
-    function open(window) {
+    // left none or one of that name is open, in front and the key window unless `activates` is false. A window with a
+    // `title` is titled: the shell draws its title bar, holding the title, over its content.
+    function open(window, { activates = true } = {}) {
         const desktopNow = area();
         const after = keyWindow() && MANAGER.frameOf(keyWindow().id);
         const twin = [...windows.values()].some(({ mod, name }) => mod === window.mod && name === window.name);
@@ -83,7 +83,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         windows.set(window.id, window);
         for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)])
             PAGES.allowSurface(desktop.page, name, (surface) => openSurface(name, surface));
-        MANAGER.open(LOCAL, window.id, { frame, minimum: LAYOUT.minimumOf(window.minimum) });
+        MANAGER.open(LOCAL, window.id, { frame, minimum: LAYOUT.minimumOf(window.minimum) }, { activates });
         update();
     }
 
@@ -99,8 +99,15 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         update();
     }
 
-    // In front and the key window; `activates` brings the host window up too.
-    function orderFront(window, { activates = false } = {}) {
+    // In front, the key window left where it is.
+    function orderFront(window) {
+        if (!windows.has(window.id)) return;
+        MANAGER.orderFront(LOCAL, window.id, { activates: false });
+        update();
+    }
+
+    // The key window, in front; `activates` brings the host window up too.
+    function makeKeyAndOrderFront(window, { activates = false } = {}) {
         if (!windows.has(window.id)) return;
         MANAGER.orderFront(LOCAL, window.id);
         update();
@@ -130,7 +137,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     function move(window, phase, dx, dy) {
         if (phase === 'began') {
             moving = { id: window.id, from: MANAGER.frameOf(window.id) };
-            orderFront(window);
+            makeKeyAndOrderFront(window);
             return;
         }
         if (moving?.id !== window.id) return;
@@ -237,7 +244,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
             desktop.sent = JSON.stringify(state);
             return { glass: TOKEN.GLASS, state };
         });
-        PROTOCOL.press.on(known((window) => orderFront(window)));
+        PROTOCOL.press.on(known((window) => makeKeyAndOrderFront(window)));
         PROTOCOL.button.on(
             known((window, { button }) => {
                 if (button === 'close') WINDOWS.close(window);
@@ -490,7 +497,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         const ids = MANAGER.orderOf(LOCAL).filter(
             (id) => windows.get(id).mod === key.mod && !MANAGER.isMinimized(LOCAL, id)
         );
-        if (ids.length > 1) orderFront(windows.get(ids[0]));
+        if (ids.length > 1) makeKeyAndOrderFront(windows.get(ids[0]));
     }
 
     function show() {
@@ -519,6 +526,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         open,
         close,
         orderFront,
+        makeKeyAndOrderFront,
         minimize,
         zoom,
         resize,

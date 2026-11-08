@@ -2,7 +2,8 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 
 // A window opens, or the one of that name open orders front: answers `{ id, surface }` at once, `surface` the name
-// the page opens its content by (window.open('', surface)). `level` is 'normal' or 'overlay'.
+// the page opens its content by (window.open('', surface)). `level` is 'normal' or 'overlay'; `activates` false leaves
+// the key window where it is.
 export const open = CHANNEL.pageToMain(
     'deckit-shell:window-open',
     {
@@ -12,14 +13,19 @@ export const open = CHANNEL.pageToMain(
         height: 'number?',
         minWidth: 'number?',
         minHeight: 'number?',
+        activates: 'boolean?',
     },
     { reply: true, sync: true }
 );
 export const close = CHANNEL.pageToMain('deckit-shell:window-close', { id: 'number' });
 export const minimize = CHANNEL.pageToMain('deckit-shell:window-minimize', { id: 'number' });
 export const zoom = CHANNEL.pageToMain('deckit-shell:window-zoom', { id: 'number' });
-// In front, and the key window.
+// In front, the key window left where it is.
 export const orderFront = CHANNEL.pageToMain('deckit-shell:window-order-front', { id: 'number' });
+// The key window, in front.
+export const makeKeyAndOrderFront = CHANNEL.pageToMain('deckit-shell:window-make-key-and-order-front', {
+    id: 'number',
+});
 export const resize = CHANNEL.pageToMain('deckit-shell:window-resize', {
     id: 'number',
     width: 'number',
