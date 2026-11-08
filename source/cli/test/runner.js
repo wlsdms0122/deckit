@@ -7,7 +7,8 @@
 // owner change it delivers reaching the page that listens, a changed mod that ran loaded again, a launch the core
 // answers for a failed run done as told, what a run is refused with at launch, a launch whose run did not launch
 // refused, its page killed and made anew, a quit asked of the core, a mod that quits its run, the page closed, and the
-// quit held while a run has not ended, a launch meanwhile refused. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// quit held while a run has not ended, a launch meanwhile refused. Exits 1 with a line for each check that failed. The
+// packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
