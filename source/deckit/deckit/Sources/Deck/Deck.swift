@@ -85,12 +85,6 @@ public final class Deck {
         try judged(id, run: run, runner.started(id, run: run, contributions: contributions))
     }
 
-    // What the running `run`th run of `id` contributes now: the lifecycles stacked on the run join theirs after it
-    // started, and leave as they end.
-    public func joined(_ id: String, run: Int, contributions: Contribution) throws -> [Effect] {
-        try judged(id, run: run, runner.joined(id, run: run, contributions: contributions))
-    }
-
     // A problem against the `run`th run of `id`.
     public func report(_ id: String, run: Int, problem: String) throws -> [Effect] {
         try withChanges(runner.report(id, run: run, problem: problem))

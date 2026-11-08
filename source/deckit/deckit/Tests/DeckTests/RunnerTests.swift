@@ -187,26 +187,6 @@ struct RunnerTests {
         #expect(sut.job(of: "a")?.revision == "2")
     }
 
-    @Test("a running run contributes anew, what it contributes now in place of what it did; one not running does not")
-    func runningRunJoins() throws {
-        // Given
-        let sut = Runner()
-        _ = try sut.load([.fixture("a")])
-        let joining = Contribution(exportedIn: ["a": 1], awaits: ["b": 1])
-        let early = try sut.joined("a", run: 1, contributions: joining)
-        _ = try sut.started("a", run: 1, exportedIn: ["a": 0])
-
-        // When
-        let joined = try sut.joined("a", run: 1, contributions: joining)
-
-        // Then
-        let run = try #require(sut.run(of: "a"))
-        #expect(early.isEmpty)
-        #expect(describe(joined) == ["keep a 1 "])
-        #expect(run.contributions?.exportedIn == ["a": 1])
-        #expect(run.contributions?.awaits == ["b": 1])
-    }
-
     // MARK: - Private
     // Each principal loads and starts in turn.
     private func launch(_ ids: [String], with sut: Runner) throws {

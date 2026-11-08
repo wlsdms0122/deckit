@@ -80,17 +80,6 @@ final class Runner {
         }
     }
 
-    // What it contributes now, while it runs.
-    func joined(_ id: String, run number: Int, contributions: Contribution) throws -> [Effect] {
-        try decide {
-            guard let sandbox = sandbox(of: id, run: number), sandbox.state == .running else { return }
-            var run = sandbox.run
-            run.join(contributions)
-            sandbox.run = run
-            effects.append(.keep(run))
-        }
-    }
-
     func report(_ id: String, run number: Int, problem: String) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id, run: number) else { return }

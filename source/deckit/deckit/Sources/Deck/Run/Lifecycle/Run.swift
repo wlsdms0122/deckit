@@ -17,7 +17,7 @@ public struct Run: Sendable {
     public private(set) var failed = false
     // The first problem recorded against it while it launches or runs, or why it failed or crashed.
     public private(set) var problem: String?
-    // Once it launched, what it contributes now.
+    // Once it launched, what it contributes.
     public private(set) var contributions: Contribution?
 
     // MARK: - Initializer
@@ -27,12 +27,6 @@ public struct Run: Sendable {
     }
 
     // MARK: - Public
-    // What it contributes now replaces what it did, once it launched.
-    mutating func join(_ contributions: Contribution) {
-        guard self.contributions != nil else { return }
-        self.contributions = contributions
-    }
-
     mutating func didLaunch(_ contributions: Contribution) throws(LifecycleError) -> LifecycleNotification {
         let notification = try move(.didLaunch)
         self.contributions = contributions

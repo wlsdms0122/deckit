@@ -79,43 +79,44 @@ struct ConnectionBrokerTests {
         }
         _ = try runner.load([dep])
         _ = try sut.begin(principal: "dep", run: 1, lifecycle: 0)
-        _ = try runner.started("dep", run: 1)
+        _ = try sut.begin(principal: "dep", run: 1, lifecycle: 1)
 
         // When
-        let before = sut.changes()
-        _ = try sut.begin(principal: "dep", run: 1, lifecycle: 1)
-        _ = try runner.joined("dep", run: 1, contributions: Contribution(exportedIn: ["dep/api": 1], awaits: [:]))
-        let after = sut.changes()
+        _ = try runner.started("dep", run: 1, exportedIn: ["dep/api": 1])
+        let started = sut.changes()
 
         // Then
         #expect(
-            before.map(\.line) == [
-                "refuse a#1@0 by dep/api: dep runs with no exports for dep/api that reach the lifecycle",
-                "refuse a#1@1 by dep/api: dep runs with no exports for dep/api that reach the lifecycle"
+            started.map(\.line) == [
+                "connect 1 a#1@1 -> dep#1@1",
+                "refuse a#1@0 by dep/api: dep runs with no exports for dep/api that reach the lifecycle"
             ]
         )
-        #expect(after.map(\.line) == ["connect 1 a#1@1 -> dep#1@1"])
     }
 
     @Test("one reached by id connects by the exports it opened for its id, not those of an interface it provides")
     func idReachConnectsByTheIdsExports() throws {
         // Given
         let dep = Job.fixture("dep", provides: ["dep/api": [1]])
-        owners.provide([dep], keeping: [])
+        let other = Job.fixture("other", provides: ["other/api": [1]])
+        owners.provide([dep, other], keeping: [])
         try start(dep, exportedIn: ["dep/api": 0])
-        try start(.fixture("a", reaches: .only(["dep"])))
+        try start(other, exportedIn: ["other": 0])
+        try start(.fixture("a", reaches: .only(["dep", "other"])))
+        let client = Endpoint(principal: "a", run: 1, lifecycle: 0)
 
         // When
-        try sut.reach("dep", from: Endpoint(principal: "a", run: 1, lifecycle: 0))
-        let interfaceOnly = sut.changes()
-        _ = try runner.joined("dep", run: 1, contributions: Contribution(exportedIn: ["dep": 0], awaits: [:]))
-        let opened = sut.changes()
+        try sut.reach("dep", from: client)
+        try sut.reach("other", from: client)
+        let reached = sut.changes()
 
         // Then
         #expect(
-            interfaceOnly.map(\.line) == ["refuse a#1@0 by dep: dep runs with no exports for dep that reach the lifecycle"]
+            reached.map(\.line) == [
+                "connect 1 a#1@0 -> other#1@0",
+                "refuse a#1@0 by dep: dep runs with no exports for dep that reach the lifecycle"
+            ]
         )
-        #expect(opened.map(\.line) == ["connect 1 a#1@0 -> dep#1@0"])
     }
 
     @Test("a principal that owns an interface it uses reaches no one by it")
@@ -350,7 +351,7 @@ struct ConnectionBrokerTests {
         #expect(askedAgain.map(\.line) == ["connect 2 a#1@0 -> dep#1@0"])
     }
 
-    @Test("a lifecycle reaching a principal that runs with no exports for the name is refused once, and connects later")
+    @Test("a lifecycle reaching a principal running with no exports for the name is refused once an ask, then connects")
     func reachWithoutExportsIsRefused() throws {
         // Given
         let client = Endpoint(principal: "a", run: 1, lifecycle: 0)
@@ -369,8 +370,11 @@ struct ConnectionBrokerTests {
         let again = sut.changes()
         sut.release("dep", from: client)
         let released = sut.changes()
-        _ = try runner.joined("dep", run: 1, contributions: Contribution(exportedIn: ["dep": 0], awaits: [:]))
         try sut.reach("dep", from: client)
+        let askedAgain = sut.changes()
+        _ = try runner.unload(["dep"])
+        _ = try runner.stopped("dep", run: 1)
+        try start(dep, exportedIn: ["dep": 0, "dep/api": 0], run: 2)
         let opened = sut.changes()
 
         // Then
@@ -383,7 +387,10 @@ struct ConnectionBrokerTests {
         )
         #expect(again.isEmpty)
         #expect(released.isEmpty)
-        #expect(opened.map(\.line) == ["connect 1 a#1@0 -> dep#1@0"])
+        #expect(
+            askedAgain.map(\.line) == ["refuse a#1@0 by dep: dep runs with no exports for dep that reach the lifecycle"]
+        )
+        #expect(opened.map(\.line) == ["connect 1 a#1@0 -> dep#2@0", "connect 2 a#1@0 -> dep#2@0"])
     }
 
     @Test("a run that waits for exports in a lifecycle they do not reach is told so")

@@ -17,7 +17,7 @@ import Foundation
 // client releases the id or the interface has another owner. A lifecycle is up from when its page begins it until its
 // page says it ended, or its run has ended. A lifecycle that reaches a principal that does not run waits for it, and
 // deck tells so once; one that reaches a principal that runs with no exports for the name that reach the lifecycle is
-// refused, told once, and connects as the principal opens them while it still reaches it.
+// refused and told once.
 public final class ConnectionBroker {
     // MARK: - Property
     private let runner: Runner
