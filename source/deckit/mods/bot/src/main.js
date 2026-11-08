@@ -12,14 +12,15 @@ const PLACES = ['llmemory', 'brain'];
 const FORGE = ['sessions', 'session', 'start', 'stop', 'restart', 'log', 'call', 'dispatch', 'runSchedule', 'run'];
 
 class Bot {
-    // What the view has put on screen for the commands to reach, while it is attached.
+    // What attach has put on screen for the commands and reopen() to reach, while it is attached: `openWindow()` opens
+    // Bot's window, or orders it front where it is open.
     screen = null;
 
-    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the view,
-    // and one run while Bot has none open says so.
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the
+    // window's views, `show` bringing the window in front, and one run while Bot is not attached says so.
     start(deckit) {
         const onScreen = () => {
-            if (!this.screen) throw new Error('Bot has no view open');
+            if (!this.screen) throw new Error('Bot has no window to open');
             return this.screen;
         };
         const commands = {
@@ -216,7 +217,7 @@ class Bot {
         const supervisor = modeOf('supervisor').view;
         const brain = modeOf('brain').view;
 
-        // The view's own keys, while it is in front: ⌘ and a key, matched on the physical key.
+        // The window's own keys, while it is key: ⌘ and a key, matched on the physical key.
         const KEYS = {
             Digit1: () => setMode('supervisor'),
             Digit2: () => setMode('brain'),
@@ -232,32 +233,40 @@ class Bot {
             KEYS[event.code]();
         };
         const listenKeys = (on) => {
-            if (on) document.addEventListener('keydown', onKey);
-            else document.removeEventListener('keydown', onKey);
+            if (on) content.ownerDocument.addEventListener('keydown', onKey);
+            else content.ownerDocument.removeEventListener('keydown', onKey);
         };
-        this.endKeys = () => listenKeys(false);
 
-        shell.view.register({
-            content,
+        // The views beside the sidebar that picks them, whose width and fold are kept as the person leaves them.
+        const split = ui.splitView({
             sidebar,
-            didAppear: () => {
-                visible = true;
-                listenKeys(true);
-                show();
-            },
-            didDisappear: () => {
-                visible = false;
-                listenKeys(false);
-                hide();
-            },
+            content,
+            ...store.get('sidebar', {}),
+            onChange: (kept) => store.set('sidebar', kept),
         });
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear: () => {
+                    visible = true;
+                    show();
+                },
+                didBecomeKey: () => listenKeys(true),
+                didResignKey: () => listenKeys(false),
+                didDisappear: () => {
+                    visible = false;
+                    hide();
+                },
+            });
+        openWindow();
         const actions = switcher({
             ui,
             modes: MODES,
             supervisor,
             picker,
             brain,
-            show: shell.show,
+            show: openWindow,
             does: {
                 ...inFront({
                     show: showView,
@@ -292,9 +301,10 @@ class Bot {
         });
         deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
         this.screen = {
+            openWindow,
             show: (args) => {
                 showView(args);
-                shell.show();
+                openWindow();
             },
             chooseSession,
             searchBrain,
@@ -328,10 +338,13 @@ class Bot {
         }
     }
 
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
+    }
+
     detach() {
         this.screen = null;
-        this.endKeys?.();
-        this.endKeys = null;
     }
 }
 

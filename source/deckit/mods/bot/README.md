@@ -27,18 +27,18 @@ Services, Workflows and Schedules show one forge session, chosen from the pop-up
 
 ## Commands
 
-What a CLI, the switcher or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Bot opens for its id in `start`. Each acts on Bot's view, and one run while Bot has no view open fails, saying so.
+What a CLI, the switcher or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Bot opens for its id in `start`. Each acts on the views in Bot's window, and one run while Bot is not attached fails, saying so. Bot opens its window in `attach`, and again from `reopen()` as its Dock item is pressed while the window is closed.
 
 | Command | Title | Args | What it does |
 |---|---|---|---|
-| `show` | Show in Bot | `view` (`supervisor`, `workflows`, `schedules` or `brain`), `session`? | shows Bot on the view, a Forge view on the session given |
+| `show` | Show in Bot | `view` (`supervisor`, `workflows`, `schedules` or `brain`), `session`? | shows the view in Bot's window, brought in front and opened where it was closed, a Forge view on the session given |
 | `choose-session` | Choose Forge Session | `session` | chooses which daemon the Forge views show |
 | `search-brain` | Search the Brain | `query` | lists the notes of the brain that match a search, in Brain |
 | `read-note` | Read a Brain Note | `note` | opens a note of the brain in Brain |
 
 ## Keys
 
-The view's own shortcuts, which Bot handles in its page while the view is in front.
+The window's own shortcuts, which Bot handles in its window while the window is key.
 
 | Key | Action |
 |---|---|
