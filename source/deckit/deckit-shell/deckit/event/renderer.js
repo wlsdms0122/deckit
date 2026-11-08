@@ -31,7 +31,7 @@ export function createEvent({ RUN }) {
                     if (typeof name !== 'string') throw invalid(`${events}.emit() takes a name that is a string`);
                     const problem = REQUEST.valueProblem(args, 'its values');
                     if (problem) throw invalid(`${events}.emit("${name}"): ${problem}`);
-                    PROTOCOL.emit.invoke({ run: RUN.number, name, args });
+                    PROTOCOL.emit.invoke({ run: RUN.number, name, args: JSON.parse(JSON.stringify(args)) });
                 },
                 on(named, listener) {
                     if (typeof named !== 'string' || !SCOPED.isScoped(named))

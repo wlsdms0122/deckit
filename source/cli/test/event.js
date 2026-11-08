@@ -90,6 +90,7 @@ async function main() {
         () => events.emit('status', { at: new Date() }),
         () => events.emit('status', [() => {}]),
         () => events.emit('status', NaN),
+        () => events.emit('status', [undefined]),
     ].map(kindOf);
     check(
         'a name that is no scoped string, a listener, an emitted name of another type or no value are refused INVALID_ARGUMENT',
@@ -104,6 +105,12 @@ async function main() {
             JSON.stringify(sent.payload) ===
                 JSON.stringify({ run: 1, name: 'status', args: [1.5, 'two', { three: [3] }] }),
         sent
+    );
+    check(
+        'a key of a table that holds undefined is left out of what is sent',
+        kindOf(() => events.emit('status', { one: 1, none: undefined })) === null &&
+            !Object.hasOwn(tells.at(-1).payload.args[0], 'none'),
+        tells.at(-1)
     );
 
     for (const line of failed) console.error(line);

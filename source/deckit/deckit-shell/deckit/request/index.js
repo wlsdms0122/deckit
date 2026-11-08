@@ -10,7 +10,8 @@ function refusal(stage, kind, message) {
 }
 
 // Why `value` is not a value, or '': a value is a string, a finite number, a boolean, or an array or a plain table of
-// values. A null is none, as a value left out is.
+// values. A null is none, as a value left out is; a key of a table that holds undefined is left out of it, as JSON
+// leaves it out.
 function valueProblem(value, at = 'the value') {
     if (typeof value === 'string' || typeof value === 'boolean') return '';
     if (typeof value === 'number') return Number.isFinite(value) ? '' : `${at} is ${value}, no value`;
@@ -24,6 +25,7 @@ function valueProblem(value, at = 'the value') {
     const prototype = value !== null && typeof value === 'object' ? Object.getPrototypeOf(value) : undefined;
     if (prototype !== Object.prototype && prototype !== null) return `${at} is ${CHANNEL.kindOf(value)}, no value`;
     for (const [key, one] of Object.entries(value)) {
+        if (one === undefined) continue;
         const problem = valueProblem(one, `${at}.${key}`);
         if (problem) return problem;
     }
