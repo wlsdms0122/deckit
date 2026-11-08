@@ -1,20 +1,22 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
-import * as FIELD from '../panel/model/field.js';
+import * as FIELD from '../mods/field.js';
 import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered.
 export function createRegion({ deckit }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    // a mod's page -> number -> { parent, interface, rect, child }: a place in the page that shows a child's view
+    // a mod's page -> number -> { parent, interface, window, rect, child }: a place in one of the page's windows, by the
+    // window's id, that shows a child's view
     const regions = new Map();
+    const shown = new Set(); // the children's pages last told they are on screen
     const sentChildren = new Map(); // parent mod id -> its children as its page was last told them, written
     const listeners = new Set();
 
     // MARK: - Initializer
     // MARK: - Public
-    // The places mods give in their views, and the children shown in them. A mod whose manifest fields give a view
+    // The places mods give in their windows, and the children shown in them. A mod whose manifest fields give a view
     // with an interface as its parent is a child, whether it runs or not; it is the child of the owner of that
     // interface, and is shown in a region that mod gives for it. As another owns it, or the view names another
     // interface, the child leaves the region it was in, and the owner now hears it among its children.
@@ -28,9 +30,9 @@ export function createRegion({ deckit }) {
             if (parent) sentChildren.set(parent, JSON.stringify(children));
             return children;
         });
-        PROTOCOL.rect.on(({ region, interface: named, ...rect }, sender) => {
+        PROTOCOL.rect.on(({ region, interface: named, window, ...rect }, sender) => {
             const parent = deckit.mods.modOf(sender);
-            if (parent && providesOf(parent).has(named)) setRect(sender, region, named, rect);
+            if (parent && providesOf(parent).has(named)) setRect(sender, region, named, window ?? null, rect);
         });
         PROTOCOL.place.handle(({ region, interface: named, id }, sender) => place(sender, region, named, id ?? null));
         PROTOCOL.end.on(({ region }, sender) => end(sender, region));
@@ -39,7 +41,7 @@ export function createRegion({ deckit }) {
     // The interface the mod's view names as its parent, or null: it is a child whether or not a mod owns it.
     function interfaceOf(id) {
         const mod = MODS.loaded(deckit.mods).find((one) => one.id === id);
-        return (mod && FIELD.viewOf(deckit.mods.fieldsOf(id), mod)?.parent) || null;
+        return (mod && FIELD.parentOf(deckit.mods.fieldsOf(id), mod)) || null;
     }
 
     // The mod whose regions the mod's view is shown in, the owner of the interface its view names, which the mod uses,
@@ -50,20 +52,25 @@ export function createRegion({ deckit }) {
         return (named && deckit.mods.ownerOf(named, id)) || null;
     }
 
-    // child id -> its rect: the children `parent`'s regions show, of those `shown(id)` lets on screen, laid out.
-    function laidOut(parent, shown) {
+    // child id -> { window, rect }: the children `parent`'s regions show, of those `shows(id)` lets on screen, each in
+    // the window of its region, `rect` in that window.
+    function laidOut(parent, shows) {
         const laid = new Map();
         for (const region of every()) {
-            const { rect, child } = region;
-            if (region.parent !== parent || !child || !holds(region, child) || !shown(child)) continue;
-            if (rect.width > 0 && rect.height > 0) laid.set(child, rect);
+            const { window, rect, child } = region;
+            if (region.parent !== parent || !child || !holds(region, child) || !shows(child)) continue;
+            if (window !== null && rect.width > 0 && rect.height > 0) laid.set(child, { window, rect });
         }
         return laid;
     }
 
-    // The rect of the region that shows the child, or null.
-    function rectOf(child) {
-        return [...every()].find((region) => region.child === child)?.rect || null;
+    // The children's pages on screen are `pages`: each told as it comes on screen and as it leaves.
+    function show(pages) {
+        const now = new Set(pages);
+        for (const page of shown) if (!now.has(page)) PROTOCOL.visible.send(page, { open: false });
+        for (const page of now) if (!shown.has(page)) PROTOCOL.visible.send(page, { open: true });
+        shown.clear();
+        for (const page of now) shown.add(page);
     }
 
     // Hears each change to where children are: answers its off.
@@ -75,16 +82,17 @@ export function createRegion({ deckit }) {
     // MARK: - Private
     // A region is its page's, for one interface its mod provides: it ends with the page, run by run, or when its
     // element leaves the page.
-    function setRect(page, number, named, rect) {
+    function setRect(page, number, named, window, rect) {
         if (!regions.has(page)) {
             regions.set(page, new Map());
             deckit.pages.whenEnds(page, () => regions.delete(page) && tell());
         }
         const inPage = regions.get(page);
         if (!inPage.has(number))
-            inPage.set(number, { parent: deckit.mods.modOf(page), interface: named, rect, child: null });
+            inPage.set(number, { parent: deckit.mods.modOf(page), interface: named, window, rect, child: null });
         const region = inPage.get(number);
         if (region.interface !== named) return;
+        region.window = window;
         region.rect = rect;
         tell();
     }
@@ -97,7 +105,7 @@ export function createRegion({ deckit }) {
         if (!providesOf(parent).has(named)) throw new Error(`${parent} does not provide ${named}`);
         if (id !== null && (interfaceOf(id) !== named || parentOf(id) !== parent))
             throw new Error(`${id} is not a child of ${named} here`);
-        if (!regions.get(page)?.has(number)) setRect(page, number, named, { x: 0, y: 0, width: 0, height: 0 });
+        if (!regions.get(page)?.has(number)) setRect(page, number, named, null, { x: 0, y: 0, width: 0, height: 0 });
         const region = regions.get(page).get(number);
         if (region.interface !== named) throw new Error(`the region is for ${region.interface}, not ${named}`);
         if (id !== null) leave(id);
@@ -169,5 +177,5 @@ export function createRegion({ deckit }) {
         for (const listener of listeners) listener();
     }
 
-    return { start, interfaceOf, parentOf, laidOut, rectOf, onChange };
+    return { start, interfaceOf, parentOf, laidOut, show, onChange };
 }

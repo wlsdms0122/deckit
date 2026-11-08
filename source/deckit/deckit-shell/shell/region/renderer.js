@@ -1,9 +1,18 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
+import * as FIELD from '../mods/field.js';
+
+// MARK: - Property
+// A child's view fills its page.
+const STYLE = `
+    .deckit-view { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .deckit-view > * { flex: 1 1 auto; min-height: 0; }
+`;
 
 // `running` is the mod the page runs; `deliver(label, listener, ...args)` calls a listener of the mod's and records on
-// its row what it throws; `channels` binds the regions' channels in the page.
-export function createRegion({ running, deliver, channels }) {
+// its row what it throws; `channels` binds the regions' channels in the page; `windowOf(element)` is the id of the
+// window of the page's an element is in, or null.
+export function createRegion({ running, deliver, channels, windowOf }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const listeners = new Set();
@@ -13,7 +22,7 @@ export function createRegion({ running, deliver, channels }) {
     // MARK: - Initializer
     // MARK: - Public
     // What a handle holds of regions, what it makes ending as `scope` is cut. `region(element, interface)` makes a
-    // place in the mod's view where the shell shows the views of that interface's children, for an interface the
+    // place in one of the mod's windows where the shell shows the views of that interface's children, for an interface the
     // manifest provides. A child runs in its own page, laid over what of `element` is seen as it moves, so what the
     // parent draws there is covered and nothing of the parent's floats over it. `place(id)` puts a child in this
     // region, out of any other it was in, and `clear()` leaves the region empty. The region ends when its element, once
@@ -61,10 +70,11 @@ export function createRegion({ running, deliver, channels }) {
             if (!element.isConnected && entered) return end();
             entered ||= element.isConnected;
             const { x, y, width, height } = seenRect(element);
-            const written = JSON.stringify([x, y, width, height]);
+            const window = windowOf(element);
+            const written = JSON.stringify([window, x, y, width, height]);
             if (written !== sent) {
                 sent = written;
-                PROTOCOL.rect.send({ region, interface: named, x, y, width, height });
+                PROTOCOL.rect.send({ region, interface: named, window, x, y, width, height });
             }
             requestAnimationFrame(follow);
         };
@@ -104,7 +114,45 @@ export function createRegion({ running, deliver, channels }) {
         return known;
     }
 
-    return { forScope };
+    // A child's view, `shell.view.register`'s, in its own page, which the shell lays over the region that shows it:
+    // `tell` calls a part of the view (didAppear, didDisappear). Answers `{ unmount, remove }`: on unmount a view on
+    // screen disappears and what main tells of it is heard no more; on remove it is taken off the page.
+    function mount({ view, tell }) {
+        const style = document.createElement('style');
+        style.textContent = STYLE;
+        document.head.prepend(style);
+        const root = document.createElement('div');
+        root.className = 'deckit-view';
+        root.append(view.content);
+        document.body.appendChild(root);
+        let appeared = false;
+        let mounted = true;
+        PROTOCOL.visible.on(({ open }) => {
+            if (!mounted || appeared === open) return;
+            appeared = open;
+            tell(open ? 'didAppear' : 'didDisappear');
+        });
+        return {
+            unmount() {
+                if (appeared) tell('didDisappear');
+                mounted = false;
+            },
+            remove() {
+                root.remove();
+                style.remove();
+            },
+        };
+    }
+
+    return { forScope, mount };
+}
+
+// Why what `shell.view.register` was handed is not a child's view this mod may have, or ''.
+function viewProblem(value, running) {
+    if (value?.content?.nodeType !== Node.ELEMENT_NODE)
+        return 'takes { content, didAppear, didDisappear }, content an element';
+    if (!FIELD.parentOf(running.fields, running)) return 'is for a mod whose manifest gives its view a parent';
+    return '';
 }
 
 // What of `element` is seen: its rect cut to each ancestor that clips what overflows it, and nothing while it is
@@ -114,7 +162,7 @@ function seenRect(element) {
         return { x: 0, y: 0, width: 0, height: 0 };
     let { left, top, right, bottom } = element.getBoundingClientRect();
     for (let node = element.parentElement; node; node = node.parentElement) {
-        const { overflowX, overflowY } = getComputedStyle(node);
+        const { overflowX, overflowY } = node.ownerDocument.defaultView.getComputedStyle(node);
         if (overflowX === 'visible' && overflowY === 'visible') continue;
         const box = node.getBoundingClientRect();
         const inner = { left: box.left + node.clientLeft, top: box.top + node.clientTop };
@@ -125,3 +173,5 @@ function seenRect(element) {
     }
     return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
+
+export { viewProblem };

@@ -2,9 +2,9 @@
 // The shell's own keys, in the order a person reads them: `id`, `name` as a person reads it, and `keystroke`, its
 // default chord, `{ code, meta, control, alt, shift }` with `code` as a keyboard event names the key.
 const KEYS = Object.freeze([
-    key('toggleSidebar', 'Toggle Sidebar', { code: 'Backslash', meta: true }),
-    key('back', 'Back to the Previous Mod', { code: 'BracketLeft', meta: true, control: true }),
-    key('forward', 'Forward to the Next Mod', { code: 'BracketRight', meta: true, control: true }),
+    key('closeWindow', 'Close Window', { code: 'KeyW', meta: true }),
+    key('minimizeWindow', 'Minimize Window', { code: 'KeyM', meta: true }),
+    key('cycleWindows', 'Cycle Through Windows', { code: 'Backquote', meta: true }),
 ]);
 // The modifiers as a chord is written, in the order it writes them.
 const MODIFIERS = Object.freeze([

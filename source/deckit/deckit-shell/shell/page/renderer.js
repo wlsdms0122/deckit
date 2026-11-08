@@ -3,8 +3,8 @@ import * as LAYER from '../ui/layer/index.js';
 import * as PRESENTATION from '../ui/presentation/index.js';
 import * as OVERLAY from '../overlay/renderer.js';
 import * as KIT from '../ui/kit/index.js';
-import * as FRAME from '../panel/frame.js';
-import * as FRAME_PAGE from '../panel/model/page-name.js';
+import * as DESKTOP from '../desktop/frame.js';
+import * as DESKTOP_PAGE from '../desktop/model/page-name.js';
 import * as THEME from '../theme/renderer.js';
 
 // MARK: - Property
@@ -17,9 +17,9 @@ const PAGE_STYLE = `
 
 // MARK: - Initializer
 // MARK: - Public
-// A page the shell made: the panel's frame. `channels` binds the shell's channels in the page.
+// A page the shell made: the desktop's. `channels` binds the shell's channels in the page.
 function page(name, { channels }) {
-    if (name === FRAME_PAGE.PAGE_NAME) FRAME.boot(start({ channels }), channels);
+    if (name === DESKTOP_PAGE.PAGE_NAME) DESKTOP.boot(start({ channels }), channels);
 }
 
 // Every page the shell draws in starts the same: its look, the pointer, its layers and what is presented, over the page
@@ -28,7 +28,7 @@ function page(name, { channels }) {
 function start({ channels, tell }) {
     KIT.addStyle(PAGE_STYLE);
     const overlay = OVERLAY.open({ channels });
-    POINTER.start([window, overlay.window], { isShown: (each) => each === window || LAYER.draws() });
+    POINTER.start([window, overlay.window], { isShown: (each) => each !== overlay.window || LAYER.draws() });
     LAYER.start(overlay);
     PRESENTATION.start({ tell: overlay.presents });
     const theme = THEME.start({ channels, tell });

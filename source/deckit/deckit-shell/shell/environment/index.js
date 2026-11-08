@@ -1,13 +1,15 @@
 // MARK: - Property
 /**
- * A page as a stage lays it, bottom to top: at `rect`, taking the pointer only inside the rects of `input`, from its
- * top left, where it has them, or hidden in the place it has.
- * @typedef {{ page: Page, rect: Rect, input?: Rect[] } | { page: Page, hidden: true }} Laid
+ * A page as a stage lays it, bottom to top: at `rect`, drawn only inside `clip`, a rect on the stage with its corners
+ * rounded by `cornerRadius`, where it has one, taking the pointer only inside the rects of `input`, from its top left,
+ * where it has them, or hidden in the place it has.
+ * @typedef {{ page: Page, rect: Rect, clip?: Clip, input?: Rect[] } | { page: Page, hidden: true }} Laid
  * @typedef {{ x: number, y: number, width: number, height: number }} Rect
+ * @typedef {{ x: number, y: number, width: number, height: number, cornerRadius?: number }} Clip
  */
 
 // What an environment gives a UI shell on deckit, on main's side: the pages it draws in, which run no mod, a stage to
-// lay pages on, and the fonts installed. `load`, `close` and `watch` are as `MAIN.pages` says.
+// lay pages on, the fonts installed, and what the person set a double click on a title bar to do. `load`, `close` and `watch` are as `MAIN.pages` says.
 const SHELL = Object.freeze({
     pages: {
         // make({ name, keepsDrawing }) -> page, made and not loaded: a page that runs no mod, `name` a lower case
@@ -32,6 +34,8 @@ const SHELL = Object.freeze({
     // fonts() -> { families, monospaced }: the font families installed, by name, and those of them whose faces are
     // fixed-width, as read at each call
     fonts: 'function',
+    // actionOnDoubleClick() -> 'zoom', 'minimize' or 'none', as read at each call
+    actionOnDoubleClick: 'function',
 });
 
 // What SHELL.stage() makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
@@ -40,8 +44,8 @@ const SHELL = Object.freeze({
 // `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one is kept
 // out of the window, and a page left out, or gone, is taken off; `close()`, the stage ended, its pages taken off and it
 // out of its window. Where a page laid on it, or a surface it opened, marks itself with `--app-region: drag`, a press
-// drags the window it is in and a double click does what the person set a title bar's to do; `--app-region: no-drag`
-// marks what inside it takes presses itself.
+// drags the window it is in and a double click does what the person set a title bar's to do, unless what draws in that
+// document took its drags (PAGE.drags); `--app-region: no-drag` marks what inside it takes presses itself.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',

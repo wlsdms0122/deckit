@@ -12,14 +12,18 @@ let shown = () => true; // whether one of them is on screen now
 // now. Forgotten when a window stops seeing the pointer: a page hidden while the pointer is over it gets no mouseout,
 // and the first move afterwards is a position, not a move.
 function start(windows, { isShown = () => true } = {}) {
-    tracked = windows;
     shown = isShown;
-    for (const each of windows) {
-        each.addEventListener('mousemove', track, { capture: true, passive: true });
-        each.addEventListener('mouseout', (event) => !event.relatedTarget && forget(), { capture: true });
-        each.addEventListener('blur', forget);
-        each.document.addEventListener('visibilitychange', () => each.document.hidden && forget());
-    }
+    for (const each of windows) watch(each);
+}
+
+// The pointer tracked in one more window of the page's, until it closes.
+function watch(each) {
+    tracked.push(each);
+    each.addEventListener('mousemove', track, { capture: true, passive: true });
+    each.addEventListener('mouseout', (event) => !event.relatedTarget && forget(), { capture: true });
+    each.addEventListener('blur', forget);
+    each.addEventListener('pagehide', () => (tracked = tracked.filter((one) => one !== each)));
+    each.document.addEventListener('visibilitychange', () => each.document.hidden && forget());
 }
 
 function position() {
@@ -73,4 +77,4 @@ function settle(lost) {
     for (const listener of listeners) listener(lost);
 }
 
-export { start, position, afterMove, hoverIntent, capture };
+export { start, watch, position, afterMove, hoverIntent, capture };

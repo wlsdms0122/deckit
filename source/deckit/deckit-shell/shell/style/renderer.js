@@ -8,7 +8,8 @@ import * as SHEET from '../ui/sheet/index.js';
 // The page wears the styles mods give it, as its last style sheets: a sheet the kit or the mod's entry adopts
 // later goes before them, so a mod's style wins over those at the same specificity. A style a page sets on an
 // element itself still wins over a sheet, as in any page. A sheet the page's own world adopts goes after them
-// until the styles next change. `onChange` hears the styles change; `channels` binds the styles' channels in the page.
+// until the styles next change. `onChange` hears the page's sheets change, the styles or any other; `channels` binds
+// the styles' channels in the page.
 function wear({ channels, onChange = null }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const adopted = Object.getOwnPropertyDescriptor(Document.prototype, 'adoptedStyleSheets');
@@ -17,7 +18,10 @@ function wear({ channels, onChange = null }) {
     Object.defineProperty(document, 'adoptedStyleSheets', {
         configurable: true,
         get: () => adopted.get.call(document),
-        set: (sheets) => adopted.set.call(document, [...sheets.filter((sheet) => !worn.includes(sheet)), ...worn]),
+        set: (sheets) => {
+            adopted.set.call(document, [...sheets.filter((sheet) => !worn.includes(sheet)), ...worn]);
+            onChange?.();
+        },
     });
     const apply = (styles) => {
         const kept = others();

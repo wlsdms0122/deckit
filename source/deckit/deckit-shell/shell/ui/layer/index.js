@@ -6,6 +6,7 @@ import * as SHEET from '../sheet/index.js';
 // layers before it. Elements made in the page are drawn there as they are, with the page's rules copied in.
 let overlay = null;
 let style = null; // what wears the copies in the overlay
+const worn = new Map(); // another document of the page's that wears its rules, by its window -> what wears them there
 let told = '';
 const awaited = new WeakSet(); // the animations in the overlay whose end is told
 
@@ -67,17 +68,30 @@ function focused() {
     return document.hasFocus() && active && active !== document.body && document.body.contains(active) ? active : null;
 }
 
-// The page and its overlay, where the pointer and the keys are heard.
+// The page, its overlay and the documents that wear its rules, where the pointer and the keys are heard.
 function windows() {
-    return [window, overlay.window];
+    return [window, overlay.window, ...worn.keys()];
 }
 
-// The overlay wears the page's rules as they are now.
+// Another document of the page's, in the window `opened`, wears the page's rules as they change, as the overlay does,
+// and is heard where the page is. Answers the off.
+function wear(opened) {
+    const sheet = opened.document.createElement('style');
+    opened.document.head.prepend(sheet);
+    worn.set(opened, sheet);
+    dress();
+    return () => worn.get(opened) === sheet && worn.delete(opened);
+}
+
+// The overlay and the documents that wear the page's rules wear them as they are now.
 function dress() {
-    if (!overlay) return;
     const text = document.adoptedStyleSheets.map((sheet) => SHEET.textOf(sheet)).join('\n');
-    if (style.textContent !== text) style.textContent = text;
-    overlay.document.documentElement.style.colorScheme = document.documentElement.style.colorScheme;
+    const scheme = document.documentElement.style.colorScheme;
+    const wearers = [...(overlay ? [[overlay.window, style]] : []), ...worn];
+    for (const [opened, sheet] of wearers) {
+        if (sheet.textContent !== text) sheet.textContent = text;
+        opened.document.documentElement.style.colorScheme = scheme;
+    }
 }
 
 // Whether the overlay draws anything, so it is laid over the page.
@@ -113,4 +127,4 @@ function report({ again = false } = {}) {
     overlay.tell(state);
 }
 
-export { start, add, take, focused, windows, dress, draws };
+export { start, add, take, focused, windows, wear, dress, draws };

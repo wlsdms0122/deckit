@@ -16,11 +16,14 @@ export function createOverlay({ deckit, PAGES }) {
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const overlays = new Map(); // a page -> { surface, shows, focused, regions, presents }, once the page asked for it
     const listeners = new Set();
+    let keyboardOf = null;
     const NOTHING = Object.freeze({ shows: false, focused: false, regions: [] });
 
     // MARK: - Initializer
     // MARK: - Public
-    function start() {
+    // `keyboardOf(page)` is the document of the page's that takes its keyboard back from its overlay.
+    function start(given) {
+        keyboardOf = given.keyboardOf;
         PROTOCOL.open.handle((_payload, sender) => open(sender));
         PROTOCOL.state.on((state, sender) => setState(sender, state));
         PROTOCOL.take.on((_payload, sender) => take(sender));
@@ -112,10 +115,10 @@ export function createOverlay({ deckit, PAGES }) {
         return shows && focused;
     }
 
-    // An overlay with the keyboard it may not keep, as one pressed where nothing takes the focus, gives it to its page:
-    // the overlay tells what it holds after each press.
+    // An overlay with the keyboard it may not keep, as one pressed where nothing takes the focus, gives it back to its
+    // page, where the page takes it: the overlay tells what it holds after each press.
     function giveBack(page, held) {
-        if (!mayHold(held) && overlayHoldsKeyboard(held)) PAGES.focus(page);
+        if (!mayHold(held) && overlayHoldsKeyboard(held)) PAGES.focus(keyboardOf(page));
     }
 
     function overlayHoldsKeyboard(held) {

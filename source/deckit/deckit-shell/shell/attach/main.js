@@ -9,26 +9,19 @@ import { createDrop } from '../drop/main.js';
 import { createPage } from '../page/main.js';
 import * as SHELL_LAYER from '../mod/model/layer.js';
 import { createRegion } from '../region/main.js';
-import { createPanel } from '../panel/main.js';
+import { createDesktop } from '../desktop/main.js';
+import { createDock } from '../dock/main.js';
 import { createStyle } from '../style/main.js';
 import { createTheme } from '../theme/main.js';
 import { createFonts } from '../fonts/main.js';
-import { createWindow } from '../window/main.js';
+import { createWindows } from '../window/main.js';
 import { createOverlay } from '../overlay/main.js';
+import * as FIELD from '../mods/field.js';
 
 // MARK: - Property
 const SHELL_CONFIG = { dock: null };
 // What the host app answers the UI: where it is shown.
-const ATTACH_ANSWERS = [
-    'start',
-    'showsPanel',
-    'show',
-    'dismiss',
-    'panelTitled',
-    'showWindow',
-    'hideWindow',
-    'closeWindow',
-];
+const ATTACH_ANSWERS = ['start', 'showsPanel', 'show', 'panelTitled', 'showWindow', 'closeWindow'];
 // The permissions the UI defines, in the order a person reads them.
 const SHELL_PERMISSIONS = [WINDOW_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION, KEY_PERMISSION];
 // The UI is attached once, to what connect answered.
@@ -38,7 +31,7 @@ let attached = false;
 // How a host app puts deckit's UI on deckit, once, before it is ready: `deckit` is what connect answered,
 // `environment` what the environment gives the UI (environment: SHELL), `host` answers where the UI is shown, and
 // `config` is the UI's configuration: `dock`, the ids of the mods the Dock keeps at the first start, in order, or else
-// the mods the host app ships whose view names no parent. The UI starts with deckit, before any mod launches.
+// the app mods the host app ships. The UI starts with deckit, before any mod launches.
 function attach(deckit, environment, { host, config = {} } = {}) {
     if (attached) throw new Error('[deckit] attach is called once');
     if (!answered()) throw new Error('[deckit] attach comes after connect');
@@ -50,6 +43,7 @@ function attach(deckit, environment, { host, config = {} } = {}) {
     const { dock } = { ...SHELL_CONFIG, ...config };
     attached = true;
     deckit.stack(SHELL_LAYER.LAYER);
+    for (const key of FIELD.KEYS) deckit.fields.define(key);
     for (const model of SHELL_PERMISSIONS)
         for (const permission of model.PERMISSIONS) deckit.permissions.define(permission);
     const PAGES = createPage({ deckit, pages: ENV.pages });
@@ -58,16 +52,25 @@ function attach(deckit, environment, { host, config = {} } = {}) {
     const makeStage = () => checked(ENV.stage(), ENVIRONMENT.STAGE, 'a stage');
     const REGION = createRegion({ deckit });
     const DROP = createDrop({ deckit, PAGES });
-    const WINDOW = createWindow({
-        deckit,
+    const DESKTOP = createDesktop({
+        REGION,
         PAGES,
         OVERLAY,
         makeStage,
+        actionOnDoubleClick: ENV.actionOnDoubleClick,
+        deckit,
+        host,
+    });
+    const WINDOWS = createWindows({
+        deckit,
+        PAGES,
+        OVERLAY,
+        DESKTOP,
+        makeStage,
         showWindow: (control, options) => host.showWindow(control, options),
-        hideWindow: (control) => host.hideWindow(control),
         closeWindow: (control) => host.closeWindow(control),
     });
-    const PANEL = createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, dock });
+    const DOCK = createDock({ deckit, DESKTOP, WINDOWS, host, dock });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
     const FONTS = createFonts({ deckit, installed: ENV.fonts });
@@ -75,12 +78,13 @@ function attach(deckit, environment, { host, config = {} } = {}) {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         FONTS.start({ onChange: THEME.setFonts });
         STYLE.start();
-        OVERLAY.start();
+        OVERLAY.start({ keyboardOf: WINDOWS.keyboardOf });
         REGION.start();
         DROP.start();
-        PANEL.start();
-        WINDOW.start();
-        host.start({ setTheme: THEME.set, panel: PANEL.control });
+        DESKTOP.start({ WINDOWS });
+        WINDOWS.start();
+        DOCK.start();
+        host.start({ setTheme: THEME.set, panel: DESKTOP.control });
     });
 }
 

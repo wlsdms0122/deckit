@@ -1,101 +1,190 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
+import * as LAYER from '../ui/layer/index.js';
+import * as POINTER from '../ui/pointer/index.js';
 
 // MARK: - Property
-// Ahead of every other sheet of the page, so the page's own rules win over these.
+// What the content's document wears under the page's rules: clear, the content filling it.
 const STYLE = `
+    html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+    body { -webkit-user-select: none; user-select: none; font: var(--deckit-text-size) var(--deckit-text-font); }
     .deckit-window { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
     .deckit-window > * { flex: 1 1 auto; min-height: 0; }
 `;
+const LEVELS = Object.freeze(['normal', 'overlay']);
+const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didResize', 'didClose']);
 
 // MARK: - Initializer
 // MARK: - Public
-// A mod's window, in its own page: `register(value)` is `shell.window.register`, called once while attach() runs,
-// which answers the window's handle; `mount()`, once attach() has ended, lays its content in the page and answers what
-// main is told of it, or null; `unmount()` ends it: a window on screen disappears, and its parts are told nothing more.
-// `running` is the mod, `fail` records against it, `deliver` calls what the mod handed, and `channels` binds the
-// window's channels in the page.
-function createWindow({ running, fail, deliver, channels }) {
+// A mod's windows, in its own page: `forScope(scope)` is `shell.windows` for a lifecycle, whose windows close as
+// `scope` is cut; `windowOf(element)` the id of the window an element is in, or null; `reopen(listener)` what main's
+// reopen calls; `unmount()`, each window on screen disappearing and its parts told nothing more. Each window's content
+// is a document the page opens beside itself, which wears the page's rules and whose drag regions move the window
+// (`drags`, environment: PAGE.drags). `running` is the mod, `deliver` calls what the mod handed, and `channels` binds
+// the windows' channels in the page.
+function createWindows({ running, deliver, channels, drags }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
-    const handle = Object.freeze({
-        open: ({ activates = true } = {}) => PROTOCOL.open.send({ activates: activates !== false }),
-        close: () => PROTOCOL.close.send(),
-        resize: ({ width, height }) => {
-            const size = (number) => Number.isFinite(number) && number > 0;
-            if (!size(width) || !size(height)) throw new TypeError('resize takes { width, height }, each above 0');
-            PROTOCOL.resize.send({ width, height });
-        },
+    const open = new Map(); // id -> { handle, options, document, state, off }, while it is open
+    let mounted = true;
+    let reopened = null;
+
+    // MARK: - Initializer
+    PROTOCOL.state.on((next) => {
+        const held = open.get(next.id);
+        if (held) told(held, next);
     });
-    let window = null;
-    let started = false;
-    let shown = false;
-    let mounted = false;
-    let placed = null; // { style, root }, what mount() put on the page
+    PROTOCOL.closed.on(({ id }) => {
+        const held = open.get(id);
+        if (!held) return;
+        ended(id, held);
+        tell(held, 'didClose');
+    });
+    PROTOCOL.reopen.on(() => reopened?.());
 
     // MARK: - Public
-    function register(value) {
-        const problem = started
-            ? 'is called in attach(), and attach() has ended'
-            : window
-              ? 'is called once'
-              : problemOf(value, running);
-        if (problem) fail(`shell.window.register() ${problem}`);
-        else window = value;
-        return handle;
+    // `open(options)` opens a window, or orders front the one of its name open, and answers it; `list()` answers the
+    // windows open, in the order they opened.
+    function forScope(scope) {
+        scope.add(() => {
+            for (const id of open.keys()) PROTOCOL.close.send({ id });
+        });
+        return Object.freeze({
+            open: (options) => opened(options),
+            list: () => [...open.values()].map(({ handle }) => handle),
+        });
     }
 
-    function mount() {
-        started = true;
-        if (!window) return null;
-        const style = document.createElement('style');
-        style.textContent = STYLE;
-        document.head.prepend(style);
-        const root = document.createElement('div');
-        root.className = 'deckit-window';
-        root.append(window.content);
-        document.body.appendChild(root);
-        placed = { style, root };
-        mounted = true;
-        PROTOCOL.shown.on(({ on }) => {
-            if (shown === on) return;
-            shown = on;
-            tell(on ? 'didAppear' : 'didDisappear');
-        });
-        PROTOCOL.resignKey.on(() => tell('didResignKey'));
-        return { width: window.width, height: window.height, overlay: !!window.overlay };
+    function windowOf(element) {
+        for (const [id, held] of open) if (held.document === element.ownerDocument) return id;
+        return null;
+    }
+
+    function reopen(listener) {
+        reopened = listener;
     }
 
     function unmount() {
-        if (shown) tell('didDisappear');
+        for (const held of open.values()) if (held.state.shown) tell(held, 'didDisappear');
         mounted = false;
     }
 
-    // Taken off the page, once the lifecycle that mounted it has ended.
-    function remove() {
-        placed?.root.remove();
-        placed?.style.remove();
-        placed = null;
-    }
-
     // MARK: - Private
-    function tell(name) {
-        if (mounted && typeof window[name] === 'function') deliver(`${name}()`, () => window[name]());
+    function opened(options) {
+        const problem = problemOf(options, running);
+        if (problem) throw new TypeError(`shell.windows.open() ${problem}`);
+        const { name, level = 'normal', width, height, minWidth, minHeight } = options;
+        const { id, surface } = PROTOCOL.open.invoke({ name, level, width, height, minWidth, minHeight });
+        if (open.has(id)) return open.get(id).handle;
+        const view = window.open('', surface);
+        const document = view.document;
+        const style = document.createElement('style');
+        style.textContent = STYLE;
+        document.head.replaceChildren(style);
+        const root = document.createElement('div');
+        root.className = 'deckit-window';
+        root.append(options.content);
+        document.body.replaceChildren(root);
+        const held = { handle: null, options, document, state: { shown: false, key: false, size: null }, off: [] };
+        held.off.push(
+            LAYER.wear(view),
+            drags.take(document, (down) => moved(id, down))
+        );
+        POINTER.watch(view);
+        held.handle = handleOf(id, held);
+        open.set(id, held);
+        return held.handle;
     }
 
-    return Object.freeze({ register, mount, unmount, remove, has: () => !!window });
+    function handleOf(id, held) {
+        return Object.freeze({
+            name: held.options.name,
+            get isKey() {
+                return held.state.key;
+            },
+            close: () => PROTOCOL.close.send({ id }),
+            minimize: () => PROTOCOL.minimize.send({ id }),
+            zoom: () => PROTOCOL.zoom.send({ id }),
+            orderFront: () => PROTOCOL.orderFront.send({ id }),
+            resize(width, height) {
+                if (!positive(width) || !positive(height))
+                    throw new TypeError('resize takes a width and a height above 0');
+                PROTOCOL.resize.send({ id, width, height });
+            },
+        });
+    }
+
+    // A press in a drag region of the content: its moves and release are the content's, on the screen, so the
+    // window moving under the pointer does not move the press. The second press of a double click is the title bar's.
+    function moved(id, down) {
+        if (down.detail === 2) return PROTOCOL.doubleClick.send({ id });
+        const document = down.target.ownerDocument;
+        const from = { x: down.screenX, y: down.screenY };
+        const send = (phase, event) =>
+            PROTOCOL.move.send({ id, phase, dx: event.screenX - from.x, dy: event.screenY - from.y });
+        const move = (event) => send('changed', event);
+        const up = (event) => {
+            document.removeEventListener('mousemove', move, true);
+            document.removeEventListener('mouseup', up, true);
+            send('ended', event);
+        };
+        document.addEventListener('mousemove', move, true);
+        document.addEventListener('mouseup', up, true);
+        send('began', down);
+    }
+
+    // What main tells of the window, each part told as it changes: it appears before it becomes key, and resigns key
+    // before it disappears.
+    function told(held, { shown, key, width, height, titleBar }) {
+        const was = held.state;
+        held.state = { shown, key, size: { width, height } };
+        guide(held.document, titleBar);
+        if (shown && !was.shown) tell(held, 'didAppear');
+        if (was.key && !key) tell(held, 'didResignKey');
+        if (!was.key && key) tell(held, 'didBecomeKey');
+        if (was.shown && !shown) tell(held, 'didDisappear');
+        if (was.size && (was.size.width !== width || was.size.height !== height)) tell(held, 'didResize');
+    }
+
+    // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons.
+    function guide(document, titleBar) {
+        const root = document.documentElement;
+        root.toggleAttribute('data-deckit-title-bar', !!titleBar);
+        root.style.setProperty('--deckit-title-bar-area-height', (titleBar?.height ?? 0) + 'px');
+        root.style.setProperty('--deckit-title-bar-area-x', (titleBar?.controlsWidth ?? 0) + 'px');
+    }
+
+    function ended(id, held) {
+        open.delete(id);
+        for (const off of held.off) off();
+        if (held.state.shown) tell(held, 'didDisappear');
+    }
+
+    function tell(held, name) {
+        const listener = held.options[name];
+        if (mounted && typeof listener === 'function') deliver(`${name}()`, () => listener());
+    }
+
+    return Object.freeze({ forScope, windowOf, reopen, unmount });
 }
 
 // MARK: - Private
-// Why what `shell.window.register` was handed is not a window this mod may have, or ''.
-function problemOf(value, running) {
-    const size = (number) => Number.isFinite(number) && number > 0;
-    if (value?.content?.nodeType !== Node.ELEMENT_NODE || !size(value.width) || !size(value.height))
-        return 'takes { content, width, height, overlay, didAppear, didDisappear, didResignKey }, content an element';
+// Why what `shell.windows.open` was handed is not a window this mod may have, or ''.
+function problemOf(options, running) {
+    const { content, name, level = 'normal' } = options ?? {};
+    if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
+        return `takes { name, content, level, width, height, minWidth, minHeight, ${CALLBACKS.join(', ')} }, name a text and content an element`;
+    if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.join(' or ')}`;
+    const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
+    if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
     const may = running.permissions.some(({ id }) => id === WINDOW_PERMISSION.OVERLAY_WINDOWS);
-    if (value.overlay && !may) return `is an overlay with ${WINDOW_PERMISSION.OVERLAY_WINDOWS}`;
+    if (level === 'overlay' && !may) return `opens an overlay window with ${WINDOW_PERMISSION.OVERLAY_WINDOWS}`;
     return '';
 }
 
-export { createWindow };
+function positive(number) {
+    return Number.isFinite(number) && number > 0;
+}
+
+export { createWindows };

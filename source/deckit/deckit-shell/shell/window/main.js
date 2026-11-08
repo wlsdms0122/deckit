@@ -1,179 +1,262 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
-import * as MODS from '../mods/index.js';
+import * as SURFACE from './model/surface.js';
 
-// `deckit` is what connect answered, `PAGES` the shell's pages, `OVERLAY` their overlays and `makeStage()` a stage to
-// lay them on (environment: SHELL.stage); `showWindow(control, { activates })`, `hideWindow(control)` and
-// `closeWindow(control)` are the host app's, which puts a mod's window on screen, taking the keyboard unless
-// `activates` is false, and away, and closes it once the mod is gone.
-export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hideWindow, closeWindow }) {
+// `deckit` is what connect answered, `PAGES` the shell's pages, `OVERLAY` their overlays, `DESKTOP` where normal
+// windows are, and `makeStage()` a stage to lay pages on (environment: SHELL.stage); `showWindow(control,
+// { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on screen in a floating
+// window of its own, taking the keyboard unless `activates` is false, and closes it.
+export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, showWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    // mod id -> { control, page, look, size, stage, unheard, shown }: `page` the mod's page while a run of it that has
-    // a window runs, `look` its window as that run said, `size` the size that page gave it since, `stage` where the page is laid, made as the window is first
-    // placed, and `unheard` the off of its resizes
+    const NORMAL = 'normal';
+    const OVERLAY_LEVEL = 'overlay';
+    // The size a window opens at where its mod gives none.
+    const SIZE = Object.freeze({ width: 720, height: 480 });
+    // id -> { id, mod, page, name, level, size, minimum, surface, sent, host }: `surface` its content once the page
+    // opened it, `sent` what the page was last told of it, and `host` an overlay window's `{ control, stage, key }`.
     const windows = new Map();
+    const heard = new Set(); // the pages whose end closes their windows
+    let count = 0;
 
     // MARK: - Initializer
     // MARK: - Public
-    // The windows of the mods that said they have one, as the mods run. A mod's page is laid in its window, which the
-    // host app makes and keeps under the same control from run to run, until the mod is gone.
+    // The windows mods open, each a run's: a normal one on the desktop, an overlay one in a floating window of the host
+    // app's. A window's content is a document its mod's page opens; it closes with the page's document.
     function start() {
-        PROTOCOL.open.on(({ activates }, sender) => open(heldBy(sender), activates));
-        PROTOCOL.close.on((_payload, sender) => close(heldBy(sender)));
-        PROTOCOL.resize.on((size, sender) => resize(heldBy(sender), size));
-        for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
-        deckit.mods.onChange(reconcile);
-        OVERLAY.onChange((page) => {
-            for (const held of windows.values()) if (held.page === page) lay(held);
-        });
-        reconcile();
+        PROTOCOL.open.handle((options, sender) => open(sender, options));
+        PROTOCOL.close.on(bySender(close));
+        PROTOCOL.minimize.on(bySender((window) => window.level === NORMAL && DESKTOP.minimize(window)));
+        PROTOCOL.zoom.on(bySender((window) => window.level === NORMAL && DESKTOP.zoom(window)));
+        PROTOCOL.orderFront.on(bySender(orderFront));
+        PROTOCOL.resize.on(bySender(resize));
+        PROTOCOL.move.on(
+            bySender((window, { phase, dx, dy }) => window.level === NORMAL && DESKTOP.move(window, phase, dx, dy))
+        );
+        PROTOCOL.doubleClick.on(bySender((window) => window.level === NORMAL && DESKTOP.doubleClick(window)));
+        DESKTOP.onChange(tell);
+        OVERLAY.onChange(relay);
     }
 
-    // Whether a deckit page is one in a window on screen, where it is in front.
-    function isActive(page) {
-        return [...windows.values()].some((held) => held.shown && held.page === page);
+    // The windows of a mod's runs, open now, in the order they opened.
+    function of(mod) {
+        return [...windows.values()].filter((window) => window.mod === mod);
+    }
+
+    // The page a page is: the mod's page whose window's content it is, or itself.
+    function pageOf(page) {
+        return [...windows.values()].find((window) => window.surface === page)?.page ?? page;
+    }
+
+    // The overlay window a mod's page is laid in, under its content: the first open of a page with no normal window
+    // open, so what its overlay draws is over that window; or null, where the page is laid on the desktop.
+    function holderOf(page) {
+        const own = [...windows.values()].filter((window) => window.page === page);
+        if (own.some(({ level }) => level === NORMAL)) return null;
+        return own.find(({ host }) => host?.stage) ?? null;
+    }
+
+    // The mod's page hears its instance's reopen().
+    function reopen(page) {
+        PROTOCOL.reopen.send(page, {});
+    }
+
+    // Where the keyboard of a mod's page goes: the content of its window that is key, or of the first it opened, or
+    // the page itself while it has none.
+    function keyboardOf(page) {
+        const own = [...windows.values()].filter((window) => window.page === page && window.surface);
+        const key = own.find((window) => (window.level === NORMAL ? DESKTOP.isKey(window) : window.host.key));
+        return (key ?? own[0])?.surface ?? page;
     }
 
     // MARK: - Private
-    // A window open while its mod's page goes is put away: the page in it is gone. The window of a mod that no longer
-    // loads is ended, though its run may not have ended yet.
-    function reconcile() {
-        const loaded = new Set(MODS.loaded(deckit.mods).map(({ id }) => id));
-        for (const [id, held] of windows) if (!loaded.has(id)) end(id, held);
-        const running = new Map(
-            deckit.mods
-                .runs()
-                .filter(({ run }) => loaded.has(run.mod.id) && run.state === 'running' && run.summary?.window)
-                .map(({ run, page }) => [run.mod.id, { run, page }])
-        );
-        for (const held of windows.values()) {
-            if (running.get(held.control.mod)?.page === held.page) continue;
-            putAway(held);
-            held.page = null;
-            lay(held);
+    // A handler of a page's word about one of its own windows.
+    function bySender(handler) {
+        return ({ id, ...payload }, sender) => {
+            const window = windows.get(id);
+            if (window?.page === sender) handler(window, payload);
+        };
+    }
+
+    // One window of a name per run: the one open orders front. An overlay window is only for a mod that holds the
+    // permission, whatever its page says.
+    function open(page, { name, level, width, height, minWidth, minHeight }) {
+        const mod = deckit.mods.modOf(page);
+        if (!mod) throw new Error('only a mod opens windows');
+        const same = [...windows.values()].find((window) => window.page === page && window.name === name);
+        if (same) {
+            orderFront(same);
+            return { id: same.id, surface: SURFACE.nameOf(same.id) };
         }
-        for (const [id, { run, page }] of running) {
-            const held = windows.get(id) || make(id);
-            if (held.page !== page) held.size = null;
-            held.page = page;
-            held.look = lookOf(run);
-            lay(held);
+        const overlay = level === OVERLAY_LEVEL;
+        const may = deckit.mods.runOf(mod)?.mod.permissions.some(({ id }) => id === WINDOW_PERMISSION.OVERLAY_WINDOWS);
+        if (overlay && !may)
+            throw Object.assign(new Error(`${mod} does not have ${WINDOW_PERMISSION.OVERLAY_WINDOWS}`), {
+                kind: 'NOT_PERMITTED',
+            });
+        const id = ++count;
+        const window = {
+            id,
+            mod,
+            page,
+            name,
+            level: overlay ? OVERLAY_LEVEL : NORMAL,
+            size: { width: width ?? SIZE.width, height: height ?? SIZE.height },
+            minimum: { width: minWidth ?? 0, height: minHeight ?? 0 },
+            surface: null,
+            sent: '',
+            host: null,
+        };
+        windows.set(id, window);
+        closesWith(page);
+        PAGES.allowSurface(page, SURFACE.nameOf(id), (surface) => opened(window, surface));
+        if (overlay) float(window);
+        else DESKTOP.open(window);
+        return { id, surface: SURFACE.nameOf(id) };
+    }
+
+    // The content, once the page opened it: its keys reach the key map as the page's, and a press in it is the
+    // person's on its window.
+    function opened(window, surface) {
+        if (windows.get(window.id) !== window) return PAGES.close(surface);
+        window.surface = surface;
+        deckit.keymap.listen(surface);
+        PAGES.whenFocused(surface, () => focused(window));
+        if (window.level === NORMAL) DESKTOP.update();
+        else lay(window);
+        tell();
+    }
+
+    function focused(window) {
+        if (windows.get(window.id) !== window) return;
+        if (window.level === NORMAL) DESKTOP.orderFront(window);
+    }
+
+    // Closed, wherever it is, and the page told, unless the page is what went.
+    function close(window) {
+        if (windows.get(window.id) !== window) return;
+        windows.delete(window.id);
+        if (window.level === NORMAL) DESKTOP.close(window);
+        else sink(window);
+        if (window.surface) PAGES.close(window.surface);
+        if (PAGES.isAlive(window.page)) PROTOCOL.closed.send(window.page, { id: window.id });
+    }
+
+    // As the mod asks: the host window it is in comes up too.
+    function orderFront(window) {
+        if (window.level === NORMAL) DESKTOP.orderFront(window, { activates: true });
+        else showWindow(window.host.control, { activates: true });
+    }
+
+    function resize(window, size) {
+        window.size = size;
+        if (window.level === NORMAL) DESKTOP.resize(window, size);
+        else {
+            showWindow(window.host.control, { activates: false });
+            tell();
         }
     }
 
-    // A window is an overlay only for a mod that holds the permission, whatever its page says.
-    function lookOf(run) {
-        const { width, height, overlay } = run.summary.window;
-        const may = run.mod.permissions.some(({ id }) => id === WINDOW_PERMISSION.OVERLAY_WINDOWS);
-        return { name: run.mod.name, width, height, overlay: !!overlay && may };
+    // A page's document that ends takes its windows with it.
+    function closesWith(page) {
+        if (heard.has(page)) return;
+        heard.add(page);
+        deckit.pages.whenEnds(page, () => {
+            heard.delete(page);
+            for (const window of [...windows.values()]) if (window.page === page) close(window);
+        });
     }
 
-    function make(id) {
-        const held = { control: null, page: null, look: null, size: null, stage: null, unheard: null, shown: false };
-        // What the host app drives of the window: where it is laid and how it is told the keyboard comes and goes.
-        held.control = Object.freeze({
-            mod: id,
-            get name() {
-                return held.look.name;
-            },
+    // An overlay window floats in a window of the host app's, which the host closes as it is done with it.
+    function float(window) {
+        const host = { control: null, stage: null, unheard: null, key: false };
+        host.control = Object.freeze({
+            mod: window.mod,
+            name: window.name,
             get width() {
-                return held.size?.width ?? held.look.width;
+                return window.size.width;
             },
             get height() {
-                return held.size?.height ?? held.look.height;
+                return window.size.height;
             },
-            get overlay() {
-                return held.look.overlay;
-            },
-            // Into one of the host app's windows, as a stage is placed (`front`, `bounds`, `onClose`): the mod's
-            // page fills it. A window the host app closes puts the mod's away.
-            place: (window, { onClose = null, ...options } = {}) =>
-                stageOf(held).place(window, {
+            // Into one of the host app's windows, as a stage is placed (`front`, `bounds`, `onClose`): the content fills
+            // it. A window the host app closes closes the mod's.
+            place: (into, { onClose = null, ...options } = {}) =>
+                stageOf(window).place(into, {
                     ...options,
                     onClose: () => {
-                        putAway(held, { told: false });
+                        close(window);
                         onClose?.();
                     },
                 }),
-            contains: (page) => !!page && OVERLAY.ownerOf(page) === held.page,
-            focus: () => held.page && PAGES.focus(held.page),
-            didResignKey: () => held.shown && PROTOCOL.resignKey.send(held.page, {}),
+            contains: (page) => !!page && pageOf(OVERLAY.ownerOf(page)) === window.page,
+            focus: () => {
+                if (window.surface) PAGES.focus(window.surface);
+                setKey(window, true);
+            },
+            didResignKey: () => setKey(window, false),
         });
-        windows.set(id, held);
-        return held;
+        window.host = host;
+        showWindow(host.control, { activates: true });
     }
 
-    function heldBy(sender) {
-        const held = windows.get(deckit.mods.modOf(sender));
-        return held?.page === sender ? held : null;
+    function setKey(window, on) {
+        if (window.host.key === on) return;
+        window.host.key = on;
+        tell();
     }
 
-    // A window that does not activate leaves the keyboard where it is; one on screen that does takes it.
-    function open(held, activates) {
-        if (!held || !PAGES.isAlive(held.page)) return;
-        if (held.shown) {
-            if (activates) {
-                showWindow(held.control, { activates });
-                PAGES.focus(held.page);
-            }
-            return;
+    function stageOf(window) {
+        const { host } = window;
+        if (!host.stage) {
+            host.stage = makeStage();
+            host.unheard = host.stage.whenResized(() => lay(window));
+            DESKTOP.update();
+            lay(window);
         }
-        held.shown = true;
-        lay(held);
-        showWindow(held.control, { activates });
-        if (activates) PAGES.focus(held.page);
-        PROTOCOL.shown.send(held.page, { on: true });
+        return host.stage;
     }
 
-    // A window on screen takes its new size where it is, and leaves the keyboard where it is.
-    function resize(held, size) {
-        if (!held) return;
-        held.size = size;
-        if (held.shown) showWindow(held.control, { activates: false });
-    }
-
-    function close(held) {
-        if (held) putAway(held);
-    }
-
-    // `told`: the host app is told to put its window away, unless it is the one that did.
-    function putAway(held, { told = true } = {}) {
-        if (!held.shown) return;
-        held.shown = false;
-        lay(held);
-        if (told) hideWindow(held.control);
-        if (PAGES.isAlive(held.page)) PROTOCOL.shown.send(held.page, { on: false });
-    }
-
-    function stageOf(held) {
-        if (!held.stage) {
-            held.stage = makeStage();
-            held.unheard = held.stage.whenResized(() => lay(held));
-            lay(held);
-        }
-        return held.stage;
-    }
-
-    function end(id, held) {
-        windows.delete(id);
-        putAway(held, { told: false });
-        held.unheard?.();
-        held.stage?.close();
-        closeWindow(held.control);
-    }
-
-    // Put away, the stage is hidden with the page: a stage shown takes its clicks where it draws nothing too. The
-    // page's overlay is over it while it shows anything.
-    function lay(held) {
-        const { stage, page } = held;
+    // The content fills the stage, over the mod's page where it is laid here, and the page's overlay is over it while
+    // it shows anything.
+    function lay(window) {
+        const { stage } = window.host;
         if (!stage) return;
-        stage.show(held.shown);
-        if (!page || !PAGES.isAlive(page)) return stage.lay([]);
-        if (!held.shown) return stage.lay([{ page, hidden: true }]);
-        stage.lay(OVERLAY.withOverlays([{ page, rect: { x: 0, y: 0, ...stage.size() } }]));
+        const full = { x: 0, y: 0, ...stage.size() };
+        const page = holderOf(window.page) === window ? [{ page: window.page, rect: full, input: [] }] : [];
+        const content = window.surface ? [{ page: window.surface, rect: full }] : [];
+        stage.lay(OVERLAY.withOverlays([...page, ...content]));
     }
 
-    return { start, isActive };
+    function sink(window) {
+        const { host } = window;
+        host.unheard?.();
+        host.stage?.close();
+        closeWindow(host.control);
+        DESKTOP.update();
+        for (const other of windows.values()) if (other.host?.stage) lay(other);
+    }
+
+    // Each page told of its windows as they change.
+    function tell() {
+        for (const window of windows.values()) {
+            const state =
+                window.level === NORMAL
+                    ? DESKTOP.stateOf(window)
+                    : { shown: true, key: window.host.key, ...window.size, titleBar: null };
+            const written = JSON.stringify(state);
+            if (!window.surface || written === window.sent) continue;
+            window.sent = written;
+            PROTOCOL.state.send(window.page, { id: window.id, ...state });
+        }
+    }
+
+    // The overlay of a page laid in an overlay window is laid there as it changes.
+    function relay(page) {
+        const holder = holderOf(page);
+        if (holder) lay(holder);
+    }
+
+    return { start, of, pageOf, holderOf, reopen, keyboardOf, relay, close };
 }

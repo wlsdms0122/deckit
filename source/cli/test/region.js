@@ -1,10 +1,11 @@
-// The regions mods give in their views (deckit-shell/shell/region/main), over a stand-in for what connect answers: a
+// The regions mods give in their windows (deckit-shell/shell/region/main), over a stand-in for what connect answers: a
 // child is the child of the owner of the interface its view names as parent, at the major it uses, a region shows only
-// the children of its own interface, so a mod that gives regions for two keeps them apart, and a new owner takes a
-// child out of the old one's region and to the new one's children, a child that does not run launches as a region
-// shows it, a view, as a mod's manifest fields give it, names as parent only an interface its mod uses, and a bundle
-// that does not load is no child and has none. Exits 1 with a line for each check that failed. The packages are ES
-// modules, so they are imported as such.
+// the children of its own interface, so a mod that gives regions for two keeps them apart, each laid in the window of
+// its region, and a new owner takes a child out of the old one's region and to the new one's children, a child that
+// does not run launches as a region shows it, the children on screen are told so, a view, as a mod's manifest fields
+// (shell/mods/field) give it, names as parent only an interface its mod uses, a mod is an app unless its fields say it
+// is an accessory, and a bundle that does not load is no child and has none. Exits 1 with a line for each check that
+// failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -32,8 +33,8 @@ async function main() {
     ];
     // The manifest fields of each: every one a view, `board`, `tool` and `idle` naming a parent; `idle` does not run.
     const fields = {
-        dash: { view: { sidebar: true } },
-        other: { view: {} },
+        dash: {},
+        other: {},
         board: { view: { parent: 'dash/boards' }, icon: '<svg/>' },
         tool: { view: { parent: 'dash/tools' } },
         idle: { view: { parent: 'dash/boards' } },
@@ -84,8 +85,8 @@ async function main() {
     REGION.start();
     const channel = (name) => handlers[`deckit-shell:region-${name}`];
     const rect = { x: 0, y: 0, width: 100, height: 100 };
-    channel('rect')({ region: 1, interface: 'dash/boards', ...rect }, pages.dash);
-    channel('rect')({ region: 2, interface: 'dash/tools', ...rect }, pages.dash);
+    channel('rect')({ region: 1, interface: 'dash/boards', window: 1, ...rect }, pages.dash);
+    channel('rect')({ region: 2, interface: 'dash/tools', window: 2, ...rect }, pages.dash);
 
     const children = channel('children')({}, pages.dash);
     check(
@@ -134,8 +135,27 @@ async function main() {
     channel('place')({ region: 1, interface: 'dash/boards', id: 'board' }, pages.dash);
     check('a child that runs is not launched again', launched.join() === 'idle', launched);
     channel('place')({ region: 2, interface: 'dash/tools', id: 'tool' }, pages.dash);
-    const laid = [...REGION.laidOut('dash', () => true).keys()].join();
+    const laidOut = REGION.laidOut('dash', () => true);
+    const laid = [...laidOut.keys()].join();
     check("each region shows its interface's child", laid === 'board,tool', laid);
+    check(
+        'each child is laid in the window of its region, at the rect in that window',
+        JSON.stringify(laidOut.get('tool')) === JSON.stringify({ window: 2, rect }),
+        [...laidOut]
+    );
+    channel('rect')({ region: 2, interface: 'dash/tools', window: null, ...rect }, pages.dash);
+    const windowless = [...REGION.laidOut('dash', () => true).keys()].join();
+    check('a region in no window lays no child', windowless === 'board', windowless);
+    channel('rect')({ region: 2, interface: 'dash/tools', window: 2, ...rect }, pages.dash);
+    sent.length = 0;
+    REGION.show([pages.board]);
+    REGION.show([pages.tool]);
+    const visible = sent.map(({ page, payload }) => `${page.mod}:${payload.open}`).join();
+    check(
+        'a child on screen is told so once, and told again as it leaves',
+        visible === 'board:true,board:false,tool:true',
+        visible
+    );
 
     owners.set('dash/boards', 'other');
     sent.length = 0;
@@ -170,30 +190,33 @@ async function main() {
     check('the owner of the interface it names is no child', REGION.parentOf('tool') === null, '');
     check('a child with no parent is still a child', REGION.interfaceOf('tool') === 'dash/tools', '');
 
-    const FIELD = await import(url('deckit-shell', 'shell', 'panel', 'model', 'field.js'));
+    const FIELD = await import(url('deckit-shell', 'shell', 'mods', 'field.js'));
     const child = { uses: { 'dash/boards': 1 } };
-    const named = FIELD.viewOf({ view: { parent: 'dash/boards', sidebar: true } }, child);
-    check(
-        'a view may name as parent an interface its mod uses',
-        JSON.stringify(named) === JSON.stringify({ sidebar: true, parent: 'dash/boards' }),
-        named
-    );
+    const named = FIELD.parentOf({ view: { parent: 'dash/boards' } }, child);
+    check('a view may name as parent an interface its mod uses', named === 'dash/boards', named);
     check(
         'a view naming as parent an interface its mod does not use is left out',
-        FIELD.viewOf({ view: { parent: 'dash/tools' } }, child) === null,
+        FIELD.parentOf({ view: { parent: 'dash/tools' } }, child) === null,
         ''
     );
     check(
-        'a mod whose fields give no view has none',
-        FIELD.viewOf({}, child) === null && FIELD.viewOf({ view: 'yes' }, child) === null,
+        'a mod whose fields give no view has no parent',
+        FIELD.parentOf({}, child) === null && FIELD.parentOf({ view: 'yes' }, child) === null,
+        ''
+    );
+    check(
+        'a mod is an app unless its fields say it is an accessory',
+        FIELD.activationPolicyOf({}) === FIELD.REGULAR &&
+            FIELD.activationPolicyOf({ activationPolicy: 'other' }) === FIELD.REGULAR &&
+            FIELD.activationPolicyOf({ activationPolicy: 'accessory' }) === FIELD.ACCESSORY,
         ''
     );
     const keywords = FIELD.keywordsOf({ keywords: ['files', 3, '', 'folder'] }).join();
     check('the keywords field reads as the words among it', keywords === 'files,folder', keywords);
     check('an icon that is no text is left out', FIELD.iconOf({ icon: 3 }) === '', '');
     check(
-        'the panel reads its manifest fields by the keys it names',
-        FIELD.KEYS.join() === 'view,icon,keywords',
+        'the shell reads its manifest fields by the keys it names',
+        FIELD.KEYS.join() === 'activationPolicy,view,icon,keywords',
         FIELD.KEYS
     );
 
