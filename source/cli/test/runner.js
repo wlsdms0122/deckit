@@ -55,14 +55,20 @@ async function main() {
     };
     IPC.carry({ messages, pages }, { report: () => {} });
     const app = { onQuit: (given) => (hold = given), quit: () => done.push(['quit']) };
+    const ends = new Map(); // page -> what undoes what its document set up, called with how it ended
     const IDENTITY = {
         add: (page) => done.push(['add', page.modId]),
         modFrom: () => ({ id: 'a' }),
+        whenPageEnds: (page, undo) => {
+            if (!ends.has(page)) ends.set(page, new Set());
+            ends.get(page).add(undo);
+            return () => ends.get(page).delete(undo);
+        },
         pageOf: (id) => RUNNER.runs().find(({ run }) => run.mod.id === id)?.page ?? null,
     };
     let catalog = [{ id: 'a', revision: '1' }];
     let changed = null;
-    const CATALOG = { onChange: (listener) => (changed = listener), mods: () => catalog };
+    const CATALOG = { onChange: (listener) => (changed = listener), mods: () => catalog, sourceOf: async () => '' };
     const LOG = { warn: () => {}, error: () => {} };
     // The core answers each request with what the test queued for its method, a list of effects or a function that
     // answers, and otherwise as the core does when nothing changes: no effects.
@@ -428,6 +434,52 @@ async function main() {
             RUNNER.runOf('a')?.state === 'notRunning',
         done.slice(-6)
     );
+
+    // A page whose document of a running run is replaced loads by itself: the run the crash launches is not loaded
+    // again, and runs in the document that came, which asks what it runs. A launch after that loads the page.
+    answers.set('runner/launch', [
+        [told('willLaunch', 'launching', 'a', { run: 3 }), { effect: 'loadPage', mod: 'a' }],
+    ]);
+    answers.set('runner/started', [[told('didLaunch', 'running', 'a', { run: 3 })]]);
+    const loads = () => done.filter(([what, id]) => what === 'load' && id === 'a').length;
+    const loadsAtLaunch = loads();
+    const relaunching = RUNNER.launch('a');
+    await tick();
+    check('the next launch of a killed sandbox loads its new page', loads() === loadsAtLaunch + 1, done.slice(-3));
+    const selfPage = RUNNER.runs().find(({ run }) => run.mod.id === 'a').page;
+    const asksLoad = () => heard.askedSync(selfPage, { channel: 'deckit-shell:mod-load', payload: {} });
+    const firstLoad = await asksLoad();
+    heard.told(selfPage, { channel: 'deckit-shell:mod-started', payload: { run: 3, summary: {}, contributions } });
+    await relaunching;
+    answers.set('runner/crash', [
+        [
+            told('crash', 'notRunning', 'a', { run: 3, failed: true, problem: 'its page went away' }),
+            told('willLaunch', 'launching', 'a', { run: 4 }),
+            { effect: 'loadPage', mod: 'a' },
+        ],
+    ]);
+    const loadsAtCrash = loads();
+    for (const undo of [...ends.get(selfPage)]) undo({ replaced: true });
+    await tick();
+    const reloaded = await asksLoad();
+    check(
+        'a page that loads by itself is not loaded again as its crash launches the mod, and runs the run launched',
+        firstLoad?.value?.run === 3 &&
+            crashes().at(-1) === 'its page went away' &&
+            loads() === loadsAtCrash &&
+            reloaded?.value?.run === 4 &&
+            RUNNER.runOf('a')?.number === 4,
+        { firstLoad, reloaded, done: done.slice(-3), crashes: crashes().slice(-1) }
+    );
+    answers.set('runner/x', [
+        [
+            told('crash', 'notRunning', 'a', { run: 4, failed: true, problem: 'p' }),
+            told('willLaunch', 'launching', 'a', { run: 5 }),
+            { effect: 'loadPage', mod: 'a' },
+        ],
+    ]);
+    await RUNNER.ask('runner/x', {});
+    check('a page whose document asked what it runs is loaded by the next launch', loads() === loadsAtCrash + 1, done);
     answers.set('runner/quit', [[]]);
     await RUNNER.quit('x', 'm');
     check(
