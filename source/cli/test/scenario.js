@@ -673,12 +673,13 @@ async function run({
             after !== before && !(await settingsOverlay.evaluate(menus)),
             `${before} -> ${after}`
         );
-        const configurationFolder = path.join(home, 'principal-state', 'configuration');
+        // Configuration keeps the values set in its records, one record for each mod.
+        const configurationFolder = path.join(home, 'records', 'configuration');
         const configurationKept = await until(
             () => fs.existsSync(configurationFolder) && fs.readdirSync(configurationFolder).length,
             2000
         );
-        check("a mod's configuration set is kept by the core", configurationKept, '');
+        check("a mod's configuration set is kept in Configuration's records", configurationKept, configurationFolder);
         await settings?.evaluate(`${firstSelect}.click()`);
         await until(() => settingsOverlay.evaluate(menus), 2000);
         const floated = await stackNow();
