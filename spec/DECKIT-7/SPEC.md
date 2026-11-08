@@ -83,7 +83,7 @@ A **request** is a call of a member that its DECKIT names a request. A request a
 | `kind` | string, `[A-Z][A-Z_]*`: the refusal's kind |
 | `message` | string: why, as the implementation says it |
 
-What a request takes and answers are **values**: strings, integers, booleans, and arrays and tables of values, and a request may answer nothing. A request's **signature** is its DECKIT's: the arguments it takes, in order, the type of each, and which it requires. An argument with no value, one not handed or handed with none, is **left out**. A table a request takes is given whole, with its keys and their types, the way a signature gives its arguments.
+What a request takes and answers are **values**: strings, numbers, booleans, and arrays and tables of values, and a request may answer nothing. A number is an integer or one with a decimal, and is finite. No value is null, and none is any other thing a mod's code holds, such as a function. A request's **signature** is its DECKIT's: the arguments it takes, in order, the type of each, and which it requires. An argument with no value, one not handed or handed as a null, is **left out**. A table a request takes is given whole, with its keys and their types, the way a signature gives its arguments. A null anywhere else, in an array or a table of a value, makes it no value.
 
 ### How a request is refused
 
@@ -110,6 +110,8 @@ An argument the signature does not require may be left out. An argument past tho
 ## Alternatives considered
 
 - A member left off the handle of a mod not granted the permission that guards it. A call of it would throw with no kind, and the refusal of [the permissions](../DECKIT-3/SPEC.md) could not reach the code, and the handle's shape would say a second time what the mod is granted.
+- Integers alone as numbers. A mod keeps a width or a ratio as a number with a decimal, and would write it as a string, which each mod would read back its own way.
+- A null as a value. A table that holds one, and one that leaves the key out, would be two values that say the same, and a null handed where an argument may be left out would be read as it on one implementation and refused on another.
 - An argument turned into the type the signature gives. A number handed for an id would be read as a string on one implementation and refused on another; refusing it is the answer every implementation can give alike.
 - An argument past the signature refused. What a request does is fixed by the arguments it takes, and one past them changes nothing of it; refusing it would be a check of its own beside the call.
 - The arguments checked before the permission. A mod not granted a request would learn from its refusals what the request takes, and the answer to a guarded request would depend on what the mod handed it.

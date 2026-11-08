@@ -87,7 +87,14 @@ A refusal does not let the interface go: while the lifecycle uses the interface,
 
 ### What a client is handed
 
-`dependencies.onConnect(interface, listener)` and `dependencies.onRefuse(interface, listener)`, members of [the handle](../DECKIT-7/SPEC.md), are not requests: each adds `listener`, a function, for `interface` in the lifecycle whose handle it is called on, until the lifecycle ends, and is never refused.
+`dependencies.onConnect(interface, listener)` and `dependencies.onRefuse(interface, listener)`, members of [the handle](../DECKIT-7/SPEC.md), are not requests: each adds `listener` for `interface` in the lifecycle whose handle it is called on, until the lifecycle ends, and throws its refusal, an error as [the handle](../DECKIT-7/SPEC.md) fixes one.
+
+| takes | type | required | what it is |
+|---|---|---|---|
+| `interface` | string | yes | the interface whose connections or refusals are heard |
+| `listener` | function | yes | what is called with each of them |
+
+Each is refused at `call` with kind `INVALID_ARGUMENT`, and adds nothing, where `interface` is not a string or `listener` is not a function, as [the events](../DECKIT-12/SPEC.md) refuse a listener: an `interface` of another type is not read as a string.
 
 | member | answers | `listener` is called |
 |---|---|---|
@@ -128,6 +135,7 @@ No permission guards it. It is refused with the first of these that is so:
 - What a connection is, when it stands, what the service is handed, what crosses, and the refusals of a reach: [the connections](../DECKIT-9/SPEC.md).
 - A function in the exports, a call of it and its refusal: [calls across a connection](../DECKIT-11/SPEC.md).
 - The listener a case hands, and the look at what it heard: [the case format](../DECKIT-1/SPEC.md).
+- A listener refused as `events.on` refuses one: [the events](../DECKIT-12/SPEC.md).
 
 ## Alternatives considered
 
@@ -138,10 +146,11 @@ No permission guards it. It is refused with the first of these that is so:
 - A major that does not match connected anyway. A client would be handed a contract it was not written for.
 - A client of a major the owner does not provide told nothing, the owner launched for it. The client would wait for a connection that is never made, and the owner would run for a client it cannot serve; the major is a fact of the bundles, known before anything launches.
 - Every mod handed what is declared to any interface. A mod that does not own an interface would read what others declare to it, and an owner could not be the one that decides what an entry means.
+- An `interface` of another type read as a string. As [the handle](../DECKIT-7/SPEC.md) sets aside an argument turned into the type its signature gives: `1` would listen for the interface `"1"` on one implementation and be refused on another, and every member that adds a listener refuses alike.
 - The declaring mod's id handed in `mod` and in `credential`. As [the connections](../DECKIT-9/SPEC.md) set it aside for a client's id: two values where one is meant.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a mod leaves a queue and a pin goes with it, and that the connection ends as the owner changes while both lifecycles stand: a mod leaves a queue only as its bundle is installed, removed or changed, which no input of the case format does while a client is connected. A refusal at `launch` of kind `RELAUNCH_LIMIT` or `TIMED_OUT`: [the connections](../DECKIT-9/SPEC.md) hold the same refusals of a reach, and a launch out of time takes longer than a step may take to settle. That a lifecycle has its connections as its start is called: a case's request is made after the lifecycle has started. That `onConnect` and `onRefuse` answer a function that removes the listener: a case reads no function. That a listener is not called once its lifecycle has ended, and an interface written as another type than a string: a case's lifecycle runs while its steps are taken, and a case's listener is handed for an interface it writes as a string.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a mod leaves a queue and a pin goes with it, and that the connection ends as the owner changes while both lifecycles stand: a mod leaves a queue only as its bundle is installed, removed or changed, which no input of the case format does while a client is connected. A refusal at `launch` of kind `RELAUNCH_LIMIT` or `TIMED_OUT`: [the connections](../DECKIT-9/SPEC.md) hold the same refusals of a reach, and a launch out of time takes longer than a step may take to settle. That a lifecycle has its connections as its start is called: a case's request is made after the lifecycle has started. That `onConnect` and `onRefuse` answer a function that removes the listener: a case reads no function. That a listener is not called once its lifecycle has ended: a case's lifecycle runs while its steps are taken.
 
 **Note.** What this costs an implementation: the system keeps a queue and a pin for each interface across starts, connects every lifecycle of a client to the owner as it begins and again as the owner changes, reads the majors the owner provides from its bundle before it launches it, and keeps for each interface the last refusal a lifecycle was told while no connection was made since, to hand a listener added after it.
