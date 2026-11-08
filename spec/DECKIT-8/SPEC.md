@@ -47,7 +47,7 @@ The request hands the host an address of the web as the URL Standard serializes 
 
 A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, then as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, and then with `UNSUPPORTED_URL`.
 
-**Note.** These are the addresses every host can open outside the app: the web's, in the browser, and a file, in the app for it. Another scheme names a program the system knows nothing of. A mod that hands an address on to the mod that opens it does so through the standard interfaces.
+**Note.** These are the addresses every host can open outside the app: the web's, in the browser, and a file, in the app for it. Another scheme names a program the system knows nothing of. A mod that hands an address on to the mod that opens it does so through [the addresses](../DECKIT-14/SPEC.md).
 
 ### What the look opened answers
 
@@ -75,11 +75,11 @@ It guards `openExternal` of a `file` URL. The other requests it guards are those
 - The input `call`, which has a case's mod make the request, and the look `opened`, whose answer this DECKIT fixes: [the case format](../DECKIT-1/SPEC.md).
 - A file shown in its folder, the address of a file and the file of an address, the other members of the handle that reach files outside the app: the DECKIT of files outside the app.
 - A window or an address a mod's web page opens outside the app, and a download opened or shown, which `system.file-handlers` guards: the web sessions' DECKIT.
-- Which mod opens an address a mod hands on: the standard interfaces' DECKITs, `deckit/urls`.
+- Which mod opens an address a mod hands on: [the addresses](../DECKIT-14/SPEC.md), `deckit/urls`.
 
 ## Alternatives considered
 
-- Any scheme handed to the host. A scheme other than the web's and `file` names a program the system knows nothing of and cannot tell a person of before a mod is installed. A mod that opens such an address for another does so through `deckit/urls`, where a mod chooses which one opens it.
+- Any scheme handed to the host. A scheme other than the web's and `file` names a program the system knows nothing of and cannot tell a person of before a mod is installed. A mod that opens such an address for another does so through `deckit/urls`, as [the addresses](../DECKIT-14/SPEC.md) fix it, where a mod chooses which one opens it.
 - Every address guarded by `system.file-handlers`, or by a permission of the web's. An address of the web opens in the browser the person already uses, which gives the page nothing but what it gives any page of the web.
 - A file handed to the host as the URL the mod wrote. A host opens a file by its path, as it opens a download, and a URL's query and fragment name nothing of a file.
 - `activates` read for an address of the web only. Whether the app that opens an address comes to the front is the mod's to ask whatever the address, as an operating system that opens an address in its app takes it alike for a file and for the web.
