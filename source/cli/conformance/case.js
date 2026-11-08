@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 3;
+const FORMAT = 4;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -43,6 +43,8 @@ const INPUTS = {
         args: [is.array, false],
         folders: [is.bundles, false],
         part: [is.string, false],
+        of: [(value) => is.integer(value) && value >= 1, false],
+        listener: [is.boolean, false],
     },
 };
 const LOOKS = {
@@ -50,9 +52,12 @@ const LOOKS = {
     mods: {},
     run: { mod: [is.string, true] },
     opened: {},
+    heard: { mod: [is.string, true] },
 };
 // The format that added an input or a look, where it is not 1.
-const ADDED = { run: 2, call: 3, opened: 3 };
+const ADDED = { run: 2, call: 3, opened: 3, heard: 4 };
+// The format that added a key of an input or a look, where it is a later one than the step's.
+const KEYS_ADDED = { of: 4, listener: 4 };
 // The inputs answered with nothing.
 const ANSWERLESS = ['start', 'quit'];
 
@@ -151,6 +156,8 @@ function stepOf(step, number, format, refuse) {
     keys(step, { [kind]: is.string, ...checks, expect: is.table }, `${at}: `, refuse);
     for (const [key, [, required]] of Object.entries(shape))
         if (required && !(key in step)) refuse(`${at}: ${key} is missing`);
+    for (const key of Object.keys(step))
+        if ((KEYS_ADDED[key] ?? 1) > format) refuse(`${at}: ${key} is no key format ${format} has`);
     const expect = step.expect ?? null;
     if (kind === 'look' && !expect) refuse(`${at}: a look writes expect`);
     if (expect) {
@@ -173,12 +180,15 @@ function stepOf(step, number, format, refuse) {
     return { number, ...step, kind, what: step[kind], expect };
 }
 
-// `start` first, again only after a `quit`, calls and looks only while the app is started, and nothing after a start
-// that is refused.
+// `start` first, again only after a `quit`, calls and looks only while the app is started, nothing after a start that
+// is refused, and a call's `of` an earlier call of its mod.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
         if (index === 0 && step.what !== 'start') refuse('step 1 is no start');
+        const of = step.of && steps[step.of - 1];
+        if (step.of && !(step.of < step.number && of.what === 'call' && of.mod === step.mod))
+            refuse(`step ${step.number}: of names no earlier call of ${step.mod}`);
         if (step.kind !== 'input' || step.what === 'call') {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? 'calls' : 'looks'} after a quit`);
             continue;

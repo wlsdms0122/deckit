@@ -3,8 +3,9 @@
 // connect answers, and talks to the runner over a socket, a JSON message a line: it says once whether the start settled
 // or was refused (deckit.whenStarted()), answers each call and look it is asked, a start and a call once no run is
 // between two states, and quits when asked. It stacks a
-// layer of its own over deckit on each mod's page (page.js), which makes the requests a call hands it, and opens none
-// of the addresses it is handed to open outside the app: it keeps each one, for the look opened.
+// layer of its own over deckit on each mod's page (page.js), which makes the requests a call hands it and keeps what
+// its listeners heard, and opens none of the addresses it is handed to open outside the app: it keeps each one, for the
+// look opened.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -26,7 +27,8 @@ const say = (message) => socket.write(JSON.stringify(message) + '\n');
 let environment = null;
 let deckit = null;
 let settled = false;
-let call = null; // the channel to the conformance layer on a mod's page
+let call = null; // the channels to the conformance layer on a mod's page
+let heard = null;
 const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
 
 const settle = (came) => {
@@ -71,6 +73,7 @@ try {
     for (const permission of setup.permissions) deckit.permissions.define(permission);
     deckit.stack('conformance');
     call = deckit.channels.bind({ channel: 'conformance/call', to: 'page', reply: true });
+    heard = deckit.channels.bind({ channel: 'conformance/heard', to: 'page', reply: true });
     // The start is complete, the launches at start included, or refused with its kind.
     deckit.whenStarted().then(() => runsSettled().then(() => settle({})), refused);
 } catch (error) {
@@ -95,16 +98,23 @@ socket.on('close', () => app.exit(0));
 
 // What a call comes to: what the request the mod's run makes answers, `{ refuses, kind, message }` for its refusal, or
 // `{ none }` where no run of the mod is running or its handle has no such member. `args` are the folders' paths and
-// then the values the step writes.
-async function request({ mod, member, args }) {
-    if (!deckit) return { none: 'deckit was not connected' };
-    const running = deckit.mods.runs().find(({ run }) => run.mod.id === mod && run.state === 'running');
-    if (!running) return { none: `no run of ${mod} is running` };
+// then the values the step writes; `step` its place, `of` the place of the call whose answer `member` starts at, and
+// `listener` whether the request is handed one after its args.
+async function request({ mod, member, args, step, of, listener }) {
+    const running = runningOf(mod);
+    if (!running.page) return running;
     try {
-        return await call.invoke(running.page, { member, args });
+        return await call.invoke(running.page, { member, args, step, of, listener });
     } catch (error) {
         return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
     }
+}
+
+// The running run of the mod listed under `mod`, `{ page }`, or `{ none }`.
+function runningOf(mod) {
+    if (!deckit) return { none: 'deckit was not connected' };
+    const running = deckit.mods.runs().find(({ run }) => run.mod.id === mod && run.state === 'running');
+    return running ? { page: running.page } : { none: `no run of ${mod} is running` };
 }
 
 // Resolves once no run is between two states: each has started, or has ended.
@@ -118,6 +128,10 @@ async function runsSettled() {
 function look({ look: what, mod }) {
     if (!deckit) return { none: 'deckit was not connected' };
     if (what === 'opened') return { answers: opened };
+    if (what === 'heard') {
+        const running = runningOf(mod);
+        return running.page ? heard.invoke(running.page) : running;
+    }
     const found = deckit.mods.list();
     if (what === 'mods') return { answers: found.map(({ id }) => id) };
     if (what !== 'mod' && what !== 'run') return { none: `this host answers no look ${what}` };

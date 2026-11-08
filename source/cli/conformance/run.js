@@ -102,14 +102,16 @@ function layOut(from, to) {
 }
 
 // What a step comes to: `{ answers }`, `{ refuses, kind, message }`, `{ none }` with why there is no answer, or `{}`
-// for an input answered with nothing. A call is handed the path of each bundle its folders name, and then its args.
+// for an input answered with nothing. A call is handed the path of each bundle its folders name, then its args, then a
+// listener where it writes one, and names its place so that a later call can reach what it answered.
 async function take(step, app, paths) {
     if (step.what === 'start') return app.start();
     if (step.what === 'quit') return app.quit();
     const { what, mod, part } = step;
     if (what === 'call') {
         const args = [...(step.folders ?? []).map((name) => paths[name]), ...(step.args ?? [])];
-        return partOf(await app.ask({ input: what, mod, member: step.member, args }), part);
+        const { member, of = null, listener = false, number } = step;
+        return partOf(await app.ask({ input: what, mod, member, args, step: number, of, listener }), part);
     }
     return partOf(await app.ask({ look: what, mod }), part);
 }
