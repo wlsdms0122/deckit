@@ -32,7 +32,7 @@ function fail(message, code = 1) {
 
 // The host app's folder: the archive unpacked as deckit/, the runner's host entry beside it, and the preload every
 // deckit page loads with: deckit's renderer bundle and then the shell's, which carries the page side of the passage
-// every background start needs.
+// every background start needs, started with the host's own layer (conformance/page.js).
 function assemble(archive, to) {
     fs.rmSync(to, { recursive: true, force: true });
     const library = path.join(to, 'deckit');
@@ -46,8 +46,10 @@ function assemble(archive, to) {
             'const before = new Set(Object.keys(globalThis));',
             read('renderer'),
             read('shell-renderer'),
+            fs.readFileSync(path.join(root, 'source', 'cli', 'conformance', 'page.js'), 'utf8'),
             `const environment = ${built.bundles.renderer.global}.boot({ before });`,
-            `if (environment) ${built.bundles['shell-renderer'].global}.start(environment);`,
+            `const layers = { conformance: conformanceLayer };`,
+            `if (environment) ${built.bundles['shell-renderer'].global}.start(environment, { layers });`,
             '})();',
         ].join('\n;\n') + '\n';
     fs.writeFileSync(path.join(to, 'preload.js'), preload);
@@ -127,7 +129,7 @@ const main = async () => {
         else if (result.outcome === 'not laid out') report('not laid out', label, result.why);
         else {
             const { step } = result;
-            const what = [step.what, step.mod, step.part].filter(Boolean).join(' ');
+            const what = [step.what, step.mod, step.member, step.part].filter(Boolean).join(' ');
             report(
                 'failed',
                 label,

@@ -1,10 +1,13 @@
 // The conformance runner's host app: Electron's main process embedding the deckit archive beside it as any host app
 // does, through the environment and connect, set up as the case's [host] says. It reaches deckit only through what
 // connect answers, and talks to the runner over a socket, a JSON message a line: it says once whether the start settled
-// or was refused (deckit.whenStarted()), answers each look it is asked, and quits when asked.
+// or was refused (deckit.whenStarted()), answers each call and look it is asked, and quits when asked. It stacks a
+// layer of its own over deckit on each mod's page (page.js), which makes the requests a call hands it, and opens none
+// of the addresses it is handed to open outside the app: it keeps each one, for the look opened.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { app, globalShortcut } = require('electron');
 
 const setup = JSON.parse(fs.readFileSync(process.env.DECKIT_CONFORMANCE_SETUP, 'utf8'));
@@ -23,6 +26,8 @@ const say = (message) => socket.write(JSON.stringify(message) + '\n');
 let environment = null;
 let deckit = null;
 let settled = false;
+let call = null; // the channel to the conformance layer on a mod's page
+const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
 
 const settle = (came) => {
     if (settled) return;
@@ -42,7 +47,17 @@ try {
         core: path.join(LIBRARY, described.core),
         host: { openWindow },
     });
-    deckit = DECKIT.connect(environment, {
+    const open = Object.freeze({
+        ...environment.open,
+        url: async (url, { activate = true } = {}) => {
+            opened.push({ url, activates: activate });
+        },
+        file: async (file) => {
+            opened.push({ url: pathToFileURL(file).href, activates: true });
+            return true;
+        },
+    });
+    deckit = DECKIT.connect(Object.create(environment, { open: { value: open } }), {
         host: { notificationClicked: () => {}, restart: () => {} },
         config: {
             id: 'deckit-conformance',
@@ -53,6 +68,8 @@ try {
     });
     for (const field of setup.fields) deckit.fields.define(field);
     for (const permission of setup.permissions) deckit.permissions.define(permission);
+    deckit.stack('conformance');
+    call = deckit.channels.bind({ channel: 'conformance/call', to: 'page', reply: true });
     // The start is complete, the launches at start included, or refused with its kind.
     deckit.whenStarted().then(() => settle({}), refused);
 } catch (error) {
@@ -66,15 +83,33 @@ socket.on('data', (chunk) => {
         const asked = JSON.parse(buffered.slice(0, end));
         buffered = buffered.slice(end + 1);
         if (asked.quit) app.quit();
-        else say({ id: asked.id, came: look(asked) });
+        else
+            Promise.resolve(asked.input === 'call' ? request(asked) : look(asked)).then((came) =>
+                say({ id: asked.id, came })
+            );
     }
 });
 socket.on('close', () => app.exit(0));
 
+// What a call comes to: what the request the mod's run makes answers, `{ refuses, kind, message }` for its refusal, or
+// `{ none }` where no run of the mod is running or its handle has no such member. `args` are the folders' paths and
+// then the values the step writes.
+async function request({ mod, member, args }) {
+    if (!deckit) return { none: 'deckit was not connected' };
+    const running = deckit.mods.runs().find(({ run }) => run.mod.id === mod && run.state === 'running');
+    if (!running) return { none: `no run of ${mod} is running` };
+    try {
+        return await call.invoke(running.page, { member, args });
+    } catch (error) {
+        return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
+    }
+}
+
 // What a look comes to: `{ answers }`, `{ refuses, kind, message }` for a bundle found and not taken or a run refused,
 // or `{ none }` with what the host was given instead. deckit.mods.list() holds every bundle found, in its order.
-function look({ look: what, mod, part }) {
+function look({ look: what, mod }) {
     if (!deckit) return { none: 'deckit was not connected' };
+    if (what === 'opened') return { answers: opened };
     const found = deckit.mods.list();
     if (what === 'mods') return { answers: found.map(({ id }) => id) };
     if (what !== 'mod' && what !== 'run') return { none: `this host answers no look ${what}` };
@@ -82,11 +117,7 @@ function look({ look: what, mod, part }) {
     if (!one) return { none: `no bundle under the id ${mod} was found` };
     if (one.refusal) return { refuses: one.refusal.stage, kind: one.refusal.kind, message: one.refusal.message };
     if (what === 'run') return runOf(mod);
-    const answer = JSON.parse(JSON.stringify(one));
-    if (part === undefined) return { answers: answer };
-    return part in answer && answer[part] !== null
-        ? { answers: answer[part] }
-        : { none: `the bundle answers no ${part}` };
+    return { answers: one };
 }
 
 // What deckit answers of the mod's latest run: its state, or the refusal at launch it came to. A mod with no run since
@@ -105,4 +136,3 @@ function openWindow({ title = '', size = null, place }) {
     window.show({ focus: false });
     return window;
 }
-

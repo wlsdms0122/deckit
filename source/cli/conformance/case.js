@@ -5,11 +5,12 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 2;
+const FORMAT = 3;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const KIND = /^[A-Z][A-Z_]*$/;
+const MEMBER = /^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$/;
 const STAGES = ['read', 'launch', 'call'];
 const BASES = ['system'];
 
@@ -28,6 +29,7 @@ const is = {
         VERSION.test(value) &&
         value.split('.').every((part) => BigInt(part) <= BigInt(Number.MAX_SAFE_INTEGER)),
     bundles: (value) => Array.isArray(value) && value.every((one) => typeof one === 'string' && BUNDLE.test(one)),
+    member: (value) => typeof value === 'string' && MEMBER.test(value),
     strings: (value) => Array.isArray(value) && value.every(is.string),
 };
 
@@ -35,14 +37,24 @@ const is = {
 const INPUTS = {
     start: {},
     quit: {},
+    call: {
+        mod: [is.string, true],
+        member: [is.member, true],
+        args: [is.array, false],
+        folders: [is.bundles, false],
+        part: [is.string, false],
+    },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
     mods: {},
     run: { mod: [is.string, true] },
+    opened: {},
 };
 // The format that added an input or a look, where it is not 1.
-const ADDED = { run: 2 };
+const ADDED = { run: 2, call: 3, opened: 3 };
+// The inputs answered with nothing.
+const ANSWERLESS = ['start', 'quit'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles }`, `bundles` each bundle's folder by its name.
 function read(folder) {
@@ -56,15 +68,9 @@ function read(folder) {
         refuse(`case.toml does not read: ${error.message}`);
     }
     if (!is.integer(written.case) || written.case < 1) refuse('case is no integer of at least 1');
-    if (written.case > FORMAT)
-        throw new TooOld(`this runner is too old for this case (format ${written.case})`);
+    if (written.case > FORMAT) throw new TooOld(`this runner is too old for this case (format ${written.case})`);
 
-    keys(
-        written,
-        { case: is.integer, name: is.name, note: is.string, host: is.table, step: is.array },
-        '',
-        refuse
-    );
+    keys(written, { case: is.integer, name: is.name, note: is.string, host: is.table, step: is.array }, '', refuse);
     for (const required of ['name', 'note', 'host', 'step'])
         if (!(required in written)) refuse(`${required} is missing`);
     if (written.name !== path.basename(folder)) refuse(`name is not the folder's name`);
@@ -79,7 +85,7 @@ function read(folder) {
         : [];
     for (const entry of laid) if (!BUNDLE.test(entry.name)) refuse(`mods/${entry.name} is no bundle-name`);
     const bundles = Object.fromEntries(laid.map(({ name }) => [name, path.join(mods, name)]));
-    const named = new Set([...host.ship, ...host.sources]);
+    const named = new Set([...host.ship, ...host.sources, ...steps.flatMap(({ folders = [] }) => folders)]);
     for (const name of named)
         if ([...host.ship, ...host.sources].filter((one) => one === name).length > 1)
             refuse(`${name} is written twice in host.ship and host.sources`);
@@ -161,20 +167,20 @@ function stepOf(step, number, format, refuse) {
         if ('answers' in expect === 'refuses' in expect) refuse(`${at}: expect holds answers, or refuses and kind`);
         if ('refuses' in expect !== 'kind' in expect)
             refuse(`${at}: expect writes kind beside refuses, and only there`);
-        if ('answers' in expect && kind === 'input')
+        if ('answers' in expect && ANSWERLESS.includes(step.input))
             refuse(`${at}: ${step.input} answers nothing, so expect writes no answers`);
     }
     return { number, ...step, kind, what: step[kind], expect };
 }
 
-// `start` first, again only after a `quit`, looks only while the app is started, and nothing after a start that is
-// refused.
+// `start` first, again only after a `quit`, calls and looks only while the app is started, and nothing after a start
+// that is refused.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
         if (index === 0 && step.what !== 'start') refuse('step 1 is no start');
-        if (step.kind !== 'input') {
-            if (!up) refuse(`step ${step.number} looks after a quit`);
+        if (step.kind !== 'input' || step.what === 'call') {
+            if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? 'calls' : 'looks'} after a quit`);
             continue;
         }
         if (step.what === 'start') {

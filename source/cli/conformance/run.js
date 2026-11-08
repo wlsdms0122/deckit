@@ -1,5 +1,5 @@
 // One run of a case: its bundles laid out afresh in a folder of the run's own, the host app started and quit as its
-// steps say, each look asked of it, and what each step came to held to what it expects (spec/DECKIT-1).
+// steps say, each call and look asked of it, and what each step came to held to what it expects (spec/DECKIT-1).
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -19,11 +19,13 @@ async function run(theCase, { folder, hostApp, electron }) {
     const sources = path.join(folder, 'sources');
     for (const made of [home, path.join(folder, 'electron'), path.join(folder, 'downloads')])
         fs.mkdirSync(made, { recursive: true });
-    const laid = [
-        ...host.sources.map((name) => [name, path.join(sources, name)]),
+    // Each bundle's path: in the folder read in place, shipped, or on its own where only a step's folders names it.
+    const paths = Object.fromEntries([
+        ...Object.keys(bundles).map((name) => [name, path.join(folder, 'apart', name)]),
         ...host.ship.map((name) => [name, path.join(folder, 'ship', name)]),
-    ];
-    for (const [name, to] of laid) {
+        ...host.sources.map((name) => [name, path.join(sources, name)]),
+    ]);
+    for (const [name, to] of Object.entries(paths)) {
         const why = layOut(bundles[name], to);
         if (why) return { outcome: 'not laid out', why: `${name}: ${why}` };
     }
@@ -58,7 +60,7 @@ async function run(theCase, { folder, hostApp, electron }) {
     const app = createApp({ server, electron, hostApp, setupFile, log });
     try {
         for (const step of theCase.steps) {
-            const came = await take(step, app);
+            const came = await take(step, app, paths);
             if (!matches(step.expect, came))
                 return { outcome: 'failed', step, came: describe(came), expected: describe(step.expect) };
         }
@@ -100,12 +102,27 @@ function layOut(from, to) {
 }
 
 // What a step comes to: `{ answers }`, `{ refuses, kind, message }`, `{ none }` with why there is no answer, or `{}`
-// for an input answered with nothing.
-async function take(step, app) {
+// for an input answered with nothing. A call is handed the path of each bundle its folders name, and then its args.
+async function take(step, app, paths) {
     if (step.what === 'start') return app.start();
     if (step.what === 'quit') return app.quit();
-    const { kind, what, number, expect, ...asked } = step;
-    return app.ask({ look: what, ...asked });
+    const { what, mod, part } = step;
+    if (what === 'call') {
+        const args = [...(step.folders ?? []).map((name) => paths[name]), ...(step.args ?? [])];
+        return partOf(await app.ask({ input: what, mod, member: step.member, args }), part);
+    }
+    return partOf(await app.ask({ look: what, mod }), part);
+}
+
+// The value under the key `part` of an answer that is a table, or of each element that holds it of one that is an
+// array of tables, in order; a key answered with null is not held.
+function partOf(came, part) {
+    if (part === undefined || !('answers' in came)) return came;
+    const { answers } = came;
+    const holds = (table) => TOML.isTable(table) && part in table && table[part] !== null;
+    if (Array.isArray(answers) && answers.every(TOML.isTable))
+        return { answers: answers.filter(holds).map((one) => one[part]) };
+    return holds(answers) ? { answers: answers[part] } : { none: `the answer holds no ${part}` };
 }
 
 // The host app, started and quit as the steps say: each start a process of its own, on the run's folders.
