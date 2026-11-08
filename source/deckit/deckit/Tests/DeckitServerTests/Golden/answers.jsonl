@@ -55,7 +55,7 @@
 {"error":{"code":-32803,"data":{"kind":"NOT_INSTALLED","stage":"call"},"message":"no mod is listed under x"},"id":120,"jsonrpc":"2.0"}
 {"id":121,"jsonrpc":"2.0","result":[]}
 {"id":54,"jsonrpc":"2.0","result":[{"contributions":{"awaits":{},"exportedIn":{"a\/api":0,"a\/own":0}},"effect":"tell","failed":false,"mod":"a","notification":"willTerminate","problem":"slow","run":1,"state":"terminating"},{"effect":"stop","mod":"a","run":1}]}
-{"id":55,"jsonrpc":"2.0","result":[{"contributions":{"awaits":{},"exportedIn":{"a\/api":0,"a\/own":0}},"effect":"tell","failed":false,"mod":"a","notification":"didTerminate","problem":"slow","run":1,"state":"notRunning"}]}
+{"id":55,"jsonrpc":"2.0","result":[{"contributions":{"awaits":{},"exportedIn":{"a\/api":0,"a\/own":0}},"effect":"tell","failed":false,"mod":"a","notification":"didTerminate","problem":"slow","run":1,"state":"notRunning"},{"effect":"kill","mod":"a"}]}
 {"id":102,"jsonrpc":"2.0","result":[{"client":{"lifecycle":0,"mod":"c","run":1},"effect":"wait","mod":"a","name":"a"},{"effect":"tell","failed":false,"mod":"a","notification":"willLaunch","run":2,"state":"launching"},{"effect":"loadPage","mod":"a"}]}
 {"id":56,"jsonrpc":"2.0","result":[]}
 {"error":{"code":-32803,"data":{"kind":"NOT_PERMITTED","stage":"call"},"message":"b does not have the deckit.mods permission"},"id":94,"jsonrpc":"2.0"}

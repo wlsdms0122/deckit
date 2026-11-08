@@ -51,7 +51,7 @@ struct RunnerTests {
         #expect(describe(effects) == ["tell didLaunch a 1 running"])
     }
 
-    @Test("a run asked to unload terminates and its stop() is asked once, ending once that answered")
+    @Test("a run asked to unload terminates, its stop() asked once, and ends once that answered, its sandbox killed")
     func unloadAsksTheStop() throws {
         // Given
         let sut = Runner()
@@ -63,7 +63,7 @@ struct RunnerTests {
 
         // Then
         #expect(describe(unloaded) == ["tell willTerminate a 1 terminating", "stop a 1"])
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "kill a"])
         #expect(sut.run(of: "a")?.failed == false)
     }
 
@@ -130,7 +130,7 @@ struct RunnerTests {
 
         // Then
         #expect(again.isEmpty)
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "kill a"])
     }
 
     @Test("a principal whose run has not ended is left as it is, and one that ended launches again in its sandbox")

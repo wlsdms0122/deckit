@@ -106,11 +106,12 @@ final class Runner {
         }
     }
 
-    // Its page ended it, its time ran out or its page is gone.
+    // Its page ended it, its time ran out or its page is gone: its sandbox ends at once.
     func stopped(_ id: String, run number: Int) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .terminating else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didTerminate() }
+            effects.append(.kill(principal: id))
         }
     }
 
