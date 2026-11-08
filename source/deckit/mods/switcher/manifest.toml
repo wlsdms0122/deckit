@@ -11,6 +11,7 @@ keywords = ["switcher", "command", "palette"]
 "deckit.mods" = "Lists each mod the app can show, and shows the one you pick."
 "deckit.system-services" = "Runs the command of an action a mod declares, which launches the mod if it does not run."
 "system.overlay-windows" = "Opens over the app you are in."
+"system.global-keys" = "Its key, Option-Space unless you set another, opens it from any app."
 
 [interfaces]
 provides = { "switcher/actions" = [1] }

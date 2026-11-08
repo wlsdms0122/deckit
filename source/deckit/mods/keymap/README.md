@@ -4,9 +4,12 @@ The mods' keys, in one place: each key a mod declares in its manifest runs one o
 
 ## Declaring keys
 
-A mod declares its keys in its manifest, one `[[contributes."deckit/keys"]]` table for each, and need not use the interface. A key runs a command the mod declares to `deckit/commands` (see the Commands mod), with no args, and its mod launches if it does not run.
+A mod declares its keys in its manifest, one `[[contributes."deckit/keys"]]` table for each, and need not use the interface. A key runs a command the mod declares to `deckit/commands` (see the Commands mod), with no args, and its mod launches if it does not run. A key is taken only for a mod granted the permission of its scope: `deckit.app-keys` for `app`, `system.global-keys` for `global`.
 
 ```toml
+[permissions]
+"system.global-keys" = "Its key opens it from any app."
+
 [[contributes."deckit/commands"]]
 id = "show"
 title = "Show Switcher"
@@ -25,7 +28,9 @@ scope = "global"
 
 A spec is words joined by `+`: modifiers, `cmd` (or `meta`, `mod`) for ⌘, `ctrl` (or `control`) for ⌃, `alt` (or `opt`, `option`) for ⌥ and `shift` for ⇧, and one key: a letter, a digit, `f1` to `f19`, `left`, `right`, `up`, `down`, `enter`, `escape`, `space`, `tab`, `backspace`, `delete`, or one of `` [ ] , . / \ - = ; ' ` ``. Case does not matter. A chord is matched on the physical key, so `shift+1` is the key 1 with ⇧, not `!`. A key works past its page and is taken from every page, text fields included, so its chord needs ⌘, ⌃ or ⌥, and is none a field with focus takes: the arrows, Home, End, Page Up and Down, ⌫ and ⌦ with any modifier, ⌘A, ⌘C, ⌘X, ⌘V, ⌘Z, and ↩ with ⌘, ⌃ or ⌥.
 
-An entry that cannot be used (no command, a command its mod does not declare or one that requires args, a scope of another word, a spec that is no chord or that breaks the rule above) is left out and logged once, as is a second key for one command. The others of that mod are taken.
+An entry that cannot be used (no command, a command its mod does not declare or one that requires args, a scope of another word or one its mod is not granted, a spec that is no chord or that breaks the rule above) is left out and logged once, as is a second key for one command. The others of that mod are taken.
+
+What is declared is read as Keymap starts and again as `deckit/keys` sends `contributions-changed` or `owner-changed`, and the commands as `deckit/commands` connects and again as it sends `contributions-changed`. The chords are taken again after each.
 
 ## Two keys on one chord
 
@@ -66,12 +71,12 @@ const chord = await this.keys.chordOf('today'); // '⌥T', or '' for none
 
 A keystroke is `{ code, meta, control, alt, shift }`, `code` as a keyboard event names the key.
 
-| Export                         | Who                      | What it is                                                                                                                                                                                                                                  |
-| ------------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `chordOf(command)`             | any client               | the chord the key for its own mod's `command` runs on, as a person reads it (`⌃⌥⇧⌘` and then the key, as `⌥Space`), or `''` for none                                                                                                        |
-| `list()`                       | `deckit.system-services` | every key declared, read again from what is declared, `[{ mod, command, title, scope, defaultKeystroke, keystroke, chord, changed, active, issues }]`, `app` keys first, then `global`, each in the mods' order and then the order declared |
-| `set(mod, command, keystroke)` | `deckit.system-services` | binds the key of the mod `mod` for `command` to `keystroke`, or to none for null, and answers it as `list()` does                                                                                                                           |
-| `reset(mod, command)`          | `deckit.system-services` | binds that key to its default again, and answers it as `list()` does                                                                                                                                                                        |
+| Export                         | Who                      | What it is                                                                                                                                                                                                |
+| ------------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chordOf(command)`             | any client               | the chord the key for its own mod's `command` runs on, as a person reads it (`⌃⌥⇧⌘` and then the key, as `⌥Space`), or `''` for none                                                                      |
+| `list()`                       | `deckit.system-services` | every key declared, `[{ mod, command, title, scope, defaultKeystroke, keystroke, chord, changed, active, issues }]`, `app` keys first, then `global`, each in the mods' order and then the order declared |
+| `set(mod, command, keystroke)` | `deckit.system-services` | binds the key of the mod `mod` for `command` to `keystroke`, or to none for null, and answers it as `list()` does                                                                                         |
+| `reset(mod, command)`          | `deckit.system-services` | binds that key to its default again, and answers it as `list()` does                                                                                                                                      |
 
 A key as `list()` answers it:
 

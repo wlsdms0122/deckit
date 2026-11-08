@@ -61,6 +61,12 @@ async function main() {
         { mod: { id: 'off', name: 'Off' }, entry: { id: 'go', title: 'Go' } },
     ];
 
+    // The signals the registry listens for, and one sent.
+    const heard = new Map(); // name -> [listener]
+    const signal = (name) => {
+        for (const listener of heard.get(name) ?? []) listener();
+    };
+
     // The core: `reach(id)` answers the exports a running mod opens for its id once its connection stands, or rejects
     // with the kind and stage `refusing` holds for it.
     const asked = [];
@@ -82,7 +88,13 @@ async function main() {
                 asked.push(['release', id]);
             },
         },
-        exports: { contributions: async (name) => (name === 'deckit/commands' ? contributions : []) },
+        exports: { contributions: async (name) => (name === 'deckit/commands' ? [...contributions] : []) },
+        events: {
+            on: (name, listener) => {
+                if (!heard.has(name)) heard.set(name, []);
+                heard.get(name).push(listener);
+            },
+        },
     };
 
     const ran = [];
@@ -231,6 +243,24 @@ async function main() {
     );
     const answered = await rejection(client.run('note', 'today'));
     check('function answered', !!answered && answered.kind === undefined, answered);
+
+    // What is declared is kept, and read again on the interface's signals.
+    check(
+        'signals heard',
+        JSON.stringify([...heard.keys()]) ===
+            JSON.stringify(['deckit/commands:contributions-changed', 'deckit/commands:owner-changed']),
+        [...heard.keys()]
+    );
+    const later = { mod: { id: 'plain', name: 'Plain' }, entry: { id: 'later', title: 'Later' } };
+    const hasLater = async () => (await client.list()).some((each) => each.id === 'later');
+    contributions.push(later);
+    check('kept until a signal', !(await hasLater()));
+    signal('deckit/commands:contributions-changed');
+    check('read again as declarations change', await hasLater());
+    contributions.pop();
+    check('kept again', await hasLater());
+    signal('deckit/commands:owner-changed');
+    check('read again as the owner changes', !(await hasLater()));
     check('nothing logged', errors.length === 0, errors);
 
     for (const line of failed) process.stdout.write(`${line}\n`);

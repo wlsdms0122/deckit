@@ -3,21 +3,23 @@ const { WIDE_RULE, parse, chordOf, same, fitsWide } = require('../keystroke/keys
 // MARK: - Property
 // Where a key works, as a person reads it: `app` anywhere in the app, `global` in every app too.
 const SCOPES = Object.freeze({ app: 'anywhere in the app', global: 'in every app' });
+// What the declaring mod is granted for a key of each scope.
+const GRANTS = Object.freeze({ app: 'deckit.app-keys', global: 'system.global-keys' });
 
 // MARK: - Initializer
 // MARK: - Public
-// The keys in what mods declare to deckit/keys, as `contributions` answers it, `[{ mod, entry }]`, each for a command
-// of its mod's in `commands`, as deckit/commands lists them: `{ mod: { id, name }, command, title, scope,
-// defaultKeystroke }`, in the mods' order and then the order declared. An entry that cannot be used, or a second key
-// for one command, is told to `warn` and left out.
+// The keys in what mods declare to deckit/keys, as `contributions` answers it, `[{ mod, credential, entry }]`, each for
+// a command of its mod's in `commands`, as deckit/commands lists them: `{ mod: { id, name }, command, title, scope,
+// defaultKeystroke }`, in the mods' order and then the order declared. An entry that cannot be used, one of a scope its
+// mod is not granted, or a second key for one command, is told to `warn` and left out.
 function keysOf(contributions, commands, warn) {
     const keys = [];
     const ids = new Set(); // "<mod id> <command id>"
-    for (const { mod, entry } of contributions) {
+    for (const { mod, credential, entry } of contributions) {
         const command = isObject(entry)
             ? commands.find((each) => each.mod.id === mod.id && each.id === entry.command)
             : null;
-        const problem = problemOf(entry, command, mod);
+        const problem = problemOf(entry, command, mod, credential);
         if (problem) {
             warn(`${mod.id}: a key is left out: ${problem}`);
             continue;
@@ -103,7 +105,7 @@ function issue(kind, message, other = null) {
 }
 
 // MARK: - Private
-function problemOf(entry, command, mod) {
+function problemOf(entry, command, mod, credential) {
     if (!isObject(entry)) return 'an entry is a table';
     if (typeof entry.command !== 'string' || !entry.command) return 'a key needs "command", the id of a command';
     const of = `the key for "${entry.command}"`;
@@ -112,10 +114,13 @@ function problemOf(entry, command, mod) {
         return `${of}: a key runs its command with no args, and it needs ${command.params.required.join(', ')}`;
     if (entry.scope !== undefined && !Object.hasOwn(SCOPES, entry.scope))
         return `${of}: its "scope" is ${Object.keys(SCOPES).join(' or ')}`;
+    const scope = entry.scope ?? 'app';
+    if (!credential.permissions.includes(GRANTS[scope]))
+        return `${of} works ${SCOPES[scope]}, which needs ${GRANTS[scope]}, and ${mod.id} is not granted it`;
     if (typeof entry.keystroke !== 'string' || !entry.keystroke.trim()) return `${of} needs a chord in "keystroke"`;
     const keystroke = parse(entry.keystroke);
     if (!keystroke) return `${of}: "${entry.keystroke}" is not a chord`;
-    if (!fitsWide(keystroke)) return `${of} cannot work ${SCOPES[entry.scope ?? 'app']}: ${WIDE_RULE}`;
+    if (!fitsWide(keystroke)) return `${of} cannot work ${SCOPES[scope]}: ${WIDE_RULE}`;
     return null;
 }
 

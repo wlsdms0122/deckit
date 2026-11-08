@@ -77,6 +77,14 @@ async function main() {
         { mod: note, id: 'fail', title: 'Fail', keywords: [], params: null },
         { mod: switcher, id: 'show', title: 'Show Switcher', keywords: [], params: null },
     ];
+    // What each declaring mod is granted: Calendar both scopes, Note `app` only, Switcher `global` only.
+    const granted = {
+        calendar: ['deckit.app-keys', 'system.global-keys'],
+        note: ['deckit.app-keys'],
+        switcher: ['system.global-keys'],
+    };
+    const credentialOf = (entries) =>
+        entries.map(({ mod, entry }) => ({ mod, credential: { mod: mod.id, permissions: granted[mod.id] }, entry }));
     const contributions = [
         { mod: calendar, entry: { command: 'today', keystroke: 'mod+shift+t' } },
         { mod: calendar, entry: { command: 'week', keystroke: 'ctrl+alt+w', scope: 'global' } },
@@ -90,8 +98,10 @@ async function main() {
         { mod: note, entry: { command: 'find' } },
         { mod: note, entry: { keystroke: 'ctrl+f' } },
         { mod: note, entry: { command: 'fail', keystroke: 'ctrl+alt+w' } },
+        { mod: note, entry: { command: 'find', keystroke: 'ctrl+alt+f', scope: 'global' } },
         { mod: switcher, entry: { command: 'show', keystroke: 'alt+space', scope: 'global' } },
         { mod: switcher, entry: 'show' },
+        { mod: switcher, entry: { command: 'show', keystroke: 'ctrl+alt+s' } },
     ];
 
     // The keys hole: a chord in `othersHold` is another mod's, and the system gives no global chord in `notGiven`.
@@ -124,7 +134,7 @@ async function main() {
     // deckit/commands: what a run was asked.
     const runs = [];
     const commands = {
-        list: async () => listed,
+        list: async () => [...listed],
         run: async (id, command, args) => {
             runs.push([id, command, args ?? null]);
             if (command === 'fail') throw Object.assign(new Error('it fails'), { kind: 'COMMAND' });
@@ -143,6 +153,11 @@ async function main() {
     };
     let front = true;
     const listeners = new Map();
+    const heard = new Map(); // name -> [listener]
+    const signal = async (name) => {
+        for (const listener of heard.get(name) ?? []) listener();
+        await ticks();
+    };
     const deckitOf = () => ({
         storage: { records },
         keys,
@@ -150,7 +165,13 @@ async function main() {
         dependencies: {
             onConnect: (name, listener) => listeners.set(name, listener),
         },
-        exports: { contributions: async (name) => (name === 'deckit/keys' ? contributions : []) },
+        exports: { contributions: async (name) => (name === 'deckit/keys' ? credentialOf(contributions) : []) },
+        events: {
+            on: (name, listener) => {
+                if (!heard.has(name)) heard.set(name, []);
+                heard.get(name).push(listener);
+            },
+        },
     });
     const connection = (id, permissions) => ({ mod: mod(id, id), credential: { mod: id, permissions } });
 
@@ -176,9 +197,16 @@ async function main() {
             ]),
         takes
     );
-    check('warned', warnings.length === 9, warnings);
+    check('warned', warnings.length === 11, warnings);
+    const warnedOf = (pattern) => warnings.some((line) => pattern.test(line));
+    check(
+        'a scope not granted',
+        warnedOf(/note: .*"find" works in every app, which needs system\.global-keys, and note is not granted it/) &&
+            warnedOf(/switcher: .*"show" works anywhere in the app, which needs deckit\.app-keys/),
+        warnings
+    );
     let bindings = await settings.list();
-    check('warned once', warnings.length === 9, warnings);
+    check('warned once', warnings.length === 11, warnings);
     const ids = (list) => list.map((binding) => `${binding.mod.id}:${binding.command}`);
     check(
         'list',
@@ -237,7 +265,7 @@ async function main() {
     );
     check(
         'a failed run is logged',
-        warnings.length === 10 && /Fail of Note did not run: it fails/.test(warnings[9]),
+        warnings.length === 12 && /Fail of Note did not run: it fails/.test(warnings[11]),
         warnings
     );
     front = true;
@@ -308,6 +336,33 @@ async function main() {
     notGiven.add('ctrl+alt+g');
     set = await settings.set('switcher', 'show', stroke('ctrl+alt+g'));
     check('unavailable', set.active && set.issues[0]?.kind === 'unavailable', set.issues);
+
+    // What is declared is kept, and read again on the signals of deckit/keys and as deckit/commands' declarations
+    // change; the chords are taken again after each.
+    check(
+        'signals heard',
+        json([...heard.keys()]) ===
+            json([
+                'deckit/keys:contributions-changed',
+                'deckit/keys:owner-changed',
+                'deckit/commands:contributions-changed',
+            ]),
+        [...heard.keys()]
+    );
+    contributions.push({ mod: note, entry: { command: 'later', keystroke: 'ctrl+alt+j' } });
+    check('kept until a signal', !of(await settings.list(), 'note', 'later'));
+    takes.length = 0;
+    releases.length = 0;
+    await signal('deckit/keys:contributions-changed');
+    check('its command not known yet', !of(await settings.list(), 'note', 'later') && takes.length === 0, takes);
+    listed.push({ mod: note, id: 'later', title: 'Later', keywords: [], params: null });
+    await signal('deckit/commands:contributions-changed');
+    check('taken as its command is listed', json(takes) === json([['ctrl+alt+j', 'app']]), takes);
+    check('listed', of(await settings.list(), 'note', 'later')?.active === true);
+    contributions.pop();
+    await signal('deckit/keys:owner-changed');
+    check('let go as the owner changes', json(releases) === json(['ctrl+alt+j']), releases);
+    warnings.length = 0;
 
     // What was kept is read as the keymap starts again; an entry of another shape is left out.
     store.set(

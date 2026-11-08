@@ -4,15 +4,21 @@ const { commandsOf, problemOfArgs, holdsFunction } = require('../command/command
 const INTERFACE = 'deckit/commands';
 // What a client holds to list the mods' commands and run them.
 const SYSTEM_SERVICES = 'deckit.system-services';
+// The signals of the interface after which what is declared to it is read again.
+const SIGNALS = ['contributions-changed', 'owner-changed'];
 
 // MARK: - Initializer
 // MARK: - Public
-// The commands mods declare to deckit/commands, read from what is declared on each ask, and run on the exports their
-// mod opens for its id. `deckit` is the function lifecycle's handle.
+// The commands mods declare to deckit/commands, read as it starts and again on the interface's signals, and run on the
+// exports their mod opens for its id. `deckit` is the function lifecycle's handle.
 function registry(deckit) {
     // MARK: - Property
     const { dependencies } = deckit;
     const warned = new Set(); // what was told about a declaration, told once
+    let declared = read(); // what is declared to deckit/commands, as last read
+
+    // MARK: - Initializer
+    for (const signal of SIGNALS) deckit.events.on(`${INTERFACE}:${signal}`, () => (declared = read()));
 
     // MARK: - Public
     // The exports for a connection: a client that does not hold deckit.system-services is refused each call, kind
@@ -27,7 +33,7 @@ function registry(deckit) {
 
     // Every mod's commands, as `commandsOf` reads them.
     async function list() {
-        return commandsOf(await deckit.exports.contributions(INTERFACE), warn);
+        return commandsOf(await declared, warn);
     }
 
     // The command `id` of the mod `mod`, run with `args` on the exports the mod opens for its id, reached for the run,
@@ -51,6 +57,10 @@ function registry(deckit) {
     }
 
     // MARK: - Private
+    function read() {
+        return deckit.exports.contributions(INTERFACE);
+    }
+
     function letGo(mod) {
         dependencies.release(mod).catch((error) => console.error(`[commands] ${mod} was not let go`, error));
     }

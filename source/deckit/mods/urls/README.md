@@ -4,7 +4,7 @@ Which mod opens an address, in one place: the addresses each mod declares in its
 
 ## Declaring addresses
 
-A mod declares the addresses it opens in its manifest, one `[[contributes."deckit/urls"]]` table for each scheme, and need not use the interface. They are there whether the mod runs or not, and URLs reads them from what is declared each time an address is opened or a client lists the schemes.
+A mod declares the addresses it opens in its manifest, one `[[contributes."deckit/urls"]]` table for each scheme, and need not use the interface. They are there whether the mod runs or not. URLs reads what is declared as it starts and again as `deckit/urls` sends `contributions-changed` or `owner-changed`.
 
 ```toml
 [[contributes."deckit/urls"]]

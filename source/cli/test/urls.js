@@ -103,6 +103,12 @@ async function main() {
         ...of('refusing', [{ scheme: 'late' }]),
     ];
 
+    // The signals the router listens for, and one sent.
+    const heard = new Map(); // name -> [listener]
+    const signal = (name) => {
+        for (const listener of heard.get(name) ?? []) listener();
+    };
+
     // The core: `reach(id)` answers the exports a running mod opens for its id once its connection stands; `silent`
     // times out at launch and `refusing` is refused.
     const asked = [];
@@ -132,7 +138,13 @@ async function main() {
                 asked.push(['release', id]);
             },
         },
-        exports: { contributions: async (name) => (name === 'deckit/urls' ? contributions : []) },
+        exports: { contributions: async (name) => (name === 'deckit/urls' ? [...contributions] : []) },
+        events: {
+            on: (name, listener) => {
+                if (!heard.has(name)) heard.set(name, []);
+                heard.get(name).push(listener);
+            },
+        },
         storage: { records },
         openExternal: async (address, options) => {
             outside.push([address, options]);
@@ -427,6 +439,22 @@ async function main() {
     check('not chosen', (await restarted.list())[1].chosen === null);
     refusingWrites = false;
     check('chosen after', (await restarted.choose('https', { mod: 'browser' })).chosen?.mod === 'browser');
+
+    // What is declared is kept, and read again on the interface's signals.
+    check(
+        'signals heard',
+        json([...heard.keys()]) === json(['deckit/urls:contributions-changed', 'deckit/urls:owner-changed']),
+        [...heard.keys()]
+    );
+    const hasGopher = async () => (await restarted.list()).some(({ scheme }) => scheme === 'gopher');
+    contributions.push(...of('mail', [{ scheme: 'gopher' }]));
+    check('kept until a signal', !(await hasGopher()));
+    signal('deckit/urls:contributions-changed');
+    check('read again as declarations change', await hasGopher());
+    contributions.pop();
+    signal('deckit/urls:owner-changed');
+    check('read again as the owner changes', !(await hasGopher()));
+    warnings.length = 0;
 
     check('nothing logged', errors.length === 0 && warnings.length === 0, { errors, warnings });
 

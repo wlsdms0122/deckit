@@ -8,19 +8,25 @@ const SYSTEM_SERVICES = 'deckit.system-services';
 const FILE_HANDLERS = 'system.file-handlers';
 // The record of the choices: scheme -> `{ mod: id }` or `{ system: true }`.
 const KEPT = 'chosen';
+// The signals of the interface after which what is declared to it is read again.
+const SIGNALS = ['contributions-changed', 'owner-changed'];
 
 // MARK: - Initializer
 // MARK: - Public
-// The addresses mods declare to deckit/urls, read from what is declared on each ask: an address opened is offered to
-// the mods that open it in turn, each reached by its id, and opened outside the app when none takes it. The choices
-// are kept in the mod's records. `deckit` is the function lifecycle's handle.
+// The addresses mods declare to deckit/urls, read as it starts and again on the interface's signals: an address opened
+// is offered to the mods that open it in turn, each reached by its id, and opened outside the app when none takes it.
+// The choices are kept in the mod's records. `deckit` is the function lifecycle's handle.
 function router(deckit) {
     // MARK: - Property
     const { dependencies } = deckit;
     const records = deckit.storage.records;
     const warned = new Set(); // what was told about a declaration, told once
     let chosen = choicesOf(records.get(KEPT, {}));
+    let declared = read(); // what is declared to deckit/urls, as last read
     let queue = Promise.resolve(); // the choice under way, which the next waits for
+
+    // MARK: - Initializer
+    for (const signal of SIGNALS) deckit.events.on(`${INTERFACE}:${signal}`, () => (declared = read()));
 
     // MARK: - Public
     // The exports for a connection: any client opens an address, a file only one that holds system.file-handlers, and
@@ -93,8 +99,12 @@ function router(deckit) {
         }
     }
 
+    function read() {
+        return deckit.exports.contributions(INTERFACE);
+    }
+
     async function handlers() {
-        return handlersOf(await deckit.exports.contributions(INTERFACE), warn);
+        return handlersOf(await declared, warn);
     }
 
     function warn(problem) {

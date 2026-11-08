@@ -5,6 +5,8 @@ const { chords } = require('../chords/chords.js');
 // MARK: - Property
 const INTERFACE = 'deckit/keys';
 const COMMANDS = 'deckit/commands';
+// The signals of an interface after which what is declared to it is read again.
+const SIGNALS = ['contributions-changed', 'owner-changed'];
 // What a client holds to list every binding and set one.
 const SYSTEM_SERVICES = 'deckit.system-services';
 // The record of what a person set: `[{ mod, command, keystroke }]` in the order made, `keystroke` a spec or '' for
@@ -14,8 +16,10 @@ const KEPT = 'keys';
 // MARK: - Initializer
 // MARK: - Public
 // The keys mods declare to deckit/keys, bound to their defaults or to what a person set, kept in the mod's records,
-// each chord taken through the keys hole, and a press running its command through deckit/commands. What is declared is
-// read as deckit/commands connects and on each list, set and reset. `deckit` is the function lifecycle's handle.
+// each chord taken through the keys hole, and a press running its command through deckit/commands. What is declared to
+// deckit/keys is read as the keymap starts and again on its signals, and the commands as deckit/commands connects and
+// again as what is declared to it changes; the chords are taken again after each. `deckit` is the function
+// lifecycle's handle.
 function keymap(deckit) {
     // MARK: - Property
     const records = deckit.storage.records;
@@ -23,16 +27,31 @@ function keymap(deckit) {
     const warned = new Set(); // what was told about a declaration, told once
     let changes = changesOf(records.get(KEPT, []));
     let commands = null; // deckit/commands' exports, while connected
+    let declared = read(); // what is declared to deckit/keys, as last read
+    let listed = null; // the commands deckit/commands lists, as last read while it is connected
     let bindings = []; // as last resolved
     let queue = Promise.resolve(); // the work under way, which the next waits for
 
     // MARK: - Initializer
     deckit.dependencies.onConnect(COMMANDS, (exports) => {
         commands = exports;
-        serial(refresh).catch((error) => console.error('[keymap] the keys were not taken', error));
+        listed = exports.list();
+        retake();
         return () => {
-            if (commands === exports) commands = null;
+            if (commands !== exports) return;
+            commands = null;
+            listed = null;
         };
+    });
+    for (const signal of SIGNALS)
+        deckit.events.on(`${INTERFACE}:${signal}`, () => {
+            declared = read();
+            if (commands) retake();
+        });
+    deckit.events.on(`${COMMANDS}:contributions-changed`, () => {
+        if (!commands) return;
+        listed = commands.list();
+        retake();
     });
 
     // MARK: - Public
@@ -86,11 +105,18 @@ function keymap(deckit) {
     }
 
     // MARK: - Private
-    // The bindings read again from what is declared, and the chords taken made theirs.
+    function read() {
+        return deckit.exports.contributions(INTERFACE);
+    }
+
+    function retake() {
+        serial(refresh).catch((error) => console.error('[keymap] the keys were not taken', error));
+    }
+
+    // The bindings resolved again from what is declared, and the chords taken made theirs.
     async function refresh() {
         if (!commands) throw refusal('NOT_RUNNING', `${COMMANDS} is not connected, so no command is known`);
-        const listed = await commands.list();
-        const next = resolved(keysOf(await deckit.exports.contributions(INTERFACE), listed, warn), changes);
+        const next = resolved(keysOf(await declared, await listed, warn), changes);
         const wanted = new Map(); // spec -> { keystroke, scope }, `global` where any on it is
         for (const binding of next) {
             const spec = binding.active && specOf(binding.keystroke);

@@ -25,7 +25,7 @@ await this.commands.run('calendar', 'open-event', { start: 1767225600000 });
 
 ## Declaring commands
 
-A mod declares its commands in its manifest, one `[[contributes."deckit/commands"]]` table for each, and need not use the interface. They are there whether the mod runs or not, and Commands reads them from what is declared each time a client lists or runs one.
+A mod declares its commands in its manifest, one `[[contributes."deckit/commands"]]` table for each, and need not use the interface. They are there whether the mod runs or not. Commands reads what is declared as it starts and again as `deckit/commands` sends `contributions-changed` or `owner-changed`.
 
 ```toml
 [[contributes."deckit/commands"]]

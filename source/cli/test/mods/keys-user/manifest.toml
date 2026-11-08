@@ -4,6 +4,9 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 
+[permissions]
+"deckit.app-keys" = "to test a key it declares that works anywhere in the app"
+
 [interfaces]
 uses = { "deckit/keys" = 1 }
 
