@@ -15,8 +15,8 @@ export function createEvent({ RUN }) {
     // MARK: - Public
     // What a handle holds of events, as `events`. `emit(name, ...args)` sends one of the mod's own, which listeners
     // hear named after it (SCOPED.scopedName); `on(named, listener)` hears one of a name its manifest names, its own
-    // id, an id in [dependencies] or an interface it uses or provides, until its off or until `scope` is cut, and is
-    // refused any other. Values are copied. `handle` is the name the mod reaches them by.
+    // id or an interface it uses or provides, until its off or until `scope` is cut, and is refused any other. Values
+    // are copied. `handle` is the name the mod reaches them by.
     function forScope({ handle, scope }) {
         const events = `${handle}.events`;
         return {
@@ -36,8 +36,7 @@ export function createEvent({ RUN }) {
                         throw new Error(`${events}.on() takes "<mod id>:<event name>", not "${named}"`);
                     if (!isNamed(SCOPED.modOf(named)))
                         throw new Error(
-                            `${events}.on() hears the names of its own id, its [dependencies] and its interfaces, ` +
-                                `not "${named}"`
+                            `${events}.on() hears the names of its own id and its interfaces, not "${named}"`
                         );
                     if (typeof listener !== 'function') throw new Error(`${events}.on() takes a listener function`);
                     return scope.add(busNow().on(named, listener));
@@ -49,13 +48,8 @@ export function createEvent({ RUN }) {
     // MARK: - Private
     // Whether the mod's manifest names `owner`, a mod id or an interface.
     function isNamed(owner) {
-        const { id, dependencies, uses, provides } = RUN.mod;
-        return (
-            owner === id ||
-            Object.hasOwn(dependencies, owner) ||
-            Object.hasOwn(uses, owner) ||
-            Object.hasOwn(provides, owner)
-        );
+        const { id, uses, provides } = RUN.mod;
+        return owner === id || Object.hasOwn(uses, owner) || Object.hasOwn(provides, owner);
     }
 
     function busNow() {
