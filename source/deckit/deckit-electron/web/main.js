@@ -75,8 +75,10 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         return entry ? { embedder: entry.embedder, id: page.id, tab: entry.tab, inPage: entry.inPage } : null;
     }
 
-    function holdsKeyboard(modPage) {
-        return [modPage, ...REGISTRY.pagesIn(modPage)].some((page) => !page.isDestroyed() && page.isFocused());
+    // Whether `page` has the keyboard, or a web page it shows, or one laid over it, its element in that page.
+    function holdsKeyboard(page) {
+        const over = [...layouts].flatMap(([id, layout]) => (layout.over === page ? [pageOf(id)] : []));
+        return [page, ...REGISTRY.pagesIn(page), ...over].some((one) => one && !one.isDestroyed() && one.isFocused());
     }
 
     function openWindow(modPage, { mod, session, url, title }) {
