@@ -14,8 +14,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
     // mod id -> { mod, page, run, update, loadedItself, lifecycles }: a mod's sandbox, the page it runs in, its latest
-    // run and how what the core and its page tell of it is kept, whether its page has just loaded by itself, and how
-    // many lifecycles its latest run stacks, as its page said.
+    // run and how what the core and its page tell of it is kept, whether its page is loading by itself or has just
+    // loaded by itself, and how many lifecycles its latest run stacks, as its page said.
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
@@ -331,14 +331,22 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     // The sandbox's page is made, known as the mod's and set up before it loads, so what it asks as it starts is the
-    // mod's. A page that did not load runs no mod: what loaded instead is never the mod's page.
+    // mod's. A page that did not load runs no mod: what loaded instead is never the mod's page, and the next launch
+    // loads it, as it loads a page whose process ended.
     function makePage(sandbox) {
         const { mod } = sandbox;
         const page = PAGES.make({ modId: mod.id });
         sandbox.page = page;
+        sandbox.loadedItself = false;
         PAGES.watch(page, {
-            failed: (why) => crash(sandbox.run, `its page did not load (${why})`),
-            gone: (why) => crash(sandbox.run, endedProblem({ gone: why })),
+            failed: (why) => {
+                sandbox.loadedItself = false;
+                crash(sandbox.run, `its page did not load (${why})`);
+            },
+            gone: (why) => {
+                sandbox.loadedItself = false;
+                crash(sandbox.run, endedProblem({ gone: why }));
+            },
             consoleError: (message) => LOG.error(`${mod.id}: ${message}`),
         });
         IDENTITY.add(page, { mod });
@@ -365,8 +373,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return Object.assign(new Error(message), { kind });
     }
 
-    // A page that has just loaded by itself is not loaded again: whatever run launches in it meanwhile, the page
-    // takes as it asks what it runs.
+    // A page that is loading by itself, or has just loaded by itself, is not loaded again: whatever run launches in it
+    // meanwhile, the page takes as it asks what it runs.
     function loadPage(sandbox) {
         if (!sandbox.loadedItself) PAGES.load(sandbox.page);
     }
@@ -421,15 +429,21 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     // What a page says of its run carries the run's number. A page loaded again by itself runs nothing of the mod's
-    // when its run fails as it launches.
+    // when its run fails as it launches. A document of a run that has not ended, replaced, is one the page loads by
+    // itself: the run the crash launches, if any, runs in the document that comes, which asks what it runs.
     function listen() {
         PROTOCOL.load.handle(async (_payload, sender) => {
             const { id } = IDENTITY.modFrom(sender);
             const sandbox = sandboxes.get(id);
             if (sandbox.run.state !== 'launching') await loadAgain(sandbox);
+            sandbox.loadedItself = false;
             const { mod, run } = sandbox;
             if (run.state !== 'launching') throw Object.assign(new Error(run.problem), { kind: 'REFUSED' });
-            IDENTITY.whenPageEnds(sender, (ending) => crash(run, endedProblem(ending)));
+            IDENTITY.whenPageEnds(sender, (ending) => {
+                const ends = runOf(id) === run && run.state !== 'notRunning';
+                if (ends && ending.replaced && sandbox.page === sender) sandbox.loadedItself = true;
+                crash(run, endedProblem(ending));
+            });
             sandbox.lifecycles = 1;
             const source = await CATALOG.sourceOf(mod);
             return { manifest: mod.manifest, source, run: run.number };
