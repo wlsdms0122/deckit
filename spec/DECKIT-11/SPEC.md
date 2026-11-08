@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-A connection hands its client the service's exports, and what a service offers is more than values: it is what the client calls. This DECKIT fixes how a function crosses a connection, in either direction, what a call of it answers, and how a call is refused: with the kind the function threw where it is a kind, `REFUSED` where it is not, and `ENDED` once the connection has ended. What a connection is, and how a value crosses, are [the connections](../DECKIT-9/SPEC.md)'s.
+A connection hands its client the service's exports, and what a service offers is more than values: it is what the client calls. This DECKIT fixes how a function crosses a connection, in either direction, what a call of it answers, and how a call is refused: with the kind the function threw where it is a kind, `REFUSED` where it is not, and `ENDED` once the connection has ended or the function is let go. What a connection is, and how a value crosses, are [the connections](../DECKIT-9/SPEC.md)'s.
 
 ## Motivation
 
@@ -48,10 +48,12 @@ A call of a reference is a request, of the end that holds it to the end that han
 
 A call is refused at `call` with the first of these that is so:
 
-1. with kind `ENDED`, where the connection that handed the reference has ended;
+1. with kind `ENDED`, where the connection that handed the reference has ended, or the end that handed it no longer holds the function;
 2. with kind `INVALID_ARGUMENT`, where what the reference is called with does not cross;
 3. with the `kind` the error the function threw, or the promise it answered rejected with, carries, where that is a kind, as [the specification](../README.md) fixes one;
 4. with kind `REFUSED`, where it threw or rejected with what carries no kind or what is not one, or answered what does not cross.
+
+The refusal is an error as [the handle](../DECKIT-7/SPEC.md) fixes one, its stage, kind and message, and carries nothing else of what the function threw: neither the thrown error's name nor any other key of it crosses.
 
 **Note.** A reference reaches the far end only while the connection that handed it stands. A client that holds the exports across a run of the service's that ends holds references to a connection that has ended, and reaches the service again through the connection made after it.
 
@@ -66,11 +68,12 @@ A call is refused at `call` with the first of these that is so:
 
 - Only values crossing, a service answering what a client asks through events. Every service would build its own calls over events, each with its own answers and refusals, and two clients of one service would build them twice.
 - A function copied to the other end and run there. It would run in a sandbox not its own, with a handle not its own, and reach what its mod is not granted.
-- A thrown error handed across whatever it carries. The client would read as a kind what no DECKIT could fix as one, as [the connections](../DECKIT-9/SPEC.md) set aside for a refusal of a connection.
+- A thrown error handed across whatever it carries. The client would read as a kind what no DECKIT could fix as one, as [the connections](../DECKIT-9/SPEC.md) set aside for a refusal of a connection, and would tell refusals apart by a name, such as `TypeError`, that one language gives and another does not.
+- A call on a connection that has ended refused with one kind where the end that calls has heard it end and another where it has not yet. One condition would come to two kinds by when the call was made, and a client could not tell it by one.
 - A call on a connection that has ended sent on to the service's next run. The run that answers would not be the one that handed the function, and what the function closed over would be gone.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That the same function handed again crosses as the same reference: a case reads no function. That a reference a mod was handed is not handed on to a third mod, and a call whose arguments do not cross: a case's arguments are values, and the only function it hands is its own listener. That a reference let go on one end lets the function go on the other: what is held is no answer a case reads.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That the same function handed again crosses as the same reference: a case reads no function. That a reference a mod was handed is not handed on to a third mod, and a call whose arguments do not cross: a case's arguments are values, and the only function it hands is its own listener. That a reference let go on one end lets the function go on the other, and that a call of a function let go is refused `ENDED`: what is held is no answer a case reads, and a case lets nothing go. That the refusal carries nothing but its stage, kind and message: a case reads a refusal as its stage and kind.
 
 **Note.** What this costs an implementation: each end keeps, for each connection, the functions it handed by a number of its own until the other end lets them go, and drops them as the connection ends; and the kind an error carries is read on the end that threw it, so that `REFUSED` is the only kind a call is refused with that the function did not throw.

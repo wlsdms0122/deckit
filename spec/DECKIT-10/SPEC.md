@@ -26,7 +26,7 @@ class Mod {
 }
 ```
 
-One implementation connects `mod-a` to `mod-b`, another to whichever of the two runs, a third to both. A person who wants `mod-c` cannot say so on one, and on another what they chose is gone once the app starts again. Where `mod-b` provides only major 1 and `mod-a` uses major 2, one implementation connects them and `mod-a` breaks on what it is handed.
+One implementation connects `mod-a` to `mod-b`, another to whichever of the two runs, a third to both. A person who wants `mod-c` cannot say so on one, and on another what they chose is gone once the app starts again. Where `mod-b` provides only major 1 and `mod-a` uses major 2, one implementation connects them and `mod-a` breaks on what it is handed; another launches `mod-b` and tells `mod-a` nothing, and `mod-a` waits for a connection that is never made.
 
 `mod-b` owns `mod-b/actions`, and `mod-c` declares to it:
 
@@ -67,19 +67,19 @@ It answers nothing, and from then on `mod` owns `interface`. `deckit.mods`, as [
 Each lifecycle of a client's run reaches, by each interface the client uses, the owner of that interface, as [the connections](../DECKIT-9/SPEC.md) say a lifecycle reaches a mod, from before its start is called until it ends, and the name of the connection is the interface. A lifecycle reaches no one by an interface where:
 
 - the interface has no owner;
-- the owner is the client itself.
-
-A connection to the owner is made only where the owner provides the major the client uses. Where it does not, no connection is made, and no refusal is told.
+- the owner is the client itself;
+- the owner does not provide the major the client uses, whether it runs or not: the owner is not launched for the lifecycle, and the lifecycle is refused, below.
 
 The owner of an interface a lifecycle reaches launches, as [the lifecycle](../DECKIT-5/SPEC.md) says of a lifecycle that reaches a mod, and is connected to as [the connections](../DECKIT-9/SPEC.md) say, with what the owner is handed of the client and what crosses as they say. The connections a lifecycle has as its start is called stand before it is called. Once the interface has another owner, the connection to the one before ends, and the lifecycle reaches the new owner.
 
-A lifecycle is **refused** by an interface, at the stage and with the kind [the connections](../DECKIT-9/SPEC.md) give the refusal of a reach, where:
+A lifecycle is **refused** by an interface with the first of these that is so:
 
-- the owner is at the relaunch limit, or has no run that is `launching` or `running` and its latest run timed out or failed to launch: at `launch`, `RELAUNCH_LIMIT`, `TIMED_OUT` or `NOT_LAUNCHED`;
-- the owner's run is `running` with no exports for the interface that reach the lifecycle: at `call`, `NOT_EXPORTED`;
-- the owner refuses the connection: at `call`, with the kind it refuses with, or `REFUSED`.
+1. at `call` with kind `UNSUPPORTED_VERSION`, where the owner does not provide the major the client uses;
+2. where the owner is at the relaunch limit, or has no run that is `launching` or `running` and its latest run timed out or failed to launch, at `launch` with the kind [the connections](../DECKIT-9/SPEC.md) give the refusal of a reach: `RELAUNCH_LIMIT`, `TIMED_OUT` or `NOT_LAUNCHED`;
+3. at `call` with kind `NOT_EXPORTED`, where the owner's run is `running` with no exports for the interface that reach the lifecycle;
+4. where the owner refuses the connection, at `call` with the kind it refuses with, or `REFUSED`, as [the connections](../DECKIT-9/SPEC.md) say of a reach.
 
-A refusal does not let the interface go: the lifecycle reaches the owner while it uses the interface, and is connected once a connection is made.
+A refusal does not let the interface go: while the lifecycle uses the interface, it reaches the owner where the owner provides its major, and is connected once a connection is made.
 
 ### The exports a mod opens for an interface
 
@@ -91,7 +91,7 @@ A refusal does not let the interface go: the lifecycle reaches the owner while i
 
 | member | answers | `listener` is called |
 |---|---|---|
-| `onConnect(interface, listener)` | nothing | with the exports of each connection by `interface` of the lifecycle: at once for each one that stands, and for each one made from then on, as it is made |
+| `onConnect(interface, listener)` | a function that removes `listener` | with the exports of each connection by `interface` of the lifecycle: at once for each one that stands, and for each one made from then on, as it is made |
 | `onRefuse(interface, listener)` | a function that removes `listener` | with each refusal by `interface` the lifecycle is told, as [the handle](../DECKIT-7/SPEC.md) fixes a refusal: at once with the last one told, where no connection by `interface` has been made since it, and with each one told from then on |
 
 ### What is declared to an interface
@@ -136,11 +136,12 @@ No permission guards it. It is refused with the first of these that is so:
 - A pin kept only while the host app runs. A person's choice would be lost as the app starts again.
 - A client connected to every provider. A client would have to choose among them itself, every client alike, and an interface could not stand for one mod's service.
 - A major that does not match connected anyway. A client would be handed a contract it was not written for.
+- A client of a major the owner does not provide told nothing, the owner launched for it. The client would wait for a connection that is never made, and the owner would run for a client it cannot serve; the major is a fact of the bundles, known before anything launches.
 - Every mod handed what is declared to any interface. A mod that does not own an interface would read what others declare to it, and an owner could not be the one that decides what an entry means.
 - The declaring mod's id handed in `mod` and in `credential`. As [the connections](../DECKIT-9/SPEC.md) set it aside for a client's id: two values where one is meant.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a mod leaves a queue and a pin goes with it, and that the connection ends as the owner changes while both lifecycles stand: a mod leaves a queue only as its bundle is installed, removed or changed, which no input of the case format does while a client is connected. A refusal at `launch` of kind `RELAUNCH_LIMIT` or `TIMED_OUT`: [the connections](../DECKIT-9/SPEC.md) hold the same refusals of a reach, and a launch out of time takes longer than a step may take to settle. That a lifecycle has its connections as its start is called: a case's request is made after the lifecycle has started. That `onRefuse` answers a function that removes the listener: a case reads no function. That a listener is not called once its lifecycle has ended, and an interface written as another type than a string: a case's lifecycle runs while its steps are taken, and a case's listener is handed for an interface it writes as a string.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a mod leaves a queue and a pin goes with it, and that the connection ends as the owner changes while both lifecycles stand: a mod leaves a queue only as its bundle is installed, removed or changed, which no input of the case format does while a client is connected. A refusal at `launch` of kind `RELAUNCH_LIMIT` or `TIMED_OUT`: [the connections](../DECKIT-9/SPEC.md) hold the same refusals of a reach, and a launch out of time takes longer than a step may take to settle. That a lifecycle has its connections as its start is called: a case's request is made after the lifecycle has started. That `onConnect` and `onRefuse` answer a function that removes the listener: a case reads no function. That a listener is not called once its lifecycle has ended, and an interface written as another type than a string: a case's lifecycle runs while its steps are taken, and a case's listener is handed for an interface it writes as a string.
 
-**Note.** What this costs an implementation: the system keeps a queue and a pin for each interface across starts, connects every lifecycle of a client to the owner as it begins and again as the owner changes, and keeps for each interface the last refusal a lifecycle was told while no connection was made since, to hand a listener added after it.
+**Note.** What this costs an implementation: the system keeps a queue and a pin for each interface across starts, connects every lifecycle of a client to the owner as it begins and again as the owner changes, reads the majors the owner provides from its bundle before it launches it, and keeps for each interface the last refusal a lifecycle was told while no connection was made since, to hand a listener added after it.
