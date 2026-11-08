@@ -1,0 +1,25 @@
+case = 1
+name = "a-refused-shipped-folder-passes-over-a-later-one-of-its-name"
+note = "A folder shipped under a name that a folder shipped before it is listed under is passed over, and a refused bundle is listed under its name, so mod-c shipped first with no version passes over mod-c shipped second at 1.0.0, and mod-c is refused."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-c"]
+
+[[step]]
+look = "mod"
+mod = "mod-c"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

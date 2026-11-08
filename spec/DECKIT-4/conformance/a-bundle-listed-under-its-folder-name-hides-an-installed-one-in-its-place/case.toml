@@ -1,0 +1,26 @@
+case = 1
+name = "a-bundle-listed-under-its-folder-name-hides-an-installed-one-in-its-place"
+note = "A bundle read in place whose manifest does not read is listed under its folder's name, hides an installed bundle of that name whether or not it is taken, and is listed in its place, so the folder mod-a read in place hides mod-a shipped first, is listed before mod-c, and is refused."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-b", "mod-c"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a", "mod-c"]
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

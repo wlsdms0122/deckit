@@ -1,0 +1,19 @@
+case = 1
+name = "folders-read-in-place-are-found-by-scalar-value-not-by-collation"
+note = "Bundles read in place are found by their folders' names compared as Unicode scalar values, and - (U+002D) is below a (U+0061), so of two folders holding mod-c the one named mod-z is found before moda and is held. A collation that passes over the hyphen would hold moda."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-z", "moda"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-c"
+part = "version"
+
+[step.expect]
+answers = "1.0.0"

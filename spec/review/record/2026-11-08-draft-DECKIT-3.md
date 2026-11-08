@@ -30,7 +30,6 @@ Commit `f5a4a8ff`. Scope DECKIT-3. Verdict: revise.
 
 | id | criterion | DECKIT | claim | verdict | reason |
 |---|---|---|---|---|---|
-| D3-1 | B8 | DECKIT-3, `deckit.mods` privileged `false` | any mod granted it can remove system mods with what they stored | owner | privileged or not is the owner's; recommended privileged |
 | D3-5 | C1 | DECKIT-3, the refusal `NOT_PERMITTED` | no case holds it | defer | the cases come with the handle's DECKIT's request input |
 | D3-7 | C1 | DECKIT-3, the order of the system's permissions | the table order equals the id order | defer | the first later DECKIT that defines a system permission adds the case |
 | D3-10 | B2 | DECKIT-3, `deckit.system-services` description | names requests no DECKIT defines yet | defer | to the `deckit/*` DECKITs |

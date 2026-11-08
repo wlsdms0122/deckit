@@ -1,7 +1,5 @@
 # 2026-11-08 draft
-
 Commit `f5a4a8ff`. Scope DECKIT-4. Verdict: revise.
-
 | criterion | answer | evidence |
 |---|---|---|
 | A1 | no | D4-1, D4-2 |
@@ -27,8 +25,6 @@ Commit `f5a4a8ff`. Scope DECKIT-4. Verdict: revise.
 | E1 | no | critical D4-3, majors open |
 | E2 | yes | reviewer and coordinator |
 | E3 | no | Q1, Q2 |
-
 | id | criterion | DECKIT | claim | verdict | reason |
 |---|---|---|---|---|---|
-| D4-3 | B8 | DECKIT-4, `remove` and `install` of a system mod | any mod granted `deckit.mods` removes or replaces system mods | owner | the same question as D3-1 |
-| D4-11 | B1 | DECKIT-4, shipping keyed on names | an install under a shipped name is overwritten at each start and removed when the host stops shipping it | owner | recommended: the install takes the name out of what is shipped |
+| D4-1 | A1 | DECKIT-4, `plan`'s key `replaces` | what a mod builds from `list` | reject | whether an install takes the place of one is part of what it comes to, which a mod manager tells before it installs; Motivation gives the input |

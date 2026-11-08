@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-The catalog is every bundle the system has found, one for each name, in one order. This DECKIT fixes where the system finds bundles, which one it reads where two are listed under one name, the order it lists them in, what it does with the bundles a host ships each time the app starts, and the requests a mod granted `deckit.mods` makes of it: listing the mods, planning and making an install from a folder, and removing an installed mod, with what each answers and how each is refused.
+The catalog is every bundle the system has found, one for each name, in one order. This DECKIT fixes where the system finds bundles, which one it reads where two are listed under one name, the order it lists them in, what it does with the bundles a host ships each time the host app starts, and the requests a mod granted `deckit.mods` makes of it: listing the mods, planning and making an install from a folder, and removing an installed mod, with what each answers and how each is refused.
 
 ## Motivation
 
@@ -24,7 +24,13 @@ Which of the two runs, and whether the other is listed too, decides what the aut
 
 A host ships a mod, the person removes it, and the app starts again. Whether the mod comes back at the next start, and whether a mod the host stops shipping stays installed, cannot be left to each implementation: the mod would come back on one and stay out on the other.
 
-A mod granted `deckit.mods` installs a folder whose id is read in place. Where one implementation installs it and lists the copy, and another refuses, the same mod manager works on one and fails on the other.
+A mod granted `deckit.mods` installs a folder whose id is read in place. Where one implementation installs it and lists the copy, and another refuses, the same mod manager works on one and fails on the other. So does each other request such a mod makes, on an input like these:
+
+- `plan` of a folder holding `mod-a` 1.1.0, where `mod-a` 1.0.0 is installed: whether it says the install would take the place of 1.0.0, which a mod manager tells the person before it installs.
+- `install` of a folder inside the system's own folder: copied into itself, or refused.
+- `remove` of `mod-a` read in place: its author's working folder deleted, or refused.
+- `remove` of an installed `mod-a` with `erase` true: what `mod-a` stored kept, or taken with it.
+- `list`: whether each entry says it is installed, shipped and a system mod, and which folders it hides, or leaves a mod manager to guess.
 
 ## Rules
 
@@ -35,10 +41,12 @@ The system finds bundles in three places:
 | place | what it holds | what the system does with it |
 |---|---|---|
 | read in place | the folder of bundles the host reads in place | reads each bundle in it where it lies, each time the catalog is read |
-| shipped | each folder of a bundle the host ships, in the order it ships them | installs it as the app starts, under *What a host ships* |
+| shipped | each folder of a bundle the host ships, in the order it ships them | installs it as the host app starts, under *What a host ships* |
 | installed | the bundles the system keeps in its own folder | reads each one there |
 
 A bundle is **installed** when the system keeps a copy of it in its own folder. An installed bundle is read from that copy, never from the folder it was installed from, and a change to that folder changes nothing installed. How the system lays out its own folder is not the specification's.
+
+The catalog is **read** as the host app starts, once what the host ships is installed, and again as each request under *What a mod granted deckit.mods asks* is answered. A change to a folder read in place is seen from the next read on.
 
 ### One bundle for each name
 
@@ -46,6 +54,7 @@ Each bundle found is listed under the name [the bundle](../DECKIT-2/SPEC.md) giv
 
 1. The bundles read in place, by their folders' names compared as Unicode scalar values, as [the bundle](../DECKIT-2/SPEC.md) compares ids.
 2. The installed bundles.
+3. The bundles shipped that did not install at this start, each at the folder it is shipped in, refused as it was.
 
 A bundle hides the others under its name whether or not it is taken.
 
@@ -58,14 +67,17 @@ The catalog lists its bundles in one order, the order `mods` answers in and ever
 
 ### What a host ships
 
-As the app starts, before any bundle is listed, the system installs what the host ships, as one step:
+The system keeps the **shipped names** across starts: the names whose installed bundle it installed from what the host ships. Before the first start there are none.
+
+As the host app starts, before any bundle is listed, the system takes what the host ships as one step:
 
 - A folder shipped under a name that a folder shipped before it in the same start is listed under is passed over.
-- A name shipped at an earlier start, and not installed now, stays out: the bundle shipped under it is not installed and is not listed.
-- An installed bundle whose name was shipped at the last start, and is not shipped now, is removed, as *remove* removes it with `erase` false.
-- Every other bundle shipped is installed from its folder, in the order shipped, as *install* installs one, but marked system where the host marks it system.
+- A name among the shipped names that no installed bundle is listed under stays out: the bundle shipped under it is not installed.
+- A name that an installed bundle is listed under, and that is not among the shipped names, stays as it is installed: the bundle shipped under it is not installed.
+- Every other bundle shipped is installed from its folder, in the order shipped, as *install* installs one, refused only as [the bundle](../DECKIT-2/SPEC.md) refuses it, at `read`, and marked system where the host marks it system. Its name joins the shipped names.
+- Each name among the shipped names that is not shipped at this start leaves them, and the installed bundle listed under it, if any, is removed, as *remove* removes it with `erase` false.
 
-A bundle shipped that does not install is listed under its name, refused as it was, unless an installed bundle is listed under that name, which is then held as it was. Its name is not one shipped at this start, so the next start tries it again.
+A name also leaves the shipped names as *install* installs a bundle under it, so a mod installed from a folder in the place of a shipped one stays at each later start. A bundle shipped that does not install does not join the shipped names, so the next start tries it again. A start that is refused at `call` takes nothing the host ships.
 
 A bundle installed by *install* in the place of a system mod is not a system mod.
 
@@ -73,12 +85,14 @@ A bundle installed by *install* in the place of a system mod is not a system mod
 
 `deckit.mods`, as [the permissions](../DECKIT-3/SPEC.md) define it, guards each of these requests:
 
-| request | takes | answers | refused at `call` with |
+| request | takes | answers | refused with |
 |---|---|---|---|
 | `list` | nothing | an array of entries, one for each name in the catalog, in the catalog's order | |
-| `plan` | `folder`, a string: a folder's path | what installing `folder` would come to | `NESTED`, `READ_IN_PLACE` |
-| `install` | `folder`, a string: a folder's path | the bundle installed | `NESTED`, `READ_IN_PLACE` |
-| `remove` | `id`, a string; `erase`, a boolean | whether what the mod stored was erased | `NOT_INSTALLED`, `READ_IN_PLACE` |
+| `plan` | `folder`, a string: a folder's path | what installing `folder` would come to | at `read` `NOT_LOADABLE`; at `call` `NESTED`, `READ_IN_PLACE` |
+| `install` | `folder`, a string: a folder's path | the bundle installed | at `read` `NOT_LOADABLE`; at `call` `NESTED`, `READ_IN_PLACE` |
+| `remove` | `id`, a string; `erase`, a boolean | whether what the mod stored was erased | at `call` `READ_IN_PLACE`, `NOT_INSTALLED` |
+
+A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, and then with the first refusal of its row that holds, in the row's order.
 
 #### list
 
@@ -97,9 +111,9 @@ Each entry is a table:
 
 #### plan and install
 
-`folder` is read as a bundle that is not a system mod's, as [the bundle](../DECKIT-2/SPEC.md) reads one folder. A folder the bundle refuses, and a folder that is not a bundle, refuse the request at `read` with kind `NOT_LOADABLE`. Then the request is refused at `call`:
+`folder` is an absolute path: `/` followed by the names of the folders on the way from the root, apart at `/`. A string that is not one names no folder. `folder` is read as a bundle that is not a system mod's, as [the bundle](../DECKIT-2/SPEC.md) reads one folder. A folder the bundle refuses, a folder that is not a bundle, and a string that names no folder refuse the request at `read` with kind `NOT_LOADABLE`. Then the request is refused at `call`:
 
-- with `NESTED` where `folder` lies inside the system's own folder, or holds it;
+- with `NESTED` where the place `folder` leads to, every link followed, lies inside the system's own folder, or holds it;
 - with `READ_IN_PLACE` where a bundle read in place is listed under the same name, which would hide the bundle installed.
 
 `plan` changes nothing. It answers the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it, with one more key, `replaces`, a boolean: whether an installed bundle is listed under the same name.
@@ -108,7 +122,7 @@ Each entry is a table:
 
 #### remove
 
-`remove` takes the installed bundle listed under `id` away. It is refused with `READ_IN_PLACE` where a bundle read in place is listed under `id`, and with `NOT_INSTALLED` where no installed bundle is. Where `erase` is true, what the mod stored is erased with it. It answers a table `{ erased }`, `erased` a boolean: whether anything the mod stored was erased.
+`remove` takes the installed bundle listed under `id` away. It is refused with `READ_IN_PLACE` where a bundle read in place is listed under `id`, and with `NOT_INSTALLED` where no installed bundle is listed under it. Where `erase` is true, what the mod stored is erased with it. It answers a table `{ erased }`, `erased` a boolean: whether anything the mod stored was erased.
 
 A name shipped and removed stays out at each later start, under *What a host ships*, until the host stops shipping it.
 
@@ -131,4 +145,4 @@ A name shipped and removed stays out at each later start, under *What a host shi
 
 ## Notes
 
-**Note.** The sentences of *What a mod granted deckit.mods asks* are held by no case under `conformance/`, and neither are the sentences of *What a host ships* that need a name removed or a host that changes between starts. They wait on the handle's DECKIT, which adds to [the case format](../DECKIT-1/SPEC.md) the input that hands a request, and on a case format that changes the host between starts. That an installed bundle is read from its copy waits on the same input, since only `install` installs from a folder that can then change.
+**Note.** Some sentences above are held by no case under `conformance/`, and each waits on what will hold it. The sentences of *What a mod granted deckit.mods asks*, that a name installed again keeps its place and a name removed loses it, that a name leaves the shipped names as *install* installs a bundle under it, that an installed bundle is read from its copy, and that the catalog is read again as each request is answered wait on the handle's DECKIT, which adds to [the case format](../DECKIT-1/SPEC.md) the input that hands a request. The sentences of *What a host ships* that need a host that changes between starts wait on a case format that changes the host between starts. That a refused start takes nothing waits on a look at the system's own folder, which no format has.

@@ -1,0 +1,17 @@
+case = 1
+name = "names-not-installed-are-listed-by-scalar-value-not-by-collation"
+note = "Names not installed are listed by the names compared as Unicode scalar values, so mod-z comes before moda, since - (U+002D) is below a (U+0061). A collation that passes over the hyphen would list moda first."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-z", "moda"]

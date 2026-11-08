@@ -1,6 +1,6 @@
 case = 1
 name = "shipped-bundles-keep-their-order-at-the-next-start"
-note = "What a host ships is installed again at each start, and a name installed again keeps its place, so mod-b and mod-a shipped in that order are listed so after the app starts again."
+note = "What a host ships is installed again at each start, in the order shipped, so mod-b and mod-a shipped in that order are listed so after the host app starts again."
 
 [host]
 base = "system"

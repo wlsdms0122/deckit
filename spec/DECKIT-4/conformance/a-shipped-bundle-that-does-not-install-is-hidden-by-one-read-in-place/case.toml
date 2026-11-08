@@ -1,0 +1,26 @@
+case = 1
+name = "a-shipped-bundle-that-does-not-install-is-hidden-by-one-read-in-place"
+note = "A bundle shipped that does not install is found after the bundles read in place, so of mod-c shipped with no version and mod-c read in place at 2.0.0, the one read in place is held."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+sources = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-c"]
+
+[[step]]
+look = "mod"
+mod = "mod-c"
+part = "version"
+
+[step.expect]
+answers = "2.0.0"
