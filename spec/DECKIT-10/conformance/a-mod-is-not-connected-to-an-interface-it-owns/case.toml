@@ -1,0 +1,25 @@
+case = 4
+name = "a-mod-is-not-connected-to-an-interface-it-owns"
+note = "A mod that owns an interface it uses is connected to no one by it. mod-b provides and uses mod-b/pages, and its listener is handed nothing."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "dependencies.onConnect"
+args = ["mod-b/pages"]
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-b"
+
+[step.expect]
+answers = []

@@ -1,0 +1,25 @@
+case = 4
+name = "the-owner-is-handed-the-clients-name-and-credential"
+note = "connect(connection) of an interface's exports is handed the client's name and its credential, as for a mod reached by its id. mod-b's connect answers what it is handed, and mod-a, named Mod A, is granted nothing."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["mod-b/pages"]
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[{ mod = { name = "Mod A" }, credential = { mod = "mod-a", permissions = [] } }]]

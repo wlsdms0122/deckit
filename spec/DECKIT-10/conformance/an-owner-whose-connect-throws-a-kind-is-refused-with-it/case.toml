@@ -1,0 +1,25 @@
+case = 4
+name = "an-owner-whose-connect-throws-a-kind-is-refused-with-it"
+note = "An owner that refuses the connection, its connect throwing an error with a kind, is told to the client with that kind at call. mod-b's connect throws an error of kind BUSY, and mod-a's onRefuse listener is handed it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onRefuse"
+args = ["mod-b/pages"]
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[{ stage = "call", kind = "BUSY" }]]

@@ -1,0 +1,34 @@
+case = 4
+name = "a-call-across-a-connection-that-has-ended-is-refused"
+note = "A call of a function a connection handed, once that connection has ended, is refused at call with kind ENDED. mod-a reaches mod-b and quits it, and mod-b launches again on a new connection, and mod-a calls ping of the first."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "ping"
+of = 2
+
+[step.expect]
+refuses = "call"
+kind = "ENDED"

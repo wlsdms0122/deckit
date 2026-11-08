@@ -1,0 +1,34 @@
+case = 4
+name = "a-function-answered-across-a-connection-is-called-across-it"
+note = "A function in what a call answers crosses as one in the exports does. mod-b's make answers a table whose add adds what it is handed, and mod-a calls add with 1 and 2."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "make"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "add"
+of = 3
+args = [1, 2]
+
+[step.expect]
+answers = 3

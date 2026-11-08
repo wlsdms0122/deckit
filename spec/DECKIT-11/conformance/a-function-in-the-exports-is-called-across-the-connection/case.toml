@@ -1,0 +1,28 @@
+case = 4
+name = "a-function-in-the-exports-is-called-across-the-connection"
+note = "A function in what crosses a connection crosses as a function that calls it, and a call of it answers what it answered. mod-b's exports hold ping, which answers { pong } of what it is handed, and mod-a calls it with 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "ping"
+of = 2
+args = [1]
+
+[step.expect]
+answers = { pong = 1 }

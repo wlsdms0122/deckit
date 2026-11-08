@@ -1,0 +1,14 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+name = "MOD A"
+main = "main.js"
+
+[permissions]
+"deckit.mods" = "Lists the mods."
+
+[[contributes."mod-b/actions"]]
+title = "Open"
+
+[[contributes."mod-b/actions"]]
+title = "Close"

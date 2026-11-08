@@ -1,0 +1,38 @@
+case = 4
+name = "a-pin-is-kept-as-the-host-app-starts-again"
+note = "A pin is kept by the system as the host app quits and starts again. mod-a pins mod-c for mod-b/pages, the host app starts again, and mod-a is connected to mod-c."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.pin"
+args = ["mod-b/pages", "mod-c"]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["mod-b/pages"]
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[{ from = "mod-c" }]]

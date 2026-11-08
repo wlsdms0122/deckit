@@ -1,0 +1,25 @@
+case = 4
+name = "a-provider-of-several-majors-connects-a-mod-that-uses-any-of-them"
+note = "An owner that provides several majors of an interface takes a mod that uses any one of them. mod-b provides majors 1 and 2 of mod-b/pages, and mod-a, which uses major 2, is connected."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["mod-b/pages"]
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[{ from = "mod-b" }]]

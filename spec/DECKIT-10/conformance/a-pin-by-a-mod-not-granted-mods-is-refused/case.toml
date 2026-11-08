@@ -1,0 +1,21 @@
+case = 4
+name = "a-pin-by-a-mod-not-granted-mods-is-refused"
+note = "mods.pin is guarded by deckit.mods. mod-a, granted nothing, pins mod-b for mod-b/pages, and is refused at call with kind NOT_PERMITTED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.pin"
+args = ["mod-b/pages", "mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
