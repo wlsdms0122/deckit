@@ -68,7 +68,8 @@ const MAIN = Object.freeze({
         capture: 'function',
         // unhandled(page, handler(keystroke) -> boolean): each key down pressed in the page that the page did not
         // handle, by cancelling it or acting on it, `{ code, meta, control, alt, shift }`, told after the page had it
-        // and taken from the rest of the app when `handler` answers true
+        // and taken from the rest of the app when `handler` answers true. One a web page shown in an element did not
+        // handle is the element's page's next: a key down at its element, then told as that page's when not cancelled
         unhandled: 'function',
         // hotkey(keystroke, handler()) -> off, or null when the system does not give it: a key, `{ code, meta,
         // control, alt, shift }`, heard wherever the keyboard is, in any app, once the app is ready, `handler()` told
