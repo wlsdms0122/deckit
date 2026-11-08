@@ -152,7 +152,7 @@ struct RunnerTests {
         #expect(launching.isEmpty)
     }
 
-    @Test("a job loaded as its principal's run terminates launches once it has ended, in a new sandbox for a new revision")
+    @Test("a job loaded as its run terminates launches once that run has ended, in a new sandbox for a new revision")
     func loadAsARunTerminatesLaunchesOnceItEnded() throws {
         // Given
         let sut = Runner()
