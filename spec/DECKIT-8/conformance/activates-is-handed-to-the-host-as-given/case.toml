@@ -1,0 +1,23 @@
+case = 3
+name = "activates-is-handed-to-the-host-as-given"
+note = "An address is handed to the host with activates as the options give it. mod-a opens an https URL with activates false."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["https://example.com/", { activates = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/", activates = false }]
