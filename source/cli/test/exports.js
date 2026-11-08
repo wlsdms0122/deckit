@@ -5,12 +5,13 @@
 // it; what main is told each opened in; the `connect` handed the client's id, name and credential; and the client's
 // `dependencies.onConnect`, by the interface it uses or the mod id it reaches, handed a connection that stands as its
 // lifecycle begins or comes later; `dependencies.onRefuse` handed a connection refused as a lifecycle begins, no
-// problem against the run, and a mod an interface reaches that does not launch; and `dependencies.reach` and
-// `release`: a mod by its id asked of main once while reached, answered with its exports once its connection stands,
-// let go by as many releases, in the order asked, rejected with the core's kind or with what a mod that does not launch
-// is refused with, which lets the ask go; and what is declared to an interface handed with the declaring mod's
-// credential, frozen. Exits 1 with a line for each check that failed. The packages are ES modules,
-// so they are imported as such.
+// problem against the run, and a mod an interface reaches that does not launch; and `dependencies.reach` and `release`:
+// a mod by its id asked of main once while reached, answered with its exports once its connection stands, let go by as
+// many releases, in the order asked, rejected with the core's kind, with what a mod that does not launch is refused
+// with, with NOT_EXPORTED for one that runs with no exports for it, or with the kind its page refused the connection
+// with, each of which lets the ask go, a reach after it a new connection; and what is declared to an interface handed
+// with the declaring mod's credential, frozen. Exits 1 with a line for each check that failed. The packages are ES
+// modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -383,6 +384,50 @@ async function main() {
     heard.told({ channel: 'deckit-shell:connection-disconnected', payload: { id: 30 } });
     for (let at = 0; at < 3; at++) await tick();
     check('the connection let go ends what its onConnect answered', seen.cut.join() === 'q', seen.cut);
+
+    // A mod reached by its id that runs with no exports for it, then one whose page refuses the connection: each reach
+    // rejects, the ask goes, and a reach after it connects anew.
+    const reachedAgain = async (id, refusal, connection) => {
+        const rejected = seen.dependencies.reach(id).catch(refusalOf);
+        for (let at = 0; at < 3; at++) await tick();
+        if (refusal.kind === 'NOT_EXPORTED')
+            heard.told({ channel: 'deckit-shell:connection-unreached', payload: { lifecycle: 0, name: id, refusal } });
+        else
+            heard.told({
+                channel: 'deckit-shell:connection-connected',
+                payload: { id: connection, name: id, refusal, lifecycle: 0 },
+            });
+        for (let at = 0; at < 3; at++) await tick();
+        const refused = await rejected;
+        const anew = seen.dependencies.reach(id);
+        for (let at = 0; at < 3; at++) await tick();
+        heard.told({
+            channel: 'deckit-shell:connection-connected',
+            payload: { id: connection + 1, name: id, exports: { value: { id }, references: [] }, lifecycle: 0 },
+        });
+        for (let at = 0; at < 3; at++) await tick();
+        return {
+            refused,
+            connected: (await anew).id,
+            reaches: targets('connection-reach').filter((target) => target === id).length,
+            releases: targets('connection-release-reach').filter((target) => target === id).length,
+        };
+    };
+    const notExported = { message: 'u runs with no exports for u', kind: 'NOT_EXPORTED', stage: 'call' };
+    const unexported = await reachedAgain('u', notExported, 40);
+    check(
+        'a reach of a mod that runs with no exports for it rejects at call, and a reach after it connects anew',
+        JSON.stringify(unexported) ===
+            JSON.stringify({ refused: notExported, connected: 'u', reaches: 2, releases: 1 }),
+        unexported
+    );
+    const busy = { message: 's did not connect: busy', kind: 'REFUSED', stage: 'call' };
+    const turnedDown = await reachedAgain('s', busy, 50);
+    check(
+        'a reach whose connection its page refused rejects with that kind, and a reach after it connects anew',
+        JSON.stringify(turnedDown) === JSON.stringify({ refused: busy, connected: 's', reaches: 2, releases: 1 }),
+        turnedDown
+    );
 
     // What is declared to an interface: each entry with the declaring mod's credential, frozen.
     const [declared] = await CONTRIBUTION.contributions('p/one');

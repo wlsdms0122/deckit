@@ -3,9 +3,10 @@
 // launches the mod a lifecycle waits for; a page's reach of a mod by its id and its release asked of the core for the
 // page's mod, through the runner, which does what the core answers, and the core's refusal handed back; a connection
 // that stands asked of its service's page with the client's credential, and one its service refuses told its client as
-// a refusal at call; a lifecycle that waits for a mod the core does not launch told so, with the refusal, on its page;
-// and a connection's end told to the pages of its client and its service, as the core names them. Exits 1 with a line
-// for each check that failed. The packages are ES modules, so they are imported as such.
+// a refusal at call; a lifecycle that waits for a mod the core does not launch told so, with the refusal, on its page,
+// as is one the core refuses what it reaches; and a connection's end told to the pages of its client and its service,
+// as the core names them. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -147,6 +148,29 @@ async function main() {
         JSON.stringify(waits) ===
             JSON.stringify([['c', 'deckit-shell:connection-unreached', { lifecycle: 2, name: 'd', refusal }]]),
         waits
+    );
+    tells.length = 0;
+
+    // A lifecycle the core refuses what it reaches: told on its page, with the refusal at call.
+    const notExported = {
+        stage: 'call',
+        kind: 'NOT_EXPORTED',
+        message: 'f runs with no exports for f that reach the lifecycle',
+    };
+    effects.get('refuse')({
+        effect: 'refuse',
+        name: 'f',
+        client: { mod: 'c', run: 1, lifecycle: 0 },
+        refusal: notExported,
+    });
+    const refuses = tells.map(([page, message]) => [page.modId, message.channel, message.payload]);
+    check(
+        'a lifecycle the core refuses what it reaches is told the refusal on its page',
+        JSON.stringify(refuses) ===
+            JSON.stringify([
+                ['c', 'deckit-shell:connection-unreached', { lifecycle: 0, name: 'f', refusal: notExported }],
+            ]),
+        refuses
     );
     tells.length = 0;
 

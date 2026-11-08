@@ -10,8 +10,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // ends. A reference is a function that calls the other end and resolves with what that answers; one the page holds no
 // more is let go on the other end. A function the page was handed is never handed on: what calls the far end is always
 // the mod connected to it. The end that depends knows the name alone, never the mod that owns an interface. A refusal,
-// of a mod the core does not launch or a connection its service refused, reaches the code as an error with its `kind`
-// and `stage`. `RUN` is the page's run.
+// of a mod the core does not launch, one that runs with no exports for it or a connection its service refused, reaches
+// the code as an error with its `kind` and `stage`. `RUN` is the page's run.
 export function createConnection({ RUN }) {
     // MARK: - Property
     // Connection id -> { id, name, lifecycle, dependent, given, held, exporting, connection, exports, cleanups,

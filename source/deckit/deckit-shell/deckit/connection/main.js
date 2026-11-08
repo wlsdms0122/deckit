@@ -8,8 +8,9 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // what crosses goes from page to page through here, never read. A lifecycle connects to the interfaces it uses as it
 // begins, and to a mod by its id as it asks, until it lets it go. A connection is handed to its client while it
 // stands, and so is one its service refused, with why: one that ended while its exports were asked for is left out.
-// A lifecycle that waits for a mod the core will not launch is told what that mod is refused with. The service is
-// handed the client's id, name and credential; the client, the name alone.
+// A lifecycle that waits for a mod the core will not launch is told what that mod is refused with, and one the core
+// refuses what it reaches, a mod that runs with no exports for it, is told that refusal. The service is handed the
+// client's id, name and credential; the client, the name alone.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -55,10 +56,11 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             if (page && opened && (opened.refusal || standing.has(connection.id)))
                 PROTOCOL.connected.send(page, { ...opened, lifecycle: connection.client.lifecycle });
         });
-        RUNNER.handleEffect('wait', ({ name, client, refusal }) => {
-            const page = refusal && IDENTITY.pageOf(client.mod);
-            if (page) PROTOCOL.unreached.send(page, { lifecycle: client.lifecycle, name, refusal });
-        });
+        for (const effect of ['wait', 'refuse'])
+            RUNNER.handleEffect(effect, ({ name, client, refusal }) => {
+                const page = refusal && IDENTITY.pageOf(client.mod);
+                if (page) PROTOCOL.unreached.send(page, { lifecycle: client.lifecycle, name, refusal });
+            });
         RUNNER.handleEffect('disconnect', ({ connection }) => {
             standing.delete(connection.id);
             for (const end of [connection.client, connection.service]) {
