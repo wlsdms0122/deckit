@@ -124,11 +124,16 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         const quitting = () => refused('launch', 'NOT_LAUNCHED', `${id} does not launch while the app quits`);
         if (quitHold === 'held') throw quitting();
         const before = runOf(id);
-        await ask('runner/launch', by ? { mod: id, by } : { mod: id });
-        await until(() => before?.state !== 'terminating' && runOf(id)?.state !== 'launching');
-        const run = runOf(id);
-        if (run === before && quitHold === 'held') throw quitting();
-        if (run !== before && run?.refusal) throw refused(run.refusal.stage, run.refusal.kind, run.refusal.message);
+        const effects = await ask('runner/launch', by ? { mod: id, by } : { mod: id });
+        const launched = effects.some(({ notification, mod }) => notification === 'willLaunch' && mod === id);
+        let run = launched ? runOf(id) : null;
+        if (before?.state === 'terminating') {
+            await until(() => before.state !== 'terminating');
+            run = runOf(id) === before ? null : runOf(id);
+            if (!run && quitHold === 'held') throw quitting();
+        }
+        await until(() => (run ?? runOf(id))?.state !== 'launching');
+        if (run?.refusal) throw refused(run.refusal.stage, run.refusal.kind, run.refusal.message);
     }
 
     // The mods named terminate. Resolves once the run each had has ended, whether or not it launches again.
