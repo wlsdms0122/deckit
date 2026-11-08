@@ -1,6 +1,6 @@
 case = 3
 name = "a-member-a-permission-guards-is-on-the-handle-of-a-mod-not-granted-it"
-note = "Every member is on the handle of every mod, whatever the mod is granted. mod-a, granted nothing, asks that it be removed, through mods.remove, which deckit.mods guards: the member is on its handle, and the request is refused at call with NOT_PERMITTED."
+note = "Every member is on the handle of every mod, whatever the mod is granted. mod-a, granted nothing, makes a request through each member that a permission guards and a call can reach: it asks that it be removed, through mods.remove, that a folder be shown, that what was copied be read and replaced, that a notification be shown, that a module of its own be started in the host's process, that a chord be taken, and that a download be shown and opened. Each member is on its handle, and each request is refused at call with NOT_PERMITTED."
 
 [host]
 base = "system"
@@ -15,6 +15,86 @@ input = "call"
 mod = "mod-a"
 member = "mods.remove"
 args = ["mod-a", false]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+args = ["/"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+args = []
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["a"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = "a" }]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mainProcess"
+args = ["main.js"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "keys.take"
+args = [{ code = "KeyK" }]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "web.downloads.reveal"
+args = ["1"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "web.downloads.open"
+args = ["1"]
 
 [step.expect]
 refuses = "call"

@@ -6,3 +6,4 @@ background = "Manages the mods."
 
 [permissions]
 "deckit.mods" = "Lists, launches and quits the mods."
+"system.clipboard-write" = "Copies what it is handed."

@@ -1,6 +1,6 @@
 case = 3
 name = "an-argument-left-out-is-refused"
-note = "A request with an argument its signature requires left out is refused at call with INVALID_ARGUMENT. mod-a, granted deckit.mods, asks that mod-b be removed and leaves out erase."
+note = "A request with an argument its signature requires left out is refused at call with INVALID_ARGUMENT. mod-a, granted deckit.mods and system.clipboard-write, asks that mod-b be removed and leaves out erase, and that what was copied be replaced and leaves out the text."
 
 [host]
 base = "system"
@@ -16,6 +16,16 @@ input = "call"
 mod = "mod-a"
 member = "mods.remove"
 args = ["mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = []
 
 [step.expect]
 refuses = "call"
