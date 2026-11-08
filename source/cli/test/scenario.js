@@ -247,7 +247,6 @@ async function run({
         const front = (await windowsNow()).filter(({ mod }) => mod === id).at(-1);
         return front ? pageById(front.content) : null;
     };
-    const desktop = await until(() => page('deckit://desktop'));
     // The Dock's items as the desktop's page draws them: `{ id, running, active }` each, in order.
     const dockNow = async () =>
         (await desktop?.evaluate(`[...document.querySelectorAll('.deckit-dock-item')].map((item) => ({
@@ -303,6 +302,7 @@ async function run({
     };
 
     await sleep(9000);
+    const desktop = await until(() => page('deckit://desktop'));
     // Only the background mods run as the app starts. The Dock keeps the shipped apps, running or not, the window probe
     // among them, and each is opened from it as a person opens it, the Editor last, so it is in front. The region parent
     // is opened from the Mods mod, and comes into the Dock as it runs. The region child comes as its parent places it,
