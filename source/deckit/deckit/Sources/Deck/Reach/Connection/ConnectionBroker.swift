@@ -15,8 +15,8 @@ import Foundation
 // Exports opened in lifecycle g reach the lifecycles stacked at g and above. A connection stands from when both
 // lifecycles are up, the client's run launching or running and the service's running, until either lifecycle ends, the
 // client releases the id or the interface has another owner. A lifecycle is up from when its page begins it until its
-// page says it ended, or its run has ended. A lifecycle that reaches a principal that does not run waits for it, and
-// deck tells so once; one that reaches a principal that runs with no exports for the name that reach the lifecycle is
+// page says it ended, or its run has ended. A lifecycle that reaches a principal with no run, or whose run has ended,
+// waits for it, and deck tells so once; one that reaches a principal that runs with no exports for the name that reach the lifecycle is
 // refused and told once.
 public final class ConnectionBroker {
     // MARK: - Property
@@ -223,12 +223,13 @@ public final class ConnectionBroker {
         return opened
     }
 
-    // The names the client lifecycle reaches by whose principal does not launch or run, each with that principal.
+    // The names the client lifecycle reaches by whose principal has no run or one that has ended, each with that
+    // principal: one that terminates is waited for once its run has ended, when it can launch again.
     private func waits(of client: Endpoint) -> [(name: String, client: Endpoint, service: String)] {
         names(of: client).compactMap { name in
             guard let id = provider(of: name, for: client.principal) else { return nil }
-            let state = runner.run(of: id)?.state
-            guard state != .launching && state != .running else { return nil }
+            let state = runner.run(of: id)?.state ?? .notRunning
+            guard state == .notRunning else { return nil }
             return (name, client, id)
         }
     }

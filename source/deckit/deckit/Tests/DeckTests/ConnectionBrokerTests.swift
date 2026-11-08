@@ -229,6 +229,26 @@ struct ConnectionBrokerTests {
         #expect(connected.map(\.line) == ["connect 1 a#1@0 -> dep#1@0"])
     }
 
+    @Test("one reaching a principal that terminates is told it waits once its run has ended, not before")
+    func reachingATerminatingPrincipalWaitsOnceItEnded() throws {
+        // Given
+        let client = Endpoint(principal: "a", run: 1, lifecycle: 0)
+        try start(.fixture("dep"), exportedIn: ["dep": 0])
+        try start(.fixture("a", reaches: .only(["dep"])))
+        try sut.reach("dep", from: client)
+        _ = sut.changes()
+
+        // When
+        _ = try runner.unload(["dep"])
+        let terminating = sut.changes()
+        _ = try runner.stopped("dep", run: 1)
+        let ended = sut.changes()
+
+        // Then
+        #expect(terminating.isEmpty)
+        #expect(ended.map(\.line) == ["disconnect 1 a#1@0 -> dep#1@0", "wait a#1@0 for dep by dep"])
+    }
+
     @Test("a connection by id ends as its client releases the id or its lifecycle ends, and the ask goes with it")
     func releaseEndsTheConnection() throws {
         // Given
