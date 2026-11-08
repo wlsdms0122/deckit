@@ -6,11 +6,10 @@
 {"id":93,"jsonrpc":"2.0","method":"runner/start"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a","b","c"]}}
 {"id":81,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":0,"mod":"a","run":1}}
-{"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":{"a/api":0,"a/own":0},"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"}],"urls":true},"mod":"a","run":1,"summary":{"x":true}}}
+{"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":{"a/api":0,"a/own":0},"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"},{"key":"mod+k","label":"Back","name":"back","scope":"app"}],"urls":true},"mod":"a","run":1,"summary":{"keywords":["alpha"],"x":true}}}
 {"id":7,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["b"]}}
 {"id":82,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":0,"mod":"b","run":1}}
 {"id":8,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{"a":1},"now":true},"mod":"b","run":1,"summary":{}}}
-{"id":80,"jsonrpc":"2.0","method":"runner/joined","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":{"a/api":0,"a/own":0},"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"},{"key":"mod+k","label":"Back","name":"back","scope":"app"}],"urls":true},"mod":"a","run":1,"summary":{"keywords":["alpha"],"x":true}}}
 {"id":9,"jsonrpc":"2.0","method":"connection/route","params":{"connection":1,"mod":"b","run":1}}
 {"id":10,"jsonrpc":"2.0","method":"connection/route","params":{"connection":1,"mod":"a","run":1}}
 {"id":11,"jsonrpc":"2.0","method":"connection/route","params":{"connection":1,"mod":"c","run":1}}

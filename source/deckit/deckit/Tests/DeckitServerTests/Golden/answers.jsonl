@@ -10,7 +10,6 @@
 {"id":7,"jsonrpc":"2.0","result":[]}
 {"id":82,"jsonrpc":"2.0","result":[{"client":{"lifecycle":0,"mod":"b","run":1},"credential":{"mod":"b","permissions":[]},"id":1,"name":"a\/own","service":{"lifecycle":0,"mod":"a","run":1}}]}
 {"id":8,"jsonrpc":"2.0","result":[{"contributions":{"awaits":{"a":1},"exportedIn":{}},"effect":"tell","failed":false,"mod":"b","notification":"didLaunch","run":1,"state":"running"}]}
-{"id":80,"jsonrpc":"2.0","result":[{"contributions":{"awaits":{},"exportedIn":{"a\/api":0,"a\/own":0}},"effect":"keep","failed":false,"mod":"a","run":1,"state":"running"}]}
 {"id":9,"jsonrpc":"2.0","result":{"lifecycle":0,"mod":"a","run":1}}
 {"id":10,"jsonrpc":"2.0","result":{"lifecycle":0,"mod":"b","run":1}}
 {"error":{"code":-32803,"data":{"kind":"NOT_AN_END","stage":"call"},"message":"c is not an end of that connection"},"id":11,"jsonrpc":"2.0"}

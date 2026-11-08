@@ -189,11 +189,6 @@ final class Server {
             let effects = try deckit.started(params.mod, run: params.run, contributions: params.contributions)
             return answered(effects, by: deckit)
 
-        case "runner/joined":
-            let params = try request.decodeParams(as: StartedParams.self)
-            let effects = try deckit.joined(params.mod, run: params.run, contributions: params.contributions)
-            return answered(effects, by: deckit)
-
         case "runner/problem":
             let params = try request.decodeParams(as: RunProblemParams.self)
             return answered(try deckit.report(params.mod, run: params.run, problem: params.problem), by: deckit)

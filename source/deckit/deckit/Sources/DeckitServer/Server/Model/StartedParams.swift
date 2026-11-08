@@ -8,7 +8,7 @@
 import Foundation
 import Deck
 
-// A run that started, or that runs, with what it contributes as deck reads it. Other keys are not read.
+// A run that started, with what it contributes as deck reads it. Other keys are not read.
 struct StartedParams: Decodable {
     // MARK: - Property
     let mod: String
