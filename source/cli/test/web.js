@@ -1,7 +1,8 @@
 // The web pages a mod shows (deckit-shell/deckit/web) over a stand-in for the environment's web: what loads in them,
-// which sessions attach and are kept, a mod's windows closing with its document, what a web page's window.open gets,
-// what a site may have and the question put to the mod showing it, a site's notifications, and a mod's tabs held to the
-// mod. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// the mod's page a web page answers to, which sessions attach and are kept, a mod's windows closing with its document,
+// what a web page's window.open gets, what a site may have and the question put to the mod showing it, a site's
+// notifications, and a mod's tabs held to the mod. Exits 1 with a line for each check that failed. The packages are ES
+// modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -122,6 +123,14 @@ async function main() {
         ENVIRONMENT.missingIn(listened, ENVIRONMENT.WEB_DECK).length === 0,
         ''
     );
+    const holderOf = web.holderOf;
+    web.holderOf = (page) => ({ ...holderOf(page), inPage: false });
+    check(
+        "a web page answers to the mod's page showing it, in the page or in a window",
+        WEB.pageFor(tab) === filesPage && WEB.pageFor(filesPage) === filesPage && WEB.pageFor({ id: 1 }) === null,
+        ''
+    );
+    web.holderOf = holderOf;
 
     // What loads, and where.
     const load = (page, to, options) => listened.loading(page, null, to, options);

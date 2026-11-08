@@ -92,11 +92,10 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     }
 
     // The page of deckit's a page answers to: a mod's or one that runs no mod, or the mod's page that shows it as a
-    // web page, so a keystroke in the web page is the mod page's.
+    // web page, in the page or in a window, so a keystroke in the web page is the mod page's.
     function pageFor(page) {
         if (IDENTITY.modOf(page) || IDENTITY.pageNameOf(page)) return page;
-        const held = WEB.holderOf(page);
-        return held?.inPage && held.tab === held.id ? held.embedder : null;
+        return WEB.holderOf(page)?.embedder ?? null;
     }
 
     function holdsKeyboard(modPage) {

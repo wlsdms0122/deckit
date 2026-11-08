@@ -272,6 +272,11 @@ const PAGE = Object.freeze({
         // web page asks to close itself, `focused()` when it takes focus
         view: 'function',
     },
+    // The presses in drag regions: where a document marks itself `--app-region: drag`, a press moves the window it is
+    // shown in and a double click does what the person set a title bar's to do, `no-drag` marking what inside takes
+    // presses itself. take(document, pressed(event)) -> off: those in `document`, this page's or a surface it opened,
+    // each handed to `pressed` as its `mousedown` event instead, the moves and the release that follow the document's
+    drags: { take: 'function' },
 });
 
 // MARK: - Initializer
