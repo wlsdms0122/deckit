@@ -1,6 +1,6 @@
-// A mod with a view, which asks a main process module of its own whether it finds the window its page is shown in,
-// installs the folder the test hands it as a person would, by a press in its page, opens the mods the test names as a
-// person opens one the panel does not list, and takes files dropped on it. It is a system mod, which the test ships
+// A mod with a window, which asks a main process module of its own whether it finds the window its page is shown in,
+// installs the folder the test hands it as a person would, by a press in its window, opens the mods the test names as a
+// person opens one the Dock does not keep, and takes files dropped on it. It is a system mod, which the test ships
 // with the app: it opens the switcher by its command and binds another mod's key again through the system's services.
 class WindowProbe {
     attach(shell, deckit) {
@@ -13,7 +13,8 @@ class WindowProbe {
         Object.assign(drop.style, { width: '200px', height: '120px' });
         const content = document.createElement('div');
         content.append(install, drop);
-        shell.view.register({ content });
+        this.open = () => shell.windows.open({ name: 'probe', content });
+        this.open();
         shell.dropDestination(drop, {
             onDrop: (paths, at) => (marks.dropped = JSON.stringify({ paths, at })),
             onTargeted: (on) => (marks.targeted = (marks.targeted || '') + (on ? 'on ' : 'off ')),
@@ -53,6 +54,14 @@ class WindowProbe {
             const probe = await deckit.mainProcess('main-process/stack.js');
             marks.found = String(await probe.found());
         });
+    }
+
+    reopen() {
+        this.open?.();
+    }
+
+    detach() {
+        this.open = null;
     }
 }
 

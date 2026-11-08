@@ -3,6 +3,7 @@ name = "Open User"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
 
 [interfaces]
 uses = { "deckit/urls" = 1, "switcher/actions" = 1 }

@@ -3,7 +3,6 @@ name = "Region Parent"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-view = { sidebar = true }
 
 [interfaces]
 provides = { "region-parent/boards" = [1] }

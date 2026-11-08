@@ -3,6 +3,7 @@ name = "Broker User"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
 
 [interfaces]
 uses = { "broker-provider/broker" = 1, "broker-screen/takes" = 1, "broker-absent/none" = 1 }

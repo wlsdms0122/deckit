@@ -45,6 +45,12 @@ function connect({ port, shots, module }) {
         return target ? sessionOf(target) : null;
     }
 
+    // The session of the page WebKit's module knows by `id`, or null.
+    async function pageById(id) {
+        const target = (await targets()).find((candidate) => Number(candidate.id) === Number(id));
+        return target ? sessionOf(target) : null;
+    }
+
     // The sessions of every page whose address starts with `match`.
     async function pages(match) {
         return Promise.all((await targets()).filter((candidate) => candidate.url.startsWith(match)).map(sessionOf));
@@ -226,7 +232,7 @@ function connect({ port, shots, module }) {
         );
     };
 
-    return { targets, page, pages, overlayOf, compose, main, webPage, thrown, close };
+    return { targets, page, pageById, pages, overlayOf, compose, main, webPage, thrown, close };
 }
 
 // A connection to a DevTools protocol target at `url`: `send(method, params)` resolves to the answer, or to an error
