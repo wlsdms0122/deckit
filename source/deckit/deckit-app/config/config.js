@@ -20,6 +20,7 @@ const SHIPS = [
     'keymap',
     'urls',
     'configuration',
+    'packages',
 ];
 // Run unpackaged, its data is in the folder DECKIT_DATA names (../main.js), and its id is that folder's own, so what
 // WebKit keeps of its pages, which is kept for the app that runs it, is that folder's alone too.
