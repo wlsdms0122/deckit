@@ -403,9 +403,15 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         REGION.show(shown ? [...laidChildren] : []);
     }
 
-    // `[{ window, page, rect }]`: the children the windows on screen show in their regions, each page on the stage.
+    // `[{ window, page, rect }]`: the children the windows on screen show in their regions, each page on the stage once
+    // its view is there, as attach() has ended with one.
     function childrenIn(view) {
-        const pageOf = new Map(deckit.mods.runs().map(({ run, page }) => [run.mod.id, page]));
+        const pageOf = new Map(
+            deckit.mods
+                .runs()
+                .filter(({ run }) => run.state === 'running' && run.summary.view)
+                .map(({ run, page }) => [run.mod.id, page])
+        );
         const framed = new Map(view.map(({ id, frame }) => [id, frame]));
         const parents = new Set(view.map(({ id }) => windows.get(id).mod));
         return [...parents].flatMap((parent) =>
