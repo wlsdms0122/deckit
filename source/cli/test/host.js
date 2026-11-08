@@ -27,7 +27,7 @@ function main() {
         "the shell's start opens the host window, full size and kept, titled as the desktop was before",
         app.opened.length === 1 &&
             first.options.fullSize === true &&
-            first.options.key === 'panel' &&
+            first.options.key === 'desktop' &&
             first.options.glass === app.controls.desktop.glass &&
             first.options.title === 'Editor' &&
             app.themes.length === 1,
@@ -67,9 +67,9 @@ function main() {
     host.showWindow(control);
     const floating = app.floating;
     check(
-        "an overlay window floats in a window of its own, kept by its mod, at the mod's size, made once",
+        "an overlay window floats in a window of its own, kept by its mod and name, at the mod's size, made once",
         floating.length === 1 &&
-            floating[0].options.key === 'window-switcher' &&
+            floating[0].options.key === 'window-switcher/main' &&
             floating[0].options.size.width === 600 &&
             floating[0].options.size.height === 400 &&
             floating[0].options.focus === control.focus &&

@@ -26,7 +26,7 @@ function createApp({ WINDOW, THEME }) {
                 title: state.title,
                 glass: desktop.glass,
                 fullSize: true,
-                key: 'panel',
+                key: 'desktop',
                 place: (window) =>
                     desktop.place(window, {
                         onClose: () => {
@@ -40,8 +40,9 @@ function createApp({ WINDOW, THEME }) {
             desktop.show();
         }
 
-        // An overlay window floats over whichever app is in front, on the screen the pointer is on, and tells the mod
-        // as the keyboard leaves it. It opens where it was last left, at the size the mod gives it now.
+        // An overlay window floats over whichever app is in front, on the screen the pointer is on, and tells the
+        // mod as the keyboard leaves it. It opens where that window of the mod was last left, at the size the mod
+        // gives it now.
         function showWindow(control, { activates = true } = {}) {
             const window = hostWindowOf(control);
             WINDOW.setViewSize(window, control);
@@ -53,7 +54,7 @@ function createApp({ WINDOW, THEME }) {
             if (open) return open;
             const window = WINDOW.openFloating({
                 size: { width: control.width, height: control.height },
-                key: 'window-' + control.mod,
+                key: `window-${control.mod}/${control.name}`,
                 place: (window) => control.place(window),
                 focus: control.focus,
                 blur: control.didResignKey,
