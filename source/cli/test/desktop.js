@@ -278,6 +278,14 @@ async function main() {
     );
     const pressedOff = desk.press('Close Window', { name: 'elsewhere' });
     check("a shell key in a page that is not the desktop's is not taken", pressedOff === false, pressedOff);
+    desk.desktop.control.hide();
+    const pressedHidden = desk.press('Close Window', three.surface);
+    desk.desktop.control.show();
+    check(
+        'a shell key is not taken while the desktop is not shown',
+        pressedHidden === false && desk.desktop.isKey(three),
+        pressedHidden
+    );
 
     const activated = desk.desktop.activate('local', 'a');
     check(
@@ -452,7 +460,7 @@ function desktopOver(createDesktop, { state = {} }) {
         makeStage: () => stage,
         actionOnDoubleClick: () => 'zoom',
         deckit,
-        host: { show() {}, showsPanel: () => true, panelTitled: (title) => titles.push(title) },
+        host: { show() {}, desktopTitled: (title) => titles.push(title) },
     });
     desktop.start({ WINDOWS: { close: (window) => desktop.close(window) }, DOCK: { items: () => [] } });
     allowed.get('backdrop')({ name: 'backdrop' });

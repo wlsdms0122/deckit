@@ -21,7 +21,7 @@ import * as FIELD from '../mods/field.js';
 // MARK: - Property
 const SHELL_CONFIG = { dock: null };
 // What the host app answers the UI: where it is shown.
-const ATTACH_ANSWERS = ['start', 'showsPanel', 'show', 'panelTitled', 'showWindow', 'closeWindow'];
+const ATTACH_ANSWERS = ['start', 'show', 'desktopTitled', 'showWindow', 'closeWindow'];
 // The permissions the UI defines, in the order a person reads them.
 const SHELL_PERMISSIONS = [WINDOW_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION, KEY_PERMISSION];
 // The UI is attached once, to what connect answered.
@@ -84,7 +84,7 @@ function attach(deckit, environment, { host, config = {} } = {}) {
         DESKTOP.start({ WINDOWS, DOCK });
         WINDOWS.start();
         DOCK.start();
-        host.start({ setTheme: THEME.set, panel: DESKTOP.control, openWindow: WINDOWS.openWeb });
+        host.start({ setTheme: THEME.set, desktop: DESKTOP.control, openWindow: WINDOWS.openWeb });
     });
 }
 

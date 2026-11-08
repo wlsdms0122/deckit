@@ -206,7 +206,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
             if (shown) focus();
         }
         const title = titleOf(key);
-        if (title !== titled) host.panelTitled((titled = title));
+        if (title !== titled) host.desktopTitled((titled = title));
         for (const listener of [...listeners]) listener();
     }
 
@@ -476,10 +476,9 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         return !!pageOf(page);
     }
 
-    // A press of the shell's key `id` in a page of the app: the desktop takes it where the host window shows it.
+    // A press of the shell's key `id` in a page of the app: the desktop takes it in its own pages while it is shown.
     function pressKey(id, pressedIn) {
-        const page = pageOf(pressedIn);
-        if (!shown || !page || !host.showsPanel(page)) return false;
+        if (!shown || !pageOf(pressedIn)) return false;
         KEY_ACTIONS[id]();
         return true;
     }
