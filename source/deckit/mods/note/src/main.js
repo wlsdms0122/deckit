@@ -1,20 +1,23 @@
 const { dragAndDrop } = require('./browsing/drag-and-drop.js');
 const { folderAt } = require('./notes-folder/folder.js');
-const { foldersFound, notesFound } = require('./candidates/candidates.js');
+const { notesFound } = require('./candidates/candidates.js');
 const { gallery } = require('./browsing/gallery.js');
 const { linkTargetOf, linkedNotePath } = require('./editor/link.js');
 const { liveEditor } = require('./editor/live-editor.js');
 const { menus } = require('./browsing/menus.js');
 const { navigationBar } = require('./navigation/navigation-bar.js');
 const { navigationHistory } = require('./navigation/navigation-history.js');
+const { onScreen } = require('./screen/on-screen.js');
 const { operations } = require('./notes-folder/operations.js');
 const { PARAGRAPH_STYLES } = require('./editor/paragraph-style.js');
 const { parentOf, isWithin, noteNameOf } = require('./notes-folder/path.js');
 const { relocationLog } = require('./notes-folder/relocation-log.js');
 const { session } = require('./session/session.js');
+const { settingsOf } = require('./settings/settings.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tree } = require('./browsing/tree.js');
 const { typefaceOf } = require('./editor/typeface.js');
+const { viewKeys } = require('./keys/keys.js');
 
 // The paragraph styles, without the separators of their menu.
 const STYLES = PARAGRAPH_STYLES.filter((style) => style !== '-');
@@ -24,9 +27,34 @@ class Note {
     // before the run ends is kept, and the notes folder no longer watched.
     end = null;
 
+    // What the view has put on screen for the commands to reach, while it is attached.
+    screen = onScreen('Notes');
+
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the view,
+    // and one run while Notes has none open says so.
+    start(deckit) {
+        const commands = {
+            'new-note': async () => (await this.screen.reach()).newNote(),
+            open: async (args) => (await this.screen.reach()).openNoteOf(args),
+            'show-folder': async (args) => (await this.screen.reach()).showFolderOf(args),
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Notes has no command ${id}`);
+                    await commands[id](args ?? {});
+                },
+            }),
+        });
+    }
+
     async attach(shell, deckit) {
         const { theme, ui } = shell;
-        const { storage, configuration, util } = deckit;
+        const { storage, util } = deckit;
+        const settings = settingsOf();
+        // An address in a note opens in the mod that opens it, or outside the app while `deckit/urls` is not connected.
+        let urls = null;
+        const openURL = (url) => (urls ? urls.open(url) : deckit.urls.open(url));
         const STYLE = `
             .note {
                 position: relative;
@@ -60,7 +88,7 @@ class Note {
             ui,
             match: util.match,
             typeface: currentTypeface(),
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             clipboard: deckit.clipboard,
             onChange: () => noteSession.edited(),
             onFollowLink: followLink,
@@ -112,7 +140,7 @@ class Note {
         });
         const noteMenus = menus({
             ui,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             relocations,
             fileOperations,
             allNotes: () => allNotes,
@@ -138,10 +166,10 @@ class Note {
         const noteNavigation = navigationBarFor();
         const notesGallery = gallery({
             ui,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             notesFolder,
             searchNotes,
-            configuration,
+            settings,
             relocations,
             navigation: galleryNavigation,
             shownFolder: () => (place.kind === 'folder' ? place.path : null),
@@ -151,7 +179,7 @@ class Note {
         const sidebarTree = tree({
             ui,
             show: shell.show,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             store,
             movePath: util.movePath,
             renameNote: noteMenus.renameNote,
@@ -177,9 +205,16 @@ class Note {
                 if (open && paths.some((path) => isWithin(open, path))) noteSession.reconcile();
             }, 100);
         });
-        configuration.on((key) => {
+        settings.on((key) => {
             if (key === 'sort') notesGallery.draw();
             if (key === 'textSize' || key === 'font') applyTypeface();
+        });
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => {
+                if (urls === connected) urls = null;
+            };
         });
         // A face and a size left to the theme follow a new one.
         theme.onChange(applyTypeface);
@@ -190,6 +225,7 @@ class Note {
             content,
             sidebar: sidebarTree.element,
             didAppear: () => {
+                keys.listen(true);
                 notesFolder.watch(true).catch(() => {});
                 refresh();
                 noteSession.reconcile();
@@ -197,6 +233,7 @@ class Note {
                 else if (place.kind === 'folder') notesGallery.focus();
             },
             didDisappear: () => {
+                keys.listen(false);
                 hadFocus = editor.hasFocus();
                 noteSession.saveIfUnsaved();
                 notesFolder.watch(false).catch(() => {});
@@ -204,40 +241,30 @@ class Note {
         });
         const newNoteHere = () => newNote(currentFolder());
         const newFolder = () => fileOperations.newFolder(currentFolder());
-        deckit.commands.register({
-            'new-note': {
-                run: async () => {
-                    await fileOperations.newNote(currentFolder());
-                },
+        // The view's own keys, while it is in front.
+        const keys = viewKeys(
+            {
+                newNote: { key: 'mod+n', run: newNoteHere },
+                newFolder: { key: 'mod+shift+n', run: newFolder },
+                // While a text field has focus, ⌘⌫ stays the field's (delete to line start).
+                trash: { key: 'mod+backspace', run: trash, fieldsKeep: true },
+                search: { key: 'mod+f', run: searchInGallery },
+                back: { key: 'mod+[', run: goBack },
+                forward: { key: 'mod+]', run: goForward },
+                title: styleKey('title', 'mod+shift+t'),
+                heading: styleKey('heading', 'mod+shift+h'),
+                subheading: styleKey('subheading', 'mod+shift+j'),
+                body: styleKey('body', 'mod+shift+b'),
+                monospaced: styleKey('monospaced', 'mod+shift+m'),
+                bulletedList: styleKey('bulletedList', 'mod+shift+7'),
+                numberedList: styleKey('numberedList', 'mod+shift+9'),
+                checklist: styleKey('checklist', 'mod+shift+l'),
+                markChecked: { key: 'mod+shift+u', run: markChecked },
+                blockQuote: styleKey('blockQuote', "mod+'"),
             },
-            open: {
-                run: openNoteOf,
-                complete: (_param, partial, { signal }) => notesFound(partial, { searchNotes, allNotes, signal }),
-            },
-            'show-folder': {
-                run: showFolderOf,
-                complete: (_param, partial) => foldersFound(partial, { allNotes, util }),
-            },
-        });
-        deckit.keys.register({
-            newNote: { label: 'New Note', key: 'mod+n', run: newNoteHere },
-            newFolder: { label: 'New Folder', key: 'mod+shift+n', run: newFolder },
-            // While a text field has focus, ⌘⌫ stays the field's (delete to line start).
-            trash: { label: 'Move to Trash', key: 'mod+backspace', run: trash },
-            search: { label: 'Search in Gallery', key: 'mod+f', run: searchInGallery },
-            back: { label: 'Back', key: 'mod+[', run: goBack },
-            forward: { label: 'Forward', key: 'mod+]', run: goForward },
-            title: styleKey('title', 'mod+shift+t'),
-            heading: styleKey('heading', 'mod+shift+h'),
-            subheading: styleKey('subheading', 'mod+shift+j'),
-            body: styleKey('body', 'mod+shift+b'),
-            monospaced: styleKey('monospaced', 'mod+shift+m'),
-            bulletedList: styleKey('bulletedList', 'mod+shift+7'),
-            numberedList: styleKey('numberedList', 'mod+shift+9'),
-            checklist: styleKey('checklist', 'mod+shift+l'),
-            markChecked: { label: 'Mark as Checked', key: 'mod+shift+u', run: markChecked },
-            blockQuote: styleKey('blockQuote', "mod+'"),
-        });
+            { log: 'note' }
+        );
+        this.endKeys = () => keys.listen(false);
         const actions = switcher({
             ui,
             util,
@@ -261,6 +288,7 @@ class Note {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        this.screen.set({ newNote: () => fileOperations.newNote(currentFolder()), openNoteOf, showFolderOf });
 
         // `ready()` is told once the note is reached.
         async function openNoteOf({ id }, { ready = () => {} } = {}) {
@@ -447,9 +475,9 @@ class Note {
             else if (target?.note) openNote(linkedNotePath(noteSession.path() || '', target.note), { focus: true });
         }
 
-        // deckit.urls.open answers only whether anything opened the address, with no reason when nothing did.
+        // Opening answers only whether anything opened the address, with no reason when nothing did.
         async function openAddress(address) {
-            if (await deckit.urls.open(address).catch(() => false)) return;
+            if (await openURL(address).catch(() => false)) return;
             ui.dialog({ title: 'Could not open the link', message: address, confirmLabel: 'OK' });
         }
 
@@ -474,7 +502,7 @@ class Note {
         function navigationBarFor() {
             return navigationBar({
                 ui,
-                chordOf: deckit.keys.chordOf,
+                chordOf: (name) => keys.chordOf(name),
                 onBack: () => placeHistory.goBack(),
                 onForward: () => placeHistory.goForward(),
                 onGo: (path) => showFolder(path),
@@ -488,13 +516,12 @@ class Note {
         }
 
         function styleKey(style, key) {
-            const { label } = STYLES.find((each) => each.key === style);
-            return { label, key, run: () => setParagraphStyle(style) };
+            return { key, run: () => setParagraphStyle(style) };
         }
 
         function currentTypeface() {
             return typefaceOf(
-                { font: configuration.get('font'), size: configuration.get('textSize') },
+                { font: settings.get('font'), size: settings.get('textSize') },
                 { faces: ui.textFonts(), theme }
             );
         }
@@ -507,6 +534,9 @@ class Note {
     }
 
     detach() {
+        this.screen.set(null);
+        this.endKeys?.();
+        this.endKeys = null;
         return this.end?.();
     }
 }

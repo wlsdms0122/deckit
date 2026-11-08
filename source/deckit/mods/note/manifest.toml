@@ -3,7 +3,23 @@ name = "Notes"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-contributes = "contributes.json"
+view = { sidebar = true }
+icon = "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4'/><path d='M2 6h4'/><path d='M2 10h4'/><path d='M2 14h4'/><path d='M2 18h4'/><path d='M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z'/></svg>"
+keywords = [
+    "notes",
+    "note",
+    "memo",
+    "markdown",
+    "md",
+    "checklist",
+    "todo",
+    "노트",
+    "메모",
+    "메모장",
+    "마크다운",
+    "체크리스트",
+    "할일",
+]
 
 [permissions]
 "system.main-process" = "Keeps your notes as Markdown files in its own data folder, and puts the ones you delete in the Trash."
@@ -11,4 +27,48 @@ contributes = "contributes.json"
 "system.clipboard-write" = "Copy as Markdown in a note's menu, and Copy in the menu over a note's text, put the text on the clipboard."
 
 [interfaces]
-uses = { "switcher/actions" = 1 }
+uses = { "deckit/configuration" = 1, "deckit/urls" = 1, "switcher/actions" = 1 }
+
+[[contributes."deckit/configuration"]]
+key = "sort"
+type = "string"
+title = "Sort notes by"
+description = "How a folder's notes are laid out in its gallery."
+default = "modified"
+oneOf = [
+    { const = "modified", title = "Date Edited" },
+    { const = "created", title = "Date Created" },
+    { const = "name", title = "Name" },
+]
+
+[[contributes."deckit/configuration"]]
+key = "textSize"
+type = "number"
+title = "Text size"
+description = "Default follows the text size in the General section."
+minimum = 11
+maximum = 22
+unit = " px"
+inherits = "textSize"
+
+[[contributes."deckit/configuration"]]
+key = "font"
+type = "string"
+title = "Font"
+description = "The face a note is written in, its title too; code stays monospaced. Default follows the General section."
+default = "default"
+choices = "textFonts"
+
+[[contributes."deckit/commands"]]
+id = "new-note"
+title = "New Note"
+
+[[contributes."deckit/commands"]]
+id = "open"
+title = "Open Note"
+params = { type = "object", properties = { id = { type = "string", title = "Note" } }, required = ["id"] }
+
+[[contributes."deckit/commands"]]
+id = "show-folder"
+title = "Show Folder in Notes"
+params = { type = "object", properties = { path = { type = "string", title = "Folder" } }, required = ["path"] }
