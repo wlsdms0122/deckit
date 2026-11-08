@@ -3,7 +3,30 @@ const { search } = require('./search/search.js');
 // Every mod that declares a view, found by its name and keywords, in a grid: picking one opens it, and its menu keeps
 // it in the Dock or takes it out. `shell.mods` is the shell's Dock, which says which mods there are to open.
 class Mods {
+    // The shell, while Mods is attached, for the commands to reach.
+    shell = null;
+
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. `show` asks the shell to
+    // put Mods on screen, and one run while it is not attached says so.
+    start(deckit) {
+        const commands = {
+            show: () => {
+                if (!this.shell) throw new Error('Mods has no view open');
+                this.shell.show();
+            },
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Mods has no command ${id}`);
+                    await commands[id]();
+                },
+            }),
+        });
+    }
+
     attach(shell, deckit) {
+        this.shell = shell;
         const { ui } = shell;
         const dock = shell.mods;
         let query = '';
@@ -97,7 +120,6 @@ class Mods {
                 field.focus();
             },
         });
-        deckit.commands.register({ show: { run: () => shell.show() } });
         deckit.mods.onChange(draw);
 
         // The mods `query` finds, best first.
@@ -147,6 +169,10 @@ class Mods {
         function keep(id, pinned) {
             dock.setPinned(id, pinned).then(draw, (error) => ui.toast(error.message));
         }
+    }
+
+    detach() {
+        this.shell = null;
     }
 }
 
