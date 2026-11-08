@@ -3,10 +3,11 @@ const NO_VALUE = '–';
 
 // What `deckit.mods.usage` found of a mod, in words: a phrase for each place it has something in, and the name of each
 // thing the layers keep for it (`kept`), such as its configuration.
-function usageParts({ data, records, kept = [] }) {
+function usageParts({ data, records, values, kept = [] }) {
     return [
         data.count || data.hidden ? filesText(data, 'data file') : '',
         records.count || records.hidden ? filesText(records, 'record') : '',
+        values.count ? filesText({ ...values, hidden: false }, 'value') : '',
         ...kept,
     ].filter(Boolean);
 }
