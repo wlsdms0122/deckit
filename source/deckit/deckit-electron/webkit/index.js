@@ -1,8 +1,9 @@
 // Every page deckit shows is WebKit's, through the module beside the core (deckit-web.node): a page of deck's, a
 // surface one opened, or a web page. Each is a token that tells what becomes of it as events and answers what it is
 // asked: `changed`, `started`, `stopped`, `committed` (url), `failed` (code, description), `gone`, `focus`, `close`,
-// `mouse` (type, `mouseDown` or `mouseUp`), `key` (pressed, take), taken from the page once `take()` is called, and
-// `destroyed`, once, as it closes. `path` is the module's.
+// `mouse` (type, `mouseDown` or `mouseUp`), `key` (pressed, take), taken from the page once `take()` is called,
+// `unhandled` (pressed, take), a key down the page did not handle, taken from the rest of the app once `take()` is
+// called, and `destroyed`, once, as it closes. `path` is the module's.
 export function createWebKit({ path, LOG }) {
     // MARK: - Property
     // WebKit's code for a load another one replaced.
@@ -120,9 +121,10 @@ export function createWebKit({ path, LOG }) {
                     return void page.emit('gone');
                 case 'mouse':
                     return void page.emit('mouse', payload.type);
-                case 'key': {
+                case 'key':
+                case 'unhandled': {
                     let taken = false;
-                    page.emit('key', payload, () => (taken = true));
+                    page.emit(event, payload, () => (taken = true));
                     return taken;
                 }
                 case 'message':

@@ -16,10 +16,11 @@ import CNodeAPI
 // deckit's own scripts post, and `external` ({ url }), an address of an app's the page asked to go to. Asked, answered
 // at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow, background }), a function to hear the page
 // given for the window, or nothing for none; `download` ({ url }), a function to hear the download (WebDownload), or
-// nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a key
-// taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted though
-// the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }), and, for a
-// page made with a scheme of its own, `request` (SchemeHandler).
+// nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a key taken; `unhandled`
+// ({ code, key, meta, control, alt, shift }), a key pressed that the page did not handle, true for one taken from the
+// rest of the app; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate
+// trusted though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions,
+// reply }), and, for a page made with a scheme of its own, `request` (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -150,18 +151,15 @@ final class WebPage: NSObject {
 
     // What a key does, asked of JavaScript before the page has it.
     func pressed(_ event: NSEvent) -> Bool {
-        let flags = event.modifierFlags
-        let payload: [String: Any?] = [
-            "type": event.type == .keyDown ? "keyDown" : "keyUp",
-            "code": KeyCode(event.keyCode).name,
-            "key": event.charactersIgnoringModifiers ?? "",
-            "meta": flags.contains(.command),
-            "control": flags.contains(.control),
-            "alt": flags.contains(.option),
-            "shift": flags.contains(.shift)
-        ]
+        var payload = Self.keystroke(of: event)
+        payload["type"] = event.type == .keyDown ? "keyDown" : "keyUp"
 
         return emitter.emit("key", payload) { node, value in try node.bool(value) } ?? false
+    }
+
+    // What a key pressed that the page did not handle does, asked of JavaScript after the page had it.
+    func unhandled(_ event: NSEvent) -> Bool {
+        emitter.emit("unhandled", Self.keystroke(of: event)) { node, value in try node.bool(value) } ?? false
     }
 
     func pointed(_ event: NSEvent) {
@@ -242,6 +240,19 @@ final class WebPage: NSObject {
     }
 
     // MARK: - Private
+    private static func keystroke(of event: NSEvent) -> [String: Any?] {
+        let flags = event.modifierFlags
+
+        return [
+            "code": KeyCode(event.keyCode).name,
+            "key": event.charactersIgnoringModifiers ?? "",
+            "meta": flags.contains(.command),
+            "control": flags.contains(.control),
+            "alt": flags.contains(.option),
+            "shift": flags.contains(.shift)
+        ]
+    }
+
     private func observe() {
         let told: @MainActor () -> Void = { [weak self] in
             guard let self else { return }

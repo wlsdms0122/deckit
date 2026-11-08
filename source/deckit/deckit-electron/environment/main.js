@@ -135,6 +135,7 @@ function createEnvironment({ core, preload, openWindow }) {
         }),
         keys: Object.freeze({
             capture: (page, handler) => capture(guard, page, handler),
+            unhandled: (page, handler) => unhandled(guard, page, handler),
             hotkey,
             focused: () => WEBKIT.focusedPage(),
         }),
@@ -384,6 +385,14 @@ function capture(guard, page, handler) {
     guard(page, 'key', ({ type, code, meta, control, alt, shift }, take) => {
         const pressed = { type: INPUT[type], code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
         if (handler(Object.freeze(pressed))) take();
+    });
+}
+
+// A key down the page did not handle, told after the page had it, taken from the rest of the app when `handler`
+// answers true.
+function unhandled(guard, page, handler) {
+    guard(page, 'unhandled', ({ code, meta, control, alt, shift }, take) => {
+        if (handler(Object.freeze({ code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift }))) take();
     });
 }
 
