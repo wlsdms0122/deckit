@@ -4,72 +4,57 @@ const { switcher } = require('./switcher/switcher.js');
 // What a person asks of deckit itself, as commands and as the switcher's actions: an address to open, a mod or the app
 // to restart, deckit's folders, and what is running. It has no view.
 class Deckit {
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id.
     start(deckit) {
         const { util } = deckit;
         const APP_NAME = deckit.about().name;
-        const address = openAddress({ open: (url) => deckit.urls.open(url) });
+        // An address opens in the mod that opens it, or outside the app while `deckit/urls` is not connected.
+        let urls = null;
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => (urls = null);
+        });
+        const address = openAddress({ open: (url) => (urls ? urls.open(url) : deckit.urls.open(url)) });
         const STATES = { launching: 'Starting', running: 'Running', notRunning: 'Not running' };
 
-        deckit.commands.register({
-            'open-address': {
-                run: ({ address: given }) => address.go(given),
-                complete: (_param, partial) => address.candidatesFor(partial),
-            },
-            'restart-mod': {
-                run: async ({ mod }) => {
-                    await restartMod(mod);
+        const commands = {
+            'open-address': ({ address: given }) => address.go(given),
+            'restart-mod': ({ mod }) => restartMod(mod),
+            'restart-app': () => deckit.mods.restart(),
+            'show-mods-folder': () => reveal('mods'),
+            'show-data-folder': () => reveal('data'),
+            'show-log': () => reveal('log'),
+            'copy-version': copyVersion,
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Deckit has no command ${id}`);
+                    await commands[id](args ?? {});
                 },
-                complete: (_param, partial) => modsFor(partial),
-            },
-            'restart-app': {
-                run: async () => {
-                    await deckit.mods.restart();
-                },
-            },
-            'show-mods-folder': { run: () => reveal('mods') },
-            'show-data-folder': { run: () => reveal('data') },
-            'show-log': { run: () => reveal('log') },
-            'copy-version': {
-                description: 'Copies a version of what is running, for a report.',
-                params: {
-                    type: 'object',
-                    properties: { version: { type: 'string', title: 'Version', enum: versions() } },
-                    required: ['version'],
-                },
-                run: copyVersion,
-            },
+            }),
         });
 
         // What the switcher's actions search and do, for attach().
-        this.actions = {
-            util,
-            appName: APP_NAME,
-            address,
-            modsFor,
-            versions,
-            does: {
-                'open-address': ({ address: given }) => address.go(given),
-                'restart-mod': ({ mod }) => restartMod(mod),
-                'restart-app': () => deckit.mods.restart(),
-                'copy-version': copyVersion,
-            },
-        };
+        this.actions = { util, appName: APP_NAME, address, modsFor, versions, does: commands };
 
         // One of deckit's places in `deckit.about()`, shown in Finder.
         async function reveal(place) {
             await deckit.reveal(deckit.about()[place]);
         }
 
+        // Only a version About lists is copied.
         async function copyVersion({ version }) {
+            if (!versions().includes(version)) throw new Error(`${version} is no version of what is running`);
             await deckit.clipboard.writeText(version);
         }
 
-        // One not running is launched, and the mods that require it with it. One that does not restart says why: one
-        // that did not load, or one stopping. A refusal is told in a notice.
+        // One not running is launched. One that does not restart says why: one that did not load, or one stopping. A
+        // refusal is told in a notice.
         function restartMod(id) {
             const mod = deckit.mods.list().found.find((each) => each.id === id);
             if (!mod) throw new Error(`There is no mod ${id}`);
-            if (!mod.run) throw new Error(`${mod.name} did not load: ${mod.problem || 'it cannot start'}`);
+            if (!mod.run) throw new Error(`${mod.name} did not load: ${mod.problem?.message || 'it cannot start'}`);
             if (mod.run.state === 'terminating') throw new Error(`${mod.name} is stopping`);
             return deckit.mods.relaunch(mod.id);
         }
@@ -80,7 +65,7 @@ class Deckit {
                 value: mod.id,
                 title: mod.name,
                 hint: !mod.run
-                    ? mod.problem || 'Did not load'
+                    ? mod.problem?.message || 'Did not load'
                     : mod.run.state === 'terminating'
                       ? 'Stopping'
                       : STATES[mod.run.state],
