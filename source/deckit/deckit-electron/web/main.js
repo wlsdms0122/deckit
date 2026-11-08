@@ -75,6 +75,11 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         return entry ? { embedder: entry.embedder, id: page.id, tab: entry.tab, inPage: entry.inPage } : null;
     }
 
+    // The page the element of web page `page` is in, or null for one shown in no element.
+    function containerOf(page) {
+        return layouts.get(page.id)?.over ?? null;
+    }
+
     // Whether `page` has the keyboard, or a web page it shows, or one laid over it, its element in that page.
     function holdsKeyboard(page) {
         const over = [...layouts].flatMap(([id, layout]) => (layout.over === page ? [pageOf(id)] : []));
@@ -396,6 +401,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         embed,
         pageOf,
         holderOf,
+        containerOf,
         holdsKeyboard,
         openWindow,
         load,

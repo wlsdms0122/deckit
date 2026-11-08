@@ -69,7 +69,11 @@ function createEnvironment({ core, preload, openWindow }) {
     });
     const FOLDER = createFolder();
     // WebKit's module is the core's neighbour in the archive.
-    const WEBKIT = createWebKit({ path: require('path').join(require('path').dirname(core), 'deckit-web.node'), LOG });
+    const WEBKIT = createWebKit({
+        path: require('path').join(require('path').dirname(core), 'deckit-web.node'),
+        LOG,
+        containerOf: (page) => WEB.containerOf(page),
+    });
     const MESSAGES = createMessages();
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
     const STAGES = createStages({ LOG, WEBKIT, idOf: WINDOWS.idOf, webPagesIn: (page) => WEB.webPagesIn(page) });

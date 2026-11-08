@@ -10,7 +10,7 @@ import AppKit
 // What a person does to a web page, handed to that page before WebKit has it: a key pressed while the page has the
 // keyboard, which goes no further when the page answers it took it, and a press of the mouse in it. A key down the
 // document did not handle WebKit sends to the app again, the same event, which is handed to its page as unhandled,
-// and goes no further when the page answers it took it.
+// and goes no further unless the page answers at once that it did not take it.
 @MainActor
 final class InputMonitor {
     // MARK: - Property

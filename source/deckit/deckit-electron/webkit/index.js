@@ -3,8 +3,10 @@
 // asked: `changed`, `started`, `stopped`, `committed` (url), `failed` (code, description), `gone`, `focus`, `close`,
 // `mouse` (type, `mouseDown` or `mouseUp`), `key` (pressed, take), taken from the page once `take()` is called,
 // `unhandled` (pressed, take), a key down the page did not handle, taken from the rest of the app once `take()` is
-// called, and `destroyed`, once, as it closes. `path` is the module's.
-export function createWebKit({ path, LOG }) {
+// called, and `destroyed`, once, as it closes. A key down a page shown in another (`containerOf(page)`, that page or
+// null) did not handle is that page's next: a key down at its element with the keyboard, which its listeners may
+// cancel, and then a key it did not handle. `path` is the module's.
+export function createWebKit({ path, LOG, containerOf }) {
     // MARK: - Property
     // WebKit's code for a load another one replaced.
     const CANCELLED = -999;
@@ -121,11 +123,14 @@ export function createWebKit({ path, LOG }) {
                     return void page.emit('gone');
                 case 'mouse':
                     return void page.emit('mouse', payload.type);
-                case 'key':
-                case 'unhandled': {
+                case 'key': {
                     let taken = false;
-                    page.emit(event, payload, () => (taken = true));
+                    page.emit('key', payload, () => (taken = true));
                     return taken;
+                }
+                case 'unhandled': {
+                    const { reply, ...pressed } = payload;
+                    return void passOn(page, pressed, reply);
                 }
                 case 'message':
                     return void delegate.message?.(payload.body);
@@ -218,6 +223,43 @@ export function createWebKit({ path, LOG }) {
             },
         });
         return { page, listener };
+    }
+
+    // `pressed`, a key down `page` did not handle, to the page it is shown in, or else told as its own: `reply(taken)`
+    // answers whether it is taken from the rest of the app.
+    function passOn(page, pressed, reply) {
+        const container = containerOf(page);
+        if (!container) {
+            let taken = false;
+            try {
+                page.emit('unhandled', pressed, () => (taken = true));
+            } finally {
+                reply(taken);
+            }
+            return;
+        }
+        container.evaluate(keyDown(pressed), 'deckit').then(
+            (cancelled) => (cancelled ? reply(true) : passOn(container, pressed, reply)),
+            () => reply(false)
+        );
+    }
+
+    // A key down at the element with the keyboard, as the document's listeners hear one: whether one cancelled it.
+    function keyDown({ code, key, meta, control, alt, shift }) {
+        const options = {
+            code,
+            key,
+            metaKey: meta,
+            ctrlKey: control,
+            altKey: alt,
+            shiftKey: shift,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+        };
+        return `const event = new KeyboardEvent('keydown', ${JSON.stringify(options)});
+            (document.activeElement ?? document).dispatchEvent(event);
+            return event.defaultPrevented;`;
     }
 
     function spelled(url) {

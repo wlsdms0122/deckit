@@ -16,11 +16,11 @@ import CNodeAPI
 // deckit's own scripts post, and `external` ({ url }), an address of an app's the page asked to go to. Asked, answered
 // at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow, background }), a function to hear the page
 // given for the window, or nothing for none; `download` ({ url }), a function to hear the download (WebDownload), or
-// nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a key taken; `unhandled`
-// ({ code, key, meta, control, alt, shift }), a key pressed that the page did not handle, true for one taken from the
-// rest of the app; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate
-// trusted though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions,
-// reply }), and, for a page made with a scheme of its own, `request` (SchemeHandler).
+// nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a key taken; and
+// `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted though the Mac
+// does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }), `unhandled`
+// ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle, true for one taken
+// from the rest of the app, and, for a page made with a scheme of its own, `request` (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -157,9 +157,23 @@ final class WebPage: NSObject {
         return emitter.emit("key", payload) { node, value in try node.bool(value) } ?? false
     }
 
-    // What a key pressed that the page did not handle does, asked of JavaScript after the page had it.
+    // What a key pressed that the page did not handle does, asked of JavaScript after the page had it: whether it is
+    // taken from the rest of the app. Until JavaScript answers, the app does not have it; one answered later and not
+    // taken goes to the app's menu.
     func unhandled(_ event: NSEvent) -> Bool {
-        emitter.emit("unhandled", Self.keystroke(of: event)) { node, value in try node.bool(value) } ?? false
+        let answer = KeyAnswer()
+        let reply = Reply { node, arguments in
+            guard answer.taken == nil else { return }
+            let taken = try arguments.first.map { try node.bool($0) } ?? false
+            answer.taken = taken
+            if !answer.asking && !taken { NSApp.mainMenu?.performKeyEquivalent(with: event) }
+        }
+        var payload = Self.keystroke(of: event)
+        payload["reply"] = reply
+        emitter.emit("unhandled", payload)
+        answer.asking = false
+
+        return answer.taken ?? true
     }
 
     func pointed(_ event: NSEvent) {
@@ -558,4 +572,11 @@ extension WebPage: WKUIDelegate {
         alert.accessoryView = field
         dialog(alert) { response in completionHandler(response == .alertFirstButtonReturn ? field.stringValue : nil) }
     }
+}
+
+// What JavaScript answered of a key the page did not handle, and whether it is still being asked.
+@MainActor
+private final class KeyAnswer {
+    var taken: Bool?
+    var asking = true
 }
