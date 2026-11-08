@@ -59,6 +59,8 @@ const MAIN = Object.freeze({
         watchInput: 'function',
         // clearStorage(modId) -> Promise: what the mod's pages stored, the web's storage, taken
         clearStorage: 'function',
+        // countStorage(modId) -> Promise of an integer: how many items the mod's pages keep in the web's local storage
+        countStorage: 'function',
     },
     keys: {
         // capture(page, handler(pressed) -> boolean): each key pressed in the page, `{ type, code, meta, control, alt,

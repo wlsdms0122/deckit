@@ -18,7 +18,10 @@ async function main() {
                 listen: () => {},
                 tell: (message) => tells.push(message),
                 ask: async () => ({ value: null }),
-                askSync: () => ({ value: null }),
+                askSync: (message) => {
+                    tells.push(message);
+                    return { value: true };
+                },
             },
         },
         { report: () => {} }
@@ -32,11 +35,14 @@ async function main() {
 
     const RUN = {
         number: 1,
-        mod: { id: 'a', uses: { 'c/api': 1 }, provides: { 'a/api': [1] } },
+        mod: { id: 'a', uses: { 'c/api': 1 }, provides: { 'a/api': [1] }, permissions: [] },
         deliver: () => {},
         fail: () => {},
     };
     const { events } = createEvent({ RUN }).forScope({ handle: 'deckit', scope: makeScope() });
+    const reaching = createEvent({
+        RUN: { ...RUN, mod: { ...RUN.mod, permissions: [{ id: 'deckit.reach-mods' }] } },
+    }).forScope({ handle: 'deckit', scope: makeScope() }).events;
     const thrown = (make) => {
         try {
             make();
@@ -60,8 +66,14 @@ async function main() {
     const other = refused('d:status');
     check(
         'a page is refused a name its manifest does not name',
-        other === 'deckit.events.on() hears the names of its own id and its interfaces, not "d:status"',
+        other === 'deckit.events.on() hears only the names it may hear, not "d:status"',
         other
+    );
+    const reached = [() => reaching.on('d:status', () => {}), () => reaching.on('d/api:changed', () => {})].map(kindOf);
+    check(
+        'a page that may reach mods hears any mod id, and no interface it neither uses nor provides',
+        reached[0] === null && reached[1] === 'call NOT_PERMITTED',
+        reached
     );
     check(
         'a name of another mod is refused NOT_PERMITTED',
@@ -74,19 +86,23 @@ async function main() {
         () => events.on('a:status', 'no function'),
         () => events.on('d:status', 'no function'),
         () => events.emit(1),
+        () => events.emit('status', null),
+        () => events.emit('status', { at: new Date() }),
+        () => events.emit('status', [() => {}]),
+        () => events.emit('status', NaN),
     ].map(kindOf);
     check(
-        'a name that is no scoped string, a listener or an emitted name of another type are refused INVALID_ARGUMENT',
+        'a name that is no scoped string, a listener, an emitted name of another type or no value are refused INVALID_ARGUMENT',
         invalid.every((kind) => kind === 'call INVALID_ARGUMENT'),
         invalid
     );
-    check('an event of values is sent', kindOf(() => events.emit('status', 1, 'two', { three: [3] })) === null);
+    check('an event of values is sent', kindOf(() => events.emit('status', 1.5, 'two', { three: [3] })) === null);
     const sent = tells.at(-1);
     check(
         'an emit sends the run, the name as written and the values',
         sent.channel === 'deckit-shell:event-emit' &&
             JSON.stringify(sent.payload) ===
-                JSON.stringify({ run: 1, name: 'status', args: [1, 'two', { three: [3] }] }),
+                JSON.stringify({ run: 1, name: 'status', args: [1.5, 'two', { three: [3] }] }),
         sent
     );
 

@@ -9,10 +9,31 @@ function refusal(stage, kind, message) {
     return Object.assign(new Error(message), { stage, kind });
 }
 
+// Why `value` is not a value, or '': a value is a string, a finite number, a boolean, or an array or a plain table of
+// values. A null is none, as a value left out is.
+function valueProblem(value, at = 'the value') {
+    if (typeof value === 'string' || typeof value === 'boolean') return '';
+    if (typeof value === 'number') return Number.isFinite(value) ? '' : `${at} is ${value}, no value`;
+    if (Array.isArray(value)) {
+        for (let index = 0; index < value.length; index++) {
+            const problem = valueProblem(value[index], `${at}[${index}]`);
+            if (problem) return problem;
+        }
+        return '';
+    }
+    const prototype = value !== null && typeof value === 'object' ? Object.getPrototypeOf(value) : undefined;
+    if (prototype !== Object.prototype && prototype !== null) return `${at} is ${CHANNEL.kindOf(value)}, no value`;
+    for (const [key, one] of Object.entries(value)) {
+        const problem = valueProblem(one, `${at}.${key}`);
+        if (problem) return problem;
+    }
+    return '';
+}
+
 // Why `args` do not fit `signature`, or '': `signature` is the parameters in order, each `[name, kind, keys]`, a kind
-// as channel/ kindOf names one or `any`, optional when it ends in `?`, and `keys`, for a table, the signature of its
-// keys. An argument undefined or null is one left out, and one past the signature, or a key past the table's, is not
-// read.
+// as channel/ kindOf names one, `any`, or `value` (valueProblem), optional when it ends in `?`, and `keys`, for a
+// table, the signature of its keys. An argument undefined or null is one left out, and one past the signature, or a
+// key past the table's, is not read.
 function argumentProblem(signature, args) {
     for (const [at, [name, written, keys = []]] of signature.entries()) {
         const optional = written.endsWith('?');
@@ -20,6 +41,11 @@ function argumentProblem(signature, args) {
         const value = args[at];
         if (value === undefined || value === null) {
             if (!optional) return `${name} is left out`;
+            continue;
+        }
+        if (kind === 'value') {
+            const problem = valueProblem(value, name);
+            if (problem) return problem;
             continue;
         }
         if (kind !== 'any' && CHANNEL.kindOf(value) !== kind) return `${name} is ${CHANNEL.kindOf(value)}, not ${kind}`;
@@ -45,4 +71,4 @@ function requestOf(name, { denied = '', signature = [] }, send) {
 
 // MARK: - Private
 
-export { refusal, argumentProblem, requestOf };
+export { refusal, valueProblem, argumentProblem, requestOf };

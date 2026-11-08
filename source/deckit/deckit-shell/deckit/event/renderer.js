@@ -4,6 +4,7 @@ import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 import * as SCOPED from './model/scoped-name.js';
 import * as REQUEST from '../request/index.js';
+import * as MOD_PERMISSION from '../permission/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -16,8 +17,9 @@ export function createEvent({ RUN }) {
     // MARK: - Public
     // What a handle holds of events, as `events`. Neither is a request: each throws its refusal. `emit(name, ...args)`
     // sends one of the mod's own, which listeners hear named after it (SCOPED.scopedName), refused INVALID_ARGUMENT for
-    // a name that is no string or args that cannot be copied; `on(named, listener)` hears one of a name its manifest
-    // names, its own id or an interface it uses or provides, until its off or until `scope` is cut, refused
+    // a name that is no string or args that are no values (REQUEST.valueProblem), then as the core refuses it;
+    // `on(named, listener)` hears one of a name it may hear, its own id, any mod's id for a mod granted
+    // deckit.reach-mods, or an interface it uses or provides, until its off or until `scope` is cut, refused
     // INVALID_ARGUMENT for a name that is no `<mod id>:<event name>` or a listener that is no function, then
     // NOT_PERMITTED for any other name. `handle` is the name the mod reaches them by.
     function forScope({ handle, scope }) {
@@ -27,13 +29,9 @@ export function createEvent({ RUN }) {
             events: Object.freeze({
                 emit(name, ...args) {
                     if (typeof name !== 'string') throw invalid(`${events}.emit() takes a name that is a string`);
-                    try {
-                        PROTOCOL.emit.send({ run: RUN.number, name, args });
-                    } catch (error) {
-                        throw invalid(
-                            `${events}.emit("${name}") takes values that can be copied: ${error.message || error}`
-                        );
-                    }
+                    const problem = REQUEST.valueProblem(args, 'its values');
+                    if (problem) throw invalid(`${events}.emit("${name}"): ${problem}`);
+                    PROTOCOL.emit.invoke({ run: RUN.number, name, args });
                 },
                 on(named, listener) {
                     if (typeof named !== 'string' || !SCOPED.isScoped(named))
@@ -43,7 +41,7 @@ export function createEvent({ RUN }) {
                         throw REQUEST.refusal(
                             'call',
                             'NOT_PERMITTED',
-                            `${events}.on() hears the names of its own id and its interfaces, not "${named}"`
+                            `${events}.on() hears only the names it may hear, not "${named}"`
                         );
                     return scope.add(busNow().on(named, listener));
                 },
@@ -52,10 +50,17 @@ export function createEvent({ RUN }) {
     }
 
     // MARK: - Private
-    // Whether the mod's manifest names `owner`, a mod id or an interface.
+    // Whether the mod may hear `owner`, a mod id or an interface (one that holds a slash): its own id, any mod's id
+    // where it may reach mods by id, and an interface its manifest uses or provides.
     function isNamed(owner) {
-        const { id, uses, provides } = RUN.mod;
-        return owner === id || Object.hasOwn(uses, owner) || Object.hasOwn(provides, owner);
+        const { id, uses, provides, permissions } = RUN.mod;
+        const reaches = permissions.some((permission) => permission.id === MOD_PERMISSION.REACH_MODS);
+        return (
+            owner === id ||
+            (reaches && !owner.includes('/')) ||
+            Object.hasOwn(uses, owner) ||
+            Object.hasOwn(provides, owner)
+        );
     }
 
     function busNow() {

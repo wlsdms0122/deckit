@@ -267,7 +267,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         return {
             id: mod.id,
             name: mod.name,
-            storage: Object.freeze({ values: STORAGE.values(), records: STORAGE.records(RUN.fail) }),
+            storage: Object.freeze({ values: STORAGE.values(), records: STORAGE.records() }),
             dependencies,
             quit: RUN.quit,
             ...EVENT.forScope({ handle: given.handle, scope }),

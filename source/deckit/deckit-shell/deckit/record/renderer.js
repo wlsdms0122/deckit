@@ -15,7 +15,7 @@ export function createRecord() {
     // MARK: - Public
     // Small state that costs little to lose, in the page's own storage: its origin is the mod's, so no other mod
     // reads it. Each answers at once, and throws its refusal: INVALID_ARGUMENT for a key that is no string, or a value
-    // left out or that is no JSON value.
+    // left out or that is no value (REQUEST.valueProblem), and QUOTA_EXCEEDED once the storage has no room for it.
     function values() {
         return {
             get(key, fallback) {
@@ -23,7 +23,14 @@ export function createRecord() {
                 return stored === null ? fallback : JSON.parse(stored);
             },
             set(key, value) {
-                localStorage.setItem(keyOf('values.set', key), textOf('values.set', value));
+                const named = keyOf('values.set', key);
+                const text = textOf('values.set', value);
+                try {
+                    localStorage.setItem(named, text);
+                } catch (error) {
+                    if (error?.name !== 'QuotaExceededError') throw error;
+                    throw REQUEST.refusal('call', 'QUOTA_EXCEEDED', `storage.values.set: no room for "${named}"`);
+                }
             },
             remove(key) {
                 localStorage.removeItem(keyOf('values.remove', key));
@@ -33,8 +40,8 @@ export function createRecord() {
 
     // What must not be lost: JSON by key in the mod's folder, written whole by main. `get` and `keys` answer at once,
     // and `get` throws its refusal; `set` and `remove` are requests, refused INVALID_ARGUMENT for a key that is no
-    // string, or a value left out or that is no JSON value. `fail` hears a write that did not land.
-    function records(fail) {
+    // string, or a value left out or that is no value (REQUEST.valueProblem), and as main refuses the write.
+    function records() {
         const write = (key, value, send) => {
             const had = cache.has(key);
             const before = cache.get(key);
@@ -45,7 +52,6 @@ export function createRecord() {
                     if (had) cache.set(key, before);
                     else cache.delete(key);
                 }
-                fail(`could not keep "${key}": ${error.message}`);
                 throw error;
             });
         };
@@ -84,14 +90,11 @@ export function createRecord() {
         return key;
     }
 
-    // The JSON text of `value`, which is not left out.
+    // The JSON text of `value`, a value that is not left out.
     function textOf(member, value) {
-        let text;
-        try {
-            text = value === undefined || value === null ? undefined : JSON.stringify(value);
-        } catch {}
-        if (text === undefined) throw invalid(`storage.${member}: the value is left out or no JSON value`);
-        return text;
+        const problem = REQUEST.argumentProblem([['value', 'value']], [value]);
+        if (problem) throw invalid(`storage.${member}: ${problem}`);
+        return JSON.stringify(value);
     }
 
     function invalid(message) {

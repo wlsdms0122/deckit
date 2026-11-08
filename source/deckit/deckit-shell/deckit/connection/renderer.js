@@ -62,12 +62,13 @@ export function createConnection({ RUN }) {
 
     // MARK: - Public
     // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected) -> off`,
-    // `onRefuse(name, refused) -> off`, and the requests `reach(id)` and `release(id)`, `reach` refused NOT_PERMITTED
-    // for a mod not granted deckit.reach-mods. What `onConnect` and `onRefuse` add is cut with `scope`. The interfaces
-    // the mod uses connect as the lifecycle begins, and `onRefuse` hears each refusal of one, the last at once while no
-    // connection by it stands. A mod by its id connects as `reach` asks, until as many `release`s let it go or the
-    // lifecycle ends, its connection handed to what listens for its id too: `reach` resolves with its exports once it
-    // stands, and rejects with the first refusal, which lets the ask go.
+    // `onRefuse(name, refused) -> off`, each refused INVALID_ARGUMENT for a name that is no string or a listener that
+    // is no function, and the requests `reach(id)` and `release(id)`, `reach` refused NOT_PERMITTED for a mod not
+    // granted deckit.reach-mods. What `onConnect` and `onRefuse` add is cut with `scope`. The interfaces the mod uses
+    // connect as the lifecycle begins, and `onRefuse` hears each refusal of one, the last at once while no connection
+    // by it stands. A mod by its id connects as `reach` asks, until as many `release`s let it go or the lifecycle ends,
+    // its connection handed to what listens for its id too: `reach` resolves with its exports once it stands, and
+    // rejects with the first refusal, which lets the ask go.
     async function begin(lifecycle, scope) {
         begun.add(lifecycle);
         const answered = await PROTOCOL.begin.invoke({ run: RUN.number, lifecycle });
@@ -80,8 +81,8 @@ export function createConnection({ RUN }) {
         const denied = granted ? '' : `${mod} does not have the ${MOD_PERMISSION.REACH_MODS} permission`;
         const takes = [['id', 'string']];
         return Object.freeze({
-            onConnect: (named, connected) => listen(lifecycle, String(named), connected, scope),
-            onRefuse: (named, refused) => listenRefusals(lifecycle, String(named), refused, scope),
+            onConnect: (named, connected) => listen(lifecycle, named, connected, scope),
+            onRefuse: (named, refused) => listenRefusals(lifecycle, named, refused, scope),
             reach: REQUEST.requestOf('dependencies.reach', { denied, signature: takes }, (id) => reach(lifecycle, id)),
             release: REQUEST.requestOf('dependencies.release', { signature: takes }, (id) => release(lifecycle, id)),
         });
@@ -165,7 +166,12 @@ export function createConnection({ RUN }) {
     }
 
     function listenRefusals(lifecycle, named, refused, scope) {
-        if (typeof refused !== 'function') throw new Error('dependencies.onRefuse() takes an interface and a function');
+        if (typeof named !== 'string' || typeof refused !== 'function')
+            throw REQUEST.refusal(
+                'call',
+                'INVALID_ARGUMENT',
+                'dependencies.onRefuse() takes an interface and a function'
+            );
         if (!refusing.has(lifecycle)) refusing.set(lifecycle, new Map());
         const byInterface = refusing.get(lifecycle);
         if (!byInterface.has(named)) byInterface.set(named, new Set());
@@ -228,8 +234,12 @@ export function createConnection({ RUN }) {
     }
 
     function listen(lifecycle, named, connected, scope) {
-        if (typeof connected !== 'function')
-            throw new Error('dependencies.onConnect() takes an interface and a function');
+        if (typeof named !== 'string' || typeof connected !== 'function')
+            throw REQUEST.refusal(
+                'call',
+                'INVALID_ARGUMENT',
+                'dependencies.onConnect() takes an interface and a function'
+            );
         if (!listening.has(lifecycle)) listening.set(lifecycle, new Map());
         const byInterface = listening.get(lifecycle);
         if (!byInterface.has(named)) byInterface.set(named, new Set());

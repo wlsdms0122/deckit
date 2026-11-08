@@ -7,9 +7,9 @@ import * as LIFECYCLE from '../runner/model/lifecycle.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, installing and removing them, launching
-// them, launching them again and quitting them, pinning the owner of each interface, and what one has where the core
-// keeps it. A launch and a relaunch it asks for are told to `REQUEST` as its requests of that mod.
-// `pages` is the environment's, which keeps what a mod's pages stored.
+// them, launching them again and quitting them, pinning the owner of each interface, and what one has stored where
+// the core keeps it and in its pages' storage. A launch and a relaunch it asks for are told to `REQUEST` as its
+// requests of that mod. `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages }) {
     // MARK: - Property
     let layer = null;
@@ -72,9 +72,10 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return CATALOG.pin(named, mod);
         });
-        PROTOCOL.usage.handle(({ id }, sender) => {
+        PROTOCOL.usage.handle(async ({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return CORE.request('storage/usage', { mod: id });
+            const usage = await CORE.request('storage/usage', { mod: id });
+            return { ...usage, values: { count: await pages.countStorage(id) } };
         });
         PROTOCOL.watchMods.on((_payload, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
