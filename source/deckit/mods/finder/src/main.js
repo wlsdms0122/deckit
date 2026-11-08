@@ -8,11 +8,14 @@ const { goToFolder } = require('./go-to-folder/go-to-folder.js');
 const { iconCache } = require('./icon/icon-cache.js');
 const { listView } = require('./view/list-view.js');
 const { listingCache } = require('./listing/listing-cache.js');
+const { onScreen } = require('./screen/on-screen.js');
 const { parentOf, isInside } = require('./path/path.js');
 const { selectionInput } = require('./file-area/selection-input.js');
+const { settingsOf } = require('./settings/settings.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabList } = require('./sidebar/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
+const { viewKeys } = require('./keys/keys.js');
 
 // The system places `go-to-place` goes to, by the id the disk gives each.
 const PLACES = [
@@ -24,10 +27,35 @@ const PLACES = [
 ];
 
 class Finder {
+    // What the view has put on screen for the commands to reach, while it is attached.
+    screen = onScreen('Finder');
+
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the view,
+    // and one run while Finder has none open says so.
+    start(deckit) {
+        const commands = {
+            'open-folder': async (args) => (await this.screen.reach()).openFolder(args),
+            'go-to-place': async (args) => (await this.screen.reach()).goToPlace(args),
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Finder has no command ${id}`);
+                    await commands[id](args ?? {});
+                },
+            }),
+        });
+    }
+
     async attach(shell, deckit) {
         const { theme, ui } = shell;
-        const { storage, configuration, util } = deckit;
+        const { storage, util } = deckit;
         const { values, records } = storage;
+        const settings = settingsOf();
+        // A file opens in the mod that opens its address, or outside the app while `deckit/urls` is not connected; with
+        // the default app, outside the app always.
+        let urls = null;
+        const openURL = (url, { usesDefaultApp }) => (urls && !usesDefaultApp ? urls.open(url) : deckit.urls.open(url));
         // Every folder, icon and file change goes through this module, so a Finder whose module cannot start shows
         // nothing.
         const disk = await deckit.mainProcess('main-process/disk.js');
@@ -62,7 +90,7 @@ class Finder {
         });
         const tabs = tabList({
             ui,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             reveal: deckit.reveal,
             records,
             tildify: util.tildify,
@@ -78,8 +106,8 @@ class Finder {
         const columns = columnView({ ui, icons, entryAt: listings.entryAt, onResize: tabs.setWidth });
         const status = folderStatus({
             ui,
-            chordOf: deckit.keys.chordOf,
-            onShowHidden: () => configuration.set('showHidden', true),
+            chordOf: (name) => keys.chordOf(name),
+            onShowHidden: () => settings.set('showHidden', true).catch(() => {}),
             onReveal: deckit.reveal,
             onPrivacySettings: () => disk.privacySettings().catch(() => {}),
         });
@@ -92,14 +120,14 @@ class Finder {
             columns,
             status,
             showsHidden,
-            foldersFirst: () => !!configuration.get('foldersFirst'),
+            foldersFirst: () => !!settings.get('foldersFirst'),
             select,
             setFilterText: (text) => bar.setFilter(text),
             onDraw: drawToolbar,
         });
         const operator = fileOperator({
             ui,
-            openURL: deckit.urls.open,
+            openURL,
             fileURL: deckit.fileURL,
             disk,
             areaElement: area.element,
@@ -118,7 +146,7 @@ class Finder {
         const bar = toolbar({
             ui,
             theme,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             tildify: util.tildify,
             homeLocation: () => home,
             onBack: () => tabs.back(),
@@ -168,7 +196,7 @@ class Finder {
         });
         fileMenu({
             ui,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             reveal: deckit.reveal,
             writeText: deckit.clipboard.writeText,
             areaElement: area.element,
@@ -189,7 +217,7 @@ class Finder {
             trash: operator.trash,
             newFolder: operator.newFolder,
             showsHidden,
-            onToggleHidden: toggleHidden,
+            onToggleHidden: () => toggleHidden().catch(() => {}),
             onGoToFolder: () => goTo.show(),
         });
         const goTo = goToFolder({
@@ -210,8 +238,15 @@ class Finder {
         });
         this.resizing.observe(content);
         for (const part of [area, bar, tabs, favorites]) operator.acceptDrops(part.element, part.folderAt);
-        configuration.on((key) => {
+        settings.on((key) => {
             if (key === 'showHidden' || key === 'foldersFirst') area.draw();
+        });
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => {
+                if (urls === connected) urls = null;
+            };
         });
         disk.places()
             .then((answer) => {
@@ -226,6 +261,7 @@ class Finder {
             sidebar,
             didAppear: () => {
                 showing = true;
+                keys.listen(true);
                 if (tabs.front()) {
                     watchShown();
                     load();
@@ -234,6 +270,7 @@ class Finder {
             },
             didDisappear: () => {
                 showing = false;
+                keys.listen(false);
                 disk.closeQuickLook().catch(() => {});
                 watchShown();
             },
@@ -244,46 +281,41 @@ class Finder {
         const showGoTo = () => tabs.front() && goTo.show();
         const newFolder = () => operator.newFolder(area.workingFolder());
         const trash = () => operator.trash(selectedEntries());
-        deckit.commands.register({
-            'open-folder': {
-                run: openFolder,
-                complete: (_param, partial) => foldersAtHand(partial),
+        // The view's own keys, while it is in front.
+        const keys = viewKeys(
+            {
+                newTab: { key: 'mod+t', run: () => tabs.open() },
+                closeTab: { key: 'mod+w', run: () => tabs.close(tabs.front()) },
+                reopenTab: { key: 'mod+shift+t', run: () => tabs.reopen() },
+                ...Object.fromEntries(
+                    [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
+                        `tab${number}`,
+                        { key: `mod+${number}`, run: () => tabs.showAt(number - 1) },
+                    ])
+                ),
+                lastTab: { key: 'mod+9', run: () => tabs.showAt(-1) },
+                back: { key: 'mod+[', run: () => tabs.back() },
+                forward: { key: 'mod+]', run: () => tabs.forward() },
+                enclosing: { key: 'mod+up', run: () => tabs.up() },
+                open: { key: 'ctrl+enter', run: open },
+                openWithDefaultApp: { key: 'alt+enter', run: openWithDefaultApp },
+                filter: { key: 'mod+f', run: () => bar.focusFilter() },
+                goToFolder: { key: 'mod+l', run: showGoTo },
+                home: { key: 'mod+shift+h', run: () => goToPlace({ place: 'home' }) },
+                desktop: { key: 'mod+shift+d', run: () => goToPlace({ place: 'desktop' }) },
+                downloads: { key: 'mod+alt+l', run: () => goToPlace({ place: 'downloads' }) },
+                applications: { key: 'mod+shift+a', run: () => goToPlace({ place: 'applications' }) },
+                hidden: { key: 'mod+shift+.', run: () => toggleHidden() },
+                newFolder: { key: 'mod+shift+n', run: newFolder },
+                // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
+                columnView: { key: 'ctrl+mod+1', run: () => setView('columns') },
+                listView: { key: 'ctrl+mod+2', run: () => setView('list') },
+                // While a field has the keyboard, ⌘⌫ stays the field's (delete to line start).
+                trash: { key: 'mod+backspace', run: trash, fieldsKeep: true },
             },
-            'go-to-place': { run: goToPlace },
-        });
-        deckit.keys.register({
-            newTab: { label: 'New Tab', key: 'mod+t', run: () => tabs.open() },
-            closeTab: { label: 'Close Tab', key: 'mod+w', run: () => tabs.close(tabs.front()) },
-            reopenTab: { label: 'Reopen Closed Tab', key: 'mod+shift+t', run: () => tabs.reopen() },
-            ...Object.fromEntries(
-                [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
-                    `tab${number}`,
-                    { label: `Tab ${number}`, key: `mod+${number}`, run: () => tabs.showAt(number - 1) },
-                ])
-            ),
-            lastTab: { label: 'Last tab', key: 'mod+9', run: () => tabs.showAt(-1) },
-            back: { label: 'Back', key: 'mod+[', run: () => tabs.back() },
-            forward: { label: 'Forward', key: 'mod+]', run: () => tabs.forward() },
-            enclosing: { label: 'Enclosing Folder', key: 'mod+up', run: () => tabs.up() },
-            open: { label: 'Open', key: 'ctrl+enter', run: open },
-            openWithDefaultApp: { label: 'Open with Default App', key: 'alt+enter', run: openWithDefaultApp },
-            filter: { label: 'Filter This Folder', key: 'mod+f', run: () => bar.focusFilter() },
-            goToFolder: { label: 'Go to Folder…', key: 'mod+l', run: showGoTo },
-            home: { label: 'Go to Home', key: 'mod+shift+h', run: () => goToPlace({ place: 'home' }) },
-            desktop: { label: 'Go to Desktop', key: 'mod+shift+d', run: () => goToPlace({ place: 'desktop' }) },
-            downloads: { label: 'Go to Downloads', key: 'mod+alt+l', run: () => goToPlace({ place: 'downloads' }) },
-            applications: {
-                label: 'Go to Applications',
-                key: 'mod+shift+a',
-                run: () => goToPlace({ place: 'applications' }),
-            },
-            hidden: { label: 'Show Hidden Files', key: 'mod+shift+.', run: () => toggleHidden() },
-            newFolder: { label: 'New Folder', key: 'mod+shift+n', run: newFolder },
-            // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
-            columnView: { label: 'As columns', key: 'ctrl+mod+1', run: () => setView('columns') },
-            listView: { label: 'As list', key: 'ctrl+mod+2', run: () => setView('list') },
-            trash: { label: 'Move to Trash', key: 'mod+backspace', run: trash },
-        });
+            { log: 'finder' }
+        );
+        this.endKeys = () => keys.listen(false);
         const actions = switcher({
             ui,
             util,
@@ -314,6 +346,7 @@ class Finder {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        this.screen.set({ openFolder, goToPlace });
 
         // `ready()` is told once the path is found to be there, before Finder goes to it.
         async function openFolder({ path }, { ready = () => {} } = {}) {
@@ -535,11 +568,11 @@ class Finder {
         }
 
         function toggleHidden() {
-            configuration.set('showHidden', !showsHidden());
+            return settings.set('showHidden', !showsHidden());
         }
 
         function showsHidden() {
-            return !!configuration.get('showHidden');
+            return !!settings.get('showHidden');
         }
 
         function selectedEntries() {
@@ -553,6 +586,9 @@ class Finder {
     }
 
     detach() {
+        this.screen.set(null);
+        this.endKeys?.();
+        this.endKeys = null;
         this.resizing?.disconnect();
     }
 }
