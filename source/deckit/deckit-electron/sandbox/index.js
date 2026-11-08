@@ -62,7 +62,7 @@ export function countStorage(WEBKIT, id, modId) {
         },
     });
     return new Promise((resolve, reject) => {
-        page.once('committed', () => page.evaluate('localStorage.length').then(resolve, reject));
+        page.once('committed', () => page.evaluate('return localStorage.length').then(resolve, reject));
         page.once('failed', (code, description) =>
             reject(new Error(`${modId}'s storage was not read: ${description}`))
         );
