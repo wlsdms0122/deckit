@@ -1,0 +1,22 @@
+case = 3
+name = "an-argument-left-out-is-refused"
+note = "A request with an argument its signature requires left out is refused at call with INVALID_ARGUMENT. mod-a, granted deckit.mods, asks that mod-b be removed and leaves out erase."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.remove"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

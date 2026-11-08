@@ -1,0 +1,28 @@
+case = 3
+name = "a-request-refused-for-its-arguments-does-nothing"
+note = "A request refused does nothing of what it asks. mod-a, granted deckit.mods, asks that mod-b be removed, with erase a string where remove takes a boolean: the request is refused, and mod-b is still listed."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.remove"
+args = ["mod-b", "true"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a", "mod-b"]

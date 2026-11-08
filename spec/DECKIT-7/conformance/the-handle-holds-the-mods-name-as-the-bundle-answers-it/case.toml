@@ -1,0 +1,19 @@
+case = 3
+name = "the-handle-holds-the-mods-name-as-the-bundle-answers-it"
+note = "The member name of the handle is the name of the bundle the run is of, as the bundle answers it, so the handle of mod-a, whose manifest writes the name Mod A, holds Mod A."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "name"
+
+[step.expect]
+answers = "Mod A"

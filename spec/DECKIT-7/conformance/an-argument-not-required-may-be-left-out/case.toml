@@ -1,0 +1,23 @@
+case = 3
+name = "an-argument-not-required-may-be-left-out"
+note = "An argument the signature does not require may be left out. mod-a hands the host an address to open and leaves out options, which openExternal does not require: the request is answered, and the host is handed the address, the app that opens it brought to the front."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["https://example.com/a"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/a", activates = true }]

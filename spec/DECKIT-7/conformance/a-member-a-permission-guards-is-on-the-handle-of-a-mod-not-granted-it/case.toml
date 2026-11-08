@@ -1,0 +1,21 @@
+case = 3
+name = "a-member-a-permission-guards-is-on-the-handle-of-a-mod-not-granted-it"
+note = "Every member is on the handle of every mod, whatever the mod is granted. mod-a, granted nothing, asks that it be removed, through mods.remove, which deckit.mods guards: the member is on its handle, and the request is refused at call with NOT_PERMITTED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.remove"
+args = ["mod-a", false]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

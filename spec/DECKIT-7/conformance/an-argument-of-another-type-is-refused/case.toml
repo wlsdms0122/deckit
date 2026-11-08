@@ -1,0 +1,22 @@
+case = 3
+name = "an-argument-of-another-type-is-refused"
+note = "A request whose argument is of another type than its signature gives is refused at call with INVALID_ARGUMENT. mod-a, granted deckit.mods, asks that the mod 1 launch, an integer where launch takes a string."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

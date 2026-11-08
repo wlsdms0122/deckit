@@ -1,0 +1,19 @@
+case = 3
+name = "the-handle-holds-the-mods-id"
+note = "The member id of the handle is the id of the bundle the run is of, so the handle of mod-a holds mod-a."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "id"
+
+[step.expect]
+answers = "mod-a"

@@ -1,0 +1,19 @@
+case = 3
+name = "the-handle-holds-the-id-as-the-name-of-a-mod-that-writes-none"
+note = "The member name of the handle is the name of the bundle the run is of, as the bundle answers it, which is the id where none is written, so the handle of mod-a, whose manifest writes no name, holds mod-a."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "name"
+
+[step.expect]
+answers = "mod-a"
