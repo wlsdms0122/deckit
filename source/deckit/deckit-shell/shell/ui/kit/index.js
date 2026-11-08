@@ -88,9 +88,10 @@ function make(theme, { fonts }) {
     return deepFreeze(ui);
 }
 
-// Rules of a view of deckit's own, drawn with the kit's custom properties.
+// Rules of a view of deckit's own, drawn with the kit's custom properties, worn by the page's other documents too.
 function addStyle(rules) {
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, SHEET.make(rules)];
+    LAYER.dress();
 }
 
 // MARK: - Private
