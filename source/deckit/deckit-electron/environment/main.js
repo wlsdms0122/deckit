@@ -436,9 +436,16 @@ function openURL(url, { activate = true } = {}) {
     return require('electron').shell.openExternal(url, { activate });
 }
 
-async function openFile(file) {
+// Opened by its address, so that `activate` brings the app that opens it forward as it does for `url`.
+async function openFile(file, { activate = true } = {}) {
     const found = existing(file);
-    return !!found && !(await require('electron').shell.openPath(found));
+    if (!found) return false;
+    try {
+        await require('electron').shell.openExternal(require('url').pathToFileURL(found).href, { activate });
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function reveal(file) {
