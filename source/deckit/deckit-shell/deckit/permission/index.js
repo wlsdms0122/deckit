@@ -1,5 +1,7 @@
-// Deckit's own permission, which Deckit defines itself: what a mod holds to drive mods, checked here too.
+// Deckit's own permissions, which Deckit defines itself, checked here too: what a mod holds to drive mods, and to reach
+// any mod by its id.
 const MODS = 'deckit.mods';
+const REACH_MODS = 'deckit.reach-mods';
 // A text that holds a code point without the property White_Space.
 const NOT_BLANK = /\P{White_Space}/u;
 
@@ -39,4 +41,4 @@ export function createPermission() {
     return { define, all };
 }
 
-export { MODS };
+export { MODS, REACH_MODS };

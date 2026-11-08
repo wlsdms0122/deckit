@@ -2,6 +2,8 @@ import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 import * as WIRE from './model/wire.js';
+import * as MOD_PERMISSION from '../permission/index.js';
+import * as REQUEST from '../request/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -56,11 +58,12 @@ export function createConnection({ RUN }) {
 
     // MARK: - Public
     // The `lifecycle`th lifecycle begins: answers its `dependencies`, `onConnect(name, connected)`,
-    // `onRefuse(name, refused) -> off`, `reach(id)` and `release(id)`. What `onConnect` and `onRefuse` add is cut with
-    // `scope`. The interfaces the mod uses connect as the lifecycle begins, and `onRefuse` hears each refusal of one,
-    // the last at once while no connection by it stands. A mod by its id connects as `reach` asks, until as many
-    // `release`s let it go or the lifecycle ends, its connection handed to what listens for its id too: `reach`
-    // resolves with its exports once it stands, and rejects with the first refusal, which lets the ask go.
+    // `onRefuse(name, refused) -> off`, and the requests `reach(id)` and `release(id)`, `reach` refused NOT_PERMITTED
+    // for a mod not granted deckit.reach-mods. What `onConnect` and `onRefuse` add is cut with `scope`. The interfaces
+    // the mod uses connect as the lifecycle begins, and `onRefuse` hears each refusal of one, the last at once while no
+    // connection by it stands. A mod by its id connects as `reach` asks, until as many `release`s let it go or the
+    // lifecycle ends, its connection handed to what listens for its id too: `reach` resolves with its exports once it
+    // stands, and rejects with the first refusal, which lets the ask go.
     async function begin(lifecycle, scope) {
         begun.add(lifecycle);
         const answered = await PROTOCOL.begin.invoke({ run: RUN.number, lifecycle });
@@ -68,11 +71,15 @@ export function createConnection({ RUN }) {
             if (told.refusal) refuse(lifecycle, told.name, told.refusal);
             else open({ ...told, lifecycle });
         }
+        const { id: mod, permissions } = RUN.mod;
+        const granted = permissions.some((permission) => permission.id === MOD_PERMISSION.REACH_MODS);
+        const denied = granted ? '' : `${mod} does not have the ${MOD_PERMISSION.REACH_MODS} permission`;
+        const takes = [['id', 'string']];
         return Object.freeze({
             onConnect: (named, connected) => listen(lifecycle, String(named), connected, scope),
             onRefuse: (named, refused) => listenRefusals(lifecycle, String(named), refused, scope),
-            reach: (id) => reach(lifecycle, String(id)),
-            release: (id) => release(lifecycle, String(id)),
+            reach: REQUEST.requestOf('dependencies.reach', { denied, signature: takes }, (id) => reach(lifecycle, id)),
+            release: REQUEST.requestOf('dependencies.release', { signature: takes }, (id) => release(lifecycle, id)),
         });
     }
 

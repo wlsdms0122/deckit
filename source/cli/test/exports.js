@@ -40,7 +40,7 @@ async function main() {
         main: 'main.js',
         provides: { 'p/one': [1], 'p/two': [1] },
         uses: { 'q/used': 1, 'q/optional': 1 },
-        permissions: [],
+        permissions: [{ id: 'deckit.reach-mods', reason: 'Reaches the mods.', usable: true }],
     };
     const tells = [];
     const asks = [];
@@ -111,6 +111,7 @@ async function main() {
             seen.again = deckit.dependencies.reach('q');
             seen.refused = deckit.dependencies.reach('x').catch(refusalOf);
             seen.unreached = deckit.dependencies.reach('g').catch(refusalOf);
+            seen.mistyped = deckit.dependencies.reach(5).catch(refusalOf);
             deckit.exports.register('p/one', {
                 connect: (connection) => {
                     seen.connected.push(connection);
@@ -302,6 +303,14 @@ async function main() {
         'a reach the core refuses rejects with its kind, at call',
         refused?.kind === 'REFUSED' && refused.stage === 'call' && /out of reach/.test(refused.message),
         refused
+    );
+    const mistyped = await seen.mistyped;
+    check(
+        'a reach of an id that is no string is refused for its argument, and not asked of main',
+        mistyped?.kind === 'INVALID_ARGUMENT' &&
+            mistyped.stage === 'call' &&
+            !targets('connection-reach').includes('5'),
+        mistyped
     );
     let settled = false;
     seen.reach.then(() => (settled = true));
