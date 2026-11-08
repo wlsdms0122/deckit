@@ -45,12 +45,12 @@ extension EffectAnswer: Encodable {
         switch effect {
         case let .open(job):
             try container.encode("open", forKey: .effect)
-            try container.encode(job.modId, forKey: .mod)
+            try container.encode(job.principal, forKey: .mod)
             try container.encodeIfPresent(found, forKey: .found)
 
-        case let .loadPage(modId):
+        case let .loadPage(principal):
             try container.encode("loadPage", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
+            try container.encode(principal, forKey: .mod)
 
         case let .tell(notification, run):
             try container.encode("tell", forKey: .effect)
@@ -61,18 +61,18 @@ extension EffectAnswer: Encodable {
             try container.encode("keep", forKey: .effect)
             try encode(run, in: &container)
 
-        case let .stop(modId, number):
+        case let .stop(principal, number):
             try container.encode("stop", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
+            try container.encode(principal, forKey: .mod)
             try container.encode(number, forKey: .run)
 
-        case let .kill(modId):
+        case let .kill(principal):
             try container.encode("kill", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
+            try container.encode(principal, forKey: .mod)
 
-        case let .close(modId):
+        case let .close(principal):
             try container.encode("close", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
+            try container.encode(principal, forKey: .mod)
 
         case let .connect(connection):
             try container.encode("connect", forKey: .effect)
@@ -96,7 +96,7 @@ extension EffectAnswer: Encodable {
 
     // MARK: - Private
     private func encode(_ run: Run, in container: inout KeyedEncodingContainer<CodingKeys>) throws {
-        try container.encode(run.modId, forKey: .mod)
+        try container.encode(run.principal, forKey: .mod)
         try container.encode(run.number, forKey: .run)
         try container.encode(run.state, forKey: .state)
         try container.encode(run.failed, forKey: .failed)

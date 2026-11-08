@@ -28,43 +28,43 @@ struct RecordTests {
         let text = #"{"b":1,"a":[true,null]}"#
 
         // When
-        try sut.write(mod: "notes", key: "tabs", text: text)
+        try sut.write(principal: "notes", key: "tabs", text: text)
 
         // Then
-        #expect(try sut.read(mod: "notes", key: "tabs") == text)
+        #expect(try sut.read(principal: "notes", key: "tabs") == text)
     }
 
     @Test("a key never written reads as nil")
     func missingRecordReadsAsNil() throws {
         // Given
         // When
-        let text = try sut.read(mod: "notes", key: "tabs")
+        let text = try sut.read(principal: "notes", key: "tabs")
 
         // Then
         #expect(text == nil)
     }
 
-    @Test("a mod reads only its own records")
+    @Test("a principal reads only its own records")
     func modReadsOnlyItsOwnRecords() throws {
         // Given
-        try sut.write(mod: "notes", key: "tabs", text: "1")
+        try sut.write(principal: "notes", key: "tabs", text: "1")
 
         // When
-        let text = try sut.read(mod: "other", key: "tabs")
+        let text = try sut.read(principal: "other", key: "tabs")
 
         // Then
         #expect(text == nil)
     }
 
-    @Test("keys lists a mod's records in order")
+    @Test("keys lists a principal's records in order")
     func keysListsRecordsInOrder() throws {
         // Given
-        try sut.write(mod: "notes", key: "b", text: "1")
-        try sut.write(mod: "notes", key: "a", text: "2")
-        try sut.write(mod: "other", key: "c", text: "3")
+        try sut.write(principal: "notes", key: "b", text: "1")
+        try sut.write(principal: "notes", key: "a", text: "2")
+        try sut.write(principal: "other", key: "c", text: "3")
 
         // When
-        let keys = try sut.keys(mod: "notes")
+        let keys = try sut.keys(principal: "notes")
 
         // Then
         #expect(keys == ["a", "b"])
@@ -73,52 +73,52 @@ struct RecordTests {
     @Test("a removed record is gone, and removing one never written is no error")
     func removedRecordIsGone() throws {
         // Given
-        try sut.write(mod: "notes", key: "tabs", text: "1")
+        try sut.write(principal: "notes", key: "tabs", text: "1")
 
         // When
-        try sut.remove(mod: "notes", key: "tabs")
-        try sut.remove(mod: "notes", key: "never")
+        try sut.remove(principal: "notes", key: "tabs")
+        try sut.remove(principal: "notes", key: "never")
 
         // Then
-        #expect(try sut.read(mod: "notes", key: "tabs") == nil)
-        #expect(try sut.keys(mod: "notes").isEmpty)
+        #expect(try sut.read(principal: "notes", key: "tabs") == nil)
+        #expect(try sut.keys(principal: "notes").isEmpty)
     }
 
-    @Test("erasing takes every record of the mod's and no other's")
+    @Test("erasing takes every record of the principal's and no other's")
     func eraseTakesOnlyTheModsRecords() throws {
         // Given
-        try sut.write(mod: "notes", key: "a", text: "1")
-        try sut.write(mod: "other", key: "a", text: "2")
+        try sut.write(principal: "notes", key: "a", text: "1")
+        try sut.write(principal: "other", key: "a", text: "2")
 
         // When
-        try sut.erase(mod: "notes")
-        try sut.erase(mod: "never")
+        try sut.erase(principal: "notes")
+        try sut.erase(principal: "never")
 
         // Then
-        #expect(try sut.keys(mod: "notes").isEmpty)
-        #expect(try sut.read(mod: "other", key: "a") == "2")
+        #expect(try sut.keys(principal: "notes").isEmpty)
+        #expect(try sut.read(principal: "other", key: "a") == "2")
     }
 
-    @Test("count is every file of the mod's records but the hidden ones, and says whether there are any")
+    @Test("count is every file of the principal's records but the hidden ones, and says whether there are any")
     func countIsEveryFile() throws {
         // Given
-        try sut.write(mod: "notes", key: "a", text: "1")
-        try sut.write(mod: "notes", key: "b", text: "2")
+        try sut.write(principal: "notes", key: "a", text: "1")
+        try sut.write(principal: "notes", key: "b", text: "2")
         try Data().write(to: folder.appending(path: "notes/.hidden"))
 
         // When
-        let count = try sut.count(mod: "notes")
+        let count = try sut.count(principal: "notes")
 
         // Then
         #expect(count == RecordCount(count: 2, hidden: true))
-        #expect(try sut.count(mod: "never") == RecordCount(count: 0, hidden: false))
+        #expect(try sut.count(principal: "never") == RecordCount(count: 0, hidden: false))
     }
 
     @Test("a key that would not name a file is refused as KEY", arguments: ["", "Tabs", "a/b", "a..b", ".a"])
     func badKeyIsRefused(key: String) {
         // Given
         // When
-        let written = Result { try sut.write(mod: "notes", key: key, text: "1") }
+        let written = Result { try sut.write(principal: "notes", key: key, text: "1") }
 
         // Then
         #expect(throws: RecordError.notAKey(key)) { try written.get() }

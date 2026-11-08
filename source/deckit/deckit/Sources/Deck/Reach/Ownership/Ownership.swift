@@ -7,15 +7,15 @@
 
 import Foundation
 
-// Who owns each interface: the mods that provide it queued in the order they began to, and the one the person pinned.
-// The pinned provider owns it, or else the first in its queue; whether it runs is not looked at.
+// Who owns each interface: the principals that provide it queued in the order they began to, and the one pinned. The
+// pinned provider owns it, or else the first in its queue; whether it runs is not looked at.
 public struct Ownership: Equatable, Sendable {
     // MARK: - Property
     static let none = Ownership(queues: [:], pins: [:])
 
-    // Interface -> the ids of the mods that provide it, the earliest first.
+    // Interface -> the ids of the principals that provide it, the earliest first.
     public let queues: [String: [String]]
-    // Interface -> the id of the provider the person pinned.
+    // Interface -> the id of the provider pinned.
     public let pins: [String: String]
 
     // MARK: - Initializer
@@ -34,18 +34,18 @@ public struct Ownership: Equatable, Sendable {
         queues.compactMapValues { ids in ids.first }.merging(pins) { _, pinned in pinned }
     }
 
-    // As the `jobs` provide now, the mods in `kept` keeping the places they hold: a mod leaves the queue of an interface
-    // it no longer provides, or when it is in neither, and joins the end of the queue of one it begins to provide,
-    // those that join at once in the order given. One that keeps providing keeps its place. A pin goes as its mod
-    // leaves the queue.
+    // As the `jobs` provide now, the principals in `kept` keeping the places they hold: a principal leaves the queue of
+    // an interface it no longer provides, or when it is in neither, and joins the end of the queue of one it begins to
+    // provide, those that join at once in the order given. One that keeps providing keeps its place. A pin goes as its
+    // principal leaves the queue.
     public func joined(by jobs: [Job], keeping kept: Set<String>) -> Ownership {
-        let provided = Dictionary(jobs.map { job in (job.modId, job) }) { first, _ in first }
+        let provided = Dictionary(jobs.map { job in (job.principal, job) }) { first, _ in first }
         var queues = Dictionary(uniqueKeysWithValues: queues.map { interface, ids in
             (interface, ids.filter { id in kept.contains(id) || provided[id]?.provides[interface] != nil })
         })
         for job in jobs {
-            for interface in job.provides.keys.sorted() where !(queues[interface] ?? []).contains(job.modId) {
-                queues[interface, default: []].append(job.modId)
+            for interface in job.provides.keys.sorted() where !(queues[interface] ?? []).contains(job.principal) {
+                queues[interface, default: []].append(job.principal)
             }
         }
         queues = queues.filter { _, ids in !ids.isEmpty }
@@ -58,7 +58,7 @@ public struct Ownership: Equatable, Sendable {
 
     // Whether the person can pin `id` for `interface`: one of the `jobs` that provide now provides it.
     public func isPinnable(_ id: String, for interface: String, among jobs: [Job]) -> Bool {
-        jobs.contains { job in job.modId == id && job.provides[interface] != nil }
+        jobs.contains { job in job.principal == id && job.provides[interface] != nil }
     }
 
     // With `id` pinned for `interface`, or its pin cleared for nil. Only one of the `jobs` that provide now that
@@ -66,7 +66,7 @@ public struct Ownership: Equatable, Sendable {
     func pinned(_ interface: String, to id: String?, among jobs: [Job]) throws -> Ownership {
         if let id {
             guard isPinnable(id, for: interface, among: jobs) else {
-                throw PinError.notProvider(interface: interface, mod: id)
+                throw PinError.notProvider(interface: interface, principal: id)
             }
         }
 

@@ -10,9 +10,9 @@ import Foundation
 
 extension Connection {
     // MARK: - Property
-    // `<id> <client mod>#<run>@<lifecycle> -> <service mod>#<run>@<lifecycle>`.
+    // `<id> <client principal>#<run>@<lifecycle> -> <service principal>#<run>@<lifecycle>`.
     var line: String {
-        let end = { (endpoint: Endpoint) in "\(endpoint.modId)#\(endpoint.run)@\(endpoint.lifecycle)" }
+        let end = { (endpoint: Endpoint) in "\(endpoint.principal)#\(endpoint.run)@\(endpoint.lifecycle)" }
         return "\(id) \(end(client)) -> \(end(service))"
     }
 

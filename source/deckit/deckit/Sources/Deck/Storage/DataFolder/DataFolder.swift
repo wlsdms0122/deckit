@@ -7,7 +7,8 @@
 
 import Foundation
 
-// The folders mods keep their own data in, one a mod, named by its id: whatever of a mod writes there.
+// The folders principals keep their own data in, one a principal, named by its id: whatever of a principal writes
+// there.
 public final class DataFolder {
     // MARK: - Property
     private let countLimit = 1000
@@ -22,19 +23,19 @@ public final class DataFolder {
     }
 
     // MARK: - Public
-    package func folder(of mod: String) -> URL {
-        folder.appending(path: mod)
+    package func folder(of principal: String) -> URL {
+        folder.appending(path: principal)
     }
 
-    // Every file in the mod's data folder counts, whatever wrote it: erasing takes them all.
-    func count(mod: String) -> DataCount {
+    // Every file in the principal's data folder counts, whatever wrote it: erasing takes them all.
+    func count(principal: String) -> DataCount {
         var count = DataCount()
-        walk(folder(of: mod), depth: 0, count: &count)
+        walk(folder(of: principal), depth: 0, count: &count)
         return count
     }
 
-    func erase(mod: String) throws {
-        try store.remove(folder(of: mod))
+    func erase(principal: String) throws {
+        try store.remove(folder(of: principal))
     }
 
     // MARK: - Private

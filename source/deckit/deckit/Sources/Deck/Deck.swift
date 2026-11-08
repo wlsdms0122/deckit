@@ -7,15 +7,15 @@
 
 import Foundation
 
-// The kernel's process side: it runs the jobs it is handed, each mod in a sandbox and with storage of its own, and lets
-// the runs reach each other.
+// The kernel's process side: it runs the jobs it is handed, each principal in a sandbox and with storage of its own,
+// and lets the runs reach each other.
 public final class Deck {
     // MARK: - Property
     public let records: Record
-    // What the layers on deck keep for each mod, each under a name it reserves.
-    public let modState: ModState
+    // What the layers on deck keep for each principal, each under a name it reserves.
+    public let principalState: PrincipalState
     public let dataFolder: DataFolder
-    public let storage: ModStorage
+    public let storage: PrincipalStorage
     public let erasure: Erasure
     public let owners: OwnerTable
     public let connections: ConnectionBroker
@@ -31,12 +31,20 @@ public final class Deck {
         let settings = DeckSettings(file: home.appending(path: "deck.json"), store: store)
         let record = Record(folder: home.appending(path: "records", directoryHint: .isDirectory), store: store)
         let dataFolder = DataFolder(folder: home.appending(path: "data", directoryHint: .isDirectory), store: store)
-        let modState = ModState(root: home.appending(path: "mod-state", directoryHint: .isDirectory), store: store)
-        let storage = ModStorage(dataFolder: dataFolder, record: record, modState: modState, store: store)
+        let principalState = PrincipalState(
+            root: home.appending(path: "principal-state", directoryHint: .isDirectory),
+            store: store
+        )
+        let storage = PrincipalStorage(
+            dataFolder: dataFolder,
+            record: record,
+            principalState: principalState,
+            store: store
+        )
         let owners = OwnerTable(store: OwnershipStore(settings: settings))
         let runner = Runner()
         self.records = record
-        self.modState = modState
+        self.principalState = principalState
         self.dataFolder = dataFolder
         self.storage = storage
         self.erasure = Erasure(storage: storage, settings: settings, store: store)
@@ -47,12 +55,12 @@ public final class Deck {
     }
 
     // MARK: - Public
-    // The job the mod's sandbox runs, while it has one.
+    // The job the principal's sandbox runs, while it has one.
     public func job(of id: String) -> Job? {
         runner.job(of: id)
     }
 
-    // The mod's latest run, while it has a sandbox.
+    // The principal's latest run, while it has a sandbox.
     public func run(of id: String) -> Run? {
         runner.run(of: id)
     }
@@ -101,21 +109,21 @@ public final class Deck {
 
     // The `lifecycle`th lifecycle of the `run`th run of `id` has ended: the connections it is an end of end.
     public func ended(_ id: String, run: Int, lifecycle: Int) -> [Effect] {
-        connections.end(mod: id, run: run, lifecycle: lifecycle)
+        connections.end(principal: id, run: run, lifecycle: lifecycle)
         return withChanges([])
     }
 
-    // The `lifecycle`th lifecycle of the `run`th run of `id`, up, asks to reach the mod of `target` by its id, until it
-    // releases it or ends: it connects once that mod runs and opened its exports for those that reach it by id, and is
-    // told it waits while that mod does not run. Refused for an id its job may not reach, or its own.
+    // The `lifecycle`th lifecycle of the `run`th run of `id`, up, asks to reach `target` by its id, until it releases
+    // it or ends: it connects once that principal runs and opened its exports for those that reach it by id, and is
+    // told it waits while that principal does not run. Refused for an id its job may not reach, or its own.
     public func reach(_ target: String, from id: String, run: Int, lifecycle: Int) throws -> [Effect] {
-        try connections.reach(target, from: Endpoint(modId: id, run: run, lifecycle: lifecycle))
+        try connections.reach(target, from: Endpoint(principal: id, run: run, lifecycle: lifecycle))
         return withChanges([])
     }
 
-    // The lifecycle lets the mod of `target` go: its connection by the id ends.
+    // The lifecycle lets `target` go: its connection by the id ends.
     public func release(_ target: String, from id: String, run: Int, lifecycle: Int) -> [Effect] {
-        connections.release(target, from: Endpoint(modId: id, run: run, lifecycle: lifecycle))
+        connections.release(target, from: Endpoint(principal: id, run: run, lifecycle: lifecycle))
         return withChanges([])
     }
 
@@ -130,19 +138,19 @@ public final class Deck {
         }
         for job in runner.jobs() {
             let names = [id] + job.uses.keys
-            guard names.contains(where: { name in connections.provider(of: name, for: job.modId) == id }),
-                let client = runner.run(of: job.modId)
+            guard names.contains(where: { name in connections.provider(of: name, for: job.principal) == id }),
+                let client = runner.run(of: job.principal)
             else { continue }
             for problem in connections.problems(of: client) {
-                effects += try runner.report(job.modId, run: client.number, problem: problem)
+                effects += try runner.report(job.principal, run: client.number, problem: problem)
             }
         }
         return withChanges(effects)
     }
 
-    // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, then
-    // `<interface>:owner-changed`, of no args, to those that listen for each interface whose owner changed since they
-    // were last told.
+    // What the runs moving to `effects` come to besides: what each is told has changed of what other principals give
+    // it, then `<interface>:owner-changed`, of no args, to those that listen for each interface whose owner changed
+    // since they were last told.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
         events.dropEnded()
         let owners = owners.ownership.owners()

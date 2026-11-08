@@ -1,5 +1,5 @@
 //
-//  ModStorageError.swift
+//  PrincipalStorageError.swift
 //  Deck
 //
 //  Created by JSilver on 10/21/26.
@@ -7,14 +7,14 @@
 
 import Foundation
 
-public enum ModStorageError: Refusal, Equatable {
-    case notAMod(String)
+public enum PrincipalStorageError: Refusal, Equatable {
+    case notAPrincipal(String)
 
     // MARK: - Property
     public var message: String {
         switch self {
-        case let .notAMod(mod):
-            "not a mod id: \(mod)"
+        case let .notAPrincipal(principal):
+            "not an id: \(principal)"
         }
     }
 

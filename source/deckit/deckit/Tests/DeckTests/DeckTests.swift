@@ -27,8 +27,8 @@ struct DeckTests {
         let d = Job.fixture("d")
         sut.owners.provide([b, c, a, d], keeping: [])
         let started = try start(b, exportedIn: ["x/api": 0]) + start(c, exportedIn: ["x/api": 0]) + start(d) + start(a)
-        sut.events.listen(mod: "a", run: 1, names: ["x/api:owner-changed"])
-        sut.events.listen(mod: "d", run: 1, names: ["x/api:other"])
+        sut.events.listen(principal: "a", run: 1, names: ["x/api:owner-changed"])
+        sut.events.listen(principal: "d", run: 1, names: ["x/api:other"])
 
         // When
         try sut.owners.pin("x/api", to: "c")
@@ -56,7 +56,7 @@ struct DeckTests {
         )
     }
 
-    @Test("a lifecycle that asks to reach a mod by id is told it waits, then connects as the mod runs, until released")
+    @Test("a lifecycle asking to reach a principal by id is told it waits, then connects as it runs, until released")
     func reachIsAnswered() throws {
         // Given
         _ = try start(.fixture("a", reaches: .only(["dep"])))
@@ -77,9 +77,9 @@ struct DeckTests {
     // lifecycle given. Answers the effects of its load and its start.
     private func start(_ job: Job, exportedIn: [String: Int] = [:]) throws -> [Effect] {
         let loaded = try sut.load([job])
-        _ = try sut.connections.begin(mod: job.modId, run: 1, lifecycle: 0)
+        _ = try sut.connections.begin(principal: job.principal, run: 1, lifecycle: 0)
         let contributions = Contribution(exportedIn: exportedIn, awaits: [:])
-        let started = try sut.started(job.modId, run: 1, contributions: contributions)
+        let started = try sut.started(job.principal, run: 1, contributions: contributions)
 
         return loaded + started
     }

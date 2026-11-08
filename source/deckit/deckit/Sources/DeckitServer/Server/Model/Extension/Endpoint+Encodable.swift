@@ -22,7 +22,7 @@ extension Endpoint: Encodable {
     // MARK: - Public
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(modId, forKey: .mod)
+        try container.encode(principal, forKey: .mod)
         try container.encode(run, forKey: .run)
         try container.encode(lifecycle, forKey: .lifecycle)
     }

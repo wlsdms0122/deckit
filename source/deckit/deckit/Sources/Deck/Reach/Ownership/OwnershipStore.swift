@@ -7,8 +7,8 @@
 
 import Foundation
 
-// The ownership of the interfaces as it is kept: in `deck.json`, `providers`, interface -> the ids of the mods that
-// provide it, the earliest first, and `pins`, interface -> the id of the provider the person pinned.
+// The ownership of the interfaces as it is kept: in `deck.json`, `providers`, interface -> the ids of the principals
+// that provide it, the earliest first, and `pins`, interface -> the id of the provider pinned.
 final class OwnershipStore {
     // MARK: - Property
     private let providersKey = "providers"

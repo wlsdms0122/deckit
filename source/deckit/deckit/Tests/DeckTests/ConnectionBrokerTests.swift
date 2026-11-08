@@ -32,9 +32,9 @@ struct ConnectionBrokerTests {
         _ = try runner.load([a])
 
         // When
-        let first = try sut.begin(mod: "a", run: 1, lifecycle: 0)
+        let first = try sut.begin(principal: "a", run: 1, lifecycle: 0)
         _ = try runner.started("a", run: 1)
-        let second = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+        let second = try sut.begin(principal: "a", run: 1, lifecycle: 1)
         let reached = try sut.route(from: "a", run: 1, connection: 1)
         let back = try sut.route(from: "dep", run: 1, connection: 1)
         let stranger = Result { try sut.route(from: "b", run: 1, connection: 1) }
@@ -43,14 +43,14 @@ struct ConnectionBrokerTests {
         // Then
         #expect(first.map(\.line) == ["1 a#1@0 -> dep#1@0"])
         #expect(second.map(\.line) == ["2 a#1@1 -> dep#1@0"])
-        #expect(reached == Endpoint(modId: "dep", run: 1, lifecycle: 0))
-        #expect(back == Endpoint(modId: "a", run: 1, lifecycle: 0))
-        #expect(throws: ConnectionError.notAnEnd(mod: "b")) { try stranger.get() }
+        #expect(reached == Endpoint(principal: "dep", run: 1, lifecycle: 0))
+        #expect(back == Endpoint(principal: "a", run: 1, lifecycle: 0))
+        #expect(throws: ConnectionError.notAnEnd(principal: "b")) { try stranger.get() }
         #expect(throws: ConnectionError.ended) { try none.get() }
         #expect(sut.changes().isEmpty)
     }
 
-    @Test("a connection tells its service the client's mod id and the ids of the permissions granted to its job")
+    @Test("a connection tells its service the client's principal and the ids of the permissions granted to its job")
     func connectionCarriesTheClientsCredential() throws {
         // Given
         let dep = Job.fixture("dep", permissions: ["dep.secret"], provides: ["dep/api": [1]])
@@ -61,10 +61,10 @@ struct ConnectionBrokerTests {
         _ = try runner.load([a])
 
         // When
-        let connected = try sut.begin(mod: "a", run: 1, lifecycle: 0)
+        let connected = try sut.begin(principal: "a", run: 1, lifecycle: 0)
 
         // Then
-        #expect(connected.map(\.credential) == [Credential(modId: "a", permissions: ["a.files", "a.network"])])
+        #expect(connected.map(\.credential) == [Credential(principal: "a", permissions: ["a.files", "a.network"])])
     }
 
     @Test("exports opened in a lifecycle reach it and those above, and a user of the major the owner provides connects")
@@ -75,15 +75,15 @@ struct ConnectionBrokerTests {
         owners.provide(jobs, keeping: [])
         for job in jobs.dropFirst() {
             try start(job)
-            _ = try sut.begin(mod: job.modId, run: 1, lifecycle: 1)
+            _ = try sut.begin(principal: job.principal, run: 1, lifecycle: 1)
         }
         _ = try runner.load([dep])
-        _ = try sut.begin(mod: "dep", run: 1, lifecycle: 0)
+        _ = try sut.begin(principal: "dep", run: 1, lifecycle: 0)
         _ = try runner.started("dep", run: 1)
 
         // When
         let before = sut.changes()
-        _ = try sut.begin(mod: "dep", run: 1, lifecycle: 1)
+        _ = try sut.begin(principal: "dep", run: 1, lifecycle: 1)
         _ = try runner.joined("dep", run: 1, contributions: Contribution(exportedIn: ["dep/api": 1], awaits: [:]))
         let after = sut.changes()
 
@@ -92,7 +92,7 @@ struct ConnectionBrokerTests {
         #expect(after.map(\.line) == ["connect 1 a#1@1 -> dep#1@1"])
     }
 
-    @Test("a mod reached by id connects by the exports it opened for its id, not those of an interface it provides")
+    @Test("one reached by id connects by the exports it opened for its id, not those of an interface it provides")
     func idReachConnectsByTheIdsExports() throws {
         // Given
         let dep = Job.fixture("dep", provides: ["dep/api": [1]])
@@ -101,7 +101,7 @@ struct ConnectionBrokerTests {
         try start(.fixture("a", reaches: .only(["dep"])))
 
         // When
-        try sut.reach("dep", from: Endpoint(modId: "a", run: 1, lifecycle: 0))
+        try sut.reach("dep", from: Endpoint(principal: "a", run: 1, lifecycle: 0))
         let interfaceOnly = sut.changes()
         _ = try runner.joined("dep", run: 1, contributions: Contribution(exportedIn: ["dep": 0], awaits: [:]))
         let opened = sut.changes()
@@ -111,7 +111,7 @@ struct ConnectionBrokerTests {
         #expect(opened.map(\.line) == ["connect 1 a#1@0 -> dep#1@0"])
     }
 
-    @Test("a mod that owns an interface it uses reaches no one by it")
+    @Test("a principal that owns an interface it uses reaches no one by it")
     func ownerUsingItsInterfaceReachesNoOne() throws {
         // Given
         let a = Job.fixture("a", uses: ["x/api": 1], provides: ["x/api": [1]])
@@ -127,7 +127,7 @@ struct ConnectionBrokerTests {
         #expect(sut.provider(of: "x/api", for: "a") == nil)
     }
 
-    @Test("a connection ends with either lifecycle, and only once, and one left reaching a mod that ended waits")
+    @Test("a connection ends with either lifecycle, and only once, and one left reaching a principal that ended waits")
     func connectionEndsWithEitherLifecycle() throws {
         // Given
         let jobs = [
@@ -143,7 +143,7 @@ struct ConnectionBrokerTests {
         _ = sut.changes()
 
         // When
-        sut.end(mod: "a", run: 1, lifecycle: 0)
+        sut.end(principal: "a", run: 1, lifecycle: 0)
         let aEnded = sut.changes()
         _ = try runner.crashed("dep", run: 1, problem: "gone")
         let depCrashed = sut.changes()
@@ -166,7 +166,7 @@ struct ConnectionBrokerTests {
         // When
         let first = sut.changes()
         let second = sut.changes()
-        _ = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+        _ = try sut.begin(principal: "a", run: 1, lifecycle: 1)
         let above = sut.changes()
         let launched = runner.run(of: "o")
         try start(o, exportedIn: ["x/api": 0])
@@ -180,29 +180,29 @@ struct ConnectionBrokerTests {
         #expect(connected.map(\.line) == ["connect 1 a#1@0 -> o#1@0", "connect 2 a#1@1 -> o#1@0"])
     }
 
-    @Test("a lifecycle that asks to reach a running mod by id connects to it, and one that does not ask reaches none")
+    @Test("a lifecycle asking to reach a running principal by id connects to it, and one not asking reaches none")
     func askToARunningModConnects() throws {
         // Given
         try start(.fixture("dep"), exportedIn: ["dep": 0])
         try start(.fixture("a", reaches: .only(["dep"])))
-        _ = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+        _ = try sut.begin(principal: "a", run: 1, lifecycle: 1)
         let unasked = sut.changes()
 
         // When
-        try sut.reach("dep", from: Endpoint(modId: "a", run: 1, lifecycle: 1))
+        try sut.reach("dep", from: Endpoint(principal: "a", run: 1, lifecycle: 1))
         let asked = sut.changes()
         let reached = try sut.route(from: "a", run: 1, connection: 1)
 
         // Then
         #expect(unasked.isEmpty)
         #expect(asked.map(\.line) == ["connect 1 a#1@1 -> dep#1@0"])
-        #expect(reached == Endpoint(modId: "dep", run: 1, lifecycle: 0))
+        #expect(reached == Endpoint(principal: "dep", run: 1, lifecycle: 0))
     }
 
-    @Test("an ask to reach a mod that does not run is told it waits once, none launched, and connects once it runs")
+    @Test("an ask to reach a principal not running is told it waits once, none launched, and connects once it runs")
     func askToAModNotRunningWaits() throws {
         // Given
-        let client = Endpoint(modId: "a", run: 1, lifecycle: 0)
+        let client = Endpoint(principal: "a", run: 1, lifecycle: 0)
         try start(.fixture("a", reaches: .only(["dep"])))
 
         // When
@@ -224,11 +224,11 @@ struct ConnectionBrokerTests {
     @Test("a connection by id ends as its client releases the id or its lifecycle ends, and the ask goes with it")
     func releaseEndsTheConnection() throws {
         // Given
-        let lower = Endpoint(modId: "a", run: 1, lifecycle: 0)
-        let upper = Endpoint(modId: "a", run: 1, lifecycle: 1)
+        let lower = Endpoint(principal: "a", run: 1, lifecycle: 0)
+        let upper = Endpoint(principal: "a", run: 1, lifecycle: 1)
         try start(.fixture("dep"), exportedIn: ["dep": 0])
         try start(.fixture("a", reaches: .only(["dep"])))
-        _ = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+        _ = try sut.begin(principal: "a", run: 1, lifecycle: 1)
         try sut.reach("dep", from: lower)
         try sut.reach("dep", from: upper)
         let connected = sut.changes()
@@ -236,9 +236,9 @@ struct ConnectionBrokerTests {
         // When
         sut.release("dep", from: lower)
         let released = sut.changes()
-        sut.end(mod: "a", run: 1, lifecycle: 1)
+        sut.end(principal: "a", run: 1, lifecycle: 1)
         let ended = sut.changes()
-        let begunAgain = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+        let begunAgain = try sut.begin(principal: "a", run: 1, lifecycle: 1)
 
         // Then
         #expect(connected.map(\.line) == ["connect 1 a#1@0 -> dep#1@0", "connect 2 a#1@1 -> dep#1@0"])
@@ -255,23 +255,23 @@ struct ConnectionBrokerTests {
         try start(.fixture("e", reaches: .every))
 
         // When
-        let outside = Result { try sut.reach("b", from: Endpoint(modId: "a", run: 1, lifecycle: 0)) }
-        let own = Result { try sut.reach("e", from: Endpoint(modId: "e", run: 1, lifecycle: 0)) }
-        let notUp = Result { try sut.reach("dep", from: Endpoint(modId: "a", run: 1, lifecycle: 1)) }
-        let notRunning = Result { try sut.reach("dep", from: Endpoint(modId: "x", run: 1, lifecycle: 0)) }
+        let outside = Result { try sut.reach("b", from: Endpoint(principal: "a", run: 1, lifecycle: 0)) }
+        let own = Result { try sut.reach("e", from: Endpoint(principal: "e", run: 1, lifecycle: 0)) }
+        let notUp = Result { try sut.reach("dep", from: Endpoint(principal: "a", run: 1, lifecycle: 1)) }
+        let notRunning = Result { try sut.reach("dep", from: Endpoint(principal: "x", run: 1, lifecycle: 0)) }
 
         // Then
-        #expect(throws: ConnectionError.outOfReach(mod: "b", client: "a")) { try outside.get() }
-        #expect(throws: ConnectionError.outOfReach(mod: "e", client: "e")) { try own.get() }
-        #expect(throws: ConnectionError.notUp(Endpoint(modId: "a", run: 1, lifecycle: 1))) { try notUp.get() }
+        #expect(throws: ConnectionError.outOfReach(principal: "b", client: "a")) { try outside.get() }
+        #expect(throws: ConnectionError.outOfReach(principal: "e", client: "e")) { try own.get() }
+        #expect(throws: ConnectionError.notUp(Endpoint(principal: "a", run: 1, lifecycle: 1))) { try notUp.get() }
         #expect(throws: ConnectionError.notRunning("x")) { try notRunning.get() }
         #expect(sut.changes().isEmpty)
     }
 
-    @Test("a job that reaches every mod connects to any mod it asks for by id")
+    @Test("a job that reaches every principal connects to any principal it asks for by id")
     func everyModReachConnectsToAnyAsked() throws {
         // Given
-        let client = Endpoint(modId: "e", run: 1, lifecycle: 0)
+        let client = Endpoint(principal: "e", run: 1, lifecycle: 0)
         try start(.fixture("b"), exportedIn: ["b": 0])
         try start(.fixture("c"), exportedIn: ["c": 0])
         try start(.fixture("e", reaches: .every))
@@ -351,7 +351,7 @@ struct ConnectionBrokerTests {
             try start(job, exportedIn: ["x/api": 0])
         }
         _ = try runner.load([a])
-        let connected = try sut.begin(mod: "a", run: 1, lifecycle: 0)
+        let connected = try sut.begin(principal: "a", run: 1, lifecycle: 0)
         _ = try runner.started("a", run: 1)
 
         // When
@@ -371,7 +371,7 @@ struct ConnectionBrokerTests {
         #expect(again.isEmpty)
     }
 
-    @Test("an owner that does not provide the major a mod uses is as none to it, and another owner that does connects")
+    @Test("an owner not providing the major a principal uses is as none to it, and another owner that does connects")
     func ownerOfAnotherMajorDoesNotConnect() throws {
         // Given
         let b = Job.fixture("b", provides: ["x/api": [2]])
@@ -397,7 +397,7 @@ struct ConnectionBrokerTests {
     // lifecycle given.
     private func start(_ job: Job, exportedIn: [String: Int] = [:], run: Int = 1) throws {
         _ = try runner.load([job])
-        _ = try sut.begin(mod: job.modId, run: run, lifecycle: 0)
-        _ = try runner.started(job.modId, run: run, exportedIn: exportedIn)
+        _ = try sut.begin(principal: job.principal, run: run, lifecycle: 0)
+        _ = try runner.started(job.principal, run: run, exportedIn: exportedIn)
     }
 }

@@ -641,8 +641,8 @@ struct CatalogTests {
         let b = InterfaceProvider(id: "b", name: "b", majors: [2], pinnable: true)
         #expect(unread == [InterfaceQueue(interface: "x/api", name: nil, owner: "a", pinned: false, providers: [a, b])])
         #expect(pinned == [InterfaceQueue(interface: "x/api", name: nil, owner: "b", pinned: true, providers: [a, b])])
-        #expect(throws: PinError.notProvider(interface: "x/api", mod: "c")) { try notProvider.get() }
-        #expect(throws: PinError.notProvider(interface: "y/api", mod: "a")) { try noInterface.get() }
+        #expect(throws: PinError.notProvider(interface: "x/api", principal: "c")) { try notProvider.get() }
+        #expect(throws: PinError.notProvider(interface: "y/api", principal: "a")) { try noInterface.get() }
         #expect(cleared == unread)
         #expect(left == [InterfaceQueue(interface: "x/api", name: nil, owner: "a", pinned: false, providers: [a])])
         #expect(kept == .object(["providers": .object(["x/api": .array([.string("a")])]), "pins": .object([:])]))
@@ -670,8 +670,8 @@ struct CatalogTests {
 
         // Then
         #expect(pinnable.map(\.0) == ["a", "b", "c"] && pinnable.map(\.1) == [true, false, false])
-        #expect(throws: PinError.notProvider(interface: "x/api", mod: "c")) { try other.get() }
-        #expect(throws: PinError.notProvider(interface: "x/api", mod: "b")) { try again.get() }
+        #expect(throws: PinError.notProvider(interface: "x/api", principal: "c")) { try other.get() }
+        #expect(throws: PinError.notProvider(interface: "x/api", principal: "b")) { try again.get() }
         #expect(owner.map(\.0) == ["b"] && owner.map(\.1) == [true])
     }
 

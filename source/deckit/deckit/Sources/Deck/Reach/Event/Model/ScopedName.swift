@@ -7,27 +7,27 @@
 
 import Foundation
 
-// A name scoped by the mod that owns it, as another mod names it: `<mod id>:<name>`. An event and an extension point
-// are named so. A mod id holds no colon, so the first one ends it.
+// A name scoped by the principal that owns it, as another principal names it: `<principal>:<name>`. An event and an
+// extension point are named so. A principal holds no colon, so the first one ends it.
 package struct ScopedName: Hashable, Sendable {
     // MARK: - Property
-    package let modId: String
+    package let principal: String
     package let name: String
 
     // MARK: - Initializer
-    package init(modId: String, name: String) {
-        self.modId = modId
+    package init(principal: String, name: String) {
+        self.principal = principal
         self.name = name
     }
 
-    // Nil for what names no mod, or no name of one.
+    // Nil for what names no principal, or no name of one.
     package init?(_ written: String) {
         guard let colon = written.firstIndex(of: ":"),
             colon != written.startIndex,
             written.index(after: colon) != written.endIndex
         else { return nil }
 
-        self.modId = String(written[..<colon])
+        self.principal = String(written[..<colon])
         self.name = String(written[written.index(after: colon)...])
     }
 

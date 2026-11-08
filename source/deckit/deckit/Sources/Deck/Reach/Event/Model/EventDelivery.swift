@@ -7,7 +7,7 @@
 
 import Foundation
 
-// An event as its listeners hear it: its scoped name, and the mods whose runs listen to it.
+// An event as its listeners hear it: its scoped name, and the principals whose runs listen to it.
 public struct EventDelivery: Equatable, Sendable {
     // MARK: - Property
     public let name: String

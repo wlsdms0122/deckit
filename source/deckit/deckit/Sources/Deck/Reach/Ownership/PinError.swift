@@ -7,16 +7,16 @@
 
 import Foundation
 
-// Why a mod is not pinned as an interface's owner.
+// Why a principal is not pinned as an interface's owner.
 public enum PinError: Refusal, Equatable {
-    // A mod that does not provide the interface.
-    case notProvider(interface: String, mod: String)
+    // A principal that does not provide the interface.
+    case notProvider(interface: String, principal: String)
 
     // MARK: - Property
     public var message: String {
         switch self {
-        case let .notProvider(interface, mod):
-            "\(mod) does not provide \(interface)"
+        case let .notProvider(interface, principal):
+            "\(principal) does not provide \(interface)"
         }
     }
 

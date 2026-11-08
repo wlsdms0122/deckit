@@ -22,7 +22,7 @@ struct DataFolderTests {
     }
 
     // MARK: - Test
-    @Test("count is every file of the mod's folder, its folders' too, and notes the hidden ones")
+    @Test("count is every file of the principal's folder, its folders' too, and notes the hidden ones")
     func countWalksFolders() throws {
         // Given
         let notes = folder.appending(path: "notes")
@@ -32,20 +32,20 @@ struct DataFolderTests {
         try Data().write(to: notes.appending(path: ".c"))
 
         // When
-        let count = sut.count(mod: "notes")
+        let count = sut.count(principal: "notes")
 
         // Then
         #expect(count == DataCount(count: 2, capped: false, hidden: true))
     }
 
-    @Test("erasing takes the mod's folder")
+    @Test("erasing takes the principal's folder")
     func eraseTakesFolder() throws {
         // Given
         let notes = folder.appending(path: "notes")
         try FileManager.default.createDirectory(at: notes, withIntermediateDirectories: true)
 
         // When
-        try sut.erase(mod: "notes")
+        try sut.erase(principal: "notes")
 
         // Then
         #expect(!FileManager.default.fileExists(atPath: notes.path(percentEncoded: false)))

@@ -32,7 +32,7 @@ struct HostTests {
         #expect(mods.map(\.manifest.name) == ["A"])
         #expect(effects.contains { effect in
             guard case let .open(job) = effect else { return false }
-            return job.modId == "a"
+            return job.principal == "a"
         })
     }
 

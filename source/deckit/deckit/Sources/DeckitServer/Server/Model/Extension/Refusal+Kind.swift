@@ -16,7 +16,7 @@ extension Refusal {
         switch self {
         case let error as ErasureError:
             switch error {
-            case .notAMod:
+            case .notAPrincipal:
                 "MOD"
             }
 
@@ -107,9 +107,9 @@ extension Refusal {
                 "FIELD"
             }
 
-        case let error as ModStorageError:
+        case let error as PrincipalStorageError:
             switch error {
-            case .notAMod:
+            case .notAPrincipal:
                 "MOD"
             }
 
@@ -119,7 +119,7 @@ extension Refusal {
                 "KEY"
             }
 
-        case let error as ModStateError:
+        case let error as PrincipalStateError:
             switch error {
             case .notAName:
                 "NAME"

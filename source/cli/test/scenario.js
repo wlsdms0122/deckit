@@ -74,7 +74,7 @@ function seed({ data, files }) {
     );
     for (const kept of [
         ['records', REMOVED, 'tabs.json'],
-        ['mod-state', 'configuration', `${REMOVED}.json`],
+        ['principal-state', 'configuration', `${REMOVED}.json`],
         ['data', REMOVED, 'a.txt'],
     ]) {
         fs.mkdirSync(path.dirname(path.join(data, 'deckit', ...kept)), { recursive: true });
@@ -463,7 +463,7 @@ async function run({
         const notesMade = await until(() => fs.existsSync(notesKept), 3000);
         check("a main process module keeps what it keeps in its mod's data folder", notesMade, notesKept);
         const left = () =>
-            [`records/${REMOVED}`, `data/${REMOVED}`, `mod-state/configuration/${REMOVED}.json`].filter((kept) =>
+            [`records/${REMOVED}`, `data/${REMOVED}`, `principal-state/configuration/${REMOVED}.json`].filter((kept) =>
                 fs.existsSync(path.join(home, kept))
             );
         const uncleared = () => fs.readFileSync(path.join(home, 'state', 'uncleared.json'), 'utf8');
@@ -647,7 +647,7 @@ async function run({
             after !== before && !(await settingsOverlay.evaluate(menus)),
             `${before} -> ${after}`
         );
-        const configurationFolder = path.join(home, 'mod-state', 'configuration');
+        const configurationFolder = path.join(home, 'principal-state', 'configuration');
         const configurationKept = await until(
             () => fs.existsSync(configurationFolder) && fs.readdirSync(configurationFolder).length,
             2000
@@ -749,8 +749,8 @@ async function run({
         const told = [
             counted(filesIn(path.join(home, 'data', 'editor')), 'data file'),
             counted(filesIn(path.join(home, 'records', 'editor')), 'record'),
-            ...(fs.existsSync(path.join(home, 'mod-state')) ? fs.readdirSync(path.join(home, 'mod-state')) : [])
-                .filter((name) => fs.existsSync(path.join(home, 'mod-state', name, 'editor.json')))
+            ...(fs.existsSync(path.join(home, 'principal-state')) ? fs.readdirSync(path.join(home, 'principal-state')) : [])
+                .filter((name) => fs.existsSync(path.join(home, 'principal-state', name, 'editor.json')))
                 .sort(),
         ].filter(Boolean);
         check(

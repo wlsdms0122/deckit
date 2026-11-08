@@ -172,16 +172,16 @@ public final class Deckit {
     // timed out, it did not launch. Nil while it has not ended, and for one that ended otherwise.
     public func refusal(of run: Run) -> LaunchError? {
         guard run.state == .notRunning, let entry = runs.entry(of: run) else { return nil }
-        if limit.isReached(by: run.modId) {
-            return .relaunchLimit(run.modId)
+        if limit.isReached(by: run.principal) {
+            return .relaunchLimit(run.principal)
         }
         let problem = run.problem ?? ""
         if entry.timedOut {
-            return .timedOut(mod: run.modId, problem: problem)
+            return .timedOut(mod: run.principal, problem: problem)
         }
         guard run.failed, run.contributions == nil else { return nil }
 
-        return .notLaunched(mod: run.modId, problem: problem)
+        return .notLaunched(mod: run.principal, problem: problem)
     }
 
     public func crashed(_ id: String, run: Int, problem: String) throws -> [Effect] {
@@ -250,13 +250,13 @@ public final class Deckit {
 
                 case let .tell(_, run) where run.state == .notRunning:
                     if run.failed {
-                        limit.fail(run.modId, at: now())
+                        limit.fail(run.principal, at: now())
                     }
-                    if run.failed, isBackground(run.modId) {
-                        launching.append(run.modId)
+                    if run.failed, isBackground(run.principal) {
+                        launching.append(run.principal)
                     }
-                    if isGone(run.modId) {
-                        closing.append(run.modId)
+                    if isGone(run.principal) {
+                        closing.append(run.principal)
                     }
 
                 case let .wait(_, _, service):

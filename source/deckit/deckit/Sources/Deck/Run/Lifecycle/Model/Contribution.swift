@@ -14,7 +14,7 @@ public struct Contribution: Sendable {
     // An interface it provides, or its own id for those that reach it by id -> the lifecycle that opened its exports
     // for it.
     public let exportedIn: [String: Int]
-    // A name its job reaches by, a mod id or an interface -> the lowest lifecycle that waits for the exports it
+    // A name its job reaches by, a principal or an interface -> the lowest lifecycle that waits for the exports it
     // reaches by it to connect.
     public let awaits: [String: Int]
 

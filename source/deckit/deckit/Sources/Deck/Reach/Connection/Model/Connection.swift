@@ -7,13 +7,13 @@
 
 import Foundation
 
-// A lifecycle of a mod and the exports another mod opened for a name the first reaches by, a mod id or an interface, joined
-// from when both are up until either ends. What crosses it, values and the functions each end hands the other, is the
-// two pages'. The service end is told who the client is, its peer credential.
+// A lifecycle of a principal and the exports another principal opened for a name the first reaches by, a principal or
+// an interface, joined from when both are up until either ends. What crosses it, values and the functions each end
+// hands the other, is the two pages'. The service end is told who the client is, its peer credential.
 public struct Connection: Equatable, Sendable {
     // MARK: - Property
     public let id: Int
-    // The mod id or the interface the client reaches the exports by.
+    // The principal or the interface the client reaches the exports by.
     public let name: String
     // The lifecycle that reaches the exports.
     public let client: Endpoint

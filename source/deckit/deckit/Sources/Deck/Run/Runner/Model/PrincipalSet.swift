@@ -1,5 +1,5 @@
 //
-//  ModSet.swift
+//  PrincipalSet.swift
 //  Deck
 //
 //  Created by JSilver on 11/7/26.
@@ -7,8 +7,8 @@
 
 import Foundation
 
-// Mods named by id: those listed, or every mod.
-public enum ModSet: Equatable, Sendable {
+// Principals named by id: those listed, or every principal.
+public enum PrincipalSet: Equatable, Sendable {
     case only([String])
     case every
 

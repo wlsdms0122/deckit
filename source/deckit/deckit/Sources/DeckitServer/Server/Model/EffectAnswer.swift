@@ -22,7 +22,7 @@ struct EffectAnswer {
         self.effect = effect
         switch effect {
         case let .open(job):
-            found = deckit.catalog.loading.first { mod in mod.manifest.id == job.modId }
+            found = deckit.catalog.loading.first { mod in mod.manifest.id == job.principal }
             refusal = nil
 
         case let .tell(_, run), let .keep(run):

@@ -10,27 +10,27 @@ import Foundation
 public enum ConnectionError: Refusal, Equatable {
     case notRunning(String)
     case ended
-    case notAnEnd(mod: String)
+    case notAnEnd(principal: String)
     case notUp(Endpoint)
-    case outOfReach(mod: String, client: String)
+    case outOfReach(principal: String, client: String)
 
     // MARK: - Property
     public var message: String {
         switch self {
-        case let .notRunning(mod):
-            "\(mod) is not running"
+        case let .notRunning(principal):
+            "\(principal) is not running"
 
         case .ended:
-            "the mod on the other end has ended"
+            "the other end has ended"
 
-        case let .notAnEnd(mod):
-            "\(mod) is not an end of that connection"
+        case let .notAnEnd(principal):
+            "\(principal) is not an end of that connection"
 
         case let .notUp(endpoint):
-            "lifecycle \(endpoint.lifecycle) of run \(endpoint.run) of \(endpoint.modId) is not up"
+            "lifecycle \(endpoint.lifecycle) of run \(endpoint.run) of \(endpoint.principal) is not up"
 
-        case let .outOfReach(mod, client):
-            "\(client) may not reach \(mod) by id"
+        case let .outOfReach(principal, client):
+            "\(client) may not reach \(principal) by id"
         }
     }
 

@@ -17,14 +17,14 @@ extension Job {
         _ id: String,
         revision: String = "1",
         permissions: [String] = [],
-        reaches: ModSet = .only([]),
+        reaches: PrincipalSet = .only([]),
         uses: [String: Int] = [:],
         provides: [String: [Int]] = [:]
     ) -> Job {
         Job(
-            modId: id,
+            principal: id,
             revision: revision,
-            entry: URL(filePath: "/mods/\(id)/main.js"),
+            entry: URL(filePath: "/principals/\(id)/main.js"),
             permissions: permissions,
             reaches: reaches,
             uses: uses,

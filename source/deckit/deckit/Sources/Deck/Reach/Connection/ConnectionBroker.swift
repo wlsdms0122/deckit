@@ -7,27 +7,28 @@
 
 import Foundation
 
-// A mod reaches another only through a connection, by a name its job reaches by: a lifecycle of its run and the exports
-// another mod opened for that name. By a mod id its `reaches` holds, as the lifecycle asks for it and until it releases
-// it, the exports that mod opened for those that reach it by id; a mod reaches no one by its own id. By an interface in
-// its `uses`, from as the lifecycle begins, the exports the interface's owner opened for it, while the owner provides
-// the major it uses; a mod that owns an interface it uses reaches no one by it. Exports opened in lifecycle g reach the
-// lifecycles stacked at g and above. A connection stands from when both lifecycles are up, the client's run launching
-// or running and the service's running, until either lifecycle ends, the client releases the id or the interface has
-// another owner. A lifecycle is up from when its page begins it until its page says it ended, or its run has ended. A
-// lifecycle that reaches a mod that does not run waits for it, and deck tells so once.
+// A principal reaches another only through a connection, by a name its job reaches by: a lifecycle of its run and the
+// exports another principal opened for that name. By a principal its `reaches` holds, as the lifecycle asks for it and
+// until it releases it, the exports that principal opened for those that reach it by id; a principal reaches no one by
+// its own id. By an interface in its `uses`, from as the lifecycle begins, the exports the interface's owner opened for
+// it, while the owner provides the major it uses; a principal that owns an interface it uses reaches no one by it.
+// Exports opened in lifecycle g reach the lifecycles stacked at g and above. A connection stands from when both
+// lifecycles are up, the client's run launching or running and the service's running, until either lifecycle ends, the
+// client releases the id or the interface has another owner. A lifecycle is up from when its page begins it until its
+// page says it ended, or its run has ended. A lifecycle that reaches a principal that does not run waits for it, and
+// deck tells so once.
 public final class ConnectionBroker {
     // MARK: - Property
     private let runner: Runner
     private let owners: OwnerTable
-    // Mod id -> its run whose lifecycles are up, and those lifecycles.
+    // Principal -> its run whose lifecycles are up, and those lifecycles.
     private var up: [String: (run: Int, lifecycles: Set<Int>)] = [:]
-    // Lifecycle -> the mod ids it asked to reach and has not released, while it is up.
+    // Lifecycle -> the principals it asked to reach and has not released, while it is up.
     private var asked: [Endpoint: Set<String>] = [:]
     private var connections: [Connection] = []
     // The connections a service's page refused, by name and ends, never asked again while both are up.
     private var refused: [(name: String, ends: [Endpoint])] = []
-    // The lifecycles told they wait for a mod that does not run, by name, while they still wait.
+    // The lifecycles told they wait for a principal that does not run, by name, while they still wait.
     private var waiting: [(name: String, client: Endpoint, service: String)] = []
     private var lastId = 0
 
@@ -39,38 +40,38 @@ public final class ConnectionBroker {
 
     // MARK: - Public
     // The `lifecycle`th lifecycle of the run begins: answers the connections it has from now on.
-    public func begin(mod id: String, run number: Int, lifecycle: Int) throws(ConnectionError) -> [Connection] {
+    public func begin(principal id: String, run number: Int, lifecycle: Int) throws(ConnectionError) -> [Connection] {
         guard let run = runner.run(of: id), run.number == number, run.state == .launching || run.state == .running
         else { throw .notRunning(id) }
 
         let lifecycles = up[id].flatMap { up in up.run == number ? up.lifecycles : nil } ?? []
         up[id] = (number, lifecycles.union([lifecycle]))
 
-        return open(for: Endpoint(modId: id, run: number, lifecycle: lifecycle))
+        return open(for: Endpoint(principal: id, run: number, lifecycle: lifecycle))
     }
 
     // The `lifecycle`th lifecycle of the run has ended.
-    func end(mod id: String, run number: Int, lifecycle: Int) {
+    func end(principal id: String, run number: Int, lifecycle: Int) {
         guard let up = up[id], up.run == number else { return }
         self.up[id] = (number, up.lifecycles.subtracting([lifecycle]))
-        asked[Endpoint(modId: id, run: number, lifecycle: lifecycle)] = nil
+        asked[Endpoint(principal: id, run: number, lifecycle: lifecycle)] = nil
     }
 
-    // The client lifecycle, up, asks to reach the mod of `id` by its id, until it releases it or ends.
+    // The client lifecycle, up, asks to reach `id` by its id, until it releases it or ends.
     func reach(_ id: String, from client: Endpoint) throws(ConnectionError) {
-        guard let run = runner.run(of: client.modId),
+        guard let run = runner.run(of: client.principal),
             run.number == client.run,
             run.state == .launching || run.state == .running
-        else { throw .notRunning(client.modId) }
+        else { throw .notRunning(client.principal) }
         guard isUp(client) else { throw .notUp(client) }
-        guard let job = runner.job(of: client.modId), mayReach(id, for: job) else {
-            throw .outOfReach(mod: id, client: client.modId)
+        guard let job = runner.job(of: client.principal), mayReach(id, for: job) else {
+            throw .outOfReach(principal: id, client: client.principal)
         }
 
         asked[client, default: []].insert(id)
     }
 
-    // The client lifecycle lets the mod of `id` go: its connection by the id ends.
+    // The client lifecycle lets `id` go: its connection by the id ends.
     func release(_ id: String, from client: Endpoint) {
         asked[client]?.remove(id)
     }
@@ -85,17 +86,17 @@ public final class ConnectionBroker {
     // The other end of the connection, for a message from the `number`th run of `id` on it.
     public func route(from id: String, run number: Int, connection: Int) throws(ConnectionError) -> Endpoint {
         guard let connection = connections.first(where: { other in other.id == connection }) else { throw .ended }
-        if connection.client.modId == id && connection.client.run == number {
+        if connection.client.principal == id && connection.client.run == number {
             return connection.service
         }
-        if connection.service.modId == id && connection.service.run == number {
+        if connection.service.principal == id && connection.service.run == number {
             return connection.client
         }
-        throw .notAnEnd(mod: id)
+        throw .notAnEnd(principal: id)
     }
 
     // The connections that ended since, then those that stand since and were not answered to a beginning lifecycle,
-    // then the lifecycles that began to wait for a mod that does not run. A run that ended has no lifecycle up, a
+    // then the lifecycles that began to wait for a principal that does not run. A run that ended has no lifecycle up, a
     // connection by an id ends as its client releases it, and one to an interface's owner as it has another.
     func changes() -> [Effect] {
         up = up.filter { id, up in
@@ -106,18 +107,18 @@ public final class ConnectionBroker {
             !isUp(connection.client)
                 || !isUp(connection.service)
                 || !names(of: connection.client).contains(connection.name)
-                || provider(of: connection.name, for: connection.client.modId) != connection.service.modId
+                || provider(of: connection.name, for: connection.client.principal) != connection.service.principal
         }
         connections.removeAll { connection in ended.contains(connection) }
         refused = refused.filter { refusal in
             refusal.ends.allSatisfy(isUp)
-                && provider(of: refusal.name, for: refusal.ends[0].modId) == refusal.ends[1].modId
+                && provider(of: refusal.name, for: refusal.ends[0].principal) == refusal.ends[1].principal
         }
         var effects = ended.map(Effect.disconnect)
         var waits: [(name: String, client: Endpoint, service: String)] = []
         for (id, up) in up.sorted(by: { one, other in one.key < other.key }) {
             for lifecycle in up.lifecycles.sorted() {
-                let client = Endpoint(modId: id, run: up.run, lifecycle: lifecycle)
+                let client = Endpoint(principal: id, run: up.run, lifecycle: lifecycle)
                 guard isUp(client) else { continue }
                 effects += open(for: client).map(Effect.connect)
                 waits += self.waits(of: client)
@@ -136,12 +137,12 @@ public final class ConnectionBroker {
     }
 
     // What the run waits for in a lifecycle the exports it waits for do not reach: `awaits` names the lowest lifecycle
-    // that waits for each name, whose exports are those of the mod it reaches by it.
+    // that waits for each name, whose exports are those of the principal it reaches by it.
     func problems(of run: Run) -> [String] {
         guard let awaits = run.contributions?.awaits else { return [] }
 
         return awaits.keys.sorted().compactMap { name in
-            guard let id = provider(of: name, for: run.modId),
+            guard let id = provider(of: name, for: run.principal),
                 let opened = runner.run(of: id)?.contributions?.exportedIn[name],
                 let lifecycle = awaits[name],
                 opened > lifecycle
@@ -150,8 +151,8 @@ public final class ConnectionBroker {
         }
     }
 
-    // The id of the mod the mod of `id` reaches by `name`, or nil: the owner of an interface it uses, the mod an id it
-    // may reach names, but for the mod itself. Nil for a name its job does not reach by.
+    // The principal `id` reaches by `name`, or nil: the owner of an interface it uses, the principal an id it may reach
+    // names, but for the principal itself. Nil for a name its job does not reach by.
     func provider(of name: String, for id: String) -> String? {
         guard let job = runner.job(of: id) else { return nil }
         guard job.uses[name] == nil else {
@@ -162,17 +163,17 @@ public final class ConnectionBroker {
     }
 
     // MARK: - Private
-    // The connections the client lifecycle has but did not have, now made: one for each name it reaches by whose mod
-    // takes it, runs, and opened its exports for the name at the lifecycle or under.
+    // The connections the client lifecycle has but did not have, now made: one for each name it reaches by whose
+    // principal takes it, runs, and opened its exports for the name at the lifecycle or under.
     private func open(for client: Endpoint) -> [Connection] {
-        guard let job = runner.job(of: client.modId),
-            let run = runner.run(of: client.modId),
+        guard let job = runner.job(of: client.principal),
+            let run = runner.run(of: client.principal),
             run.state == .launching || run.state == .running
         else { return [] }
 
         var opened: [Connection] = []
         for name in names(of: client) {
-            guard let id = provider(of: name, for: job.modId),
+            guard let id = provider(of: name, for: job.principal),
                 let other = runner.job(of: id),
                 takes(other, by: name, for: job),
                 let otherRun = runner.run(of: id),
@@ -181,7 +182,7 @@ public final class ConnectionBroker {
                 lifecycle <= client.lifecycle
             else { continue }
 
-            let exports = Endpoint(modId: id, run: otherRun.number, lifecycle: lifecycle)
+            let exports = Endpoint(principal: id, run: otherRun.number, lifecycle: lifecycle)
             let standing = connections.contains { connection in
                 connection.name == name
                     && connection.client == client
@@ -198,7 +199,7 @@ public final class ConnectionBroker {
                 name: name,
                 client: client,
                 service: exports,
-                credential: Credential(modId: job.modId, permissions: job.permissions)
+                credential: Credential(principal: job.principal, permissions: job.permissions)
             )
             connections.append(connection)
             opened.append(connection)
@@ -207,17 +208,17 @@ public final class ConnectionBroker {
         return opened
     }
 
-    // The names the client lifecycle reaches by whose mod does not launch or run, each with that mod's id.
+    // The names the client lifecycle reaches by whose principal does not launch or run, each with that principal.
     private func waits(of client: Endpoint) -> [(name: String, client: Endpoint, service: String)] {
         names(of: client).compactMap { name in
-            guard let id = provider(of: name, for: client.modId) else { return nil }
+            guard let id = provider(of: name, for: client.principal) else { return nil }
             let state = runner.run(of: id)?.state
             guard state != .launching && state != .running else { return nil }
             return (name, client, id)
         }
     }
 
-    // Whether `client` takes `provider` by `name`: any mod it reaches by id, an owner that provides the major it
+    // Whether `client` takes `provider` by `name`: any principal it reaches by id, an owner that provides the major it
     // uses.
     private func takes(_ provider: Job, by name: String, for client: Job) -> Bool {
         guard let major = client.uses[name] else { return true }
@@ -226,18 +227,18 @@ public final class ConnectionBroker {
     }
 
     private func mayReach(_ id: String, for job: Job) -> Bool {
-        job.reaches.contains(id) && id != job.modId
+        job.reaches.contains(id) && id != job.principal
     }
 
     // The ids the client lifecycle asked to reach, and the interfaces its job uses.
     private func names(of client: Endpoint) -> [String] {
-        guard let job = runner.job(of: client.modId) else { return [] }
+        guard let job = runner.job(of: client.principal) else { return [] }
 
         return asked[client, default: []].union(job.uses.keys).sorted()
     }
 
     private func isUp(_ endpoint: Endpoint) -> Bool {
-        guard let up = up[endpoint.modId] else { return false }
+        guard let up = up[endpoint.principal] else { return false }
 
         return up.run == endpoint.run && up.lifecycles.contains(endpoint.lifecycle)
     }

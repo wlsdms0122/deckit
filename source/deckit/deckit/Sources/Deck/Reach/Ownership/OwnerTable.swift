@@ -7,8 +7,8 @@
 
 import Foundation
 
-// The owner of each interface, kept in `deck.json` and fed by the jobs of the mods that provide now, whether they run
-// or not. The connections and the signals follow it as it was last provided or pinned.
+// The owner of each interface, kept in `deck.json` and fed by the jobs of the principals that provide now, whether they
+// run or not. The connections and the signals follow it as it was last provided or pinned.
 public final class OwnerTable {
     // MARK: - Property
     private let store: OwnershipStore
@@ -23,8 +23,8 @@ public final class OwnerTable {
     }
 
     // MARK: - Public
-    // The table as the `jobs` provide now, in the order they join a queue at once, the mods in `kept` keeping the places
-    // they hold, written again when that changed it.
+    // The table as the `jobs` provide now, in the order they join a queue at once, the principals in `kept` keeping the
+    // places they hold, written again when that changed it.
     @discardableResult
     public func provide(_ jobs: [Job], keeping kept: Set<String>) -> Ownership {
         let written = store.read()
@@ -39,8 +39,8 @@ public final class OwnerTable {
     }
 
     // As the person's: `id` owns `interface` from now on, whichever provider is first in its queue, until its pin is
-    // cleared, for nil, or the mod leaves the queue. Refused for a mod that did not provide it as the jobs were last
-    // provided.
+    // cleared, for nil, or the principal leaves the queue. Refused for a principal that did not provide it as the jobs
+    // were last provided.
     public func pin(_ interface: String, to id: String?) throws {
         let pinned = try store.read().pinned(interface, to: id, among: providers)
         try store.write(pinned)

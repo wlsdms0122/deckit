@@ -39,7 +39,7 @@ struct OwnerTableTests {
         #expect(sut.ownership == ownership)
     }
 
-    @Test("a mod that no longer provides leaves its queues and pins, and one kept holds its place")
+    @Test("a principal that no longer provides leaves its queues and pins, and one kept holds its place")
     func providerLeavesUnlessKept() throws {
         // Given
         let b = Job.fixture("b", provides: ["x/api": [1]])
@@ -74,7 +74,7 @@ struct OwnerTableTests {
         #expect(sut.ownership.owner(of: "x/api") == "b")
     }
 
-    @Test("a pin is refused for a mod that did not provide the interface as the jobs were last provided")
+    @Test("a pin is refused for a principal that did not provide the interface as the jobs were last provided")
     func pinOfANonProviderIsRefused() throws {
         // Given
         sut.provide([.fixture("b", provides: ["x/api": [1]]), .fixture("c")], keeping: [])
@@ -83,7 +83,7 @@ struct OwnerTableTests {
         let pinned = Result { try sut.pin("x/api", to: "c") }
 
         // Then
-        #expect(throws: PinError.notProvider(interface: "x/api", mod: "c")) { try pinned.get() }
+        #expect(throws: PinError.notProvider(interface: "x/api", principal: "c")) { try pinned.get() }
         #expect(sut.ownership.pins.isEmpty)
     }
 

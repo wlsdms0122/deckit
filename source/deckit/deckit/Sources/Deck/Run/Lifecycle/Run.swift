@@ -7,10 +7,10 @@
 
 import Foundation
 
-// One run of a mod's job, the `number`th, launching as it is made.
+// One run of a principal's job, the `number`th, launching as it is made.
 public struct Run: Sendable {
     // MARK: - Property
-    public let modId: String
+    public let principal: String
     public let number: Int
     public private(set) var state: RunState = .launching
     // Whether it ended failing: it did not start, or it crashed before its end was asked.
@@ -21,8 +21,8 @@ public struct Run: Sendable {
     public private(set) var contributions: Contribution?
 
     // MARK: - Initializer
-    init(modId: String, number: Int) {
-        self.modId = modId
+    init(principal: String, number: Int) {
+        self.principal = principal
         self.number = number
     }
 
@@ -75,7 +75,7 @@ public struct Run: Sendable {
     // MARK: - Private
     private mutating func move(_ transition: Transition) throws(LifecycleError) -> LifecycleNotification {
         guard transition.from.contains(state) else {
-            throw .transition(modId: modId, number: number, transition: transition, state: state)
+            throw .transition(principal: principal, number: number, transition: transition, state: state)
         }
         state = transition.to
 

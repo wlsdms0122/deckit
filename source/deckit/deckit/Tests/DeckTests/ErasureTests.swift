@@ -15,7 +15,7 @@ struct ErasureTests {
     private let home: URL
     private let record: Record
     private let dataFolder: DataFolder
-    private let modState: ModState
+    private let principalState: PrincipalState
     private let sut: Erasure
 
     // MARK: - Initializer
@@ -24,35 +24,40 @@ struct ErasureTests {
         let store = Store()
         record = Record(folder: home.appending(path: "records"), store: store)
         dataFolder = DataFolder(folder: home.appending(path: "data"), store: store)
-        modState = ModState(root: home.appending(path: "mod-state"), store: store)
-        try modState.reserve("layer")
-        let storage = ModStorage(dataFolder: dataFolder, record: record, modState: modState, store: store)
+        principalState = PrincipalState(root: home.appending(path: "principal-state"), store: store)
+        try principalState.reserve("layer")
+        let storage = PrincipalStorage(
+            dataFolder: dataFolder,
+            record: record,
+            principalState: principalState,
+            store: store
+        )
         let settings = DeckSettings(file: home.appending(path: "deck.json"), store: store)
         sut = Erasure(storage: storage, settings: settings, store: store)
     }
 
     // MARK: - Test
-    @Test("erasing takes the mod's data folder, records and what a layer keeps of it, and notes it until it is cleared")
+    @Test("erasing takes the principal's data folder, records and what a layer keeps of it, and notes it until cleared")
     func eraseTakesWhatDeckKeeps() throws {
         // Given
         try keep("notes")
         try keep("other")
 
         // When
-        try sut.erase(mod: "notes")
-        try sut.erase(mod: "notes")
+        try sut.erase(principal: "notes")
+        try sut.erase(principal: "notes")
 
         // Then
         #expect(!exists("data/notes"))
         #expect(!exists("records/notes"))
-        #expect(!exists("mod-state/layer/notes.json"))
+        #expect(!exists("principal-state/layer/notes.json"))
         #expect(exists("data/other"))
         #expect(exists("records/other"))
-        #expect(exists("mod-state/layer/other.json"))
+        #expect(exists("principal-state/layer/other.json"))
         #expect(sut.uncleared() == ["notes"])
     }
 
-    @Test("what can be erased is, though one fails, and the mod stays noted")
+    @Test("what can be erased is, though one fails, and the principal stays noted")
     func eraseTriesEach() throws {
         // Given
         try keep("notes")
@@ -61,24 +66,24 @@ struct ErasureTests {
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: data) }
 
         // When
-        let erased = Result { try sut.erase(mod: "notes") }
+        let erased = Result { try sut.erase(principal: "notes") }
 
         // Then
         #expect(throws: (any Error).self) { try erased.get() }
         #expect(exists("data/notes"))
         #expect(!exists("records/notes"))
-        #expect(!exists("mod-state/layer/notes.json"))
+        #expect(!exists("principal-state/layer/notes.json"))
         #expect(sut.uncleared() == ["notes"])
     }
 
-    @Test("a mod cleared is no longer noted, and what another is stays, in deck.json under uncleared")
+    @Test("a principal cleared is no longer noted, and what another is stays, in deck.json under uncleared")
     func clearedTakesTheNote() throws {
         // Given
-        try sut.erase(mod: "notes")
-        try sut.erase(mod: "other")
+        try sut.erase(principal: "notes")
+        try sut.erase(principal: "other")
 
         // When
-        try sut.cleared(mod: "notes")
+        try sut.cleared(principal: "notes")
 
         // Then
         #expect(sut.uncleared() == ["other"])
@@ -86,16 +91,16 @@ struct ErasureTests {
         #expect(try JSONDecoder().decode([String: [String]].self, from: settings) == ["uncleared": ["other"]])
     }
 
-    @Test("an id that is no mod's is refused, and nothing is noted")
+    @Test("an id that is no principal's is refused, and nothing is noted")
     func noModIsRefused() throws {
         // Given
         try keep("notes")
 
         // When
-        let erased = Result { try sut.erase(mod: "../notes") }
+        let erased = Result { try sut.erase(principal: "../notes") }
 
         // Then
-        #expect(throws: ErasureError.notAMod("../notes")) { try erased.get() }
+        #expect(throws: ErasureError.notAPrincipal("../notes")) { try erased.get() }
         #expect(sut.uncleared().isEmpty)
         #expect(exists("data/notes"))
     }
@@ -105,8 +110,8 @@ struct ErasureTests {
         let data = home.appending(path: "data/\(id)")
         try FileManager.default.createDirectory(at: data, withIntermediateDirectories: true)
         try Data("x".utf8).write(to: data.appending(path: "file.txt"))
-        try record.write(mod: id, key: "tabs", text: "[]")
-        try modState.write("layer", mod: id, text: "{}")
+        try record.write(principal: id, key: "tabs", text: "[]")
+        try principalState.write("layer", principal: id, text: "{}")
     }
 
     private func exists(_ path: String) -> Bool {

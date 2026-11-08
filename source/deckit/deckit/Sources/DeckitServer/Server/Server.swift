@@ -100,20 +100,20 @@ final class Server {
         switch request.method {
         case "record/read":
             let params = try request.decodeParams(as: ModKeyParams.self)
-            return try deck.records.read(mod: params.mod, key: params.key) as any Encodable & Sendable
+            return try deck.records.read(principal: params.mod, key: params.key) as any Encodable & Sendable
 
         case "record/write":
             let params = try request.decodeParams(as: WriteRecordParams.self)
-            try deck.records.write(mod: params.mod, key: params.key, text: params.text)
+            try deck.records.write(principal: params.mod, key: params.key, text: params.text)
             return true
 
         case "record/remove":
             let params = try request.decodeParams(as: ModKeyParams.self)
-            try deck.records.remove(mod: params.mod, key: params.key)
+            try deck.records.remove(principal: params.mod, key: params.key)
             return true
 
         case "record/keys":
-            return try deck.records.keys(mod: request.decodeParams(as: ModParams.self).mod)
+            return try deck.records.keys(principal: request.decodeParams(as: ModParams.self).mod)
 
         case "state/all":
             return try deckit.state.all()
@@ -151,17 +151,17 @@ final class Server {
             return try deckit.catalog.remove(request.decodeParams(as: RemoveModParams.self).id)
 
         case "storage/usage":
-            return try deck.storage.usage(mod: request.decodeParams(as: ModParams.self).mod)
+            return try deck.storage.usage(principal: request.decodeParams(as: ModParams.self).mod)
 
         case "erasure/erase":
-            try deck.erasure.erase(mod: request.decodeParams(as: ModParams.self).mod)
+            try deck.erasure.erase(principal: request.decodeParams(as: ModParams.self).mod)
             return true
 
         case "erasure/uncleared":
             return deck.erasure.uncleared()
 
         case "erasure/cleared":
-            try deck.erasure.cleared(mod: request.decodeParams(as: ModParams.self).mod)
+            try deck.erasure.cleared(principal: request.decodeParams(as: ModParams.self).mod)
             return true
 
         case "runner/reconnect":
@@ -216,7 +216,7 @@ final class Server {
 
         case "connection/begin":
             let params = try request.decodeParams(as: LifecycleParams.self)
-            return try deck.connections.begin(mod: params.mod, run: params.run, lifecycle: params.lifecycle)
+            return try deck.connections.begin(principal: params.mod, run: params.run, lifecycle: params.lifecycle)
 
         case "connection/end":
             let params = try request.decodeParams(as: LifecycleParams.self)
@@ -252,12 +252,12 @@ final class Server {
 
         case "event/listen":
             let params = try request.decodeParams(as: ListenParams.self)
-            deck.events.listen(mod: params.mod, run: params.run, names: params.names)
+            deck.events.listen(principal: params.mod, run: params.run, names: params.names)
             return true
 
         case "event/emit":
             let params = try request.decodeParams(as: EmitParams.self)
-            return try deck.events.emit(mod: params.mod, run: params.run, name: params.name)
+            return try deck.events.emit(principal: params.mod, run: params.run, name: params.name)
 
         case "interface/contributions":
             let params = try request.decodeParams(as: ContributionsParams.self)

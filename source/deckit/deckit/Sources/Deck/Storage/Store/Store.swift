@@ -10,7 +10,7 @@ import Foundation
 // Files deck keeps, each written whole.
 package struct Store {
     // MARK: - Property
-    // A name deck gives a file or a folder. A Mac's disk is blind to case: lower case only, as a mod id is.
+    // A name deck gives a file or a folder. A Mac's disk is blind to case: lower case only.
     private let namePattern = #/[a-z0-9][a-z0-9._-]{0,63}/#
 
     // MARK: - Initializer

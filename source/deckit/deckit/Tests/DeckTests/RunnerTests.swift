@@ -33,7 +33,7 @@ struct RunnerTests {
                 "loadPage a"
             ]
         )
-        #expect(sut.jobs().map(\.modId) == ["b", "a"])
+        #expect(sut.jobs().map(\.principal) == ["b", "a"])
     }
 
     @Test("a run launches once its page says it started, and what an older run says is not the newer one's")
@@ -133,7 +133,7 @@ struct RunnerTests {
         #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
     }
 
-    @Test("a mod whose run has not ended is left as it is, and one that ended launches again in its sandbox")
+    @Test("a principal whose run has not ended is left as it is, and one that ended launches again in its sandbox")
     func loadLaunchesOnlyWhatEnded() throws {
         // Given
         let sut = Runner()
@@ -159,7 +159,7 @@ struct RunnerTests {
         try launch(["a"], with: sut)
         _ = try sut.unload(["a"])
         _ = try sut.stopped("a", run: 1)
-        let kept = sut.jobs().map(\.modId)
+        let kept = sut.jobs().map(\.principal)
 
         // When
         let closed = try sut.unload(["a"])
@@ -171,7 +171,7 @@ struct RunnerTests {
         #expect(sut.run(of: "a") == nil)
     }
 
-    @Test("a job of another revision than its mod's ended sandbox launches in a new one, its run counted on")
+    @Test("a job of another revision than its principal's ended sandbox launches in a new one, its run counted on")
     func newRevisionOpensANewSandbox() throws {
         // Given
         let sut = Runner()
@@ -208,7 +208,7 @@ struct RunnerTests {
     }
 
     // MARK: - Private
-    // Each mod loads and starts in turn.
+    // Each principal loads and starts in turn.
     private func launch(_ ids: [String], with sut: Runner) throws {
         for id in ids {
             _ = try sut.load([.fixture(id)])

@@ -9,13 +9,13 @@ import Foundation
 
 // A run moved from a state its step does not leave.
 public enum LifecycleError: Refusal, Equatable {
-    case transition(modId: String, number: Int, transition: Transition, state: RunState)
+    case transition(principal: String, number: Int, transition: Transition, state: RunState)
 
     // MARK: - Property
     public var message: String {
         switch self {
-        case let .transition(modId, number, transition, state):
-            "\(modId) run \(number): \(transition.rawValue) while \(state.rawValue)"
+        case let .transition(principal, number, transition, state):
+            "\(principal) run \(number): \(transition.rawValue) while \(state.rawValue)"
         }
     }
 

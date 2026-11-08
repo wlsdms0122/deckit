@@ -208,7 +208,7 @@ struct DeckitTests {
         try fixture.write("c", uses: ["p/api"])
         let sut = try fixture.deckit()
         _ = try sut.load(["c"])
-        _ = try sut.deck.connections.begin(mod: "c", run: 1, lifecycle: 0)
+        _ = try sut.deck.connections.begin(principal: "c", run: 1, lifecycle: 0)
 
         // When
         let effects = try sut.started("c", run: 1, contributions: Contribution(exportedIn: [:], awaits: ["p/api": 0]))
@@ -229,8 +229,8 @@ struct DeckitTests {
         try fixture.write("r", system: true, permissions: ["deckit.reach-mods"])
         let sut = try fixture.deckit()
         _ = try sut.load(["r", "n"])
-        _ = try sut.deck.connections.begin(mod: "r", run: 1, lifecycle: 0)
-        _ = try sut.deck.connections.begin(mod: "n", run: 1, lifecycle: 0)
+        _ = try sut.deck.connections.begin(principal: "r", run: 1, lifecycle: 0)
+        _ = try sut.deck.connections.begin(principal: "n", run: 1, lifecycle: 0)
 
         // When
         let reached = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
@@ -241,10 +241,10 @@ struct DeckitTests {
         #expect(sut.deck.job(of: "n")?.reaches == .only([]))
         #expect(reached.contains { effect in
             guard case let .wait(name, client, service) = effect else { return false }
-            return name == "t" && client.modId == "r" && service == "t"
+            return name == "t" && client.principal == "r" && service == "t"
         })
         #expect(launches(in: reached) == ["t"])
-        #expect(refused == .outOfReach(mod: "t", client: "n"))
+        #expect(refused == .outOfReach(principal: "t", client: "n"))
     }
 
     @Test("a mod reached by id connects once it opens its exports for its id, and a release ends the connection")
@@ -254,9 +254,9 @@ struct DeckitTests {
         try fixture.write("r", system: true, permissions: ["deckit.reach-mods"])
         let sut = try fixture.deckit()
         _ = try sut.load(["r"])
-        _ = try sut.deck.connections.begin(mod: "r", run: 1, lifecycle: 0)
+        _ = try sut.deck.connections.begin(principal: "r", run: 1, lifecycle: 0)
         _ = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
-        _ = try sut.deck.connections.begin(mod: "t", run: 1, lifecycle: 0)
+        _ = try sut.deck.connections.begin(principal: "t", run: 1, lifecycle: 0)
 
         // When
         let started = try sut.started("t", run: 1, contributions: Contribution(exportedIn: ["t": 0], awaits: [:]))
@@ -268,10 +268,10 @@ struct DeckitTests {
             return connection
         }
         #expect(connected.map(\.name) == ["t"])
-        #expect(connected.map(\.credential) == [Credential(modId: "r", permissions: ["deckit.reach-mods"])])
+        #expect(connected.map(\.credential) == [Credential(principal: "r", permissions: ["deckit.reach-mods"])])
         #expect(released.contains { effect in
             guard case let .disconnect(connection) = effect else { return false }
-            return connection.name == "t" && connection.client.modId == "r"
+            return connection.name == "t" && connection.client.principal == "r"
         })
     }
 
@@ -280,7 +280,7 @@ struct DeckitTests {
     private func launches(in effects: [Effect]) -> [String] {
         effects.compactMap { effect in
             guard case let .tell(.willLaunch, run) = effect else { return nil }
-            return run.modId
+            return run.principal
         }
     }
 }

@@ -10,7 +10,7 @@ import Foundation
 extension ScopedName: CustomStringConvertible {
     // MARK: - Property
     package var description: String {
-        "\(modId):\(name)"
+        "\(principal):\(name)"
     }
 
     // MARK: - Initializer

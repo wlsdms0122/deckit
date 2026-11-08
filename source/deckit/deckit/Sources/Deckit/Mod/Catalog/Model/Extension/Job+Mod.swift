@@ -19,7 +19,7 @@ extension Job {
 
         let permissions = mod.manifest.permissions.filter(\.usable).map(\.id)
         self.init(
-            modId: mod.manifest.id,
+            principal: mod.manifest.id,
             revision: mod.revision,
             entry: entry,
             permissions: permissions,

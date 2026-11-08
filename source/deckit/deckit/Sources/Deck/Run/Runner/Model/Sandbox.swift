@@ -7,7 +7,7 @@
 
 import Foundation
 
-// Where a mod runs, run after run, while its job keeps its revision.
+// Where a principal runs, run after run, while its job keeps its revision.
 final class Sandbox {
     // MARK: - Property
     let job: Job

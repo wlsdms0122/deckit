@@ -14,32 +14,32 @@ extension Effect {
     var line: String {
         switch self {
         case let .open(job):
-            "open \(job.modId)"
+            "open \(job.principal)"
 
-        case let .loadPage(modId):
-            "loadPage \(modId)"
+        case let .loadPage(principal):
+            "loadPage \(principal)"
 
         case let .tell(notification, run):
             [
                 "tell",
                 notification.rawValue,
-                run.modId,
+                run.principal,
                 String(run.number),
                 run.state.rawValue
             ]
                 .joined(separator: " ")
 
         case let .keep(run):
-            "keep \(run.modId) \(run.number) \(run.problem ?? "")"
+            "keep \(run.principal) \(run.number) \(run.problem ?? "")"
 
-        case let .stop(modId, number):
-            "stop \(modId) \(number)"
+        case let .stop(principal, number):
+            "stop \(principal) \(number)"
 
-        case let .kill(modId):
-            "kill \(modId)"
+        case let .kill(principal):
+            "kill \(principal)"
 
-        case let .close(modId):
-            "close \(modId)"
+        case let .close(principal):
+            "close \(principal)"
 
         case let .connect(connection):
             "connect \(connection.line)"
@@ -51,7 +51,7 @@ extension Effect {
             "deliver \(delivery.name) to \(delivery.listeners.joined(separator: ", "))"
 
         case let .wait(name, client, service):
-            "wait \(client.modId)#\(client.run)@\(client.lifecycle) for \(service) by \(name)"
+            "wait \(client.principal)#\(client.run)@\(client.lifecycle) for \(service) by \(name)"
         }
     }
 

@@ -22,14 +22,14 @@ public final class RunTable {
     // MARK: - Public
     // The entry of `run`, while it is its mod's latest or the one before.
     public func entry(of run: Run) -> RunEntry? {
-        [entries[run.modId], previous[run.modId]].compactMap { entry in entry }.first { entry in
+        [entries[run.principal], previous[run.principal]].compactMap { entry in entry }.first { entry in
             entry.number == run.number
         }
     }
 
     func begin(_ run: Run) {
-        previous[run.modId] = entries[run.modId]
-        entries[run.modId] = RunEntry(number: run.number)
+        previous[run.principal] = entries[run.principal]
+        entries[run.principal] = RunEntry(number: run.number)
     }
 
     func timeOut(_ run: Run) {
@@ -39,8 +39,8 @@ public final class RunTable {
     // MARK: - Private
     // The entry of `run`, while it is its mod's latest.
     private func update(_ run: Run, _ change: (inout RunEntry) -> Void) {
-        guard var entry = entries[run.modId], entry.number == run.number else { return }
+        guard var entry = entries[run.principal], entry.number == run.number else { return }
         change(&entry)
-        entries[run.modId] = entry
+        entries[run.principal] = entry
     }
 }
