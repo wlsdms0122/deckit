@@ -68,6 +68,7 @@ const main = async () => {
         'urls.js',
         'keymap-mod.js',
         'configuration.js',
+        'packages.js',
         'switcher.js',
         'notifications.js',
         'activity.js',
