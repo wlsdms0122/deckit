@@ -293,4 +293,4 @@ A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`,
 
 **Note.** A refusal's message is not measured, and an implementation says it as it likes. The cases under `conformance/` measure that a bundle is taken or refused at `read` with kind `NOT_LOADABLE`, and what it is answered.
 
-**Note.** Three sentences above are held by no case under `conformance/`, and each waits on what will hold it. That a bundle installed from a folder is not a system mod waits on the catalog's DECKIT, which gives installing. That no run of a refused bundle starts waits on the lifecycle's DECKIT, which fixes a run's states. That the system's own permissions come first waits on the permissions' DECKIT, which fixes them.
+**Note.** Two sentences above are held by no case under `conformance/`, and each waits on what will hold it. That no run of a refused bundle starts waits on the lifecycle's DECKIT, which fixes a run's states. That the system's own permissions come first waits on the permissions' DECKIT, which fixes them.

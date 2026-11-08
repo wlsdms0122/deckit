@@ -92,7 +92,7 @@ A bundle installed by *install* in the place of a system mod is not a system mod
 | `install` | `folder`, a string: a folder's path | the bundle installed | at `read` `NOT_LOADABLE`; at `call` `NESTED`, `READ_IN_PLACE` |
 | `remove` | `id`, a string; `erase`, a boolean | whether what the mod stored was erased | at `call` `READ_IN_PLACE`, `NOT_INSTALLED` |
 
-A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, and then with the first refusal of its row that holds, in the row's order.
+A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, then as the handle's DECKIT refuses a request whose arguments do not fit what it takes, and then with the first refusal of its row that holds, in the row's order.
 
 #### list
 
@@ -145,4 +145,6 @@ A name shipped and removed stays out at each later start, under *What a host shi
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, and each waits on what will hold it. The sentences of *What a mod granted deckit.mods asks*, that a name installed again keeps its place and a name removed loses it, that a name leaves the shipped names as *install* installs a bundle under it, that an installed bundle is read from its copy, and that the catalog is read again as each request is answered wait on the handle's DECKIT, which adds to [the case format](../DECKIT-1/SPEC.md) the input that hands a request. The sentences of *What a host ships* that need a host that changes between starts wait on a case format that changes the host between starts. That a refused start takes nothing waits on a look at the system's own folder, which no format has.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. What `list` answers, that `plan` and `install` answer the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it, and that a bundle installed in the place of a system mod is not one, which only `list` shows: they wait on the question below. That an installed bundle is read from its copy and not from the folder it was installed from, and that a change to a folder read in place is seen from the next read on, wait on an input that changes a folder. `NESTED`: a case cannot write a folder inside the system's own folder, whose layout is not the specification's, nor a bundle that holds it. The sentences of *What a host ships* that need a host that changes between starts wait on a case format that changes the host between starts. That a refused start takes nothing waits on a look at the system's own folder, which no format has.
+
+**Open.** What `list` answers: the array of entries above, or a table that holds them beside each running mod's summary and each interface's providers and owner, each entry the bundle's keys beside the catalog's and its run's. Whether `plan` answers beside the bundle `from`, the folder it was handed, and `install` beside the bundle whether a restart of the app is left to finish it.
