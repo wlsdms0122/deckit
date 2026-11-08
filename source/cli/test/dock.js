@@ -1,9 +1,9 @@
 // The Dock (deckit-shell/shell/dock): its order (model/list-order), the mods the person placed first, as placed, the
-// rest as deckit lists them, and a drag that moves the ids it names among the places they held; its items
-// (model/dock), those kept, then those running; and the Dock (dock/main) over a stand-in for what connect answers: the
-// app mods it keeps at the first start, as the host app names them or as it ships them, then as the person left them,
-// the list a mod with deckit.mods reads, which holds the app mods that load and no bundle that does not and no
-// accessory, and a mod opened from it, launched when it does not run, its windows in front when it does, or its
+// rest as deckit lists them, and a drag that moves the ids it names among the places they held; its items (model/dock),
+// those kept, then those running, in the order they launched; and the Dock (dock/main) over a stand-in for what connect
+// answers: the app mods it keeps at the first start, as the host app names them or as it ships them, then as the person
+// left them, the list a mod with deckit.mods reads, which holds the app mods that load and no bundle that does not and
+// no accessory, and a mod opened from it, launched when it does not run, its windows in front when it does, or its
 // reopen() with none open, as the local seat; and what the person does to it in the desktop's page, done by the seat
 // whose screen that is: an item clicked, a mod quit, kept or taken out, the kept ones reordered, each drawn again, and
 // nothing a mod's page sends there. Exits 1 with a line for each check that failed. The packages are ES modules, so
@@ -30,15 +30,15 @@ async function main() {
     check('the ids named move among the places they held, the rest stay put', arranged === 'a,d,c,b', arranged);
 
     const ids = ['a', 'b', 'c', 'd', 'e'];
-    const docked = DOCK.items(ids, { pinned: new Set(['d', 'b']), running: new Set(['b', 'c', 'e']) });
+    const docked = DOCK.items(ids, { pinned: new Set(['d', 'b']), running: new Set(['e', 'b', 'c']) });
     check(
-        'the Dock holds the mods kept, in the list order, then those running that are not kept',
+        'the Dock holds the mods kept, in the list order, then those running that are not kept, in their order',
         JSON.stringify(docked) ===
             JSON.stringify([
                 { id: 'b', pinned: true, running: true },
                 { id: 'd', pinned: true, running: false },
-                { id: 'c', pinned: false, running: true },
                 { id: 'e', pinned: false, running: true },
+                { id: 'c', pinned: false, running: true },
             ]),
         docked
     );
@@ -195,6 +195,31 @@ async function main() {
         unkeptB
     );
 
+    // `c` runs, then `a` launches, then `c` quits and launches again.
+    const launching = dockOver(createDock, {
+        mods: named(ids3),
+        fields: apps(),
+        running: ['c'],
+        state: { 'panel-pinned': [], 'panel-order': [] },
+    });
+    launching.DOCK.start();
+    const order = () =>
+        launching.DOCK.items()
+            .map(({ id }) => id)
+            .join();
+    const firstRun = order();
+    launching.runs.unshift(runOf('a'));
+    const aLaunched = order();
+    launching.runs.splice(1, 1);
+    order();
+    launching.runs.push(runOf('c'));
+    const cAgain = order();
+    check(
+        'the running mods not kept are in the order they launched, one launched again after the others',
+        firstRun === 'c' && aLaunched === 'c,a' && cAgain === 'a,c',
+        { firstRun, aLaunched, cAgain }
+    );
+
     const refusing = dockOver(createDock, { mods: named(['a', 'b']), fields: apps(), refusesWrites: true });
     refusing.DOCK.start();
     await new Promise((resolve) => setImmediate(resolve));
@@ -211,15 +236,20 @@ async function main() {
     process.exit(0);
 }
 
+// The run of mod `id`, running, with its page, as deckit lists it.
+function runOf(id) {
+    return { run: { mod: { id }, state: 'running', relaunches: false }, page: { mod: id } };
+}
+
 // Mods as deckit lists them, by their ids.
 function named(ids) {
     return ids.map((id) => ({ id, name: id.toUpperCase(), uses: {} }));
 }
 
 // `createDock` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
-// that hold deckit.mods, `running` the mods that run, `windowed` those of them with a window open, `dock` as the host
-// app hands it, `state` what the shell kept, and `refusesWrites` deckit refusing every write to state, as it does
-// state it did not read. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and
+// that hold deckit.mods, `running` the mods that run, as `runs` lists them for a test to change, `windowed` those of
+// them with a window open, `dock` as the host app hands it, `state` what the shell kept, and `refusesWrites` deckit
+// refusing every write to state, as it does state it did not read. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and
 // `click(name, payload)` sends one as the desktop's page, the local seat's screen.
 function dockOver(
     createDock,
@@ -234,7 +264,7 @@ function dockOver(
     const updates = [];
     const page = (mod) => ({ mod });
     const desktopPage = { name: 'desktop' };
-    const runs = running.map((id) => ({ run: { mod: { id }, state: 'running', relaunches: false }, page: page(id) }));
+    const runs = running.map(runOf);
     const deckit = {
         channels: {
             bind: (declared) => ({
@@ -279,7 +309,7 @@ function dockOver(
     const ask = async (name, payload, mod) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, page(mod));
     // One of the Dock's channels sent from the desktop's page.
     const click = (name, payload) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, desktopPage);
-    return { DOCK, state, launched, activated, reopened, shown, quit, updates, ask, click };
+    return { DOCK, state, runs, launched, activated, reopened, shown, quit, updates, ask, click };
 }
 
 function kebab(name) {

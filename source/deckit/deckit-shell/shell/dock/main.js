@@ -14,6 +14,7 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
     const ORDER = 'panel-order';
     let pinned = new Set(); // the mods the person keeps in the Dock
     let order = []; // the ids of the mods, as the person arranged the Dock
+    let launched = []; // the ids of the mods running, in the order they launched
 
     // MARK: - Initializer
     // MARK: - Public
@@ -58,11 +59,11 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
     }
 
     // What the Dock shows, `[{ id, name, icon, pinned, running }]`: the app mods kept there, as the person arranged
-    // them, then those running now.
+    // them, then those running now, in the order they launched.
     function items() {
         const apps = inOrder().filter(({ id }) => isApp(id));
         const names = new Map(apps.map(({ id, name }) => [id, name]));
-        return DOCK.items([...names.keys()], { pinned, running: runningIds() }).map((item) => ({
+        return DOCK.items([...names.keys()], { pinned, running: new Set(launchOrder()) }).map((item) => ({
             ...item,
             name: names.get(item.id),
             icon: FIELD.iconOf(deckit.mods.fieldsOf(item.id)),
@@ -152,6 +153,15 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
                     running: running.has(id),
                 };
             });
+    }
+
+    // The ids of the mods running, in the order they launched: those that ran before keep their places, and those
+    // that run since come after them.
+    function launchOrder() {
+        const running = runningIds();
+        launched = launched.filter((id) => running.has(id));
+        launched.push(...[...running].filter((id) => !launched.includes(id)));
+        return launched;
     }
 
     // The ids of the mods whose run launches, runs or terminates, or that launch again.

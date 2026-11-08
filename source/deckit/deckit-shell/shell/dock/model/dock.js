@@ -6,10 +6,10 @@ const WIDTH = 64;
 // MARK: - Initializer
 // MARK: - Public
 // The Dock's items, `{ id, pinned, running }`, of `ids`, in the list's order: those the person keeps in the Dock
-// (`pinned`), as the order has them, then those running now that are not kept.
+// (`pinned`), as the order has them, then those running now that are not kept, in the order `running` has them.
 function items(ids, { pinned, running }) {
     const kept = ids.filter((id) => pinned.has(id));
-    const others = ids.filter((id) => !pinned.has(id) && running.has(id));
+    const others = [...running].filter((id) => !pinned.has(id) && ids.includes(id));
     return [...kept, ...others].map((id) => ({ id, pinned: pinned.has(id), running: running.has(id) }));
 }
 
