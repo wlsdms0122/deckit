@@ -1,0 +1,36 @@
+case = 4
+name = "a-mod-that-uses-an-interface-is-told-what-is-declared-to-it-changed"
+note = "The system tells <interface>:contributions-changed, with no values, to the mods that hear the interface once what the mods declare to it changes. mod-a, a system mod granted deckit.mods that uses mod-b/actions, listens to mod-b/actions:contributions-changed and installs mod-c, which declares an entry to it, and its listener is called once with no values."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-b/actions:contributions-changed"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-c"]
+part = "id"
+
+[step.expect]
+answers = "mod-c"
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[]]

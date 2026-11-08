@@ -1,0 +1,37 @@
+case = 4
+name = "events-are-heard-in-the-order-they-are-sent"
+note = "A listener hears the events of one run in the order the run sends them. mod-a sends ready with 1 and then with 2, and its listener is called with 1 and then with 2."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:ready"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["ready", 1]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["ready", 2]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[1], [2]]

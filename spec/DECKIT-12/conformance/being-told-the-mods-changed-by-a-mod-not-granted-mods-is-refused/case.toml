@@ -1,0 +1,21 @@
+case = 4
+name = "being-told-the-mods-changed-by-a-mod-not-granted-mods-is-refused"
+note = "deckit.mods guards mods.onChange, which is no request: for a mod not granted it, the call throws the refusal, at call with kind NOT_PERMITTED. mod-a, granted nothing, hands mods.onChange a listener."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.onChange"
+listener = true
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

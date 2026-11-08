@@ -1,0 +1,31 @@
+case = 4
+name = "a-signal-of-an-interface-is-heard-by-a-mod-that-uses-it"
+note = "An event the owner of an interface sends named <interface>:<signal> is the interface's signal, named after the interface, and a mod that uses the interface hears it. mod-b owns mod-b/pages and sends mod-b/pages:changed, and mod-a, which uses it, hears it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-b/pages:changed"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["mod-b/pages:changed", "page-1"]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [["page-1"]]

@@ -1,0 +1,35 @@
+case = 4
+name = "sending-an-event-of-a-name-of-another-type-is-refused"
+note = "emit takes a name that is a string: one of another type is refused at call with kind INVALID_ARGUMENT, and nothing is sent. mod-a listens to mod-a:1 and sends the name 1, and is refused, and its listener is not called."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:1"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []
