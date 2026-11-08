@@ -21,7 +21,7 @@ forge hands the token that controls a daemon to the process that starts it, and 
 
 ## Commands
 
-What a CLI, the switcher or another mod runs by name, on a host app with no UI too: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Forge opens for its id in `start`. Each takes an optional `session`, `default` when not given, and answers nothing.
+What a CLI, the switcher or another mod runs by name, on a host app with no UI too: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Forge opens for its id in `start`. Each takes an optional `session`, `default` when not given, and answers nothing. `completeCommand(id, 'session', partial)` there offers the sessions there are, each with its state, ranked for `partial` by name.
 
 | Command | Title | What it does |
 |---|---|---|

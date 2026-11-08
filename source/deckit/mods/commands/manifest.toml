@@ -8,4 +8,4 @@ main = "main.js"
 provides = { "deckit/commands" = [1] }
 
 [permissions]
-"deckit.reach-mods" = "Reaches the mod whose command is run, which launches it if it does not run."
+"deckit.reach-mods" = "Reaches the mod whose command is run or completed, which launches it if it does not run."

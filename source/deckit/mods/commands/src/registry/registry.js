@@ -24,11 +24,11 @@ function registry(deckit) {
     // The exports for a connection: a client that does not hold deckit.system-services is refused each call, kind
     // `REFUSED`.
     function exportsFor(connection) {
-        if (connection.credential.permissions.includes(SYSTEM_SERVICES)) return Object.freeze({ list, run });
+        if (connection.credential.permissions.includes(SYSTEM_SERVICES)) return Object.freeze({ list, run, complete });
         const refuse = async () => {
             throw refusal('REFUSED', `${connection.mod.name} does not hold ${SYSTEM_SERVICES}`);
         };
-        return Object.freeze({ list: refuse, run: refuse });
+        return Object.freeze({ list: refuse, run: refuse, complete: refuse });
     }
 
     // Every mod's commands and the entries left out, `{ commands, refused }`, as `commandsOf` reads them.
@@ -41,8 +41,7 @@ function registry(deckit) {
     // The command `id` of the mod `mod`, run with `args` on the exports the mod opens for its id, reached for the run,
     // which launches it if it does not run: answers its result, JSON or null, and rejects with why it did not run.
     async function run(mod, id, args = null) {
-        const command = (await list()).commands.find((each) => each.mod.id === mod && each.id === id);
-        if (!command) throw refusal('COMMAND', `no such command: "${id}" of ${mod}`);
+        const command = await declaredCommand(mod, id);
         const problem = problemOfArgs(command, args);
         if (problem) throw refusal('ARGUMENTS', `${command.title} cannot run: ${problem}`);
         const exports = await dependencies.reach(mod);
@@ -58,7 +57,42 @@ function registry(deckit) {
         return result ?? null;
     }
 
+    // What the mod `mod` offers for the arg `param` of its command `id`, typed so far as `partial`, with `args` the args
+    // filled so far: `[{ value, title, hint, keywords }]` as `completeCommand` on the exports the mod opens for its id
+    // answers it, reached for the asking. A mod whose exports have no completeCommand, or that is not reached, offers
+    // none.
+    async function complete(mod, id, param, partial = '', args = null) {
+        const command = await declaredCommand(mod, id);
+        if (!Object.hasOwn(command.params?.properties ?? {}, param))
+            throw refusal('ARGUMENTS', `${command.title} takes no arg "${param}"`);
+        if (holdsFunction(args))
+            throw refusal('ARGUMENTS', `${command.title}: args are JSON, and these hold a function`);
+        let exports;
+        try {
+            exports = await dependencies.reach(mod);
+        } catch (error) {
+            console.error(`[commands] ${mod} offers nothing for "${param}": it was not reached`, error);
+            return [];
+        }
+        let offered;
+        try {
+            if (typeof exports.completeCommand !== 'function') return [];
+            offered = await exports.completeCommand(id, param, partial, args ?? {});
+        } finally {
+            letGo(mod);
+        }
+        if (!Array.isArray(offered) || holdsFunction(offered))
+            throw new Error(`${command.title} answered no list of candidates for "${param}": candidates are JSON`);
+        return offered;
+    }
+
     // MARK: - Private
+    async function declaredCommand(mod, id) {
+        const command = (await list()).commands.find((each) => each.mod.id === mod && each.id === id);
+        if (!command) throw refusal('COMMAND', `no such command: "${id}" of ${mod}`);
+        return command;
+    }
+
     function read() {
         return deckit.exports.contributions(INTERFACE);
     }

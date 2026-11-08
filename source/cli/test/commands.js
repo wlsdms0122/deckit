@@ -59,6 +59,14 @@ async function main() {
         { mod: { id: 'note', name: 'Note' }, entry: { id: 'today', title: 'Today Note' } },
         { mod: { id: 'plain', name: 'Plain' }, entry: { id: 'go', title: 'Go' } },
         { mod: { id: 'off', name: 'Off' }, entry: { id: 'go', title: 'Go' } },
+        ...[
+            ['note', 'Note'],
+            ['plain', 'Plain'],
+            ['off', 'Off'],
+        ].map(([id, name]) => ({
+            mod: { id, name },
+            entry: { id: 'pick', title: 'Pick', params: { type: 'object', properties: { which: { type: 'string' } } } },
+        })),
     ];
 
     // The signals the registry listens for, and one sent.
@@ -106,10 +114,19 @@ async function main() {
             return undefined;
         },
     });
-    exportsOf.set('note', { runCommand: async () => () => 1 });
+    const completed = [];
+    exportsOf.get('calendar').completeCommand = async (id, param, partial, args) => {
+        completed.push(['calendar', id, param, partial, args]);
+        await wait(5);
+        return [{ value: 'week', title: 'Week', hint: 'seven days' }];
+    };
+    exportsOf.set('note', { runCommand: async () => () => 1, completeCommand: async () => ({ not: 'a list' }) });
     exportsOf.set('plain', {});
     exportsOf.set('off', {
         runCommand: async () => {
+            throw Object.assign(new Error('it broke'), { kind: 'BROKE' });
+        },
+        completeCommand: async () => {
             throw Object.assign(new Error('it broke'), { kind: 'BROKE' });
         },
     });
@@ -125,6 +142,10 @@ async function main() {
     // Refused without the permission.
     check('list refused', (await rejection(outsider.list()))?.kind === 'REFUSED');
     check('run refused', (await rejection(outsider.run('calendar', 'today')))?.kind === 'REFUSED');
+    check(
+        'complete refused',
+        (await rejection(outsider.complete('calendar', 'open-event', 'view', '')))?.kind === 'REFUSED'
+    );
     check('refused reaches nothing', asked.length === 0, asked);
 
     // The list.
@@ -132,7 +153,16 @@ async function main() {
     check(
         'list',
         JSON.stringify(listed.map((each) => `${each.mod.id}:${each.id}`)) ===
-            JSON.stringify(['calendar:today', 'calendar:open-event', 'note:today', 'plain:go', 'off:go']),
+            JSON.stringify([
+                'calendar:today',
+                'calendar:open-event',
+                'note:today',
+                'plain:go',
+                'off:go',
+                'note:pick',
+                'plain:pick',
+                'off:pick',
+            ]),
         listed
     );
     check(
@@ -257,6 +287,78 @@ async function main() {
     );
     const answered = await rejection(client.run('note', 'today'));
     check('function answered', !!answered && answered.kind === undefined, answered);
+
+    // A completion is checked, reaches, asks, and lets go; none where the mod has no completeCommand or is not
+    // reached, and a throw or an answer not a list is handed on.
+    asked.length = 0;
+    const completing = async (...args) => (await rejection(client.complete(...args)))?.kind;
+    check('complete no such command', (await completing('calendar', 'nope', 'x', '')) === 'COMMAND');
+    check('complete no such arg', (await completing('calendar', 'open-event', 'nope', '')) === 'ARGUMENTS');
+    check('complete takes no args', (await completing('calendar', 'today', 'x', '')) === 'ARGUMENTS');
+    check(
+        'complete function in args',
+        (await completing('calendar', 'open-event', 'view', '', { f: () => 1 })) === 'ARGUMENTS'
+    );
+    check('complete checked reaches nothing', asked.length === 0, asked);
+    const offered = await client.complete('calendar', 'open-event', 'view', 'w', { start: 3 });
+    check(
+        'complete offers',
+        JSON.stringify(offered) === JSON.stringify([{ value: 'week', title: 'Week', hint: 'seven days' }]),
+        offered
+    );
+    check(
+        'complete asked',
+        JSON.stringify(completed[0]) === JSON.stringify(['calendar', 'open-event', 'view', 'w', { start: 3 }]),
+        completed
+    );
+    await client.complete('calendar', 'open-event', 'view');
+    check(
+        'complete defaults',
+        JSON.stringify(completed[1]) === JSON.stringify(['calendar', 'open-event', 'view', '', {}]),
+        completed
+    );
+    await ticks();
+    check(
+        'complete reached and let go',
+        JSON.stringify(asked) ===
+            JSON.stringify([
+                ['reach', 'calendar'],
+                ['release', 'calendar'],
+                ['reach', 'calendar'],
+                ['release', 'calendar'],
+            ]),
+        asked
+    );
+    const quiet = errors.length;
+    asked.length = 0;
+    refusing.set('calendar', ['NOT_EXPORTED', 'call']);
+    const unreached = await client.complete('calendar', 'open-event', 'view', '');
+    await ticks();
+    check('complete unreached offers none', Array.isArray(unreached) && !unreached.length, unreached);
+    check('complete unreached logged', errors.length === quiet + 1, errors);
+    check('complete unreached not let go', JSON.stringify(asked) === JSON.stringify([['reach', 'calendar']]), asked);
+    errors.length = quiet;
+    refusing.delete('calendar');
+    asked.length = 0;
+    const plainOffers = await client.complete('plain', 'pick', 'which', '');
+    check('no completeCommand offers none', Array.isArray(plainOffers) && !plainOffers.length, plainOffers);
+    check('complete broke handed on', (await completing('off', 'pick', 'which', '')) === 'BROKE');
+    const odd = await rejection(client.complete('note', 'pick', 'which', ''));
+    check('complete no list rejects', !!odd && odd.kind === undefined, odd);
+    await ticks();
+    check(
+        'complete let go each',
+        JSON.stringify(asked) ===
+            JSON.stringify([
+                ['reach', 'plain'],
+                ['release', 'plain'],
+                ['reach', 'off'],
+                ['release', 'off'],
+                ['reach', 'note'],
+                ['release', 'note'],
+            ]),
+        asked
+    );
 
     // What is declared is kept, and read again on the interface's signals.
     check(

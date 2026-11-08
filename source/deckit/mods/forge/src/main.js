@@ -45,7 +45,8 @@ class Forge {
             disconnect: (connection) => dispatched.forget(connection),
         });
 
-        // The commands its manifest declares to `deckit/commands`, each answering nothing.
+        // The commands its manifest declares to `deckit/commands`, each answering nothing. The one arg each takes is a
+        // session, completed from the sessions there are.
         const commands = {
             start: async ({ session }) => {
                 await forge.start(session);
@@ -63,8 +64,29 @@ class Forge {
                     if (!Object.hasOwn(commands, id)) throw new Error(`Forge has no command ${id}`);
                     return commands[id](args ?? {});
                 },
+                completeCommand: (_id, _param, partial) => sessionsFor(partial),
             }),
         });
+
+        // The sessions there are, each with its state, ranked for `partial` by name.
+        async function sessionsFor(partial) {
+            const { util } = deckit;
+            const { sessions } = await forge.sessions();
+            const candidates = sessions.map((entry) => ({
+                value: entry.name,
+                title: entry.name,
+                hint: !entry.up ? 'Stopped' : entry.authority ? 'Running' : 'Started elsewhere',
+            }));
+            if (!partial.trim()) return candidates;
+            return candidates
+                .map((candidate) => ({
+                    candidate,
+                    found: util.matchFields([{ text: candidate.title, name: true }], partial),
+                }))
+                .filter(({ found }) => found)
+                .sort((left, right) => right.found.tier - left.found.tier || right.found.score - left.found.score)
+                .map(({ candidate }) => candidate);
+        }
     }
 }
 
