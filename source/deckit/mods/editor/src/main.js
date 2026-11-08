@@ -185,6 +185,33 @@ class Editor {
             onReload: (file) => reload(file, true),
             onKeepMine: keepMine,
         });
+        // The view's own keys, while it is in front, made before what draws their chords.
+        const keys = viewKeys(
+            {
+                quickOpen: { key: 'mod+p', run: () => openQuickly() },
+                showFiles: { key: 'mod+1', run: () => showFiles() },
+                showFind: { key: 'mod+3', run: () => findInWorkspace() },
+                reveal: { key: 'mod+shift+j', run: () => reveal() },
+                openFolder: { key: 'mod+o', run: () => openFolderAt() },
+                openFile: { key: 'mod+alt+o', run: () => pickFiles() },
+                newFile: { key: 'mod+n', run: () => newFile() },
+                newFolder: { key: 'mod+alt+n', run: () => newFolder() },
+                // Only the row picked in the tree; elsewhere ⌘⌫ is a text field's.
+                trash: { key: 'mod+backspace', run: () => trash(), fieldsKeep: true },
+                previousTab: { key: 'mod+shift+[', run: () => previousTab() },
+                nextTab: { key: 'mod+shift+]', run: () => nextTab() },
+                save: { key: 'mod+s', run: () => saveFile() },
+                saveAll: { key: 'mod+alt+s', run: () => saveAllFiles() },
+                closeFile: { key: 'mod+w', run: () => closeFile() },
+                find: { key: 'mod+f', run: () => findInOpenFile() },
+                replace: { key: 'mod+alt+f', run: () => replaceInOpenFile() },
+                searchFolder: { key: 'mod+shift+f', run: () => findInWorkspace() },
+                goToLine: { key: 'mod+l', run: () => askLine() },
+                wrapLines: { key: 'alt+z', run: () => wrapLines() },
+            },
+            { log: 'editor' }
+        );
+        this.endKeys = () => keys.listen(false);
         const emptyEditor = emptyState({
             ui,
             util,
@@ -319,33 +346,6 @@ class Editor {
         const replaceInOpenFile = when(noFile, () => openFind({ replace: true }));
         const askLine = when(noFile, () => goTo.show(workspaces.current().view));
         const wrapLines = () => settings.set('wrap', !settings.get('wrap'));
-        // The view's own keys, while it is in front.
-        const keys = viewKeys(
-            {
-                quickOpen: { key: 'mod+p', run: openQuickly },
-                showFiles: { key: 'mod+1', run: showFiles },
-                showFind: { key: 'mod+3', run: findInWorkspace },
-                reveal: { key: 'mod+shift+j', run: reveal },
-                openFolder: { key: 'mod+o', run: () => openFolderAt() },
-                openFile: { key: 'mod+alt+o', run: pickFiles },
-                newFile: { key: 'mod+n', run: newFile },
-                newFolder: { key: 'mod+alt+n', run: newFolder },
-                // Only the row picked in the tree; elsewhere ⌘⌫ is a text field's.
-                trash: { key: 'mod+backspace', run: trash, fieldsKeep: true },
-                previousTab: { key: 'mod+shift+[', run: previousTab },
-                nextTab: { key: 'mod+shift+]', run: nextTab },
-                save: { key: 'mod+s', run: saveFile },
-                saveAll: { key: 'mod+alt+s', run: saveAllFiles },
-                closeFile: { key: 'mod+w', run: closeFile },
-                find: { key: 'mod+f', run: findInOpenFile },
-                replace: { key: 'mod+alt+f', run: replaceInOpenFile },
-                searchFolder: { key: 'mod+shift+f', run: findInWorkspace },
-                goToLine: { key: 'mod+l', run: askLine },
-                wrapLines: { key: 'alt+z', run: wrapLines },
-            },
-            { log: 'editor' }
-        );
-        this.endKeys = () => keys.listen(false);
         const actions = switcher({
             ui,
             util,
