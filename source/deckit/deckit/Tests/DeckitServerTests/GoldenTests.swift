@@ -17,7 +17,8 @@ import Deckit
 struct GoldenTests {
     // MARK: - Property
     private static let refusals: [(any Refusal, String)] = [
-        (ErasureError.notAPrincipal("x"), "MOD"),
+        (ErasureError.notAPrincipal("x"), "INVALID_ARGUMENT"),
+        (EventError.reserved("x/api:owner-changed"), "NOT_PERMITTED"),
         (ConnectionError.notRunning("a"), "NOT_RUNNING"),
         (ConnectionError.ended, "ENDED"),
         (ConnectionError.notAnEnd(principal: "a"), "NOT_AN_END"),
@@ -40,11 +41,12 @@ struct GoldenTests {
         (ModFolderError.notLoadable("p"), "NOT_LOADABLE"),
         (ManifestError.permissionDefined("p"), "PERMISSION"),
         (ManifestError.fieldDefined("f"), "FIELD"),
-        (PrincipalStorageError.notAPrincipal("x"), "MOD"),
-        (RecordError.notAKey("k"), "KEY"),
+        (PrincipalStorageError.notAPrincipal("x"), "INVALID_ARGUMENT"),
+        (RecordError.notAKey("k"), "INVALID_ARGUMENT"),
+        (RecordError.outOfSpace("k"), "QUOTA_EXCEEDED"),
         (PrincipalStateError.notAName("N"), "NAME"),
         (PrincipalStateError.reserved("n"), "RESERVED"),
-        (StateError.notAKey("k"), "KEY"),
+        (StateError.notAKey("k"), "INVALID_ARGUMENT"),
         (StateError.notAFolder("f"), "FOLDER"),
         (StateError.reserved("keys"), "RESERVED"),
     ]

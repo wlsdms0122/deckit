@@ -151,7 +151,7 @@ final class Server {
             return try deckit.catalog.remove(request.decodeParams(as: RemoveModParams.self).id)
 
         case "storage/usage":
-            return try deck.storage.usage(principal: request.decodeParams(as: ModParams.self).mod)
+            return try deckit.usage(request.decodeParams(as: ModParams.self).mod)
 
         case "erasure/erase":
             try deck.erasure.erase(principal: request.decodeParams(as: ModParams.self).mod)

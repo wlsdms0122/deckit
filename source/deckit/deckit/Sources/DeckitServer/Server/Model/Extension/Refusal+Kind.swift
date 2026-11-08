@@ -17,7 +17,13 @@ extension Refusal {
         case let error as ErasureError:
             switch error {
             case .notAPrincipal:
-                "MOD"
+                "INVALID_ARGUMENT"
+            }
+
+        case let error as EventError:
+            switch error {
+            case .reserved:
+                "NOT_PERMITTED"
             }
 
         case let error as ConnectionError:
@@ -119,13 +125,16 @@ extension Refusal {
         case let error as PrincipalStorageError:
             switch error {
             case .notAPrincipal:
-                "MOD"
+                "INVALID_ARGUMENT"
             }
 
         case let error as RecordError:
             switch error {
             case .notAKey:
-                "KEY"
+                "INVALID_ARGUMENT"
+
+            case .outOfSpace:
+                "QUOTA_EXCEEDED"
             }
 
         case let error as PrincipalStateError:
@@ -140,7 +149,7 @@ extension Refusal {
         case let error as StateError:
             switch error {
             case .notAKey:
-                "KEY"
+                "INVALID_ARGUMENT"
 
             case .notAFolder:
                 "FOLDER"

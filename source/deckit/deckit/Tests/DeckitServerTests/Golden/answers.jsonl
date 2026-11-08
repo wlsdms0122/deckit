@@ -32,7 +32,7 @@
 {"id":18,"jsonrpc":"2.0","result":{"data":{"capped":false,"count":0,"hidden":false},"kept":[],"records":{"count":1,"hidden":false}}}
 {"id":19,"jsonrpc":"2.0","result":true}
 {"id":20,"jsonrpc":"2.0","result":null}
-{"error":{"code":-32803,"data":{"kind":"KEY","stage":"call"},"message":"not a record key: Bad Key"},"id":21,"jsonrpc":"2.0"}
+{"error":{"code":-32803,"data":{"kind":"INVALID_ARGUMENT","stage":"call"},"message":"not a record key: Bad Key"},"id":21,"jsonrpc":"2.0"}
 {"error":{"code":-32602,"message":"record\/read has no such params at mod"},"id":22,"jsonrpc":"2.0"}
 {"id":23,"jsonrpc":"2.0","result":true}
 {"id":24,"jsonrpc":"2.0","result":true}

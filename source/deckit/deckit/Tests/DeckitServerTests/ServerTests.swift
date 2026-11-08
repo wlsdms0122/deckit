@@ -123,7 +123,7 @@ struct ServerTests {
         #expect(
             response == (try json(
                 #"{"jsonrpc":"2.0","id":2,"error":{"code":-32803,"message":"not a record key: A","#
-                    + #""data":{"kind":"KEY","stage":"call"}}}"#
+                    + #""data":{"kind":"INVALID_ARGUMENT","stage":"call"}}}"#
             ))
         )
     }
