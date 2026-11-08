@@ -1,6 +1,6 @@
 # Calendar
 
-Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add. It runs in the background from the start (`background` in its manifest), so a meeting reminds whether or not its view was opened.
+Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add. It runs in the background from the start (`background` in its manifest), so a meeting reminds whether or not its window is open.
 
 A meeting's notice is posted to `deckit/notifications` (MOD.md, Standard interfaces), as is the one Send a test posts. Pressing it runs Calendar's `show-date` command with the meeting's day: Calendar comes forward on that day. A notice is marked sent only once it was posted, so while no mod owns the interface, or the owner refuses it, it is posted again on the next check while the meeting is still due.
 
@@ -16,12 +16,12 @@ Settings shows a Send a test button under it (`settings/buttons`), which runs `s
 
 ## Commands
 
-What a CLI, the switcher, a notification or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Calendar opens for its id in `start`. Send a test runs with no screen; the others act on Calendar's view, and one run while Calendar has no view open fails, saying so.
+What a CLI, the switcher, a notification or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Calendar opens for its id in `start`. Send a test runs with no screen; the others act on the view in Calendar's window, open or not, `show-date` opening the window, and one run while Calendar is not attached fails, saying so.
 
 | Command | Title | Args | What it does |
 |---|---|---|---|
 | `send-test` | Send a Test Notification | | posts a notice now, the way a reminder looks, and answers what came of it, as text |
-| `show-date` | Show Date in Calendar | `date`, as YYYY-MM-DD | brings Calendar forward on that day |
+| `show-date` | Show Date in Calendar | `date`, as YYYY-MM-DD | brings Calendar's window forward on that day |
 | `go-to-date` | Go to Date | `date`, as YYYY-MM-DD | shows that day in the view |
 | `show-view` | Show Calendar View | `view` (`day`, `week` or `month`) | shows the day, the week or the month view |
 
@@ -29,7 +29,7 @@ The switcher (`switcher/actions`) offers the meeting on now and the next, an act
 
 ## Keys
 
-The view's own shortcuts, which Calendar handles in its page while the view is in front.
+The window's own shortcuts, which Calendar handles in its window while it is the key window.
 
 | Key | Action |
 |---|---|
@@ -114,4 +114,4 @@ async signIn(account, { title, ask }) {
 }
 ```
 
-Calendar comes on screen and asks in a dialog under the provider's name, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only while the provider has a sign-in under way: asked after, it resolves `false`, and a question still open when the provider has no sign-in left under way closes and resolves `false`. Where Calendar has no screen it resolves `false` without asking, and a question still open when its screen goes closes and resolves `false`, so a sign-in reads either as a cancel. `detail`, `confirmLabel` and `cancelLabel` are optional (`''`, `OK`, `Cancel`). The sign-in window is not moved: where it stands in front of the panel, the dialog is behind it.
+Calendar's window comes on screen in front and asks in a dialog under the provider's name, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only while the provider has a sign-in under way: asked after, it resolves `false`, and a question still open when the provider has no sign-in left under way closes and resolves `false`. Where Calendar is not attached it resolves `false` without asking, and a question still open when it is detached closes and resolves `false`, so a sign-in reads either as a cancel. `detail`, `confirmLabel` and `cancelLabel` are optional (`''`, `OK`, `Cancel`).

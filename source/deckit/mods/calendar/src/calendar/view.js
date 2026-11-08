@@ -14,9 +14,10 @@ const MODES = [
     ['month', 'Month'],
 ];
 
-// Calendar on screen: the view of `calendar` (calendar.js) at its mode and day, the sidebar, its own keys, and what it
-// adds to the switcher. It tells `calendar` the days it shows by `follow(range)`, so they are read. `screen` is what
-// `calendar` and the commands reach it by; `end()` stops what it runs on its own and closes the questions it asked.
+// Calendar on screen: its window, the view of `calendar` (calendar.js) at its mode and day beside the sidebar, its own
+// keys, and what it adds to the switcher. It tells `calendar` the days it shows by `follow(range)`, so they are read.
+// `openWindow()` opens the window, or orders it front where it is open. `screen` is what `calendar` and the commands
+// reach it by; `end()` stops what it runs on its own and closes the questions it asked.
 function calendarView({ calendar, shell, deckit, sendTest }) {
     const { theme, ui } = shell;
     const { values } = deckit.storage;
@@ -27,7 +28,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     // The close() of each dialog prompt() has open.
     const asking = new Set();
 
-    // Drawing waits while the pane is hidden or the popover is up: a redraw takes the popover's anchor away.
+    // Drawing waits while the window is off screen or the popover is up: a redraw takes the popover's anchor away.
     let visible = false;
     let drawPending = false;
     let drawnView = '';
@@ -58,7 +59,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         modes: MODES,
         reminders: calendar.reminders,
         occurrences: calendar.occurrencesBetween,
-        show: shell.show,
+        show: openWindow,
         does: {
             ...inFront({
                 'show-view': showView,
@@ -166,7 +167,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
 
     calendar.follow(rangeOf(mode, cursor));
 
-    // The view's own keys, while it is in front.
+    // The window's own keys, while it is key.
     const keys = viewKeys(
         {
             today: { key: 'mod+t', run: goToToday },
@@ -177,28 +178,23 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
             previous: { key: 'mod+left', run: () => shift(-1), fieldsKeep: true },
             next: { key: 'mod+right', run: () => shift(1), fieldsKeep: true },
         },
-        { log: 'calendar' }
+        { log: 'calendar', within: content }
     );
 
-    return {
-        content,
+    // The days beside the sidebar, whose width and fold are kept as the person leaves them.
+    const split = ui.splitView({
         sidebar: side.element,
-        didAppear() {
-            visible = true;
-            keys.listen(true);
-            calendar.read();
-            render();
-            calendar.follow(rangeOf(mode, cursor));
-        },
-        didDisappear() {
-            visible = false;
-            keys.listen(false);
-            detail.close();
-        },
+        content,
+        ...values.get('sidebar', {}),
+        onChange: (kept) => values.set('sidebar', kept),
+    });
+
+    return {
+        openWindow,
         actions,
         screen: {
             changed: render,
-            reveal: shell.show,
+            openWindow,
             goToDate,
             showView,
             prompt,
@@ -213,6 +209,25 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
             calendar.follow(null);
         },
     };
+
+    function openWindow() {
+        shell.windows.open({
+            name: 'main',
+            content: split.element,
+            didAppear() {
+                visible = true;
+                calendar.read();
+                render();
+                calendar.follow(rangeOf(mode, cursor));
+            },
+            didBecomeKey: () => keys.listen(true),
+            didResignKey: () => keys.listen(false),
+            didDisappear() {
+                visible = false;
+                detail.close();
+            },
+        });
+    }
 
     function shift(by) {
         if (mode === 'day') cursor = addDays(cursor, by);
@@ -286,7 +301,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         }
         const firstRead = !blank && loading && feeds.all().every((feed) => !reads.has(feed));
         firstLoad.style.display = firstRead ? 'flex' : 'none';
-        // Hidden under the overlays, so the panel's glass shows through them.
+        // Hidden under the overlays, so the window's background material shows through them.
         head.style.visibility = blank || firstRead ? 'hidden' : '';
         body.style.visibility = blank || firstRead ? 'hidden' : '';
 
@@ -334,9 +349,10 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: length, easing: theme.motion.easing });
     }
 
-    // Calendar comes on screen and asks in a dialog: `{ answer, close }`, `answer` whether the person confirmed.
+    // Calendar's window comes on screen and asks in a dialog: `{ answer, close }`, `answer` whether the person
+    // confirmed.
     function prompt({ title: heading, message, confirmLabel, cancelLabel }) {
-        shell.show();
+        openWindow();
         let close = null;
         const answer = new Promise((resolve) => {
             let confirmed = false;
