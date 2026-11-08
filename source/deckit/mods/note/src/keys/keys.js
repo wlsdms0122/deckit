@@ -12,12 +12,12 @@ const NAMED = {
     backspace: ['Backspace', '⌫'],
 };
 
-// The view's own keys, while it is in front: `keys` is `{ name: { key, run, fieldsKeep } }`, `key` a spec of
-// modifiers (`mod` for ⌘, `ctrl`, `alt`, `shift`) and a key joined by `+`, matched on the physical key, and `run()`
-// what it does. `listen(on)` takes them from the page while on, before anything in it hears them, but for one that is
-// `fieldsKeep`, left to a field that has the keyboard. What a key throws is logged. `chordOf(name)` is a key's chord
-// as a person reads it, or '' for none.
-function viewKeys(keys, { log }) {
+// The window's own keys, while it is key: `keys` is `{ name: { key, run, fieldsKeep } }`, `key` a spec of modifiers
+// (`mod` for ⌘, `ctrl`, `alt`, `shift`) and a key joined by `+`, matched on the physical key, and `run()` what it does.
+// `listen(on)` takes them from the document `within` is in while on, before anything in it hears them, but for one
+// that is `fieldsKeep`, left to a field that has the keyboard. What a key throws is logged. `chordOf(name)` is a key's
+// chord as a person reads it, or '' for none.
+function viewKeys(keys, { log, within }) {
     const read = Object.entries(keys).map(([name, { key, run, fieldsKeep = false }]) => ({
         name,
         keystroke: keystrokeOf(key),
@@ -27,24 +27,25 @@ function viewKeys(keys, { log }) {
     const onKey = (event) => {
         if (event.defaultPrevented) return;
         const found = read.find(({ keystroke }) => matches(keystroke, event));
-        if (!found || (found.fieldsKeep && typing())) return;
+        if (!found || (found.fieldsKeep && typing(event.currentTarget.document))) return;
         event.preventDefault();
         event.stopPropagation();
         Promise.resolve()
             .then(found.run)
             .catch((error) => console.warn(`[${log}] the key ${found.name} did not run: ${error.message || error}`));
     };
-    let listening = false;
+    let listening = null; // the window of the document it takes them from
     return {
         chordOf: (name) => {
             const found = read.find((key) => key.name === name);
             return found ? written(found.keystroke) : '';
         },
         listen(on) {
-            if (on === listening) return;
-            listening = on;
-            if (on) window.addEventListener('keydown', onKey, true);
-            else window.removeEventListener('keydown', onKey, true);
+            const view = on ? within.ownerDocument.defaultView : null;
+            if (view === listening) return;
+            listening?.removeEventListener('keydown', onKey, true);
+            listening = view;
+            view?.addEventListener('keydown', onKey, true);
         },
     };
 }
@@ -73,8 +74,8 @@ function written({ code, meta, control, alt, shift }) {
     return (control ? '⌃' : '') + (alt ? '⌥' : '') + (shift ? '⇧' : '') + (meta ? '⌘' : '') + sign;
 }
 
-// A field has the keyboard: anything typed in.
-function typing() {
+// A field of `document` has the keyboard: anything typed in.
+function typing(document) {
     return !!document.activeElement?.closest('input, textarea, [contenteditable]');
 }
 

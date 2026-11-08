@@ -6,7 +6,6 @@ const { parentOf } = require('../notes-folder/path.js');
 // as a press does, and Return renames the row in place.
 function tree({
     ui,
-    show,
     chordOf,
     store,
     movePath,
@@ -42,10 +41,7 @@ function tree({
             { icon: ui.iconOf(COMPOSE_SHAPES, { size: 16 }), title: 'New note', run: () => onNewNote() },
             { icon: ui.icon('folderPlus', { size: 16 }), title: 'New folder', run: () => onNewFolder() },
         ],
-        onHeading: () => {
-            show();
-            onShowAll();
-        },
+        onHeading: () => onShowAll(),
         onHeadingMenu: (event) => ui.menu({ items: folderMenu(''), point: { x: event.clientX, y: event.clientY } }),
     });
     const rows = ui.list({ key: (item) => item.path, create: rowOf });
@@ -59,7 +55,6 @@ function tree({
     rows.element.addEventListener('click', (event) => {
         const row = entryAt(event.target);
         if (!row) return;
-        show();
         const { kind, path } = entryOf(row);
         if (kind === 'note') return onOpenNote(path);
         if (row.hasAttribute('data-folds')) toggle(path);

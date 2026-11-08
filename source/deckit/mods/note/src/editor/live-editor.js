@@ -114,9 +114,9 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
             return true;
         },
     });
-    // The editor keeps the keyboard and steers the slash menu.
-    const slashMenu = ui.autocomplete({ onPick: (item) => takeSlashCommand(item) });
-    const toolbar = ui.floatingToolbar();
+    // The editor keeps the keyboard and steers the slash menu; both float in the document the note is in.
+    const slashMenu = ui.autocomplete({ onPick: (item) => takeSlashCommand(item), over: element });
+    const toolbar = ui.floatingToolbar({ over: element });
     // Highest, to beat the Markdown keymap, which the engine puts at high precedence itself.
     const keys = engine.Prec.highest(
         engine.keymap.of([

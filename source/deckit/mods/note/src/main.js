@@ -26,14 +26,16 @@ class Note {
     // before the run ends is kept, and the notes folder no longer watched.
     end = null;
 
-    // What the view has put on screen for the commands to reach, while it is attached.
+    // What attach has put on screen for the commands and reopen() to reach, while it is attached: `openWindow()` opens
+    // Notes' window, or orders it front where it is open.
     screen = null;
 
-    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the view,
-    // and one run while Notes has none open says so.
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the
+    // window's views, open or not, `new-note` opening it where it is closed, as the name is typed on screen; one run
+    // while Notes is not attached says so.
     start(deckit) {
         const onScreen = () => {
-            if (!this.screen) throw new Error('Notes has no view open');
+            if (!this.screen) throw new Error('Notes has no window to open');
             return this.screen;
         };
         const commands = {
@@ -90,7 +92,7 @@ class Note {
         ui.addStyle(STYLE);
         const content = ui.element('div', { className: 'note' });
         const relocations = relocationLog({ movePath: util.movePath, idle: () => noteSession.idle() });
-        // The view's own keys, while it is in front, made before what draws their chords.
+        // The window's own keys, while it is key, made before what draws their chords.
         const keys = viewKeys(
             {
                 newNote: { key: 'mod+n', run: () => newNoteHere() },
@@ -111,7 +113,7 @@ class Note {
                 markChecked: { key: 'mod+shift+u', run: () => markChecked() },
                 blockQuote: styleKey('blockQuote', "mod+'"),
             },
-            { log: 'note' }
+            { log: 'note', within: content }
         );
         this.endKeys = () => keys.listen(false);
         const editor = liveEditor({
@@ -209,7 +211,6 @@ class Note {
         });
         const sidebarTree = tree({
             ui,
-            show: shell.show,
             chordOf: (name) => keys.chordOf(name),
             store,
             movePath: util.movePath,
@@ -252,24 +253,33 @@ class Note {
         window.addEventListener('pagehide', saveOnPageHide);
         reachSavedPlace();
 
-        shell.view.register({
-            content,
+        // The notes beside the sidebar's tree, whose width and fold are kept as the person leaves them.
+        const split = ui.splitView({
             sidebar: sidebarTree.element,
-            didAppear: () => {
-                keys.listen(true);
-                notesFolder.watch(true).catch(() => {});
-                refresh();
-                noteSession.reconcile();
-                if (hadFocus && editor.isOpen() && place.kind === 'note') editor.focus();
-                else if (place.kind === 'folder') notesGallery.focus();
-            },
-            didDisappear: () => {
-                keys.listen(false);
-                hadFocus = editor.hasFocus();
-                noteSession.saveIfUnsaved();
-                notesFolder.watch(false).catch(() => {});
-            },
+            content,
+            ...store.get('sidebar', {}),
+            onChange: (kept) => store.set('sidebar', kept),
         });
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear: () => {
+                    notesFolder.watch(true).catch(() => {});
+                    refresh();
+                    noteSession.reconcile();
+                    if (hadFocus && editor.isOpen() && place.kind === 'note') editor.focus();
+                    else if (place.kind === 'folder') notesGallery.focus();
+                },
+                didBecomeKey: () => keys.listen(true),
+                didResignKey: () => keys.listen(false),
+                didDisappear: () => {
+                    hadFocus = editor.holdsFocus();
+                    noteSession.saveIfUnsaved();
+                    notesFolder.watch(false).catch(() => {});
+                },
+            });
+        openWindow();
         const newNoteHere = () => newNote(currentFolder());
         const newFolder = () => fileOperations.newFolder(currentFolder());
         const actions = switcher({
@@ -278,7 +288,7 @@ class Note {
             allNotes: () => allNotes,
             notesOf: (query, { signal }) => notesFound(query, { searchNotes, allNotes, signal }),
             styles: STYLES,
-            show: shell.show,
+            show: openWindow,
             does: {
                 open: openNoteOf,
                 'show-folder': showFolderOf,
@@ -295,7 +305,15 @@ class Note {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
-        this.screen = { newNote: () => fileOperations.newNote(currentFolder()), openNoteOf, showFolderOf };
+        this.screen = {
+            openWindow,
+            newNote: () => {
+                if (!shell.windows.list().length) openWindow();
+                return fileOperations.newNote(currentFolder());
+            },
+            openNoteOf,
+            showFolderOf,
+        };
 
         // `ready()` is told once the note is reached.
         async function openNoteOf({ id }, { ready = () => {} } = {}) {
@@ -451,7 +469,7 @@ class Note {
 
         // Made on screen, where its name is typed.
         function newNote(into) {
-            shell.show();
+            openWindow();
             return fileOperations.newNote(into);
         }
 
@@ -538,6 +556,11 @@ class Note {
             editor.setTypeface(typeface);
             noteSession.setFont(typeface.font);
         }
+    }
+
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
     }
 
     detach() {
