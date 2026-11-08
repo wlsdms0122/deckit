@@ -26,14 +26,15 @@ const PLACES = [
 ];
 
 class Finder {
-    // What the view has put on screen for the commands to reach, while it is attached.
+    // What attach has put on screen for the commands and reopen() to reach, while it is attached: `openWindow()` opens
+    // Finder's window, or orders it front where it is open.
     screen = null;
 
-    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the view,
-    // and one run while Finder has none open says so.
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the tab in
+    // front of the window, open or not, and one run while Finder is not attached says so.
     start(deckit) {
         const onScreen = () => {
-            if (!this.screen) throw new Error('Finder has no view open');
+            if (!this.screen) throw new Error('Finder has no window to open');
             return this.screen;
         };
         const commands = {
@@ -95,7 +96,7 @@ class Finder {
             isShown: (folder) => area.shownFolders().includes(folder),
             onRead: applyListing,
         });
-        // The view's own keys, while it is in front, made before what draws their chords.
+        // The window's own keys, while it is key, made before what draws their chords.
         const keys = viewKeys(
             {
                 newTab: { key: 'mod+t', run: () => tabs.open() },
@@ -127,7 +128,7 @@ class Finder {
                 // While a field has the keyboard, ⌘⌫ stays the field's (delete to line start).
                 trash: { key: 'mod+backspace', run: () => trash(), fieldsKeep: true },
             },
-            { log: 'finder' }
+            { log: 'finder', within: content }
         );
         this.endKeys = () => keys.listen(false);
         const tabs = tabList({
@@ -204,7 +205,6 @@ class Finder {
         const favorites = favoriteList({
             ui,
             reveal: deckit.reveal,
-            show: shell.show,
             records,
             tildify: util.tildify,
             folds,
@@ -298,25 +298,34 @@ class Finder {
             })
             .catch(area.failToStart);
 
-        shell.view.register({
-            content,
+        // The folders beside the sidebar's tabs and favorites, whose width and fold are kept as the person leaves them.
+        const split = ui.splitView({
             sidebar,
-            didAppear: () => {
-                showing = true;
-                keys.listen(true);
-                if (tabs.front()) {
-                    watchShown();
-                    load();
-                }
-                area.element.focus();
-            },
-            didDisappear: () => {
-                showing = false;
-                keys.listen(false);
-                disk.closeQuickLook().catch(() => {});
-                watchShown();
-            },
+            content,
+            ...values.get('sidebar', {}),
+            onChange: (kept) => values.set('sidebar', kept),
         });
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear: () => {
+                    showing = true;
+                    if (tabs.front()) {
+                        watchShown();
+                        load();
+                    }
+                    area.element.focus();
+                },
+                didBecomeKey: () => keys.listen(true),
+                didResignKey: () => keys.listen(false),
+                didDisappear: () => {
+                    showing = false;
+                    disk.closeQuickLook().catch(() => {});
+                    watchShown();
+                },
+            });
+        openWindow();
         // Their keys stay Finder's while a field is typed in, so the field never hears them; they open nothing then.
         const open = () => !typing() && operator.open(selectedEntries());
         const openWithDefaultApp = () => !typing() && operator.open(selectedEntries(), { usesDefaultApp: true });
@@ -330,7 +339,7 @@ class Finder {
             favorites,
             foldersAtHand,
             places: PLACES,
-            show: shell.show,
+            show: openWindow,
             does: {
                 'open-folder': openFolder,
                 ...inFront({
@@ -353,7 +362,7 @@ class Finder {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
-        this.screen = { openFolder, goToPlace };
+        this.screen = { openWindow, openFolder, goToPlace };
 
         // `ready()` is told once the path is found to be there, before Finder goes to it.
         async function openFolder({ path }, { ready = () => {} } = {}) {
@@ -588,8 +597,13 @@ class Finder {
 
         // A field has the keys: a name being typed, or the filter.
         function typing() {
-            return !!document.activeElement?.closest('input, textarea, [contenteditable]');
+            return !!content.ownerDocument.activeElement?.closest('input, textarea, [contenteditable]');
         }
+    }
+
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
     }
 
     detach() {
