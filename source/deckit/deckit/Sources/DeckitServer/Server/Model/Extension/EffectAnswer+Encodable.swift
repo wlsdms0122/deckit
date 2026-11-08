@@ -59,6 +59,10 @@ extension EffectAnswer: Encodable {
             try container.encode(modId, forKey: .mod)
             try container.encode(number, forKey: .run)
 
+        case let .kill(modId):
+            try container.encode("kill", forKey: .effect)
+            try container.encode(modId, forKey: .mod)
+
         case let .close(modId):
             try container.encode("close", forKey: .effect)
             try container.encode(modId, forKey: .mod)

@@ -19,6 +19,9 @@ public enum Effect: Sendable {
     case keep(Run)
     // Ask the run's page to end it, and say once it did, its time ran out or the page is gone.
     case stop(modId: String, number: Int)
+    // End the mod's sandbox at once, asking nothing of its page: what its page runs ends, and its next launch loads its
+    // page anew.
+    case kill(modId: String)
     // Close the mod's sandbox, which runs no more.
     case close(modId: String)
     // Ask the service's page for the exports the connection reaches, telling it the client's credential, and hand them

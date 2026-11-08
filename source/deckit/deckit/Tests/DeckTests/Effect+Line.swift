@@ -35,6 +35,9 @@ extension Effect {
         case let .stop(modId, number):
             "stop \(modId) \(number)"
 
+        case let .kill(modId):
+            "kill \(modId)"
+
         case let .close(modId):
             "close \(modId)"
 

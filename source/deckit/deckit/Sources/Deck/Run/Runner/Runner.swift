@@ -101,11 +101,12 @@ final class Runner {
         }
     }
 
-    // It did not start, and why: its end is asked of its page as it terminates.
+    // It did not start, and why: its sandbox ends at once.
     func notStarted(_ id: String, run number: Int, problem: String) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didFailToLaunch(problem) }
+            effects.append(.kill(modId: id))
         }
     }
 

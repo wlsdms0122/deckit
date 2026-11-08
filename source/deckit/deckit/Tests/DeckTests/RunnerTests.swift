@@ -82,7 +82,7 @@ struct RunnerTests {
         #expect(describe(second).isEmpty)
     }
 
-    @Test("a run that did not start terminates, its stop() asked, and ends failing once that answered")
+    @Test("a run that did not start ends failing at once, its sandbox killed")
     func failedLaunchEnds() throws {
         // Given
         let sut = Runner()
@@ -94,8 +94,8 @@ struct RunnerTests {
 
         // Then
         let run = try #require(sut.run(of: "a"))
-        #expect(describe(failed) == ["tell didFailToLaunch a 1 terminating", "stop a 1"])
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
+        #expect(describe(failed) == ["tell didFailToLaunch a 1 notRunning", "kill a"])
+        #expect(describe(stopped).isEmpty)
         #expect(run.failed)
         #expect(run.problem == "start threw")
     }
