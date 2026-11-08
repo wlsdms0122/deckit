@@ -8,7 +8,7 @@ const UNMET = 'UNMET_DEPENDENCY';
 // MARK: - Public
 // The dependencies a package file names in its `[dependencies]` table, mod id -> requirement, in the order written:
 // `[{ id, requirement, installed, satisfied }]`, `installed` the version of the mod of that id among `found`, as
-// deckit.mods lists them, or null for none, and `satisfied` whether the requirement takes it. `read` is what the file
+// deckit.mods lists them, left out for none, and `satisfied` whether the requirement takes it. `read` is what the file
 // holds. Refused of kind PACKAGE for a `dependencies` that is no table, and REQUIREMENT for a requirement not written
 // in the syntax `requirementOf` reads.
 function dependenciesOf(read, found) {
@@ -18,8 +18,9 @@ function dependenciesOf(read, found) {
     return Object.entries(table).map(([id, requirement]) => {
         const range = requirementOf(requirement);
         if (!range) throw refusal('REQUIREMENT', `${id} = ${JSON.stringify(requirement)} is no version requirement`);
-        const installed = found.find((mod) => mod.id === id)?.version ?? null;
-        return { id, requirement, installed, satisfied: installed !== null && takes(range, installed) };
+        const installed = found.find((mod) => mod.id === id)?.version;
+        if (installed === undefined) return { id, requirement, satisfied: false };
+        return { id, requirement, installed, satisfied: takes(range, installed) };
     });
 }
 
@@ -28,7 +29,7 @@ function unmetOf(dependencies) {
     const unmet = dependencies.filter((dependency) => !dependency.satisfied);
     if (!unmet.length) return null;
     const each = unmet.map(({ id, requirement, installed }) =>
-        installed === null
+        installed === undefined
             ? `${id} ${requirement} is not installed`
             : `${id} ${requirement} is installed as ${installed}`
     );

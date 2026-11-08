@@ -202,15 +202,15 @@ async function main() {
 
     // Args checked before reaching.
     const kinds = async (...args) => (await rejection(client.run(...args)))?.kind;
-    check('no such command', (await kinds('calendar', 'nope')) === 'COMMAND');
-    check('no such mod', (await kinds('ghost', 'today')) === 'COMMAND');
-    check('takes no args', (await kinds('calendar', 'today', { a: 1 })) === 'ARGUMENTS');
-    check('required', (await kinds('calendar', 'open-event', {})) === 'ARGUMENTS');
-    check('none for required', (await kinds('calendar', 'open-event')) === 'ARGUMENTS');
-    check('integer', (await kinds('calendar', 'open-event', { start: 1.5 })) === 'ARGUMENTS');
-    check('enum', (await kinds('calendar', 'open-event', { start: 1, view: 'year' })) === 'ARGUMENTS');
-    check('items', (await kinds('calendar', 'open-event', { start: 1, tags: ['a', 2] })) === 'ARGUMENTS');
-    check('oneOf', (await kinds('calendar', 'open-event', { start: 1, mode: 'c' })) === 'ARGUMENTS');
+    check('no such command', (await kinds('calendar', 'nope')) === 'NOT_DECLARED');
+    check('no such mod', (await kinds('ghost', 'today')) === 'NOT_DECLARED');
+    check('takes no args', (await kinds('calendar', 'today', { a: 1 })) === 'INVALID_ARGUMENT');
+    check('required', (await kinds('calendar', 'open-event', {})) === 'INVALID_ARGUMENT');
+    check('none for required', (await kinds('calendar', 'open-event')) === 'INVALID_ARGUMENT');
+    check('integer', (await kinds('calendar', 'open-event', { start: 1.5 })) === 'INVALID_ARGUMENT');
+    check('enum', (await kinds('calendar', 'open-event', { start: 1, view: 'year' })) === 'INVALID_ARGUMENT');
+    check('items', (await kinds('calendar', 'open-event', { start: 1, tags: ['a', 2] })) === 'INVALID_ARGUMENT');
+    check('oneOf', (await kinds('calendar', 'open-event', { start: 1, mode: 'c' })) === 'INVALID_ARGUMENT');
     for (const [mod, id, args] of [
         [1, 'today'],
         ['calendar', 1],
@@ -283,7 +283,7 @@ async function main() {
 
     // No runCommand, a throw, and a function answered: each let go.
     asked.length = 0;
-    check('no runCommand', (await kinds('plain', 'go')) === 'COMMAND');
+    check('no runCommand', (await kinds('plain', 'go')) === 'NOT_EXPORTED');
     check('a throw handed on', (await kinds('off', 'go')) === 'BROKE');
     await ticks();
     check(
@@ -304,9 +304,9 @@ async function main() {
     // reached, and a throw or an answer not a list is handed on.
     asked.length = 0;
     const completing = async (...args) => (await rejection(client.complete(...args)))?.kind;
-    check('complete no such command', (await completing('calendar', 'nope', 'x', '')) === 'COMMAND');
-    check('complete no such arg', (await completing('calendar', 'open-event', 'nope', '')) === 'ARGUMENTS');
-    check('complete takes no args', (await completing('calendar', 'today', 'x', '')) === 'ARGUMENTS');
+    check('complete no such command', (await completing('calendar', 'nope', 'x', '')) === 'NOT_DECLARED');
+    check('complete no such arg', (await completing('calendar', 'open-event', 'nope', '')) === 'INVALID_ARGUMENT');
+    check('complete takes no args', (await completing('calendar', 'today', 'x', '')) === 'INVALID_ARGUMENT');
     check(
         'complete function in args',
         (await completing('calendar', 'open-event', 'view', '', { f: () => 1 })) === 'INVALID_ARGUMENT'
@@ -341,15 +341,12 @@ async function main() {
             ]),
         asked
     );
-    const quiet = errors.length;
     asked.length = 0;
     refusing.set('calendar', ['NOT_EXPORTED', 'call']);
-    const unreached = await client.complete('calendar', 'open-event', 'view', '');
+    const unreached = await completing('calendar', 'open-event', 'view', '');
     await ticks();
-    check('complete unreached offers none', Array.isArray(unreached) && !unreached.length, unreached);
-    check('complete unreached logged', errors.length === quiet + 1, errors);
+    check('complete unreached refused so', unreached === 'NOT_EXPORTED', unreached);
     check('complete unreached not let go', JSON.stringify(asked) === JSON.stringify([['reach', 'calendar']]), asked);
-    errors.length = quiet;
     refusing.delete('calendar');
     asked.length = 0;
     const plainOffers = await client.complete('plain', 'pick', 'which', '');

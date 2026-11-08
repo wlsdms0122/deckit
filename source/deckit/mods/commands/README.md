@@ -57,16 +57,17 @@ Every call needs `deckit.system-services`: a client that does not hold it is con
 |---|---|
 | `list()` | `{ commands, refused }`: `commands` every command declared by the mods that load, in the mods' order and then the order declared, `[{ mod, id, title, keywords, params }]`, `mod` the declaring mod's `{ id, name }` and `params` left out for one that takes no args; `refused` `[{ mod, entry, problem }]` the entries left out, `entry` as written and `problem` why |
 | `run(mod, id, args)` | runs the command `id` of the mod `mod` with `args`, and resolves to what it answers, a value or nothing. `args` fit its `params`; one that takes no args takes none or `{}`. It reaches the mod by its id, which launches the mod if it does not run, and asks it to run the command (What a mod answers) |
-| `complete(mod, id, param, partial, args)` | what the mod offers for the arg `param` of its command `id`, as `partial` is typed and with `args` the args filled so far, `[{ value, title, hint, keywords }]`: `value` the arg's value, `title` what the person reads, `hint` and `keywords` as the mod gives them. It reaches the mod as `run` does and asks it (What a mod answers); one whose exports have no `completeCommand` offers none, and so does one not reached, which is logged. A caller ignores an answer to text that has changed since |
+| `complete(mod, id, param, partial, args)` | what the mod offers for the arg `param` of its command `id`, as `partial` is typed and with `args` the args filled so far, `[{ value, title, hint, keywords }]`: `value` the arg's value, `title` what the person reads, `hint` and `keywords` as the mod gives them. It reaches the mod as `run` does and asks it (What a mod answers); one whose exports have no `completeCommand` offers none. A caller ignores an answer to text that has changed since |
 
 `run` and `complete` reject with why they did not ask, the `kind` saying which:
 
 | Kind | Why |
 |---|---|
-| `COMMAND` | the mod declares no such command, or for `run` its exports for its id have no `runCommand` |
-| `ARGUMENTS` | for `run` `args` do not fit its `params`, for `complete` its `params` have no `param` |
+| `INVALID_ARGUMENT` | for `run` `args` that do not fit its `params`, for `complete` a `param` its `params` do not have |
+| `NOT_DECLARED` | the mod declares no such command |
+| `NOT_EXPORTED` | for `run`, its exports for its id have no `runCommand` |
 
-A mod that `run` does not reach rejects at `call` with the reach's kind: one the system does not launch (`NOT_INSTALLED`, `NOT_LOADABLE`, `RELAUNCH_LIMIT`), one whose run failed (`NOT_LAUNCHED`, `TIMED_OUT`), one that opens no exports for its id (`NOT_EXPORTED`), one whose service refuses the connection (the kind it refuses with, or `REFUSED`), or a reach of a lifecycle that has ended (`ENDED`). A throw of the command or of its completion is handed to the client as the mod threw it, with its `kind`, and a completion that answers no list, or a function in one, rejects. A mod running a command of its own calls its own code, and needs nothing of Commands.
+A mod that `run` or `complete` does not reach rejects at `call` with the reach's kind: one the system does not launch (`NOT_INSTALLED`, `NOT_LOADABLE`, `RELAUNCH_LIMIT`), one whose run failed (`NOT_LAUNCHED`, `TIMED_OUT`), one that opens no exports for its id (`NOT_EXPORTED`), one whose service refuses the connection (the kind it refuses with, or `REFUSED`), or a reach of a lifecycle that has ended (`ENDED`). A throw of the command or of its completion is handed to the client as the mod threw it, with its `kind`, and a completion that answers no list, or a function in one, rejects. A mod running a command of its own calls its own code, and needs nothing of Commands.
 
 ## What a mod answers
 

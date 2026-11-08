@@ -45,12 +45,12 @@ function registry(deckit) {
             throw refusal('INVALID_ARGUMENT', 'run takes (mod, id, args), mod and id strings and args a table');
         const command = await declaredCommand(mod, id);
         const problem = problemOfArgs(command, args);
-        if (problem) throw refusal('ARGUMENTS', `${command.title} cannot run: ${problem}`);
+        if (problem) throw refusal('INVALID_ARGUMENT', `${command.title} cannot run: ${problem}`);
         const exports = await dependencies.reach(mod);
         let result;
         try {
             if (typeof exports.runCommand !== 'function')
-                throw refusal('COMMAND', `${command.mod.name} runs no commands: its exports have no runCommand`);
+                throw refusal('NOT_EXPORTED', `${command.mod.name} runs no commands: its exports have no runCommand`);
             result = await exports.runCommand(id, args ?? {});
         } finally {
             letGo(mod);
@@ -61,8 +61,8 @@ function registry(deckit) {
 
     // What the mod `mod` offers for the arg `param` of its command `id`, typed so far as `partial`, with `args` the args
     // filled so far: `[{ value, title, hint, keywords }]` as `completeCommand` on the exports the mod opens for its id
-    // answers it, reached for the asking. A mod whose exports have no completeCommand, or that is not reached, offers
-    // none.
+    // answers it, reached for the asking, which is refused as the run's is. A mod whose exports have no completeCommand
+    // offers none.
     async function complete(mod, id, param, partial = '', args) {
         const strings = [mod, id, param, partial].every((one) => typeof one === 'string');
         if (!strings || !isArgs(args))
@@ -72,14 +72,8 @@ function registry(deckit) {
             );
         const command = await declaredCommand(mod, id);
         if (!Object.hasOwn(command.params?.properties ?? {}, param))
-            throw refusal('ARGUMENTS', `${command.title} takes no arg "${param}"`);
-        let exports;
-        try {
-            exports = await dependencies.reach(mod);
-        } catch (error) {
-            console.error(`[commands] ${mod} offers nothing for "${param}": it was not reached`, error);
-            return [];
-        }
+            throw refusal('INVALID_ARGUMENT', `${command.title} takes no arg "${param}"`);
+        const exports = await dependencies.reach(mod);
         let offered;
         try {
             if (typeof exports.completeCommand !== 'function') return [];
@@ -95,7 +89,7 @@ function registry(deckit) {
     // MARK: - Private
     async function declaredCommand(mod, id) {
         const command = (await list()).commands.find((each) => each.mod.id === mod && each.id === id);
-        if (!command) throw refusal('COMMAND', `no such command: "${id}" of ${mod}`);
+        if (!command) throw refusal('NOT_DECLARED', `no such command: "${id}" of ${mod}`);
         return command;
     }
 

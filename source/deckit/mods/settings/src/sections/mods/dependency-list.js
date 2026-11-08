@@ -25,7 +25,7 @@ function dependencyList({ ui, dependencies, nameOf }) {
         const row = ui.element('div', { className: 'settings-dependency' });
         const state = ui.element('span', {
             className: 'settings-dependency-state',
-            text: installed === null ? 'Not installed' : `${installed} installed`,
+            text: installed === undefined ? 'Not installed' : `${installed} installed`,
         });
         state.toggleAttribute('data-unmet', !satisfied);
         row.append(

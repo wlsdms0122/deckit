@@ -93,11 +93,10 @@ What you chose is kept in URLs' storage across runs. A mod chosen is kept while 
 
 A call that does not hold `deckit.system-services` rejects with kind `NOT_PERMITTED`. An argument of another type rejects with kind `INVALID_ARGUMENT`, as does a `choice` that is none of the three. `choose` rejects with why, the `kind` saying which:
 
-| Kind     | Why                                                                              |
-| -------- | -------------------------------------------------------------------------------- |
-| `SCHEME` | no mod opens an address of `scheme`                                              |
-| `MOD`    | the mod of `{ mod: id }` is not in the scheme's list                             |
-| `SYSTEM` | `{ system: true }` for a scheme nothing opens outside the app, with no `system`  |
+| Kind          | Why                                                                                                       |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `NOT_LISTED`  | `scheme` has no list: no mod opens an address of it, and nothing outside the app does                     |
+| `NOT_HANDLER` | the mod of `{ mod: id }` is not in the scheme's list, or `{ system: true }` for a scheme with no `system` |
 
 `open` does not reject for an address no one took: it resolves to false, as it does where `deckit.openExternal` refuses the address.
 

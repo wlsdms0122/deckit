@@ -48,11 +48,11 @@ function problemOfValue(setting, value) {
 }
 
 // What `setting` reads as, given what is kept for its mod (key -> value): the value kept where it is one the setting
-// takes, else its default, null where it declares none.
+// takes, else its default, nothing where it declares none.
 function valueOf(setting, kept) {
-    const value = Object.hasOwn(kept, setting.key) ? kept[setting.key] : null;
-    if (value !== null && !problemOfValue(setting, value)) return value;
-    return setting.entry.default ?? null;
+    const value = Object.hasOwn(kept, setting.key) ? kept[setting.key] : undefined;
+    if (value !== undefined && !problemOfValue(setting, value)) return value;
+    return setting.entry.default;
 }
 
 // MARK: - Private

@@ -61,10 +61,10 @@ function router(deckit) {
         const run = queue.then(async () => {
             const name = scheme.toLowerCase();
             const found = listsOf(await handlers(), chosen).find((each) => each.scheme === name);
-            if (!found) throw refusal('SCHEME', `no mod opens ${scheme}`);
+            if (!found) throw refusal('NOT_LISTED', `no mod opens ${scheme}`);
             if (read?.mod !== undefined && !found.mods.some((each) => each.mod.id === read.mod))
-                throw refusal('MOD', `${read.mod} opens no address of ${name}`);
-            if (read?.system && !found.system) throw refusal('SYSTEM', `nothing opens ${name} outside the app`);
+                throw refusal('NOT_HANDLER', `${read.mod} opens no address of ${name}`);
+            if (read?.system && !found.system) throw refusal('NOT_HANDLER', `nothing opens ${name} outside the app`);
             const next = new Map(chosen);
             if (read === null) next.delete(name);
             else next.set(name, read);

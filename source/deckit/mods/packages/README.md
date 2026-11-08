@@ -26,11 +26,11 @@ A folder with no package file depends on nothing. The file is read as TOML by a 
 
 ## Providing `deckit/packages`
 
-Packages provides `deckit/packages` major 1. A client calls it when it holds `deckit.mods`, which installing takes anyway; any other call rejects with kind `REFUSED`.
+Packages provides `deckit/packages` major 1. A client calls it when it holds `deckit.mods`, which installing takes anyway; any other call rejects with kind `NOT_PERMITTED`.
 
 | Call              | What it does                                                                                                                                                                                                                                           |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `plan(folder)`    | what `deckit.mods.plan(folder)` answers, with `dependencies` `[{ id, requirement, installed, satisfied }]` in the order written, `installed` the version of the mod of that id now, or null for none, and `satisfied` whether the requirement takes it |
+| `plan(folder)`    | what `deckit.mods.plan(folder)` answers, with `dependencies` `[{ id, requirement, installed, satisfied }]` in the order written, `installed` the version of the mod of that id now, left out for none, and `satisfied` whether the requirement takes it |
 | `install(folder)` | installs through `deckit.mods.install(folder)` and answers what it answers, once every dependency is satisfied                                                                                                                                         |
 
 Besides what `deckit.mods` rejects with, each rejects with why, the `kind` saying which:

@@ -367,8 +367,8 @@ async function main() {
             `${json([url, options])} is refused`,
             (await rejection(plain.open(url, options)))?.kind === 'INVALID_ARGUMENT'
         );
-    check('no such scheme', (await rejection(settings.choose('gopher', { mod: 'browser' })))?.kind === 'SCHEME');
-    check('no such mod there', (await rejection(settings.choose('https', { mod: 'mail' })))?.kind === 'MOD');
+    check('no such scheme', (await rejection(settings.choose('gopher', { mod: 'browser' })))?.kind === 'NOT_LISTED');
+    check('no such mod there', (await rejection(settings.choose('https', { mod: 'mail' })))?.kind === 'NOT_HANDLER');
     for (const choice of ['browser', 7, {}, { system: false }, { mod: 7 }, { mod: 'browser', system: true }, []])
         check(
             `${json(choice)} is no choice`,
@@ -376,11 +376,11 @@ async function main() {
         );
     check(
         'nothing outside for mailto',
-        (await rejection(settings.choose('mailto', { system: true })))?.kind === 'SYSTEM'
+        (await rejection(settings.choose('mailto', { system: true })))?.kind === 'NOT_HANDLER'
     );
     check(
         'nothing outside for every scheme',
-        (await rejection(settings.choose('*', { system: true })))?.kind === 'SYSTEM'
+        (await rejection(settings.choose('*', { system: true })))?.kind === 'NOT_HANDLER'
     );
     check('nothing kept', !store.has('chosen'));
     const https = await settings.choose('HTTPS', { mod: 'any' });

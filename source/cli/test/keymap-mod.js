@@ -293,17 +293,24 @@ async function main() {
     check('own mod only', (await keymapped.exportsFor(connection('note', [])).chordOf('today')) === '');
 
     // Refused without the permission.
-    check('list refused', (await rejection(own.list()))?.kind === 'REFUSED');
-    check('set refused', (await rejection(own.set('calendar', 'today', null)))?.kind === 'REFUSED');
-    check('reset refused', (await rejection(own.reset('calendar', 'today')))?.kind === 'REFUSED');
+    check('list refused', (await rejection(own.list()))?.kind === 'NOT_PERMITTED');
+    check('set refused', (await rejection(own.set('calendar', 'today')))?.kind === 'NOT_PERMITTED');
+    check('reset refused', (await rejection(own.reset('calendar', 'today')))?.kind === 'NOT_PERMITTED');
+    check('chord of another type', (await rejection(own.chordOf(1)))?.kind === 'INVALID_ARGUMENT');
 
     // What a set is refused for.
     const kind = async (...args) => (await rejection(settings.set(...args)))?.kind;
     const stroke = (spec) => ({ ...KEYSTROKE.parse(spec) });
-    check('no such key', (await kind('calendar', 'open-event', stroke('ctrl+e'))) === 'KEY');
-    check('no keystroke', (await kind('calendar', 'today', { meta: true })) === 'KEYSTROKE');
-    check('nameless', (await kind('calendar', 'today', { code: 'Numpad1', meta: true })) === 'KEYSTROKE');
-    check('wide rule', (await kind('calendar', 'today', stroke('cmd+v'))) === 'KEYSTROKE');
+    check('no such key', (await kind('calendar', 'open-event', stroke('ctrl+e'))) === 'NOT_DECLARED');
+    check('no keystroke', (await kind('calendar', 'today', { meta: true })) === 'INVALID_ARGUMENT');
+    check(
+        'a modifier of another type',
+        (await kind('calendar', 'today', { code: 'KeyT', meta: 1 })) === 'INVALID_ARGUMENT'
+    );
+    check('an id of another type', (await kind(1, 'today', stroke('ctrl+e'))) === 'INVALID_ARGUMENT');
+    check('nameless', (await kind('calendar', 'today', { code: 'Numpad1', meta: true })) === 'INVALID_ARGUMENT');
+    check('wide rule', (await kind('calendar', 'today', stroke('cmd+v'))) === 'INVALID_ARGUMENT');
+    check('reset of another type', (await rejection(settings.reset('calendar', 2)))?.kind === 'INVALID_ARGUMENT');
     check('refused keeps nothing', !store.has('keys'), [...store]);
 
     // A set onto a free chord: kept, and the chord taken in place of the old one.
@@ -327,8 +334,8 @@ async function main() {
     set = await settings.reset('calendar', 'week');
     check('reset answers', !set.changed && set.active && set.chord === '⌃⌥W', set);
     check('free, so applied', of((await settings.list()).keys, 'switcher', 'show').active);
-    set = await settings.set('calendar', 'week', null);
-    check('none', set.keystroke === null && set.chord === '' && set.changed && !set.active, set);
+    set = await settings.set('calendar', 'week');
+    check('none', !('keystroke' in set) && set.chord === '' && set.changed && !set.active, set);
     check('none is let go', !holding.has('ctrl+alt+w'), [...holding.keys()]);
     await settings.set('calendar', 'today', stroke('shift+cmd+t'));
     check(
@@ -350,7 +357,7 @@ async function main() {
     // What the hole answers: a chord another mod took runs none on it, a global one not given works in the app.
     othersHold.add('ctrl+alt+n');
     set = await settings.set('note', 'new', stroke('ctrl+alt+n'));
-    check('taken', !set.active && set.issues[0]?.kind === 'taken' && set.issues[0].other === null, set.issues);
+    check('taken', !set.active && set.issues[0]?.kind === 'taken' && !('other' in set.issues[0]), set.issues);
     othersHold.delete('ctrl+alt+n');
     check('taken asks again', of((await settings.list()).keys, 'note', 'new').active);
     notGiven.add('ctrl+alt+g');

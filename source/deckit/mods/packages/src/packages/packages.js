@@ -11,11 +11,11 @@ const MODS = 'deckit.mods';
 // `deckit` is the function lifecycle's handle, and `file` the main process module that reads a folder's package file.
 function packages(deckit, file) {
     // MARK: - Public
-    // The exports for a connection: one that does not hold deckit.mods is refused both, kind `REFUSED`.
+    // The exports for a connection: one that does not hold deckit.mods is refused both, kind `NOT_PERMITTED`.
     function exportsFor(connection) {
         if (connection.credential.permissions.includes(MODS)) return Object.freeze({ plan, install });
         const refuse = async () => {
-            throw refusal('REFUSED', `${connection.mod.name} does not hold ${MODS}`);
+            throw refusal('NOT_PERMITTED', `${connection.mod.name} does not hold ${MODS}`);
         };
         return Object.freeze({ plan: refuse, install: refuse });
     }
@@ -30,6 +30,7 @@ function packages(deckit, file) {
     // What deckit.mods.install answers for `folder`, refused of kind UNMET_DEPENDENCY while one of its dependencies is
     // not installed at a version its requirement takes. No dependency is fetched or installed here.
     async function install(folder) {
+        if (typeof folder !== 'string') throw refusal('INVALID_ARGUMENT', 'install takes (folder), a string');
         const unmet = unmetOf(await dependenciesIn(folder));
         if (unmet) throw unmet;
         return deckit.mods.install(folder);

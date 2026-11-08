@@ -57,17 +57,18 @@ function keymap(deckit) {
 
     // MARK: - Public
     // The exports for a connection: a client that does not hold deckit.system-services reads its own mod's chords, and
-    // is refused the rest, kind `REFUSED`.
+    // is refused the rest, kind `NOT_PERMITTED`.
     function exportsFor(connection) {
         const own = connection.credential.mod;
         const chordOf = async (command) => {
+            if (typeof command !== 'string') throw refusal('INVALID_ARGUMENT', 'chordOf takes (command), a string');
             await queue;
             return bindings.find((binding) => binding.active && isOf({ mod: own, command }, binding))?.chord ?? '';
         };
         if (connection.credential.permissions.includes(SYSTEM_SERVICES))
             return Object.freeze({ list, set, reset, chordOf });
         const refuse = async () => {
-            throw refusal('REFUSED', `${connection.mod.name} does not hold ${SYSTEM_SERVICES}`);
+            throw refusal('NOT_PERMITTED', `${connection.mod.name} does not hold ${SYSTEM_SERVICES}`);
         };
         return Object.freeze({ list: refuse, set: refuse, reset: refuse, chordOf });
     }
@@ -80,15 +81,17 @@ function keymap(deckit) {
     }
 
     // The binding of `mod`'s key for `command` bound to `keystroke`, `{ code, meta, control, alt, shift }`, or to none
-    // for null. Answers the binding.
+    // where it is left out. Answers the binding.
     function set(mod, command, keystroke) {
+        if (typeof mod !== 'string' || typeof command !== 'string' || !(keystroke == null || isKeystroke(keystroke)))
+            return Promise.reject(
+                refusal('INVALID_ARGUMENT', 'set takes (mod, command, keystroke), strings and a keystroke with a code')
+            );
         return serial(async () => {
             const binding = await bindingOf(mod, command);
             const read = keystroke == null ? null : keystrokeOf(keystroke);
-            if (keystroke != null && !read)
-                throw refusal('KEYSTROKE', 'a key is set to a keystroke with a code, or null');
             const problem = read && problemOfKeystroke(read, binding);
-            if (problem) throw refusal('KEYSTROKE', problem);
+            if (problem) throw refusal('INVALID_ARGUMENT', problem);
             const next = changes.filter((change) => !isOf(change, binding));
             if (!same(read, binding.defaultKeystroke)) next.push({ mod, command, keystroke: read ? specOf(read) : '' });
             return keep(next, binding);
@@ -97,6 +100,8 @@ function keymap(deckit) {
 
     // The binding of `mod`'s key for `command` back to its default. Answers the binding.
     function reset(mod, command) {
+        if (typeof mod !== 'string' || typeof command !== 'string')
+            return Promise.reject(refusal('INVALID_ARGUMENT', 'reset takes (mod, command), each a string'));
         return serial(async () => {
             const binding = await bindingOf(mod, command);
             return keep(
@@ -151,7 +156,7 @@ function keymap(deckit) {
 
     async function bindingOf(mod, command) {
         const binding = (await refresh()).find((each) => isOf({ mod, command }, each));
-        if (!binding) throw refusal('KEY', `${mod} declares no key for "${command}"`);
+        if (!binding) throw refusal('NOT_DECLARED', `${mod} declares no key for "${command}"`);
         return binding;
     }
 
@@ -199,6 +204,14 @@ function keymap(deckit) {
 }
 
 // MARK: - Private
+// Whether `value` is a keystroke a client hands: a table whose `code` is a string that is not empty, each modifier a
+// boolean or left out.
+function isKeystroke(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (typeof value.code !== 'string' || !value.code) return false;
+    return ['meta', 'control', 'alt', 'shift'].every((name) => value[name] == null || typeof value[name] === 'boolean');
+}
+
 // What a person set, as the record holds it: an entry of another shape, or a spec that is no chord, is left out.
 function changesOf(read) {
     if (!Array.isArray(read)) return [];

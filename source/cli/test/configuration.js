@@ -123,8 +123,8 @@ async function main() {
         listed[0].items[0].entry === command && json(listed[0].mod) === json(mod('forge')),
         listed[0]
     );
-    const values = listed.map(({ items }) => items.map(({ value }) => value));
-    check('defaults, or null', json(values) === json([['', null], [4, false, 'light', null], [null]]), values);
+    const values = listed.map(({ items }) => items.map((item) => ('value' in item ? item.value : 'none')));
+    check('defaults, or none', json(values) === json([['', 'none'], [4, false, 'light', 'none'], ['none']]), values);
     check('warned', warnings.length === 16, warnings);
     check(
         'refused as warned',
@@ -143,13 +143,15 @@ async function main() {
     // A client's own settings.
     check(
         'values',
-        json(await editor.values()) === json({ 'tab-size': 4, wrap: false, theme: 'light', scale: null }),
+        json(await editor.values()) === json({ 'tab-size': 4, wrap: false, theme: 'light' }),
         await editor.values()
     );
-    check('get', (await editor.get('tab-size')) === 4 && (await forge.get('forgeConfig')) === null);
-    check('no such key', (await rejection(editor.get('nope')))?.kind === 'KEY');
-    check('only its own', (await rejection(forge.get('tab-size')))?.kind === 'KEY');
-    check('one left out', (await rejection(system.setOf('bad', 'off', 4)))?.kind === 'KEY');
+    check('get', (await editor.get('tab-size')) === 4 && (await forge.get('forgeConfig')) === undefined);
+    check('get of another type', (await rejection(editor.get(4)))?.kind === 'INVALID_ARGUMENT');
+    check('setOf of another type', (await rejection(system.setOf('editor', 4, 2)))?.kind === 'INVALID_ARGUMENT');
+    check('no such key', (await rejection(editor.get('nope')))?.kind === 'NOT_DECLARED');
+    check('only its own', (await rejection(forge.get('tab-size')))?.kind === 'NOT_DECLARED');
+    check('one left out', (await rejection(system.setOf('bad', 'off', 4)))?.kind === 'NOT_DECLARED');
 
     const heard = [];
     await editor.onChange(async (key, value) => heard.push(['editor', key, value]));
@@ -157,10 +159,7 @@ async function main() {
     await editor.onChange(() => {
         throw new Error('it broke');
     });
-    check(
-        'a listener is a function',
-        (await rejection(editor.onChange('no')))?.message === 'onChange() takes a function'
-    );
+    check('a listener is a function', (await rejection(editor.onChange('no')))?.kind === 'INVALID_ARGUMENT');
 
     check('set', (await editor.set('tab-size', 2)) === 2, store.get('editor'));
     check('kept by mod id', store.get('editor') === json({ 'tab-size': 2 }), store.get('editor'));
@@ -176,7 +175,7 @@ async function main() {
     await ticks();
     check('heard the default', json(heard) === json([['editor', 'tab-size', 4]]), heard);
     heard.length = 0;
-    check('unset to null', (await editor.set('scale', 1.5)) === 1.5 && (await editor.set('scale', null)) === null);
+    check('unset to none', (await editor.set('scale', 1.5)) === 1.5 && (await editor.set('scale')) === undefined);
     check(
         'to its default, kept',
         (await editor.set('wrap', false)) === false && store.get('editor') === json({ wrap: false })
@@ -187,7 +186,7 @@ async function main() {
         json(heard) ===
             json([
                 ['editor', 'scale', 1.5],
-                ['editor', 'scale', null],
+                ['editor', 'scale', undefined],
             ]),
         heard
     );
@@ -204,18 +203,18 @@ async function main() {
         ['theme', 1],
         ['scale', true],
     ])
-        check(`${key} ${json(value)} refused`, (await rejection(editor.set(key, value)))?.kind === 'VALUE');
-    check('a key not declared', (await rejection(editor.set('nope', 1)))?.kind === 'KEY');
+        check(`${key} ${json(value)} refused`, (await rejection(editor.set(key, value)))?.kind === 'INVALID_ARGUMENT');
+    check('a key not declared', (await rejection(editor.set('nope', 1)))?.kind === 'NOT_DECLARED');
     check('nothing set', store.get('editor') === json({ wrap: false }), store.get('editor'));
 
     // What a client that holds deckit.system-services sets.
-    check('list refused', (await rejection(editor.list()))?.kind === 'REFUSED');
-    check('setOf refused', (await rejection(editor.setOf('forge', 'forge', '/bin/forge')))?.kind === 'REFUSED');
+    check('list refused', (await rejection(editor.list()))?.kind === 'NOT_PERMITTED');
+    check('setOf refused', (await rejection(editor.setOf('forge', 'forge', '/bin/forge')))?.kind === 'NOT_PERMITTED');
     check('setOf', (await system.setOf('forge', 'forge', '/bin/forge')) === '/bin/forge');
     check('setOf, its own', (await forge.get('forge')) === '/bin/forge');
-    check('setOf, no such key', (await rejection(system.setOf('forge', 'tab-size', 2)))?.kind === 'KEY');
-    check('setOf, no such mod', (await rejection(system.setOf('gone', 'forge', 'x')))?.kind === 'KEY');
-    check('setOf, no fit', (await rejection(system.setOf('editor', 'theme', 'blue')))?.kind === 'VALUE');
+    check('setOf, no such key', (await rejection(system.setOf('forge', 'tab-size', 2)))?.kind === 'NOT_DECLARED');
+    check('setOf, no such mod', (await rejection(system.setOf('gone', 'forge', 'x')))?.kind === 'NOT_DECLARED');
+    check('setOf, no fit', (await rejection(system.setOf('editor', 'theme', 'blue')))?.kind === 'INVALID_ARGUMENT');
     await system.setOf('editor', 'theme', 'dark');
     await ticks();
     check(
@@ -251,7 +250,7 @@ async function main() {
     const after = restarted.exportsFor(connection('editor', []));
     check(
         'kept across a restart',
-        json(await after.values()) === json({ 'tab-size': 3, wrap: true, theme: 'light', scale: null }),
+        json(await after.values()) === json({ 'tab-size': 3, wrap: true, theme: 'light' }),
         await after.values()
     );
     check('another shape holds nothing', (await restarted.exportsFor(connection('forge', [])).get('forge')) === '');

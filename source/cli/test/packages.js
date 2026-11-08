@@ -84,7 +84,7 @@ async function main() {
             json([
                 { id: 'forge', requirement: '1.0', installed: '1.4.0', satisfied: true },
                 { id: 'notes', requirement: '^1', installed: '0.9.0', satisfied: false },
-                { id: 'calendar', requirement: '2', installed: null, satisfied: false },
+                { id: 'calendar', requirement: '2', satisfied: false },
             ]),
         read
     );
@@ -201,7 +201,7 @@ async function main() {
         check(
             `a client that does not hold deckit.mods is refused ${call}`,
             json(await rejection(stranger[call]('/m/ready'))) ===
-                json({ message: 'Settings does not hold deckit.mods', kind: 'REFUSED' })
+                json({ message: 'Settings does not hold deckit.mods', kind: 'NOT_PERMITTED' })
         );
     fs.rmSync(folders, { recursive: true, force: true });
 

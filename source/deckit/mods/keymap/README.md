@@ -75,7 +75,7 @@ A keystroke is `{ code, meta, control, alt, shift }`, `code` as a keyboard event
 | ------------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `chordOf(command)`             | any client               | the chord the key for its own mod's `command` runs on, as a person reads it (`⌃⌥⇧⌘` and then the key, as `⌥Space`), or `''` for none                                                                                                                                                                                                    |
 | `list()`                       | `deckit.system-services` | `{ keys, refused }`: `keys` every key declared, `[{ mod, command, title, scope, defaultKeystroke, keystroke, chord, changed, active, issues }]`, `app` keys first, then `global`, each in the mods' order and then the order declared; `refused` `[{ mod, entry, problem }]` the entries left out, `entry` as written and `problem` why |
-| `set(mod, command, keystroke)` | `deckit.system-services` | binds the key of the mod `mod` for `command` to `keystroke`, or to none for null, and answers it as `list()` answers a key                                                                                                                                                                                                              |
+| `set(mod, command, keystroke)` | `deckit.system-services` | binds the key of the mod `mod` for `command` to `keystroke`, or to none where it is left out, and answers it as `list()` answers a key                                                                                                                                                                                                  |
 | `reset(mod, command)`          | `deckit.system-services` | binds that key to its default again, and answers it as `list()` answers a key                                                                                                                                                                                                                                                           |
 
 A key as `list()` answers it:
@@ -86,20 +86,20 @@ A key as `list()` answers it:
 | `command`, `title`   | the command it runs, and its title                                                                                                                                                                                                                                             |
 | `scope`              | `app` or `global`                                                                                                                                                                                                                                                              |
 | `defaultKeystroke`   | the keystroke it declares                                                                                                                                                                                                                                                      |
-| `keystroke`, `chord` | the keystroke it is bound to now, null for none, and it as a person reads it, `''` for none                                                                                                                                                                                    |
+| `keystroke`, `chord` | the keystroke it is bound to now, left out for none, and it as a person reads it, `''` for none                                                                                                                                                                                |
 | `changed`            | whether you set it to other than its default                                                                                                                                                                                                                                   |
 | `active`             | whether a press of its chord runs it                                                                                                                                                                                                                                           |
-| `issues`             | `[{ kind, message, other }]`: `held` and `shadowed` (Two keys on one chord) with `other` the key that has the chord, `{ mod, command, title }`; `taken`, the chord another mod took; `unavailable`, a `global` chord the system did not give. `other` is null for the last two |
+| `issues`             | `[{ kind, message, other }]`: `held` and `shadowed` (Two keys on one chord) with `other` the key that has the chord, `{ mod, command, title }`; `taken`, the chord another mod took; `unavailable`, a `global` chord the system did not give. `other` is left out for the last two |
 
 What you set is kept in Keymap's storage across runs, and is kept for a key whose mod is gone, so it is bound so again as the mod comes back. A set to the default keeps nothing.
 
-A call that does not hold `deckit.system-services` rejects with kind `REFUSED`. The others reject with why, the `kind` saying which:
+A call that does not hold `deckit.system-services` rejects with kind `NOT_PERMITTED`. The others reject with why, the `kind` saying which:
 
-| Kind          | Why                                                                                                    |
-| ------------- | ------------------------------------------------------------------------------------------------------ |
-| `KEY`         | the mod declares no key for that command                                                               |
-| `KEYSTROKE`   | `keystroke` is not one, names a key a spec cannot, or breaks the rule a chord follows (Declaring keys) |
-| `NOT_RUNNING` | `deckit/commands` is not connected, so no command is known                                             |
+| Kind               | Why                                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `INVALID_ARGUMENT` | an argument of another type, or a `keystroke` that names a key a spec cannot or breaks the rule a chord follows (Declaring keys) |
+| `NOT_DECLARED`     | the mod declares no key for that command                                                                                             |
+| `NOT_RUNNING`      | `deckit/commands` is not connected, so no command is known                                                                           |
 
 ## A press
 

@@ -20,25 +20,31 @@ function configuration(deckit) {
 
     // MARK: - Public
     // The exports for a connection: any client reads, sets and hears its own mod's settings, the one its credential
-    // names, and one that does not hold deckit.system-services is refused the rest, kind `REFUSED`.
+    // names, and one that does not hold deckit.system-services is refused the rest, kind `NOT_PERMITTED`.
     function exportsFor(connection) {
         const own = connection.credential.mod;
-        const get = (key) => serial(async () => valueOf(await settingOf(own, key), keptOf(own)));
+        const get = (key) => {
+            if (typeof key !== 'string')
+                return Promise.reject(refusal('INVALID_ARGUMENT', 'get takes (key), a string'));
+            return serial(async () => valueOf(await settingOf(own, key), keptOf(own)));
+        };
         const values = () =>
             serial(async () => {
                 const declared = (await settings()).filter((setting) => setting.mod.id === own);
-                return Object.fromEntries(declared.map((setting) => [setting.key, valueOf(setting, keptOf(own))]));
+                const read = declared.map((setting) => [setting.key, valueOf(setting, keptOf(own))]);
+                return Object.fromEntries(read.filter(([, value]) => value !== undefined));
             });
         const set = (key, value) => setFor(own, key, value);
         const onChange = async (listener) => {
-            if (typeof listener !== 'function') throw new Error('onChange() takes a function');
+            if (typeof listener !== 'function')
+                throw refusal('INVALID_ARGUMENT', 'onChange takes (listener), a function');
             if (!hearing.has(connection)) hearing.set(connection, { mod: own, listeners: [] });
             hearing.get(connection).listeners.push(listener);
         };
         if (connection.credential.permissions.includes(SYSTEM_SERVICES))
             return Object.freeze({ get, values, set, onChange, list, setOf: setFor });
         const refuse = async () => {
-            throw refusal('REFUSED', `${connection.mod.name} does not hold ${SYSTEM_SERVICES}`);
+            throw refusal('NOT_PERMITTED', `${connection.mod.name} does not hold ${SYSTEM_SERVICES}`);
         };
         return Object.freeze({ get, values, set, onChange, list: refuse, setOf: refuse });
     }
@@ -49,7 +55,8 @@ function configuration(deckit) {
     }
 
     // Every mod that declares a setting, in the mods' order, and the entries left out, `{ mods, refused }`: `mods`
-    // `[{ mod, items: [{ entry, value }] }]`, `refused` `[{ mod, entry, problem }]`.
+    // `[{ mod, items: [{ entry, value }] }]`, `value` left out where the setting has none, `refused`
+    // `[{ mod, entry, problem }]`.
     function list() {
         return serial(async () => {
             const read = await declarations();
@@ -57,20 +64,23 @@ function configuration(deckit) {
             for (const setting of read.settings) {
                 const { mod, entry } = setting;
                 if (!byMod.has(mod.id)) byMod.set(mod.id, { mod, items: [] });
-                byMod.get(mod.id).items.push({ entry, value: valueOf(setting, keptOf(mod.id)) });
+                const value = valueOf(setting, keptOf(mod.id));
+                byMod.get(mod.id).items.push(value === undefined ? { entry } : { entry, value });
             }
             return { mods: [...byMod.values()], refused: read.refused };
         });
     }
 
-    // The setting `key` of the mod `mod` set to `value`, or unset for null so it reads as its default: answers the
-    // value it reads as now, and tells the mod's listeners where that changed.
+    // The setting `key` of the mod `mod` set to `value`, or unset where it is left out so it reads as its default:
+    // answers the value it reads as now, and tells the mod's listeners where that changed.
     function setFor(mod, key, value) {
+        if (typeof mod !== 'string' || typeof key !== 'string')
+            return Promise.reject(refusal('INVALID_ARGUMENT', 'a setting is named by (mod, key), each a string'));
         return serial(async () => {
             const setting = await settingOf(mod, key);
             if (value != null) {
                 const problem = problemOfValue(setting, value);
-                if (problem) throw refusal('VALUE', `${setting.entry.title} cannot be set: ${problem}`);
+                if (problem) throw refusal('INVALID_ARGUMENT', `${setting.entry.title} cannot be set: ${problem}`);
             }
             const before = valueOf(setting, keptOf(mod));
             const next = { ...keptOf(mod) };
@@ -98,7 +108,7 @@ function configuration(deckit) {
 
     async function settingOf(mod, key) {
         const setting = (await settings()).find((each) => each.mod.id === mod && each.key === key);
-        if (!setting) throw refusal('KEY', `${mod} declares no setting "${key}"`);
+        if (!setting) throw refusal('NOT_DECLARED', `${mod} declares no setting "${key}"`);
         return setting;
     }
 
