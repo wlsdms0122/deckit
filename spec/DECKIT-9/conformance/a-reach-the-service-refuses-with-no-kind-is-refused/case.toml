@@ -1,0 +1,22 @@
+case = 3
+name = "a-reach-the-service-refuses-with-no-kind-is-refused"
+note = "A connection the service's connect refuses by throwing an error that carries no kind is refused at call with REFUSED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "REFUSED"

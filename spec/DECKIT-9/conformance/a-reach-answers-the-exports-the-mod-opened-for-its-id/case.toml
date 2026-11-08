@@ -1,0 +1,21 @@
+case = 3
+name = "a-reach-answers-the-exports-the-mod-opened-for-its-id"
+note = "reach(id) answers the exports of the connection once it stands, a value crossing as itself. mod-b opens for its id exports whose connect answers a table of each kind of value."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+answers = { text = "page", number = 3, flag = false, list = [1, "two"], table = { key = "value" } }

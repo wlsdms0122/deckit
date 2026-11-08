@@ -1,0 +1,21 @@
+case = 3
+name = "exports-opened-twice-for-the-id-keep-the-first"
+note = "The exports for a mod's id are opened once for the run. mod-b opens them twice in start, and the reach answers what the first connect answers."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+answers = { opened = "first" }

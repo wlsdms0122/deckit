@@ -1,0 +1,22 @@
+case = 3
+name = "exports-opened-once-start-has-answered-are-not-opened"
+note = "The exports for a mod's id are opened while start runs. mod-b opens them from a timer start sets, once start has answered, so it runs with none and the reach is refused at call with NOT_EXPORTED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_EXPORTED"

@@ -1,0 +1,22 @@
+case = 3
+name = "a-connect-that-answers-a-promise-refuses-the-connection"
+note = "connect answers the exports themselves. mod-b's connect is an async function, which answers a promise, so the reach is refused at call with REFUSED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "REFUSED"

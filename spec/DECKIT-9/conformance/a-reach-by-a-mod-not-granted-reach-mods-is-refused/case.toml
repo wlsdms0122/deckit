@@ -1,0 +1,28 @@
+case = 3
+name = "a-reach-by-a-mod-not-granted-reach-mods-is-refused"
+note = "reach is guarded by deckit.reach-mods. mod-a is not a system mod and asks for no permission, so its reach of mod-b is refused at call with NOT_PERMITTED, and mod-b is not launched."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"
