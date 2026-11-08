@@ -25,8 +25,9 @@ public final class Deck {
     private var announced: [String: String] = [:]
 
     // MARK: - Initializer
-    // `home` is the folder deck keeps its files in.
-    public init(home: URL) {
+    // `home` is the folder deck keeps its files in, `signals` the names the driver tells of an interface with, as deck
+    // tells `owner-changed`.
+    public init(home: URL, signals: Set<String>) {
         let store = Store()
         let settings = DeckSettings(file: home.appending(path: "deck.json"), store: store)
         let record = Record(folder: home.appending(path: "records", directoryHint: .isDirectory), store: store)
@@ -51,7 +52,7 @@ public final class Deck {
         self.owners = owners
         self.runner = runner
         self.connections = ConnectionBroker(runner: runner, owners: owners)
-        self.events = EventBus(runner: runner, owners: owners)
+        self.events = EventBus(runner: runner, owners: owners, signals: signals)
     }
 
     // MARK: - Public
@@ -127,6 +128,14 @@ public final class Deck {
         return withChanges([])
     }
 
+    // The driver's `<interface>:<signal>`, of no args, to the runs that listen for it, as `owner-changed` goes.
+    public func announce(_ signal: String, of interface: String) -> [Effect] {
+        events.dropEnded()
+        let delivery = events.announce(signal, of: interface)
+
+        return delivery.listeners.isEmpty ? [] : [.deliver(delivery)]
+    }
+
     // MARK: - Private
     // What is wrong with what the run reaches by is recorded against it, and against each run that may reach it.
     private func judged(_ id: String, run number: Int, _ effects: [Effect]) throws -> [Effect] {
@@ -159,7 +168,7 @@ public final class Deck {
         }
         announced = owners
         let deliveries = changed.sorted()
-            .map { interface in events.announce(.owner, of: interface) }
+            .map { interface in events.announce(InterfaceChange.owner.rawValue, of: interface) }
             .filter { delivery in !delivery.listeners.isEmpty }
 
         return effects + connections.changes() + deliveries.map(Effect.deliver)

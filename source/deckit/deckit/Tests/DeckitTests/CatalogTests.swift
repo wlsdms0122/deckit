@@ -735,7 +735,7 @@ struct CatalogTests {
                 modFolder: modFolder,
                 store: store
             ),
-            ownerTable: Deck(home: home).owners,
+            ownerTable: Deck(home: home, signals: []).owners,
             store: store
         )
     }

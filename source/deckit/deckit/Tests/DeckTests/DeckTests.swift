@@ -13,7 +13,8 @@ import Testing
 struct DeckTests {
     // MARK: - Property
     private let sut = Deck(
-        home: FileManager.default.temporaryDirectory.appending(path: "deck-tests-\(UUID().uuidString)")
+        home: FileManager.default.temporaryDirectory.appending(path: "deck-tests-\(UUID().uuidString)"),
+        signals: ["contributions-changed"]
     )
 
     // MARK: - Initializer
@@ -54,6 +55,27 @@ struct DeckTests {
                 "deliver x/api:owner-changed to a"
             ]
         )
+    }
+
+    @Test("a signal the driver announces of an interface goes to the runs that listen for it and may hear it")
+    func driverSignalIsDelivered() throws {
+        // Given
+        let b = Job.fixture("b", provides: ["x/api": [1]])
+        let a = Job.fixture("a", uses: ["x/api": 1])
+        let d = Job.fixture("d")
+        sut.owners.provide([b, a, d], keeping: [])
+        _ = try start(b, exportedIn: ["x/api": 0]) + start(a) + start(d)
+        sut.events.listen(principal: "b", run: 1, names: ["x/api:contributions-changed"])
+        sut.events.listen(principal: "d", run: 1, names: ["x/api:contributions-changed"])
+
+        // When
+        let announced = sut.announce("contributions-changed", of: "x/api")
+        sut.events.listen(principal: "b", run: 1, names: [])
+        let unheard = sut.announce("contributions-changed", of: "x/api")
+
+        // Then
+        #expect(announced.map(\.line) == ["deliver x/api:contributions-changed to b"])
+        #expect(unheard.isEmpty)
     }
 
     @Test("a lifecycle asking to reach a principal by id is told it waits, then connects as it runs, until released")

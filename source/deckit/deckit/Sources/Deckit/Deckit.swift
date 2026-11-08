@@ -58,7 +58,7 @@ public final class Deckit {
         now: @escaping () -> Date = Date.init
     ) throws {
         let store = Store()
-        let deck = Deck(home: home)
+        let deck = Deck(home: home, signals: [])
         let reader = try ManifestReader(
             api: api,
             permissions: [Deckit.mods, Deckit.reachMods, Deckit.systemServices] + permissions,

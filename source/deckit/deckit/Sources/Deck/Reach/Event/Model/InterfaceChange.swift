@@ -9,6 +9,6 @@ import Foundation
 
 // What deck tells of an interface, `<interface>:<signal>`, the signal its raw value: a name the interface's owner does
 // not send.
-enum InterfaceChange: String, Sendable {
+enum InterfaceChange: String, CaseIterable, Sendable {
     case owner = "owner-changed"
 }
