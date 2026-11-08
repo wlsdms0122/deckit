@@ -13,6 +13,8 @@ public enum InstallOutcome: String, Encodable, Sendable {
     case installed
     // Shipped before and removed by the person since, so it stays out.
     case leftOut = "left out"
+    // Installed from elsewhere and not shipped before, so it stays as it is.
+    case kept
     // Shipped before and no more, so its copy is taken away.
     case dropped
     case failed

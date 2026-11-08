@@ -28,7 +28,7 @@ struct ModFolder {
     // holds no manifest, a regular file found as `file` finds one, is not a broken mod but no mod, nor is anything but
     // a folder, and a dot name (.shipped) is deck's own.
     func mods(in root: URL) -> [URL] {
-        guard let place = realPath(root.path(percentEncoded: false)) else { return [] }
+        guard let place = realPath(of: root) else { return [] }
         var links = 0
 
         return ((try? store.names(in: root)) ?? [])
@@ -70,7 +70,7 @@ struct ModFolder {
     // Where the file `path` names really is, or nil when that is no regular file inside the folder, by a link too.
     // Each segment is looked up as `entry` looks up a name.
     func file(_ path: String, in folder: URL) -> URL? {
-        guard let root = realPath(folder.path(percentEncoded: false)) else { return nil }
+        guard let root = realPath(of: folder) else { return nil }
 
         var links = 0
         var place = root
@@ -83,6 +83,14 @@ struct ModFolder {
         else { return nil }
 
         return URL(filePath: place)
+    }
+
+    // Where `folder` leads, every link on the way followed by the system's own lookup, or nil where it leads nowhere.
+    func realPath(of folder: URL) -> String? {
+        guard let resolved = realpath(folder.path(percentEncoded: false), nil) else { return nil }
+        defer { free(resolved) }
+
+        return String(cString: resolved)
     }
 
     // MARK: - Private
@@ -121,12 +129,5 @@ struct ModFolder {
         }
 
         return at
-    }
-
-    private func realPath(_ path: String) -> String? {
-        guard let resolved = realpath(path, nil) else { return nil }
-        defer { free(resolved) }
-
-        return String(cString: resolved)
     }
 }

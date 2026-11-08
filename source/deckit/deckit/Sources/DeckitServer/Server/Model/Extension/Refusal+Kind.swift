@@ -40,17 +40,8 @@ extension Refusal {
 
         case let error as InstallError:
             switch error {
-            case .installedThere:
-                "INSTALLED_THERE"
-
             case .nested:
                 "NESTED"
-
-            case .occupied:
-                "OCCUPIED"
-
-            case .refused:
-                "REFUSED"
 
             case .notInstalled:
                 "NOT_INSTALLED"

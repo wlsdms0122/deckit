@@ -200,28 +200,90 @@ struct CatalogTests {
         #expect(sut.mods().map(\.manifest.id) == ["x", "b", "a"])
     }
 
-    @Test("a folder that does not load, the installed one, or one a source hides is not installed")
+    @Test("a folder that does not load, one that leads inside deck's folder, or one a source hides is not installed")
     func installRefuses() throws {
         // Given
         try write("a", in: home.appending(path: "mods"))
         try write("b", in: root, main: nil)
         try write("c", in: source)
         try write("c", in: root.appending(path: "other"))
+        try FileManager.default.createSymbolicLink(
+            at: root.appending(path: "link"),
+            withDestinationURL: home.appending(path: "mods/a")
+        )
         let sut = try catalog(sources: [source])
 
         // When
         let installed = Result { try sut.planInstall(from: home.appending(path: "mods/a")) }
+        let linked = Result { try sut.planInstall(from: root.appending(path: "link")) }
         let unloadable = Result { try sut.planInstall(from: root.appending(path: "b")) }
         let hidden = Result { try sut.planInstall(from: root.appending(path: "other/c")) }
 
         // Then
-        #expect(throws: InstallError.installedThere) { try installed.get() }
+        #expect(throws: InstallError.nested) { try installed.get() }
+        #expect(throws: InstallError.nested) { try linked.get() }
         #expect(throws: ModFolderError.notLoadable(#"main = "missing.js" names no file in the mod's folder"#)) {
             try unloadable.get()
         }
-        let shadow = "c is read from \(source.appending(path: "c").path(percentEncoded: false)), which would hide the "
-            + "installed copy"
-        #expect(throws: InstallError.refused(shadow)) { try hidden.get() }
+        let readInPlace = InstallError.readInPlace(id: "c", folder: source.appending(path: "c").path(percentEncoded: false))
+        #expect(throws: readInPlace) { try hidden.get() }
+    }
+
+    @Test("a mod installed from a folder in the place of a shipped one stays at each later start")
+    func installedOverShippedStays() throws {
+        // Given
+        try write("a", in: ship)
+        try write("a", in: source, version: "2.0.0")
+        let sut = try catalog(ship: ["a"])
+        _ = try sut.installShipped()
+        _ = try sut.install(from: source.appending(path: "a"))
+
+        // When
+        let restarted = try catalog(ship: ["a"])
+        let outcomes = try restarted.installShipped()
+        let mods = restarted.mods()
+
+        // Then
+        #expect(outcomes.map(\.outcome) == [.kept])
+        #expect(mods.map(\.manifest.version) == ["2.0.0"])
+        #expect(mods.map(\.shipped) == [false])
+    }
+
+    @Test("an installed mod under a name the app ships for the first time stays as it is installed")
+    func installedBeforeShippedStays() throws {
+        // Given
+        try write("a", in: home.appending(path: "mods"), version: "2.0.0")
+        try write("a", in: ship)
+        let sut = try catalog(ship: ["a"])
+
+        // When
+        let outcomes = try sut.installShipped()
+        let mods = sut.mods()
+
+        // Then
+        #expect(outcomes.map(\.outcome) == [.kept])
+        #expect(mods.map(\.manifest.version) == ["2.0.0"])
+    }
+
+    @Test("a mod the app shipped and ships no more is removed, by an app that ships nothing too")
+    func noLongerShippedIsRemoved() throws {
+        // Given
+        try write("a", in: ship)
+        try write("b", in: ship)
+        _ = try catalog(ship: ["a", "b"]).installShipped()
+
+        // When
+        let fewer = try catalog(ship: ["b"])
+        let dropped = try fewer.installShipped()
+        let left = fewer.mods()
+        let none = try catalog()
+        let emptied = try none.installShipped()
+
+        // Then
+        #expect(dropped.map(\.outcome) == [.dropped, .installed])
+        #expect(left.map(\.manifest.id) == ["b"])
+        #expect(emptied.map(\.outcome) == [.dropped])
+        #expect(none.mods().isEmpty)
     }
 
     @Test("what the app ships is installed, but not again once the person removed it")

@@ -10,29 +10,16 @@ import Deck
 
 // Why a mod is not installed, or not removed.
 public enum InstallError: Refusal, Equatable {
-    case installedThere
     case nested
-    case occupied(id: String, folder: String)
-    // Why whoever installs it refuses it.
-    case refused(String)
     case notInstalled(String)
-    // A mod read in place, from where it is read.
+    // A mod read in place under the id, from where it is read.
     case readInPlace(id: String, folder: String)
 
     // MARK: - Property
     public var message: String {
         switch self {
-        case .installedThere:
-            "that folder is already the installed one"
-
         case .nested:
-            "that folder is inside the installed one, or holds it"
-
-        case let .occupied(id, folder):
-            "\(folder), where \(id) would be installed, holds another folder"
-
-        case let .refused(reason):
-            reason
+            "that folder is inside deck's own folder, or holds it"
 
         case let .notInstalled(id):
             "no installed mod \(id)"

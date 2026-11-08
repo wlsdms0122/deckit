@@ -142,12 +142,10 @@ final class Server {
             return try deckit.catalog.installShipped()
 
         case "catalog/plan-install":
-            let folder = URL(filePath: try request.decodeParams(as: InstallModParams.self).from)
-            return try deckit.catalog.planInstall(from: folder)
+            return try deckit.catalog.planInstall(from: folder(request.decodeParams(as: InstallModParams.self).from))
 
         case "catalog/install":
-            let folder = URL(filePath: try request.decodeParams(as: InstallModParams.self).from)
-            return try deckit.catalog.install(from: folder)
+            return try deckit.catalog.install(from: folder(request.decodeParams(as: InstallModParams.self).from))
 
         case "catalog/remove":
             return try deckit.catalog.remove(request.decodeParams(as: RemoveModParams.self).id)
@@ -260,6 +258,13 @@ final class Server {
         default:
             throw ResponseError(code: .methodNotFound, message: "no method \(request.method)")
         }
+    }
+
+    // The folder `path` names, refused as no mod where it is not an absolute path.
+    private func folder(_ path: String) throws -> URL {
+        guard path.hasPrefix("/") else { throw ModFolderError.notLoadable("\(path) is no absolute path") }
+
+        return URL(filePath: path)
     }
 
     // `effects` as the driver reads them.

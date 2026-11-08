@@ -12,6 +12,8 @@ import Deck
 // what the app ships installed by one rule, with the system mods among them.
 final class Installer {
     // MARK: - Property
+    // Deck's folder, which holds the mods and all else deck keeps.
+    private let home: URL
     private let folder: URL
     // Beside the mods, on the same disk so an install ends in a rename, and outside them so a copy half made is never
     // read as a mod.
@@ -30,6 +32,7 @@ final class Installer {
     // MARK: - Initializer
     // `folder` is deck's mods folder in `home`, and `ship` what the app ships.
     init(home: URL, folder: URL, ship: [ShippedMod], modFolder: ModFolder, store: Store) {
+        self.home = home
         self.folder = folder
         self.staging = home.appending(path: ".mods-installing")
         self.shippedList = folder.appending(path: ".shipped")
@@ -41,65 +44,27 @@ final class Installer {
     }
 
     // MARK: - Public
-    // What installing a folder as a `system` mod or not would do, or a throw that says why not: the refusal the folder
-    // is read with, or a folder that holds the installed copy or is held by it, as copying would take the source with
-    // it. `refuse` adds the caller's own reason, or nil.
-    func planInstall(
-        from source: URL,
-        system: Bool,
-        refuse: (Manifest) -> String? = { _ in nil }
-    ) throws -> InstallPlan {
-        if let problem = modFolder.problem(of: source, system: system) {
-            throw problem
-        }
-
-        let manifest = modFolder.manifest(of: source)
-        let target = folder.appending(path: manifest.id)
-        let copies = installed()[manifest.id] ?? []
-        guard !copies.contains(where: { copy in isSame(copy, source) }) else {
-            throw InstallError.installedThere
-        }
-        guard !(copies + [target]).contains(where: { copy in isInside(source, copy) || isInside(copy, source) }) else {
+    // What installing a folder would do, the mod read as no system mod's, or a throw that says why not: the refusal the
+    // folder is read with, or a folder that, every link followed, lies inside deck's folder or holds it, as copying
+    // would take the source with it.
+    func planInstall(from source: URL) throws -> InstallPlan {
+        let manifest = try manifest(of: source, system: false)
+        let place = modFolder.realPath(of: source) ?? source.standardizedFileURL.path(percentEncoded: false)
+        let own = modFolder.realPath(of: home) ?? home.standardizedFileURL.path(percentEncoded: false)
+        guard !isInside(place, own) && !isInside(own, place) else {
             throw InstallError.nested
         }
-        guard !FileManager.default.fileExists(atPath: target.path(percentEncoded: false))
-            || copies.contains(where: { copy in isSame(copy, target) })
-        else {
-            throw InstallError.occupied(id: manifest.id, folder: target.path(percentEncoded: false))
-        }
-        if let reason = refuse(manifest) {
-            throw InstallError.refused(reason)
-        }
 
-        return InstallPlan(manifest: manifest, replaces: !copies.isEmpty)
+        return InstallPlan(manifest: manifest, replaces: installed()[manifest.id] != nil)
     }
 
-    // Installed as mods/<id>, every copy before it taken away wherever it was, so a file the new version dropped is
-    // not left to load. Only a whole staged copy takes the old one's place. It is a system mod from now on as `system`
-    // says: a copy installed over a system mod from anywhere else is not one.
-    func install(
-        from source: URL,
-        system: Bool,
-        refuse: (Manifest) -> String? = { _ in nil }
-    ) throws -> Manifest {
-        let manifest = try planInstall(from: source, system: system, refuse: refuse).manifest
-        let staged = staging.appending(path: manifest.id)
-        try store.remove(staged)
-        try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
-        try FileManager.default.copyItem(at: source.resolvingSymlinksInPath(), to: staged)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        for copy in installed()[manifest.id] ?? [] {
-            try store.remove(copy)
+    // The mod `plan` was made for, installed from `source` as no system mod, and its id no more among those shipped,
+    // so it stays at each later start.
+    func install(_ plan: InstallPlan, from source: URL) throws {
+        try place(plan.manifest, from: source, system: false)
+        if let shipped = read(shippedList), shipped.contains(plan.manifest.id) {
+            try write(shipped.filter { id in id != plan.manifest.id }, to: shippedList)
         }
-        try FileManager.default.moveItem(at: staged, to: folder.appending(path: manifest.id))
-        try store.remove(staging)
-        let order = installOrder()
-        if !order.contains(manifest.id) {
-            try write(order + [manifest.id], to: installedList)
-        }
-        try mark(manifest.id, system: system)
-
-        return manifest
     }
 
     // The installed mod with this id, every copy of it. What it stored stays.
@@ -117,9 +82,9 @@ final class Installer {
         read(installedList) ?? []
     }
 
-    // The ids the app shipped at the last install of what it ships, or nil before the first.
-    func shipped() -> Set<String>? {
-        read(shippedList).map(Set.init)
+    // The ids whose installed copy was installed from what the app ships.
+    func shipped() -> Set<String> {
+        Set(read(shippedList) ?? [])
     }
 
     // The ids of the system mods installed.
@@ -127,15 +92,13 @@ final class Installer {
         Set(read(systemList) ?? [])
     }
 
-    // What the app ships installed by one rule: a mod it shipped before and that is not installed now was removed by
-    // the person, and stays out; the rest is installed. Removals are recorded nowhere else. An app that ships nothing
-    // leaves what it shipped before as it is.
+    // What the app ships installed by one rule. An id shipped before and not installed now was removed, and stays out.
+    // An id installed and not shipped before was installed from elsewhere, and stays as it is. The rest is installed,
+    // and an id shipped before and no more is taken away. Removals are recorded nowhere else.
     //
-    // One that does not install fails alone, and is not listed as shipped unless a copy of it is installed: the next
-    // start tries it again rather than take it for removed. A second folder shipped with an id is ignored.
+    // One that does not install fails alone, and is not listed as shipped unless it was before: the next start tries
+    // it again rather than take it for removed. A second folder shipped with an id is ignored.
     func installShipped() throws -> [InstallReport] {
-        guard !ship.isEmpty else { return [] }
-
         var reports: [InstallReport] = []
         var shipping: [String: ShippedMod] = [:]
         var order: [String] = []
@@ -152,46 +115,80 @@ final class Installer {
         }
         let before = shipped()
         let copies = installed()
+        var list: [String] = []
         var taken: [String] = []
         failures = [:]
         for id in order {
-            if before?.contains(id) == true && copies[id] == nil {
+            switch (before.contains(id), copies[id] != nil) {
+            case (true, false):
+                list.append(id)
                 reports.append(InstallReport(id: id, outcome: .leftOut))
-            } else {
+
+            case (false, true):
+                reports.append(InstallReport(id: id, outcome: .kept))
+
+            default:
                 taken.append(id)
             }
         }
-        for id in (before ?? []).sorted() where shipping[id] == nil {
-            guard let dropped = copies[id] else { continue }
-            for copy in dropped {
-                try store.remove(copy)
-            }
-            try write(installOrder().filter { installed in installed != id }, to: installedList)
-            try mark(id, system: false)
+        for id in before.sorted() where shipping[id] == nil {
+            guard copies[id] != nil else { continue }
+            try remove(id)
             reports.append(InstallReport(id: id, outcome: .dropped))
         }
         for id in taken {
             guard let shipped = shipping[id] else { continue }
 
             do {
-                let manifest = try install(from: shipped.folder, system: shipped.system)
+                let manifest = try manifest(of: shipped.folder, system: shipped.system)
+                try place(manifest, from: shipped.folder, system: shipped.system)
+                list.append(id)
                 reports.append(InstallReport(id: id, outcome: .installed, version: manifest.version))
             } catch {
+                if before.contains(id) {
+                    list.append(id)
+                }
                 failures[id] = InstallFailure(shipped: shipped, problem: error)
                 let problem = (error as? any Refusal)?.message ?? error.localizedDescription
                 reports.append(InstallReport(id: id, outcome: .failed, problem: problem))
             }
         }
-
-        // A left out id stays on the list, so its absence keeps meaning it was removed.
-        let now = installed()
-        let list = order.filter { id in failures[id] == nil || now[id] != nil }
-        try write(list, to: shippedList)
+        try write(order.filter(list.contains), to: shippedList)
 
         return reports
     }
 
     // MARK: - Private
+    // What the manifest in `source` says, as a `system` mod or not, or the refusal the folder is read with.
+    private func manifest(of source: URL, system: Bool) throws -> Manifest {
+        if let problem = modFolder.problem(of: source, system: system) {
+            throw problem
+        }
+
+        return modFolder.manifest(of: source)
+    }
+
+    // Installed as mods/<id>, every copy before it taken away wherever it was, so a file the new version dropped is
+    // not left to load. Only a whole staged copy takes the old one's place. It is a system mod from now on as `system`
+    // says.
+    private func place(_ manifest: Manifest, from source: URL, system: Bool) throws {
+        let staged = staging.appending(path: manifest.id)
+        try store.remove(staged)
+        try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: source.resolvingSymlinksInPath(), to: staged)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for copy in installed()[manifest.id] ?? [] {
+            try store.remove(copy)
+        }
+        try FileManager.default.moveItem(at: staged, to: folder.appending(path: manifest.id))
+        try store.remove(staging)
+        let order = installOrder()
+        if !order.contains(manifest.id) {
+            try write(order + [manifest.id], to: installedList)
+        }
+        try mark(manifest.id, system: system)
+    }
+
     // A list of ids, one a line, or nil while there is none.
     private func read(_ list: URL) -> [String]? {
         store.read(list).map { text in text.split(separator: "\n").map(String.init) }
@@ -216,12 +213,8 @@ final class Installer {
         }
     }
 
-    private func isSame(_ one: URL, _ other: URL) -> Bool {
-        one.standardizedFileURL.pathComponents == other.standardizedFileURL.pathComponents
-    }
-
-    // Whether `inner` is `outer`, or a path under it.
-    private func isInside(_ inner: URL, _ outer: URL) -> Bool {
-        inner.standardizedFileURL.pathComponents.starts(with: outer.standardizedFileURL.pathComponents)
+    // Whether the path `inner` is `outer`, or a path under it.
+    private func isInside(_ inner: String, _ outer: String) -> Bool {
+        URL(filePath: inner).pathComponents.starts(with: URL(filePath: outer).pathComponents)
     }
 }

@@ -99,17 +99,24 @@ public final class Catalog {
         try ownerTable.pin(interface, to: id)
     }
 
-    // A mod installed from a folder is no system mod.
+    // What installing a folder would do, refused too where a mod read in place has its id, which would hide the copy
+    // installed.
     public func planInstall(from source: URL) throws -> InstallPlan {
-        try installer.planInstall(from: source, system: false, refuse: shadow)
+        let plan = try installer.planInstall(from: source)
+        if let mod = list().first(where: { mod in mod.manifest.id == plan.manifest.id }), isReadInPlace(mod) {
+            throw InstallError.readInPlace(id: mod.manifest.id, folder: mod.folder.path(percentEncoded: false))
+        }
+
+        return plan
     }
 
     public func install(from source: URL) throws -> Manifest {
-        let manifest = try installer.install(from: source, system: false, refuse: shadow)
-        installs[manifest.id, default: 0] += 1
+        let plan = try planInstall(from: source)
+        try installer.install(plan, from: source)
+        installs[plan.manifest.id, default: 0] += 1
         keptOwnership(of: ranked())
 
-        return manifest
+        return plan.manifest
     }
 
     // A mod read in place is removed where it is read. Answers whether deck keeps anything under its id: one that is
@@ -207,7 +214,7 @@ public final class Catalog {
     // By id, the first folder of an id the one read. What the app ships and did not install, with no copy to read, is
     // read where the app ships it, and does not load.
     private func list() -> [Mod] {
-        let shipped = installer.shipped() ?? []
+        let shipped = installer.shipped()
         let systemMods = installer.systemMods()
         var found: [Mod] = []
         var places: [String: Int] = [:]
@@ -345,16 +352,6 @@ public final class Catalog {
                         + majors.map(String.init).joined(separator: ", ") + ", so it reaches no one by it"
             }
         )
-    }
-
-    // A source folder of the same id would hide the installed copy.
-    private func shadow(_ manifest: Manifest) -> String? {
-        guard let source = list().first(where: { mod in mod.manifest.id == manifest.id && isReadInPlace(mod) }) else {
-            return nil
-        }
-
-        return "\(manifest.id) is read from \(source.folder.path(percentEncoded: false)), which would hide the "
-            + "installed copy"
     }
 
     private func isReadInPlace(_ mod: Mod) -> Bool {
