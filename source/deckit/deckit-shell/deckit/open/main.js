@@ -23,9 +23,9 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
     }
 
     // `url` read as a URL and handed the environment as it serializes, the web's to open in the browser and a file's
-    // path to open in its app, the latter only where the caller may open files (`opensFiles`, a mod's
-    // system.file-handlers): refused with NOT_PERMITTED otherwise. Refused with UNSUPPORTED_URL for what is no URL, a
-    // URL of another scheme, or a file on another host. Answers nothing once it is handed on.
+    // path to open in its app, either with `activates`, a file only where the caller may open files (`opensFiles`, a
+    // mod's system.file-handlers): refused with NOT_PERMITTED otherwise. Refused with UNSUPPORTED_URL for what is no
+    // URL, a URL of another scheme, or a file on another host. Answers nothing once it is handed on.
     async function open(url, { activates = true, opensFiles = false } = {}) {
         const address = URL.canParse(url) ? new URL(url) : null;
         const file = address?.protocol === 'file:';
@@ -39,7 +39,7 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
         }
         if (!file || (address.host && address.host !== 'localhost'))
             throw REQUEST.refusal('call', 'UNSUPPORTED_URL', `${url} is no address opened outside the app`);
-        await SYSTEM.file(decodeURIComponent(address.pathname));
+        await SYSTEM.file(decodeURIComponent(address.pathname), { activate: activates });
     }
 
     // What a page asks to open outside itself, a window or an address its document leaves for, opened as `open`

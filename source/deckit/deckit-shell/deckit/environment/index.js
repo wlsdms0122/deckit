@@ -79,8 +79,9 @@ const MAIN = Object.freeze({
         focused: 'function',
     },
     // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that
-    // opens its scheme, the browser for the web, brought forward unless `activate` is false; `file(path) -> Promise of
-    // boolean`, a file at an absolute path in its app, false when there is none there or it did not open;
+    // opens its scheme, the browser for the web, brought forward unless `activate` is false; `file(path, { activate })
+    // -> Promise of boolean`, a file at an absolute path in its app, brought forward as `url` brings it, false when
+    // there is none there or it did not open;
     // `reveal(path) -> boolean`, an absolute path shown where it lies, false when there is none there;
     // `appFor(url) -> string`, the name of the app that opens an address of its scheme as a person reads it, or ''
     // where none does, as for the environment's own schemes
