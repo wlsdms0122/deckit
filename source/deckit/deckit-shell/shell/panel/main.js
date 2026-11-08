@@ -75,7 +75,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         order = arranged ?? (kept ? [] : [...pinned]);
         if (!kept) keep(PINNED, [...pinned]);
         if (!kept && !arranged) keep(ORDER, order);
-        KEY.start();
+        KEY.start(pressKey);
         deckit.keymap.monitor(monitor);
         stage = makeStage();
         stage.whenResized(update);
@@ -179,23 +179,25 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     }
 
     // A key pressed in a page of the app, before the page has it: answers whether the panel took it. It is the key of
-    // the deckit page it was pressed in, or of the one whose overlay or web page that is. In the panel's page in front
-    // a chord of one of the shell's keys runs that key. Escape puts the panel away where the panel floats over
-    // something, once the page did not take it: the frame or a mod's page plays it out and answers whether it did. In
-    // its own window Escape is the window's.
+    // the deckit page it was pressed in, or of the one whose overlay or web page that is. Escape puts the panel away
+    // where the panel floats over something, once the page did not take it: the frame or a mod's page plays it out and
+    // answers whether it did. In its own window Escape is the window's.
     function monitor(pressedIn, keystroke) {
+        if (!isEscape(keystroke)) return false;
         const page = deckit.web.pageFor(OVERLAY.ownerOf(pressedIn));
-        if (!page) return false;
-        if (isEscape(keystroke)) {
-            if (!dismisses(page)) return false;
-            PROTOCOL.escape
-                .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
-                .then((taken) => !taken && dismisses(page) && host.dismiss())
-                .catch(() => {});
-            return true;
-        }
-        const id = isActive(page) ? KEY.idOf(keystroke) : null;
-        if (!id) return false;
+        if (!page || !dismisses(page)) return false;
+        PROTOCOL.escape
+            .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
+            .then((taken) => !taken && dismisses(page) && host.dismiss())
+            .catch(() => {});
+        return true;
+    }
+
+    // A press of the shell's key `id` in a page of the app, the key of the page as `monitor` reads it: answers whether
+    // the panel took it, which it does in the panel's page in front, running that key.
+    function pressKey(id, pressedIn) {
+        const page = deckit.web.pageFor(OVERLAY.ownerOf(pressedIn));
+        if (!page || !isActive(page)) return false;
         KEY_ACTIONS[id]();
         return true;
     }

@@ -10,13 +10,37 @@ export function createKey({ deckit }) {
     const KEPT = 'panel-keys';
     let set = {}; // a key's id -> the keystroke the person set for it, or null for none
     let keeping = Promise.resolve(); // the change being kept, which the next one waits for
+    const held = new Map(); // a key's id -> the release of the chord it holds, for one that holds one
+    const recordings = new WeakMap(); // a page that records -> { id, stop }, the recording it asked for last
+    let pressed = () => false;
 
     // MARK: - Initializer
     // MARK: - Public
     // The shell's own keys, each with its default chord, and the chords the person set, kept in the shell's state,
-    // which a mod with deckit.shell-keys lists, sets and resets.
-    function start() {
+    // which a mod with deckit.shell-keys lists, sets and resets. Each holds its chord in every page of the app, before
+    // any mod can take one: `press(id, page) -> taken` is a press of it in `page`, answering whether it took it. Any
+    // mod's page records the keys pressed in it.
+    function start(press) {
+        pressed = press;
         set = KEY.keptOf(deckit.state.read(KEPT, {}));
+        for (const { id, name } of KEY.KEYS) {
+            const keystroke = keystrokeOf(id);
+            try {
+                if (keystroke) held.set(id, hold(id, keystroke));
+            } catch (error) {
+                deckit.log.warn(`the shell's ${name} has no chord: ${error.message}`);
+            }
+        }
+        PROTOCOL.record.on(({ id }, sender) => {
+            const stop = deckit.keymap.record(sender, (keystroke) => PROTOCOL.recorded.send(sender, { id, keystroke }));
+            recordings.set(sender, { id, stop });
+        });
+        PROTOCOL.stopRecording.on(({ id }, sender) => {
+            const recording = recordings.get(sender);
+            if (recording?.id !== id) return;
+            recordings.delete(sender);
+            recording.stop();
+        });
         PROTOCOL.list.handle((_payload, sender) => {
             holds(sender);
             return listed();
@@ -31,12 +55,6 @@ export function createKey({ deckit }) {
             holds(sender);
             return change(id, undefined);
         });
-    }
-
-    // The id of the shell's key whose chord `keystroke` is, or null.
-    function idOf(keystroke) {
-        const pressed = KEY.keystrokeOf(keystroke);
-        return KEY.KEYS.find(({ id }) => KEY.same(keystrokeOf(id), pressed))?.id ?? null;
     }
 
     // The chord of one of the shell's keys as a person reads it, or '' for one with none.
@@ -59,8 +77,14 @@ export function createKey({ deckit }) {
         return { id, name, defaultKeystroke: keystroke, keystroke: keystrokeOf(id) };
     }
 
+    // The key's chord held in every page of the app, by the key's name: refused, REFUSED, for one held or taken.
+    function hold(id, keystroke) {
+        const { name } = KEY.KEYS.find((key) => key.id === id);
+        return deckit.keymap.hold(keystroke, (page) => pressed(id, page), { name });
+    }
+
     // `keystroke`, or null for none, set for the key, or undefined for its default again. Worn only once kept: a
-    // change the core refuses leaves the keys as they were. A chord is one key's at a time.
+    // change the core refuses leaves the keys as they were. A chord is one key's at a time, and none a mod holds.
     function change(id, keystroke) {
         const key = KEY.KEYS.find((one) => one.id === id);
         if (!key) throw new Error(`${id} is none of the shell's keys`);
@@ -68,11 +92,24 @@ export function createKey({ deckit }) {
             const chord = keystroke === undefined ? key.keystroke : keystroke;
             const holder = chord && KEY.KEYS.find((one) => one.id !== id && KEY.same(keystrokeOf(one.id), chord));
             if (holder) refuse(`${KEY.written(chord)} is the chord of ${holder.name}`);
+            const now = keystrokeOf(id);
+            const same = chord === now || KEY.same(chord, now);
+            const release = !same && chord ? hold(id, chord) : null;
             const next = { ...set };
             if (keystroke === undefined) delete next[id];
             else next[id] = keystroke;
-            await deckit.state.write(KEPT, next);
+            try {
+                await deckit.state.write(KEPT, next);
+            } catch (error) {
+                release?.();
+                throw error;
+            }
             set = next;
+            if (!same) {
+                held.get(id)?.();
+                if (release) held.set(id, release);
+                else held.delete(id);
+            }
             return entryOf(key);
         });
         keeping = kept.catch(() => {});
@@ -92,5 +129,5 @@ export function createKey({ deckit }) {
         throw Object.assign(new Error(why), { kind: 'REFUSED' });
     }
 
-    return { start, idOf, chordOf };
+    return { start, chordOf };
 }

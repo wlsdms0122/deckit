@@ -1,11 +1,14 @@
 // The panel's list order (deckit-shell/shell/panel/model/list-order): the mods the person placed first, as placed, the
 // rest as deckit lists them, and a drag that moves the ids it names among the places they held. The Dock's items
 // (model/dock): those kept, then those running. Where the frame's parts are (model/layout) at a panel's size. And the
-// shell's own keys (deckit-shell/shell/key/main): their table, the chords set kept in the shell's state, and the
-// privileged permission main holds a page to before it lists or changes them. And the panel (shell/panel/main) over a
-// stand-in for what connect answers: the manifest fields it names, a mod in front as a mod with deckit.mods asks,
-// launched when it does not run, the mods that load in the Dock, the list and its order, and no bundle that does not,
-// what deckit refuses to keep, and the shell's keys and Escape as the keymap's monitor tells them. Exits 1 with a line
+// shell's own keys (deckit-shell/shell/key/main): their table, the chords set kept in the shell's state, each held in
+// the keymap by the key's name and held again as it changes, a chord a mod holds refused, the privileged permission
+// main holds a page to before it lists or changes them, and a page's recording of its keys, for any page, as
+// `shell.keys.record` asks it (shell/key/renderer). And the
+// panel (shell/panel/main) over a stand-in for what connect answers: the manifest fields it names, a mod in front as a
+// mod with deckit.mods asks, launched when it does not run, the mods that load in the Dock, the list and its order,
+// and no bundle that does not, what deckit refuses to keep, the shell's keys as the chords they hold are pressed, and
+// Escape as the keymap's monitor tells it. Exits 1 with a line
 // for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -19,6 +22,8 @@ async function main() {
     const KEY_PERMISSION = await import(url('deckit-shell', 'shell', 'key', 'model', 'permission.js'));
     const { createKey } = await import(url('deckit-shell', 'shell', 'key', 'main.js'));
     const { createPanel } = await import(url('deckit-shell', 'shell', 'panel', 'main.js'));
+    const { createKeys } = await import(url('deckit-shell', 'shell', 'key', 'renderer.js'));
+    const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -85,8 +90,17 @@ async function main() {
     const written = [];
     const holding = (id, permissions) => ({ mod: { id, permissions: permissions.map((one) => ({ id: one })) } });
     const runs = { settings: holding('settings', ['deckit.shell-keys']), other: holding('other', ['deckit.mods']) };
+    const keymap = keymapOver();
+    const recordedTold = []; // [page, payload], what main told a page that records
+    keymap.hold({ code: 'KeyM', meta: true, alt: true }, () => true, { name: 'keymap' });
     const deckit = {
-        channels: { bind: (declared) => ({ handle: (handler) => (handlers[declared.channel] = handler) }) },
+        channels: {
+            bind: (declared) => ({
+                handle: (handler) => (handlers[declared.channel] = handler),
+                on: (handler) => (handlers[declared.channel] = handler),
+                send: (page, payload) => recordedTold.push([page, payload]),
+            }),
+        },
         state: {
             read: (key, fallback) => state[key] ?? fallback,
             write: async (key, value) => {
@@ -94,6 +108,8 @@ async function main() {
                 state[key] = value;
             },
         },
+        keymap,
+        log: { warn() {} },
         mods: { modOf: (page) => page.mod, runOf: (id) => runs[id] ?? null },
     };
     const [shellKeys] = KEY_PERMISSION.PERMISSIONS;
@@ -105,8 +121,19 @@ async function main() {
         KEY_PERMISSION.PERMISSIONS
     );
     const KEY = createKey({ deckit });
-    KEY.start();
+    const keyPresses = [];
+    KEY.start((id, page) => keyPresses.push([id, page]) > 0);
     const channel = (name) => (payload, mod) => handlers[`deckit-shell:key-${name}`](payload, { mod });
+    check(
+        "each of the shell's keys holds its chord, by the key's name, a press of it that key's",
+        keymap.holder({ code: 'Backslash', meta: true }) === 'Toggle Sidebar' &&
+            keymap.holder({ code: 'KeyB', meta: true }) === 'Back to the Previous Mod' &&
+            keymap.holder({ code: 'BracketLeft', meta: true, control: true }) === null &&
+            keymap.press({ mod: 'a' }, { code: 'Backslash', meta: true }) &&
+            keyPresses[0]?.[0] === 'toggleSidebar' &&
+            keyPresses[0][1].mod === 'a',
+        { held: [...keymap.held.keys()], keyPresses }
+    );
     const listed = channel('list')({}, 'settings');
     check(
         "the shell's keys are listed in order, each with its default and the chord set for it, as kept",
@@ -140,12 +167,27 @@ async function main() {
     const chosen = { code: 'KeyS', meta: true, alt: true };
     const set = await channel('set')({ id: 'toggleSidebar', keystroke: chosen }, 'settings');
     check(
-        'a key set takes its chord, kept in the shell state, and a press of it is that key',
+        'a key set takes its chord, kept in the shell state, held again and the chord it had let go',
         set.keystroke.code === 'KeyS' &&
             state['panel-keys'].toggleSidebar.alt === true &&
-            KEY.idOf({ code: 'KeyS', meta: true, alt: true }) === 'toggleSidebar' &&
-            KEY.idOf({ code: 'Backslash', meta: true }) === null,
-        { set, state }
+            keymap.holder({ code: 'KeyS', meta: true, alt: true }) === 'Toggle Sidebar' &&
+            keymap.holder({ code: 'Backslash', meta: true }) === null,
+        { set, state, held: [...keymap.held.keys()] }
+    );
+    const modHolds = await channel('set')(
+        { id: 'toggleSidebar', keystroke: { code: 'KeyM', meta: true, alt: true } },
+        'settings'
+    ).then(
+        () => '',
+        (error) => error.kind
+    );
+    check(
+        'a chord another holds is refused, and the key keeps the chord it had',
+        modHolds === 'REFUSED' &&
+            state['panel-keys'].toggleSidebar.code === 'KeyS' &&
+            keymap.holder({ code: 'KeyS', meta: true, alt: true }) === 'Toggle Sidebar' &&
+            keymap.holder({ code: 'KeyM', meta: true, alt: true }) === 'keymap',
+        { modHolds, state }
     );
     const taken = await channel('set')({ id: 'forward', keystroke: { code: 'KeyB', meta: true } }, 'settings').then(
         () => '',
@@ -153,18 +195,89 @@ async function main() {
     );
     check('a chord another of the shell keys has is refused', taken === 'REFUSED', taken);
     await channel('set')({ id: 'back', keystroke: null }, 'settings');
-    check('a key set to none has no chord', KEY.chordOf('back') === '' && state['panel-keys'].back === null, state);
+    check(
+        'a key set to none has no chord, and holds none',
+        KEY.chordOf('back') === '' &&
+            state['panel-keys'].back === null &&
+            keymap.holder({ code: 'KeyB', meta: true }) === null,
+        state
+    );
     const reset = await channel('reset')({ id: 'back' }, 'settings');
     check(
-        'a key reset has its default again, and the state keeps no chord for it',
-        reset.keystroke.code === 'BracketLeft' && !Object.hasOwn(state['panel-keys'], 'back'),
+        'a key reset has its default again, held, and the state keeps no chord for it',
+        reset.keystroke.code === 'BracketLeft' &&
+            !Object.hasOwn(state['panel-keys'], 'back') &&
+            keymap.holder({ code: 'BracketLeft', meta: true, control: true }) === 'Back to the Previous Mod',
         { reset, state }
     );
+
+    // Any mod's page records the keys pressed in it, until it stops.
+    const recorder = { mod: 'other' };
+    handlers['deckit-shell:key-record']({ id: 1 }, recorder);
+    const recordedPress = keymap.press(recorder, { code: 'KeyS', meta: true, alt: true });
+    keymap.press({ mod: 'a' }, { code: 'KeyQ' });
+    check(
+        'a page that records is told each key pressed in it, taken from it, and no key pressed elsewhere',
+        recordedPress === true &&
+            recordedTold.length === 1 &&
+            recordedTold[0][0] === recorder &&
+            recordedTold[0][1].id === 1 &&
+            recordedTold[0][1].keystroke.code === 'KeyS',
+        recordedTold
+    );
+    handlers['deckit-shell:key-stop-recording']({ id: 2 }, recorder);
+    keymap.press(recorder, { code: 'KeyR' });
+    check('a stop of another recording stops nothing', recordedTold.length === 2, recordedTold);
+    handlers['deckit-shell:key-stop-recording']({ id: 1 }, recorder);
+    keymap.press(recorder, { code: 'KeyR' });
+    check('a recording stopped is told nothing more', recordedTold.length === 2, recordedTold);
     check(
         'what is no key of the shell, or no keystroke, is refused',
         refusedTo(() => channel('set')({ id: 'gone', keystroke: null }, 'settings')) !== '' &&
             refusedTo(() => channel('set')({ id: 'back', keystroke: { meta: true } }, 'settings')) !== '',
         ''
+    );
+
+    // shell.keys in a mod's page: record for every mod, the shell's keys changed with deckit.shell-keys alone.
+    const pageSent = []; // [channel, payload]
+    const pageHeard = {};
+    const KEYS = createKeys({
+        channels: {
+            bind: (declared) => ({
+                send: (payload) => pageSent.push([declared.channel, payload]),
+                on: (handler) => (pageHeard[declared.channel] = handler),
+                invoke: async (payload) => pageSent.push([declared.channel, payload]),
+            }),
+        },
+    });
+    const keysScope = makeScope();
+    const plainKeys = KEYS.forScope(keysScope, { changes: false });
+    const keeperKeys = KEYS.forScope(keysScope, { changes: true });
+    check(
+        'shell.keys records for every mod, and lists, sets and resets the shell keys with deckit.shell-keys alone',
+        Object.keys(plainKeys).join() === 'record' && Object.keys(keeperKeys).join() === 'record,list,set,reset',
+        [Object.keys(plainKeys), Object.keys(keeperKeys)]
+    );
+    const pageRecorded = [];
+    const stopRecording = plainKeys.record((keystroke) => pageRecorded.push(keystroke));
+    pageHeard['deckit-shell:key-recorded']({ id: 1, keystroke: { code: 'KeyZ', meta: true } });
+    pageHeard['deckit-shell:key-recorded']({ id: 7, keystroke: { code: 'KeyY' } });
+    stopRecording();
+    pageHeard['deckit-shell:key-recorded']({ id: 1, keystroke: { code: 'KeyX' } });
+    check(
+        'a recording asks main, hears the keys told for it alone, and stops',
+        JSON.stringify(pageSent) ===
+            '[["deckit-shell:key-record",{"id":1}],["deckit-shell:key-stop-recording",{"id":1}]]' &&
+            pageRecorded.length === 1 &&
+            pageRecorded[0].code === 'KeyZ',
+        { pageSent, pageRecorded }
+    );
+    plainKeys.record(() => {});
+    keysScope.cut();
+    check(
+        "a recording stops as its lifecycle's scope is cut",
+        JSON.stringify(pageSent.at(-1)) === '["deckit-shell:key-stop-recording",{"id":2}]',
+        pageSent
     );
 
     // The panel: `notes` has a view and does not run, `switcher` holds deckit.mods and has no view.
@@ -196,8 +309,14 @@ async function main() {
         { launched: panel.launched, shown: panel.shown }
     );
     const refusals = [
-        await panel.ask('open', { id: 'notes' }, 'notes').then(() => '', (error) => error.kind || error.message),
-        await panel.ask('open', { id: 'switcher' }, 'switcher').then(() => '', (error) => error.message),
+        await panel.ask('open', { id: 'notes' }, 'notes').then(
+            () => '',
+            (error) => error.kind || error.message
+        ),
+        await panel.ask('open', { id: 'switcher' }, 'switcher').then(
+            () => '',
+            (error) => error.message
+        ),
     ];
     check(
         'a mod without deckit.mods is refused, and so is a mod with nothing to show',
@@ -332,8 +451,8 @@ async function main() {
 // `dock` as the host app hands it, `state` what the shell kept, `answers` what a page answers main, by channel,
 // true where none is given, and `refusesWrites` deckit refusing every write to state, as it does state it did not
 // read. `ask(name, payload, mod)` asks one of the panel's channels as the page of `mod`, or as the frame's for FRAME,
-// and `askKey` one of the shell keys'. `press(page, keystroke)` is a key pressed in a page of
-// the app, or in the frame for FRAME, as the keymap's monitor is told it.
+// and `askKey` one of the shell keys'. `press(page, keystroke)` is a key pressed in a page of the app, or in the frame
+// for FRAME, as the keymap hands it on.
 function panelOver(
     createPanel,
     { mods, fields, managers, keepers = [], running = [], dock = null, state = {}, answers = {}, refusesWrites = false }
@@ -343,7 +462,7 @@ function panelOver(
     const launched = [];
     const shown = [];
     const dismissed = [];
-    const monitors = [];
+    const KEYMAP = keymapOver();
     const frame = { mod: null };
     const modPages = new Map();
     const page = (mod) => {
@@ -374,12 +493,12 @@ function panelOver(
                 state[key] = value;
             },
         },
-        keymap: { listen() {}, monitor: (handler) => monitors.push(handler) },
+        keymap: KEYMAP,
         core: { onDown() {} },
         pages: { whenEnds() {} },
         // A web page is `{ in }`, shown in the page `in`.
         web: { pageFor: (one) => one.in ?? one },
-        log: { error() {} },
+        log: { error() {}, warn() {} },
         mods: {
             notifications: [],
             list: () => mods,
@@ -421,18 +540,45 @@ function panelOver(
     });
     const ask = async (name, payload, mod) => handlers[`deckit-shell:panel-${name}`](payload, page(mod));
     const askKey = async (name, payload, mod) => handlers[`deckit-shell:key-${name}`](payload, page(mod));
-    const press = (at, keystroke) =>
-        monitors.some((monitor) =>
-            monitor(at === FRAME ? frame : at, {
-                code: '',
-                meta: false,
-                control: false,
-                alt: false,
-                shift: false,
-                ...keystroke,
-            })
-        );
+    const press = (at, keystroke) => KEYMAP.press(at === FRAME ? frame : at, keystroke);
     return { PANEL, named, launched, shown, dismissed, state, page, ask, askKey, press };
+}
+
+// The keymap as deckit holds it (deckit-shell/deckit/keymap/main.js), the chords a layer holds alone: a key pressed
+// goes to the page's recording, then the monitors, then the chord's holder. `holder(keystroke)` is the name a chord
+// is held by, or null.
+function keymapOver() {
+    const monitors = [];
+    const held = new Map(); // a chord -> { name, handler }
+    const recording = new Map(); // page -> handler
+    const keyOf = ({ code, meta, control, alt, shift }) => JSON.stringify([code, !!meta, !!control, !!alt, !!shift]);
+    const full = (keystroke) => ({ code: '', meta: false, control: false, alt: false, shift: false, ...keystroke });
+    return {
+        held,
+        listen() {},
+        monitor: (handler) => monitors.push(handler),
+        hold: (keystroke, handler, { name }) => {
+            const key = keyOf(keystroke);
+            if (held.has(key)) throw Object.assign(new Error(`taken by ${held.get(key).name}`), { kind: 'REFUSED' });
+            const one = { name, handler };
+            held.set(key, one);
+            return () => held.get(key) === one && held.delete(key);
+        },
+        record: (page, handler) => {
+            recording.set(page, handler);
+            return () => recording.get(page) === handler && recording.delete(page);
+        },
+        holder: (keystroke) => held.get(keyOf(keystroke))?.name ?? null,
+        press: (page, keystroke) => {
+            const pressed = full(keystroke);
+            if (recording.has(page)) {
+                recording.get(page)(pressed);
+                return true;
+            }
+            if (monitors.some((monitor) => monitor(page, pressed))) return true;
+            return !!held.get(keyOf(pressed))?.handler(page, pressed);
+        },
+    };
 }
 
 const FRAME = Symbol('the frame');
