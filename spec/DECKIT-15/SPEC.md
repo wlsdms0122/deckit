@@ -119,6 +119,7 @@ A request is refused with the first of these that is so, at `call`:
 - Reaching a mod by its id, the refusals of a reach, and `NOT_EXPORTED`: [the connections](../DECKIT-9/SPEC.md).
 - The owner of an interface, the connection to it, and the entries declared to it: [the interfaces](../DECKIT-10/SPEC.md). A call of a member of the exports, and the kind its refusal crosses with: [calls across a connection](../DECKIT-11/SPEC.md).
 - How a case matches values, the owner a case's host ships, and the call of what a listener was handed: [the case format](../DECKIT-1/SPEC.md).
+- A key that runs a command as its chord is pressed: [the key bindings](../DECKIT-16/SPEC.md).
 - Which mod a host ships as the owner: the embedding DECKIT.
 
 ## Alternatives considered

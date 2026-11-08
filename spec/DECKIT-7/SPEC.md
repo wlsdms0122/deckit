@@ -59,7 +59,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `dependencies.reach(id)`, `dependencies.release(id)` | reaching a mod by its id, and letting it go | `deckit.reach-mods`, for `reach` | [the connections](../DECKIT-9/SPEC.md) |
 | `exports.register(interface, exports)`, `exports.contributions(interface)`, `dependencies.onConnect(interface, listener)`, `dependencies.onRefuse(interface, listener)` | what the mod provides of an interface, and what it is connected to by one | | [the interfaces](../DECKIT-10/SPEC.md) |
 | `web` | the mod's web sessions and downloads | each session's `fetch` `system.network`, `trust` `system.certificates`, `allow` and `revoke` `system.site-permissions`; a download's `reveal` and `open` `system.file-handlers` | the web sessions' DECKIT |
-| `keys.take(keystroke, run, options)` | a chord the mod takes | `deckit.app-keys` or `system.global-keys`, by where the chord works | the keys' DECKIT |
+| `keys.take(keystroke, run, options)` | a chord the mod takes | `deckit.app-keys` or `system.global-keys`, by where the chord works | the keys' DECKIT; the keys a mod declares, which the owner of `deckit/keys` takes: [the key bindings](../DECKIT-16/SPEC.md) |
 | `clipboard.readText()`, `clipboard.writeText(text)` | what the person copied, read and replaced | `system.clipboard-read`, `system.clipboard-write` | the clipboard's DECKIT |
 | `notifications.show(notification)` | a notification of the machine's | `system.notifications` | the notifications' DECKIT |
 | `mainProcess(path)` | a module of the mod's started in the host's own process | `system.main-process` | the main process' DECKIT |
