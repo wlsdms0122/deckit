@@ -62,7 +62,7 @@ function press(area, down, pick, begin, cursor) {
         presented?.close();
         presented = null;
         for (const each of LAYER.windows()) each.removeEventListener('wheel', onWheel, { capture: true });
-        cancelAnimationFrame(frame);
+        view.cancelAnimationFrame(frame);
     };
     const finished = () => {
         if (phase === 'ended') return;
@@ -97,7 +97,7 @@ function press(area, down, pick, begin, cursor) {
             presented = PRESENTATION.present({ modal: true, onDismiss: callOff });
             for (const each of LAYER.windows())
                 each.addEventListener('wheel', onWheel, { capture: true, passive: false });
-            frame = requestAnimationFrame(scrollAtEdge);
+            frame = view.requestAnimationFrame(scrollAtEdge);
         }
         if (phase === 'held') held.follow(x, y);
     };
@@ -128,7 +128,7 @@ function press(area, down, pick, begin, cursor) {
         if (phase !== 'held') return;
         const scroller = held.scroller?.(x, y);
         if (scroller) scrollNear(scroller, x, y, () => held.follow(x, y));
-        frame = requestAnimationFrame(scrollAtEdge);
+        frame = view.requestAnimationFrame(scrollAtEdge);
     };
     // A new press settles this one now: a press whose pointerup was lost is the case this is for.
     const gesture = {

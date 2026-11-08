@@ -33,6 +33,7 @@ function isFullyVisible(element) {
 // the box, a translucent surface included. Returns the dispose.
 function edgeFade(element, { size = 18 } = {}) {
     let frame = 0;
+    let view = null; // the window of the document whose frame is asked for
     const paint = () => {
         frame = 0;
         const top = Math.max(0, Math.min(size, element.scrollTop));
@@ -42,8 +43,14 @@ function edgeFade(element, { size = 18 } = {}) {
                 ? `linear-gradient(to bottom, transparent 0, #000 ${top}px, #000 calc(100% - ${bottom}px), transparent 100%)`
                 : 'none';
     };
+    // Painted in a frame of the document the box is in now, none while that one is shown nowhere: one asked of a
+    // document it left is not waited for.
     const soon = () => {
-        if (!frame) frame = requestAnimationFrame(paint);
+        const now = element.ownerDocument.defaultView;
+        if (frame && view === now) return;
+        view?.cancelAnimationFrame(frame);
+        view = now;
+        frame = view?.requestAnimationFrame(paint) ?? 0;
     };
     const resized = new ResizeObserver(soon);
     const changed = new MutationObserver(soon);
@@ -52,7 +59,7 @@ function edgeFade(element, { size = 18 } = {}) {
     changed.observe(element, { childList: true, subtree: true });
     paint();
     return () => {
-        cancelAnimationFrame(frame);
+        view?.cancelAnimationFrame(frame);
         element.removeEventListener('scroll', soon);
         resized.disconnect();
         changed.disconnect();

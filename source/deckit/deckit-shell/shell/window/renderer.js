@@ -29,6 +29,8 @@ function createWindows({ running, deliver, channels, drags }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const open = new Map(); // id -> { handle, options, document, state, off }, while it is open
+    const kept = document.createElement('div'); // the contents of the windows that closed, in the page, shown nowhere
+    kept.hidden = true;
     let mounted = true;
     let reopened = null;
 
@@ -96,6 +98,13 @@ function createWindows({ running, deliver, channels, drags }) {
         );
         POINTER.watch(view);
         PRESENTATION.watch(view);
+        // A closing window's document takes the listeners off what is still in it, so the content, unless it opened in
+        // another window since, goes back to the page first, as it is, for the mod to open again.
+        view.addEventListener('pagehide', () => {
+            if (options.content.ownerDocument !== document) return;
+            if (!kept.isConnected) window.document.body.append(kept);
+            kept.append(options.content);
+        });
         held.handle = handleOf(id, held);
         open.set(id, held);
         return held.handle;

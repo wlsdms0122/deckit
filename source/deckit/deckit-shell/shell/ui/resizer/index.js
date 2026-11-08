@@ -111,17 +111,18 @@ function springTo(resize, from, to, page, then) {
         return null;
     }
     const start = performance.now();
+    const view = page.defaultView;
     let frame = 0;
     const step = (now) => {
         const progress = Math.min(1, (now - start) / length);
         resize(from + (to - from) * (1 - Math.pow(1 - progress, 3)));
-        if (progress < 1) frame = requestAnimationFrame(step);
+        if (progress < 1) frame = view.requestAnimationFrame(step);
         else then();
     };
-    frame = requestAnimationFrame(step);
+    frame = view.requestAnimationFrame(step);
     return {
         settleNow: () => {
-            cancelAnimationFrame(frame);
+            view.cancelAnimationFrame(frame);
             resize(to);
             then();
         },

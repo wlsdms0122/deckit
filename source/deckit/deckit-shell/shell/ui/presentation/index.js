@@ -204,8 +204,9 @@ function dismissTransient() {
     for (const presented of [...stack].reverse()) if (presented.transient) presented.dismiss();
 }
 
-function unfocused() {
-    requestAnimationFrame(() => setTimeout(dismissUnfocused));
+// After a frame of the window that lost the keyboard.
+function unfocused({ currentTarget: view }) {
+    view.requestAnimationFrame(() => setTimeout(dismissUnfocused));
 }
 
 // Once none of the page's documents has the keyboard: it went to another page or another app.

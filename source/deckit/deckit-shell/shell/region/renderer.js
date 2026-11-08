@@ -76,7 +76,22 @@ export function createRegion({ running, deliver, channels, windowOf }) {
                 sent = written;
                 PROTOCOL.rect.send({ region, interface: named, window, x, y, width, height });
             }
-            requestAnimationFrame(follow);
+            next();
+        };
+        // Followed in the frames of the document the element is in, or of the page's while that one is shown nowhere:
+        // a window that closes hands the next to the page.
+        const next = () => {
+            const view = element.ownerDocument.defaultView;
+            if (!view || view === window) return requestAnimationFrame(follow);
+            const asked = view.requestAnimationFrame(() => {
+                view.removeEventListener('pagehide', away);
+                follow();
+            });
+            const away = () => {
+                view.cancelAnimationFrame(asked);
+                requestAnimationFrame(follow);
+            };
+            view.addEventListener('pagehide', away, { once: true });
         };
         follow();
         return Object.freeze({

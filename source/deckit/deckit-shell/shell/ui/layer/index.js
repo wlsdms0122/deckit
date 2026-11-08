@@ -19,7 +19,7 @@ function start(given) {
     style = overlay.document.createElement('style');
     overlay.document.head.replaceChildren(style);
     overlay.document.body.replaceChildren();
-    const resized = new ResizeObserver(() => report());
+    const resized = new overlay.window.ResizeObserver(() => report());
     new MutationObserver(() => {
         resized.disconnect();
         for (const child of overlay.document.body.children) resized.observe(child);
