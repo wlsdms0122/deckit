@@ -97,9 +97,8 @@ The permission is the client's, as the connection hands its credential to the ow
 
 `choose` is refused, after those, with the first of these that is so, at `call`:
 
-1. kind `SCHEME`, where `scheme`, in lower case, has no list;
-2. kind `MOD`, where `choice` is `{ mod }` and that mod is not in the list;
-3. kind `SYSTEM`, where `choice` is `{ system }` and nothing opens the scheme outside the app.
+1. kind `NOT_LISTED`, where `scheme`, in lower case, has no list;
+2. kind `NOT_HANDLER`, where `choice` is `{ mod }` and that mod is not in the list, or `{ system }` and nothing opens the scheme outside the app.
 
 The owner keeps each choice in its own storage, as [the storage](../DECKIT-13/SPEC.md) fixes it, so that it stands as the host app starts again.
 
@@ -136,6 +135,7 @@ The owner keeps each choice in its own storage, as [the storage](../DECKIT-13/SP
 - A choice by the name of what opens a scheme, a mod's id or `system`. A mod with the id `system` would read as outside the app; `{ mod }` and `{ system }` are two shapes that no id confuses.
 - An address handed to a handler only where it runs. A handler that has no view and launches on demand would never be offered one.
 - A file address for a client not granted `system.file-handlers` opening nowhere, answered `false`. The client could not tell a permission it lacks from an address no mod took, and a mod granted files would open what the client may not.
+- A kind for each shape of `choice` that names what the list does not hold. Both say the same: what is chosen does not open the scheme's addresses.
 - `null` for no choice and nothing outside the app. A value has no null, as [the handle](../DECKIT-7/SPEC.md) fixes it; a key left out says the same.
 
 ## Notes

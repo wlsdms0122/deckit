@@ -71,16 +71,16 @@ The owner of `deckit/commands`, as [the interfaces](../DECKIT-10/SPEC.md) fix on
 |---|---|---|
 | `list()` | nothing | a table `{ commands, refused }`, below |
 | `run(mod, id, args)` | `mod`, a string, required: the declaring mod's id; `id`, a string, required: the command's; `args`, a table of values, not required | what the mod's `runCommand` answered, a value, or nothing where it answered nothing |
-| `complete(mod, id, param, partial, args)` | `mod`, `id`, as `run`; `param`, a string, required: a key of the command's `params.properties`; `partial`, a string, not required, `""` where left out: what the person typed of it; `args`, a table of values, not required: the args filled so far | what the mod's `completeCommand` answered, an array, or `[]` where the mod is not reached or opens no `completeCommand` |
+| `complete(mod, id, param, partial, args)` | `mod`, `id`, as `run`; `param`, a string, required: a key of the command's `params.properties`; `partial`, a string, not required, `""` where left out: what the person typed of it; `args`, a table of values, not required: the args filled so far | what the mod's `completeCommand` answered, an array, or `[]` where the mod opens no `completeCommand` |
 
 A request is refused with the first of these that is so, at `call`:
 
 1. as [the permissions](../DECKIT-3/SPEC.md) refuse a request a permission guards, with kind `NOT_PERMITTED`;
 2. as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, with kind `INVALID_ARGUMENT`;
-3. for `run` and `complete`, with kind `COMMAND`, where `mod` declares no command `id` that `list` answers;
-4. with kind `ARGUMENTS`: for `run`, where `args` do not fit the command, and for `complete`, where `param` is no key of the command's `params.properties`;
-5. for `run`, with the kind the reach of `mod` is refused with, as [the connections](../DECKIT-9/SPEC.md) fix them;
-6. for `run`, with kind `COMMAND`, where the exports `mod` opens for its id have no `runCommand`;
+3. for `run` and `complete`, with kind `NOT_DECLARED`, where `mod` declares no command `id` that `list` answers;
+4. with kind `INVALID_ARGUMENT`: for `run`, where `args` do not fit the command, and for `complete`, where `param` is no key of the command's `params.properties`;
+5. for `run` and `complete`, with the kind the reach of `mod` is refused with, as [the connections](../DECKIT-9/SPEC.md) fix them;
+6. for `run`, with kind `NOT_EXPORTED`, where the exports `mod` opens for its id have no `runCommand`;
 7. as [calls across a connection](../DECKIT-11/SPEC.md) refuse a call of `runCommand` or `completeCommand`: with the kind it threw, or `REFUSED`;
 8. with kind `REFUSED`, where `runCommand` answered a function, or one is in what it answered, or `completeCommand` answered what is not an array of values.
 
@@ -116,7 +116,7 @@ A request is refused with the first of these that is so, at `call`:
 - `deckit.system-services`, `deckit.reach-mods` and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md).
 - The catalog's order: [the catalog](../DECKIT-4/SPEC.md).
 - `INVALID_ARGUMENT`, and what a value is: [the handle](../DECKIT-7/SPEC.md).
-- Reaching a mod by its id, and the refusals of a reach: [the connections](../DECKIT-9/SPEC.md).
+- Reaching a mod by its id, the refusals of a reach, and `NOT_EXPORTED`: [the connections](../DECKIT-9/SPEC.md).
 - The owner of an interface, the connection to it, and the entries declared to it: [the interfaces](../DECKIT-10/SPEC.md). A call of a member of the exports, and the kind its refusal crosses with: [calls across a connection](../DECKIT-11/SPEC.md).
 - How a case matches values, the owner a case's host ships, and the call of what a listener was handed: [the case format](../DECKIT-1/SPEC.md).
 - Which mod a host ships as the owner: the embedding DECKIT.
@@ -126,12 +126,14 @@ A request is refused with the first of these that is so, at `call`:
 - Every mod running its own commands on an interface of its own. A switcher would have to know each mod and each interface, and could not list a mod's commands before it launches it.
 - Commands listed only from the mods that run. A command would come and go as its mod launches and quits, and a key bound to it would do nothing while the mod is not running.
 - The args checked by the declaring mod alone. Every mod would check them its own way, and a client could not tell args that do not fit from a command that failed.
+- A kind of the interface's own for args that do not fit, and one for a command not declared. A kind names what went wrong; args that do not fit what the command takes are arguments that do not fit, as [the handle](../DECKIT-7/SPEC.md) names them, and an exports with no `runCommand` is what [the connections](../DECKIT-9/SPEC.md) name `NOT_EXPORTED`.
+- `complete` answering `[]` for a mod it does not reach. A client could not tell a mod that offers nothing from one that cannot run, which `run` tells it.
 - The whole of JSON Schema for `params`. Two owners would read the keywords they do not share differently; the subset is what a person fills in, and each of its keys says one thing.
 - A client not granted `deckit.system-services` left without the interface's exports. Its members would not be on the exports, and the refusal of [the permissions](../DECKIT-3/SPEC.md) could not reach its code, as [the handle](../DECKIT-7/SPEC.md) sets aside for a member of the handle.
 - `null` for no params and for a command that answers nothing. A value has no null, as [the handle](../DECKIT-7/SPEC.md) fixes it; a key left out, and an answer of nothing, say the same.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `problem`: no rule states its text. That `run` answers nothing where `runCommand` answered nothing, and the refusal `REFUSED` of what holds a function: [the case format](../DECKIT-1/SPEC.md) reads an answer of nothing as no answer to compare, and a case's command answers values. That `complete` answers `[]` for a mod that is not reached: the refusals of a reach are held by [the connections](../DECKIT-9/SPEC.md)'s cases. That the mod is let go once it has answered: what is held is no answer a case reads. Each keyword of a schema but `type` and `required`: each is a key a case reads the same way, and one case of each fit is no more than the table.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `problem`: no rule states its text. That `run` answers nothing where `runCommand` answered nothing, and the refusal `REFUSED` of what holds a function: [the case format](../DECKIT-1/SPEC.md) reads an answer of nothing as no answer to compare, and a case's command answers values. That `complete` is refused each refusal of a reach: one of them, `NOT_LAUNCHED`, is held for `run` and for `complete`, and the rest by [the connections](../DECKIT-9/SPEC.md)'s cases. That the mod is let go once it has answered: what is held is no answer a case reads. Each keyword of a schema but `type` and `required`: each is a key a case reads the same way, and one case of each fit is no more than the table.
 
 **Note.** What this costs an implementation's owner: it reads the entries declared to `deckit/commands` again as they change, checks args against a command's `params` before it reaches the mod, and reaches a mod for each run and each completion.
