@@ -25,7 +25,7 @@ One implementation launches `mod-b` and answers once it is connected; another re
 class Mod {
     start(deckit) {
         deckit.exports.register({
-            connect: (connection) => ({ owner: connection.mod.id }),
+            connect: (connection) => ({ owner: connection.credential.mod }),
         });
     }
 }
@@ -75,10 +75,12 @@ A call that opens nothing does not fail the run: the run goes on, with the expor
 
 | key | value |
 |---|---|
-| `mod` | table `{ id, name }`: the client's `id`, and its `name` as [the bundle](../DECKIT-2/SPEC.md) answers it |
+| `mod` | table `{ name }`: the client's `name`, as [the bundle](../DECKIT-2/SPEC.md) answers it |
 | `credential` | table `{ mod, permissions }`: the client's `id`, and an array of the ids of the permissions the client is granted, as [the permissions](../DECKIT-3/SPEC.md) say, in the order [the bundle](../DECKIT-2/SPEC.md) answers them |
 
-**Note.** The credential is what the service decides by: a service that serves only a client granted a permission reads `credential.permissions`, and needs no permission of its own to learn it.
+The client's id is handed once, in `credential`.
+
+**Note.** The credential is what the service decides by: a service that serves only a client granted a permission reads `credential.permissions`, and one that keeps what each client did keeps it under `credential.mod`. It needs no permission of its own to learn either.
 
 ### What crosses
 
@@ -90,7 +92,7 @@ The exports `connect` answers are handed to the client as a value. A value, as [
 
 | request | takes | answers | refused with |
 |---|---|---|---|
-| `dependencies.reach(id)` | `id`, a string | the exports of the connection to the mod under `id`, once it stands | at `call` `NOT_PERMITTED`, `INVALID_ARGUMENT`, `NOT_UP`, `REFUSED`, `NOT_INSTALLED`; at `read` `NOT_LOADABLE`; at `launch` `RELAUNCH_LIMIT`, `TIMED_OUT`, `NOT_LAUNCHED`; at `call` `NOT_EXPORTED`, or the kind the service refuses with |
+| `dependencies.reach(id)` | `id`, a string | the exports of the connection to the mod under `id`, once it stands | at `call` `NOT_PERMITTED`, `INVALID_ARGUMENT`, `ENDED`, `NOT_INSTALLED`; at `read` `NOT_LOADABLE`; at `launch` `RELAUNCH_LIMIT`, `TIMED_OUT`, `NOT_LAUNCHED`; at `call` `NOT_EXPORTED`, the kind the service refuses with or `REFUSED`, `CANCELLED` |
 | `dependencies.release(id)` | `id`, a string | nothing | at `call` `INVALID_ARGUMENT` |
 
 `deckit.reach-mods`, as [the permissions](../DECKIT-3/SPEC.md) define it, guards `reach`. No permission guards `release`.
@@ -98,7 +100,7 @@ The exports `connect` answers are handed to the client as a value. A value, as [
 A reach and a release are of the lifecycle whose handle they are called on. A lifecycle **reaches** the mod under `id` from a `reach` of it until a `release` of it has been called once for each `reach`, or until the lifecycle ends; a `reach` that is refused counts none, and a `release` past the reaches counted does nothing. While a lifecycle reaches a mod:
 
 - where the mod's run is `running` with exports for its id that reach the lifecycle, a connection to them is made, as *A connection* says, and `reach` answers its exports: at once where a connection stands already;
-- where the mod has no run that is `launching` or `running`, the mod launches, as [the lifecycle](../DECKIT-5/SPEC.md) says of a lifecycle that reaches a mod, unless a refusal below is so. This holds each time its run ends while it is reached, so a mod reached launches again once its run has ended.
+- where the mod has no run that is `launching` or `running`, the mod launches, as [the lifecycle](../DECKIT-5/SPEC.md) says of a lifecycle that reaches a mod, unless a refusal below is so: one whose run is `terminating` launches once that run is `notRunning`, as it says of a mod asked to launch. This holds each time its run ends while it is reached, so a mod reached launches again once its run has ended.
 
 Once the lifecycle no longer reaches the mod, its connection to the mod ends, and the mod is not launched for it. Its run is left as it is.
 
@@ -106,18 +108,18 @@ A `reach` is refused with the first of these that is so, and every `reach` of th
 
 1. as [the permissions](../DECKIT-3/SPEC.md) refuse a request a permission guards, at `call` with kind `NOT_PERMITTED`;
 2. as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, at `call` with kind `INVALID_ARGUMENT`;
-3. at `call` with kind `NOT_UP`, where the lifecycle whose handle it is called on has ended;
-4. at `call` with kind `REFUSED`, where `id` is the mod's own id;
+3. at `call` with kind `ENDED`, where the lifecycle whose handle it is called on has ended;
+4. at `call` with kind `INVALID_ARGUMENT`, where `id` is the mod's own id;
 5. at `call` with kind `NOT_INSTALLED`, where no bundle is listed under `id`;
 6. at `read` with kind `NOT_LOADABLE`, where the system did not take the bundle [the catalog](../DECKIT-4/SPEC.md) holds under `id`;
 7. at `launch` with kind `RELAUNCH_LIMIT`, where the mod is at the relaunch limit;
 8. at `launch` with kind `TIMED_OUT` or `NOT_LAUNCHED`, where the mod has no run that is `launching` or `running` and its latest run timed out or failed to launch;
 9. at `call` with kind `NOT_EXPORTED`, where the mod's run is `running` with no exports for its id that reach the lifecycle;
-10. at `call`, where the service refuses the connection: with the `kind` the error `connect` threw carries, and with kind `REFUSED` where it carries none, or where `connect` answered a promise or what does not cross.
+10. at `call`, where the service refuses the connection: with the `kind` the error `connect` threw carries where that is a kind, as [the specification](../README.md) fixes one, and with kind `REFUSED` where it carries none or what is not a kind, or where `connect` answered a promise or what does not cross. No refusal but the service's is of kind `REFUSED`.
 
 Each refusal from 5 on, and each the lifecycle comes to while it reaches the mod, as the mod launches again or its service refuses a new connection, lets the reach go: the lifecycle no longer reaches the mod, whatever reaches of it were counted before, and the mod is not launched for it again until a `reach` asks anew. A mod at the relaunch limit is not taken off it by a reach, as [the lifecycle](../DECKIT-5/SPEC.md) says.
 
-A `release` is refused only as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes. A reach still unanswered as the reaches it counted are released is refused at `call`.
+A `release` is refused only as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes. A reach still unanswered as the reaches it counted are released is refused at `call` with kind `CANCELLED`.
 
 **Note.** A mod reached launches as an operating system launches a service a client connects to, and launches again while it is reached, so a client holds what it reaches by holding the reach, and lets it go by a release, never by asking the mod to quit.
 
@@ -139,11 +141,14 @@ A `release` is refused only as [the handle](../DECKIT-7/SPEC.md) refuses a reque
 - A mod reached kept as it was once its run ends, until the client reaches it again. The client would have to watch every run it reaches and ask again, and a connection it holds would end for a reason it was not told. Holding the reach holds the mod, as long as the relaunch limit lets it.
 - A mod reached quit as the last reach of it is let go. Whether a mod runs would depend on who reaches it, and a mod that is also a background mod or was launched by a request would end for a release by another.
 - A service told only the client's id, with a request to look up what the client is granted. A second round trip for every connection, and what it answers could change between the two.
+- A service's `kind` handed on to the client whatever it is. The client would read as a kind a value no DECKIT could fix as one, a number or a lower-case word.
+- A reach of the mod's own id refused `REFUSED`. A client could not tell it from a service that refused it, and the id is an argument that does not fit the request.
+- The client's id handed twice, in `mod` and in `credential`. A service would have two values to read where one is meant, and an implementation two to keep the same.
 - Every refusal by the service answered with one kind. A service that defines what it refuses with, as an interface's DECKIT does, could not tell its client why.
 - Exports opened at any time in the run. Whether a client connects would depend on when it reached the mod, and `NOT_EXPORTED` would be a race rather than an answer: once a run is `running`, what it exports is known.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `TIMED_OUT`: a launch out of time takes longer than a step may take to settle. `NOT_UP`, and a reach refused because another reach of the id was, or because its reaches were released: steps settle one at a time and a case's request is made while its lifecycle runs, so no reach is unanswered as another step comes. `disconnect`: what it hears reaches no handle a case reads. That exports opened in a lifecycle reach only lifecycles of the same or a later place, and that a connection ends as either lifecycle ends while its run goes on: no case's host stacks a layer that opens exports or ends one lifecycle of a run alone, so the shell's DECKITs hold them with the shell on. That the client is handed a copy: a case reads what crosses and not what the service holds. That a mod at the relaunch limit stays at it after a reach: [the lifecycle](../DECKIT-5/SPEC.md)'s cases hold what takes a mod off it.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `TIMED_OUT`: a launch out of time takes longer than a step may take to settle. `ENDED`, `CANCELLED`, a reach refused because another reach of the id was, and a mod reached as its run is `terminating`: steps settle one at a time and a case's request is made while its lifecycle runs, so no reach is unanswered and no run is between two states as another step comes. `disconnect`: what it hears reaches no handle a case reads. That exports opened in a lifecycle reach only lifecycles of the same or a later place, and that a connection ends as either lifecycle ends while its run goes on: no case's host stacks a layer that opens exports or ends one lifecycle of a run alone, so the shell's DECKITs hold them with the shell on. That the client is handed a copy: a case reads what crosses and not what the service holds. That a mod at the relaunch limit stays at it after a reach: [the lifecycle](../DECKIT-5/SPEC.md)'s cases hold what takes a mod off it.
 
-**Note.** What this costs an implementation: the system keeps, for each lifecycle, the ids it reaches and how many reaches of each are not let go, and launches a mod reached each time its run ends; a mod's exports are known once its run is `running`; and a service's refusal carries its kind across to the client.
+**Note.** What this costs an implementation: the system keeps, for each lifecycle, the ids it reaches and how many reaches of each are not let go, and launches a mod reached each time its run ends; a mod's exports are known once its run is `running`; and a service's refusal carries its kind across to the client where it is one.
