@@ -27,7 +27,7 @@ class WindowProbe {
             )
         );
         document.addEventListener('test-load', ({ detail: ids }) =>
-            deckit.mods.load(ids).then(
+            Promise.all(ids.map((id) => deckit.mods.launch(id))).then(
                 () => (marks.loaded = ids.join()),
                 (error) => (marks.loaded = 'failed: ' + error.message)
             )
