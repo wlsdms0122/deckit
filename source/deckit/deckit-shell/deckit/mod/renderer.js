@@ -108,9 +108,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
                       }),
                   }
                 : {}),
-            // An address opened outside the app, with the system: the web for any mod, a file with
-            // system.file-handlers. Answers whether it opened.
-            openExternal: (url, options) => OPEN.open(url, options),
+            openExternal: OPEN.openExternalOf(mod),
             ...(has(OPEN_PERMISSION.FILE_HANDLERS) ? { reveal: OPEN.reveal } : {}),
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,

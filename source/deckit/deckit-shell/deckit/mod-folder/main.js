@@ -32,7 +32,7 @@ export function createModFolder({ IDENTITY, CATALOG, MODS, dialogs: DIALOGS, ope
             buttonLabel: 'Choose',
             message: 'Pick the folder that has manifest.toml in it',
         });
-        return folder ? MODS.planInstall(folder) : null;
+        return folder ? MODS.plan(folder) : null;
     }
 
     // Each folder refused on its own, so one refused leaves the others to install.
@@ -45,7 +45,7 @@ export function createModFolder({ IDENTITY, CATALOG, MODS, dialogs: DIALOGS, ope
         });
         return Promise.all(
             folders.map((from) =>
-                MODS.planInstall(from).catch((error) => ({ from, problem: String(error?.message || error) }))
+                MODS.plan(from).catch((error) => ({ from, problem: String(error?.message || error) }))
             )
         );
     }

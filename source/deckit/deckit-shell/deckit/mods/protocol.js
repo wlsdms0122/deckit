@@ -1,17 +1,17 @@
 // Between a page of a mod with deckit.mods and main, about the mods.
 import * as CHANNEL from '../channel/index.js';
 
-export const mods = CHANNEL.pageToMain('deckit-shell:mods', {}, { reply: true, sync: true });
-export const planInstall = CHANNEL.pageToMain('deckit-shell:mods-plan-install', { from: 'string' }, { reply: true });
-export const install = CHANNEL.pageToMain('deckit-shell:mods-install', { from: 'string' }, { reply: true });
+export const mods = CHANNEL.pageToMain('deckit-shell:mods', {}, { reply: true });
+export const plan = CHANNEL.pageToMain('deckit-shell:mods-plan', { folder: 'string' }, { reply: true });
+export const install = CHANNEL.pageToMain('deckit-shell:mods-install', { folder: 'string' }, { reply: true });
 export const remove = CHANNEL.pageToMain(
     'deckit-shell:mods-remove',
-    { id: 'string', data: 'boolean' },
+    { id: 'string', erase: 'boolean' },
     { reply: true }
 );
+export const launch = CHANNEL.pageToMain('deckit-shell:mods-launch', { id: 'string' }, { reply: true });
 export const relaunch = CHANNEL.pageToMain('deckit-shell:mods-relaunch', { id: 'string' }, { reply: true });
 export const quit = CHANNEL.pageToMain('deckit-shell:mods-quit', { id: 'string' }, { reply: true });
-export const load = CHANNEL.pageToMain('deckit-shell:mods-load', { ids: 'array' }, { reply: true });
 // `mod` absent or null clears the pin.
 export const pin = CHANNEL.pageToMain(
     'deckit-shell:mods-pin',

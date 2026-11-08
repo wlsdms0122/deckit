@@ -31,7 +31,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
 
     // What a folder would install, asked before the person is: its manifest, and whether it replaces an installed
     // mod. Refused with why for a folder install refuses.
-    async function planInstall(from) {
+    async function plan(from) {
         const { manifest, replaces } = await CATALOG.planInstall(from);
         return { ...manifest, from, replaces };
     }
@@ -42,17 +42,21 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return describe();
         });
-        PROTOCOL.planInstall.handle(({ from }, sender) => {
+        PROTOCOL.plan.handle(({ folder }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return planInstall(from);
+            return plan(folder);
         });
-        PROTOCOL.install.handle(({ from }, sender) => {
+        PROTOCOL.install.handle(({ folder }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return install(from);
+            return install(folder);
         });
-        PROTOCOL.remove.handle(({ id, data }, sender) => {
+        PROTOCOL.remove.handle(({ id, erase }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return remove(id, data);
+            return remove(id, erase);
+        });
+        PROTOCOL.launch.handle(({ id }, sender) => {
+            const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
+            return RUNNER.launch(id, by);
         });
         PROTOCOL.relaunch.handle(({ id }, sender) => {
             const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
@@ -61,10 +65,6 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
         PROTOCOL.quit.handle(({ id }, sender) => {
             const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
             return RUNNER.quit(id, by);
-        });
-        PROTOCOL.load.handle(async ({ ids }, sender) => {
-            const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
-            await Promise.all(ids.map((id) => RUNNER.launch(id, by)));
         });
         PROTOCOL.pin.handle(({ interface: named, mod }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -148,15 +148,15 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     }
 
     // What runs in its place is told before its run ends. Its run has ended, stop() and all, and its page closed,
-    // before what it stored is taken, so nothing writes it back.
-    async function remove(id, data) {
+    // before what it stored is taken, so nothing writes it back. Answers whether what it stored was erased.
+    async function remove(id, erasing) {
         const keeps = await CATALOG.remove(id);
         layer.removed(id);
         await CATALOG.refresh();
         await RUNNER.whenReconciled();
-        if (!data || !keeps) return { data: false };
+        if (!erasing || !keeps) return { erased: false };
         await erase(id);
-        return { data: true };
+        return { erased: true };
     }
 
     // A mod removed with its data, whose pages' storage or what the layer keeps of it was not cleared then, or what the
@@ -186,5 +186,5 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
         await CORE.request('erasure/cleared', { mod: id });
     }
 
-    return { start, planInstall };
+    return { start, plan };
 }

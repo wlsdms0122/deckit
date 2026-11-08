@@ -60,17 +60,18 @@ function createTable(sides) {
     };
 }
 
-// Only a message crosses a process, so an error's kind travels beside it and is put back on the far side.
+// Only a message crosses a process, so an error's kind and the stage it is refused at travel beside it and are put
+// back on the far side.
 function errorOf(error) {
-    return { message: String(error?.message ?? error), kind: error?.kind ?? null };
+    return { message: String(error?.message ?? error), kind: error?.kind ?? null, stage: error?.stage ?? null };
 }
 
-function failure({ message, kind }) {
-    return Object.assign(new Error(message), { kind });
+function failure({ message, kind, stage }) {
+    return Object.assign(new Error(message), { kind, stage });
 }
 
 function refusal(message) {
-    return { error: { message, kind: 'REFUSED' } };
+    return { error: { message, kind: 'REFUSED', stage: 'call' } };
 }
 
 function unwrap(answer) {

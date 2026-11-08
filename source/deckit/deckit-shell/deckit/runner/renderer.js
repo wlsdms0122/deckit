@@ -1,16 +1,15 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as MOD_PERMISSION from '../permission/index.js';
 import * as LIMIT from './model/limit.js';
 import { makeScope } from './model/scope.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The run of a mod in its page: its entry evaluated, the class it exports made once and its lifecycles started in the
-// order they are stacked, each connected to the interfaces it depends on as it begins, and what each registered told to
-// main as it joins. `RUN` is the page's run; `STORAGE`, `CONNECTION`, `EVENT` and `MODS` are what deckit gives it;
-// `modules` is the environment's (environment/: PAGE.modules).
+// order they are stacked, each connected to the interfaces it depends on as it begins, and main told the run started,
+// with what they registered, once each has started. `RUN` is the page's run; `STORAGE`, `CONNECTION`, `EVENT` and
+// `MODS` are what deckit gives it; `modules` is the environment's (environment/: PAGE.modules).
 export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: MODULES }) {
     // MARK: - Property
     // What a layer gives of what it leaves out, and what the runner has when no layer is given: no lifecycle, so the
@@ -29,14 +28,16 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     // runner carries and does not read;
     // `lifecycles`, the lifecycles it stacks on the run, over those of the layers under it, the lowest first;
     // `over`, what it offers a layer over it;
-    // and, for the lowest, `handle`, the name of the handle the runner's members are on, and `mods`, what it adds to
-    // `mods` for a mod with deckit.mods.
+    // and, for the lowest, `handle`, the name of the handle the runner's members are on, and `mods`, the requests it
+    // adds to `mods`.
     // A lifecycle is `{ method, registrations, start(instance, handles, scope), end(instance), join(parts, scope) }`:
     // `method` names it in what a person reads; `registrations`, by name, `{ handle, check }`, what the handles it
     // hands out register beside the runner's own; `start`, which calls the instance with its handles, by name, each of
     // the runner's members and registrations on the one named `handle`; `end`, which ends what start began; `join`,
     // called with what it registered once start has ended.
-    // Each lifecycle has a `scope`: what its handles made that calls back into the mod's code is cut as it ends.
+    // Each lifecycle has a `scope`: what its handles made that calls back into the mod's code is cut as it ends. The
+    // lowest failing fails the run; another failing ends alone, none stacks on it, and the run starts with those under
+    // it.
     async function start({ layers = [] } = {}) {
         try {
             await run(layers);
@@ -84,9 +85,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         }
         // Name, an interface or the mod's own id -> the lifecycle that opened its exports, as the runner joins it.
         const joined = { exportedIn: {} };
-        if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined });
         for (const [index, lifecycle] of given.lifecycles.entries()) {
-            const first = index === 0;
             const scope = makeScope();
             const registry = registryOf(lifecycle, { handle: given.handle, joined });
             const entry = { index, lifecycle, scope, registry };
@@ -106,15 +105,13 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             } catch (error) {
                 registry.close();
                 fail(error.message || String(error));
-                if (first) return RUN.notStarted();
-                // Only that lifecycle ends: the run goes on with those under it, and none stacks on it.
+                if (index === 0) return RUN.notStarted();
                 begun.pop();
                 await end(entry, instance);
-                if (!stopping) tell(PROTOCOL.joined, { described, joined, reported: given.report() });
-                return;
+                break;
             }
-            tell(first ? PROTOCOL.started : PROTOCOL.joined, { described, joined, reported: given.report() });
         }
+        if (!stopping) tellStarted({ described, joined, reported: given.report() });
     }
 
     // The layers on the runner as one: what each reads and reports, a lower one's where two say the same, their
@@ -139,11 +136,11 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         };
     }
 
-    // Main is told what the run contributes now, all of it, and as a person reads it: `exports` in the summary is
-    // whether a lifecycle opened the exports of any interface.
-    function tell(channel, { described, joined, reported = {} }) {
+    // Main is told what the run contributes, all of it, and as a person reads it: `exports` in the summary is whether a
+    // lifecycle opened the exports of any interface.
+    function tellStarted({ described, joined, reported }) {
         const exportedIn = { ...joined.exportedIn };
-        channel.send({
+        PROTOCOL.started.send({
             run: RUN.number,
             contributions: { ...reported.contributions, exportedIn, awaits: CONNECTION.awaited() },
             summary: { ...described, ...reported.summary, exports: Object.keys(exportedIn).length > 0 },
@@ -245,7 +242,6 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     // lifecycle was connected to as it began.
     function membersOf({ given, scope, dependencies }) {
         const { mod } = RUN;
-        const has = (permission) => mod.permissions.some(({ id }) => id === permission);
         return {
             id: mod.id,
             name: mod.name,
@@ -253,7 +249,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             dependencies,
             quit: RUN.quit,
             ...EVENT.forScope({ handle: given.handle, scope }),
-            ...(has(MOD_PERMISSION.MODS) ? { mods: MODS.tool(given.mods, scope) } : {}),
+            mods: MODS.tool(given.mods, scope),
         };
     }
 

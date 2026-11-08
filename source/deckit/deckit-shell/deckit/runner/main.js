@@ -122,12 +122,12 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // quits.
     async function launch(id, by = null) {
         await until(() => quitHold === 'held' || runOf(id)?.state !== 'terminating');
-        if (quitHold === 'held') throw refused('NOT_LAUNCHED', `${id} does not launch while the app quits`);
+        if (quitHold === 'held') throw refused('launch', 'NOT_LAUNCHED', `${id} does not launch while the app quits`);
         const effects = await ask('runner/launch', by ? { mod: id, by } : { mod: id });
         const launched = effects.some(({ notification, mod }) => notification === 'willLaunch' && mod === id);
         const run = launched ? runOf(id) : null;
         await until(() => (run ?? runOf(id))?.state !== 'launching');
-        if (run?.refusal) throw refused(run.refusal.kind, run.refusal.message);
+        if (run?.refusal) throw refused(run.refusal.stage, run.refusal.kind, run.refusal.message);
     }
 
     // The mods named terminate. Resolves once each has ended.
@@ -369,8 +369,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         timer.unref?.();
     }
 
-    function refused(kind, message) {
-        return Object.assign(new Error(message), { kind });
+    function refused(stage, kind, message) {
+        return Object.assign(new Error(message), { stage, kind });
     }
 
     // A page that is loading by itself, or has just loaded by itself, is not loaded again: whatever run launches in it
@@ -458,18 +458,6 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             const { id } = IDENTITY.modFrom(sender);
             reported(id, number, { summary, contributions });
             send('runner/started', { mod: id, run: number, contributions: keptOf(contributions) });
-        });
-        // Joined once the core has kept what it contributes now.
-        PROTOCOL.joined.on(({ run: number, contributions, summary }, sender) => {
-            const { id } = IDENTITY.modFrom(sender);
-            reported(id, number, { summary, contributions });
-            ask('runner/joined', { mod: id, run: number, contributions: keptOf(contributions) }).then(
-                () => {
-                    const run = runOf(id);
-                    if (run?.number === number && run.state === 'running') notifications.emit('didJoin', run);
-                },
-                (error) => LOG.error('the core did not take runner/joined', error)
-            );
         });
         PROTOCOL.problem.on(({ run: number, problem }, sender) =>
             send('runner/problem', { mod: IDENTITY.modFrom(sender).id, run: number, problem })

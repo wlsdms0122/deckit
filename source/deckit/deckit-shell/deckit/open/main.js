@@ -2,6 +2,7 @@ import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as OPEN_PERMISSION from './model/permission.js';
+import * as REQUEST from '../request/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -9,8 +10,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // files. `open` is the environment's.
 export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
     // MARK: - Property
-    // The schemes opened with the system, and what opens each.
-    const SYSTEM_HANDLERS = Object.freeze({ http: 'browser', https: 'browser', file: 'file' });
+    const WEB = Object.freeze(['http:', 'https:']);
 
     // MARK: - Initializer
     // MARK: - Public
@@ -22,18 +22,24 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
         });
     }
 
-    // Answers whether it opened: an address of another scheme opens nowhere, and a file only where the caller may
-    // open files (`opensFiles`, a mod's system.file-handlers) and only where the file is.
+    // `url` read as a URL and handed the environment as it serializes, the web's to open in the browser and a file's
+    // path to open in its app, the latter only where the caller may open files (`opensFiles`, a mod's
+    // system.file-handlers): refused with NOT_PERMITTED otherwise. Refused with UNSUPPORTED_URL for what is no URL, a
+    // URL of another scheme, or a file on another host. Answers nothing once it is handed on.
     async function open(url, { activates = true, opensFiles = false } = {}) {
-        const address = String(url).trim();
-        const handler = SYSTEM_HANDLERS[schemeOf(address)];
-        if (handler === 'browser') {
-            await SYSTEM.url(address, { activate: activates });
-            return true;
+        const address = URL.canParse(url) ? new URL(url) : null;
+        const file = address?.protocol === 'file:';
+        if (file && !opensFiles) {
+            const why = `a file opens only for a mod with the ${OPEN_PERMISSION.FILE_HANDLERS} permission`;
+            throw REQUEST.refusal('call', 'NOT_PERMITTED', why);
         }
-        if (handler !== 'file' || !opensFiles) return false;
-        const file = filePathOf(address);
-        return !!file && (await SYSTEM.file(file));
+        if (WEB.includes(address?.protocol)) {
+            await SYSTEM.url(address.href, { activate: activates });
+            return;
+        }
+        if (!file || (address.host && address.host !== 'localhost'))
+            throw REQUEST.refusal('call', 'UNSUPPORTED_URL', `${url} is no address opened outside the app`);
+        await SYSTEM.file(decodeURIComponent(address.pathname));
     }
 
     // What a page asks to open outside itself, a window or an address its document leaves for, opened as `open`
@@ -48,22 +54,6 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
     function opensFiles(page) {
         const mod = IDENTITY.modFrom(page);
         return mod.permissions.some(({ id }) => id === OPEN_PERMISSION.FILE_HANDLERS);
-    }
-
-    // The scheme an address is written with, lower case, or '' for none (RFC 3986).
-    function schemeOf(address) {
-        const scheme = address.match(/^([A-Za-z][A-Za-z0-9+.-]*):/)?.[1] ?? '';
-        return scheme.toLowerCase();
-    }
-
-    function filePathOf(url) {
-        try {
-            const parsed = new URL(url);
-            if (parsed.host && parsed.host !== 'localhost') return '';
-            return decodeURIComponent(parsed.pathname);
-        } catch {
-            return '';
-        }
     }
 
     return { start, open, openFrom };
