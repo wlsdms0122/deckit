@@ -2,7 +2,7 @@
 // to start, the start done once each background mod has launched, a run's page made, known as the mod's and set up
 // before it loads, what the core is told as the page fails, crashes or is replaced, a run's end asked of its page, what
 // the page reports kept on its run while the core is told `exportedIn` and `awaits` alone, a launch asked of the core
-// with the mod that asks or none, once a run that terminates has ended, a mod relaunched as it ends and launches
+// with the mod that asks or none, at once while a run terminates, a mod relaunched as it ends and launches
 // again, the core asked first what the owners come to as the catalog changes, with no new mod loaded for it and the
 // owner change it delivers reaching the page that listens, a changed mod that ran loaded again, a launch the core
 // answers for a failed run done as told, what a run is refused with at launch, a launch whose run did not launch
@@ -203,8 +203,8 @@ async function main() {
     await tick();
     check('what an older run reports is not kept on the latest', RUNNER.runOf('a').summary?.view === true, null);
 
-    // A launch: asked of the core with the mod that asks, or none for the shell, once a run that terminates has ended;
-    // resolved once it has launched, or failed to. One the core refuses rejects.
+    // A launch: asked of the core with the mod that asks, or none for the shell, at once while a run terminates, as the
+    // core keeps it until that run has ended; resolved once it has launched, or failed to. One refused rejects.
     catalog = [...catalog, { id: 'b', revision: '1' }];
     answers.set('runner/launch', [
         [{ effect: 'open', found: found('b') }, told('willLaunch', 'launching', 'b'), { effect: 'loadPage', mod: 'b' }],
@@ -234,21 +234,26 @@ async function main() {
     answers.set('runner/unload', [[told('willTerminate', 'terminating', 'b')]]);
     await RUNNER.ask('runner/unload', { mods: ['b'] });
     const launchesBefore = methods('runner/launch').length;
-    answers.set('runner/launch', [
-        [told('willLaunch', 'launching', 'b', { run: 2 }), told('didLaunch', 'running', 'b', { run: 2 })],
-    ]);
-    const afterEnd = RUNNER.launch('b');
+    answers.set('runner/launch', [[]]);
+    let launchedAfterEnd = false;
+    const afterEnd = RUNNER.launch('b').then(() => (launchedAfterEnd = true));
     await tick();
     check(
-        'a launch waits for the run that terminates to end',
-        methods('runner/launch').length === launchesBefore,
+        'a launch as a run terminates is asked of the core at once, and waits for that run to end',
+        methods('runner/launch').length === launchesBefore + 1 && launchedAfterEnd === false,
         methods('runner/launch')
     );
-    answers.set('runner/stopped', [[told('didTerminate', 'notRunning', 'b')]]);
+    answers.set('runner/stopped', [
+        [
+            told('didTerminate', 'notRunning', 'b'),
+            told('willLaunch', 'launching', 'b', { run: 2 }),
+            told('didLaunch', 'running', 'b', { run: 2 }),
+        ],
+    ]);
     await RUNNER.ask('runner/stopped', { mod: 'b', run: 1 });
     await afterEnd;
     check(
-        'a launch is asked once the run that terminated has ended',
+        'a launch as a run terminates resolves once the run the core launched as that run ended has launched',
         methods('runner/launch').length === launchesBefore + 1 && RUNNER.runOf('b')?.number === 2,
         methods('runner/launch')
     );

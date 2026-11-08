@@ -64,7 +64,7 @@ async function main() {
     // The core refuses to reach x, which the mod may not reach.
     const refusals = {
         'deckit-shell:connection-reach': ({ target }) =>
-            target === 'x' && { message: 'x is out of reach of p', kind: 'REFUSED' },
+            target === 'x' && { message: 'x is out of reach of p', kind: 'NOT_PERMITTED' },
     };
     const answer = ({ channel, payload }) => {
         asks.push({ channel, payload });
@@ -115,10 +115,10 @@ async function main() {
             deckit.exports.register('p/one', {
                 connect: (connection) => {
                     seen.connected.push(connection);
-                    return { who: () => connection.mod.id };
+                    return { who: () => connection.credential.mod };
                 },
             });
-            deckit.exports.register({ connect: (connection) => ({ own: connection.mod.id }) });
+            deckit.exports.register({ connect: (connection) => ({ own: connection.credential.mod }) });
             deckit.exports.register('p/one', { connect: () => ({}) });
             deckit.exports.register('q/other', { connect: () => ({}) });
         }
@@ -207,15 +207,13 @@ async function main() {
     const one = await ask('connection-connect', {
         id: 1,
         name: 'p/one',
-        mod: { id: 'd', name: 'D' },
+        mod: { name: 'D' },
         credential: { mod: 'd', permissions: ['p/read'] },
         lifecycle: 0,
     });
     check(
-        "an interface's exports are made for the dependent, handed its id and name",
-        one?.value?.references?.[0]?.[0]?.[0] === 'who' &&
-            seen.connected[0]?.mod.id === 'd' &&
-            seen.connected[0]?.mod.name === 'D',
+        "an interface's exports are made for the dependent, handed its name",
+        one?.value?.references?.[0]?.[0]?.[0] === 'who' && JSON.stringify(seen.connected[0]?.mod) === '{"name":"D"}',
         { one, connected: seen.connected }
     );
     const credential = seen.connected[0]?.credential;
@@ -229,7 +227,7 @@ async function main() {
     const two = await ask('connection-connect', {
         id: 2,
         name: 'p/two',
-        mod: { id: 'd', name: 'D' },
+        mod: { name: 'D' },
         credential: { mod: 'd', permissions: ['p/read'] },
         lifecycle: 1,
     });
@@ -237,7 +235,7 @@ async function main() {
     const wrong = await ask('connection-connect', {
         id: 3,
         name: 'p/two',
-        mod: { id: 'd', name: 'D' },
+        mod: { name: 'D' },
         credential: { mod: 'd', permissions: ['p/read'] },
         lifecycle: 0,
     });
@@ -245,7 +243,7 @@ async function main() {
     const own = await ask('connection-connect', {
         id: 4,
         name: 'p',
-        mod: { id: 'd', name: 'D' },
+        mod: { name: 'D' },
         credential: { mod: 'd', permissions: ['p/read'] },
         lifecycle: 0,
     });
@@ -301,7 +299,7 @@ async function main() {
     const refused = await seen.refused;
     check(
         'a reach the core refuses rejects with its kind, at call',
-        refused?.kind === 'REFUSED' && refused.stage === 'call' && /out of reach/.test(refused.message),
+        refused?.kind === 'NOT_PERMITTED' && refused.stage === 'call' && /out of reach/.test(refused.message),
         refused
     );
     const mistyped = await seen.mistyped;
@@ -381,7 +379,7 @@ async function main() {
         targets('connection-reach').filter((target) => target === 'g').length === 2,
         asked('connection-reach')
     );
-    seen.dependencies.reach('h').catch(() => {});
+    const cancelled = seen.dependencies.reach('h').catch(refusalOf);
     seen.dependencies.release('h');
     seen.dependencies.reach('h').catch(() => {});
     for (let at = 0; at < 5; at++) await tick();
@@ -389,6 +387,12 @@ async function main() {
         .filter(({ channel, payload }) => /connection-(release-)?reach$/.test(channel) && payload.target === 'h')
         .map(({ channel }) => channel.replace('deckit-shell:connection-', ''));
     check('a release is asked before a reach asked after it', order.join() === 'reach,release-reach,reach', order);
+    check(
+        'a reach let go before it connected rejects at call, CANCELLED',
+        JSON.stringify(await cancelled) ===
+            '{"message":"h was let go before it connected","kind":"CANCELLED","stage":"call"}',
+        await cancelled
+    );
     heard.told({ channel: 'deckit-shell:connection-disconnected', payload: { id: 30 } });
     for (let at = 0; at < 3; at++) await tick();
     check('the connection let go ends what its onConnect answered', seen.cut.join() === 'q', seen.cut);

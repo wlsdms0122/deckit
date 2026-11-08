@@ -108,7 +108,7 @@ export function createConnection({ RUN }) {
         }
         for (const [named, registered] of [...exporting])
             if (registered.lifecycle === lifecycle) exporting.delete(named);
-        const ended = refusalOf({ stage: 'call', kind: 'NOT_UP', message: 'the lifecycle that reached it has ended' });
+        const ended = refusalOf({ stage: 'call', kind: 'ENDED', message: 'the lifecycle that reached it has ended' });
         for (const reached of reaching.get(lifecycle)?.values() ?? [])
             for (const { reject } of reached.pending) reject(ended);
         reaching.delete(lifecycle);
@@ -175,7 +175,7 @@ export function createConnection({ RUN }) {
     // does, and asks the core where it does not hold the ask.
     function reach(lifecycle, id) {
         if (!begun.has(lifecycle))
-            return Promise.reject(refusalOf({ stage: 'call', kind: 'NOT_UP', message: 'the lifecycle has ended' }));
+            return Promise.reject(refusalOf({ stage: 'call', kind: 'ENDED', message: 'the lifecycle has ended' }));
         if (!reaching.has(lifecycle)) reaching.set(lifecycle, new Map());
         const byId = reaching.get(lifecycle);
         if (!byId.has(id)) byId.set(id, { count: 0, asked: false, pending: [], order: Promise.resolve() });
@@ -200,14 +200,14 @@ export function createConnection({ RUN }) {
     }
 
     // One reach of the mod `id` let go: once none is left, the core lets the ask go, and the reaches that still wait
-    // reject. Resolves once main took what it was asked.
+    // reject, CANCELLED. Resolves once main took what it was asked.
     function release(lifecycle, id) {
         const reached = reaching.get(lifecycle)?.get(id);
         if (!reached?.count) return Promise.resolve();
         reached.count -= 1;
         if (reached.count || !reached.asked) return reached.order;
         reached.asked = false;
-        const gone = refusalOf({ stage: 'call', kind: null, message: `${id} was let go before it connected` });
+        const gone = refusalOf({ stage: 'call', kind: 'CANCELLED', message: `${id} was let go before it connected` });
         for (const { reject } of reached.pending.splice(0)) reject(gone);
         return ask(reached, PROTOCOL.releaseReach, lifecycle, id);
     }
@@ -248,13 +248,13 @@ export function createConnection({ RUN }) {
     }
 
     // The exports for a new connection, made by the `connect` of the interface's exports, opened in `lifecycle`, or
-    // null once it has ended. `mod` is the dependent's id and name, `credential` its mod id and permissions as the
-    // core holds them.
+    // null once it has ended. `mod` is the dependent's name, `credential` its mod id and permissions as the core holds
+    // them.
     function answerConnect({ id, name: named, mod, lifecycle, credential }) {
         const registered = exporting.get(named);
         if (!registered || registered.lifecycle !== lifecycle) return null;
         const connection = Object.freeze({
-            mod: Object.freeze({ id: mod.id, name: mod.name }),
+            mod: Object.freeze({ name: mod.name }),
             credential: Object.freeze({
                 mod: credential.mod,
                 permissions: Object.freeze([...credential.permissions]),

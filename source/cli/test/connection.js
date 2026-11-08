@@ -48,7 +48,8 @@ async function main() {
         launch: async (id) => launched.push(id),
         ask: async (method, params) => {
             ran.push([method, params]);
-            if (params.target === 'x') throw Object.assign(new Error('x is out of reach of a'), { kind: 'REFUSED' });
+            if (params.target === 'x')
+                throw Object.assign(new Error('x is out of reach of a'), { kind: 'NOT_PERMITTED' });
             return [];
         },
     };
@@ -82,7 +83,7 @@ async function main() {
         { reached, ran }
     );
     const refused = await ask('connection-reach', { run: 1, lifecycle: 0, target: 'x' });
-    check('a reach the core refuses is answered with its kind', refused.error?.kind === 'REFUSED', refused);
+    check('a reach the core refuses is answered with its kind', refused.error?.kind === 'NOT_PERMITTED', refused);
     check('each reach is told as a request of the mod reached', requests.join() === 'a>b,a>x', requests);
     const released = await ask('connection-release-reach', { run: 1, lifecycle: 0, target: 'b' });
     check(
@@ -108,7 +109,7 @@ async function main() {
         "the service's page is asked for the exports with the client's credential",
         servicePage.modId === 'b' &&
             JSON.stringify(question.payload) ===
-                '{"id":6,"name":"p/x","mod":{"id":"a","name":"a"},"lifecycle":0,' +
+                '{"id":6,"name":"p/x","mod":{"name":"a"},"lifecycle":0,' +
                     '"credential":{"mod":"a","permissions":["p/read"]}}',
         question
     );
@@ -146,6 +147,31 @@ async function main() {
         told
     );
     tells.length = 0;
+    const refusedWith = async (id, kind) => {
+        const connecting = effects.get('connect')({
+            connection: {
+                id,
+                name: 'p/x',
+                client: { mod: 'a', run: 1, lifecycle: 0 },
+                service: { mod: 'b', run: 1, lifecycle: 0 },
+                credential: { mod: 'a', permissions: [] },
+            },
+        });
+        await tick();
+        const [page, question] = tells.find(([, message]) => message.channel === 'deckit-shell:connection-connect');
+        heard.told(page, { channel: question.channel, id: question.id, error: { message: 'busy', kind } });
+        await connecting;
+        const kindTold = tells.find(([, message]) => message.channel === 'deckit-shell:connection-connected')?.[1]
+            .payload.refusal.kind;
+        tells.length = 0;
+        return kindTold;
+    };
+    const kinds = [await refusedWith(9, 'BUSY'), await refusedWith(10, 'busy'), await refusedWith(11, 5)];
+    check(
+        "a service's refusal keeps the kind it threw, and one that is not a kind is REFUSED",
+        kinds.join() === 'BUSY,REFUSED,REFUSED',
+        kinds
+    );
 
     // A call on a connection goes to the other end the core routes it to, told as a request of that mod.
     requests.length = 0;

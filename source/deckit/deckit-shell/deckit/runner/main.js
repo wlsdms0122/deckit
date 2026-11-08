@@ -115,19 +115,20 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         effectHandlers.set(name, handler);
     }
 
-    // The mod launches as asked, once its run that terminates has ended: `by` is the id of the mod that asks, which the
-    // core refuses unless it is granted deckit.mods, and with none the shell asks. A launch takes the mod off the
-    // relaunch limit. One launching or running is left as it is. Resolves once it has launched, or ended; rejects with
-    // what the run it asked for is refused with at launch where it did not launch, and with NOT_LAUNCHED while the app
-    // quits.
+    // The mod launches as asked, and one whose run terminates once that run has ended, as the core keeps it: `by` is
+    // the id of the mod that asks, which the core refuses unless it is granted deckit.mods, and with none the shell
+    // asks. A launch takes the mod off the relaunch limit. One launching or running is left as it is. Resolves once it
+    // has launched, or ended; rejects with what the run it asked for is refused with at launch where it did not
+    // launch, and with NOT_LAUNCHED while the app quits.
     async function launch(id, by = null) {
-        await until(() => quitHold === 'held' || runOf(id)?.state !== 'terminating');
-        if (quitHold === 'held') throw refused('launch', 'NOT_LAUNCHED', `${id} does not launch while the app quits`);
-        const effects = await ask('runner/launch', by ? { mod: id, by } : { mod: id });
-        const launched = effects.some(({ notification, mod }) => notification === 'willLaunch' && mod === id);
-        const run = launched ? runOf(id) : null;
-        await until(() => (run ?? runOf(id))?.state !== 'launching');
-        if (run?.refusal) throw refused(run.refusal.stage, run.refusal.kind, run.refusal.message);
+        const quitting = () => refused('launch', 'NOT_LAUNCHED', `${id} does not launch while the app quits`);
+        if (quitHold === 'held') throw quitting();
+        const before = runOf(id);
+        await ask('runner/launch', by ? { mod: id, by } : { mod: id });
+        await until(() => before?.state !== 'terminating' && runOf(id)?.state !== 'launching');
+        const run = runOf(id);
+        if (run === before && quitHold === 'held') throw quitting();
+        if (run !== before && run?.refusal) throw refused(run.refusal.stage, run.refusal.kind, run.refusal.message);
     }
 
     // The mods named terminate. Resolves once the run each had has ended, whether or not it launches again.
@@ -181,20 +182,18 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         reconciled.catch((error) => LOG.error('the mods were not loaded', error));
     }
 
-    // Each mod named loads, each once its own run that terminates has ended. One launching or running is left as it
-    // is, one at the relaunch limit too, and none loads while the app quits. Resolves once each has launched, or
-    // failed to.
+    // Each mod named loads, and one whose run terminates once that run has ended, as the core keeps it. One launching
+    // or running is left as it is, one at the relaunch limit too, and none loads while the app quits. Resolves once
+    // each has launched, or failed to.
     async function load(ids) {
-        let left = [...new Set(ids)];
-        const ready = (id) => runOf(id)?.state !== 'terminating';
-        while (left.length) {
-            await until(() => quitHold === 'held' || left.some(ready));
-            if (quitHold === 'held') return;
-            const now = left.filter(ready);
-            left = left.filter((id) => !now.includes(id));
-            await ask('runner/load', { mods: now });
-        }
-        await until(() => ids.every((id) => runOf(id)?.state !== 'launching'));
+        if (!ids.length || quitHold === 'held') return;
+        const before = ids.map(runOf);
+        await ask('runner/load', { mods: ids });
+        await until(
+            () =>
+                before.every((run) => run?.state !== 'terminating') &&
+                ids.every((id) => runOf(id)?.state !== 'launching')
+        );
     }
 
     // The mods named in `unloading` unload, and then each mod in `ids` loads, the runs of those that have one saying

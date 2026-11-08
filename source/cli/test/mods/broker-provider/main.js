@@ -7,7 +7,7 @@ class BrokerProvider {
             connect: (connection) => {
                 let kept = null;
                 return {
-                    ask: (number) => `${number + 1} ${connection.mod.id}`,
+                    ask: (number) => `${number + 1} ${connection.credential.mod}`,
                     ping: (number) => deckit.events.emit('broker-provider/broker:ping', number),
                     async countTo(last, onCount) {
                         for (let number = 1; number <= last; number++) await onCount(number);

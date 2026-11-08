@@ -8,11 +8,11 @@ class BrokerScreen {
         deckit.exports.register('broker-screen/takes', {
             connect(connection) {
                 made.add(connection);
-                marks.connected = connection.mod.id;
+                marks.connected = connection.credential.mod;
                 return { take: (ask) => ask(1) };
             },
             disconnect(connection) {
-                marks.disconnected = `${connection.mod.id} ${made.has(connection)}`;
+                marks.disconnected = `${connection.credential.mod} ${made.has(connection)}`;
                 made.delete(connection);
             },
         });

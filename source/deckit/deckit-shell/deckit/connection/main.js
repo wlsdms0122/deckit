@@ -3,6 +3,7 @@ import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
+const KIND = /^[A-Z][A-Z_]*$/; // a refusal's kind
 
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
 // what crosses goes from page to page through here, never read. A lifecycle connects to the interfaces it uses as it
@@ -10,8 +11,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // stands, and so is one its service refused, with why: one that ended while its exports were asked for is left out.
 // A lifecycle that waits for a mod the core will not launch is told what that mod is refused with, and one the core
 // refuses what it reaches, a mod that runs with no exports for it, is told that refusal. The service is handed the
-// client's id, name and credential; the client, the name alone. A call and a reach are told to `REQUEST` as the
-// requests of one mod of another.
+// client's name and credential, which holds its id; the client, the name alone. A call and a reach are told to
+// `REQUEST` as the requests of one mod of another.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -75,9 +76,9 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST
 
     // MARK: - Private
     // The exports the connection reaches, as its service's page answers them for it, or why it refused them: the core
-    // keeps it down from then on, a refusal at `call` of the kind the service threw, REFUSED for none. One whose
-    // service's lifecycle ended while they were asked for was not refused, and is null. What the client is handed
-    // names the mod id or the interface, never the mod that owns an interface.
+    // keeps it down from then on, a refusal at `call` of the kind the service threw, REFUSED for none or for one that
+    // is not a kind. One whose service's lifecycle ended while they were asked for was not refused, and is null. What
+    // the client is handed names the mod id or the interface, never the mod that owns an interface.
     async function open(connection) {
         const { id, client, service } = connection;
         const named = { id, name: connection.name };
@@ -88,7 +89,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST
             const exports = await PROTOCOL.connect.invoke(page, {
                 id,
                 name: connection.name,
-                mod: { id: client.mod, name: mod?.name ?? client.mod },
+                mod: { name: mod?.name ?? client.mod },
                 lifecycle: service.lifecycle,
                 credential: connection.credential,
             });
@@ -97,7 +98,8 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST
             if (!standing.delete(id)) return null;
             CORE.request('connection/refuse', { connection: id }).catch(() => {});
             const message = `${connection.name} did not connect: ${error.message || error}`;
-            return { ...named, refusal: { stage: 'call', kind: error.kind ?? 'REFUSED', message } };
+            const kind = typeof error.kind === 'string' && KIND.test(error.kind) ? error.kind : 'REFUSED';
+            return { ...named, refusal: { stage: 'call', kind, message } };
         }
     }
 
