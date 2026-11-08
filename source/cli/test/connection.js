@@ -57,11 +57,10 @@ async function main() {
     const IDENTITY = { pageOf: (id) => ({ modId: id }), modFrom: (page) => ({ id: page.modId }) };
     const CONNECTION = createConnection({ CORE: { request: async () => [] }, LOG, IDENTITY, CATALOG, RUNNER });
     CONNECTION.start();
-    check(
-        'a run that launches or a lifecycle that joins launches nothing from here',
-        !observers.has('didLaunch') && !observers.has('didJoin') && !launched.length,
-        { observed: [...observers.keys()], launched }
-    );
+    check('a run that launches launches nothing from here', !observers.has('didLaunch') && !launched.length, {
+        observed: [...observers.keys()],
+        launched,
+    });
 
     // A page of mod a reaches b by its id, then x, which the core refuses, and lets b go.
     const pageA = { modId: 'a' };

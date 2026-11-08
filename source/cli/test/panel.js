@@ -447,7 +447,7 @@ async function main() {
 }
 
 // `createPanel` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
-// that hold deckit.mods, `keepers` those that hold deckit.shell-keys, `running` the mods whose views have joined,
+// that hold deckit.mods, `keepers` those that hold deckit.shell-keys, `running` the mods that run with a view,
 // `dock` as the host app hands it, `state` what the shell kept, `answers` what a page answers main, by channel,
 // true where none is given, and `refusesWrites` deckit refusing every write to state, as it does state it did not
 // read. `ask(name, payload, mod)` asks one of the panel's channels as the page of `mod`, or as the frame's for FRAME,
