@@ -1,0 +1,23 @@
+case = 3
+name = "a-mod-that-quits-itself-ends-its-run"
+note = "quit() asks the end of the run whose handle it is called on, and no permission guards it. mod-a, a background mod granted nothing, quits itself while it runs, and a run whose end quit() asked has not failed, so mod-a is not launched again and is notRunning."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "quit"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "notRunning"

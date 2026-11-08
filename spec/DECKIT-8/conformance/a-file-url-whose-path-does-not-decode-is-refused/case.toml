@@ -1,0 +1,27 @@
+case = 3
+name = "a-file-url-whose-path-does-not-decode-is-refused"
+note = "openExternal is refused at call with UNSUPPORTED_URL where the URL is a file URL whose path does not decode, and the host is handed nothing. mod-a, granted system.file-handlers, opens file:///data/report%zz.pdf, whose % is not followed by two hexadecimal digits, which the URL Standard reads as a URL all the same."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["file:///data/report%zz.pdf"]
+
+[step.expect]
+refuses = "call"
+kind = "UNSUPPORTED_URL"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []
