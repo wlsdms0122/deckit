@@ -20,7 +20,8 @@ const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'd
 // MARK: - Public
 // A mod's windows, in its own page: `forScope(scope)` is `shell.windows` for a lifecycle, whose windows close as
 // `scope` is cut; `windowOf(element)` the id of the window an element is in, or null; `reopen(listener)` what main's
-// reopen calls; `unmount()`, each window on screen disappearing and its parts told nothing more. Each window's content
+// reopen calls; `unmount()`, each window that is key resigning it and each on screen disappearing, and its parts told
+// nothing more. Each window's content
 // is a document the page opens beside itself, which wears the page's rules, where the pointer and what is presented
 // are heard as in the page, and whose drag regions move the window (`drags`, environment: PAGE.drags). `running` is
 // the mod, `deliver` calls what the mod handed, and `channels` binds the windows' channels in the page.
@@ -68,7 +69,7 @@ function createWindows({ running, deliver, channels, drags }) {
     }
 
     function unmount() {
-        for (const held of open.values()) if (held.state.shown) tell(held, 'didDisappear');
+        for (const held of open.values()) gone(held);
         mounted = false;
     }
 
@@ -162,6 +163,12 @@ function createWindows({ running, deliver, channels, drags }) {
     function ended(id, held) {
         open.delete(id);
         for (const off of held.off) off();
+        gone(held);
+    }
+
+    // A window going resigns key before it disappears.
+    function gone(held) {
+        if (held.state.key) tell(held, 'didResignKey');
         if (held.state.shown) tell(held, 'didDisappear');
     }
 
