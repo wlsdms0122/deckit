@@ -83,6 +83,30 @@ class Note {
         ui.addStyle(STYLE);
         const content = ui.element('div', { className: 'note' });
         const relocations = relocationLog({ movePath: util.movePath, idle: () => noteSession.idle() });
+        // The view's own keys, while it is in front, made before what draws their chords.
+        const keys = viewKeys(
+            {
+                newNote: { key: 'mod+n', run: () => newNoteHere() },
+                newFolder: { key: 'mod+shift+n', run: () => newFolder() },
+                // While a text field has focus, ⌘⌫ stays the field's (delete to line start).
+                trash: { key: 'mod+backspace', run: () => trash(), fieldsKeep: true },
+                search: { key: 'mod+f', run: () => searchInGallery() },
+                back: { key: 'mod+[', run: () => goBack() },
+                forward: { key: 'mod+]', run: () => goForward() },
+                title: styleKey('title', 'mod+shift+t'),
+                heading: styleKey('heading', 'mod+shift+h'),
+                subheading: styleKey('subheading', 'mod+shift+j'),
+                body: styleKey('body', 'mod+shift+b'),
+                monospaced: styleKey('monospaced', 'mod+shift+m'),
+                bulletedList: styleKey('bulletedList', 'mod+shift+7'),
+                numberedList: styleKey('numberedList', 'mod+shift+9'),
+                checklist: styleKey('checklist', 'mod+shift+l'),
+                markChecked: { key: 'mod+shift+u', run: () => markChecked() },
+                blockQuote: styleKey('blockQuote', "mod+'"),
+            },
+            { log: 'note' }
+        );
+        this.endKeys = () => keys.listen(false);
         const editor = liveEditor({
             theme,
             ui,
@@ -241,30 +265,6 @@ class Note {
         });
         const newNoteHere = () => newNote(currentFolder());
         const newFolder = () => fileOperations.newFolder(currentFolder());
-        // The view's own keys, while it is in front.
-        const keys = viewKeys(
-            {
-                newNote: { key: 'mod+n', run: newNoteHere },
-                newFolder: { key: 'mod+shift+n', run: newFolder },
-                // While a text field has focus, ⌘⌫ stays the field's (delete to line start).
-                trash: { key: 'mod+backspace', run: trash, fieldsKeep: true },
-                search: { key: 'mod+f', run: searchInGallery },
-                back: { key: 'mod+[', run: goBack },
-                forward: { key: 'mod+]', run: goForward },
-                title: styleKey('title', 'mod+shift+t'),
-                heading: styleKey('heading', 'mod+shift+h'),
-                subheading: styleKey('subheading', 'mod+shift+j'),
-                body: styleKey('body', 'mod+shift+b'),
-                monospaced: styleKey('monospaced', 'mod+shift+m'),
-                bulletedList: styleKey('bulletedList', 'mod+shift+7'),
-                numberedList: styleKey('numberedList', 'mod+shift+9'),
-                checklist: styleKey('checklist', 'mod+shift+l'),
-                markChecked: { key: 'mod+shift+u', run: markChecked },
-                blockQuote: styleKey('blockQuote', "mod+'"),
-            },
-            { log: 'note' }
-        );
-        this.endKeys = () => keys.listen(false);
         const actions = switcher({
             ui,
             util,
