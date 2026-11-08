@@ -1,5 +1,6 @@
 // One run of a case: its bundles laid out afresh in a folder of the run's own, the host app started and quit as its
 // steps say, each call and look asked of it, and what each step came to held to what it expects (spec/DECKIT-1).
+const crypto = require('crypto');
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -36,12 +37,16 @@ async function run(theCase, { folder, hostApp, electron }) {
 
     const server = net.createServer();
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    // The pages' storage is kept by the host app's id, outside the folder: one for each case's folder, so no case
+    // reads what another stored.
+    const id = 'deckit-conformance-' + crypto.createHash('sha256').update(folder).digest('hex').slice(0, 16);
     const setupFile = path.join(folder, 'setup.json');
     fs.writeFileSync(
         setupFile,
         JSON.stringify(
             {
                 port: server.address().port,
+                id,
                 api: host.api,
                 preload: 'preload.js',
                 home,

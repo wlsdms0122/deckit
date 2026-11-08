@@ -63,7 +63,7 @@ try {
     deckit = DECKIT.connect(Object.create(environment, { open: { value: open } }), {
         host: { notificationClicked: () => {}, restart: () => {} },
         config: {
-            id: 'deckit-conformance',
+            id: setup.id,
             name: 'Deckit conformance',
             api: setup.api,
         },
