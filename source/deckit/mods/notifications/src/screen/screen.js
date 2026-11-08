@@ -1,6 +1,7 @@
-// The notifications on screen, in the mod's overlay window: the toasts `center` lets out, stacked and each gone after a
-// time, which leave the keyboard where it is, and on `showList()` the record, newest first, to press, remove or clear.
-// A press on a toast, a row or an action is the center's.
+// The notifications on screen, in the mod's overlay window, open while it shows any: the toasts `center` lets out,
+// stacked and each gone after a time, which leave the keyboard where it is, and on `showList()` the record, newest
+// first, to press, remove or clear, until the keyboard leaves it. A press on a toast, a row or an action is the
+// center's.
 const WIDTH = 360;
 const TOAST_HEIGHT = 76;
 const GAP = 8;
@@ -31,26 +32,10 @@ function screen(shell, center) {
     // MARK: - Property
     const content = document.createElement('div');
     content.className = 'notifications';
-    const style = document.createElement('style');
-    style.textContent = STYLE;
-    document.head.append(style);
+    shell.ui.addStyle(STYLE);
     const toasts = new Map(); // id -> { notification, timer }
     let face = 'toasts';
-    let shown = false;
-    const window = shell.window.register({
-        content,
-        width: WIDTH,
-        height: heightOf(1),
-        overlay: true,
-        didAppear: () => (shown = true),
-        didDisappear: () => {
-            shown = false;
-            face = 'toasts';
-        },
-        didResignKey: () => {
-            if (face === 'list') toToasts();
-        },
-    });
+    let window = null; // the window, while it is open
     const offs = [
         center.drawWith({ show: showToast, hide: (id) => hideToast(id, { told: false }) }),
         center.onChange(() => face === 'list' && draw()),
@@ -61,16 +46,15 @@ function screen(shell, center) {
     function showList() {
         face = 'list';
         draw();
-        window.resize({ width: WIDTH, height: LIST_HEIGHT });
-        window.open();
+        if (!window) return open(LIST_HEIGHT);
+        window.resize(WIDTH, LIST_HEIGHT);
+        window.orderFront();
     }
 
     function end() {
         for (const off of offs) off();
         for (const { timer } of toasts.values()) clearTimeout(timer);
         toasts.clear();
-        window.close();
-        style.remove();
     }
 
     // MARK: - Private
@@ -93,9 +77,31 @@ function screen(shell, center) {
     function toToasts() {
         face = 'toasts';
         draw();
-        if (!toasts.size) return window.close();
-        window.resize({ width: WIDTH, height: heightOf(toasts.size) });
-        if (!shown) window.open({ activates: false });
+        if (!toasts.size) {
+            window?.close();
+            window = null;
+            return;
+        }
+        if (window) window.resize(WIDTH, heightOf(toasts.size));
+        else open(heightOf(toasts.size));
+    }
+
+    // The window opened `height` tall. One closed where the screen did not ask opens again with the next toast or list.
+    function open(height) {
+        const opened = shell.windows.open({
+            name: 'main',
+            content,
+            level: 'overlay',
+            width: WIDTH,
+            height,
+            didResignKey: () => face === 'list' && window === opened && toToasts(),
+            didClose: () => {
+                if (window !== opened) return;
+                window = null;
+                face = 'toasts';
+            },
+        });
+        window = opened;
     }
 
     function draw() {
