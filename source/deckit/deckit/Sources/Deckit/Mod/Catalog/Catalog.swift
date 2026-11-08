@@ -31,6 +31,16 @@ public final class Catalog {
     public var loading: [Mod] {
         lastRead.filter { mod in mod.problem == nil }
     }
+    // Interface -> what the mods that load declare to it, in their order, as the mods were last read.
+    var declarations: [String: [Declaration]] {
+        loading.reduce(into: [:]) { declarations, mod in
+            for (interface, entries) in mod.manifest.contributes {
+                declarations[interface, default: []] += entries.map { entry in
+                    Declaration(mod: mod.manifest.id, name: mod.manifest.name, permissions: mod.granted, entry: entry)
+                }
+            }
+        }
+    }
 
     // MARK: - Initializer
     // `folder` is deck's mods folder, and `sources` the folders of mods read in place.
@@ -67,18 +77,14 @@ public final class Catalog {
         return lastRead
     }
 
-    // What the mods that load declare to `interface`, in their order, as the mods were last read: handed only to `id`
-    // while deck's owner table has it own the interface, so a pin or a read hands them to the new owner at once.
+    // What the mods that load declare to `interface`, as `declarations` holds it: handed only to `id` while deck's
+    // owner table has it own the interface, so a pin or a read hands them to the new owner at once.
     public func declarations(to interface: String, for id: String) throws -> [Declaration] {
         guard ownerTable.ownership.owner(of: interface) == id else {
             throw DeclarationError.notOwner(interface: interface, mod: id)
         }
 
-        return loading.flatMap { mod in
-            (mod.manifest.contributes[interface] ?? []).map { entry in
-                Declaration(mod: mod.manifest.id, name: mod.manifest.name, entry: entry)
-            }
-        }
+        return declarations[interface] ?? []
     }
 
     // The text of the file `path` names inside the folder of the mod `id`, which loads as the mods were last read, or

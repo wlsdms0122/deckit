@@ -79,5 +79,25 @@ struct DeclarationTests {
         }
     }
 
+    @Test("each entry is handed with the permissions its mod is granted, as its runs are")
+    func entryCarriesPermissions() throws {
+        // Given
+        try fixture.write("o", provides: ["o/actions"])
+        try fixture.write("a", permissions: ["host.keys", "nowhere.defined"], contributes: """
+            [contributes]
+            "o/actions" = [{ title = "Open" }]
+            """)
+        let keys = Permission(id: "host.keys", name: "Keys", description: "It takes keys.", privileged: false)
+        let sut = try fixture.deckit(permissions: [keys])
+        _ = try sut.load(["a"])
+
+        // When
+        let handed = try sut.catalog.declarations(to: "o/actions", for: "o")
+
+        // Then
+        #expect(handed.map(\.permissions) == [["host.keys"]])
+        #expect(handed.map(\.permissions) == [try #require(sut.deck.job(of: "a")).permissions])
+    }
+
     // MARK: - Private
 }

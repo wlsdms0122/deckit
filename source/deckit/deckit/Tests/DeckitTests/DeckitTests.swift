@@ -275,12 +275,133 @@ struct DeckitTests {
         })
     }
 
+    @Test("a lifecycle that waits for a mod is told what a launch of it is refused with, nothing while it may launch")
+    func waitIsToldTheLaunchRefusal() throws {
+        // Given
+        try fixture.write("t")
+        try fixture.write("bad", api: "9.0.0")
+        try fixture.write("l")
+        let sut = try fixture.deckit(limit: RelaunchLimit(burst: 1, interval: 10))
+        _ = try sut.load(["l"])
+        _ = try sut.notStarted("l", run: 1, problem: "threw")
+
+        // When
+        let unknown = sut.refusal(reaching: "x")
+        let unloadable = sut.refusal(reaching: "bad")
+        let limited = sut.refusal(reaching: "l")
+        let launchable = sut.refusal(reaching: "t")
+
+        // Then
+        #expect(unknown as? LaunchError == .notInstalled("x"))
+        #expect(unloadable is ModFolderError)
+        #expect(limited as? LaunchError == .relaunchLimit("l"))
+        #expect(launchable == nil)
+    }
+
+    @Test("the lifecycles that wait for a mod whose run fails to launch wait again, told why, and it launches no more")
+    func failedRunTellsItsWaiters() throws {
+        // Given
+        try fixture.write("t")
+        try fixture.write("r", system: true, permissions: ["deckit.reach-mods"])
+        let sut = try fixture.deckit()
+        _ = try sut.load(["r"])
+        _ = try sut.deck.connections.begin(principal: "r", run: 1, lifecycle: 0)
+        let reached = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
+
+        // When
+        let failed = try sut.notStarted("t", run: 1, problem: "threw")
+        let told = sut.refusal(reaching: "t")
+        _ = try sut.release("t", from: "r", run: 1, lifecycle: 0)
+        let again = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
+
+        // Then
+        #expect(launches(in: reached) == ["t"])
+        #expect(waits(in: failed) == ["r for t"])
+        #expect(launches(in: failed) == [])
+        #expect(told as? LaunchError == .notLaunched(mod: "t", problem: "threw"))
+        #expect(launches(in: again) == ["t"])
+        #expect(sut.refusal(reaching: "t") == nil)
+    }
+
+    @Test("the lifecycles that wait for a mod whose run times out, or comes to the relaunch limit, are told so")
+    func timedOutRunTellsItsWaiters() throws {
+        // Given
+        try fixture.write("p", provides: ["p/api"])
+        try fixture.write("q", provides: ["q/api"])
+        try fixture.write("c", uses: ["p/api", "q/api"])
+        let sut = try fixture.deckit(
+            limit: RelaunchLimit(burst: 2, interval: 10),
+            now: { Date(timeIntervalSince1970: 0) }
+        )
+        _ = try sut.load(["c", "q"])
+        _ = try sut.notStarted("q", run: 1, problem: "threw")
+        _ = try sut.deck.connections.begin(principal: "c", run: 1, lifecycle: 0)
+        let started = try sut.started("c", run: 1, contributions: Contribution(exportedIn: [:], awaits: [:]))
+
+        // When
+        let timedOut = try sut.timedOut("p", run: 1)
+        let toldTimedOut = sut.refusal(reaching: "p")
+        let limited = try sut.notStarted("q", run: 2, problem: "threw")
+        let toldLimit = sut.refusal(reaching: "q")
+
+        // Then
+        #expect(launches(in: started) == ["p", "q"])
+        #expect(waits(in: timedOut) == ["c for p"])
+        #expect(launches(in: timedOut) == [])
+        #expect(toldTimedOut as? LaunchError == .timedOut(mod: "p", problem: "its code did not start in time"))
+        #expect(waits(in: limited) == ["c for q"])
+        #expect(toldLimit as? LaunchError == .relaunchLimit("q"))
+    }
+
+    @Test("as what the mods declare to an interface changes, the runs listening hear contributions-changed once")
+    func changedDeclarationsAreAnnounced() throws {
+        // Given
+        try fixture.write("o", provides: ["o/actions"])
+        try fixture.write("a", contributes: "[contributes]\n\"o/actions\" = [{ title = \"Open\" }]")
+        let sut = try fixture.deckit()
+        _ = try sut.start()
+        _ = try sut.load(["o"])
+        sut.deck.events.listen(principal: "o", run: 1, names: ["o/actions:contributions-changed"])
+        let unchanged = try sut.reconnect()
+
+        // When
+        try fixture.write("b", contributes: "[contributes]\n\"o/actions\" = [{ title = \"Note\" }]")
+        _ = sut.readCatalog()
+        let added = try sut.reconnect()
+        let again = try sut.reconnect()
+        try fixture.remove("a")
+        try fixture.remove("b")
+        _ = sut.readCatalog()
+        let removed = try sut.reconnect()
+
+        // Then
+        #expect(deliveries(in: unchanged).isEmpty)
+        #expect(deliveries(in: added) == [EventDelivery(name: "o/actions:contributions-changed", listeners: ["o"])])
+        #expect(deliveries(in: again).isEmpty)
+        #expect(deliveries(in: removed) == [EventDelivery(name: "o/actions:contributions-changed", listeners: ["o"])])
+    }
+
     // MARK: - Private
     // The mods whose runs `effects` tell will launch, in order.
     private func launches(in effects: [Effect]) -> [String] {
         effects.compactMap { effect in
             guard case let .tell(.willLaunch, run) = effect else { return nil }
             return run.principal
+        }
+    }
+
+    // The lifecycles `effects` tell wait, each as "<client> for <service>".
+    private func waits(in effects: [Effect]) -> [String] {
+        effects.compactMap { effect in
+            guard case let .wait(_, client, service) = effect else { return nil }
+            return "\(client.principal) for \(service)"
+        }
+    }
+
+    private func deliveries(in effects: [Effect]) -> [EventDelivery] {
+        effects.compactMap { effect in
+            guard case let .deliver(delivery) = effect else { return nil }
+            return delivery
         }
     }
 }

@@ -18,6 +18,10 @@ public final class Deckit {
     public let runs: RunTable
     // A mod at the relaunch limit launches again only as its launch is asked.
     private var limit: RelaunchLimit
+    // Interface -> what the mods declare to it, as the runs were last told.
+    private var told: [String: [Declaration]] = [:]
+    // What deckit tells of an interface, `<interface>:contributions-changed`, as what the mods declare to it changes.
+    static let contributionsChanged = "contributions-changed"
     // The permissions deckit defines itself: a mod granted `mods` asks that another launch, one granted `reachMods`
     // may reach every mod by its id, and the services let one granted `systemServices` act on other mods.
     static let mods = Permission(
@@ -58,7 +62,7 @@ public final class Deckit {
         now: @escaping () -> Date = Date.init
     ) throws {
         let store = Store()
-        let deck = Deck(home: home, signals: [])
+        let deck = Deck(home: home, signals: [Deckit.contributionsChanged])
         let reader = try ManifestReader(
             api: api,
             permissions: [Deckit.mods, Deckit.reachMods, Deckit.systemServices] + permissions,
@@ -92,13 +96,25 @@ public final class Deckit {
         catalog.read()
     }
 
-    // What the runs come to once the catalog was read again.
+    // What the runs come to once the catalog was read again, then `<interface>:contributions-changed` for each
+    // interface what the mods declare to differs from what the runs were last told.
     public func reconnect() throws -> [Effect] {
-        try observed(deck.reconnect())
+        let effects = try observed(deck.reconnect())
+        let declarations = catalog.declarations
+        let changed = Set(declarations.keys).union(told.keys).filter { interface in
+            declarations[interface] != told[interface]
+        }
+        told = declarations
+
+        return effects + changed.sorted().flatMap { interface in
+            deck.announce(Deckit.contributionsChanged, of: interface)
+        }
     }
 
-    // The background mods launch, as the catalog was last read and in its order.
+    // The background mods launch, as the catalog was last read and in its order: what the mods declare is what the
+    // runs are told from now on.
     public func start() throws -> [Effect] {
+        told = catalog.declarations
         let background = catalog.loading.filter { mod in mod.manifest.background != nil }
 
         return try observed(deck.load(jobs(of: background.map(\.manifest.id))))
@@ -184,6 +200,22 @@ public final class Deckit {
         return .notLaunched(mod: run.principal, problem: problem)
     }
 
+    // What a lifecycle that waits for the mod `id` is told it is refused with, the first that is so: what a launch of
+    // it is refused with as the catalog was last read, its mod at the relaunch limit, what its latest run is refused
+    // with at launch once it has ended. Nil while it launches or runs, and while it may launch.
+    public func refusal(reaching id: String) -> (any Refusal)? {
+        do {
+            try listed(id)
+        } catch {
+            return error as? any Refusal
+        }
+        if limit.isReached(by: id) {
+            return LaunchError.relaunchLimit(id)
+        }
+
+        return deck.run(of: id).flatMap(refusal(of:))
+    }
+
     public func crashed(_ id: String, run: Int, problem: String) throws -> [Effect] {
         try observed(deck.crashed(id, run: run, problem: problem))
     }
@@ -234,8 +266,9 @@ public final class Deckit {
 
     // What deckit keeps and decides of the runs as `effects` move them, then of what that comes to, until nothing more
     // comes: a run that launches has an entry; a run that failed counts toward its mod's relaunch limit, and a
-    // background mod's launches again; a mod a lifecycle waits for launches; and a sandbox closes once its run has
-    // ended and the catalog no longer has its mod as it runs it.
+    // background mod's launches again; a mod a lifecycle waits for launches, but for the lifecycles that wait again as
+    // its run ends refused at launch, which are told that refusal; and a sandbox closes once its run has ended and the
+    // catalog no longer has its mod as it runs it.
     private func observed(_ effects: [Effect]) throws -> [Effect] {
         var observed: [Effect] = []
         var next = effects
@@ -243,12 +276,15 @@ public final class Deckit {
             observed += next
             var closing: [String] = []
             var launching: [String] = []
+            var ended: [Run] = []
+            var waited: [String] = []
             for effect in next {
                 switch effect {
                 case let .tell(.willLaunch, run):
                     runs.begin(run)
 
                 case let .tell(_, run) where run.state == .notRunning:
+                    ended.append(run)
                     if run.failed {
                         limit.fail(run.principal, at: now())
                     }
@@ -260,12 +296,14 @@ public final class Deckit {
                     }
 
                 case let .wait(_, _, service):
-                    launching.append(service)
+                    waited.append(service)
 
                 default:
                     break
                 }
             }
+            let refused = Set(ended.filter { run in refusal(of: run) != nil }.map(\.principal))
+            launching += waited.filter { service in !refused.contains(service) }
             let jobs = jobs(of: launching)
             next = try (closing.isEmpty ? [] : deck.unload(closing)) + (jobs.isEmpty ? [] : deck.load(jobs))
         }
