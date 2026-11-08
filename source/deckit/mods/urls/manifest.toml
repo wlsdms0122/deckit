@@ -3,6 +3,7 @@ name = "URLs"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
 
 [interfaces]
 provides = { "deckit/urls" = [1] }

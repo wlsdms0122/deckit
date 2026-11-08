@@ -3,6 +3,7 @@ name = "Keymap"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
 background = "Takes the mods' keys from the start, so each works as soon as the app opens."
 
 [interfaces]

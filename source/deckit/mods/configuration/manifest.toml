@@ -3,6 +3,7 @@ name = "Configuration"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
 
 [interfaces]
 provides = { "deckit/configuration" = [1] }

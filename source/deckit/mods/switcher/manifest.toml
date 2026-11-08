@@ -3,6 +3,7 @@ name = "Switcher"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
 background = "Opens on its key from any app, so it is ready for the key from the start."
 icon = "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='16' rx='3'/><path d='m7 9 3 3-3 3'/><path d='M12 15h5'/></svg>"
 keywords = ["switcher", "command", "palette"]
