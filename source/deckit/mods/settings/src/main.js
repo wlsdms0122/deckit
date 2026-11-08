@@ -16,6 +16,7 @@ const SERVICES = {
     urls: 'deckit/urls',
     configuration: 'deckit/configuration',
     commands: 'deckit/commands',
+    packages: 'deckit/packages',
 };
 // Where the sidebar's width and fold are kept, as the person leaves them.
 const SIDEBAR = 'sidebar';
@@ -46,7 +47,7 @@ class Settings {
         const APP_NAME = deckit.about().name;
 
         // name in SERVICES -> its exports while it is connected
-        const services = { keys: null, urls: null, configuration: null, commands: null };
+        const services = { keys: null, urls: null, configuration: null, commands: null, packages: null };
         let shown = false;
         let drawing = 0;
         let listed = { found: [], running: [], interfaces: [] }; // what deckit.mods.list() last answered
@@ -77,6 +78,7 @@ class Settings {
         const mods = modsSection({
             ui,
             mods: deckit.mods,
+            packages: () => services.packages,
             pins: shell.mods,
             dropDestination: shell.dropDestination,
             util,

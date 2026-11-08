@@ -1,16 +1,18 @@
 const { chip } = require('../../chip/chip.js');
 const { NO_VALUE, contributionsOf, nameAndVersion, usageParts, listText } = require('../../format/format.js');
 const { PERMISSION_LIST_STYLE, permissionList } = require('./permission-list.js');
+const { DEPENDENCY_LIST_STYLE, dependencyList } = require('./dependency-list.js');
 const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
 const { section } = require('../section/section.js');
 
 // The Mods section: every mod found in their order, what each contributes, and installing and removing them.
 // `onChange` hears that a mod was installed, removed, restarted or pinned here. Failures and what was done are told
-// in a toast. `mods` is deckit.mods; `pins`, the Dock's pins (shell.mods), or nothing under a shell that has none;
-// `dropDestination` the shell's.
-function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange }) {
+// in a toast. `mods` is deckit.mods; `packages()`, deckit/packages while it is connected, which plans and installs;
+// `pins`, the Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination` the shell's.
+function modsSection({ ui, mods, packages, pins, dropDestination, util, appName, onChange }) {
     const TITLE = 'Mods';
+    const PACKAGES = 'deckit/packages';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
     // What a mod that loads but is not running is doing, by its run's state: one starting or stopping says it by a
     // spinner beside its name, with the word as its title.
@@ -118,7 +120,7 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
         .settings-drop-icon { display: flex; color: var(--deckit-target); }
         .settings-install-note { margin-top: 10px; font: var(--deckit-type-small); line-height: 1.5; opacity: 0.5; }
     `);
-    ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE);
+    ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE + DEPENDENCY_LIST_STYLE);
     const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const drop = ui.element('div', { className: 'settings-drop' });
     const dropIcon = ui.element('div', { className: 'settings-drop-icon' });
@@ -269,17 +271,23 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
         } catch (error) {
             return ui.toast('Could not install: ' + error.message);
         }
-        askAndInstall(picked);
+        askAndInstall(await Promise.all(picked.map((entry) => (entry.problem ? entry : planOf(entry.from)))));
     }
 
     // Each folder refused on its own, so one refused leaves the others to install.
     async function dropAndInstall(folders) {
-        const plans = folders.map((from) => mods.plan(from).catch((error) => ({ from, problem: error.message })));
-        askAndInstall(await Promise.all(plans));
+        askAndInstall(await Promise.all(folders.map(planOf)));
     }
 
-    // The folders picked install one after another once the person agrees to what they replace and ask for. A folder
-    // refused is told, and the others install.
+    // What the folder `from` would install, with what it depends on, or `{ from, problem }` for one refused.
+    function planOf(from) {
+        return Promise.resolve()
+            .then(() => service().plan(from))
+            .catch((error) => ({ from, problem: error.message }));
+    }
+
+    // The folders picked install one after another once the person agrees to what they replace, ask for and depend
+    // on. One whose dependency is unmet is told so and left out. A folder refused is told, and the others install.
     function askAndInstall(picked) {
         const refused = picked.filter((entry) => entry.problem);
         const plans = picked.filter((entry) => !entry.problem);
@@ -287,25 +295,38 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
             if (refused.length) ui.toast(refusalText(refused));
             return;
         }
-        const asking = plans.filter((plan) => plan.permissions.length > 0 || plan.background);
-        const replacing = plans.filter((plan) => plan.replaces);
+        const unmet = plans.filter((plan) => plan.dependencies.some((dependency) => !dependency.satisfied));
+        const installing = plans.filter((plan) => !unmet.includes(plan));
+        const asking = plans.filter(
+            (plan) => plan.permissions.length > 0 || plan.background || plan.dependencies.length
+        );
+        const replacing = installing.filter((plan) => plan.replaces);
         if (!asking.length && !replacing.length) return installPicked(plans, refused);
         const one = plans.length === 1;
-        const verb = one && replacing.length ? 'Replace' : 'Install';
+        const verb = installing.length === 1 && replacing.length ? 'Replace' : 'Install';
         const replaced = listText(replacing.map((plan) => plan.name));
+        const unmetNames = listText(unmet.map((plan) => plan.name));
         ui.dialog({
-            title: one ? `${verb} ${plans[0].name}?` : `Install ${plans.length} mods?`,
+            title: !installing.length
+                ? `Cannot install ${one ? plans[0].name : `${plans.length} mods`}`
+                : installing.length === 1
+                  ? `${verb} ${installing[0].name}?`
+                  : `Install ${installing.length} mods?`,
             message: [
                 replacing.length
                     ? `${one ? 'It' : 'Installing them'} replaces the installed ${replaced}. ` +
                       `What ${replacing.length === 1 ? 'it' : 'they'} stored is kept.`
                     : '',
-                one && asking.length ? `${nameAndVersion(plans[0])} asks for:` : '',
+                unmet.length
+                    ? `${one ? 'It' : unmetNames} cannot be installed until the mods ` +
+                      `${unmet.length === 1 ? 'it depends' : 'they depend'} on are installed at versions ` +
+                      `${unmet.length === 1 ? 'it takes' : 'they take'}. Install them first.`
+                    : '',
             ],
-            content: asking.length ? permissionRequest(asking, { named: !one }) : null,
-            confirmLabel: verb,
-            cancelLabel: 'Cancel',
-            onConfirm: () => installPicked(plans, refused),
+            content: request(asking),
+            confirmLabel: installing.length ? verb : null,
+            cancelLabel: installing.length ? 'Cancel' : 'OK',
+            onConfirm: () => installPicked(installing, refused),
         });
     }
 
@@ -314,7 +335,7 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
         const failed = [];
         for (const plan of plans) {
             try {
-                const installed = await mods.install(plan.from);
+                const installed = await service().install(plan.from);
                 done.push(`${plan.replaces ? 'Replaced' : 'Installed'} ${nameAndVersion(installed)}.`);
             } catch (error) {
                 failed.push(`Could not install ${plan.name}: ${error.message}`);
@@ -324,29 +345,48 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
         if (done.length) onChange();
     }
 
+    function service() {
+        const connected = packages();
+        if (!connected) throw new Error(`${PACKAGES} is not connected`);
+        return connected;
+    }
+
     function refusalText(refused) {
         return refused.map(({ from, problem }) => `Could not install ${from.split('/').pop()}: ${problem}`).join(' ');
     }
 
-    // `named`: each mod's list is headed by its name, as one dialog asks for several.
-    function permissionRequest(plans, { named }) {
+    // What each mod planned depends on and asks for, each list headed by its name.
+    function request(plans) {
         const element = ui.element('div');
+        const heading = (text) => ui.element('div', { className: 'settings-install-mod', text });
         for (const plan of plans) {
-            if (named)
+            const { dependencies, permissions, background } = plan;
+            if (dependencies.length)
                 element.append(
-                    ui.element('div', { className: 'settings-install-mod', text: `${nameAndVersion(plan)} asks for:` })
+                    heading(`${nameAndVersion(plan)} depends on:`),
+                    dependencyList({ ui, dependencies, nameOf }).element
                 );
-            element.append(permissionList({ ui, permissions: plan.permissions, background: plan.background }).element);
+            if (permissions.length || background)
+                element.append(
+                    heading(`${nameAndVersion(plan)} asks for:`),
+                    permissionList({ ui, permissions, background }).element
+                );
         }
-        element.append(
-            ui.element('div', {
-                className: 'settings-install-note',
-                text:
-                    'A mod reaches only what is listed here. Main Process is the exception: code there can do ' +
-                    'whatever the app can, so install a mod that asks for it only if you trust where it came from.',
-            })
-        );
+        if (plans.some((plan) => plan.permissions.length || plan.background))
+            element.append(
+                ui.element('div', {
+                    className: 'settings-install-note',
+                    text:
+                        'A mod reaches only what is listed here. Main Process is the exception: code there can do ' +
+                        'whatever the app can, so install a mod that asks for it only if you trust where it came from.',
+                })
+            );
         return element;
+    }
+
+    // The name of the mod of the id `id` as deckit last listed it, or the id for one not found.
+    function nameOf(id) {
+        return listed?.found.find((mod) => mod.id === id)?.name || id;
     }
 
     async function askRemove(mod) {
