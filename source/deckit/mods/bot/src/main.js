@@ -24,15 +24,9 @@ class Bot {
         };
         const commands = {
             show: (args) => onScreen().show(args),
-            'show-services': () => onScreen().show({ view: 'supervisor' }),
-            'show-brain': () => onScreen().show({ view: 'brain' }),
-            'show-workflows': () => onScreen().show({ view: 'workflows' }),
-            'show-schedules': () => onScreen().show({ view: 'schedules' }),
             'choose-session': (args) => onScreen().chooseSession(args),
-            'find-in-brain': () => onScreen().show({ view: 'brain' }),
             'search-brain': (args) => onScreen().searchBrain(args),
             'read-note': (args) => onScreen().readNote(args),
-            'brain-back': () => onScreen().brainBack(),
         };
         deckit.exports.register({
             connect: () => ({
@@ -218,15 +212,38 @@ class Bot {
         const supervisor = modeOf('supervisor').view;
         const brain = modeOf('brain').view;
 
+        // The view's own keys, while it is in front: ⌘ and a key, matched on the physical key.
+        const KEYS = {
+            Digit1: () => setMode('supervisor'),
+            Digit2: () => setMode('brain'),
+            Digit3: () => setMode('workflows'),
+            Digit4: () => setMode('schedules'),
+            KeyF: () => setMode('brain'),
+            BracketLeft: () => mode.key === 'brain' && brain.back(),
+        };
+        const onKey = (event) => {
+            if (!event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+            if (!Object.hasOwn(KEYS, event.code)) return;
+            event.preventDefault();
+            KEYS[event.code]();
+        };
+        const listenKeys = (on) => {
+            if (on) document.addEventListener('keydown', onKey);
+            else document.removeEventListener('keydown', onKey);
+        };
+        this.endKeys = () => listenKeys(false);
+
         shell.view.register({
             content,
             sidebar,
             didAppear: () => {
                 visible = true;
+                listenKeys(true);
                 show();
             },
             didDisappear: () => {
                 visible = false;
+                listenKeys(false);
                 hide();
             },
         });
@@ -278,7 +295,6 @@ class Bot {
             chooseSession,
             searchBrain,
             readNote,
-            brainBack,
         };
 
         function showView({ view, session }) {
@@ -310,6 +326,8 @@ class Bot {
 
     detach() {
         this.screen = null;
+        this.endKeys?.();
+        this.endKeys = null;
     }
 }
 

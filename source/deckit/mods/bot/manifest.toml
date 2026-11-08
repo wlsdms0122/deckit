@@ -78,29 +78,9 @@ title = "Forge session"
 description = "The session the Forge views show. Absent: the one chosen."
 
 [[contributes."deckit/commands"]]
-id = "show-services"
-title = "Show Services"
-
-[[contributes."deckit/commands"]]
-id = "show-brain"
-title = "Show Brain"
-
-[[contributes."deckit/commands"]]
-id = "show-workflows"
-title = "Show Workflows"
-
-[[contributes."deckit/commands"]]
-id = "show-schedules"
-title = "Show Schedules"
-
-[[contributes."deckit/commands"]]
 id = "choose-session"
 title = "Choose Forge Session"
 params = { type = "object", properties = { session = { type = "string", title = "Forge session" } }, required = ["session"] }
-
-[[contributes."deckit/commands"]]
-id = "find-in-brain"
-title = "Find in Brain"
 
 [[contributes."deckit/commands"]]
 id = "search-brain"
@@ -111,31 +91,3 @@ params = { type = "object", properties = { query = { type = "string", title = "S
 id = "read-note"
 title = "Read a Brain Note"
 params = { type = "object", properties = { note = { type = "string", title = "Note" } }, required = ["note"] }
-
-[[contributes."deckit/commands"]]
-id = "brain-back"
-title = "Back to the Note Before"
-
-[[contributes."deckit/keys"]]
-command = "show-services"
-keystroke = "mod+1"
-
-[[contributes."deckit/keys"]]
-command = "show-brain"
-keystroke = "mod+2"
-
-[[contributes."deckit/keys"]]
-command = "show-workflows"
-keystroke = "mod+3"
-
-[[contributes."deckit/keys"]]
-command = "show-schedules"
-keystroke = "mod+4"
-
-[[contributes."deckit/keys"]]
-command = "find-in-brain"
-keystroke = "mod+f"
-
-[[contributes."deckit/keys"]]
-command = "brain-back"
-keystroke = "mod+["

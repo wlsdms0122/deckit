@@ -27,26 +27,23 @@ Services, Workflows and Schedules show one forge session, chosen from the pop-up
 
 ## Commands
 
-What a CLI, the switcher, a key or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Bot opens for its id in `start`. Each acts on Bot's view, and one run while Bot has no view open fails, saying so.
+What a CLI, the switcher or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Bot opens for its id in `start`. Each acts on Bot's view, and one run while Bot has no view open fails, saying so.
 
 | Command | Title | Args | What it does |
 |---|---|---|---|
 | `show` | Show in Bot | `view` (`supervisor`, `workflows`, `schedules` or `brain`), `session`? | shows Bot on the view, a Forge view on the session given |
-| `show-services`, `show-brain`, `show-workflows`, `show-schedules` | Show Services, Show Brain, Show Workflows, Show Schedules | | shows Bot on that view |
 | `choose-session` | Choose Forge Session | `session` | chooses which daemon the Forge views show |
-| `find-in-brain` | Find in Brain | | shows Bot on Brain, its search field taking what is typed |
 | `search-brain` | Search the Brain | `query` | lists the notes of the brain that match a search, in Brain |
 | `read-note` | Read a Brain Note | `note` | opens a note of the brain in Brain |
-| `brain-back` | Back to the Note Before | | goes back to the note read before, in Brain, while Brain is shown |
 
 ## Keys
 
-Declared in the manifest to `deckit/keys` (see the Keymap mod), each running a command above, wherever you are in the app:
+The view's own shortcuts, which Bot handles in its page while the view is in front.
 
-| Key | Command |
+| Key | Action |
 |---|---|
-| ⌘1, ⌘2, ⌘3, ⌘4 | `show-services`, `show-brain`, `show-workflows`, `show-schedules` |
-| ⌘F | `find-in-brain` |
-| ⌘[ | `brain-back` |
+| ⌘1, ⌘2, ⌘3, ⌘4 | Services, Brain, Workflows, Schedules |
+| ⌘F | search the brain |
+| ⌘[ | back to the note read before, in Brain |
 
 Reading a note in Brain is a read of the brain like any other: llmemory records it as one. A link in a note opens in the mod that opens its address (`deckit/urls`), or outside the app while `deckit/urls` is not connected.
