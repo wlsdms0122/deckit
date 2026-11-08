@@ -6,5 +6,3 @@
 | DECKIT-2 | *permissions*: "a bundle read in place, or installed from a folder, is not one." | links [the catalog](../DECKIT-4/SPEC.md) for installing from a folder | supplement |
 | DECKIT-2 | *What the system answers of a bundle*: "Where it was found in a folder of bundles or shipped by the host, it is still listed" | links [the catalog](../DECKIT-4/SPEC.md) for the bundles found, of which the one under each name is listed | supplement |
 | DECKIT-2 | Notes: "That a bundle installed from a folder is not a system mod waits on the catalog's DECKIT, which gives installing." | "waits on the handle's DECKIT, which hands the request that installs" | supplement |
-| DECKIT-1 | *What the system gives a host*: "in the system's order", and *Looks*, `mods`: "in the system's order" | "in [the catalog's](../DECKIT-4/SPEC.md) order" | supplement |
-| DECKIT-1 | Notes: "the order the system finds bundles in is the catalog's DECKIT's, and its cases hold it." | links [the catalog](../DECKIT-4/SPEC.md) | supplement |
