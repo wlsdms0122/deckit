@@ -6,7 +6,7 @@ The kit's parts are of five kinds:
 
 - A maker takes one options object and returns `{ element, ...its controls }`. Put `element` where it goes; call the controls to change it.
 - A presentation takes one options object, is presented over the page on a layer and returns `{ close }`: `modal`, `dialog`, `confirmTrash`, `colorPicker`. `menu`, `popover` and `quickPick` are presentations too, with more controls.
-- A float its caller places stays in the page, so the keyboard stays with the text it acts on: `floatingToolbar`, `autocomplete`.
+- A float its caller places stays in the document of the text it acts on, so the keyboard stays with that text: `floatingToolbar`, `autocomplete`.
 - A decorator takes `(element, options)` and returns its dispose. `listbox` decorates an element and returns its controls with `dispose` among them; `inlineEdit` is one edit and resolves when it ends.
 - A helper returns a value: markup, an element, a colour, a boolean, a function or a list.
 
@@ -74,8 +74,8 @@ A toast tells what was just done, or that it failed, where it was done, and goes
 
 Floats are placed by their caller and stay in the page, where the keyboard stays with the text they act on.
 
-- `floatingToolbar()` returns `{ element, show(rect), hide() }`: centred above the rect, below when only that fits.
-- `autocomplete({ onPick })` returns `{ show(items, rect), place(rect), move(by), pick(), close(), isOpen() }`. An item is `{ label, icon, hint }`, and `onPick(item)` gets it. The caller moves through it with its own keys.
+- `floatingToolbar({ over })` returns `{ element, show(rect), hide() }`: centred above the rect, below when only that fits, in the document `over` is in as it shows, the element whose text it acts on (the page's own without it).
+- `autocomplete({ onPick, over })`, in the document `over` is in as `floatingToolbar` is, returns `{ show(items, rect), place(rect), move(by), pick(), close(), isOpen() }`. An item is `{ label, icon, hint }`, and `onPick(item)` gets it. The caller moves through it with its own keys.
 
 ## Lists
 
@@ -105,6 +105,10 @@ Floats are placed by their caller and stay in the page, where the keyboard stays
 - `dragSource(area, { itemAt, describe })` is a decorator: `describe(item)` is `{ kind, payload, text, icon }`.
 - `dropTarget(zone, { kind, placeAt, onDrop })` is a decorator, for a drag within the page (files dragged in from outside the app come to `shell.dropDestination`, MOD.md): `placeAt(element, payload)` answers the place under the pointer, `{ mark, stays }`, or null where nothing lands. `mark` is the element that lights while the thing is over it, and a place that `stays` is where the thing already is, so a drop there drops nothing. `onDrop(payload, place)` takes any other.
 - `resizer(handle, { axis, grow, size, min, max, onResize, onCommit, onClick, onDrag, resizable })` is a decorator: `axis` is `x` or `y`, and `grow` is how much the size changes for each px the pointer moves along it, `1` by default and `-1` for a handle at the start of what it sizes. `size()` reads the size, `onResize(px)` draws one, `onCommit(px)` keeps the one let go of. `min` and `max` are numbers, or functions read at the press. Past a limit the edge gives and springs back; a press that does not travel is a click, `onClick`. `onDrag(on)` hears a drag start and end, and `resizable()`, read at the press, says whether a drag sizes at all.
+
+## Split view
+
+- `splitView({ sidebar, content, width, collapsed, onChange })` returns `{ element, isCollapsed(), setCollapsed(collapsed), toggleSidebar(), width() }`: a sidebar beside the content, put in a window's content (MOD.md, `shell.windows.open`) or a part of it. `sidebar` is drawn in a card on the sidebar's material at the start, scrolls when it is taller than the card and lists from under the window's buttons; `content` takes the rest, and its title bar (`titleBar`) clears the buttons only while the sidebar is folded. Where the split view draws nothing, the window's background material shows through. The divider's handle sizes the sidebar by a drag, from 240 to 720 px and leaving the content 360, and folds or unfolds it by a click. `width` and `collapsed` are how it starts; `onChange({ width, collapsed })` hears each change the person makes, for the mod to keep.
 
 ## Everything else
 

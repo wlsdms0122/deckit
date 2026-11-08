@@ -19,6 +19,7 @@ import * as MARQUEE from '../marquee/index.js';
 import * as DRAG from '../drag/index.js';
 import * as FILE_TREE from '../file-tree/index.js';
 import * as RESIZER from '../resizer/index.js';
+import * as SPLIT_VIEW from '../split-view/index.js';
 import * as EMPTY_STATE from '../empty-state/index.js';
 import * as LOADING from '../loading/index.js';
 import * as FONTS from '../fonts/index.js';
@@ -42,6 +43,7 @@ const components = [
     DRAG,
     FILE_TREE,
     RESIZER,
+    SPLIT_VIEW,
     EMPTY_STATE,
     LOADING,
     MODAL,
