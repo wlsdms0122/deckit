@@ -88,6 +88,41 @@ class Finder {
             isShown: (folder) => area.shownFolders().includes(folder),
             onRead: applyListing,
         });
+        // The view's own keys, while it is in front, made before what draws their chords.
+        const keys = viewKeys(
+            {
+                newTab: { key: 'mod+t', run: () => tabs.open() },
+                closeTab: { key: 'mod+w', run: () => tabs.close(tabs.front()) },
+                reopenTab: { key: 'mod+shift+t', run: () => tabs.reopen() },
+                ...Object.fromEntries(
+                    [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
+                        `tab${number}`,
+                        { key: `mod+${number}`, run: () => tabs.showAt(number - 1) },
+                    ])
+                ),
+                lastTab: { key: 'mod+9', run: () => tabs.showAt(-1) },
+                back: { key: 'mod+[', run: () => tabs.back() },
+                forward: { key: 'mod+]', run: () => tabs.forward() },
+                enclosing: { key: 'mod+up', run: () => tabs.up() },
+                open: { key: 'ctrl+enter', run: () => open() },
+                openWithDefaultApp: { key: 'alt+enter', run: () => openWithDefaultApp() },
+                filter: { key: 'mod+f', run: () => bar.focusFilter() },
+                goToFolder: { key: 'mod+l', run: () => showGoTo() },
+                home: { key: 'mod+shift+h', run: () => goToPlace({ place: 'home' }) },
+                desktop: { key: 'mod+shift+d', run: () => goToPlace({ place: 'desktop' }) },
+                downloads: { key: 'mod+alt+l', run: () => goToPlace({ place: 'downloads' }) },
+                applications: { key: 'mod+shift+a', run: () => goToPlace({ place: 'applications' }) },
+                hidden: { key: 'mod+shift+.', run: () => toggleHidden() },
+                newFolder: { key: 'mod+shift+n', run: () => newFolder() },
+                // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
+                columnView: { key: 'ctrl+mod+1', run: () => setView('columns') },
+                listView: { key: 'ctrl+mod+2', run: () => setView('list') },
+                // While a field has the keyboard, ⌘⌫ stays the field's (delete to line start).
+                trash: { key: 'mod+backspace', run: () => trash(), fieldsKeep: true },
+            },
+            { log: 'finder' }
+        );
+        this.endKeys = () => keys.listen(false);
         const tabs = tabList({
             ui,
             chordOf: (name) => keys.chordOf(name),
@@ -281,41 +316,6 @@ class Finder {
         const showGoTo = () => tabs.front() && goTo.show();
         const newFolder = () => operator.newFolder(area.workingFolder());
         const trash = () => operator.trash(selectedEntries());
-        // The view's own keys, while it is in front.
-        const keys = viewKeys(
-            {
-                newTab: { key: 'mod+t', run: () => tabs.open() },
-                closeTab: { key: 'mod+w', run: () => tabs.close(tabs.front()) },
-                reopenTab: { key: 'mod+shift+t', run: () => tabs.reopen() },
-                ...Object.fromEntries(
-                    [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
-                        `tab${number}`,
-                        { key: `mod+${number}`, run: () => tabs.showAt(number - 1) },
-                    ])
-                ),
-                lastTab: { key: 'mod+9', run: () => tabs.showAt(-1) },
-                back: { key: 'mod+[', run: () => tabs.back() },
-                forward: { key: 'mod+]', run: () => tabs.forward() },
-                enclosing: { key: 'mod+up', run: () => tabs.up() },
-                open: { key: 'ctrl+enter', run: open },
-                openWithDefaultApp: { key: 'alt+enter', run: openWithDefaultApp },
-                filter: { key: 'mod+f', run: () => bar.focusFilter() },
-                goToFolder: { key: 'mod+l', run: showGoTo },
-                home: { key: 'mod+shift+h', run: () => goToPlace({ place: 'home' }) },
-                desktop: { key: 'mod+shift+d', run: () => goToPlace({ place: 'desktop' }) },
-                downloads: { key: 'mod+alt+l', run: () => goToPlace({ place: 'downloads' }) },
-                applications: { key: 'mod+shift+a', run: () => goToPlace({ place: 'applications' }) },
-                hidden: { key: 'mod+shift+.', run: () => toggleHidden() },
-                newFolder: { key: 'mod+shift+n', run: newFolder },
-                // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
-                columnView: { key: 'ctrl+mod+1', run: () => setView('columns') },
-                listView: { key: 'ctrl+mod+2', run: () => setView('list') },
-                // While a field has the keyboard, ⌘⌫ stays the field's (delete to line start).
-                trash: { key: 'mod+backspace', run: trash, fieldsKeep: true },
-            },
-            { log: 'finder' }
-        );
-        this.endKeys = () => keys.listen(false);
         const actions = switcher({
             ui,
             util,
