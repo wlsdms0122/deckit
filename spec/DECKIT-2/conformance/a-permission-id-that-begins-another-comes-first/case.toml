@@ -1,0 +1,22 @@
+case = 1
+name = "a-permission-id-that-begins-another-comes-first"
+note = "Permissions not usable come by their ids as Unicode scalar values, and where one id is the other's beginning, the shorter comes first: a before ab."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "a", reason = "A.", usable = false },
+    { id = "ab", reason = "AB.", usable = false },
+]

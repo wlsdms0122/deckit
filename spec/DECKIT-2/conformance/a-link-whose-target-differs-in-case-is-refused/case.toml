@@ -1,0 +1,19 @@
+case = 1
+name = "a-link-whose-target-differs-in-case-is-refused"
+note = "A name looked up names the entry of the same Unicode scalar values. main is a link to Main.js in a bundle that holds main.js, so the link names no entry, on any file system."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

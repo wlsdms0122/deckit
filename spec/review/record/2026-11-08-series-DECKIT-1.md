@@ -31,5 +31,5 @@ Commit `f5a4a8ff`. Scope DECKIT-1, DECKIT-2. Verdict: revise.
 | id | criterion | DECKIT | claim | verdict | reason |
 |---|---|---|---|---|---|
 | S-1 | B1 | DECKIT-2, the order of `mods` and two bundles of one name | left to the catalog's DECKIT | defer | DECKIT-4 decides both |
-| S-13 | B3 | DECKIT-2, a version written with leading zeros | `01.02.0` and `1.2.0` are two spellings | owner | refuse as semantic versioning does, or keep comparing by number |
+| S-13 | B3 | DECKIT-2, a version written with leading zeros | `01.02.0` and `1.2.0` are two spellings | reject | owner: a version is read as numbers, so `01.02.0` is 1.2.0; a refusal adds a check that gives nothing |
 | S-18 | B6 | DECKIT-2, the id grammar | ids a file system merges or reserves | defer | to the storage DECKIT |

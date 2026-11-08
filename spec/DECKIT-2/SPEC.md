@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-A mod arrives as a bundle: a folder holding a manifest, `manifest.toml`, and the files it names. This DECKIT fixes what a bundle is, the text a manifest is written in, every field the system reads and what each means, how a layer or a host adds fields and permissions of its own, what the system answers of a bundle it read, and which bundles it refuses. Every refusal here is at `read`, before any of the mod's code runs, but the two that refuse a host's own definitions as the app starts.
+A mod arrives as a bundle: a folder holding a manifest, `manifest.toml`, and the files it names. This DECKIT fixes what a bundle is, the text a manifest is written in, every field the system reads and what each means, how a layer or a host adds fields and permissions of its own, what the system answers of a bundle it read, and which bundles it refuses. Every refusal here is at `read`, before any of the mod's code runs, but the two that refuse a host's own definitions as the host app starts.
 
 ## Motivation
 
@@ -60,7 +60,7 @@ A layer on the system and a host add fields and permissions of their own (the sh
 
 A bundle is a folder that holds a file named `manifest.toml` at its top. The folder's name says nothing about the mod: the manifest says who the mod is. What else the folder holds, and how it is laid out, is the mod's.
 
-A folder that holds no `manifest.toml` is not a bundle. Where the system looks through a folder of bundles, it passes over every folder in it that is not a bundle and every name that begins with `.`, and lists nothing for them. Where it is handed one folder to read as a bundle, and that folder is not one, it refuses at `read` with kind `NOT_LOADABLE`.
+A folder that holds no `manifest.toml` is not a bundle, and nothing but a folder is one. Where the system looks through a folder of bundles, it follows each link in it to where the link leads, passes over every entry that is not a bundle and every name that begins with `.`, and lists nothing for them. Where it is handed one folder to read as a bundle, and that folder is not one, it refuses at `read` with kind `NOT_LOADABLE`.
 
 A **path** a manifest names is a file inside the bundle:
 
@@ -71,13 +71,13 @@ segment = 1*( any code point but "/" and "\" )      ; and not "." or ".."
 
 A path is resolved from the bundle's folder, following every link, and names a regular file whose resolved place is inside the bundle's resolved folder.
 
-A name the system looks up in a folder, each segment of a path and the name `manifest.toml`, names the entry of that folder whose name is the same sequence of Unicode scalar values. No case is folded and nothing is normalized.
+A name the system looks up in a folder, each segment of a path, each name a link's target holds and the name `manifest.toml`, names the entry of that folder whose name is the same sequence of Unicode scalar values. No case is folded and nothing is normalized.
 
-**Note.** On a file system that ignores case, or that takes two normalizations of a name as one, opening a name may find an entry of another spelling. An implementation there lists the folder and compares the names itself, for each segment of a path and for `manifest.toml`, which costs a listing for each name looked up.
+**Note.** On a file system that ignores case, or that takes two normalizations of a name as one, opening a name may find an entry of another spelling. An implementation there lists the folder and compares the names itself, for each segment of a path, each name of a link's target and `manifest.toml`, which costs a listing for each name looked up.
 
 ### The manifest's text
 
-A manifest is UTF-8 text in a language based on TOML, which the grammar below gives whole. A leading U+FEFF is dropped, the text is split into lines at LF, and a CR that ends a line is dropped. The notation is ABNF's; `ws` is any code point with the Unicode property White_Space, but LF.
+A manifest is UTF-8 text in a language based on TOML, which the grammar below gives whole. A leading U+FEFF is dropped, the text is split into lines at LF, and a CR that ends a line is dropped. The notation is ABNF's; `ws` is any white space code point but LF. The **white space** code points are those with the Unicode property White_Space: U+0009 to U+000D, U+0020, U+0085, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F and U+3000.
 
 ```
 manifest       = line *( LF line )
@@ -107,15 +107,14 @@ A key is the string it writes: a `bare-key` its code points, a `quoted-key` the 
 
 What the grammar does not hold refuses the bundle at `read` with kind `NOT_LOADABLE`, and so does each of these:
 
-- An entry is one line. A `key-value` whose value holds more `[` than `]` outside its strings goes on to the next lines until they balance, and a comment may end each of those lines.
-- The key of a `key-value` is the text before the first `=` of its line, so a `quoted-key` there holds no `=`.
+- An entry is one line. A `key-value` whose value holds more `[` than `]` outside its strings and comments goes on to the next lines until they balance, and a comment may end each of those lines.
 - A `\u` or `\U` escape gives a Unicode scalar value.
 - An integer lies from -(2^53 - 1) to 2^53 - 1, that is from -9007199254740991 to 9007199254740991.
-- Arrays and inline tables nest at most 32 deep.
+- Arrays and inline tables, counted together, nest at most 32 deep: a value holds at most 32 of them one inside another.
 - A `key-value` sets its key in the table the last header opened, or in the root before any header. A key set twice in one table, an inline table among them, refuses.
 - A `table-header` opens the table its path reaches, making each table on the way. A table opened by a `table-header` twice refuses, and so does a `table-header` whose path ends at an array of tables.
 - An `array-header` adds a new table at the end of the array of tables at its path, making the array the first time. One whose path holds a value that no `array-header` made, or a table a `table-header` opened, refuses.
-- A header's path that goes through an array of tables goes on in its last table. A header's path that reaches a key holding any value but a table or an array of tables refuses.
+- A header's path goes on through a table, and through an array in its last value, whether headers or a `key-value` wrote them. A header's path that reaches any other value, or an array whose last value is not a table, refuses.
 
 A table holds no order: two manifests whose tables hold the same keys bound to the same values are the same manifest.
 
@@ -123,10 +122,10 @@ A table holds no order: two manifests whose tables hold the same keys bound to t
 
 **Note.** Beyond what the grammar leaves out, the language takes some text TOML 1.0 refuses and refuses some it takes, so a TOML library does not read it as the rules above do. These are every such difference:
 
-- `ws` is every code point with White_Space but LF, where TOML has only space and tab.
+- `ws` is every white space code point but LF, where TOML has only space and tab.
 - A string and a comment take control characters, which TOML refuses.
 - A value with more `[` than `]` goes on over lines, so an inline table inside an open `[` may span lines, where TOML holds an inline table on one line.
-- A header may go on in a table an inline table wrote, `extra = { a = 1 }` then `[extra]`, where TOML refuses it.
+- A header may go on in a table or an array a `key-value` wrote, `extra = { a = 1 }` then `[extra]`, or `extra = [{ a = 1 }]` then `[extra.more]`, where TOML refuses both.
 - An integer with leading zeros, `007`, is read as 7, where TOML refuses it.
 - An integer lies within ±(2^53 - 1), where TOML takes every integer a signed 64-bit integer holds.
 
@@ -160,7 +159,7 @@ A manifest's top-level keys are these fields and the fields the layers on the sy
 | `permissions` | table, under *permissions* | no | each permission the mod asks for, with why |
 | `contributes` | table, under *contributes* | no | the entries the mod declares to interfaces |
 
-A string is **not blank** when it holds a code point without the property White_Space.
+A string is **not blank** when it holds a code point that is not white space.
 
 ```
 id        = name-part
@@ -222,11 +221,11 @@ The host runs mods with one version of the mod contract. A bundle is taken only 
 
 ### What a layer or a host adds
 
-Before the app starts, each layer on the system and the host may add manifest fields and define permissions. The system defines permissions of its own, which the permissions' DECKIT fixes.
+Before the host app starts, each layer on the system and the host may add manifest fields and define permissions. The system defines permissions of its own, which the permissions' DECKIT fixes.
 
 A **field** is added by its name, any string a `key` writes. The field is then a top-level key a manifest may write, with any value, and the system judges nothing of its value: it hands it on as written, as a value, to whatever reads it, and the layer or host that added it judges it where it reads it.
 
-A field added refuses the app's start at `call` with kind `FIELD` where its name is not a string, is one of the fields above, or is added twice.
+A field added refuses the host app's start at `call` with kind `FIELD` where its name is not a string, is one of the fields above, or is added twice.
 
 A **permission** is defined as:
 
@@ -237,7 +236,7 @@ A **permission** is defined as:
 | `description` | string, not blank | yes | what the permission grants, shown wherever it is listed |
 | `privileged` | boolean | no | whether only a system mod may ask for it; `false` where not given |
 
-A permission defined refuses the app's start at `call` with kind `PERMISSION` where it is not as the table gives, or where its id is defined twice, by the system, a layer or the host.
+A permission defined refuses the host app's start at `call` with kind `PERMISSION` where it is not as the table gives, or where its id is defined twice, by the system, a layer or the host.
 
 Two field names are one name, and two permission ids one id, when they are the same sequence of Unicode scalar values, as two keys are, wherever they are written, asked for or defined.
 
@@ -266,7 +265,7 @@ Each permission asked for is answered as:
 | key | value |
 |---|---|
 | `id` | string: the id |
-| `reason` | string: what the manifest writes, without the code points with White_Space at its ends |
+| `reason` | string: what the manifest writes, without the white space code points at its ends |
 | `usable` | boolean: whether a layer or the host on this host, or the system, defines it |
 | `name`, `description`, `privileged` | as the permission is defined; absent where it is not usable |
 

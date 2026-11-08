@@ -1,0 +1,25 @@
+case = 1
+name = "a-link-in-a-folder-of-bundles-is-followed"
+note = "The system follows each link in a folder of bundles to where it leads. mod-b is a link to holder/mod-a, a bundle inside holder, which holds no manifest and is passed over."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["holder", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a"]
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "main"
+
+[step.expect]
+answers = "main.js"

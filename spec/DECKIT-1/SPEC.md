@@ -36,7 +36,7 @@ spec/DECKIT-N/conformance/
         …
 ```
 
-Each folder in `mods/` is one of the case's bundles: a folder the runner lays out for the system to read, which [the bundle](../DECKIT-2/SPEC.md) takes, refuses or passes over. What else `mods/` holds, and what else the case's folder holds, is not the case's. A case is named, and a bundle in `mods/` is named, by this grammar:
+Each entry of `mods/`, a folder, a file or a link, is one of the case's bundles: an entry the runner lays out for the system to read, which [the bundle](../DECKIT-2/SPEC.md) takes, refuses or passes over. What else `mods/` holds, and what else the case's folder holds, is not the case's. A case is named, and a bundle in `mods/` is named, by this grammar:
 
 ```
 case-name   = lower *( lower / DIGIT / "-" )
@@ -54,7 +54,7 @@ lower       = %x61-7A                      ; a to z
 | `host` | table, under *The host* | yes | what the host app is made of |
 | `step` | array of tables, `[[step]]`, under *Steps* | yes, at least one | the steps, in the order they are taken |
 
-A case **refuses as a case** when it breaks any rule under *What a case is*, *The host*, *Steps*, *What a step must come to* and *Formats*, the grammars and bounds among them, or when its name is another case's in the specification. Among them: a key the tables do not give, a key under the wrong table, a value of another type than the table gives, a `name` that is not its folder's name, a bundle in `mods/` that no key of the case names, and a name of a bundle that is not in `mods/`.
+A case **refuses as a case** when it breaks any rule under *What a case is*, *The host*, *Steps*, *What a step must come to* and *Formats*, the grammars and bounds among them, or when its name is another case's in the specification. Among them: a key the tables do not give, a key under the wrong table, a value of another type than the table gives, a `name` that is not its folder's name, a bundle in `mods/` that no key of the case names, a name of a bundle that is not in `mods/`, and a `bundle-name` written twice in `ship` and `sources` together.
 
 ### The host
 
@@ -76,7 +76,7 @@ A case **refuses as a case** when it breaks any rule under *What a case is*, *Th
 
 What the case writes under `[host]` adds to the base. Its fields and permissions come after the base's, as [the bundle](../DECKIT-2/SPEC.md) says, and a refusal of one is the answer to the `start` step.
 
-Each run of a case starts from nothing kept: the system's own folder is new and empty, and every bundle is laid out afresh where the runner keeps its run, never in the case's folder. A bundle is laid out as written: each file and folder as the case holds it, and each link as a link holding the target it is written with, so that a link to a place inside the bundle points inside the bundle laid out. Each bundle is laid out in a folder named by its `bundle-name`. Those in `sources` lie side by side in one folder that holds nothing else, which the host hands the system as a folder of bundles read in place. Each one in `ship` is handed as its own folder of that name, a bundle the host ships, marked system where `system` names it.
+Each run of a case starts from nothing kept: the system's own folder is new and empty, and every bundle is laid out afresh where the runner keeps its run, never in the case's folder. A bundle is laid out as written: each file and folder as the case holds it, and each link as a link holding the target it is written with, so that a link to a place inside the bundle points inside the bundle laid out. Each bundle is laid out under its `bundle-name`, and a bundle that is a link is laid out as that link, so that a target naming a bundle beside it names that bundle laid out. Those in `sources` lie side by side in one folder that holds nothing else, which the host hands the system as a folder of bundles read in place. Each one in `ship` is handed as itself, laid out under that name, a bundle the host ships, marked system where `system` names it.
 
 ### What the system gives a host
 
@@ -182,4 +182,4 @@ A case is written by hand, in the manifest text, and is judged by its value. A c
 
 ## Notes
 
-**Note.** Some sentences above are held by no case, each for its reason. What refuses as a case, and every outcome but passed: a case in the specification measures the implementation and passes on a conforming one, and a case that refused as a case would stop the suite. The 10-second bound: a case that passes settles inside it. That a runner reaches inside nothing: it is a property of the runner, checked by reading the runner. That each run starts from nothing kept: no input or look of this format reads the system's own folder. The order `mods` answers in, and with it the order of `ship`: the order the system finds bundles in is the catalog's DECKIT's, and its cases hold it. A refusal at `launch`: a start and the looks of this format answer what the host handed and what the system read of a bundle, all of it decided before a run launches.
+**Note.** Some sentences above are held by no case, each for its reason. What refuses as a case, and every outcome but passed: a case in the specification measures the implementation and passes on a conforming one, and a case that refused as a case would stop the suite. The 10-second bound: a case that passes settles inside it. That a runner reaches inside nothing, waits until the host app has settled, matches strictly, reads `case` before any other key and reads a null as a key not answered: each is a property of the runner, checked by reading the runner. That each run starts from nothing kept: no input or look of this format reads the system's own folder. The order `mods` answers in, and with it the order of `ship`: the order the system finds bundles in is the catalog's DECKIT's, and its cases hold it. A refusal at `launch`: a start and the looks of this format answer what the host handed and what the system read of a bundle, all of it decided before a run launches.

@@ -1,0 +1,19 @@
+case = 1
+name = "a-name-of-a-zero-width-no-break-space-is-not-blank"
+note = "Not blank is holding a code point that is not white space. A name of U+FEFF alone holds one, and is taken as written."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "name"
+
+[step.expect]
+answers = "\ufeff"

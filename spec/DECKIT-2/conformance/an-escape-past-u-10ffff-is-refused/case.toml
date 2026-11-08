@@ -1,0 +1,20 @@
+case = 1
+name = "an-escape-past-u-10ffff-is-refused"
+note = "A \\U escape gives a Unicode scalar value; \\U00110000 gives none and refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

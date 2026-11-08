@@ -1,0 +1,21 @@
+case = 1
+name = "a-reason-keeps-code-points-without-white-space-at-its-ends"
+note = "A reason is trimmed of white space code points only. U+FEFF, U+200B and U+180E are not white space and stay."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "case.sync", reason = "\ufeff\u200bSyncs.\u180e", usable = false },
+]

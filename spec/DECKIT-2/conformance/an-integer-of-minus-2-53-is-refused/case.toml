@@ -1,0 +1,20 @@
+case = 1
+name = "an-integer-of-minus-2-53-is-refused"
+note = "An integer lies from -(2^53 - 1) to 2^53 - 1. -9007199254740992 refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

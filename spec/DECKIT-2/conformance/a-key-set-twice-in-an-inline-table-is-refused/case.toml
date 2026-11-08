@@ -1,6 +1,6 @@
 case = 1
-name = "a-quoted-key-holding-an-equals-sign-is-refused"
-note = "The key of a key-value is the text before the first \"=\" of its line, so a quoted key there holding \"=\" refuses the bundle at read."
+name = "a-key-set-twice-in-an-inline-table-is-refused"
+note = "A key set twice in one table, an inline table among them, refuses the bundle at read."
 
 [host]
 base = "system"

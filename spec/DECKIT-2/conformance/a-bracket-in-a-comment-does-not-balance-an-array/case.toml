@@ -1,0 +1,21 @@
+case = 1
+name = "a-bracket-in-a-comment-does-not-balance-an-array"
+note = "A key-value whose value holds more [ than ] goes on to the next lines. A bracket in a comment is no part of the value: a ] in a comment does not close the array, and a [ in a comment opens none."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "fields"
+
+[step.expect.answers.extra]
+a = [1]
+b = [2]

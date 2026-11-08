@@ -1,0 +1,19 @@
+case = 1
+name = "a-main-in-another-normalization-than-its-file-is-refused"
+note = "A segment names the entry whose name is the same sequence of Unicode scalar values, nothing normalized. A main written with U+00E9 names no entry of a bundle whose file is written with e and U+0301."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

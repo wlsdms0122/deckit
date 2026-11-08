@@ -1,0 +1,20 @@
+case = 1
+name = "arrays-and-inline-tables-nested-33-deep-together-are-refused"
+note = "Arrays and inline tables nest at most 32 deep, counted together: 17 arrays and 16 inline tables, alternating, refuse the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

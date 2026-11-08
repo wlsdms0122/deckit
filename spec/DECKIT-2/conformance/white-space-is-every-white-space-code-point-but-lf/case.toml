@@ -1,6 +1,6 @@
 case = 1
 name = "white-space-is-every-white-space-code-point-but-lf"
-note = "ws is any code point with the property White_Space but LF: a form feed between a key and its \"=\", a line holding only U+2028, and a U+0085 after a value are white space."
+note = "ws is any white space code point but LF: a form feed between a key and its \"=\", a line holding only U+2028, and a U+0085 after a value are white space."
 
 [host]
 base = "system"
