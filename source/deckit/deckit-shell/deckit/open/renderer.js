@@ -29,7 +29,7 @@ function openExternalOf(mod) {
     };
 }
 
-// `path` shown in Finder.
+// `path` shown in its folder.
 function reveal(path) {
     return PROTOCOL.reveal.invoke({ file: path });
 }
