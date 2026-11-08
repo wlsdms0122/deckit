@@ -3,8 +3,23 @@ name = "Editor"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-contributes = "contributes.json"
-urls = ["file:*"]
+view = { sidebar = true }
+icon = "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 12.5 8 15l2 2.5'/><path d='m14 12.5 2 2.5-2 2.5'/><path d='M14 2v4a2 2 0 0 0 2 2h4'/><path d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z'/></svg>"
+keywords = [
+    "editor",
+    "edit",
+    "code",
+    "file",
+    "folder",
+    "workspace",
+    "text",
+    "에디터",
+    "편집",
+    "코드",
+    "파일",
+    "폴더",
+    "워크스페이스",
+]
 
 [permissions]
 "system.main-process" = "Reads, writes and searches the files and folders you open, and puts the ones you delete in the Trash."
@@ -12,4 +27,59 @@ urls = ["file:*"]
 "system.clipboard-write" = "Copy Path and Copy Relative Path in a file's menu put its path on the clipboard."
 
 [interfaces]
-uses = { "switcher/actions" = 1 }
+uses = { "deckit/configuration" = 1, "switcher/actions" = 1 }
+
+[[contributes."deckit/configuration"]]
+key = "fontSize"
+type = "number"
+title = "Font size"
+description = "Default follows the text size in the General section."
+minimum = 10
+maximum = 24
+unit = " px"
+inherits = "textSize"
+
+[[contributes."deckit/configuration"]]
+key = "font"
+type = "string"
+title = "Font"
+description = "The fixed-width faces installed on this Mac. Default is the system's."
+default = "default"
+choices = "monospacedFonts"
+
+[[contributes."deckit/configuration"]]
+key = "wrap"
+type = "boolean"
+title = "Wrap long lines"
+description = "Continue a long line on the next one at the editor's edge, instead of scrolling sideways."
+default = false
+
+[[contributes."deckit/configuration"]]
+key = "minimap"
+type = "string"
+title = "Minimap"
+description = "The file in miniature at the editor's right edge."
+default = "scroll"
+oneOf = [
+    { const = "always", title = "Always, beside the code" },
+    { const = "scroll", title = "While scrolling, over the code" },
+    { const = "never", title = "Never" },
+]
+
+[[contributes."deckit/commands"]]
+id = "open"
+title = "Open File in Editor"
+params = { type = "object", properties = { path = { type = "string", title = "File" }, root = { type = "string", title = "Workspace" } }, required = ["path"] }
+
+[[contributes."deckit/commands"]]
+id = "open-folder"
+title = "Open Folder in Editor"
+params = { type = "object", properties = { path = { type = "string", title = "Folder" } } }
+
+[[contributes."deckit/urls"]]
+scheme = "file"
+
+[[contributes."switcher/actions"]]
+label = "Open Folder…"
+keywords = ["열기", "폴더", "워크스페이스", "open", "folder", "workspace", "project"]
+command = "open-folder"

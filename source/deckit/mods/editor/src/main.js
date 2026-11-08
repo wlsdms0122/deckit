@@ -13,15 +13,18 @@ const { fileTree, TREE_STYLE } = require('./file-tree/file-tree.js');
 const { findInFile } = require('./code/find-in-file.js');
 const { goToLine } = require('./code/go-to-line.js');
 const { nameOf, parentOf, isInside, relativePath } = require('./path/path.js');
+const { onScreen } = require('./screen/on-screen.js');
 const { quickOpen, QUICK_OPEN_STYLE } = require('./quick-open/quick-open.js');
 const { recentFolders } = require('./workspace/recent-folders.js');
 const { replaceMatches } = require('./workspace-search/replace.js');
 const { savedSession } = require('./workspace/saved-session.js');
+const { settingsOf } = require('./settings/settings.js');
 const { sidebar, SIDEBAR_STYLE } = require('./workspace/sidebar.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabs, TABS_STYLE } = require('./workspace/tabs.js');
 const { treeEntryActions } = require('./file-tree/tree-entry-actions.js');
 const { unsavedDrafts, DRAFTS_STYLE } = require('./open-file/unsaved-drafts.js');
+const { viewKeys } = require('./keys/keys.js');
 const { workspaceModel } = require('./workspace/workspace-model.js');
 const { workspaceSearch, WORKSPACE_SEARCH_STYLE } = require('./workspace-search/workspace-search.js');
 
@@ -30,10 +33,38 @@ class Editor {
     // folders of the open files no longer watched.
     end = null;
 
+    // What the view has put on screen for the commands and the addresses to reach, while it is attached.
+    screen = onScreen('Editor');
+
+    // The commands its manifest declares to `deckit/commands`, and the `file` addresses it declares to `deckit/urls`,
+    // each taken from the exports for its id and run on the view. A command run while Editor has no view open says so,
+    // and an address that comes then is passed on.
+    start(deckit) {
+        const commands = {
+            open: async (args) => (await this.screen.reach()).goToFile(args, { background: true }),
+            'open-folder': async (args) => (await this.screen.reach()).openFolderAt(args),
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Editor has no command ${id}`);
+                    await commands[id](args ?? {});
+                },
+                openURL: async (url, { activates }) => {
+                    const path = deckit.filePath(url);
+                    if (!path) return false;
+                    const screen = await this.screen.reach().catch(() => null);
+                    return !!screen && screen.openFile(path, { activates });
+                },
+            }),
+        });
+    }
+
     async attach(shell, deckit) {
         const { theme, ui } = shell;
-        const { storage, configuration, util } = deckit;
+        const { storage, util } = deckit;
         const { values: store, records } = storage;
+        const settings = settingsOf();
         const { ranker } = util;
         const engine = EditorEngine;
         const fileSystem = await deckit.mainProcess('main-process/file-system.js');
@@ -70,7 +101,7 @@ class Editor {
             engine,
             theme,
             ui,
-            configuration,
+            settings,
             themeExtensions: codeLook.extensions,
             separatorExtension: disk.separatorExtension,
             createFindPanel: find.createPanel,
@@ -157,7 +188,7 @@ class Editor {
         const emptyEditor = emptyState({
             ui,
             util,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             onQuickOpen: () => quickOpener.show(),
             onPickFolder: pickFolder,
             onPickFiles: pickFiles,
@@ -165,7 +196,7 @@ class Editor {
         });
         const entryActions = treeEntryActions({
             ui,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             reveal: deckit.reveal,
             clipboard: deckit.clipboard,
             fileSystem,
@@ -183,7 +214,7 @@ class Editor {
         });
         const sidePanel = sidebar({
             ui,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             util,
             workspaces,
             isUnsaved: (workspace) => workspace.files.some(disk.isDirty),
@@ -224,15 +255,16 @@ class Editor {
                 QUICK_OPEN_STYLE,
             ].join('\n')
         );
-        minimap.setMode(configuration.get('minimap'));
+        minimap.setMode(settings.get('minimap'));
         emptyEditor.element.hidden = true;
         stage.append(emptyEditor.element, minimap.element);
         stage.addEventListener('mousemove', (event) => minimap.showNear(event));
         content.append(tabBar.element, pathBar.element, notice.element, drafts.element, stage);
-        configuration.on((key, value) => {
+        settings.on((key, value) => {
             for (const file of workspaces.files()) code.applySetting(file.view, key, value);
             if (key === 'minimap') placeMinimap();
         });
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
         fileSystem.on('changed', (folder) => {
             for (const file of workspaces.files())
                 if (folderHolding(file) === folder) disk.check(file).catch(() => false);
@@ -245,23 +277,17 @@ class Editor {
             content,
             sidebar: sidePanel.element,
             didAppear() {
+                keys.listen(true);
                 checkDisk();
                 workspaces.front()?.tree?.refresh();
                 workspaces.listFiles(workspaces.front(), true);
                 workspaces.current()?.view.focus();
             },
+            didDisappear() {
+                keys.listen(false);
+            },
         });
-        deckit.urls.register(async (url, { activates = true } = {}) => {
-            const background = !activates;
-            const path = deckit.filePath(url);
-            if (!path) return false;
-            const opened = !!(await tryOpen(path, { background })).file;
-            if (opened && !background) shell.show();
-            return opened;
-        });
-        // Each its own, so a completion of `open`, a search of the switcher and one in Open Quickly do not cancel
-        // each other.
-        const fileRanker = ranker({ paths: true });
+        // Its own, so a search of the switcher and one in Open Quickly do not cancel each other.
         const actionRanker = ranker({ paths: true });
         const noFolder = () => (workspaces.front()?.root ? '' : 'Open a folder first');
         const noFile = () => (workspaces.current() ? '' : 'No file is open');
@@ -292,39 +318,34 @@ class Editor {
         const findInOpenFile = when(noFile, () => openFind({ replace: false }));
         const replaceInOpenFile = when(noFile, () => openFind({ replace: true }));
         const askLine = when(noFile, () => goTo.show(workspaces.current().view));
-        const wrapLines = () => configuration.set('wrap', !configuration.get('wrap'));
-        deckit.commands.register({
-            open: {
-                run: (args) => goToFile(args, { background: true }),
-                complete: (_param, partial, { args }) => {
-                    const workspace = args?.root === undefined ? workspaces.front() : workspaces.withRoot(args.root);
-                    return filesFound(workspace, partial, { listFiles: workspaces.listFiles, ranker: fileRanker });
-                },
+        const wrapLines = () => settings.set('wrap', !settings.get('wrap'));
+        // The view's own keys, while it is in front.
+        const keys = viewKeys(
+            {
+                quickOpen: { key: 'mod+p', run: openQuickly },
+                showFiles: { key: 'mod+1', run: showFiles },
+                showFind: { key: 'mod+3', run: findInWorkspace },
+                reveal: { key: 'mod+shift+j', run: reveal },
+                openFolder: { key: 'mod+o', run: () => openFolderAt() },
+                openFile: { key: 'mod+alt+o', run: pickFiles },
+                newFile: { key: 'mod+n', run: newFile },
+                newFolder: { key: 'mod+alt+n', run: newFolder },
+                // Only the row picked in the tree; elsewhere ⌘⌫ is a text field's.
+                trash: { key: 'mod+backspace', run: trash, fieldsKeep: true },
+                previousTab: { key: 'mod+shift+[', run: previousTab },
+                nextTab: { key: 'mod+shift+]', run: nextTab },
+                save: { key: 'mod+s', run: saveFile },
+                saveAll: { key: 'mod+alt+s', run: saveAllFiles },
+                closeFile: { key: 'mod+w', run: closeFile },
+                find: { key: 'mod+f', run: findInOpenFile },
+                replace: { key: 'mod+alt+f', run: replaceInOpenFile },
+                searchFolder: { key: 'mod+shift+f', run: findInWorkspace },
+                goToLine: { key: 'mod+l', run: askLine },
+                wrapLines: { key: 'alt+z', run: wrapLines },
             },
-            'open-folder': { run: openFolderAt },
-        });
-        deckit.keys.register({
-            quickOpen: { label: 'Open Quickly', key: 'mod+p', run: openQuickly },
-            showFiles: { label: 'Show Files', key: 'mod+1', run: showFiles },
-            showFind: { label: 'Find in Workspace', key: 'mod+3', run: findInWorkspace },
-            reveal: { label: 'Reveal in Files', key: 'mod+shift+j', run: reveal },
-            openFolder: { label: 'Open Folder…', key: 'mod+o', run: () => openFolderAt() },
-            openFile: { label: 'Open File…', key: 'mod+alt+o', run: pickFiles },
-            newFile: { label: 'New File', key: 'mod+n', run: newFile },
-            newFolder: { label: 'New Folder', key: 'mod+alt+n', run: newFolder },
-            // Only the row picked in the tree; elsewhere ⌘⌫ is a text field's.
-            trash: { label: 'Move to Trash', key: 'mod+backspace', run: trash },
-            previousTab: { label: 'Previous Tab', key: 'mod+shift+[', run: previousTab },
-            nextTab: { label: 'Next Tab', key: 'mod+shift+]', run: nextTab },
-            save: { label: 'Save', key: 'mod+s', run: saveFile },
-            saveAll: { label: 'Save All', key: 'mod+alt+s', run: saveAllFiles },
-            closeFile: { label: 'Close File', key: 'mod+w', run: closeFile },
-            find: { label: 'Find in File', key: 'mod+f', run: findInOpenFile },
-            replace: { label: 'Replace in File', key: 'mod+alt+f', run: replaceInOpenFile },
-            searchFolder: { label: 'Find in Workspace', key: 'mod+shift+f', run: findInWorkspace },
-            goToLine: { label: 'Go to Line', key: 'mod+l', run: askLine },
-            wrapLines: { label: 'Wrap Lines', key: 'alt+z', run: wrapLines },
-        });
+            { log: 'editor' }
+        );
+        this.endKeys = () => keys.listen(false);
         const actions = switcher({
             ui,
             util,
@@ -358,6 +379,7 @@ class Editor {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        this.screen.set({ goToFile, openFolderAt, openFile });
 
         function heardDiskState(file) {
             if (disk.isDirty(file)) drafts.keepSoon();
@@ -397,7 +419,7 @@ class Editor {
         }
 
         function placeMinimap() {
-            minimap.setMode(configuration.get('minimap'));
+            minimap.setMode(settings.get('minimap'));
             for (const file of workspaces.files()) file.box.style.right = minimap.inset();
         }
 
@@ -441,6 +463,15 @@ class Editor {
             await open(path, { background });
         }
 
+        // A file an address names, opened in a tab, brought to the front unless `activates` is false; answers whether it
+        // opened.
+        async function openFile(path, { activates }) {
+            const background = activates === false;
+            const opened = !!(await tryOpen(path, { background })).file;
+            if (opened && !background) shell.show();
+            return opened;
+        }
+
         // The folder at `path` as a workspace, brought to the front if it is one; with no path, one asked for.
         // `ready()` is told once it can be done.
         async function openFolderAt({ path } = {}, { ready = () => {} } = {}) {
@@ -457,11 +488,11 @@ class Editor {
             const reveal = {
                 label: 'Reveal in Files',
                 icon: 'folders',
-                hint: deckit.keys.chordOf('reveal'),
+                hint: keys.chordOf('reveal'),
                 run: () => revealInFiles(file),
             };
             return [
-                { label: 'Close', icon: 'x', hint: deckit.keys.chordOf('closeFile'), run: () => close(file) },
+                { label: 'Close', icon: 'x', hint: keys.chordOf('closeFile'), run: () => close(file) },
                 '-',
                 ...(relative ? [reveal] : []),
                 ...entryActions.pathItems(file.path, relative),
@@ -671,6 +702,9 @@ class Editor {
     }
 
     detach() {
+        this.screen.set(null);
+        this.endKeys?.();
+        this.endKeys = null;
         return this.end?.();
     }
 }
