@@ -163,30 +163,22 @@ async function main() {
         ran
     );
 
-    // A sender, Calendar's notices: none is posted while no owner is connected, and one is once an owner is, with a
-    // token of its own command; a post the owner's ended connection rejects gives its token back.
+    // A sender, Calendar's notices: none is posted while no owner is connected, and one is once an owner is, naming
+    // the sender's own command with the day; a post the owner's ended connection refuses rejects.
     const { notice } = require(path.join(mods, 'calendar', 'src', 'notice', 'notice.js'));
     let connected = null;
-    const minted = [];
-    const cancelled = [];
     const sender = notice({
         dependencies: { onConnect: (name, listener) => name === 'deckit/notifications' && (connected = listener) },
-        commands: {
-            tokens: {
-                mint: async (command, args) => (minted.push([command, args]), `minted-${minted.length}`),
-                cancel: async (token) => cancelled.push(token),
-            },
-        },
     });
     const date = new Date(2026, 10, 6);
-    check('with no owner a sender’s notice is not posted', (await sender.post({ title: 'a', date })) === false, minted);
+    check('with no owner a sender’s notice is not posted', (await sender.post({ title: 'a', date })) === false, null);
     const posted = [];
     const disconnect = connected({ post: async (notification) => (posted.push(notification), 'id') });
-    check('with an owner it is posted', (await sender.post({ title: 'b', date })) === true, posted);
+    check('with an owner it is posted', (await sender.post({ title: 'b', body: 'in 5 min', date })) === true, posted);
     check(
-        'its token is of the sender’s own command, with the day',
-        minted[0]?.[0] === 'show-date' && minted[0]?.[1].date === '2026-11-06' && posted[0]?.token === 'minted-1',
-        { minted, posted }
+        'it names the sender’s own command, with the day',
+        json(posted[0]) === json({ title: 'b', body: 'in 5 min', command: 'show-date', args: { date: '2026-11-06' } }),
+        posted
     );
     disconnect();
     connected({ post: async () => Promise.reject(new Error('the mod on the other end has ended')) });
@@ -198,7 +190,6 @@ async function main() {
         ),
         null
     );
-    check('and its token is cancelled', cancelled.join() === 'minted-2', cancelled);
 
     for (const line of failed) console.error(line);
     if (failed.length) {
