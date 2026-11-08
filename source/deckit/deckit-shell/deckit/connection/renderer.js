@@ -6,11 +6,13 @@ import * as MOD_PERMISSION from '../permission/index.js';
 import * as REQUEST from '../request/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
+const KIND = /^[A-Z][A-Z_]*$/; // a refusal's kind
 
 // The page's ends of its connections, each for a name, a mod id or an interface. For each it keeps a table of the
 // functions it handed over, by number, and the references it was handed, by number, and drops both as the connection
-// ends. A reference is a function that calls the other end and resolves with what that answers; one the page holds no
-// more is let go on the other end. A function the page was handed is never handed on: what calls the far end is always
+// ends. A reference is a function that calls the other end and resolves with what that answers, or rejects at `call`
+// with the kind the function threw, REFUSED for none or one that is not a kind, and ENDED once the connection has
+// ended; one the page holds no more is let go on the other end. A function the page was handed is never handed on: what calls the far end is always
 // the mod connected to it. The end that depends knows the name alone, never the mod that owns an interface. A refusal,
 // of a mod the core does not launch, one that runs with no exports for it or a connection its service refused, reaches
 // the code as an error with its `kind` and `stage`. `RUN` is the page's run.
@@ -291,13 +293,8 @@ export function createConnection({ RUN }) {
             const returned = await given.function.apply(given.holder, read);
             return { returned: describe(entry, returned) };
         } catch (error) {
-            return {
-                thrown: {
-                    name: String(error?.name ?? 'Error'),
-                    message: String(error?.message ?? error),
-                    kind: error?.kind ?? null,
-                },
-            };
+            const kind = typeof error?.kind === 'string' && KIND.test(error.kind) ? error.kind : 'REFUSED';
+            return { thrown: { name: String(error?.name ?? 'Error'), message: String(error?.message ?? error), kind } };
         }
     }
 
@@ -370,7 +367,8 @@ export function createConnection({ RUN }) {
             return kept;
         }
         const reference = async (...args) => {
-            if (connections.get(entry.id) !== entry) throw new Error('the mod on the other end has ended');
+            if (connections.get(entry.id) !== entry)
+                throw refusalOf({ stage: 'call', kind: 'ENDED', message: 'the connection has ended' });
             const answer = await PROTOCOL.call.invoke({
                 run: RUN.number,
                 connection: entry.id,
@@ -379,7 +377,7 @@ export function createConnection({ RUN }) {
             });
             if (answer.thrown) {
                 const { name, message, kind } = answer.thrown;
-                throw Object.assign(new Error(message), { name, kind });
+                throw Object.assign(new Error(message), { name, kind, stage: 'call' });
             }
             return WIRE.materialize(answer.returned, (inner) => referenceOf(entry, inner));
         };

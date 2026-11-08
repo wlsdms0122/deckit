@@ -33,7 +33,7 @@ export const releaseReach = CHANNEL.pageToMain(
     { reply: true }
 );
 // A function the other end handed over is called: answered with `{ returned }`, or `{ thrown: { name, message, kind }
-// }` for what it threw.
+// }` for what it threw, `kind` REFUSED where it threw none or one that is not a kind.
 export const call = CHANNEL.pageToMain(
     'deckit-shell:connection-call',
     { run: 'number', connection: 'number', number: 'number', args: 'object' },
