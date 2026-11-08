@@ -1,18 +1,18 @@
 const { search } = require('./search/search.js');
 
-// Every mod that declares a view, found by its name and keywords, in a grid: picking one opens it, and its menu keeps
+// Every app mod, found by its name and keywords, in a grid in Mods' window: picking one opens it, and its menu keeps
 // it in the Dock or takes it out. `shell.mods` is the shell's Dock, which says which mods there are to open.
 class Mods {
-    // The shell, while Mods is attached, for the commands to reach.
-    shell = null;
+    // Opens Mods' window, or orders it front where it is open, while Mods is attached.
+    openWindow = null;
 
-    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. `show` asks the shell to
-    // put Mods on screen, and one run while it is not attached says so.
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. `show` brings Mods'
+    // window in front, opening it where it is closed, and one run while Mods is not attached says so.
     start(deckit) {
         const commands = {
             show: () => {
-                if (!this.shell) throw new Error('Mods has no view open');
-                this.shell.show();
+                if (!this.openWindow) throw new Error('Mods has no window to open');
+                this.openWindow();
             },
         };
         deckit.exports.register({
@@ -26,7 +26,6 @@ class Mods {
     }
 
     attach(shell, deckit) {
-        this.shell = shell;
         const { ui } = shell;
         const dock = shell.mods;
         let query = '';
@@ -113,13 +112,16 @@ class Mods {
             },
         });
 
-        shell.view.register({
-            content: page,
-            didAppear: () => {
-                draw();
-                field.focus();
-            },
-        });
+        this.openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: page,
+                didAppear: () => {
+                    draw();
+                    field.focus();
+                },
+            });
+        this.openWindow();
         deckit.mods.onChange(draw);
 
         // The mods `query` finds, best first.
@@ -171,8 +173,13 @@ class Mods {
         }
     }
 
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.openWindow?.();
+    }
+
     detach() {
-        this.shell = null;
+        this.openWindow = null;
     }
 }
 
