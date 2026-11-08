@@ -11,9 +11,10 @@ const KIND = /^[A-Z][A-Z_]*$/; // a refusal's kind
 // The page's ends of its connections, each for a name, a mod id or an interface. For each it keeps a table of the
 // functions it handed over, by number, and the references it was handed, by number, and drops both as the connection
 // ends. A reference is a function that calls the other end and resolves with what that answers, or rejects at `call`
-// with the kind the function threw, REFUSED for none or one that is not a kind, and ENDED once the connection has
-// ended; one the page holds no more is let go on the other end. A function the page was handed is never handed on: what calls the far end is always
-// the mod connected to it. The end that depends knows the name alone, never the mod that owns an interface. A refusal,
+// with the kind the function threw, REFUSED for none or one that is not a kind, ENDED once the connection has ended,
+// and INVALID_ARGUMENT for what it is called with that does not cross; one the page holds no more is let go on the
+// other end. A function the page was handed is never handed on: what calls the far end is always the mod connected to
+// it. The end that depends knows the name alone, never the mod that owns an interface. A refusal,
 // of a mod the core does not launch, one that runs with no exports for it or a connection its service refused, reaches
 // the code as an error with its `kind` and `stage`. `RUN` is the page's run.
 export function createConnection({ RUN }) {
@@ -369,11 +370,17 @@ export function createConnection({ RUN }) {
         const reference = async (...args) => {
             if (connections.get(entry.id) !== entry)
                 throw refusalOf({ stage: 'call', kind: 'ENDED', message: 'the connection has ended' });
+            let described;
+            try {
+                described = describe(entry, args);
+            } catch (error) {
+                throw refusalOf({ stage: 'call', kind: 'INVALID_ARGUMENT', message: error.message });
+            }
             const answer = await PROTOCOL.call.invoke({
                 run: RUN.number,
                 connection: entry.id,
                 number,
-                args: describe(entry, args),
+                args: described,
             });
             if (answer.thrown) {
                 const { name, message, kind } = answer.thrown;
