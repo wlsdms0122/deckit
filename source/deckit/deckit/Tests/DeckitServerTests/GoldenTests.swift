@@ -47,6 +47,18 @@ struct GoldenTests {
         (StateError.reserved("keys"), "RESERVED"),
     ]
 
+    private static let stages: [(any Refusal, String)] = [
+        (ModFolderError.notLoadable("p"), "read"),
+        (LaunchError.relaunchLimit("a"), "launch"),
+        (LaunchError.timedOut(mod: "a", problem: "late"), "launch"),
+        (LaunchError.notLaunched(mod: "a", problem: "threw"), "launch"),
+        (LaunchError.notPermitted(mod: "a", permission: "deckit.mods"), "call"),
+        (LaunchError.notInstalled("a"), "call"),
+        (InstallError.nested, "call"),
+        (InstallError.readInPlace(id: "a", folder: "/a"), "call"),
+        (RecordError.notAKey("k"), "call"),
+    ]
+
     private let root = FileManager.default.temporaryDirectory.appending(path: "golden-tests-\(UUID().uuidString)")
 
     // MARK: - Initializer
@@ -98,6 +110,16 @@ struct GoldenTests {
         #expect(sut.kind == kind)
         #expect(sut.code == .requestFailed)
         #expect(sut.message == refusal.message)
+    }
+
+    @Test("a refusal crosses with the stage it is refused at", arguments: stages)
+    func refusalHasItsStage(refusal: any Refusal, stage: String) {
+        // Given
+        // When
+        let sut = ResponseError(refusing: refusal)
+
+        // Then
+        #expect(sut.stage == stage)
     }
 
     // MARK: - Private

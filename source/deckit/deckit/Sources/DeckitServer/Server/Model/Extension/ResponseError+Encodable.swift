@@ -15,9 +15,10 @@ extension ResponseError: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(code.rawValue, forKey: .code)
         try container.encode(message, forKey: .message)
-        if let kind {
+        if kind != nil || stage != nil {
             var data = container.nestedContainer(keyedBy: DataKeys.self, forKey: .data)
-            try data.encode(kind, forKey: .kind)
+            try data.encodeIfPresent(kind, forKey: .kind)
+            try data.encodeIfPresent(stage, forKey: .stage)
         }
     }
 
@@ -30,5 +31,6 @@ extension ResponseError: Encodable {
 
     private enum DataKeys: String, CodingKey {
         case kind
+        case stage
     }
 }

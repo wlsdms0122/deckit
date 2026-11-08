@@ -123,7 +123,7 @@ struct ServerTests {
         #expect(
             response == (try json(
                 #"{"jsonrpc":"2.0","id":2,"error":{"code":-32803,"message":"not a record key: A","#
-                    + #""data":{"kind":"KEY"}}}"#
+                    + #""data":{"kind":"KEY","stage":"call"}}}"#
             ))
         )
     }
@@ -253,7 +253,8 @@ struct ServerTests {
         #expect(
             response == (try json(
                 #"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"#
-                    + #""message":"the permission deckit.mods is defined twice","data":{"kind":"PERMISSION"}}}"#
+                    + #""message":"the permission deckit.mods is defined twice","#
+                    + #""data":{"kind":"PERMISSION","stage":"call"}}}"#
             ))
         )
     }
@@ -272,7 +273,7 @@ struct ServerTests {
         #expect(
             response == (try json(
                 #"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"#
-                    + #""message":"the manifest field main is defined twice","data":{"kind":"FIELD"}}}"#
+                    + #""message":"the manifest field main is defined twice","data":{"kind":"FIELD","stage":"call"}}}"#
             ))
         )
     }
