@@ -1,0 +1,37 @@
+case = 5
+name = "an-address-opened-to-leave-the-app-where-it-is-opens-so"
+note = "open(url, { activates = false }) hands what opens the address activates false. mod-a opens https://example.com/ so, and the host is handed it not coming to the front."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+of = 2
+handed = true
+args = ["https://example.com/", { activates = false }]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/", activates = false }]

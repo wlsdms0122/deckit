@@ -1,0 +1,37 @@
+case = 5
+name = "a-file-address-opens-outside-the-app-for-a-client-granted-file-handlers"
+note = "A file address no mod opens opens outside the app for a client granted system.file-handlers. mod-a, granted it, opens file:///tmp/a.txt."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+of = 2
+handed = true
+args = ["file:///tmp/a.txt"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "file:///tmp/a.txt", activates = true }]

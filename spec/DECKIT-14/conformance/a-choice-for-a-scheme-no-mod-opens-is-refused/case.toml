@@ -1,0 +1,32 @@
+case = 5
+name = "a-choice-for-a-scheme-no-mod-opens-is-refused"
+note = "choose is refused at call with kind SCHEME where the scheme has no list. mod-a chooses for board, which no mod declares."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "choose"
+of = 2
+handed = true
+args = ["board", { system = true }]
+
+[step.expect]
+refuses = "call"
+kind = "SCHEME"

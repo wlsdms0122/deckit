@@ -1,0 +1,7 @@
+id = "mod-b"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."deckit/urls"]]
+scheme = "https"

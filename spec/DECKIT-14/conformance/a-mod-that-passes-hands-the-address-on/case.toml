@@ -1,0 +1,37 @@
+case = 5
+name = "a-mod-that-passes-hands-the-address-on"
+note = "A mod whose openURL does not answer true passes the address on, here to outside the app. mod-b declares https and answers false, and https://example.com/ opens outside the app."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+of = 2
+handed = true
+args = ["https://example.com/"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/", activates = true }]

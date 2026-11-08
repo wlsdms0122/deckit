@@ -1,0 +1,32 @@
+case = 5
+name = "a-choice-of-a-mod-not-in-the-schemes-list-is-refused"
+note = "choose is refused at call with kind MOD where the mod chosen is not in the scheme's list. mod-b declares board, and mod-a chooses mod-b for https."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "choose"
+of = 2
+handed = true
+args = ["https", { mod = "mod-b" }]
+
+[step.expect]
+refuses = "call"
+kind = "MOD"

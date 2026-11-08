@@ -1,0 +1,30 @@
+case = 5
+name = "a-list-answers-each-scheme-with-the-mods-that-open-it"
+note = "list answers http, https and file, then each scheme a mod declares, then * if a mod declares it, each with what opens it outside the app and its mods, and no entry left out. mod-b declares https with a pattern, board, and *."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+of = 2
+handed = true
+
+[step.expect]
+answers = { schemes = [{ scheme = "http", system = "browser", mods = [{ mod = { id = "mod-c", name = "MOD C" }, patterns = ["*"] }] }, { scheme = "https", system = "browser", mods = [{ mod = { id = "mod-b", name = "MOD B" }, patterns = ["https://example.com/docs*"] }, { mod = { id = "mod-c", name = "MOD C" }, patterns = ["*"] }] }, { scheme = "file", system = "file", mods = [{ mod = { id = "mod-c", name = "MOD C" }, patterns = ["*"] }] }, { scheme = "board", mods = [{ mod = { id = "mod-b", name = "MOD B" }, patterns = ["board:*"] }, { mod = { id = "mod-c", name = "MOD C" }, patterns = ["*"] }] }, { scheme = "*", mods = [{ mod = { id = "mod-c", name = "MOD C" }, patterns = ["*"] }] }], refused = [] }

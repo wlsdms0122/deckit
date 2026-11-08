@@ -1,0 +1,8 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+background = "Opens addresses."
+
+[interfaces]
+uses = { "deckit/urls" = 1 }

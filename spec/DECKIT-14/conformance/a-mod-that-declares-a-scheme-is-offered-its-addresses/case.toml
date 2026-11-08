@@ -1,0 +1,37 @@
+case = 5
+name = "a-mod-that-declares-a-scheme-is-offered-its-addresses"
+note = "An address is offered to the mod that declares its scheme, through openURL on the exports it opens for its id, and open answers true where it takes it. mod-b declares board and opens https://mod-b.test/ outside the app as it takes board:1."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+of = 2
+handed = true
+args = ["board:1"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://mod-b.test/", activates = true }]

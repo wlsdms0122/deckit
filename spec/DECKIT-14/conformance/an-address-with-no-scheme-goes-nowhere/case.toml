@@ -1,0 +1,37 @@
+case = 5
+name = "an-address-with-no-scheme-goes-nowhere"
+note = "An address with no scheme goes to no mod, and open answers false. mod-b declares *, which takes every address, and mod-a opens example.com."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+of = 2
+handed = true
+args = ["example.com"]
+
+[step.expect]
+answers = false
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []
