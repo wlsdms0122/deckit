@@ -6,7 +6,6 @@ const { interfacesSection } = require('./sections/interfaces/interfaces-section.
 const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
 const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
 const { modsSection } = require('./sections/mods/mods-section.js');
-const { onScreen } = require('./screen/on-screen.js');
 const { SECTION_STYLE } = require('./sections/section/section.js');
 const { tableOfContents } = require('./table-of-contents/table-of-contents.js');
 const { urlSchemesSection } = require('./sections/url-schemes/url-schemes-section.js');
@@ -21,7 +20,7 @@ const SERVICES = {
 
 class Settings {
     // What the view has put on screen for the command to reach, while it is attached.
-    screen = onScreen('Settings');
+    screen = null;
 
     // The command its manifest declares to `deckit/commands` is taken from the exports for its id, and runs on the
     // view, failing, saying so, while Settings has no view open.
@@ -30,7 +29,8 @@ class Settings {
             connect: () => ({
                 runCommand: async (id, args) => {
                     if (id !== 'show-settings-of') throw new Error(`Settings has no command ${id}`);
-                    await (await this.screen.reach()).showSettingsOf(args ?? {});
+                    if (!this.screen) throw new Error('Settings has no view open');
+                    await this.screen.showSettingsOf(args ?? {});
                     return null;
                 },
             }),
@@ -46,6 +46,7 @@ class Settings {
         const services = { keys: null, urls: null, configuration: null, commands: null };
         let shown = false;
         let drawing = 0;
+        let listed = { found: [], running: [], interfaces: [] }; // what deckit.mods.list() last answered
 
         // In every rule of this mod, `line-height` comes after `font`: the shorthand resets it.
         ui.addStyle(`
@@ -85,7 +86,7 @@ class Settings {
             theme: shell.theme,
             configuration: () => services.configuration,
             sources,
-            nameOf: (id) => deckit.mods.list().found.find((mod) => mod.id === id)?.name || id,
+            nameOf: (id) => listed.found.find((mod) => mod.id === id)?.name || id,
         });
         const urlSchemes = urlSchemesSection({ ui, urls: () => services.urls, appName: APP_NAME, onChange: redraw });
         const interfaces = interfacesSection({ ui, mods: deckit.mods });
@@ -182,7 +183,7 @@ class Settings {
             general.draw();
             modSettings.draw();
         });
-        this.screen.set({ showSettingsOf: (args) => showSettingsOf(args, { ready: shell.show }) });
+        this.screen = { showSettingsOf: (args) => showSettingsOf(args, { ready: shell.show }) };
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         // A mod starting or stopping keeps what its run that launched showed (deckit.mods.list()'s `launched`), so a
@@ -190,13 +191,15 @@ class Settings {
         // services draws instead.
         async function redraw() {
             const turn = ++drawing;
-            const [keys, urls, configured, commands] = await Promise.all([
+            const [keys, urls, configured, commands, answered] = await Promise.all([
                 keyboard.read(),
                 urlSchemes.read(),
                 refusedBy('configuration'),
                 refusedBy('commands'),
+                deckit.mods.list(),
             ]);
             if (turn !== drawing) return;
+            listed = answered;
             const { shortcuts } = keys;
             const { schemes } = urls;
             const refused = [
@@ -205,11 +208,11 @@ class Settings {
                 ...keys.refused.map((one) => ({ ...one, interface: SERVICES.keys })),
                 ...urls.refused.map((one) => ({ ...one, interface: SERVICES.urls })),
             ];
-            const { found, running: now, interfaces: interfaceQueues } = deckit.mods.list();
+            const { found, running: now, interfaces: interfaceQueues } = listed;
             const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
             const running = [...now, ...restarting];
             mods.draw({ found, running, shortcuts, schemes, refused });
-            activity.draw(found);
+            activity.draw(listed);
             modSettings.draw();
             urlSchemes.draw(schemes);
             interfaces.draw(interfaceQueues);
@@ -272,7 +275,7 @@ class Settings {
     }
 
     detach() {
-        this.screen.set(null);
+        this.screen = null;
     }
 }
 

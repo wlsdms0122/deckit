@@ -25,8 +25,8 @@ function restartNotice({ ui, mods, appName }) {
     element.append(text, restart.element);
     return { element, draw };
 
-    function draw(found) {
-        const pending = mods.restartPending();
+    async function draw(found) {
+        const pending = await mods.restartPending();
         element.hidden = !pending.length;
         if (!pending.length) return;
         const nameOf = (id) => found.find((mod) => mod.id === id)?.name || id;

@@ -8,7 +8,6 @@ const { goToFolder } = require('./go-to-folder/go-to-folder.js');
 const { iconCache } = require('./icon/icon-cache.js');
 const { listView } = require('./view/list-view.js');
 const { listingCache } = require('./listing/listing-cache.js');
-const { onScreen } = require('./screen/on-screen.js');
 const { parentOf, isInside } = require('./path/path.js');
 const { selectionInput } = require('./file-area/selection-input.js');
 const { settingsOf } = require('./settings/settings.js');
@@ -28,14 +27,18 @@ const PLACES = [
 
 class Finder {
     // What the view has put on screen for the commands to reach, while it is attached.
-    screen = onScreen('Finder');
+    screen = null;
 
     // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the view,
     // and one run while Finder has none open says so.
     start(deckit) {
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Finder has no view open');
+            return this.screen;
+        };
         const commands = {
-            'open-folder': async (args) => (await this.screen.reach()).openFolder(args),
-            'go-to-place': async (args) => (await this.screen.reach()).goToPlace(args),
+            'open-folder': (args) => onScreen().openFolder(args),
+            'go-to-place': (args) => onScreen().goToPlace(args),
         };
         deckit.exports.register({
             connect: () => ({
@@ -55,7 +58,7 @@ class Finder {
         // A file opens through `deckit/urls`, logged while it is not connected; with the default app, outside the app.
         let urls = null;
         const openURL = async (url, { usesDefaultApp }) => {
-            if (usesDefaultApp) return deckit.openExternal(url);
+            if (usesDefaultApp) return deckit.openExternal(url).then(() => true);
             if (urls) return urls.open(url);
             console.warn(`[finder] ${url} did not open: deckit/urls is not connected`);
             return false;
@@ -350,7 +353,7 @@ class Finder {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
-        this.screen.set({ openFolder, goToPlace });
+        this.screen = { openFolder, goToPlace };
 
         // `ready()` is told once the path is found to be there, before Finder goes to it.
         async function openFolder({ path }, { ready = () => {} } = {}) {
@@ -590,7 +593,7 @@ class Finder {
     }
 
     detach() {
-        this.screen.set(null);
+        this.screen = null;
         this.endKeys?.();
         this.endKeys = null;
         this.resizing?.disconnect();

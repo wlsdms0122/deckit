@@ -30,13 +30,13 @@ function switcher({ util, appName, address, modsFor, versions, does }) {
     }
 
     // Inside Open Address the address typed, inside Restart Mod the mods, inside About the versions to copy.
-    function search(query, within) {
+    async function search(query, within) {
         if (within?.action === 'open-address')
             return address
                 .candidatesFor(query)
                 .map(({ value, title }) => ({ label: title, value: { ...within, address: value } }));
         if (within?.action === 'restart-mod')
-            return modsFor(query).map(({ value, title, hint, keywords }) => ({
+            return (await modsFor(query)).map(({ value, title, hint, keywords }) => ({
                 label: title,
                 hint,
                 keywords,

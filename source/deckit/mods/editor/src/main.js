@@ -13,7 +13,6 @@ const { fileTree, TREE_STYLE } = require('./file-tree/file-tree.js');
 const { findInFile } = require('./code/find-in-file.js');
 const { goToLine } = require('./code/go-to-line.js');
 const { nameOf, parentOf, isInside, relativePath } = require('./path/path.js');
-const { onScreen } = require('./screen/on-screen.js');
 const { quickOpen, QUICK_OPEN_STYLE } = require('./quick-open/quick-open.js');
 const { recentFolders } = require('./workspace/recent-folders.js');
 const { replaceMatches } = require('./workspace-search/replace.js');
@@ -34,15 +33,19 @@ class Editor {
     end = null;
 
     // What the view has put on screen for the commands and the addresses to reach, while it is attached.
-    screen = onScreen('Editor');
+    screen = null;
 
     // The commands its manifest declares to `deckit/commands`, and the `file` addresses it declares to `deckit/urls`,
     // each taken from the exports for its id and run on the view. A command run while Editor has no view open says so,
     // and an address that comes then is passed on.
     start(deckit) {
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Editor has no view open');
+            return this.screen;
+        };
         const commands = {
-            open: async (args) => (await this.screen.reach()).goToFile(args, { background: true }),
-            'open-folder': async (args) => (await this.screen.reach()).openFolderAt(args),
+            open: (args) => onScreen().goToFile(args, { background: true }),
+            'open-folder': (args) => onScreen().openFolderAt(args),
         };
         deckit.exports.register({
             connect: () => ({
@@ -53,8 +56,7 @@ class Editor {
                 openURL: async (url, { activates }) => {
                     const path = deckit.filePath(url);
                     if (!path) return false;
-                    const screen = await this.screen.reach().catch(() => null);
-                    return !!screen && screen.openFile(path, { activates });
+                    return !!this.screen && this.screen.openFile(path, { activates });
                 },
             }),
         });
@@ -392,7 +394,7 @@ class Editor {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
-        this.screen.set({ goToFile, openFolderAt, openFile });
+        this.screen = { goToFile, openFolderAt, openFile };
 
         function heardDiskState(file) {
             if (disk.isDirty(file)) drafts.keepSoon();
@@ -715,7 +717,7 @@ class Editor {
     }
 
     detach() {
-        this.screen.set(null);
+        this.screen = null;
         this.endKeys?.();
         this.endKeys = null;
         return this.end?.();

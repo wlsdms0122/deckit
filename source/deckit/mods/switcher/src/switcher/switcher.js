@@ -79,7 +79,7 @@ function switcher(shell, deckit, window, given, { notifications = () => null, co
         const shown = shell.mods.list();
         const actions = [...(await listing), ...(await declared())];
         current.about = {
-            names: new Map(deckit.mods.list().found.map(({ id, name }) => [id, name])),
+            names: new Map((await deckit.mods.list()).found.map(({ id, name }) => [id, name])),
             iconOf: shell.iconOf,
         };
         const used = records.get(USE, {});

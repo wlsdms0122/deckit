@@ -3,7 +3,6 @@ const { bookmarkEditor } = require('./bookmark-editor/bookmark-editor.js');
 const { itemOf } = require('./candidates/candidates.js');
 const { downloadList } = require('./downloads/downloads.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
-const { onScreen } = require('./screen/on-screen.js');
 const { settingsOf } = require('./settings/settings.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
@@ -19,18 +18,22 @@ const NOTICES_KEPT = 100;
 
 class Browser {
     // What the view has put on screen for the commands and the addresses to reach, while it is attached.
-    screen = onScreen('Browser');
+    screen = null;
 
     // The commands its manifest declares to `deckit/commands`, and the `http` and `https` addresses it declares to
     // `deckit/urls`, each taken from the exports for its id and run on the view. A command run while the Browser has
     // no view open says so, and an address that comes then is passed on.
     start(deckit) {
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Browser has no view open');
+            return this.screen;
+        };
         const commands = {
-            'new-tab': async ({ url }) => (await this.screen.reach()).newTab(url),
-            'reopen-tab': async () => (await this.screen.reach()).reopenTab(),
-            'show-notification': async (args) => (await this.screen.reach()).showNotification(args),
-            'switch-to-tab': async (args) => (await this.screen.reach()).switchToTab(args),
-            'open-bookmark': async (args) => (await this.screen.reach()).openBookmark(args),
+            'new-tab': ({ url }) => onScreen().newTab(url),
+            'reopen-tab': () => onScreen().reopenTab(),
+            'show-notification': (args) => onScreen().showNotification(args),
+            'switch-to-tab': (args) => onScreen().switchToTab(args),
+            'open-bookmark': (args) => onScreen().openBookmark(args),
         };
         deckit.exports.register({
             connect: () => ({
@@ -41,8 +44,7 @@ class Browser {
                 openURL: async (url, { activates }) => {
                     const address = parseAddress(url);
                     if (!address) return false;
-                    const screen = await this.screen.reach().catch(() => null);
-                    return !!screen && screen.openURL(address, { activates });
+                    return !!this.screen && this.screen.openURL(address, { activates });
                 },
             }),
         });
@@ -213,7 +215,7 @@ class Browser {
             }),
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
-        this.screen.set({ newTab, reopenTab, showNotification, switchToTab, openBookmark, openURL });
+        this.screen = { newTab, reopenTab, showNotification, switchToTab, openBookmark, openURL };
 
         function home() {
             return parseAddress(settings.get('homepage')) || START;
@@ -351,7 +353,7 @@ class Browser {
     }
 
     detach() {
-        this.screen.set(null);
+        this.screen = null;
         this.endKeys?.();
         this.endKeys = null;
     }

@@ -1,31 +1,34 @@
 const { calendar } = require('./calendar/calendar.js');
 const { calendarView } = require('./calendar/view.js');
 const { notice } = require('./notice/notice.js');
-const { onScreen } = require('./screen/on-screen.js');
 const { settingsOf } = require('./settings/settings.js');
 
 class Calendar {
     // What the view has put on screen for the function side (calendar.js) and the commands to reach, while it is
     // attached.
-    screen = onScreen('Calendar');
+    screen = null;
 
     // The commands its manifest declares to `deckit/commands` are taken from the exports for its id: Send a test runs
     // with no screen, and the others on the view, failing, saying so, while Calendar has no view open.
     start(deckit) {
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Calendar has no view open');
+            return this.screen;
+        };
         const settings = settingsOf();
         deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
         const notices = notice(deckit);
-        this.calendar = calendar({ deckit, settings, screen: () => this.screen.now(), notice: notices });
+        this.calendar = calendar({ deckit, settings, screen: () => this.screen, notice: notices });
         this.sendTest = () => sendTest(deckit, notices);
         const commands = {
             'send-test': this.sendTest,
-            'show-date': async (args) => {
-                const screen = await this.screen.reach();
+            'show-date': (args) => {
+                const screen = onScreen();
                 screen.goToDate(args);
                 screen.reveal();
             },
-            'go-to-date': async (args) => (await this.screen.reach()).goToDate(args),
-            'show-view': async (args) => (await this.screen.reach()).showView(args),
+            'go-to-date': (args) => onScreen().goToDate(args),
+            'show-view': (args) => onScreen().showView(args),
         };
         deckit.exports.register({
             connect: () => ({
@@ -67,11 +70,11 @@ class Calendar {
                 run: this.sendTest,
             })
         );
-        this.screen.set(this.view.screen);
+        this.screen = this.view.screen;
     }
 
     detach() {
-        this.screen.set(null);
+        this.screen = null;
         this.view?.end();
         this.view = null;
     }

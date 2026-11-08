@@ -136,13 +136,10 @@ function interfacesSection({ ui, mods }) {
     // deckit refused.
     function pin(named, id) {
         refusals.delete(named);
-        mods.pin(named, id).then(
-            () => draw(mods.list().interfaces),
-            (error) => {
-                refusals.set(named, error.message || String(error));
-                draw(mods.list().interfaces);
-            }
-        );
+        mods.pin(named, id)
+            .catch((error) => refusals.set(named, error.message || String(error)))
+            .then(() => mods.list())
+            .then(({ interfaces }) => draw(interfaces));
     }
 }
 

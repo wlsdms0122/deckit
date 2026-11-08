@@ -7,7 +7,6 @@ const { liveEditor } = require('./editor/live-editor.js');
 const { menus } = require('./browsing/menus.js');
 const { navigationBar } = require('./navigation/navigation-bar.js');
 const { navigationHistory } = require('./navigation/navigation-history.js');
-const { onScreen } = require('./screen/on-screen.js');
 const { operations } = require('./notes-folder/operations.js');
 const { PARAGRAPH_STYLES } = require('./editor/paragraph-style.js');
 const { parentOf, isWithin, noteNameOf } = require('./notes-folder/path.js');
@@ -28,15 +27,19 @@ class Note {
     end = null;
 
     // What the view has put on screen for the commands to reach, while it is attached.
-    screen = onScreen('Notes');
+    screen = null;
 
     // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the view,
     // and one run while Notes has none open says so.
     start(deckit) {
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Notes has no view open');
+            return this.screen;
+        };
         const commands = {
-            'new-note': async () => (await this.screen.reach()).newNote(),
-            open: async (args) => (await this.screen.reach()).openNoteOf(args),
-            'show-folder': async (args) => (await this.screen.reach()).showFolderOf(args),
+            'new-note': () => onScreen().newNote(),
+            open: (args) => onScreen().openNoteOf(args),
+            'show-folder': (args) => onScreen().showFolderOf(args),
         };
         deckit.exports.register({
             connect: () => ({
@@ -292,7 +295,7 @@ class Note {
             },
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
-        this.screen.set({ newNote: () => fileOperations.newNote(currentFolder()), openNoteOf, showFolderOf });
+        this.screen = { newNote: () => fileOperations.newNote(currentFolder()), openNoteOf, showFolderOf };
 
         // `ready()` is told once the note is reached.
         async function openNoteOf({ id }, { ready = () => {} } = {}) {
@@ -538,7 +541,7 @@ class Note {
     }
 
     detach() {
-        this.screen.set(null);
+        this.screen = null;
         this.endKeys?.();
         this.endKeys = null;
         return this.end?.();

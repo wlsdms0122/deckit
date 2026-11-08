@@ -19,7 +19,7 @@ function activitySection({ ui, mods, onInterfaces }) {
     const runFills = new WeakMap(); // run row -> its fill(mod)
     const backgroundFills = new WeakMap(); // background row -> its fill(mod)
     const refusals = new Map(); // mod id -> why deckit refused what was last asked of it here
-    let found = []; // what deckit last listed
+    let listed = { found: [], interfaces: [] }; // what deckit.mods.list() last answered
 
     ui.addStyle(`
         .settings-activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 12px; }
@@ -51,12 +51,13 @@ function activitySection({ ui, mods, onInterfaces }) {
     runCard.element.insertBefore(runs.element, runCard.none);
     backgroundCard.element.insertBefore(backgrounds.element, backgroundCard.none);
     body.append(runCard.element, backgroundCard.element);
-    setInterval(() => element.isConnected && draw(found), TICK_MS);
+    setInterval(() => element.isConnected && draw(listed), TICK_MS);
     return { element, title: TITLE, keywords: KEYWORDS, draw };
 
-    // `listed` is what deckit.mods.list() answered as `found`.
-    function draw(listed) {
-        found = listed;
+    // `answered` is what deckit.mods.list() answered.
+    function draw(answered) {
+        listed = answered;
+        const { found } = listed;
         const running = runningOf(found);
         const asking = found.filter((mod) => mod.background && !mod.problem);
         runs.set(running);
@@ -141,18 +142,15 @@ function activitySection({ ui, mods, onInterfaces }) {
     // What deckit refused is told on the mod's row, which is drawn again as deckit has it after.
     function ask(id, asked) {
         refusals.delete(id);
-        asked.then(
-            () => draw(mods.list().found),
-            (error) => {
-                refusals.set(id, error.message || String(error));
-                draw(mods.list().found);
-            }
-        );
+        asked
+            .catch((error) => refusals.set(id, error.message || String(error)))
+            .then(() => mods.list())
+            .then(draw);
     }
 
     // Whether the mod owns an interface.
     function ownsInterface(mod) {
-        return mods.list().interfaces.some((queue) => queue.owner === mod.id);
+        return listed.interfaces.some((queue) => queue.owner === mod.id);
     }
 }
 

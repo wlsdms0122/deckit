@@ -73,14 +73,21 @@ function router(deckit) {
 
     // MARK: - Private
     // Whether `url` opened: offered to the mods that open it in turn, the first to answer true taking it, then opened
-    // outside the app where its scheme is opened there. `activates` false leaves the app where it is.
+    // outside the app where its scheme is opened there, which a refusal leaves unopened and logs. `activates` false
+    // leaves the app where it is.
     async function openFor(url, { activates = true } = {}, opensFiles) {
         const address = String(url).trim();
         const options = { activates: activates !== false };
         const route = routeOf(await handlers(), chosen, address, { opensFiles });
         for (const handler of route.handlers) if (await offer(handler.mod, address, options)) return true;
         if (!route.system) return false;
-        return (await deckit.openExternal(address, options)) === true;
+        try {
+            await deckit.openExternal(address, options);
+            return true;
+        } catch (error) {
+            console.warn(`[urls] ${address} did not open outside the app: ${error.message || error}`);
+            return false;
+        }
     }
 
     // Whether the mod `mod` took `address`, reached by its id for the offer: only a plain true takes it. One that is

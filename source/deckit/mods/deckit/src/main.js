@@ -57,8 +57,8 @@ class Deckit {
 
         // One not running is launched. One that does not restart says why: one that did not load, or one stopping. A
         // refusal is told in a notice.
-        function restartMod(id) {
-            const mod = deckit.mods.list().found.find((each) => each.id === id);
+        async function restartMod(id) {
+            const mod = (await deckit.mods.list()).found.find((each) => each.id === id);
             if (!mod) throw new Error(`There is no mod ${id}`);
             if (!mod.run) throw new Error(`${mod.name} did not load: ${mod.problem?.message || 'it cannot start'}`);
             if (mod.run.state === 'terminating') throw new Error(`${mod.name} is stopping`);
@@ -66,8 +66,8 @@ class Deckit {
         }
 
         // Every mod found, each with its state, ranked for `partial` by its name and id.
-        function modsFor(partial) {
-            const candidates = deckit.mods.list().found.map((mod) => ({
+        async function modsFor(partial) {
+            const candidates = (await deckit.mods.list()).found.map((mod) => ({
                 value: mod.id,
                 title: mod.name,
                 hint: !mod.run

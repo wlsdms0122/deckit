@@ -274,9 +274,7 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
 
     // Each folder refused on its own, so one refused leaves the others to install.
     async function dropAndInstall(folders) {
-        const plans = folders.map((from) =>
-            mods.planInstall(from).catch((error) => ({ from, problem: error.message }))
-        );
+        const plans = folders.map((from) => mods.plan(from).catch((error) => ({ from, problem: error.message })));
         askAndInstall(await Promise.all(plans));
     }
 
@@ -395,12 +393,13 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
     }
 
     async function remove(mod, { withData }) {
+        let erased;
         try {
-            await mods.remove(mod.id, withData);
+            ({ erased } = await mods.remove(mod.id, withData));
         } catch (error) {
             return ui.toast('Could not remove: ' + error.message);
         }
-        ui.toast(`Removed ${mod.name}${withData ? ' and its data' : ''}.`);
+        ui.toast(`Removed ${mod.name}${erased ? ' and its data' : ''}.`);
         onChange();
     }
 
