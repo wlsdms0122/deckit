@@ -27,14 +27,6 @@ class Switcher {
     }
 
     attach(shell, deckit) {
-        const window = shell.window.register({
-            content: document.createElement('div'),
-            width: 600,
-            height: 400,
-            overlay: true,
-            didDisappear: () => this.list?.closed(),
-            didResignKey: () => this.list?.putAway(),
-        });
         const given = new Map(); // connection -> the actions its mod set
         // The owners of deckit/notifications and deckit/commands, each while one is connected.
         let notifications = null;
@@ -47,7 +39,7 @@ class Switcher {
             commands = connected;
             return () => (commands = null);
         });
-        this.list = switcher(shell, deckit, window, given, {
+        this.list = switcher(shell, deckit, given, {
             notifications: () => notifications,
             commands: () => commands,
         });

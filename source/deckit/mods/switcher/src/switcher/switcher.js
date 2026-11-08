@@ -11,27 +11,29 @@ const NOW_MAX = 3;
 const NOW_WAIT_MS = 150;
 
 // The list of a Show item for each mod the shell can show, the actions mods set, `given`, by the connection of each,
-// and the actions mods declare to `switcher/actions`, in `window`, the mod's own: `show()` opens it, and `toggle()`
-// opens it or puts it away when it is open. Each open reads the mods and their actions anew. It stays until the
-// keyboard goes elsewhere: Escape, a mod coming on screen, another app. `end()` drops the list. `notifications()` and
-// `commands()` are the owners of deckit/notifications and deckit/commands while one is connected, or null. The mods
-// to show and their names are read with deckit.mods: `shell.mods.list()` and `open(id)`, and `deckit.mods.list()`.
-function switcher(shell, deckit, window, given, { notifications = () => null, commands = () => null } = {}) {
+// and the actions mods declare to `switcher/actions`, over an overlay window of its own: `show()` opens it, and
+// `toggle()` opens it or puts it away when it is open. Each open reads the mods and their actions anew. It stays until
+// the keyboard goes elsewhere: Escape, a mod coming on screen, another app. `end()` drops the list.
+// `notifications()` and `commands()` are the owners of deckit/notifications and deckit/commands while one is
+// connected, or null. The mods to show and their names are read with deckit.mods: `shell.mods.list()` and `open(id)`,
+// and `deckit.mods.list()`.
+function switcher(shell, deckit, given, { notifications = () => null, commands = () => null } = {}) {
     const records = deckit.storage.records;
     const drawing = { ui: shell.ui, theme: shell.theme, util: deckit.util }; // what the list is drawn and ranked with
-    let open = null; // the list on screen, or on its way: { list, about, submenus }
+    let open = null; // the list on screen, or on its way: { list, window, about, submenus }
 
-    return { show, toggle, putAway, closed, end };
+    return { show, toggle, putAway, end };
 
     function toggle() {
         if (open) return putAway();
         show();
     }
 
-    // The window comes once the list is drawn in it, and goes with it: the two are one thing on screen.
+    // The window comes once the list is drawn over it, and goes with it: the two are one thing on screen. A window that
+    // closes or resigns key where the list did not ask takes the list with it.
     async function show() {
         if (open) return;
-        const current = { list: null, about: null, submenus: new Map() };
+        const current = { list: null, window: null, about: null, submenus: new Map() };
         open = current;
         let supplied;
         try {
@@ -48,7 +50,18 @@ function switcher(shell, deckit, window, given, { notifications = () => null, co
             onQuery: (raw, submenu) => search(current, raw, submenu),
             onClose: () => open === current && putAway(),
         });
-        window.open();
+        current.window = shell.windows.open({
+            name: 'main',
+            content: document.createElement('div'),
+            level: 'overlay',
+            width: 600,
+            height: 400,
+            didResignKey: () => open === current && putAway(),
+            didClose: () => {
+                current.window = null;
+                if (open === current) putAway();
+            },
+        });
         supplied.later.then((items) => open === current && current.list.model.setNow(items));
     }
 
@@ -57,12 +70,7 @@ function switcher(shell, deckit, window, given, { notifications = () => null, co
         const current = open;
         open = null;
         current.list?.close();
-        window.close();
-    }
-
-    // The window was put away where it was not asked to: the list goes with it.
-    function closed() {
-        if (open) putAway();
+        current.window?.close();
     }
 
     function end() {

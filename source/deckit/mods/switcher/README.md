@@ -40,7 +40,7 @@ An action, as the first three answer it:
 | `value` | what `run` is given. An action with none is read only |
 | `opens` | it opens a list of its own (`search(query, value)`) |
 
-The picked action's row shows it running, then done or failed. The list stays until the keyboard leaves it, and a throw that comes once it has gone is posted to `deckit/notifications` (MOD.md, Standard interfaces), with nothing to bring forward, or only logged while no mod owns it. Whether the mod comes on screen is its own to ask, with `shell.show()` ([GUIDELINES.md](../../../../document/GUIDELINES.md), The switcher): the shell putting it on screen takes the keyboard from the switcher, which goes. The switcher ranks what was picked before by the mod and the `value`, so an action keeps one `value`.
+The picked action's row shows it running, then done or failed. The list stays until the keyboard leaves it, and a throw that comes once it has gone is posted to `deckit/notifications` (MOD.md, Standard interfaces), with nothing to bring forward, or only logged while no mod owns it. Whether the mod comes on screen is its own to ask, with its window's `orderFront()` ([GUIDELINES.md](../../../../document/GUIDELINES.md), The switcher): the shell putting it on screen takes the keyboard from the switcher, which goes. The switcher ranks what was picked before by the mod and the `value`, so an action keeps one `value`.
 
 ## Declaring actions
 
@@ -61,7 +61,7 @@ A declared action has the fields of one set over a connection but `value`, `open
 
 ## The mods to show
 
-The Show items are the mods the shell's Dock lists, every mod with a view (`shell.mods.list()`), and picking one puts it on screen as the person opens it (`shell.mods.open(id)`), which launches it if it does not run. Each section is named by its mod's name, read with `deckit.mods.list()`. All three are under `deckit.mods`.
+The Show items are the mods the shell's Dock lists, every app mod (`shell.mods.list()`), and picking one puts it on screen as the person opens it (`shell.mods.open(id)`), which launches it if it does not run. Each section is named by its mod's name, read with `deckit.mods.list()`. All three are under `deckit.mods`.
 
 ## Commands and keys
 
@@ -71,7 +71,7 @@ Declared in the manifest to `deckit/commands` and `deckit/keys` (see the Command
 |---|---|---|---|
 | `show` | Show Switcher | ⌥Space, in every app | opens the list, and leaves it open when it is |
 
-The list and its window are made in `attach`, so `show` opens the list only once `attach` has run on the same run; run before that, or on a host with no shell, it fails, saying so.
+The list is made in `attach`, and its window opens as it shows, so `show` opens the list only once `attach` has run on the same run; run before that, or on a host with no shell, it fails, saying so.
 
 ## Permissions
 

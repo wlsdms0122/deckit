@@ -45,10 +45,17 @@ async function main() {
             },
         },
     };
-    const shell = { ui: {}, theme: {}, iconOf: () => '', mods: { list: () => [], open: async () => {} } };
-    const window = { open: () => {}, close: () => {} };
+    // The page's document and the shell's windows, each window opened answering one to close.
+    global.document = { createElement: () => ({}) };
+    const shell = {
+        ui: {},
+        theme: {},
+        iconOf: () => '',
+        mods: { list: () => [], open: async () => {} },
+        windows: { open: () => ({ close: () => {} }) },
+    };
     const given = new Map([[{ mod: { id: 'a', name: 'A' } }, { list: () => [{ label: 'Set', value: 1 }] }]]);
-    const list = switcher(shell, deckit, window, given, { commands: () => commands });
+    const list = switcher(shell, deckit, given, { commands: () => commands });
 
     await list.show();
     const items = opened[0]?.items ?? [];
