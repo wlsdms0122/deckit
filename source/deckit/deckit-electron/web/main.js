@@ -9,18 +9,21 @@ import { storeOf } from '../webkit/index.js';
 import { CHANNEL } from '../messages/main.js';
 
 // The web pages a mod's page shows, as the Electron environment shows them (deckit-shell/environment: MAIN.web), on
-// WebKit: laid just over the mod's page, over the element that holds a web page's place in it, or alone in a window of
-// the app's, each in a session of the mod's, kept in a data store of its own. `MESSAGES` carries what the mod's page
-// says of them, `relayOf(page)` lays a page's web pages again where it is shown, and `WINDOWS.openForStage` asks the
-// host app for a window.
-export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
+// WebKit: laid just over the document the element that holds a web page's place is in, the mod's page or a surface it
+// opened, or alone in a window of the app's, each in a session of the mod's, kept in a data store of its own.
+// `MESSAGES` carries what the mod's page says of them, `relayOf(page)` lays a page's web pages again where it is shown,
+// `WINDOWS.openForStage` asks the host app for a window, and `surfaceOf(page, name)` is the surface a page opened by
+// that name.
+export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf }) {
     // MARK: - Property
     const windows = new Map(); // window page id -> { window, embedder }
     const PARTITION = createPartition({ CONFIG });
     const REGISTRY = createRegistry();
     const embedders = new WeakSet(); // the mods' pages that show web pages
     const pages = new Map(); // id -> a web page deck holds
-    const layouts = new Map(); // id -> where its mod's page last said it shows, { frame, visible }
+    // id -> where its mod's page last said it shows, { frame, visible, over }, `over` the page its element is in: the
+    // mod's page, a surface it opened, or null for a surface no longer open
+    const layouts = new Map();
     // The windows web pages opened that are handed to their mod's page, until it shows them as elements.
     const handed = new Map(); // id -> the mod's page
     let deck = null; // what deck answers and is told (listen)
@@ -168,24 +171,31 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
             const page = pageOf(id);
             return page && REGISTRY.get(id)?.embedder === sender ? page : null;
         };
+        // The page the element of web page `id` is in, which has the keyboard back from it.
+        const holding = (sender, id) => layouts.get(id)?.over || sender;
         MESSAGES.on(CHANNEL.webShow, (sender, { partition, url, page }) => show(sender, { partition, url, page }));
-        // One not shown hands the keyboard to its mod's page.
-        MESSAGES.on(CHANNEL.webPlace, (sender, layout) => {
-            const page = ownPage(sender, layout.id);
+        // One not shown hands the keyboard to the page its element is in.
+        MESSAGES.on(CHANNEL.webPlace, (sender, { id, frame, visible, surface }) => {
+            const page = ownPage(sender, id);
             if (!page) return;
-            layouts.set(page.id, layout);
-            if (!layout.visible && page.isFocused()) sender.focus();
-            STAGES.relayOf(sender);
+            const was = layouts.get(id)?.over;
+            const over = surface === undefined ? sender : surfaceOf(sender, String(surface));
+            layouts.set(id, { frame, visible, over });
+            if (!visible && page.isFocused()) holding(sender, id).focus();
+            if (was && was !== over) STAGES.relayOf(was);
+            if (over) STAGES.relayOf(over);
         });
         MESSAGES.on(CHANNEL.webFocus, (sender, { id }) => ownPage(sender, id)?.focus());
-        MESSAGES.on(CHANNEL.webUnfocus, (sender) => sender.focus());
-        // A page that goes with the keyboard hands it to its mod's page, which would otherwise have nowhere to go.
+        MESSAGES.on(CHANNEL.webUnfocus, (sender, { id }) => holding(sender, id).focus());
+        // A page that goes with the keyboard hands it to the page its element was in, which would otherwise have
+        // nowhere to go.
         MESSAGES.on(CHANNEL.webRemove, (sender, { id }) => {
             const page = ownPage(sender, id);
             if (!page) return;
             const focused = page.isFocused();
+            const held = holding(sender, id);
             page.close();
-            if (focused) sender.focus();
+            if (focused) held.focus();
         });
     }
 
@@ -287,7 +297,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         }
         page.once('destroyed', () => {
             pages.delete(id);
-            if (layouts.delete(id)) STAGES.relayOf(modPage);
+            const over = layouts.get(id)?.over;
+            if (layouts.delete(id) && over) STAGES.relayOf(over);
         });
         const loadURL = page.loadURL;
         page.loadURL = (url) => {
@@ -336,28 +347,20 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
 
     // A page in a window of the app's, the two going together: the page closes with the window, and a page that
     // closes itself takes its window. The window is titled by the page, and a site's page says which site it is, so a
-    // page cannot pass for another.
+    // page cannot pass for another. The page fills the stage once the host app places it, which a host that lays the
+    // page itself never does.
     function showInWindow(modPage, page, { title = '', size }) {
         let closing = false;
         const stage = STAGES.stage();
-        const fill = () => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]);
-        stage.whenResized(fill);
-        const window = WINDOWS.openForStage({
-            title,
-            size,
-            stage,
-            focus: () => page.focus(),
-            onClose: () => {
-                closing = true;
-                stage.close();
-                page.close();
-            },
-        });
-        fill();
+        stage.whenResized(() => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]));
+        const window = WINDOWS.openForStage({ title, size, page, stage, focus: () => page.focus() });
         windows.set(page.id, { window, embedder: modPage });
         LOG.guard(page, 'changed', () => window.setTitle(labelOf(page)));
         LOG.guard(page, 'close', () => !closing && window.close());
         window.on('close', () => {
+            closing = true;
+            stage.close();
+            page.close();
             windows.delete(page.id);
             deck.closed(modPage, page.id);
         });
@@ -377,11 +380,12 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         });
     }
 
-    // Where a mod's page shows its web pages: each shown one, at its element's rect in the page.
-    function webPagesIn(modPage) {
-        return REGISTRY.pagesIn(modPage).flatMap((page) => {
-            const { frame, visible } = layouts.get(page.id) || {};
-            return visible && frame ? [{ page, frame }] : [];
+    // The web pages shown over `page`, a mod's page or a surface it opened: each whose element is in it, at its rect
+    // there.
+    function webPagesIn(page) {
+        return [...layouts].flatMap(([id, { frame, visible, over }]) => {
+            const shown = over === page && visible && frame && pageOf(id);
+            return shown ? [{ page: shown, frame }] : [];
         });
     }
 

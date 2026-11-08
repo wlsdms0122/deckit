@@ -9,9 +9,11 @@ let made = false;
 // MARK: - Public
 // The environment Electron gives deckit, made once, before the app is ready, and handed to deckit-shell's connect and
 // attach: `preload` is the file the host app put together around deckit's page bundles, `core` the core's executable as
-// the archive holds it, and `host` answers `openWindow({ title, size, place, focus })`, a window of the app's for a
-// page deckit shows on its own, which it opens with `windows`, frames, puts the page in with
-// `place(window, { bounds })` and shows, calling `focus()` as the window takes the keyboard. Answers what deck is given
+// the archive holds it, and `host` answers `openWindow({ title, size, page, place, focus })`, a window of the app's for
+// `page`, a page deckit shows on its own, which it opens with `windows`, frames, puts the page in with
+// `place(window, { bounds })` and shows, calling `focus()` as the window takes the keyboard. A host may lay `page` on a
+// stage of its own instead of placing it; what it answers then is what stands for the window: `setTitle(text)`,
+// `close()` and `on('close', listener)`, told once as it closes. Answers what deck is given
 // (deckit-shell/environment: MAIN), what the shell is (SHELL) and, for the host app alone, `windows`:
 // `open(options) -> window` and `focused()`, the windows pages are laid in (window/index.js).
 function environment({ preload, core, host } = {}) {

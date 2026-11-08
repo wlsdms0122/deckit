@@ -73,12 +73,14 @@ function createEnvironment({ core, preload, openWindow }) {
     const MESSAGES = createMessages();
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
     const STAGES = createStages({ LOG, WEBKIT, idOf: WINDOWS.idOf, webPagesIn: (page) => WEB.webPagesIn(page) });
-    const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS });
-    const MAIN_PROCESS = createMainProcess({ LOG, FOLDER, windowShowing: STAGES.windowShowing });
+    const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf });
+    const MAIN_PROCESS = createMainProcess({ LOG, FOLDER, windowShowing });
     const NOTIFICATIONS = createNotifications({ guard });
     const origins = new WeakMap(); // a page deck made -> its origin
     const mods = new WeakSet(); // the pages mods run in
-    const openings = new WeakMap(); // a page -> { surfaces, opens, name }, what its window.open becomes (openingOf)
+    // a page -> { surfaces, opens, name, opened }, what its window.open becomes (openingOf), `opened` the surfaces
+    // open, by name
+    const openings = new WeakMap();
     const pins = new WeakMap(); // a pinned page -> { address }, the address its first load committed
     let answer = null; // how a load of deck's scheme is answered, once deck serves (serve)
     let script = null; // the preload's source
@@ -101,7 +103,7 @@ function createEnvironment({ core, preload, openWindow }) {
         if (owned) mods.add(page);
         page.run([{ source: (script ??= require('fs').readFileSync(preload, 'utf8')), world: 'deckit' }]);
         page.once('destroyed', () => {
-            for (const surface of openingOf(page).opened) surface.close();
+            for (const surface of openingOf(page).opened.values()) surface.close();
         });
         return page;
     };
@@ -145,6 +147,8 @@ function createEnvironment({ core, preload, openWindow }) {
         dialogs: Object.freeze({ chooseFolders }),
         stage: STAGE,
         fonts: () => WEBKIT.native().fonts(),
+        // What the person set a double click on a title bar to do: `zoom`, `minimize` or `none`, as read at each call.
+        actionOnDoubleClick: () => WEBKIT.native().actionOnDoubleClick(),
         web: Object.freeze({
             listen: WEB.listen,
             embed: WEB.embed,
@@ -247,8 +251,8 @@ function createEnvironment({ core, preload, openWindow }) {
             return WEBKIT.listenerFor({
                 delegate: SURFACE,
                 opened: (surface) => {
-                    held.opened.add(surface);
-                    surface.once('destroyed', () => held.opened.delete(surface));
+                    held.opened.set(name, surface);
+                    surface.once('destroyed', () => held.opened.get(name) === surface && held.opened.delete(name));
                     held.surfaces.opened(name, surface);
                 },
             });
@@ -258,8 +262,19 @@ function createEnvironment({ core, preload, openWindow }) {
 
     function openingOf(page) {
         if (!openings.has(page))
-            openings.set(page, { surfaces: null, opens: new Set(), name: null, opened: new Set() });
+            openings.set(page, { surfaces: null, opens: new Set(), name: null, opened: new Map() });
         return openings.get(page);
+    }
+
+    // The surface `page` opened by `name`, while it is open, or null.
+    function surfaceOf(page, name) {
+        return openings.get(page)?.opened.get(name) || null;
+    }
+
+    // The window a page is shown in, or one a surface it opened is shown in, or null.
+    function windowShowing(page) {
+        const surfaces = [...(openings.get(page)?.opened.values() || [])];
+        return [page, ...surfaces].map(STAGES.windowShowing).find(Boolean) || null;
     }
 
     // What the pages of deck's tell main of themselves.
@@ -272,13 +287,17 @@ function createEnvironment({ core, preload, openWindow }) {
             openingOf(page).name = null;
         });
         MESSAGES.on(CHANNEL.consoleError, (page, { message }) => page.emit('console-error', String(message)));
-        const windowOf = (page) => WINDOWS.idOf(STAGES.windowShowing(page));
-        MESSAGES.on(CHANNEL.drag, (page) => {
-            const id = windowOf(page);
+        // A drag region's press, in the page or in the surface it names.
+        const windowOf = (page, { surface }) => {
+            const shown = surface === undefined ? page : surfaceOf(page, String(surface));
+            return shown ? WINDOWS.idOf(STAGES.windowShowing(shown)) : null;
+        };
+        MESSAGES.on(CHANNEL.drag, (page, body) => {
+            const id = windowOf(page, body);
             if (id !== null) WEBKIT.native().drag(id);
         });
-        MESSAGES.on(CHANNEL.titleBar, (page) => {
-            const id = windowOf(page);
+        MESSAGES.on(CHANNEL.titleBar, (page, body) => {
+            const id = windowOf(page, body);
             if (id !== null) WEBKIT.native().doubleClickTitleBar(id);
         });
     }

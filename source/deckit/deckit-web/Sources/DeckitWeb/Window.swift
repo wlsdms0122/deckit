@@ -23,6 +23,12 @@ final class Window: NSObject {
         case floating
     }
 
+    enum DoubleClickAction: String {
+        case zoom
+        case minimize
+        case none
+    }
+
     let id: Int
     let window: NSWindow
     // Told once, as it closes, after JavaScript is.
@@ -188,16 +194,29 @@ final class Window: NSObject {
     }
 
     // What the person set a double click on a title bar to do.
-    func doubleClickTitleBar() {
+    static var actionOnDoubleClick: DoubleClickAction {
         switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
         case "Minimize":
-            window.miniaturize(nil)
+            .minimize
 
         case "None":
-            break
+            .none
 
         default:
+            .zoom
+        }
+    }
+
+    func doubleClickTitleBar() {
+        switch Self.actionOnDoubleClick {
+        case .zoom:
             window.zoom(nil)
+
+        case .minimize:
+            window.miniaturize(nil)
+
+        case .none:
+            break
         }
     }
 

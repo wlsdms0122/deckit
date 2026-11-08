@@ -30,7 +30,8 @@ import CNodeAPI
 //   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
 //   `windowState(id) -> { fullScreen, zoomed }`; `windowSize(id)`, `setWindowSize(id, size)`, its content's;
 //   `setTitle(id, title)`; `setColor(id, color)`; `keyWindow()`, the window with the keyboard, or null;
-//   `doubleClickTitleBar(id)`; `drag(id)`, moved by the press of the mouse under way, false where none is;
+//   `doubleClickTitleBar(id)`, as `actionOnDoubleClick()` says, what the person set a double click on a title bar to
+//   do: `zoom`, `minimize` or `none`; `drag(id)`, moved by the press of the mouse under way, false where none is;
 //   `previewFile(id, file, title)` and `closeFilePreview(id)`, Quick Look's panel over the window;
 //   `showOpenDialog(id, options) -> Promise of the paths chosen, none when cancelled` and
 //   `showSaveDialog(id, options) -> Promise of the path, or null`, as a sheet on it, `options` NSOpenPanel's (dress).
@@ -40,8 +41,9 @@ import CNodeAPI
 //   from outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
 //   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
-//   clip, input } | { page, hidden: true }])`, `clip` a rect on the stage the page is cut to, `input` the rects in the
-//   page that take the pointer, all of it without; `showStage(id, on)`;
+//   clips, input } | { page, hidden: true }])`, `clips` the rects on the stage the page is cut to, each
+//   `{ x, y, width, height, cornerRadius }`, `input` the rects in the page that take the pointer, all of it without;
+//   `showStage(id, on)`;
 //   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, and
 //   the view with the window's keyboard marked.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
@@ -250,6 +252,9 @@ final class WebEngine {
         case .keyWindow:
             return try node.make(windows.values.first { $0.window.isKeyWindow }?.id)
 
+        case .actionOnDoubleClick:
+            return try node.make(Window.actionOnDoubleClick.rawValue)
+
         case .doubleClickTitleBar:
             try window(0).doubleClickTitleBar()
 
@@ -384,16 +389,22 @@ final class WebEngine {
                 let page = Int(try node.number(id))
                 guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
                 if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
-                    return (laid, nil, nil, nil)
+                    return (laid, nil, [], nil)
                 }
                 guard let frame = try node.member(layer, "frame") else {
-                    throw NodeError(message: "a layer is { page, frame, clip, input } or { page, hidden: true }")
+                    throw NodeError(message: "a layer is { page, frame, clips, input } or { page, hidden: true }")
                 }
+                let clips = try node.member(layer, "clips").map { try node.array($0) } ?? []
 
                 return (
                     laid,
                     try node.rect(frame),
-                    try node.member(layer, "clip").map { try node.rect($0) },
+                    try clips.map { clip in
+                        Stage.Clip(
+                            rect: try node.rect(clip),
+                            cornerRadius: try node.member(clip, "cornerRadius").map { try node.number($0) } ?? 0
+                        )
+                    },
                     try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } }
                 )
             })

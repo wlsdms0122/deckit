@@ -13,10 +13,16 @@ import AppKit
 @MainActor
 final class Stage {
     // MARK: - Property
+    // A rect on the stage a page is cut to, its corners rounded by `cornerRadius`.
+    struct Clip {
+        let rect: CGRect
+        let cornerRadius: CGFloat
+    }
+
     let id: Int
     let view: NSView = StageView()
     private var laid: [WebPage] = [] // the pages it put on screen, in its view or a clip of its own
-    private var clips: [ObjectIdentifier: NSView] = [:] // a page -> the clip it is drawn in
+    private var clips: [ObjectIdentifier: [ClipView]] = [:] // a page -> the clips it is drawn in, outermost first
 
     // MARK: - Initializer
     init(id: Int) {
@@ -52,19 +58,19 @@ final class Stage {
     }
 
     // The pages on the stage, bottom to top, each at its frame, or hidden: kept out of the window, which a page in it
-    // would slow as it resizes. A page with a clip is drawn only inside it, cut there and never resized. A page with an
-    // input region takes the pointer only inside it, its rects from the page's top left. A page left out is taken off,
-    // from this stage alone: one another stage shows since stays where it is.
-    func lay(_ layers: [(page: WebPage, frame: CGRect?, clip: CGRect?, input: [CGRect]?)]) {
-        let shown = layers.compactMap { layer in layer.frame.map { (layer.page, $0, layer.clip, layer.input) } }
+    // would slow as it resizes. A page with clips is drawn only inside each of them, cut there and never resized. A
+    // page with an input region takes the pointer only inside it, its rects from the page's top left. A page left out
+    // is taken off, from this stage alone: one another stage shows since stays where it is.
+    func lay(_ layers: [(page: WebPage, frame: CGRect?, clips: [Clip], input: [CGRect]?)]) {
+        let shown = layers.compactMap { layer in layer.frame.map { (layer.page, $0, layer.clips, layer.input) } }
         let kept = Set(shown.map { ObjectIdentifier($0.0) })
         for page in laid where !kept.contains(ObjectIdentifier(page)) {
             takeOff(page)
         }
         var below: NSView?
-        for (page, frame, clip, input) in shown {
+        for (page, frame, clips, input) in shown {
             page.view.inputRegion = input
-            let item = holder(of: page, frame: frame, clip: clip)
+            let item = holder(of: page, frame: frame, clips: clips)
             if item.superview !== view {
                 view.addSubview(item, positioned: .above, relativeTo: below)
             } else if let index = view.subviews.firstIndex(of: item),
@@ -78,34 +84,46 @@ final class Stage {
     }
 
     // MARK: - Private
-    // The view laid on the stage for `page`: the page's own, or the clip it is drawn in, each at its frame.
-    private func holder(of page: WebPage, frame: CGRect, clip: CGRect?) -> NSView {
+    // The view laid on the stage for `page`: the page's own at its frame, or the outermost of the clips it is drawn in,
+    // each inside the one before it.
+    private func holder(of page: WebPage, frame: CGRect, clips shapes: [Clip]) -> NSView {
         let key = ObjectIdentifier(page)
-        guard let clip else {
-            dropClip(of: page)
+        guard !shapes.isEmpty else {
+            dropClips(of: page)
             if page.view.frame != frame { page.view.frame = frame }
             return page.view
         }
-        let cut = clips[key] ?? ClipView()
-        clips[key] = cut
-        if page.view.superview !== cut { cut.addSubview(page.view) }
-        if cut.frame != clip { cut.frame = clip }
-        let inside = frame.offsetBy(dx: -clip.minX, dy: -clip.minY)
+        if clips[key]?.count != shapes.count {
+            dropClips(of: page)
+            let made = shapes.map { _ in ClipView() }
+            zip(made, made.dropFirst()).forEach { $0.addSubview($1) }
+            clips[key] = made
+        }
+        let cuts = clips[key] ?? []
+        var origin = CGPoint.zero
+        for (cut, shape) in zip(cuts, shapes) {
+            let inside = shape.rect.offsetBy(dx: -origin.x, dy: -origin.y)
+            if cut.frame != inside { cut.frame = inside }
+            cut.cornerRadius = shape.cornerRadius
+            origin = shape.rect.origin
+        }
+        if let last = cuts.last, page.view.superview !== last { last.addSubview(page.view) }
+        let inside = frame.offsetBy(dx: -origin.x, dy: -origin.y)
         if page.view.frame != inside { page.view.frame = inside }
-        return cut
+        return cuts[0]
     }
 
     private func takeOff(_ page: WebPage) {
         page.view.inputRegion = nil
-        if !dropClip(of: page), page.view.superview === view { page.view.removeFromSuperview() }
+        if !dropClips(of: page), page.view.superview === view { page.view.removeFromSuperview() }
     }
 
-    // The clip `page` is drawn in taken off, the page out of it. Answers whether it had one.
+    // The clips `page` is drawn in taken off, the page out of them. Answers whether it had any.
     @discardableResult
-    private func dropClip(of page: WebPage) -> Bool {
-        guard let cut = clips.removeValue(forKey: ObjectIdentifier(page)) else { return false }
-        if page.view.superview === cut { page.view.removeFromSuperview() }
-        cut.removeFromSuperview()
+    private func dropClips(of page: WebPage) -> Bool {
+        guard let cuts = clips.removeValue(forKey: ObjectIdentifier(page)) else { return false }
+        if page.view.superview === cuts.last { page.view.removeFromSuperview() }
+        cuts.first?.removeFromSuperview()
         return true
     }
 }
@@ -115,18 +133,31 @@ private final class StageView: NSView {
     override var isFlipped: Bool { true }
 }
 
-// What a page is cut to: flipped like the stage, drawing nothing, and taking no clicks where its page is not.
+// What a page is cut to: flipped like the stage, drawing nothing, and taking no clicks where its page is not, nor
+// outside its rounded corners.
 private final class ClipView: NSView {
     override var isFlipped: Bool { true }
 
+    var cornerRadius: CGFloat = 0 {
+        didSet { layer?.cornerRadius = cornerRadius }
+    }
+
     override init(frame: CGRect) {
         super.init(frame: frame)
+        wantsLayer = true
+        layer?.masksToBounds = true
         clipsToBounds = true
     }
 
     required init?(coder: NSCoder) { nil }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
+        let inside = convert(point, from: superview)
+        if cornerRadius > 0,
+            !NSBezierPath(roundedRect: bounds, xRadius: cornerRadius, yRadius: cornerRadius).contains(inside)
+        {
+            return nil
+        }
         let hit = super.hitTest(point)
         return hit === self ? nil : hit
     }

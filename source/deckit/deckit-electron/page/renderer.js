@@ -1,12 +1,15 @@
 // What the Electron environment does in a page of deck's before deck's own code runs: where the page, or a surface it
 // opened, marks itself `--app-region: drag`, a press drags the window it is in and a double click does what the person
-// set a title bar's to do, `no-drag` marking what inside it takes presses itself; main hears the name a window.open of
-// deckit's world targets before the window is asked for, which WebKit does not tell; and what the page says as an error
-// is told to main.
+// set a title bar's to do, `no-drag` marking what inside it takes presses itself, unless what draws in that document
+// took its drags (`drags.take`); main hears the name a window.open of deckit's world targets before the window is asked
+// for, which WebKit does not tell, and the name of the surface a drag or a web page's place is in; and what the page
+// says as an error is told to main.
 import { post, request, CHANNEL } from '../messages/renderer.js';
 
 // MARK: - Property
 const REGION = '--app-region';
+const surfaces = new WeakMap(); // a surface's window -> the name it was opened by
+const takers = new WeakMap(); // a document -> pressed(event), what took its drags
 
 // MARK: - Initializer
 // MARK: - Public
@@ -16,14 +19,31 @@ function start() {
     reportErrors();
 }
 
+// The presses in the drag regions of `document`, this page's or a surface it opened, each handed to
+// `pressed(event)`, its `mousedown`, instead of moving the window: the moves and the release that follow are the
+// document's. Answers the off, after which they move the window again.
+function take(document, pressed) {
+    takers.set(document, pressed);
+    return () => takers.get(document) === pressed && takers.delete(document);
+}
+
+// The name of the surface `view` is the window of, or undefined for this page's own.
+function surfaceNameOf(view) {
+    return surfaces.get(view);
+}
+
 // MARK: - Private
-// The left button's press in a drag region: the first drags, the second of a double click is the title bar's.
+// The left button's press in a drag region: the first drags, the second of a double click is the title bar's, each of
+// the window the document is shown in, which main finds by the surface's name.
 function watchDrags(target) {
     target.addEventListener(
         'mousedown',
         (event) => {
             if (event.button !== 0 || !inDragRegion(event.target)) return;
-            post(event.detail === 2 ? CHANNEL.titleBar : CHANNEL.drag, {});
+            const pressed = takers.get(target);
+            if (pressed) return pressed(event);
+            const surface = surfaceNameOf(target.defaultView);
+            post(event.detail === 2 ? CHANNEL.titleBar : CHANNEL.drag, surface === undefined ? {} : { surface });
         },
         true
     );
@@ -40,13 +60,13 @@ function inDragRegion(node) {
 // is the opener's to draw in, so its drag regions are heard here too.
 function wrapOpen() {
     const open = window.open;
-    const watched = new WeakSet();
     window.open = function (url, name, features) {
-        request(CHANNEL.opening, { name: name === undefined ? '' : String(name) }, { sync: true });
+        const target = name === undefined ? '' : String(name);
+        request(CHANNEL.opening, { name: target }, { sync: true });
         try {
             const opened = open.call(this, url, name, features);
-            if (opened && !watched.has(opened)) {
-                watched.add(opened);
+            if (opened && !surfaces.has(opened)) {
+                surfaces.set(opened, target);
                 watchDrags(opened.document);
             }
             return opened;
@@ -68,4 +88,4 @@ function reportErrors() {
     window.addEventListener('unhandledrejection', (event) => report(event.reason?.stack || event.reason));
 }
 
-export { start };
+export { start, take, surfaceNameOf };
