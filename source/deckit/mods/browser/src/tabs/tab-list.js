@@ -84,15 +84,9 @@ function tabList({
         return insert(tabOf(url, { title, icon }), { background, parent, index });
     }
 
-    // `target` is the window the address is opened in: a second request for it reuses the tab that answered the first.
-    function open(url, { activates = true, target = '' } = {}) {
-        const named = target && nodes.items().find((tab) => tab.target === target);
-        if (named) {
-            navigate(named, url);
-            if (activates) select(named);
-            return;
-        }
-        Object.assign(add(url, { background: !activates }), { target });
+    // An address another mod asked to open, in a new tab at the end, in front unless `activates` is false.
+    function open(url, { activates = true } = {}) {
+        add(url, { background: !activates });
     }
 
     // The window a tab's page opened, as a tab after it, and after the tabs it opened just before, in its folder.
@@ -301,8 +295,6 @@ function tabList({
             loading: false,
             canGoBack: false,
             canGoForward: false,
-            // The window name an address was opened in, which a later request for the same name reuses.
-            target: '',
             // The tab whose page opened this one.
             opener: null,
             audible: false,

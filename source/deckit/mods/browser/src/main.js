@@ -1,24 +1,59 @@
-const { parseAddress, hostOf, placeOf } = require('./address/address.js');
+const { parseAddress, hostOf } = require('./address/address.js');
 const { bookmarkEditor } = require('./bookmark-editor/bookmark-editor.js');
-const { candidatesOf, itemOf } = require('./candidates/candidates.js');
+const { itemOf } = require('./candidates/candidates.js');
 const { downloadList } = require('./downloads/downloads.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
+const { onScreen } = require('./screen/on-screen.js');
+const { settingsOf } = require('./settings/settings.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
 const { startPage } = require('./start-page/start-page.js');
 const { store } = require('./store/store.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
-const { START, tabList, tabLabel } = require('./tabs/tab-list.js');
+const { START, tabList } = require('./tabs/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
+const { viewKeys } = require('./keys/keys.js');
 
 // The sites' notifications kept for a press, the latest.
 const NOTICES_KEPT = 100;
 
 class Browser {
+    // What the view has put on screen for the commands and the addresses to reach, while it is attached.
+    screen = onScreen('Browser');
+
+    // The commands its manifest declares to `deckit/commands`, and the `http` and `https` addresses it declares to
+    // `deckit/urls`, each taken from the exports for its id and run on the view. A command run while the Browser has
+    // no view open says so, and an address that comes then is passed on.
+    start(deckit) {
+        const commands = {
+            'new-tab': async ({ url }) => (await this.screen.reach()).newTab(url),
+            'reopen-tab': async () => (await this.screen.reach()).reopenTab(),
+            'show-notification': async (args) => (await this.screen.reach()).showNotification(args),
+            'switch-to-tab': async (args) => (await this.screen.reach()).switchToTab(args),
+            'open-bookmark': async (args) => (await this.screen.reach()).openBookmark(args),
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Browser has no command ${id}`);
+                    await commands[id](args ?? {});
+                },
+                openURL: async (url, { activates }) => {
+                    const address = parseAddress(url);
+                    if (!address) return false;
+                    const screen = await this.screen.reach().catch(() => null);
+                    return !!screen && screen.openURL(address, { activates });
+                },
+            }),
+        });
+    }
+
     attach(shell, deckit) {
         const { theme, ui } = shell;
-        const { storage, configuration } = deckit;
+        const { storage } = deckit;
         const { values, records } = storage;
+        const settings = settingsOf();
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
 
         let shown = false;
         // The owner of deckit/notifications while one is connected, and the sites' notifications posted to it, by the
@@ -94,7 +129,7 @@ class Browser {
         });
         const sidePanel = sidebar({
             ui,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             clipboard: deckit.clipboard,
             values,
             bookmarks,
@@ -121,57 +156,41 @@ class Browser {
         tabs.restore();
         showBookmarks();
 
+        // The view's own keys, while it is in front.
+        const keys = viewKeys(
+            {
+                newTab: { key: 'mod+t', run: () => newTab() },
+                reopenTab: { key: 'mod+shift+t', run: reopenTab },
+                find: { key: 'mod+f', run: openFind },
+                closeTab: { key: 'mod+w', run: closeTab },
+                address: { key: 'mod+l', run: editAddress },
+                reload: { key: 'mod+r', run: reload },
+                back: { key: 'mod+[', run: goBack },
+                forward: { key: 'mod+]', run: goForward },
+                ...Object.fromEntries(
+                    [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
+                        `tab${number}`,
+                        { key: `mod+${number}`, run: () => showTab(number - 1) },
+                    ])
+                ),
+                lastTab: { key: 'mod+9', run: () => showTab(-1) },
+            },
+            { log: 'browser' }
+        );
+        this.endKeys = () => keys.listen(false);
+
         shell.view.register({
             content,
             sidebar: sidePanel.element,
             didAppear() {
                 shown = true;
+                keys.listen(true);
                 prompter.askPending(tabs.front());
             },
             didDisappear() {
                 shown = false;
+                keys.listen(false);
             },
-        });
-
-        deckit.commands.register({
-            'new-tab': { run: ({ url } = {}) => newTab(url) },
-            'reopen-tab': { run: reopenTab },
-            'show-notification': { run: showNotification },
-            'switch-to-tab': {
-                run: switchToTab,
-                complete: (_param, partial) => candidatesOf(tabs.tree(), tabLabel, partial, deckit.util),
-            },
-            'open-bookmark': {
-                run: openBookmark,
-                complete: (_param, partial) =>
-                    candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), partial, deckit.util),
-            },
-        });
-
-        deckit.keys.register({
-            newTab: { label: 'New Tab', key: 'mod+t', run: () => newTab() },
-            reopenTab: { label: 'Reopen Closed Tab', key: 'mod+shift+t', run: reopenTab },
-            find: { label: 'Find in Page', key: 'mod+f', run: openFind },
-            closeTab: { label: 'Close Tab', key: 'mod+w', run: closeTab },
-            address: { label: 'Edit Address', key: 'mod+l', run: editAddress },
-            reload: { label: 'Reload', key: 'mod+r', run: reload },
-            back: { label: 'Back', key: 'mod+[', run: goBack },
-            forward: { label: 'Forward', key: 'mod+]', run: goForward },
-            ...Object.fromEntries(
-                [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
-                    `tab${number}`,
-                    { label: `Tab ${number}`, key: `mod+${number}`, run: () => showTab(number - 1) },
-                ])
-            ),
-            lastTab: { label: 'Last Tab', key: 'mod+9', run: () => showTab(-1) },
-        });
-
-        deckit.urls.register((url, { activates = true, target = '' } = {}) => {
-            const address = parseAddress(url);
-            if (!address) return false;
-            if (activates) shell.show();
-            tabs.open(address, { activates, target: String(target || '') });
-            return true;
         });
 
         const actions = switcher({
@@ -194,9 +213,10 @@ class Browser {
             }),
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        this.screen.set({ newTab, reopenTab, showNotification, switchToTab, openBookmark, openURL });
 
         function home() {
-            return parseAddress(configuration.get('homepage')) || START;
+            return parseAddress(settings.get('homepage')) || START;
         }
 
         function showTabs() {
@@ -251,10 +271,22 @@ class Browser {
             tabs.close(tabs.front());
         }
 
-        // The page goes to the address typed, or searches for the text, and takes the keyboard.
+        // An address another mod asked to open, in a new tab, in front unless `activates` is false.
+        function openURL(address, { activates }) {
+            const front = activates !== false;
+            if (front) shell.show();
+            tabs.open(address, { activates: front });
+            return true;
+        }
+
+        // The page goes to the address typed, or searches for the text, and takes the keyboard. Words typed before the
+        // settings are read are searched nowhere.
         function go(text) {
             const tab = tabs.front();
-            tabs.navigate(tab, parseAddress(text) || configuration.get('searchEngine') + encodeURIComponent(text));
+            const address = parseAddress(text);
+            const engine = settings.get('searchEngine');
+            if (!address && !engine) return;
+            tabs.navigate(tab, address || engine + encodeURIComponent(text));
             tab.page.focus();
         }
 
@@ -288,23 +320,18 @@ class Browser {
             if (!notifications) return;
             const site = hostOf(tab.url);
             const key = String(++noticeSequence);
-            let token = null;
+            notices.set(key, notification);
+            for (const old of [...notices.keys()].slice(0, -NOTICES_KEPT)) notices.delete(old);
             try {
-                token = await deckit.commands.tokens.mint('show-notification', {
-                    tab: String(tab.id),
-                    notification: key,
-                });
-                notices.set(key, notification);
-                for (const old of [...notices.keys()].slice(0, -NOTICES_KEPT)) notices.delete(old);
                 await notifications.post({
                     title: notification.title || site,
                     body: notification.body ? notification.body + ' · ' + site : site,
                     silent: notification.silent,
-                    token,
+                    command: 'show-notification',
+                    args: { tab: String(tab.id), notification: key },
                 });
             } catch {
                 notices.delete(key);
-                if (token) deckit.commands.tokens.cancel(token).catch(() => {});
             }
         }
 
@@ -321,6 +348,12 @@ class Browser {
         function notAnAddress(text) {
             ui.dialog({ title: 'Not a web address', message: text, confirmLabel: 'OK', cancelLabel: null });
         }
+    }
+
+    detach() {
+        this.screen.set(null);
+        this.endKeys?.();
+        this.endKeys = null;
     }
 }
 
