@@ -1,8 +1,8 @@
 // The conformance host's layer over deckit on each mod's page, a script the preload runs as it is: its lifecycle keeps
 // the handle `deckit` it is handed while it has started, and each request main hands it is made through that handle,
 // or through what an earlier call answered, as the mod's code makes one (spec/DECKIT-1: the input call). It keeps what
-// each call answered, by the call's place, each call of a listener it hands a request, for the look heard, and what
-// each listener was last handed, by the place of the call that handed it.
+// each call answered, by the call's place, each call of the listener it hands a request, for the look heard, and the
+// first value the listener was last called with, which a call that writes handed is made through.
 function conformanceLayer({ channels }) {
     let handle = null;
     // A request through the system after a call, so that what the call sent it, an event among it, is told before the
@@ -14,33 +14,34 @@ function conformanceLayer({ channels }) {
     };
     const answered = new Map(); // a call's place -> what its request answered, as the run holds it
     const heard = []; // the arguments of each call of a listener, in the order called, each as a step reads it
-    const handed = new Map(); // a call's place -> the first value its listener was last called with, as the run holds it
-    const listenerOf =
-        (step) =>
-        (...args) => {
-            heard.push(args.map((one) => (valueOf(one) === FUNCTION ? null : valueOf(one))));
-            handed.set(step, args[0]);
-        };
+    let called = false; // whether the listener has been called
+    let handed; // the first value the listener was last called with, as the run holds it
+    const listener = (...args) => {
+        heard.push(args.map((one) => (valueOf(one) === FUNCTION ? null : valueOf(one))));
+        called = true;
+        handed = args[0];
+    };
     channels.bind({ channel: 'conformance/heard', to: 'page', reply: true }).handle(() => ({ answers: heard }));
     channels
         .bind({ channel: 'conformance/call', to: 'page', reply: true })
         .handle(async ({ member, args, step, of, listener: hands, handed: from }) => {
-            const held = from ? handed : answered;
-            if (of !== null && !held.has(of))
-                return { none: `step ${of} ${from ? 'handed its listener' : 'answered'} nothing this run holds` };
+            if (of !== null && !answered.has(of)) return { none: `step ${of} answered nothing this run holds` };
+            if (from && !called) return { none: 'the listener has not been called' };
+            const start = from
+                ? 'what the listener was last handed'
+                : of === null
+                  ? 'the handle'
+                  : `what step ${of} answered`;
             let holder = null;
-            let value = of === null ? handle : held.get(of);
+            let value = from ? handed : of === null ? handle : answered.get(of);
             for (const name of member.split('.')) {
                 if (value === null || (typeof value !== 'object' && typeof value !== 'function') || !(name in value))
-                    return {
-                        none: `${of === null ? 'the handle' : `what step ${of} came to`} has no member ${member}`,
-                    };
+                    return { none: `${start} has no member ${member}` };
                 holder = value;
                 value = value[name];
             }
             let came = value;
-            if (typeof value === 'function')
-                came = await value.apply(holder, hands ? [...args, listenerOf(step)] : args);
+            if (typeof value === 'function') came = await value.apply(holder, hands ? [...args, listener] : args);
             else if (args.length || hands) return { none: `${member} holds a value, and is called` };
             settle();
             answered.set(step, came);

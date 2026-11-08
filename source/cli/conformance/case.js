@@ -194,7 +194,7 @@ function stepOf(step, number, format, refuse) {
 }
 
 // `start` first, again only after a `quit`, calls and looks only while the app is started, nothing after a start that
-// is refused, a call's `of` an earlier call of its mod, and `handed` beside an `of` whose call hands a listener.
+// is refused, a call's `of` an earlier call of its mod, and no `of` beside `handed`.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
@@ -202,8 +202,7 @@ function order(steps, refuse) {
         const of = step.of && steps[step.of - 1];
         if (step.of && !(step.of < step.number && of.what === 'call' && of.mod === step.mod))
             refuse(`step ${step.number}: of names no earlier call of ${step.mod}`);
-        if (step.handed && !(of && of.listener))
-            refuse(`step ${step.number}: handed is written with an of that names a call that hands a listener`);
+        if (step.handed && step.of) refuse(`step ${step.number}: handed is written with no of`);
         if (step.kind !== 'input' || step.what === 'call') {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? 'calls' : 'looks'} after a quit`);
             continue;

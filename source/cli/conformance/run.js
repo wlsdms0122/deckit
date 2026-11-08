@@ -33,17 +33,18 @@ async function run(theCase, { folder, hostApp, electron }) {
         if (why) return { outcome: 'not laid out', why: `${name}: ${why}` };
     }
     // The owner of each standard interface `owners` names, as the implementation ships it, marked system, then the
-    // case's own; the host adds each field an owner's manifest writes that the system does not read, before the case's.
+    // case's own; the host adds each field an owner's manifest writes that the system does not read and the case does not
+    // write, before the case's.
     const owners = [];
-    const fields = [];
+    const read = [];
     for (const name of host.owners) {
         const owner = ownerOf(name, path.join(hostApp, 'deckit', 'mods'));
         if (!owner) return { outcome: 'not laid out', why: `the implementation ships no owner of ${name}` };
         owners.push({ folder: owner.folder, system: true });
         for (const field of Object.keys(owner.manifest))
-            if (!MANIFEST.includes(field) && !fields.includes(field)) fields.push(field);
+            if (!MANIFEST.includes(field) && !read.includes(field)) read.push(field);
     }
-    for (const field of host.fields) if (!fields.includes(field)) fields.push(field);
+    const fields = [...read.filter((field) => !host.fields.includes(field)), ...host.fields];
     const ship = [
         ...owners,
         ...host.ship.map((name) => ({ folder: path.join(folder, 'ship', name), system: host.system.includes(name) })),
