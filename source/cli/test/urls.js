@@ -75,6 +75,12 @@ async function main() {
     // What mods declare.
     const mod = (id) => ({ id, name: id[0].toUpperCase() + id.slice(1) });
     const of = (id, entries) => entries.map((entry) => ({ mod: mod(id), entry }));
+    // What a declaring mod is handed as: its id in its credential alone.
+    const declared = ({ mod, entry }) => ({
+        mod: { name: mod.name },
+        credential: { mod: mod.id, permissions: [] },
+        entry,
+    });
     const contributions = [
         ...of('browser', [{ scheme: 'https' }, { scheme: 'http' }, { scheme: 'https' }]),
         ...of('github', [{ scheme: 'https', patterns: ['https://github.com/*'] }]),
@@ -138,7 +144,7 @@ async function main() {
                 asked.push(['release', id]);
             },
         },
-        exports: { contributions: async (name) => (name === 'deckit/urls' ? [...contributions] : []) },
+        exports: { contributions: async (name) => (name === 'deckit/urls' ? contributions.map(declared) : []) },
         events: {
             on: (name, listener) => {
                 if (!heard.has(name)) heard.set(name, []);

@@ -207,8 +207,9 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
         for (const contribution of handed) {
             const action = ACTION.readDeclared(contribution);
             if (!action) continue;
-            if (!byMod.has(contribution.mod.id)) byMod.set(contribution.mod.id, []);
-            byMod.get(contribution.mod.id).push(action);
+            const id = contribution.credential.mod;
+            if (!byMod.has(id)) byMod.set(id, []);
+            byMod.get(id).push(action);
         }
         return [...byMod];
     }

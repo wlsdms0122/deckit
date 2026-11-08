@@ -32,6 +32,12 @@ async function main() {
     const errors = [];
     console.error = (...line) => errors.push(line.join(' '));
 
+    // What a declaring mod is handed as: its id in its credential alone.
+    const declared = ({ mod, entry }) => ({
+        mod: { name: mod.name },
+        credential: { mod: mod.id, permissions: [] },
+        entry,
+    });
     const contributions = [
         { mod: { id: 'calendar', name: 'Calendar' }, entry: { id: 'today', title: 'Show Today', keywords: ['day'] } },
         {
@@ -96,7 +102,7 @@ async function main() {
                 asked.push(['release', id]);
             },
         },
-        exports: { contributions: async (name) => (name === 'deckit/commands' ? [...contributions] : []) },
+        exports: { contributions: async (name) => (name === 'deckit/commands' ? contributions.map(declared) : []) },
         events: {
             on: (name, listener) => {
                 if (!heard.has(name)) heard.set(name, []);

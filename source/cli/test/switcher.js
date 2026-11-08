@@ -41,7 +41,13 @@ async function main() {
         exports: {
             contributions: async (name) => {
                 if (!owns) throw Object.assign(new Error(`does not own ${name}`), { kind: 'NOT_OWNER' });
-                return name === 'switcher/actions' ? contributions : [];
+                return name === 'switcher/actions'
+                    ? contributions.map(({ mod, entry }) => ({
+                          mod: { name: mod.name },
+                          credential: { mod: mod.id, permissions: [] },
+                          entry,
+                      }))
+                    : [];
             },
         },
     };

@@ -84,7 +84,11 @@ async function main() {
         switcher: ['system.global-keys'],
     };
     const credentialOf = (entries) =>
-        entries.map(({ mod, entry }) => ({ mod, credential: { mod: mod.id, permissions: granted[mod.id] }, entry }));
+        entries.map(({ mod, entry }) => ({
+            mod: { name: mod.name },
+            credential: { mod: mod.id, permissions: granted[mod.id] },
+            entry,
+        }));
     const contributions = [
         { mod: calendar, entry: { command: 'today', keystroke: 'mod+shift+t' } },
         { mod: calendar, entry: { command: 'week', keystroke: 'ctrl+alt+w', scope: 'global' } },

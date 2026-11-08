@@ -10,7 +10,7 @@ const TYPES = Object.freeze({
 
 // MARK: - Initializer
 // MARK: - Public
-// The settings in what mods declare to deckit/configuration, as `contributions` answers it, `[{ mod, entry }]`:
+// The settings in what mods declare to deckit/configuration, as `contributions` answers it, `[{ mod, credential, entry }]`:
 // `{ settings, refused }`, `settings` each `{ mod: { id, name }, key, entry }`, `entry` as written, in the mods' order
 // and then the order declared. An entry that cannot be used, or a second of one key from one mod, is left out, in
 // `refused` as `{ mod, entry, problem }`.
@@ -19,7 +19,12 @@ function settingsOf(contributions) {
     const refused = [];
     const keys = new Set(); // "<mod id> <key>"
     const refuse = (mod, entry, problem) => refused.push({ mod: { id: mod.id, name: mod.name }, entry, problem });
-    for (const { mod, entry } of contributions) {
+    for (const {
+        mod: { name },
+        credential,
+        entry,
+    } of contributions) {
+        const mod = { id: credential.mod, name };
         const problem = problemOf(entry);
         if (problem) {
             refuse(mod, entry, `a setting is left out: ${problem}`);

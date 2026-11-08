@@ -6,7 +6,7 @@ const SYSTEM = Object.freeze({ http: 'browser', https: 'browser', file: 'file' }
 
 // MARK: - Initializer
 // MARK: - Public
-// The handlers in what mods declare to deckit/urls, as `contributions` answers it, `[{ mod, entry }]`:
+// The handlers in what mods declare to deckit/urls, as `contributions` answers it, `[{ mod, credential, entry }]`:
 // `{ handlers, refused }`, `handlers` each `{ mod: { id, name }, scheme, patterns }`, a mod that opens the addresses of
 // `scheme` its patterns take, `*` for every scheme, in the mods' order and then the order declared. An entry that
 // cannot be used, a second of one scheme from one mod, or one beside a mod's `*`, is left out, in `refused` as
@@ -16,7 +16,12 @@ function handlersOf(contributions) {
     const refused = [];
     const schemes = new Map(); // mod id -> the schemes it declares
     const refuse = (mod, entry, problem) => refused.push({ mod: { id: mod.id, name: mod.name }, entry, problem });
-    for (const { mod, entry } of contributions) {
+    for (const {
+        mod: { name },
+        credential,
+        entry,
+    } of contributions) {
+        const mod = { id: credential.mod, name };
         const read = readOf(entry);
         if (typeof read === 'string') {
             refuse(mod, entry, `an address entry is left out: ${read}`);

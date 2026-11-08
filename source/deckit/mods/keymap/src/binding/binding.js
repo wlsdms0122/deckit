@@ -18,7 +18,12 @@ function keysOf(contributions, commands) {
     const refused = [];
     const ids = new Set(); // "<mod id> <command id>"
     const refuse = (mod, entry, problem) => refused.push({ mod: { id: mod.id, name: mod.name }, entry, problem });
-    for (const { mod, credential, entry } of contributions) {
+    for (const {
+        mod: { name },
+        credential,
+        entry,
+    } of contributions) {
+        const mod = { id: credential.mod, name };
         const command = isObject(entry)
             ? commands.find((each) => each.mod.id === mod.id && each.id === entry.command)
             : null;

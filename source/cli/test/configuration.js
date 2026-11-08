@@ -89,7 +89,16 @@ async function main() {
         },
     };
     const deckit = {
-        exports: { contributions: async (name) => (name === 'deckit/configuration' ? contributions : []) },
+        exports: {
+            contributions: async (name) =>
+                name === 'deckit/configuration'
+                    ? contributions.map(({ mod, entry }) => ({
+                          mod: { name: mod.name },
+                          credential: { mod: mod.id, permissions: [] },
+                          entry,
+                      }))
+                    : [],
+        },
         storage: { records },
     };
 
