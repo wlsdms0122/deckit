@@ -130,18 +130,21 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         if (run?.refusal) throw refused(run.refusal.stage, run.refusal.kind, run.refusal.message);
     }
 
-    // The mods named terminate. Resolves once each has ended.
+    // The mods named terminate. Resolves once the run each had has ended, whether or not it launches again.
     async function unload(ids) {
         if (!ids.length) return;
+        const ending = ids.map(runOf);
         await ask('runner/unload', { mods: ids });
-        await until(() => ids.every((id) => (runOf(id)?.state ?? 'notRunning') === 'notRunning'));
+        await until(() => ending.every((run) => (run?.state ?? 'notRunning') === 'notRunning'));
     }
 
     // The mod quits as asked, as `unload` ends it: `by` is the id of the mod that asks, refused as `launch` refuses
-    // it, and so is an id no mod is listed under. Resolves once it has ended.
+    // it, and so is an id no mod is listed under. Resolves once the run it had has ended, whether or not it launches
+    // again.
     async function quit(id, by = null) {
+        const ending = runOf(id);
         await ask('runner/quit', by ? { mod: id, by } : { mod: id });
-        await until(() => (runOf(id)?.state ?? 'notRunning') === 'notRunning');
+        await until(() => (ending?.state ?? 'notRunning') === 'notRunning');
     }
 
     // The mods named terminate, or are not running, and then each launches as `launch` does, for `by`, their runs
