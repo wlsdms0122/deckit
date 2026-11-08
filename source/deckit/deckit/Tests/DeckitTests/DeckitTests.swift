@@ -72,7 +72,7 @@ struct DeckitTests {
     func askedLaunchResetsLimit() throws {
         // Given
         try fixture.write("a")
-        try fixture.write("m", permissions: ["deckit.mods"])
+        try fixture.write("m", system: true, permissions: ["deckit.mods"])
         let sut = try fixture.deckit(limit: RelaunchLimit(burst: 1, interval: 10))
         _ = try sut.load(["a", "m"])
         _ = try sut.crashed("a", run: 1, problem: "its page ended")
@@ -106,7 +106,7 @@ struct DeckitTests {
     @Test("deckit defines deckit.mods itself, and refuses it defined again")
     func deckitDefinesModsPermission() throws {
         // Given
-        try fixture.write("m", permissions: ["deckit.mods"])
+        try fixture.write("m", system: true, permissions: ["deckit.mods"])
         let again = Permission(id: "deckit.mods", name: "Mods", description: "to test")
 
         // When
