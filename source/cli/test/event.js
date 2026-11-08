@@ -1,6 +1,6 @@
 // The events of a mod's page (deckit-shell/deckit/event/renderer.js): a page listens only to names its manifest names,
-// its own id, the ids in [dependencies] and the interfaces it uses or provides, and is refused any other. Exits 1 with
-// a line for each check that failed. The packages are ES modules, so they are imported as such.
+// its own id and the interfaces it uses or provides, and is refused any other. Exits 1 with a line for each check that
+// failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -31,7 +31,7 @@ async function main() {
 
     const RUN = {
         number: 1,
-        mod: { id: 'a', dependencies: { b: {} }, uses: { 'c/api': 1 }, provides: { 'a/api': [1] } },
+        mod: { id: 'a', uses: { 'c/api': 1 }, provides: { 'a/api': [1] } },
         deliver: () => {},
         fail: () => {},
     };
@@ -45,17 +45,16 @@ async function main() {
         }
     };
 
-    const named = ['a:status', 'b:status', 'c/api:changed', 'a/api:owner-changed'].map(refused);
+    const named = ['a:status', 'c/api:changed', 'a/api:owner-changed'].map(refused);
     check(
-        'a page hears names of its own id, its dependencies and the interfaces it uses or provides',
+        'a page hears names of its own id and the interfaces it uses or provides',
         named.every((why) => why === null),
         named
     );
     const other = refused('d:status');
     check(
         'a page is refused a name its manifest does not name',
-        other ===
-            'deckit.events.on() hears the names of its own id, its [dependencies] and its interfaces, not "d:status"',
+        other === 'deckit.events.on() hears the names of its own id and its interfaces, not "d:status"',
         other
     );
 
