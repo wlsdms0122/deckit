@@ -275,7 +275,7 @@ struct DeckitTests {
         })
     }
 
-    @Test("a mod reached by id that runs with no exports for it is refused, launched no more, and a new reach connects")
+    @Test("a mod reached by id that runs with no exports for it is refused and launched no more, at each reach")
     func reachOfAModWithoutExportsIsRefused() throws {
         // Given
         try fixture.write("t")
@@ -289,17 +289,13 @@ struct DeckitTests {
         // When
         let started = try sut.started("t", run: 1, contributions: Contribution(exportedIn: [:], awaits: [:]))
         _ = try sut.release("t", from: "r", run: 1, lifecycle: 0)
-        _ = try sut.joined("t", run: 1, contributions: Contribution(exportedIn: ["t": 0], awaits: [:]))
         let again = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
 
         // Then
         #expect(refusals(in: started) == [.notExported(name: "t", principal: "t")])
         #expect(launches(in: started) == [])
+        #expect(refusals(in: again) == [.notExported(name: "t", principal: "t")])
         #expect(launches(in: again) == [])
-        #expect(again.contains { effect in
-            guard case let .connect(connection) = effect else { return false }
-            return connection.name == "t" && connection.client.principal == "r"
-        })
     }
 
     @Test("a lifecycle that waits for a mod is told what a launch of it is refused with, nothing while it may launch")

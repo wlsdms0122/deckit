@@ -163,11 +163,6 @@ public final class Deckit {
         try observed(deck.started(id, run: number, contributions: contributions))
     }
 
-    // What the running `run`th run of `id` contributes now.
-    public func joined(_ id: String, run number: Int, contributions: Contribution) throws -> [Effect] {
-        try observed(deck.joined(id, run: number, contributions: contributions))
-    }
-
     public func report(_ id: String, run: Int, problem: String) throws -> [Effect] {
         try observed(deck.report(id, run: run, problem: problem))
     }
