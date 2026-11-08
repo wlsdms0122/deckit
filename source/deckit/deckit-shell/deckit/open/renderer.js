@@ -20,31 +20,30 @@ function openExternalOf(mod) {
             file && !opensFiles ? `${mod.id} does not have the ${OPEN_PERMISSION.FILE_HANDLERS} permission` : '';
         const signature = [
             ['url', 'string'],
-            ['options', 'object?'],
+            ['options', 'object?', [['activates', 'boolean?']]],
         ];
-        const open = REQUEST.requestOf('openExternal', { denied, signature }, async () => {
-            const activates = options?.activates;
-            const problem = REQUEST.argumentProblem([['options.activates', 'boolean?']], [activates]);
-            if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `openExternal: ${problem}`);
-            await PROTOCOL.open.invoke({ url, activates: activates ?? true });
-        });
+        const open = REQUEST.requestOf('openExternal', { denied, signature }, () =>
+            PROTOCOL.open.invoke({ url, activates: options?.activates ?? true })
+        );
         return open(url, options);
     };
 }
 
-function reveal(file) {
-    return PROTOCOL.reveal.invoke({ file: String(file) });
+// `path` shown in Finder.
+function reveal(path) {
+    return PROTOCOL.reveal.invoke({ file: path });
 }
 
 // Each part escaped, so a space or a # stays part of the name.
-function fileURL(file) {
-    const written = String(file);
-    return written.startsWith('/') ? 'file://' + written.split('/').map(encodeURIComponent).join('/') : '';
+function fileURL(path) {
+    refuseArguments('fileURL', [['path', 'string']], [path]);
+    return path.startsWith('/') ? 'file://' + path.split('/').map(encodeURIComponent).join('/') : '';
 }
 
 function filePath(url) {
+    refuseArguments('filePath', [['url', 'string']], [url]);
     try {
-        const parsed = new URL(String(url));
+        const parsed = new URL(url);
         if (parsed.protocol !== 'file:' || (parsed.host && parsed.host !== 'localhost')) return '';
         const file = decodeURIComponent(parsed.pathname);
         return file.startsWith('/') ? file : '';
@@ -54,5 +53,10 @@ function filePath(url) {
 }
 
 // MARK: - Private
+// fileURL and filePath answer at once, not with a promise, so they throw the refusal a request rejects with.
+function refuseArguments(name, signature, args) {
+    const problem = REQUEST.argumentProblem(signature, args);
+    if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `${name}: ${problem}`);
+}
 
 export { openExternalOf, reveal, fileURL, filePath };

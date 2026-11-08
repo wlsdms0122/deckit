@@ -29,7 +29,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     // `lifecycles`, the lifecycles it stacks on the run, over those of the layers under it, the lowest first;
     // `over`, what it offers a layer over it;
     // and, for the lowest, `handle`, the name of the handle the runner's members are on, and `mods`, the requests it
-    // adds to `mods`.
+    // adds to `mods`, by name, each `{ signature, send }` as deckit-shell/deckit/request names them.
     // A lifecycle is `{ method, registrations, start(instance, handles, scope), end(instance), join(parts, scope) }`:
     // `method` names it in what a person reads; `registrations`, by name, `{ handle, check }`, what the handles it
     // hands out register beside the runner's own; `start`, which calls the instance with its handles, by name, each of

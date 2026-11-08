@@ -11,7 +11,7 @@ function readText() {
 }
 
 function writeText(text) {
-    return PROTOCOL.writeText.invoke({ text: String(text ?? '') });
+    return PROTOCOL.writeText.invoke({ text });
 }
 
 // MARK: - Private

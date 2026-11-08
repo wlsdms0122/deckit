@@ -88,10 +88,10 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
     // give works in every page of the app still. Answers whether it works where its scope says.
     function take(page, { id, keystroke, scope }) {
         if (!Object.hasOwn(KEYS_PERMISSION.SCOPES, scope))
-            throw new Error(`a chord is taken in ${Object.keys(KEYS_PERMISSION.SCOPES).join(' or ')}, not ${scope}`);
+            throw invalid(`a chord is taken in ${Object.keys(KEYS_PERMISSION.SCOPES).join(' or ')}, not ${scope}`);
         const mod = IDENTITY.modFrom(page, KEYS_PERMISSION.SCOPES[scope]);
         const read = keystrokeOf(keystroke);
-        if (typeof read.code !== 'string' || !read.code) throw new Error('a chord names its key by its code');
+        if (typeof read.code !== 'string' || !read.code) throw invalid('a chord names its key by its code');
         const name = nameOf(read);
         refuseTaken(name);
         if ([...taken.values()].some((one) => one.page === page && one.id === id))
@@ -106,11 +106,15 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         return scope !== 'global' || !!off;
     }
 
+    function invalid(message) {
+        return Object.assign(new Error(message), { stage: 'call', kind: 'INVALID_ARGUMENT' });
+    }
+
     function refuseTaken(name) {
         const holder = taken.get(name);
         if (!holder) return;
         const by = holder.holder ?? (IDENTITY.modOf(holder.page)?.id || 'a mod');
-        throw Object.assign(new Error(`${name} is taken by ${by}`), { kind: 'REFUSED' });
+        throw Object.assign(new Error(`${name} is taken by ${by}`), { stage: 'call', kind: 'REFUSED' });
     }
 
     function release(page, id) {

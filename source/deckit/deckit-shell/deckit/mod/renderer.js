@@ -8,9 +8,9 @@ import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as CONTRIBUTION from '../contribution/renderer.js';
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
-import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYS_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
+import * as REQUEST from '../request/index.js';
 
 // What deckit puts on the runner for a mod's page: the handle `deckit`, the runner's members and the layer's, the
 // lifecycle deckit calls, start() and stop(), and what a layer over deckit stacks a lifecycle of its own with.
@@ -32,8 +32,8 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
             mods: {
                 pick: MOD_FOLDER.pick,
                 reveal: MOD_FOLDER.reveal,
-                restartPending: MAIN_PROCESS.restartPending,
-                restart: RUNTIME.restart,
+                restartPending: { signature: [], send: MAIN_PROCESS.restartPending },
+                restart: { signature: [], send: RUNTIME.restart },
             },
             lifecycles: [
                 {
@@ -76,15 +76,45 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
     // MARK: - Private
     // Deckit's members on a handle, what they make that calls back into the mod's code cut with `scope`: each
     // namespace holds what `runner`, the runner's members, registers in it beside what reaches others'
-    // (deckit-shell/deckit/runner).
+    // (deckit-shell/deckit/runner). A member a permission guards is on it all the same, and refuses a mod without it.
     function membersOf(mod, runner, scope, { mainProcess }) {
         const has = (permission) => mod.permissions.some(({ id }) => id === permission);
+        // The request `name`, refused NOT_PERMITTED unless the mod holds one of `guards`, then for its arguments.
+        const request = (name, { guards = [], signature }, send) => {
+            const denied =
+                guards.length && !guards.some(has)
+                    ? `${mod.id} does not have the ${guards.join(' or ')} permission`
+                    : '';
+            return REQUEST.requestOf(name, { denied, signature }, send);
+        };
         const scoped =
             (subscribe) =>
             (...args) =>
                 scope.add(subscribe(...args));
+        // A chord is guarded by the permission its scope names; a scope that names none, by either.
+        const keyGuards = (options) => {
+            const named = options?.scope ?? 'app';
+            return Object.hasOwn(KEYS_PERMISSION.SCOPES, named)
+                ? [KEYS_PERMISSION.SCOPES[named]]
+                : Object.values(KEYS_PERMISSION.SCOPES);
+        };
+        const takes = [
+            [
+                'keystroke',
+                'object',
+                [
+                    ['code', 'string'],
+                    ['meta', 'boolean?'],
+                    ['control', 'boolean?'],
+                    ['alt', 'boolean?'],
+                    ['shift', 'boolean?'],
+                ],
+            ],
+            ['run', 'function'],
+            ['options', 'object?', [['scope', 'string?']]],
+        ];
         return {
-            web: WEB.forMod({ permissions: mod.permissions.map(({ id }) => id), scoped }),
+            web: WEB.forMod({ request, scoped }),
             util: Object.freeze({
                 match: MATCH.match,
                 matchFields: MATCH.matchFields,
@@ -98,30 +128,41 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
             }),
             exports: Object.freeze({ ...runner.exports, contributions: CONTRIBUTION.contributions }),
             // A chord taken is let go once `scope` is cut.
-            ...(has(KEYS_PERMISSION.APP_KEYS) || has(KEYS_PERMISSION.GLOBAL_KEYS)
-                ? {
-                      keys: Object.freeze({
-                          take: async (keystroke, run, options) => {
-                              const { held, release } = await KEYMAP.take(keystroke, run, options);
-                              return Object.freeze({ held, release: scope.add(release) });
-                          },
-                      }),
-                  }
-                : {}),
+            keys: Object.freeze({
+                take: (...args) =>
+                    request('keys.take', { guards: keyGuards(args[2]), signature: takes }, async (...taken) => {
+                        const { held, release } = await KEYMAP.take(...taken);
+                        return Object.freeze({ held, release: scope.add(release) });
+                    })(...args),
+            }),
             openExternal: OPEN.openExternalOf(mod),
-            ...(has(OPEN_PERMISSION.FILE_HANDLERS) ? { reveal: OPEN.reveal } : {}),
+            reveal: request(
+                'reveal',
+                { guards: [OPEN_PERMISSION.FILE_HANDLERS], signature: [['path', 'string']] },
+                OPEN.reveal
+            ),
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,
             about: RUNTIME.about,
             active: RUNTIME.active,
             clipboard: Object.freeze({
-                ...(has(CLIPBOARD_PERMISSION.CLIPBOARD_READ) ? { readText: CLIPBOARD.readText } : {}),
-                ...(has(CLIPBOARD_PERMISSION.CLIPBOARD_WRITE) ? { writeText: CLIPBOARD.writeText } : {}),
+                readText: request(
+                    'clipboard.readText',
+                    { guards: [CLIPBOARD_PERMISSION.CLIPBOARD_READ], signature: [] },
+                    CLIPBOARD.readText
+                ),
+                writeText: request(
+                    'clipboard.writeText',
+                    { guards: [CLIPBOARD_PERMISSION.CLIPBOARD_WRITE], signature: [['text', 'string']] },
+                    CLIPBOARD.writeText
+                ),
             }),
-            ...(has(NOTIFICATION_PERMISSION.NOTIFICATIONS)
-                ? { notifications: NOTIFICATION.notificationsOf(scope) }
-                : {}),
-            ...(has(MAIN_PROCESS_PERMISSION.MAIN_PROCESS) ? { mainProcess: mainProcess.forScope(scope) } : {}),
+            notifications: NOTIFICATION.notificationsOf(scope, request),
+            mainProcess: request(
+                'mainProcess',
+                { guards: [MAIN_PROCESS_PERMISSION.MAIN_PROCESS], signature: [['path', 'string']] },
+                mainProcess.forScope(scope)
+            ),
         };
     }
 

@@ -6,16 +6,20 @@ import * as DECLARED from './protocol.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
-// A folder the person picks to install, as it would install, or null when they did not pick one. With `multiple`, the
-// folders they pick, each as it would install or, refused, `{ from, problem }`, none when they picked none.
-function pick({ multiple = false } = {}) {
-    return PROTOCOL.pick.invoke({ multiple: !!multiple });
-}
+// The requests deckit adds to `deckit.mods` (mods/renderer.js), each `{ signature, send }`.
+// `pick(options)`: a folder the person picks to install, as it would install, or null when they did not pick one. With
+// `multiple`, the folders they pick, each as it would install or, refused, `{ from, problem }`, none when they picked
+// none.
+const pick = Object.freeze({
+    signature: [['options', 'object?', [['multiple', 'boolean?']]]],
+    send: (options) => PROTOCOL.pick.invoke({ multiple: options?.multiple ?? false }),
+});
 
-// The mod's folder, shown in Finder.
-function reveal(id) {
-    return PROTOCOL.reveal.invoke({ id: String(id) });
-}
+// `reveal(id)`: the mod's folder, shown in Finder.
+const reveal = Object.freeze({
+    signature: [['id', 'string']],
+    send: (id) => PROTOCOL.reveal.invoke({ id }),
+});
 
 // MARK: - Private
 

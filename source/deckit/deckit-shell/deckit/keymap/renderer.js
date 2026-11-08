@@ -31,16 +31,20 @@ export function createKeymap() {
     // what each press does. Resolves to `{ held, release }`: `held` whether it works where its scope says, false for a
     // chord the system did not give, which works in every page of the app still, and `release()` letting it go.
     // Rejects for a chord another mod holds, or a permission the mod does not have.
-    async function take(keystroke, run, { scope = 'app' } = {}) {
-        if (typeof run !== 'function') throw new Error('a chord is taken with a function to run');
-        const { code, meta, control, alt, shift } = keystroke ?? {};
+    async function take({ code, meta, control, alt, shift }, run, options) {
         const id = ++next;
         runs.set(id, run);
         try {
             const held = await PROTOCOL.take.invoke({
                 id,
-                keystroke: { code: String(code ?? ''), meta: !!meta, control: !!control, alt: !!alt, shift: !!shift },
-                scope: String(scope),
+                keystroke: {
+                    code,
+                    meta: meta ?? false,
+                    control: control ?? false,
+                    alt: alt ?? false,
+                    shift: shift ?? false,
+                },
+                scope: options?.scope ?? 'app',
             });
             return { held, release: () => release(id) };
         } catch (error) {

@@ -38,7 +38,7 @@ function createMainProcess({ deliver }) {
     // next time it is asked for.
     function forScope(scope) {
         return (path) =>
-            describedOf(String(path)).then(({ path: started, methods }) => {
+            describedOf(path).then(({ path: started, methods }) => {
                 const proxy = proxyOf(methods, (method, args) => PROTOCOL.call.invoke({ path: started, method, args }));
                 proxy.on = (name, listener) => scope.add(busOf(started).on(name, listener));
                 return deepFreeze(proxy);

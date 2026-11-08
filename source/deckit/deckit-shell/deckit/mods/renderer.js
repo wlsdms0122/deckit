@@ -16,16 +16,18 @@ export function createMods({ RUN }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // `added` is what the layers add, each a request. `onChange(listener)` hears that what `list()` answers may have
-    // changed, once for each change main tells in one go, until its off or until `scope` is cut; for a mod not
-    // granted deckit.mods it throws the refusal.
+    // `added` is what the layers add, each a request `{ signature, send }`. `onChange(listener)` hears that what
+    // `list()` answers may have changed, once for each change main tells in one go, until its off or until `scope` is
+    // cut; for a mod not granted deckit.mods it throws the refusal.
     function tool(added, scope) {
         const { id, permissions } = RUN.mod;
         const granted = permissions.some((permission) => permission.id === MOD_PERMISSION.MODS);
         const denied = granted ? '' : `${id} does not have the ${MOD_PERMISSION.MODS} permission`;
         const request = (name, signature, send) => REQUEST.requestOf(`mods.${name}`, { denied, signature }, send);
         return Object.freeze({
-            ...Object.fromEntries(Object.entries(added).map(([name, send]) => [name, request(name, [], send)])),
+            ...Object.fromEntries(
+                Object.entries(added).map(([name, { signature, send }]) => [name, request(name, signature, send)])
+            ),
             onChange: (listener) => {
                 if (denied) throw REQUEST.refusal('call', 'NOT_PERMITTED', denied);
                 return scope.add(onChange(listener));

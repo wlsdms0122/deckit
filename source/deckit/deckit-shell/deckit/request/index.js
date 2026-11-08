@@ -9,11 +9,12 @@ function refusal(stage, kind, message) {
     return Object.assign(new Error(message), { stage, kind });
 }
 
-// Why `args` do not fit `signature`, or '': `signature` is the parameters in order, each `[name, kind]`, a kind as
-// channel/ names one, optional when it ends in `?`. An argument undefined or null is one left out, and one past the
-// signature is not read.
+// Why `args` do not fit `signature`, or '': `signature` is the parameters in order, each `[name, kind, keys]`, a kind
+// as channel/ kindOf names one or `any`, optional when it ends in `?`, and `keys`, for a table, the signature of its
+// keys. An argument undefined or null is one left out, and one past the signature, or a key past the table's, is not
+// read.
 function argumentProblem(signature, args) {
-    for (const [at, [name, written]] of signature.entries()) {
+    for (const [at, [name, written, keys = []]] of signature.entries()) {
         const optional = written.endsWith('?');
         const kind = optional ? written.slice(0, -1) : written;
         const value = args[at];
@@ -21,7 +22,12 @@ function argumentProblem(signature, args) {
             if (!optional) return `${name} is left out`;
             continue;
         }
-        if (CHANNEL.kindOf(value) !== kind) return `${name} is ${CHANNEL.kindOf(value)}, not ${kind}`;
+        if (kind !== 'any' && CHANNEL.kindOf(value) !== kind) return `${name} is ${CHANNEL.kindOf(value)}, not ${kind}`;
+        const problem = argumentProblem(
+            keys.map(([key, ...rest]) => [`${name}.${key}`, ...rest]),
+            keys.map(([key]) => value[key])
+        );
+        if (problem) return problem;
     }
     return '';
 }

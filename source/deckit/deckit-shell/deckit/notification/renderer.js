@@ -1,6 +1,7 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
+import * as NOTIFICATION_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -21,9 +22,22 @@ export function createNotification() {
         });
     }
 
-    // `notifications` for a handle: a press is heard until `scope` is cut, or the notification is too old to be.
-    function notificationsOf(scope) {
-        const show = async ({ title = '', body = '', silent = false } = {}) => {
+    // `notifications` for a handle, each member made a request with `request` (mod/renderer.js): a press is heard until
+    // `scope` is cut, or the notification is too old to be.
+    function notificationsOf(scope, request) {
+        const signature = [
+            [
+                'notification',
+                'object?',
+                [
+                    ['title', 'string?'],
+                    ['body', 'string?'],
+                    ['silent', 'boolean?'],
+                ],
+            ],
+        ];
+        const show = async (notification) => {
+            const { title, body, silent } = notification ?? {};
             const id = 'notification-' + ++sequence;
             const heard = new Set();
             listeners.set(id, heard);
@@ -34,9 +48,9 @@ export function createNotification() {
             );
             const shown = await PROTOCOL.show.invoke({
                 id,
-                title: String(title),
-                body: String(body),
-                silent: !!silent,
+                title: title ?? '',
+                body: body ?? '',
+                silent: silent ?? false,
             });
             if (!shown) listeners.delete(id);
             return Object.freeze({
@@ -48,7 +62,9 @@ export function createNotification() {
                 },
             });
         };
-        return Object.freeze({ show });
+        return Object.freeze({
+            show: request('notifications.show', { guards: [NOTIFICATION_PERMISSION.NOTIFICATIONS], signature }, show),
+        });
     }
 
     // MARK: - Private
