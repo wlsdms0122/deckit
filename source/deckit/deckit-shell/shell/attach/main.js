@@ -81,7 +81,7 @@ function attach(deckit, environment, { host, config = {} } = {}) {
         OVERLAY.start({ keyboardOf: WINDOWS.keyboardOf });
         REGION.start();
         DROP.start();
-        DESKTOP.start({ WINDOWS });
+        DESKTOP.start({ WINDOWS, DOCK });
         WINDOWS.start();
         DOCK.start();
         host.start({ setTheme: THEME.set, panel: DESKTOP.control });

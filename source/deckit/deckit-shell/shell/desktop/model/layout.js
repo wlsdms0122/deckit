@@ -1,3 +1,5 @@
+import * as DOCK from '../../dock/model/dock.js';
+
 // MARK: - Property
 // A window's frame: the margin its shadow takes around it, the band outside its edge that resizes it, the rounding of
 // its corners, and its title bar, where the window's buttons stand at its top left: `controlsWidth` the width they
@@ -11,8 +13,7 @@ const BUTTONS = Object.freeze(['close', 'minimize', 'zoom']);
 const BUTTON = Object.freeze({ size: 12, gap: 8, inset: 13 });
 // A window is never smaller than its buttons and its title bar.
 const MINIMUM = Object.freeze({ width: TITLE_BAR.controlsWidth + 42, height: TITLE_BAR.height });
-// The sliver of the desktop's left edge the Dock keeps, and how far a new window stands from the key window.
-const DOCK_SLIVER = 6;
+// How far a new window stands from the key window.
 const CASCADE = 24;
 // How much of a window's title bar stays on the desktop, so it can always be dragged back.
 const KEPT = 64;
@@ -26,7 +27,7 @@ function desktopOf(size, strip) {
 
 // Where a zoomed window goes: the desktop but the Dock's sliver.
 function zoomedIn(desktop) {
-    return { ...desktop, x: desktop.x + DOCK_SLIVER, width: Math.max(0, desktop.width - DOCK_SLIVER) };
+    return { ...desktop, x: desktop.x + DOCK.SLIVER, width: Math.max(0, desktop.width - DOCK.SLIVER) };
 }
 
 // The minimum a window has: the one its mod gives, no smaller than its buttons and title bar.
@@ -122,7 +123,6 @@ export {
     BUTTONS,
     BUTTON,
     MINIMUM,
-    DOCK_SLIVER,
     desktopOf,
     zoomedIn,
     minimumOf,

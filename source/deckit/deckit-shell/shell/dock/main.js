@@ -17,8 +17,9 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The Dock: the app mods the person keeps there, running or not, then those running now. A mod with deckit.mods
-    // reads and changes it, and opens a mod as the person does from it.
+    // The Dock: the app mods the person keeps there, running or not, then those running now. The desktop's page draws
+    // it, and what the person does there is done by the seat whose screen it is. A mod with deckit.mods reads and
+    // changes it, and opens a mod as the person does from it, as the local seat.
     function start() {
         // At the first start the Dock's mods take their places in the order they are kept there.
         const kept = deckit.state.read(PINNED, null);
@@ -43,8 +44,17 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         PROTOCOL.open.handle(({ id }, sender) => {
             deckit.mods.managerFrom(sender);
             if (!isApp(id)) throw new Error(`${id} is no app`);
-            open(id);
+            open(id, DESKTOP.localSeat);
         });
+        const bySeat = (handler) => (payload, sender) => {
+            const seat = DESKTOP.seatAt(sender);
+            if (seat) handler(payload, seat);
+        };
+        PROTOCOL.click.on(bySeat(({ id }, seat) => open(id, seat)));
+        PROTOCOL.quit.on(bySeat(({ id }) => quit(id)));
+        PROTOCOL.keep.on(bySeat(({ id, pinned: on }) => setPinned(id, on)));
+        PROTOCOL.reorder.on(bySeat(({ ids }) => arrange(ids)));
+        DESKTOP.update();
     }
 
     // What the Dock shows, `[{ id, name, icon, pinned, running }]`: the app mods kept there, as the person arranged
@@ -59,13 +69,13 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         }));
     }
 
-    // A mod opened as from its Dock item: one that does not run launches; one that runs has its windows come in
-    // front, or, with none open, its instance's reopen(). The host window comes up.
-    function open(id) {
+    // A mod opened from its Dock item by `seat`: one that does not run launches; one that runs has its windows come in
+    // front for that seat, or, with none open, its instance's reopen(). The host window comes up.
+    function open(id, seat) {
         const run = deckit.mods.runOf(id);
         if (!run || (run.state === 'notRunning' && !run.relaunches))
             deckit.mods.launch(id).catch((error) => deckit.log.error(`${id} did not launch`, error));
-        else if (!DESKTOP.activate(id) && run.state === 'running') {
+        else if (!DESKTOP.activate(seat, id) && run.state === 'running') {
             const page = deckit.mods.runs().find((each) => each.run.mod.id === id)?.page;
             if (page) WINDOWS.reopen(page);
         }
@@ -84,6 +94,22 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         if (on) pinned.add(id);
         else pinned.delete(id);
         keep(PINNED, [...pinned]);
+        DESKTOP.update();
+    }
+
+    // The ids named take the places they held among themselves, in the order given; the rest stay put.
+    function arrange(ids) {
+        order = LIST_ORDER.arranged(
+            inOrder().map(({ id }) => id),
+            ids
+        );
+        keep(ORDER, order);
+        DESKTOP.update();
+    }
+
+    // The person quits a mod from its Dock item's menu.
+    function quit(id) {
+        deckit.mods.quit(id).catch((error) => deckit.log.error(`${id} did not quit`, error));
     }
 
     // What the Dock keeps at the first start, in order: the mods the host app names, or else the app mods it ships, in

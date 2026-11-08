@@ -5,6 +5,7 @@ import * as MOD_STYLE from '../style/renderer.js';
 import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
 import * as CHANNEL from '../../deckit/channel/index.js';
+import * as DOCK from '../dock/view.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
@@ -12,7 +13,25 @@ import * as DECLARED from './protocol.js';
 // it just outside it, as model/layout.js partsOf has them.
 const { SHADOW, EDGE, RADIUS, BUTTON, TITLE_BAR } = LAYOUT;
 const STYLE = `
-    .deckit-desktop-strip { position: fixed; top: 0; left: 0; right: 0; --app-region: drag; }
+    .deckit-desktop-strip {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        --app-region: drag;
+    }
+    .deckit-desktop-title {
+        overflow: hidden;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-body);
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     .deckit-desktop-down { position: fixed; inset: 0; display: flex; background: var(--deckit-background); }
     .deckit-desktop-down[hidden] { display: none; }
     .deckit-desktop-backdrop { position: fixed; inset: 0; }
@@ -58,9 +77,10 @@ const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-
 // MARK: - Public
 // The desktop, in the desktop's own page: the backdrop under every window, and each window's frame under its content
 // and its buttons over it, each a document this page opens beside itself and main lays where the window is. The page
-// itself is laid over the whole desktop and takes presses only at the host window's bar, which drags the host
-// window, or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the
-// desktop's channels in the page.
+// itself is laid over the whole desktop, with the Dock at its left edge and the host window's bar at its top, which
+// drags the host window and holds the active mod's name, clear of the host's controls. It takes the pointer only there,
+// or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the desktop's
+// and the Dock's channels in the page.
 function boot(theme, channels) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const ui = KIT.make(theme, { fonts: FONTS.installed({ channels }) });
@@ -74,7 +94,10 @@ function boot(theme, channels) {
     backdropRoot.style.background = `color-mix(in srgb, var(--deckit-background) ${setup.glass * 100}%, transparent)`;
     backdrop.document.body.append(backdropRoot);
 
+    const dock = DOCK.make({ ui, channels, onOut: (out) => PROTOCOL.dock.send({ out }) });
     const strip = element(document, 'div', 'deckit-desktop-strip');
+    const title = element(document, 'span', 'deckit-desktop-title');
+    strip.append(title);
     const down = element(document, 'div', 'deckit-desktop-down');
     const downNote = ui.emptyState({
         actions: [
@@ -82,7 +105,7 @@ function boot(theme, channels) {
         ],
     });
     down.append(downNote.element);
-    document.body.append(strip, down);
+    document.body.append(dock.element, strip, down);
 
     MOD_STYLE.wear({ channels, onChange: () => LAYER.dress() });
     draw();
@@ -92,7 +115,11 @@ function boot(theme, channels) {
     });
 
     function draw() {
-        strip.style.height = state.strip + 'px';
+        strip.style.height = state.strip.height + 'px';
+        strip.style.padding = `0 ${state.strip.controlsWidth}px`;
+        title.textContent = state.title;
+        dock.setTop(state.strip.height);
+        dock.update(state.dock);
         down.hidden = !state.down;
         if (state.down)
             downNote.set({ title: `${state.down.name} needs a restart`, hint: `Its core ${state.down.why}.` });

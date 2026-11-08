@@ -96,6 +96,11 @@ function createWindowManager() {
         window.frame = back ?? fitted(area, window.minimum);
     }
 
+    // Every zoomed window fills `area`, as the desktop it fills changes size.
+    function fitZoomed(area) {
+        for (const window of windows.values()) if (window.zoomed) window.frame = fitted(area, window.minimum);
+    }
+
     // The windows on `seat`'s screen, back to front, without those it minimized: `[{ id, frame }]`.
     function viewOf(seat) {
         const held = seats.get(seat);
@@ -164,6 +169,7 @@ function createWindowManager() {
         minimize,
         setFrame,
         zoom,
+        fitZoomed,
         viewOf,
         keyOf,
         orderOf,

@@ -112,7 +112,10 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         closesWith(page);
         PAGES.allowSurface(page, SURFACE.nameOf(id), (surface) => opened(window, surface));
         if (overlay) float(window);
-        else DESKTOP.open(window);
+        else {
+            DESKTOP.open(window);
+            layOverlayWindowsOf(page);
+        }
         return { id, surface: SURFACE.nameOf(id) };
     }
 
@@ -137,8 +140,10 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
     function close(window) {
         if (windows.get(window.id) !== window) return;
         windows.delete(window.id);
-        if (window.level === NORMAL) DESKTOP.close(window);
-        else sink(window);
+        if (window.level === NORMAL) {
+            DESKTOP.close(window);
+            layOverlayWindowsOf(window.page);
+        } else sink(window);
         if (window.surface) PAGES.close(window.surface);
         if (PAGES.isAlive(window.page)) PROTOCOL.closed.send(window.page, { id: window.id });
     }
@@ -236,6 +241,12 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
         closeWindow(host.control);
         DESKTOP.update();
         for (const other of windows.values()) if (other.host?.stage) lay(other);
+    }
+
+    // The page's overlay windows laid again: the page leaves the one that holds it as it gets a normal window, and is
+    // back as it has none.
+    function layOverlayWindowsOf(page) {
+        for (const other of windows.values()) if (other.page === page && other.host?.stage) lay(other);
     }
 
     // Each page told of its windows as they change.

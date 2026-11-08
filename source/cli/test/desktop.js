@@ -12,6 +12,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 async function main() {
     const WM = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'window-manager.js'));
     const LAYOUT = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'layout.js'));
+    const DOCK = await import(url('deckit-shell', 'shell', 'dock', 'model', 'dock.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -180,8 +181,7 @@ async function main() {
     );
     check(
         "zoomed, a window leaves the Dock's sliver",
-        LAYOUT.zoomedIn(desktop).x === LAYOUT.DOCK_SLIVER &&
-            LAYOUT.zoomedIn(desktop).width === 1000 - LAYOUT.DOCK_SLIVER,
+        LAYOUT.zoomedIn(desktop).x === DOCK.SLIVER && LAYOUT.zoomedIn(desktop).width === 1000 - DOCK.SLIVER,
         LAYOUT.zoomedIn(desktop)
     );
     const parts = LAYOUT.partsOf({ x: 100, y: 100, width: 300, height: 200 });

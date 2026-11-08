@@ -3,6 +3,7 @@ import * as DECLARED from './protocol.js';
 import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
 import * as WM from './model/window-manager.js';
+import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as MODS from '../mods/index.js';
 import { createKey } from '../key/main.js';
@@ -29,6 +30,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // The desktop's page, the documents it opened by name, and what it was last told.
     const desktop = { page: null, surfaces: new Map(), sent: '' };
     let WINDOWS = null;
+    let DOCK = null;
     let stage = null; // where the pages are laid, which the host app places
     let frames = {}; // mod id -> window name -> the frame it was left at
     let moving = null; // { id, from }: the window its content's drag moves, from the frame it had at the press
@@ -36,21 +38,24 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     let shown = false;
     let titled = null; // the title the host was last told
     let down = null; // why deckit's core answers nothing more, once it does not
-    let strip = 0; // how tall the host's bar is over the desktop's top
+    let strip = { height: 0, controlsWidth: 0 }; // the host's bar over the desktop's top
+    let dockOut = false; // whether the Dock is out, as the desktop's page last told
 
     // MARK: - Initializer
     // MARK: - Public
     // The desktop in the host window, the local seat's view of it: the backdrop, the normal windows `WINDOWS` opens in
     // the seat's order, each its content between the frame under it and the buttons over it with the children its
-    // regions show, and the host's bar over the top. Each mod's page with a window there is laid under the backdrop,
-    // at its front window, so what its overlay draws for a window lands over that window.
+    // regions show, and the Dock and the host's bar over them, `DOCK` giving the Dock's items. Each mod's page with a
+    // window there is laid under the backdrop, at its front window, so what its overlay draws for a window lands over
+    // that window.
     function start(given) {
         WINDOWS = given.WINDOWS;
+        DOCK = given.DOCK;
         frames = deckit.state.read(FRAMES, {});
         MANAGER.addSeat(LOCAL);
         KEY.start(pressKey);
         stage = makeStage();
-        stage.whenResized(update);
+        stage.whenResized(resized);
         listen();
         makePage();
         deckit.mods.onChange(update);
@@ -141,13 +146,18 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         else if (action === 'minimize') minimize(window);
     }
 
-    // Each of the mod's windows in front, in the order the local seat had them, minimized ones too, the front one key:
-    // answers whether it has any.
-    function activate(mod) {
-        const ids = MANAGER.orderOf(LOCAL).filter((id) => windows.get(id).mod === mod);
-        for (const id of ids) MANAGER.orderFront(LOCAL, id);
+    // Each of the mod's windows in front for `seat`, in the order it had them, those it minimized too, the front one
+    // key: answers whether the mod has any.
+    function activate(seat, mod) {
+        const ids = MANAGER.orderOf(seat).filter((id) => windows.get(id).mod === mod);
+        for (const id of ids) MANAGER.orderFront(seat, id);
         if (ids.length) update();
         return ids.length > 0;
+    }
+
+    // The seat whose screen `page` is: the desktop's page is the local seat's; null for any other page.
+    function seatAt(page) {
+        return page && page === desktop.page ? LOCAL : null;
     }
 
     // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` some seat's
@@ -184,8 +194,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
             focused = key;
             if (shown) focus();
         }
-        const mod = key && MODS.loaded(deckit.mods).find(({ id }) => id === key.mod);
-        const title = mod?.name || deckit.config.name;
+        const title = titleOf(key);
         if (title !== titled) host.panelTitled((titled = title));
         for (const listener of [...listeners]) listener();
     }
@@ -233,6 +242,12 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
                 update();
             })
         );
+        PROTOCOL.dock.on(
+            fromPage(({ out }) => {
+                dockOut = out;
+                layout();
+            })
+        );
         PROTOCOL.restart.on(fromPage(() => down && deckit.restart()));
     }
 
@@ -261,6 +276,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // page that crashed or went takes them with it, and its next document opens its own.
     function pageEnded({ replaced }) {
         moving = null;
+        dockOut = false;
         if (replaced) return;
         const dropped = [...desktop.surfaces.values()];
         desktop.surfaces.clear();
@@ -275,13 +291,25 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
 
     // Where windows go: the stage below the host's bar.
     function area() {
-        return LAYOUT.desktopOf(stage.size(), strip);
+        return LAYOUT.desktopOf(stage.size(), strip.height);
+    }
+
+    // The desktop changed size: a zoomed window fills it again.
+    function resized() {
+        MANAGER.fitZoomed(LAYOUT.zoomedIn(area()));
+        update();
+    }
+
+    // The name of the key window's mod, or the app's while there is none.
+    function titleOf(key) {
+        const mod = key && MODS.loaded(deckit.mods).find(({ id }) => id === key.mod);
+        return mod?.name || deckit.config.name;
     }
 
     // From the bottom: the mods' pages with a window here, the backdrop, each window in the local seat's order with
-    // the children its regions show, then the desktop's page, taking the pointer only at the host's bar. Over all of
-    // it, the overlay of each page laid that shows anything, at its page's rect. With deckit's core down the desktop's
-    // page alone covers it all.
+    // the children its regions show, then the desktop's page, taking the pointer only at the host's bar and the Dock,
+    // its sliver or all of it while it is out. Over all of it, the overlay of each page laid that shows anything, at
+    // its page's rect. With deckit's core down the desktop's page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
         if (down) {
@@ -325,7 +353,10 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
                 {
                     page: desktop.page,
                     rect: full,
-                    input: strip ? [{ x: 0, y: 0, width: full.width, height: strip }] : [],
+                    input: [
+                        ...(strip.height ? [{ x: 0, y: 0, width: full.width, height: strip.height }] : []),
+                        DOCK_MODEL.rectOf(area(), dockOut),
+                    ],
                 },
             ])
         );
@@ -359,9 +390,10 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         return LAYOUT.BUTTONS.map((_button, at) => ({ x: inset + at * (size + gap), y, width: size, height: size }));
     }
 
-    // `{ windows, strip, down }`, as the desktop's page draws it.
+    // `{ windows, strip, title, dock, down }`, as the desktop's page draws it.
     function stateOfPage() {
         const key = MANAGER.keyOf(LOCAL);
+        const active = windows.get(key)?.mod ?? null;
         return {
             windows: MANAGER.viewOf(LOCAL).map(({ id, frame }) => ({
                 id,
@@ -370,6 +402,8 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
                 minimum: LAYOUT.minimumOf(windows.get(id).minimum),
             })),
             strip,
+            title: titleOf(windows.get(key)),
+            dock: { items: DOCK.items(), active },
             down: down && { name: deckit.config.name, why: down },
         };
     }
@@ -445,8 +479,8 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
 
     // `titleBar`, the host window's bar over the desktop's top: { height, controlsWidth }.
     function present(next) {
-        strip = next?.titleBar?.height ?? 0;
-        update();
+        strip = { height: next?.titleBar?.height ?? 0, controlsWidth: next?.titleBar?.controlsWidth ?? 0 };
+        resized();
     }
 
     return {
@@ -460,6 +494,9 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         move,
         doubleClick,
         activate,
+        seatAt,
+        // The seat at the host window, the one seat the host gives: what a mod asks is done by it.
+        localSeat: LOCAL,
         stateOf,
         isKey,
         onChange,

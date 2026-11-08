@@ -4,8 +4,10 @@
 // app mods it keeps at the first start, as the host app names them or as it ships them, then as the person left them,
 // the list a mod with deckit.mods reads, which holds the app mods that load and no bundle that does not and no
 // accessory, and a mod opened from it, launched when it does not run, its windows in front when it does, or its
-// reopen() with none open. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// reopen() with none open, as the local seat; and what the person does to it in the desktop's page, done by the seat
+// whose screen that is: an item clicked, a mod quit, kept or taken out, the kept ones reordered, each drawn again, and
+// nothing a mod's page sends there. Exits 1 with a line for each check that failed. The packages are ES modules, so
+// they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -123,7 +125,7 @@ async function main() {
     check(
         'a mod opened launches as it does not run, its windows come in front as it does, or its reopen() with none open',
         opening.launched.join() === 'a' &&
-            opening.activated.join() === 'b,c' &&
+            opening.activated.join() === 'local:b,local:c' &&
             opening.reopened.length === 1 &&
             opening.reopened[0].mod === 'c' &&
             opening.shown.length === 3,
@@ -134,6 +136,64 @@ async function main() {
         (error) => error.message
     );
     check('a mod that is no app is refused', /is no app/.test(accessory), accessory);
+
+    // The person at the desktop's page, the local seat's screen.
+    const clicking = dockOver(createDock, {
+        mods: named(ids3),
+        fields: apps(),
+        running: ['b', 'c'],
+        windowed: ['b'],
+        state: { 'panel-pinned': ['a', 'b'], 'panel-order': ['a', 'b'] },
+    });
+    clicking.DOCK.start();
+    for (const id of ids3) clicking.click('click', { id });
+    check(
+        "a click on an item is the desktop page's seat's: it launches, has the windows come in front or reopens",
+        clicking.launched.join() === 'a' &&
+            clicking.activated.join() === 'local:b,local:c' &&
+            clicking.reopened.length === 1 &&
+            clicking.shown.length === 3,
+        clicking
+    );
+    clicking.ask('click', { id: 'a' }, 'b');
+    clicking.ask('quit', { id: 'b' }, 'b');
+    check(
+        "what a mod's page sends to the Dock's page channels does nothing",
+        clicking.launched.length === 1 && clicking.quit.length === 0,
+        clicking
+    );
+    const drawnBefore = clicking.updates.length;
+    clicking.click('quit', { id: 'b' });
+    clicking.click('keep', { id: 'c', pinned: true });
+    const keptC = clicking.DOCK.items()
+        .map(({ id, pinned }) => `${id}:${pinned}`)
+        .join();
+    check(
+        'a mod quit from its menu quits, and one kept in the Dock is kept there, the desktop drawn again',
+        clicking.quit.join() === 'b' &&
+            keptC === 'a:true,b:true,c:true' &&
+            JSON.stringify(clicking.state['panel-pinned']) === '["a","b","c"]' &&
+            clicking.updates.length > drawnBefore,
+        { quit: clicking.quit, keptC }
+    );
+    clicking.click('reorder', { ids: ['c', 'a'] });
+    const reordered = clicking.DOCK.items()
+        .map(({ id }) => id)
+        .join();
+    check(
+        'the kept items dragged into a new order take it, as kept',
+        reordered === 'c,b,a' && JSON.stringify(clicking.state['panel-order']) === '["c","b","a"]',
+        { reordered, order: clicking.state['panel-order'] }
+    );
+    clicking.click('keep', { id: 'b', pinned: false });
+    const unkeptB = clicking.DOCK.items()
+        .map(({ id, pinned }) => `${id}:${pinned}`)
+        .join();
+    check(
+        'a running mod taken out of the Dock stays, after those kept, as it runs',
+        unkeptB === 'c:true,a:true,b:false',
+        unkeptB
+    );
 
     const refusing = dockOver(createDock, { mods: named(['a', 'b']), fields: apps(), refusesWrites: true });
     refusing.DOCK.start();
@@ -159,7 +219,8 @@ function named(ids) {
 // `createDock` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
 // that hold deckit.mods, `running` the mods that run, `windowed` those of them with a window open, `dock` as the host
 // app hands it, `state` what the shell kept, and `refusesWrites` deckit refusing every write to state, as it does
-// state it did not read. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`.
+// state it did not read. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and
+// `click(name, payload)` sends one as the desktop's page, the local seat's screen.
 function dockOver(
     createDock,
     { mods, fields, managers = [], running = [], windowed = [], dock = null, state = {}, refusesWrites = false }
@@ -169,7 +230,10 @@ function dockOver(
     const activated = [];
     const reopened = [];
     const shown = [];
+    const quit = [];
+    const updates = [];
     const page = (mod) => ({ mod });
+    const desktopPage = { name: 'desktop' };
     const runs = running.map((id) => ({ run: { mod: { id }, state: 'running', relaunches: false }, page: page(id) }));
     const deckit = {
         channels: {
@@ -197,17 +261,25 @@ function dockOver(
                 throw Object.assign(new Error(`${sender?.mod} does not have deckit.mods`), { kind: 'NOT_PERMITTED' });
             },
             launch: async (id) => launched.push(id),
+            quit: async (id) => quit.push(id),
         },
     };
     const DOCK = createDock({
         deckit,
-        DESKTOP: { activate: (id) => activated.push(id) > 0 && windowed.includes(id) },
+        DESKTOP: {
+            activate: (seat, id) => activated.push(`${seat}:${id}`) > 0 && windowed.includes(id),
+            seatAt: (sender) => (sender === desktopPage ? 'local' : null),
+            localSeat: 'local',
+            update: () => updates.push(true),
+        },
         WINDOWS: { reopen: (one) => reopened.push(one) },
         host: { show: () => shown.push(true) },
         dock,
     });
     const ask = async (name, payload, mod) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, page(mod));
-    return { DOCK, state, launched, activated, reopened, shown, ask };
+    // One of the Dock's channels sent from the desktop's page.
+    const click = (name, payload) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, desktopPage);
+    return { DOCK, state, launched, activated, reopened, shown, quit, updates, ask, click };
 }
 
 function kebab(name) {
