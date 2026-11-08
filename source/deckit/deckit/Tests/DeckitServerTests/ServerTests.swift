@@ -422,6 +422,38 @@ struct ServerTests {
         )
     }
 
+    @Test("a lifecycle that waits for a mod whose run fails to launch is answered as wait again, with that refusal")
+    func failedRunIsToldToItsWaiter() throws {
+        // Given
+        _ = try send(initializeRequest, to: sut)
+        try mod("dep", adding: #"[interfaces]\#nprovides = { "dep/api" = [1] }"#)
+        try mod("a", adding: #"[interfaces]\#nuses = { "dep/api" = 1 }"#)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":{"mod":"a","run":1,"lifecycle":0}}"#,
+            to: sut
+        )
+        let started = #"{"mod":"a","run":1,"contributions":{"exportedIn":{},"awaits":{}}}"#
+        _ = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
+
+        // When
+        let failed = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"runner/not-started","params":{"mod":"dep","run":1,"problem":"threw"}}"#,
+            to: sut
+        )
+
+        // Then
+        guard case let .array(effects)? = value(in: failed, at: "result") else {
+            Issue.record("no effects in \(failed)")
+            return
+        }
+        let wait = #"{"effect":"wait","mod":"dep","name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0},"#
+            + #""refusal":{"stage":"launch","kind":"NOT_LAUNCHED","message":"dep did not launch: threw"}}"#
+        #expect(effects.contains(try json(wait)))
+        #expect(!effects.contains { effect in value(in: effect, at: "notification") == .string("willLaunch") })
+    }
+
     @Test("a mod at the relaunch limit loads no more until a mod granted deckit.mods asks that it launch")
     func relaunchLimitResetsAsAsked() throws {
         // Given

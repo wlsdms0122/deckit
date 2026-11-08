@@ -11,9 +11,10 @@ import Deckit
 
 // Each as `effect`, its name, with the mod's id as `mod` and a run's number as `run`, as main names them in what it
 // asks; the mod a sandbox opens for is `found`, as the catalog reads it. A run's `contributions` are deck's keys, and
-// what it is refused with at launch is `refusal`, `{ stage, kind, message }`, `stage` "launch". An
-// event delivered is `name` and `listeners`, as `event/emit` answers it. A lifecycle that waits is `wait`, with the
-// mod it waits for as `mod`, the name it reaches it by as `name` and itself as `client`.
+// what it is refused with at launch is `refusal`, `{ stage, kind, message }`, `stage` "launch". An event delivered is
+// `name` and `listeners`, as `event/emit` answers it. A lifecycle that waits is `wait`, with the mod it waits for as
+// `mod`, the name it reaches it by as `name`, itself as `client`, and what it is told that mod is refused with as a
+// run's `refusal`.
 extension EffectAnswer: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -91,6 +92,7 @@ extension EffectAnswer: Encodable {
             try container.encode(service, forKey: .mod)
             try container.encode(name, forKey: .name)
             try container.encode(client, forKey: .client)
+            try encodeRefusal(in: &container)
         }
     }
 
@@ -100,13 +102,16 @@ extension EffectAnswer: Encodable {
         try container.encode(run.number, forKey: .run)
         try container.encode(run.state, forKey: .state)
         try container.encode(run.failed, forKey: .failed)
-        if let refusal {
-            var refused = container.nestedContainer(keyedBy: RefusalKeys.self, forKey: .refusal)
-            try refused.encode("launch", forKey: .stage)
-            try refused.encodeIfPresent(refusal.kind, forKey: .kind)
-            try refused.encode(refusal.message, forKey: .message)
-        }
+        try encodeRefusal(in: &container)
         try container.encodeIfPresent(run.problem, forKey: .problem)
         try container.encodeIfPresent(run.contributions, forKey: .contributions)
+    }
+
+    private func encodeRefusal(in container: inout KeyedEncodingContainer<CodingKeys>) throws {
+        guard let refusal else { return }
+        var refused = container.nestedContainer(keyedBy: RefusalKeys.self, forKey: .refusal)
+        try refused.encode("launch", forKey: .stage)
+        try refused.encodeIfPresent(refusal.kind, forKey: .kind)
+        try refused.encode(refusal.message, forKey: .message)
     }
 }
