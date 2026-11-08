@@ -26,7 +26,7 @@ extension Refusal {
                 "NOT_RUNNING"
 
             case .ended:
-                "ENDED_CONNECTION"
+                "ENDED"
 
             case .notAnEnd:
                 "NOT_AN_END"
@@ -42,6 +42,9 @@ extension Refusal {
 
             case .notExported:
                 "NOT_EXPORTED"
+
+            case .unsupportedVersion:
+                "UNSUPPORTED_VERSION"
             }
 
         case let error as InstallError:

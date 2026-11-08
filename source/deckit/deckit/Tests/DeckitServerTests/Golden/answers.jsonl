@@ -13,7 +13,7 @@
 {"id":9,"jsonrpc":"2.0","result":{"lifecycle":0,"mod":"a","run":1}}
 {"id":10,"jsonrpc":"2.0","result":{"lifecycle":0,"mod":"b","run":1}}
 {"error":{"code":-32803,"data":{"kind":"NOT_AN_END","stage":"call"},"message":"c is not an end of that connection"},"id":11,"jsonrpc":"2.0"}
-{"error":{"code":-32803,"data":{"kind":"ENDED_CONNECTION","stage":"call"},"message":"the other end has ended"},"id":12,"jsonrpc":"2.0"}
+{"error":{"code":-32803,"data":{"kind":"ENDED","stage":"call"},"message":"the other end has ended"},"id":12,"jsonrpc":"2.0"}
 {"id":83,"jsonrpc":"2.0","result":[{"client":{"lifecycle":1,"mod":"b","run":1},"credential":{"mod":"b","permissions":[]},"id":2,"name":"a\/own","service":{"lifecycle":0,"mod":"a","run":1}}]}
 {"id":84,"jsonrpc":"2.0","result":true}
 {"id":85,"jsonrpc":"2.0","result":[]}
