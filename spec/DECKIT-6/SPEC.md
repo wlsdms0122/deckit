@@ -52,7 +52,7 @@ The system makes one instance of the class for the run, with no arguments, and r
 
 | member | signature | what it is |
 |---|---|---|
-| `start` | `start(deckit)`: answers nothing, or a promise fulfilled with nothing | starts the system's lifecycle; `deckit` is the handle, as the handle's DECKIT fixes it |
+| `start` | `start(deckit)`: answers nothing, or a promise fulfilled with nothing | starts the system's lifecycle; `deckit` is the handle, as [the handle](../DECKIT-7/SPEC.md) fixes it |
 | `stop` | `stop()`: answers nothing, or a promise fulfilled with nothing | ends the system's lifecycle |
 
 Each may be left out, and a member that is not a function is read as one left out. What either answers, or fulfils its promise with, is not read. Every other member of the instance is the mod's own or a layer's, and the system reads none of them.
@@ -97,7 +97,7 @@ The time a run's end is given, as the lifecycle names it, is 5 seconds for each 
 
 - `main`, the file the entry is: [the bundle](../DECKIT-2/SPEC.md).
 - A run's states and the steps between them, what fails to launch, the 20 seconds a launch is given, what asks a run's end, the requests `launch` and `quit`, and what the system answers of a run: [the lifecycle](../DECKIT-5/SPEC.md).
-- The handle `start` is handed, and what a request through it answers: the handle's DECKIT.
+- The handle `start` is handed, and what a request through it answers: [the handle](../DECKIT-7/SPEC.md).
 - What each lifecycle is connected to as it starts, and what a lifecycle that ends does to its connections: the connections' DECKIT.
 - Which layers a host stacks over the system: the embedding DECKIT. The lifecycles the shell stacks, and the members of the instance they call: the shell's DECKITs.
 - The inputs and looks a case reads these rules with: [the case format](../DECKIT-1/SPEC.md).

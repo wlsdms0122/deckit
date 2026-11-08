@@ -92,7 +92,7 @@ A bundle installed by *install* in the place of a system mod is not a system mod
 | `install` | `folder`, a string: a folder's path | the bundle installed | at `read` `NOT_LOADABLE`; at `call` `NESTED`, `READ_IN_PLACE` |
 | `remove` | `id`, a string; `erase`, a boolean | whether what the mod stored was erased | at `call` `READ_IN_PLACE`, `NOT_INSTALLED` |
 
-A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, then as the handle's DECKIT refuses a request whose arguments do not fit what it takes, and then with the first refusal of its row that holds, in the row's order.
+A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, then as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, and then with the first refusal of its row that holds, in the row's order.
 
 #### list
 
@@ -132,7 +132,7 @@ A name shipped and removed stays out at each later start, under *What a host shi
 - `deckit.mods`, and the refusal of a request made by a mod not granted it: [the permissions](../DECKIT-3/SPEC.md).
 - What runs of a mod installed, replaced or removed while it runs, and which background mods launch in the catalog's order: the lifecycle's DECKIT.
 - What a mod stores, and what erasing it takes away: the storage DECKIT.
-- The handle a mod makes these requests through, and the input that hands a case's request: the handle's DECKIT.
+- The handle a mod makes these requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
 - Being told that what `list` answers has changed: the events' DECKIT.
 - What a host hands as the folder read in place and the bundles it ships, and what it marks system: the embedding DECKIT.
 

@@ -92,7 +92,7 @@ A runner sets up a host, and reads what the system answers, through what the sys
 | the start | as the host app starts | answered once the host app has settled, or refused at `call` with its kind |
 | the bundles found | once the host app has started | the name each one is listed under, in [the catalog's](../DECKIT-4/SPEC.md) order, and each one by that name, answered or refused as [the bundle](../DECKIT-2/SPEC.md) says |
 | the runs | once the host app has started | format 2: for each name a bundle is listed under, what the system answers of its mod's run, as [the lifecycle](../DECKIT-5/SPEC.md) fixes it |
-| a request through a mod's handle | while the mod's run is `running` | format 3: the run makes a request through the handle its code is handed, as the mod's code makes one, as the handle's DECKIT fixes it, and the host is answered what the request answers, or its refusal at its stage with its kind |
+| a request through a mod's handle | while the mod's run is `running` | format 3: the run makes a request through the handle its code is handed, as the mod's code makes one, as [the handle](../DECKIT-7/SPEC.md) fixes it, and the host is answered what the request answers, or its refusal at its stage with its kind |
 | the addresses to open outside the app | while the host app is started | format 3: each address a mod hands the host to open, with whether the app that opens it comes to the front, as the handle's DECKIT fixes them |
 | the quit | as the host app quits | answered once the host app has quit |
 
@@ -106,7 +106,7 @@ Inputs:
 |---|---|---|---|
 | `start` | none | the host app starts, on the host `[host]` gives | nothing, or a refusal at `call` of what the host hands as the host app starts |
 | `quit` | none | the host app quits | nothing |
-| `call` | `mod` and `member`, and `args`, `folders` and `part` if written | format 3: the run of the mod listed under the name `mod` makes a request through its handle: the member `member`, called with the path of each bundle `folders` names, in order, and then each value of `args`, in order. A member that holds a value is read, and is written with no `args` and no `folders` | what the request answers, or the value under the key `part` of it, or its refusal at its stage with its kind, as the handle's DECKIT fixes them |
+| `call` | `mod` and `member`, and `args`, `folders` and `part` if written | format 3: the run of the mod listed under the name `mod` makes a request through its handle: the member `member`, called with the path of each bundle `folders` names, in order, and then each value of `args`, in order. A member that holds a value is read, and is written with no `args` and no `folders` | what the request answers, or the value under the key `part` of it, or its refusal at its stage with its kind, as [the handle](../DECKIT-7/SPEC.md) fixes them |
 
 Looks:
 
@@ -193,7 +193,7 @@ A case is written by hand, in the manifest text, and is judged by its value. A c
 - The manifest text, the versions, the fields and permissions a host adds, and the answer a `mod` look gives: [the bundle](../DECKIT-2/SPEC.md).
 - The order of the bundles found: [the catalog](../DECKIT-4/SPEC.md).
 - What the system answers of a run: [the lifecycle](../DECKIT-5/SPEC.md).
-- The handle a `call` makes its request through, what a request answers and how it is refused, and the addresses a mod hands the host to open: the handle's DECKIT.
+- The handle a `call` makes its request through, what a request answers and how it is refused: [the handle](../DECKIT-7/SPEC.md). The addresses a mod hands the host to open: the handle's DECKIT.
 - The live set, and what an implementation conforms to: [the specification](../README.md).
 
 ## Alternatives considered

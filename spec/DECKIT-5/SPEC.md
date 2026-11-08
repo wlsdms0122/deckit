@@ -107,7 +107,7 @@ Under a name whose bundle the system did not take, it is refused at `read` with 
 | `quit` | `id`, a string | nothing, once the mod's run is `notRunning` | at `call` `NOT_INSTALLED` |
 | `relaunch` | `id`, a string | nothing, once the mod's new run is `running` | at `call` `NOT_INSTALLED`; at `read` `NOT_LOADABLE`; at `launch` `NOT_LAUNCHED`, `TIMED_OUT` |
 
-A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, then as the handle's DECKIT refuses a request whose arguments do not fit what it takes, and then with the first refusal of its row that is so, in the row's order. Each is refused at `call` with kind `NOT_INSTALLED` where no bundle is listed under `id`, as [the catalog](../DECKIT-4/SPEC.md)'s `remove` is.
+A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, then as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, and then with the first refusal of its row that is so, in the row's order. Each is refused at `call` with kind `NOT_INSTALLED` where no bundle is listed under `id`, as [the catalog](../DECKIT-4/SPEC.md)'s `remove` is.
 
 `launch` launches the mod the catalog holds under `id`, as *What launches a mod* says. It is refused at `read` with kind `NOT_LOADABLE` where the system did not take the bundle the catalog holds under `id`, and at `launch` with kind `NOT_LAUNCHED` or `TIMED_OUT` where the run it asked for failed to launch or timed out. Asked while the app quits, it launches nothing and is refused at `launch` with kind `NOT_LAUNCHED`.
 
@@ -121,7 +121,7 @@ A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one,
 - `deckit.mods`, and the refusal of a request made by a mod not granted it: [the permissions](../DECKIT-3/SPEC.md).
 - Which bundle the catalog holds under a name, the catalog's order, what a host ships, and installing and removing a bundle: [the catalog](../DECKIT-4/SPEC.md).
 - What the entry exports, what a run needs of it, what starting and ending the mod's code is, and the time a run's end is given: [the entry](../DECKIT-6/SPEC.md).
-- A mod quitting itself, and the input that hands a case's request: the handle's DECKIT.
+- A mod quitting itself: the handle's DECKIT. The handle a mod makes these requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
 - A lifecycle that waits for a mod, and what a run that ends does to its connections: the connections' DECKIT.
 - Being told that a run has moved: the events' DECKIT.
 - When the app has quit, as a host is told it: the embedding DECKIT. What a host is given of the runs: [the case format](../DECKIT-1/SPEC.md).
