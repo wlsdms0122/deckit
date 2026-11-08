@@ -1,5 +1,5 @@
 case = 2
-name = "a-mod-whose-entry-throws-does-not-run-until-it-launches"
+name = "a-mod-that-is-not-a-background-mod-whose-entry-throws-is-not-refused"
 note = "A mod that is not a background mod does not launch at start, so mod-a, whose entry throws, has no run, and is answered notRunning, not refused at launch."
 
 [host]
