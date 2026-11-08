@@ -16,6 +16,7 @@ import { createCatalog } from '../catalog/index.js';
 import { createIdentity } from '../identity/index.js';
 import { createRunner } from '../runner/main.js';
 import { createRecord } from '../record/main.js';
+import { createRequest } from '../request/main.js';
 import { createConnection } from '../connection/main.js';
 import { createEvent } from '../event/main.js';
 import { createMods } from '../mods/main.js';
@@ -111,9 +112,10 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const IDENTITY = createIdentity({ pages: ENV.pages });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
     const RECORD = createRecord({ CORE, IDENTITY });
-    const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER });
+    const REQUEST = createRequest();
+    const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST });
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
-    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: ENV.pages });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
     const KEYMAP = createKeymap({ LOG, IDENTITY, keys: ENV.keys });
     const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
@@ -152,6 +154,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         IDENTITY,
         CATALOG,
         RUNNER,
+        REQUEST,
         PERMISSION,
         MANIFEST_FIELD,
         WEB,

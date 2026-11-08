@@ -11,6 +11,7 @@ export function createApi({
     IDENTITY,
     CATALOG,
     RUNNER,
+    REQUEST,
     PERMISSION,
     MANIFEST_FIELD,
     WEB,
@@ -84,6 +85,9 @@ export function createApi({
                 // The text of a file inside the mod's folder, by its path there, or null for none.
                 readFile: CATALOG.readFile,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
+                // onRequest(listener({ from, to })) -> off: each request one mod makes of another, a call on a
+                // connection, a reach or a launch, the ids of the mod that asks and of the one asked, as it goes on.
+                onRequest: REQUEST.onRequest,
                 modOf: (page) => IDENTITY.modOf(page)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
                 managerFrom: (page) => IDENTITY.modFrom(page, MOD_PERMISSION.MODS).id,
@@ -111,12 +115,14 @@ export function createApi({
             // taken, { name }) -> release: a chord held in every page listened to, its press told once the page did
             // not handle it, refused where it is held or taken, and a mod's take of it refused while it is held.
             // record(page, handler(keystroke)) -> stop: each key pressed in the page, taken from it, before anything
-            // else (deckit/keymap/main.js).
+            // else. onChord(listener(mod)) -> off: a chord a mod took, as it is told to that mod's page, by the mod's
+            // id (deckit/keymap/main.js).
             keymap: Object.freeze({
                 listen: (page) => KEYMAP.listen(page),
                 monitor: (handler) => KEYMAP.monitor(handler),
                 hold: (keystroke, handler, options) => KEYMAP.hold(keystroke, handler, options),
                 record: (page, handler) => KEYMAP.record(page, handler),
+                onChord: (listener) => KEYMAP.onChord(listener),
             }),
             permissions: Object.freeze({ define: PERMISSION.define }),
             // define(key): a top-level manifest key the UI reads, named before deckit starts.

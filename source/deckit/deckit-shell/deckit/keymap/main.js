@@ -2,6 +2,7 @@ import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as KEYS_PERMISSION from './model/permission.js';
+import * as LISTENER from '../listener/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -10,8 +11,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // layer over deckit holds a chord in every page of the app too, in the same table: a chord is its first holder's, a
 // layer's or one mod's, at a time. A mod's chord is taken before the page has the key; a layer's runs only once the
 // page did not handle it. A page that records is handed each key pressed in it, before anything else looks at it; then
-// a layer over deckit monitors the keys pressed in those pages, before any chord a mod took. `keys` is the
-// environment's.
+// a layer over deckit monitors the keys pressed in those pages, before any chord a mod took, and hears each chord told
+// to a mod. `keys` is the environment's.
 export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
     // MARK: - Property
     // A chord, by its name -> { page, id, off, drop } for one a mod took, `off` the system's hold or null, or
@@ -19,6 +20,7 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
     const taken = new Map();
     const monitors = new Set(); // what looks at each key pressed before the chords taken, in the order it began
     const recording = new Map(); // a page that records -> { handler, stop }
+    const told = new Set(); // what hears each chord told to a mod
 
     // MARK: - Initializer
     // MARK: - Public
@@ -72,6 +74,13 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         };
         recording.set(page, one);
         return one.stop;
+    }
+
+    // `listener(mod)` hears each chord a mod took as it is told to that mod's page, `mod` its id. Answers its off.
+    function onChord(listener) {
+        const heard = LISTENER.wrap(listener, 'a chord listener');
+        told.add(heard);
+        return () => told.delete(heard);
     }
 
     // MARK: - Private
@@ -163,7 +172,10 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
 
     function tell(name) {
         const one = taken.get(name);
-        if (one) PROTOCOL.key.send(one.page, { id: one.id });
+        if (!one) return;
+        PROTOCOL.key.send(one.page, { id: one.id });
+        const mod = IDENTITY.modOf(one.page)?.id;
+        if (mod) for (const listener of [...told]) listener(mod);
     }
 
     // A key pressed, copied as it lands, so nothing of what the environment or a page told is kept or read after.
@@ -182,5 +194,5 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         return [...held.filter(([on]) => on).map(([, label]) => label), code].join('+');
     }
 
-    return { start, listen, monitor, hold, record };
+    return { start, listen, monitor, hold, record, onChord };
 }

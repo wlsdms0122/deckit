@@ -1,12 +1,12 @@
-// The keys hole (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a mod
-// with deckit.app-keys takes a chord in every page listened to, one with system.global-keys takes it as a system
-// hotkey too, and a press is told to the page of the mod that took it. A chord is one mod's at a time, a mod without
-// the permission for the scope is refused, and a chord is let go when released or when the mod's page ends. A monitor
-// looks at each key pressed in a page listened to before the chords, and what it takes runs none. A chord a layer
-// holds is in the same table: its first holder keeps it, a mod's take of it is refused with the holder's name, and it
-// runs only for a key the page did not handle, after the page had it. A page that records is handed each key pressed in it before anything else,
-// until it stops or ends. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// The keys hole (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a mod with
+// deckit.app-keys takes a chord in every page listened to, one with system.global-keys takes it as a system hotkey too,
+// and a press is told to the page of the mod that took it. A chord is one mod's at a time, a mod without the permission
+// for the scope is refused, and a chord is let go when released or when the mod's page ends. A monitor looks at each
+// key pressed in a page listened to before the chords, and what it takes runs none. A chord a layer holds is in the
+// same table: its first holder keeps it, a mod's take of it is refused with the holder's name, and it runs only for a
+// key the page did not handle, after the page had it. Each chord told to a mod is heard by its id. A page that records
+// is handed each key pressed in it before anything else, until it stops or ends. Exits 1 with a line for each check
+// that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -79,6 +79,8 @@ async function main() {
     const KEYMAP = createKeymap({ LOG, IDENTITY, keys });
     KEYMAP.start();
     for (const page of [shell, a, g, n]) KEYMAP.listen(page);
+    const chords = []; // the mods each chord told was heard for
+    KEYMAP.onChord((mod) => chords.push(mod));
 
     const keystroke = (code, modifiers = {}) => ({
         code,
@@ -111,6 +113,7 @@ async function main() {
         told().length === 2 && told().every(([page, message]) => page === a && message.payload.id === 1),
         told()
     );
+    check('each chord told is heard by the id of its mod', chords.join() === 'a,a', chords);
     check('a key released is not taken', press(shell, 'KeyK', { alt: true }, 'keyup') === false, tells);
     check('a chord no mod took is not taken', press(shell, 'KeyJ', { alt: true }) === false, tells);
     tells.length = 0;
@@ -197,6 +200,7 @@ async function main() {
     );
     check('a chord in every app is taken in a page too', press(a, 'Space', { control: true }) === true, tells);
     check('the press in a page is told to that mod too', told()[1]?.[0] === g, told());
+    check('a hotkey told is heard by the id of its mod', chords.slice(-2).join() === 'g,g', chords);
 
     // Released, a chord is held nowhere and taken nowhere, and another mod may take it.
     release(g, 1);

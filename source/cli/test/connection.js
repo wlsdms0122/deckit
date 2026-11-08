@@ -3,10 +3,10 @@
 // launches the mod a lifecycle waits for; a page's reach of a mod by its id and its release asked of the core for the
 // page's mod, through the runner, which does what the core answers, and the core's refusal handed back; a connection
 // that stands asked of its service's page with the client's credential, and one its service refuses told its client as
-// a refusal at call; a lifecycle that waits for a mod the core does not launch told so, with the refusal, on its page,
-// as is one the core refuses what it reaches; and a connection's end told to the pages of its client and its service,
-// as the core names them. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// a refusal at call; a reach and a call told as requests of one mod of another; a lifecycle that waits for a mod the
+// core does not launch told so, with the refusal, on its page, as is one the core refuses what it reaches; and a
+// connection's end told to the pages of its client and its service, as the core names them. Exits 1 with a line for
+// each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -55,7 +55,16 @@ async function main() {
     const CATALOG = { mods: () => [] };
     const LOG = { warn: () => {}, error: () => {} };
     const IDENTITY = { pageOf: (id) => ({ modId: id }), modFrom: (page) => ({ id: page.modId }) };
-    const CONNECTION = createConnection({ CORE: { request: async () => [] }, LOG, IDENTITY, CATALOG, RUNNER });
+    const requests = []; // `from>to`, each request told
+    const REQUEST = { tell: (from, to) => requests.push(`${from}>${to}`) };
+    const CONNECTION = createConnection({
+        CORE: { request: async (method) => (method === 'connection/route' ? { mod: 'b' } : []) },
+        LOG,
+        IDENTITY,
+        CATALOG,
+        RUNNER,
+        REQUEST,
+    });
     CONNECTION.start();
     check('a run that launches launches nothing from here', !observers.has('didLaunch') && !launched.length, {
         observed: [...observers.keys()],
@@ -74,6 +83,7 @@ async function main() {
     );
     const refused = await ask('connection-reach', { run: 1, lifecycle: 0, target: 'x' });
     check('a reach the core refuses is answered with its kind', refused.error?.kind === 'REFUSED', refused);
+    check('each reach is told as a request of the mod reached', requests.join() === 'a>b,a>x', requests);
     const released = await ask('connection-release-reach', { run: 1, lifecycle: 0, target: 'b' });
     check(
         'a release is asked of the core through the runner',
@@ -135,6 +145,19 @@ async function main() {
                     '"message":"p/x did not connect: no connections here"},"lifecycle":0}',
         told
     );
+    tells.length = 0;
+
+    // A call on a connection goes to the other end the core routes it to, told as a request of that mod.
+    requests.length = 0;
+    const calling = ask('connection-call', { run: 1, connection: 6, number: 1, args: { value: [], references: [] } });
+    await tick();
+    const [callee, call] = tells.find(([, message]) => message.channel === 'deckit-shell:connection-called') ?? [];
+    check('a call is told as a request of the mod it goes to', callee?.modId === 'b' && requests.join() === 'a>b', {
+        requests,
+        callee,
+    });
+    if (call) heard.told(callee, { channel: call.channel, id: call.id, value: { value: null, references: [] } });
+    await calling;
     tells.length = 0;
 
     // A lifecycle that waits: told on its page where the core does not launch the mod, and nothing where it does.

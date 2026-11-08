@@ -10,8 +10,9 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // stands, and so is one its service refused, with why: one that ended while its exports were asked for is left out.
 // A lifecycle that waits for a mod the core will not launch is told what that mod is refused with, and one the core
 // refuses what it reaches, a mod that runs with no exports for it, is told that refusal. The service is handed the
-// client's id, name and credential; the client, the name alone.
-export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
+// client's id, name and credential; the client, the name alone. A call and a reach are told to `REQUEST` as the
+// requests of one mod of another.
+export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
 
@@ -34,6 +35,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
         // Asked through the runner, which does what the core answers: the mod reached launches if it does not run.
         PROTOCOL.reach.handle(async ({ run, lifecycle, target }, sender) => {
             const mod = IDENTITY.modFrom(sender).id;
+            REQUEST.tell(mod, target);
             await RUNNER.ask('connection/reach', { mod, run, lifecycle, target });
         });
         PROTOCOL.releaseReach.handle(async ({ run, lifecycle, target }, sender) => {
@@ -42,6 +44,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
         });
         PROTOCOL.call.handle(async ({ run, connection, number, args }, sender) => {
             const other = await route(sender, run, connection);
+            REQUEST.tell(IDENTITY.modFrom(sender).id, other.mod);
             return PROTOCOL.called.invoke(IDENTITY.pageOf(other.mod), { connection, number, args });
         });
         PROTOCOL.release.on(async ({ run, connection, number, count }, sender) => {

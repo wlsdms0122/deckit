@@ -8,9 +8,9 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, installing and removing them, launching
 // them, launching them again and quitting them, pinning the owner of each interface, and what one has where the core
-// keeps it.
+// keeps it. A launch and a relaunch it asks for are told to `REQUEST` as its requests of that mod.
 // `pages` is the environment's, which keeps what a mod's pages stored.
-export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
+export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages }) {
     // MARK: - Property
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
@@ -56,10 +56,12 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
         });
         PROTOCOL.launch.handle(({ id }, sender) => {
             const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
+            REQUEST.tell(by, id);
             return RUNNER.launch(id, by);
         });
         PROTOCOL.relaunch.handle(({ id }, sender) => {
             const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
+            REQUEST.tell(by, id);
             return RUNNER.relaunch([id], by);
         });
         PROTOCOL.quit.handle(({ id }, sender) => {

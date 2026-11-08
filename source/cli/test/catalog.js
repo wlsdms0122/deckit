@@ -134,7 +134,17 @@ async function main() {
                 throw Object.assign(new Error('r did not launch'), { stage: 'launch', kind: 'NOT_LAUNCHED' });
         },
     };
-    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: { clearStorage: async () => {} } });
+    const requests = []; // `from>to`, each request told
+    const REQUEST = { tell: (from, to) => requests.push(`${from}>${to}`), onRequest: () => () => {} };
+    const MODS = createMods({
+        CORE,
+        LOG,
+        IDENTITY,
+        CATALOG,
+        RUNNER,
+        REQUEST,
+        pages: { clearStorage: async () => {} },
+    });
     MODS.start({ facts: () => ({}), installed: async () => ({}), removed: () => {}, erase: async () => {} });
     await tick();
     const listed = await heard.asked(PAGE, { channel: 'deckit-shell:mods', payload: {} });
@@ -165,6 +175,7 @@ async function main() {
         JSON.stringify(launches) === '[["p","s"]]' && 'value' in launched && !launched.error,
         { launches, launched }
     );
+    check('a launch a mod asks is told as its request of that mod', requests.join() === 's>p', requests);
     const refusedLaunch = await heard.asked(PAGE, { channel: 'deckit-shell:mods-launch', payload: { id: 'r' } });
     check(
         'a request refused is answered with its stage and kind',
@@ -181,6 +192,7 @@ async function main() {
         IDENTITY,
         CATALOG,
         RUNNER,
+        REQUEST,
         PERMISSION: { define: () => {} },
         MANIFEST_FIELD: { define: () => {} },
         WEB: {},
