@@ -1,0 +1,22 @@
+case = 3
+name = "plan-of-a-path-that-is-not-absolute-is-refused-at-read"
+note = "folder is an absolute path, and a string that is not one names no folder, which refuses plan at read with NOT_LOADABLE. mod-a plans mod-b, a path that does not begin with a slash."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.plan"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

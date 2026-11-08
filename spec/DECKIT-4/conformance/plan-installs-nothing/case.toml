@@ -1,0 +1,24 @@
+case = 3
+name = "plan-installs-nothing"
+note = "plan changes nothing, so after mod-a plans the install of mod-b the catalog still lists mod-a alone."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.plan"
+folders = ["mod-b"]
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a"]

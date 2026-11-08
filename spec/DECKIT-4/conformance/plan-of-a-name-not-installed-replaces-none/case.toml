@@ -1,0 +1,22 @@
+case = 3
+name = "plan-of-a-name-not-installed-replaces-none"
+note = "plan answers replaces false where no installed bundle is listed under the bundle's name, so a plan of mod-b, which nothing installed is listed under, replaces none."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.plan"
+folders = ["mod-b"]
+part = "replaces"
+
+[step.expect]
+answers = false

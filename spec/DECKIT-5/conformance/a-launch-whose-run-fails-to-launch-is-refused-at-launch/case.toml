@@ -1,0 +1,30 @@
+case = 3
+name = "a-launch-whose-run-fails-to-launch-is-refused-at-launch"
+note = "launch is refused at launch with NOT_LAUNCHED where the run it asked for failed to launch, and what the system answers of the run is refused the same. The entry of mod-b throws as it is evaluated."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "launch"
+kind = "NOT_LAUNCHED"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+refuses = "launch"
+kind = "NOT_LAUNCHED"

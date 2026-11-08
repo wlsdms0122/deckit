@@ -1,0 +1,25 @@
+case = 3
+name = "a-relaunch-of-a-mod-that-does-not-run-launches-it"
+note = "A relaunch of a mod whose run is notRunning, or that has no run, launches it. mod-a relaunches mod-b, which has not run since the app started."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.relaunch"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"

@@ -1,0 +1,30 @@
+case = 3
+name = "a-name-removed-loses-its-place"
+note = "A name removed loses its place, so mod-b, shipped between mod-a and mod-c, removed and installed again from its folder, is listed after mod-c."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.remove"
+args = ["mod-b", false]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a", "mod-c", "mod-b"]

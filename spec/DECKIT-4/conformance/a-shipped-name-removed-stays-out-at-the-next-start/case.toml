@@ -1,0 +1,30 @@
+case = 3
+name = "a-shipped-name-removed-stays-out-at-the-next-start"
+note = "A name shipped and removed stays out at each later start while the host ships it, so mod-b, shipped and removed, is not listed after the app starts again."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.remove"
+args = ["mod-b", false]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a"]

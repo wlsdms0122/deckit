@@ -1,0 +1,32 @@
+case = 3
+name = "a-name-installed-from-a-folder-leaves-the-shipped-names"
+note = "A name leaves the shipped names as install installs a bundle under it, and an installed name not among them stays as installed at each later start. mod-b 1.0.0 is shipped, mod-b 2.0.0 installed from a folder, and the app started again."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b-new"]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-b"
+part = "version"
+
+[step.expect]
+answers = "2.0.0"
