@@ -1,6 +1,6 @@
 case = 4
 name = "a-record-under-what-is-no-key-is-refused"
-note = "A record's key is a key as the storage grammar gives it: one that is not is refused at call with kind KEY. mod-a sets the record Note."
+note = "A record's key is a key as the storage grammar gives it: one that is not is refused at call with kind INVALID_ARGUMENT. mod-a sets the record Note."
 
 [host]
 base = "system"
@@ -18,4 +18,4 @@ args = ["Note", 1]
 
 [step.expect]
 refuses = "call"
-kind = "KEY"
+kind = "INVALID_ARGUMENT"

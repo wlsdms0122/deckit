@@ -1,0 +1,38 @@
+case = 4
+name = "what-holds-a-null-is-not-stored"
+note = "Storage takes values alone, and a value holds no null: a record or a value that holds one is refused at call with kind INVALID_ARGUMENT, and nothing of it is kept. mod-a's start sets the value note to a table that holds a null and the record note to an array that holds one, and keeps the kinds it was refused with as the value refused."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.get"
+args = ["refused", "none"]
+
+[step.expect]
+answers = ["INVALID_ARGUMENT", "INVALID_ARGUMENT"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.get"
+args = ["note", "none"]
+
+[step.expect]
+answers = "none"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.records.get"
+args = ["note", "none"]
+
+[step.expect]
+answers = "none"

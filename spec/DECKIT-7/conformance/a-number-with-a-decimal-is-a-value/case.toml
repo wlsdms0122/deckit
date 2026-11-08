@@ -1,0 +1,20 @@
+case = 4
+name = "a-number-with-a-decimal-is-a-value"
+note = "A number is a value, one with a decimal as an integer is: a request takes it, and it is read back as it was. mod-a's start keeps 0.5 as a record and as a value, and keeps whether each reads back as 0.5 as the value kept."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.get"
+args = ["kept", "none"]
+
+[step.expect]
+answers = [true, true]

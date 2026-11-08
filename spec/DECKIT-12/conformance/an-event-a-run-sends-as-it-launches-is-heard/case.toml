@@ -1,0 +1,32 @@
+case = 4
+name = "an-event-a-run-sends-as-it-launches-is-heard"
+note = "An event is sent from a run that is launching, as its code runs then: one its start sends is heard. mod-a listens to mod-b:ready and launches mod-b, whose start sends ready with launching."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-b:ready"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [["launching"]]

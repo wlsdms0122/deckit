@@ -1,6 +1,6 @@
 case = 4
 name = "the-usage-of-a-mod-that-stored-nothing-counts-nothing"
-note = "mods.usage of a mod that stored nothing answers nothing in each place. mod-a's usage of mod-b, which stored nothing, answers no files, no records and no names."
+note = "mods.usage of a mod that stored nothing answers nothing in each place. mod-a's usage of mod-b, which stored nothing, answers no files, no records, no values and no names."
 
 [host]
 base = "system"
@@ -18,4 +18,4 @@ member = "mods.usage"
 args = ["mod-b"]
 
 [step.expect]
-answers = { data = { count = 0, capped = false, hidden = false }, records = { count = 0, hidden = false }, kept = [] }
+answers = { data = { count = 0, capped = false, hidden = false }, records = { count = 0, hidden = false }, values = { count = 0 }, kept = [] }

@@ -1,6 +1,6 @@
 case = 4
-name = "the-usage-of-what-is-no-id-is-refused"
-note = "mods.usage takes an id as the bundle names one: one that is not is refused at call with kind MOD. mod-a asks the usage of Mod-B."
+name = "the-usage-of-an-id-no-mod-is-listed-under-is-refused"
+note = "mods.usage reads what a mod with a bundle has stored: an id no bundle is listed under is refused at call with kind NOT_INSTALLED. mod-a asks the usage of mod-b, which is not installed."
 
 [host]
 base = "system"
@@ -15,8 +15,8 @@ input = "start"
 input = "call"
 mod = "mod-a"
 member = "mods.usage"
-args = ["Mod-B"]
+args = ["mod-b"]
 
 [step.expect]
 refuses = "call"
-kind = "MOD"
+kind = "NOT_INSTALLED"

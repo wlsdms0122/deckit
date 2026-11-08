@@ -1,6 +1,6 @@
 case = 4
-name = "the-owner-of-an-interface-sends-no-signal-the-system-tells"
-note = "owner-changed and contributions-changed are the signals the system tells of an interface, and its owner's event of either name is not sent. mod-b owns mod-b/pages and sends mod-b/pages:owner-changed, and mod-a, listening to it, does not hear it."
+name = "the-owners-signal-of-a-name-the-system-tells-is-refused"
+note = "owner-changed and contributions-changed are the signals the system tells of an interface: its owner's emit of either is refused at call with kind NOT_PERMITTED, and sends nothing. mod-b owns mod-b/pages and sends mod-b/pages:owner-changed, and mod-a, listening to it, does not hear it."
 
 [host]
 base = "system"
@@ -22,6 +22,10 @@ input = "call"
 mod = "mod-b"
 member = "events.emit"
 args = ["mod-b/pages:owner-changed"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
 
 [[step]]
 look = "heard"
