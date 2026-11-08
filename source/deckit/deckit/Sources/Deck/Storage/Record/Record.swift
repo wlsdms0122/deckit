@@ -26,8 +26,14 @@ public final class Record {
         store.read(try file(principal: principal, key: key))
     }
 
+    // Refused once the disk has no room for it.
     public func write(principal: String, key: String, text: String) throws {
-        try store.write(text, to: try file(principal: principal, key: key))
+        let file = try file(principal: principal, key: key)
+        do {
+            try store.write(text, to: file)
+        } catch let error as CocoaError where error.code == .fileWriteOutOfSpace {
+            throw RecordError.outOfSpace(key)
+        }
     }
 
     public func remove(principal: String, key: String) throws {

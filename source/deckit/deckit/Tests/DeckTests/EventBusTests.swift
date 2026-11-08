@@ -22,7 +22,7 @@ struct EventBusTests {
     }
 
     // MARK: - Test
-    @Test("an event goes, named after its principal, to the runs listening to it, and only from a run that is running")
+    @Test("an event goes, named after its principal, to the runs listening to it, from a run launching or running")
     func eventGoesToItsListeners() throws {
         // Given
         _ = try runner.load([
@@ -40,7 +40,7 @@ struct EventBusTests {
         let older = try sut.emit(principal: "a", run: 0, name: "status")
 
         // Then
-        #expect(launching == EventDelivery(name: "a:status", listeners: []))
+        #expect(launching == EventDelivery(name: "a:status", listeners: ["b"]))
         #expect(running == EventDelivery(name: "a:status", listeners: ["b"]))
         #expect(older.listeners.isEmpty)
     }

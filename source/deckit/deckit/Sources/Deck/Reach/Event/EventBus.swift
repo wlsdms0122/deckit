@@ -10,10 +10,10 @@ import Foundation
 // Principals say what happened to them through deck, never to each other: an event is named after the principal that
 // sent it, so none speaks for another, and one deck or the driver tells after the interface it tells of. The owner of
 // an interface sends its signals, `<interface>:<name>`, named after the interface, and none of the names deck or the
-// driver tells of the interface with. It goes to the runs that listen to it, and only from a run that is running. A
-// run hears only what its job names: the events of its own principal and of the principals it may reach by id, and
-// those named after the interfaces it uses or provides; listening to another name is ignored. A run that has ended
-// hears nothing.
+// driver tells of the interface with. It goes to the runs that listen to it, and only from a run that is launching or
+// running, whose code runs. A run hears only what its job names: the events of its own principal and of the principals
+// it may reach by id, and those named after the interfaces it uses or provides; listening to another name is ignored.
+// A run that has ended hears nothing.
 public final class EventBus {
     // MARK: - Property
     private let runner: Runner
@@ -37,15 +37,15 @@ public final class EventBus {
         listening[id] = (number, Set(names.filter { name in ScopedName(name) != nil }))
     }
 
-    // The event `name` of the `number`th run of `id`, and the principals to tell it, none while that run is not
-    // running. Refused for a signal of an interface `id` owns named as deck or the driver tells of the interface.
+    // The event `name` of the `number`th run of `id`, and the principals to tell it, none while that run is neither
+    // launching nor running. Refused for a signal of an interface `id` owns named as deck or the driver tells of it.
     public func emit(principal id: String, run number: Int, name: String) throws -> EventDelivery {
         let signal = ScopedName(name).flatMap { signal in owners.owner(of: signal.principal) == id ? signal : nil }
         if let signal, reserved.contains(signal.name) {
             throw EventError.reserved(name)
         }
         let scoped = signal ?? ScopedName(principal: id, name: name)
-        guard let run = runner.run(of: id), run.number == number, run.state == .running else {
+        guard let run = runner.run(of: id), run.number == number, [.launching, .running].contains(run.state) else {
             return EventDelivery(name: scoped.description, listeners: [])
         }
         let hearing = signal == nil ? hearsPrincipal : hearsInterface
