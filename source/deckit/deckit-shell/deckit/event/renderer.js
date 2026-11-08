@@ -3,6 +3,7 @@ import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 import * as SCOPED from './model/scoped-name.js';
+import * as REQUEST from '../request/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -13,32 +14,37 @@ export function createEvent({ RUN }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // What a handle holds of events, as `events`. `emit(name, ...args)` sends one of the mod's own, which listeners
-    // hear named after it (SCOPED.scopedName); `on(named, listener)` hears one of a name its manifest names, its own
-    // id or an interface it uses or provides, until its off or until `scope` is cut, and is refused any other. Values
-    // are copied. `handle` is the name the mod reaches them by.
+    // What a handle holds of events, as `events`. Neither is a request: each throws its refusal. `emit(name, ...args)`
+    // sends one of the mod's own, which listeners hear named after it (SCOPED.scopedName), refused INVALID_ARGUMENT for
+    // a name that is no string or args that cannot be copied; `on(named, listener)` hears one of a name its manifest
+    // names, its own id or an interface it uses or provides, until its off or until `scope` is cut, refused
+    // INVALID_ARGUMENT for a name that is no `<mod id>:<event name>` or a listener that is no function, then
+    // NOT_PERMITTED for any other name. `handle` is the name the mod reaches them by.
     function forScope({ handle, scope }) {
         const events = `${handle}.events`;
+        const invalid = (message) => REQUEST.refusal('call', 'INVALID_ARGUMENT', message);
         return {
             events: Object.freeze({
                 emit(name, ...args) {
+                    if (typeof name !== 'string') throw invalid(`${events}.emit() takes a name that is a string`);
                     try {
-                        PROTOCOL.emit.send({ run: RUN.number, name: String(name), args });
+                        PROTOCOL.emit.send({ run: RUN.number, name, args });
                     } catch (error) {
-                        RUN.fail(
+                        throw invalid(
                             `${events}.emit("${name}") takes values that can be copied: ${error.message || error}`
                         );
                     }
                 },
-                on(name, listener) {
-                    const named = String(name);
-                    if (!SCOPED.isScoped(named))
-                        throw new Error(`${events}.on() takes "<mod id>:<event name>", not "${named}"`);
+                on(named, listener) {
+                    if (typeof named !== 'string' || !SCOPED.isScoped(named))
+                        throw invalid(`${events}.on() takes "<mod id>:<event name>", not ${String(named)}`);
+                    if (typeof listener !== 'function') throw invalid(`${events}.on() takes a listener function`);
                     if (!isNamed(SCOPED.modOf(named)))
-                        throw new Error(
+                        throw REQUEST.refusal(
+                            'call',
+                            'NOT_PERMITTED',
                             `${events}.on() hears the names of its own id and its interfaces, not "${named}"`
                         );
-                    if (typeof listener !== 'function') throw new Error(`${events}.on() takes a listener function`);
                     return scope.add(busNow().on(named, listener));
                 },
             }),

@@ -1,6 +1,7 @@
 // The events of a mod's page (deckit-shell/deckit/event/renderer.js): a page listens only to names its manifest names,
-// its own id and the interfaces it uses or provides, and is refused any other. Exits 1 with a line for each check that
-// failed. The packages are ES modules, so they are imported as such.
+// its own id and the interfaces it uses or provides, and is refused any other, and each refusal is thrown with its
+// stage and kind. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as
+// such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -36,13 +37,18 @@ async function main() {
         fail: () => {},
     };
     const { events } = createEvent({ RUN }).forScope({ handle: 'deckit', scope: makeScope() });
-    const refused = (name) => {
+    const thrown = (make) => {
         try {
-            events.on(name, () => {});
+            make();
             return null;
         } catch (error) {
-            return error.message;
+            return error;
         }
+    };
+    const refused = (name) => thrown(() => events.on(name, () => {}))?.message ?? null;
+    const kindOf = (make) => {
+        const error = thrown(make);
+        return error && `${error.stage} ${error.kind}`;
     };
 
     const named = ['a:status', 'c/api:changed', 'a/api:owner-changed'].map(refused);
@@ -56,6 +62,32 @@ async function main() {
         'a page is refused a name its manifest does not name',
         other === 'deckit.events.on() hears the names of its own id and its interfaces, not "d:status"',
         other
+    );
+    check(
+        'a name of another mod is refused NOT_PERMITTED',
+        kindOf(() => events.on('d:status', () => {})) === 'call NOT_PERMITTED'
+    );
+    const invalid = [
+        () => events.on('status', () => {}),
+        () => events.on(1, () => {}),
+        () => events.on({ toString: () => 'a:status' }, () => {}),
+        () => events.on('a:status', 'no function'),
+        () => events.on('d:status', 'no function'),
+        () => events.emit(1),
+    ].map(kindOf);
+    check(
+        'a name that is no scoped string, a listener or an emitted name of another type are refused INVALID_ARGUMENT',
+        invalid.every((kind) => kind === 'call INVALID_ARGUMENT'),
+        invalid
+    );
+    check('an event of values is sent', kindOf(() => events.emit('status', 1, 'two', { three: [3] })) === null);
+    const sent = tells.at(-1);
+    check(
+        'an emit sends the run, the name as written and the values',
+        sent.channel === 'deckit-shell:event-emit' &&
+            JSON.stringify(sent.payload) ===
+                JSON.stringify({ run: 1, name: 'status', args: [1, 'two', { three: [3] }] }),
+        sent
     );
 
     for (const line of failed) console.error(line);

@@ -18,7 +18,8 @@ export function createMods({ RUN }) {
     // MARK: - Public
     // `added` is what the layers add, each a request `{ signature, send }`. `onChange(listener)` hears that what
     // `list()` answers may have changed, once for each change main tells in one go, until its off or until `scope` is
-    // cut; for a mod not granted deckit.mods it throws the refusal.
+    // cut. It is no request, and throws its refusal: NOT_PERMITTED for a mod not granted deckit.mods, then
+    // INVALID_ARGUMENT for a listener that is no function.
     function tool(added, scope) {
         const { id, permissions } = RUN.mod;
         const granted = permissions.some((permission) => permission.id === MOD_PERMISSION.MODS);
@@ -30,6 +31,8 @@ export function createMods({ RUN }) {
             ),
             onChange: (listener) => {
                 if (denied) throw REQUEST.refusal('call', 'NOT_PERMITTED', denied);
+                if (typeof listener !== 'function')
+                    throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'mods.onChange() takes a listener function');
                 return scope.add(onChange(listener));
             },
             list: request('list', [], () => PROTOCOL.mods.invoke()),
