@@ -1,17 +1,17 @@
 # Forge
 
-The forge daemons, for the mods that depend on Forge. Forge starts, stops and restarts a daemon, holds the token the daemon hands the process that starts it, and runs forge's operations on it by running the `forge` command in its main process module. It has no view: a mod that depends on it shows the daemons. It asks to start with the app, so it follows the daemons and their runs while the app is open.
+The forge daemons, for the mods that use `forge/sessions`. Forge starts, stops and restarts a daemon, holds the token the daemon hands the process that starts it, and runs forge's operations on it by running the `forge` command in its main process module. It has no view: a mod that uses it shows the daemons. It runs in the background (`background` in its manifest), so it follows the daemons and their runs while the app is open.
 
 ## Where forge is
 
-Settings says where it is, `~` at the start of a path being the home folder:
+Two settings say where it is, declared in the manifest to `deckit/configuration` (see the Configuration mod) and set in Settings, `~` at the start of a path being the home folder:
 
-| Setting | What it is | Empty |
-|---|---|---|
-| Forge command | the `forge` program | the `forge` on the login shell's PATH |
-| Forge configuration | the `config.toml` the `default` session is served with (`forge serve --config`), with the workflows it names | forge's own, `config.toml` in the session's folder |
+| Key | Setting | What it is | Empty |
+|---|---|---|---|
+| `forge` | Forge command | the `forge` program | the `forge` on the login shell's PATH |
+| `forgeConfig` | Forge configuration | the `config.toml` the `default` session is served with (`forge serve --config`), with the workflows it names | forge's own, `config.toml` in the session's folder |
 
-forge runs with the login shell's PATH, as do the daemons it starts, for an app opened from the Finder has only the system's. A changed setting is used at once: the commands still running for the settings before end, and a daemon already running stays the one it was started as until it is restarted.
+Forge reads them through `deckit/configuration` once it is connected, and until then every call tells that Forge is not serving. forge runs with the login shell's PATH, as do the daemons it starts, for an app opened from the Finder has only the system's. A changed setting is used at once: the commands still running for the settings before end, and a daemon already running stays the one it was started as until it is restarted.
 
 ## Sessions
 
@@ -21,24 +21,34 @@ forge hands the token that controls a daemon to the process that starts it, and 
 
 ## Commands
 
-What a CLI, the switcher or another mod runs by name, on a host app with no UI too, declared in `contributes.json`. Each takes an optional `session`, `default` when not given, completed from the sessions there are, each with its state.
+What a CLI, the switcher or another mod runs by name, on a host app with no UI too: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Forge opens for its id in `start`. Each takes an optional `session`, `default` when not given, and answers nothing.
 
-| Command | What it does |
-|---|---|
-| `start` | starts the session's daemon |
-| `stop` | stops the session's daemon, with the services it supervises |
-| `restart` | restarts the session's daemon with the services it supervises, or starts it |
+| Command | Title | What it does |
+|---|---|---|
+| `start` | Start Forge | starts the session's daemon |
+| `stop` | Stop Forge | stops the session's daemon, with the services it supervises |
+| `restart` | Restart Forge | restarts the session's daemon with the services it supervises, or starts it |
 
-## For other mods: `forge`
+## Providing `forge/sessions`
 
-Forge's exports are for the mods that depend on it by id, at the version in its manifest. They open in `start`, so a mod that requires it reaches them as `deckit.dependencies.forge` from its `start` on. It gives no place for views. A session not given is `default`:
+Forge provides `forge/sessions` major 1. The exports open in `start`, so a client reaches them with no screen too, from its own `start` on, while Forge is connected. Any client calls them; it gives no place for views. A session not given is `default`:
 
 ```toml
-[dependencies]
-forge = "1.0.0"
+[interfaces]
+uses = { "forge/sessions" = 1 }
 ```
 
-| Member | What it does |
+```js
+deckit.dependencies.onConnect('forge/sessions', (forge) => {
+    this.forge = forge;
+    return () => (this.forge = null);
+});
+await this.forge.dispatch('merge-gate', { number: 42 }, { onRun: (run) => draw(run) });
+```
+
+## What a client calls
+
+| Export | What it does |
 |---|---|
 | `sessions()` | every session, `{ main, sessions: [{ name, up, daemon, authority, controls }] }`: `authority` is whether its token is here, `controls` which of start, stop and restart apply |
 | `session(session)` | one session, as in `sessions()` |
@@ -66,11 +76,6 @@ forge = "1.0.0"
 
 A run is `{ id, workflow_id, name, session, status, step, startedAt, endedAt, outputs, error }`. `status` is forge's, `running` and then `ok` or `failed`, with `error` as forge gives it, `{ type, message }`; `step` is the step of the run itself it last started. A run is followed whatever the settings become; one whose stream ends before forge tells its end, as when the daemon stops, ends `failed` with the error type `unfollowed`. Forge waits fifteen seconds for forge to take a run, and rejects the dispatch after. Ended runs are answered by `run(id)` until a hundred more have ended.
 
-`id` is the run's handle, what `run(id)` takes: a dependent holds it as it was handed and never reads it. A handle never repeats across Forge's runs, and one it does not know, from an earlier run of it, is answered as not there, `null`. `workflow_id` is forge's own name for the run, what its operations take (`workflow.cancel`) and what `workflow.active` lists. A session is no handle: it is named by the person, `default` or the name of its folder, and is the same daemon whichever implementation reaches it.
+`id` is the run's handle, what `run(id)` takes: a client holds it as it was handed and never reads it. A handle never repeats across Forge's runs, and one it does not know, from an earlier run of it, is answered as not there, `null`. `workflow_id` is forge's own name for the run, what its operations take (`workflow.cancel`) and what `workflow.active` lists. A session is no handle: it is named by the person, `default` or the name of its folder, and is the same daemon whichever implementation reaches it.
 
 A run is the mod's that dispatched it, which forge records as who dispatched it, and only that mod reads it with `run(id)`; to another, it is not there. `onRun(run)` is told each change of the run, a step started or the end, until it ends. It lasts as long as the connection it was handed over on: a mod that starts again reaches a run it dispatched before with `run(id, { onRun })`, while the run of Forge that handed it lasts.
-
-```js
-const forge = deckit.dependencies.forge;
-await forge.dispatch('merge-gate', { number: 42 }, { onRun: (run) => draw(run) });
-```

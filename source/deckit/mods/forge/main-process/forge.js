@@ -1,6 +1,7 @@
-// The forge daemons, where the mod's configuration says forge is: `use(places)` gives it, before anything is asked and
-// again when one changes. A command left empty is the one on the login shell's PATH, and `~` at the start of a path is
-// the home folder. Each change of a run dispatched from here is sent as `run`.
+// The forge daemons, where the mod's settings say forge is: `use(places)` gives it, as the settings are read and again
+// when one changes, and until it first does every method tells it is not serving. A command left empty is the one on
+// the login shell's PATH, and `~` at the start of a path is the home folder. Each change of a run dispatched from here
+// is sent as `run`.
 module.exports = ({ emit }) => {
     const os = require('os');
     const path = require('path');
@@ -58,7 +59,7 @@ module.exports = ({ emit }) => {
     };
 
     const methods = () => {
-        if (!served) throw new Error('Forge is not serving: the mod has not started or has stopped');
+        if (!served) throw new Error('Forge is not serving: its settings are not read yet, or the mod has stopped');
         if (served.problem) throw new Error(served.problem);
         return served.methods;
     };
