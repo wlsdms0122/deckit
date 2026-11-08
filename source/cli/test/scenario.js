@@ -1277,6 +1277,48 @@ async function run({
             await pressTab(FRONT_TAB);
             await until(async () => (await shownAt()) === FRONT_TAB, 3000);
         }
+        // A key a tab's web page did not handle is next the Browser window's document's, where its element is: ⌘W with
+        // the keyboard in the web page closes the tab, and the window stays.
+        {
+            const site = require('http').createServer((_request, response) => {
+                response.writeHead(200, { 'Content-Type': 'text/html' });
+                response.end('<p>a page</p>');
+            });
+            await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+            const plain = `http://127.0.0.1:${site.address().port}/`;
+            const tabCount = `document.querySelectorAll('.browser-row-label').length`;
+            const before = await browser?.evaluate(tabCount);
+            await browser?.key('t', 'KeyT', META, 84);
+            await until(async () => (await browser?.evaluate(tabCount)) === before + 1, 3000);
+            await browser?.type(plain);
+            await browser?.key('Enter', 'Enter', 0, 13);
+            const tabId = await until(async () => (await shownAt()) === plain && browser?.evaluate(shownPage), 5000);
+            const held = `document.activeElement?.dataset.webPage`;
+            await until(async () => (await browser?.evaluate(held)) === String(tabId), 3000);
+            await main(`return webkit.sendKey(${Number(tabId)}, { code: 'KeyW', key: 'w', meta: true })`);
+            const closedTab = await until(async () => (await browser?.evaluate(tabCount)) === before, 3000);
+            check(
+                "⌘W in a tab's web page closes the tab, and the Browser's window stays",
+                closedTab && (await windowsNow()).some(({ mod }) => mod === 'browser'),
+                JSON.stringify({ tabs: await browser?.evaluate(tabCount), windows: await windowsNow() })
+            );
+            site.close();
+            await pressTab(FRONT_TAB);
+            await until(async () => (await shownAt()) === FRONT_TAB, 3000);
+        }
+        // The host's menu has the app's items, Quit among them, and the Edit items a text field copies and pastes
+        // through, and none for closing or minimizing a window: those are the shell's keys, after the content.
+        {
+            const roles =
+                await main(`return require('electron').Menu.getApplicationMenu().items.flatMap(({ submenu }) =>
+                submenu.items.flatMap(({ role }) => (role ? [role.toLowerCase()] : [])))`);
+            check(
+                "the host's menu quits and edits, and does not close or minimize a window",
+                ['quit', 'copy', 'paste', 'selectall'].every((role) => roles?.includes(role)) &&
+                    !roles?.some((role) => ['close', 'minimize'].includes(role)),
+                roles
+            );
+        }
         // Find is a bar on a layer over the page, in the Browser's overlay, which takes the pointer only where the bar
         // lies, and has the focus as it opens; closed, the overlay is off the page, which has the keyboard again.
         {
