@@ -190,12 +190,12 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     return {
         follow: (x, y) => {
             hangAt(x, y);
-            const landed = landing(x, y, kind, payload);
+            const landed = landing(item.ownerDocument, x, y, kind, payload);
             if (landed) light(landed);
             else unlight();
         },
         drop: (x, y) => {
-            const landed = landing(x, y, kind, payload);
+            const landed = landing(item.ownerDocument, x, y, kind, payload);
             if (!landed || landed.place.stays) return goBack();
             landIn();
             landed.target.onDrop(payload, landed.place);
@@ -206,7 +206,7 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
             unlight();
             end();
         },
-        scroller: (x, y) => scrollerAt(x, y, kind),
+        scroller: (x, y) => scrollerAt(item.ownerDocument, x, y, kind),
     };
 }
 
@@ -226,9 +226,10 @@ function labelOf(text, icon) {
 }
 
 // Only the element under the pointer (past the capture cover) is asked about, never what lies under it: a zone
-// that takes "not on a row" as its top folder would otherwise answer under a row it had just refused.
-function landing(x, y, kind, payload) {
-    const under = document.elementsFromPoint(x, y).find((element) => !('deckitCapture' in element.dataset));
+// that takes "not on a row" as its top folder would otherwise answer under a row it had just refused. `page` is the
+// document the drag is in.
+function landing(page, x, y, kind, payload) {
+    const under = page.elementsFromPoint(x, y).find((element) => !('deckitCapture' in element.dataset));
     for (let node = under; node; node = node.parentElement) {
         for (const target of zones.get(node) || []) {
             if (target.kind !== kind) continue;
@@ -240,8 +241,8 @@ function landing(x, y, kind, payload) {
 }
 
 // What scrolls under (x, y) inside a zone that takes `kind`, for the edges and the wheel.
-function scrollerAt(x, y, kind) {
-    for (const under of document.elementsFromPoint(x, y)) {
+function scrollerAt(page, x, y, kind) {
+    for (const under of page.elementsFromPoint(x, y)) {
         for (let node = under; node; node = node.parentElement) {
             if ([...(zones.get(node) || [])].some((target) => target.kind === kind)) {
                 const element = SCROLL.scrollerOf(under);

@@ -42,8 +42,9 @@ function make() {
 function inlineEdit(label, { selectStem = false, onCommit }) {
     const was = label.textContent;
     const row = label.parentElement;
+    const page = label.ownerDocument;
     const look = getComputedStyle(label);
-    const input = document.createElement('input');
+    const input = page.createElement('input');
     input.className = 'deckit-rename';
     input.value = was;
     input.spellcheck = false;
@@ -51,9 +52,9 @@ function inlineEdit(label, { selectStem = false, onCommit }) {
     Object.assign(input.style, { font: look.font, letterSpacing: look.letterSpacing });
     for (const type of KEPT_IN) input.addEventListener(type, (event) => event.stopPropagation());
     // Given back only by Enter or Escape: a field left by a click lets the click decide where the focus goes.
-    const before = document.activeElement;
+    const before = page.activeElement;
     const giveBack = () => {
-        const to = before && before !== document.body && before.isConnected ? before : row?.closest('[tabindex]');
+        const to = before && before !== page.body && before.isConnected ? before : row?.closest('[tabindex]');
         to?.focus({ preventScroll: true });
     };
     const display = label.style.display;
@@ -73,7 +74,7 @@ function inlineEdit(label, { selectStem = false, onCommit }) {
     };
     const refuse = (why, under, length = 0) => {
         clear();
-        refusal = document.createElement('div');
+        refusal = under.ownerDocument.createElement('div');
         refusal.className = 'deckit-menu deckit-refusal';
         refusal.style.zIndex = String(PLACE.Z.float);
         refusal.textContent = why;
@@ -93,7 +94,7 @@ function inlineEdit(label, { selectStem = false, onCommit }) {
             over = true;
             clear();
             if (renamed) label.textContent = text;
-            const focused = document.activeElement === input;
+            const focused = page.activeElement === input;
             input.remove();
             label.style.display = display;
             if (focused) giveBack();
@@ -115,7 +116,7 @@ function inlineEdit(label, { selectStem = false, onCommit }) {
             asking = false;
             input.readOnly = false;
             if (!why) return end(true, text);
-            if (stay && document.activeElement === input) {
+            if (stay && page.activeElement === input) {
                 refuse(why, input);
                 input.select();
                 return;

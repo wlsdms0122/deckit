@@ -143,7 +143,8 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     // played out. Anywhere else it is sorted, so past the list's ends it goes first or last.
     let out = null;
     let afterOut = null;
-    const overTarget = (x, y) => !!described && !!DRAG.landing(x, y, described.kind, described.payload);
+    const overTarget = (x, y) =>
+        !!described && !!DRAG.landing(row.ownerDocument, x, y, described.kind, described.payload);
     const leave = (x, y) => {
         light(-1);
         to = from;

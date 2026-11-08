@@ -73,6 +73,15 @@ function windows() {
     return [window, overlay.window, ...worn.keys()];
 }
 
+// The element with the focus in the one of those documents that has the keyboard, or null.
+function activeElement() {
+    for (const { document } of windows()) {
+        const active = document.activeElement;
+        if (document.hasFocus() && active && active !== document.body) return active;
+    }
+    return null;
+}
+
 // Another document of the page's, in the window `opened`, wears the page's rules as they change, as the overlay does,
 // and is heard where the page is. Answers the off.
 function wear(opened) {
@@ -127,4 +136,4 @@ function report({ again = false } = {}) {
     overlay.tell(state);
 }
 
-export { start, add, take, focused, windows, wear, dress, draws };
+export { start, add, take, focused, windows, activeElement, wear, dress, draws };

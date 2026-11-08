@@ -53,6 +53,7 @@ function resizer(
         let release = null;
         let shown = from;
         travelled = false;
+        const view = handle.ownerDocument.defaultView;
         const move = (event) => {
             const delta = (positionOf(event) - start) * grow;
             if (!moving) {
@@ -70,21 +71,21 @@ function resizer(
             onResize(shown);
         };
         const up = () => {
-            window.removeEventListener('pointermove', move, true);
-            window.removeEventListener('pointerup', up, true);
-            window.removeEventListener('pointercancel', up, true);
+            view.removeEventListener('pointermove', move, true);
+            view.removeEventListener('pointerup', up, true);
+            view.removeEventListener('pointercancel', up, true);
             if (!moving) return;
             release();
             onDrag?.(false);
             const end = Math.min(valueOf(max), Math.max(low, shown));
-            gesture = springTo(onResize, shown, end, () => {
+            gesture = springTo(onResize, shown, end, view.document, () => {
                 gesture = null;
                 onCommit?.(end);
             });
         };
-        window.addEventListener('pointermove', move, true);
-        window.addEventListener('pointerup', up, true);
-        window.addEventListener('pointercancel', up, true);
+        view.addEventListener('pointermove', move, true);
+        view.addEventListener('pointerup', up, true);
+        view.addEventListener('pointercancel', up, true);
     };
     // The click event is also what Enter and Space on the handle make.
     const click = (event) => {
@@ -101,10 +102,10 @@ function resizer(
     return () => listening.abort();
 }
 
-// Through `resize`, so it is drawn the way a drag is. A page not being drawn is put there at once.
-function springTo(resize, from, to, then) {
+// Through `resize`, so it is drawn the way a drag is, in `page`, a document: one not being drawn is put there at once.
+function springTo(resize, from, to, page, then) {
     const length = TOKEN.MOTION.base;
-    if (from === to || !length || document.hidden) {
+    if (from === to || !length || page.hidden) {
         resize(to);
         then();
         return null;

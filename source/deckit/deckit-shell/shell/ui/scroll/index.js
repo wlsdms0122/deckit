@@ -9,7 +9,8 @@ const SIDES = Object.freeze({
 // The nearest ancestor that scrolls along `axis` now, `x` or `y`, or null.
 function scrollerOf(element, axis = 'y') {
     const { overflow, length, shown } = SIDES[axis];
-    for (let node = element; node && node !== document.body && node !== document.documentElement; ) {
+    const { body, documentElement } = element.ownerDocument;
+    for (let node = element; node && node !== body && node !== documentElement;) {
         const scrolls = getComputedStyle(node)[overflow];
         if ((scrolls === 'auto' || scrolls === 'scroll') && node[length] > node[shown]) return node;
         node = node.parentElement;
@@ -22,7 +23,7 @@ function isFullyVisible(element) {
     if (!element.isConnected || !element.getClientRects().length) return false;
     const box = scrollerOf(element.parentElement)?.getBoundingClientRect() ?? {
         top: 0,
-        bottom: window.innerHeight,
+        bottom: element.ownerDocument.defaultView.innerHeight,
     };
     const own = element.getBoundingClientRect();
     return own.top >= box.top && own.bottom <= box.bottom;

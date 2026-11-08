@@ -59,10 +59,10 @@ function draw(area, place, down, selection, onSelect, finished) {
     const scrolledAt = scroller.scrollTop;
     const scrolled = () => scroller.scrollTop - scrolledAt;
     const clip = scroller.getBoundingClientRect();
-    const box = document.createElement('div');
+    const box = area.ownerDocument.createElement('div');
     box.className = 'deckit-marquee';
     box.style.zIndex = String(PLACE.Z.drag);
-    document.body.append(box);
+    area.ownerDocument.body.append(box);
     let selected = '';
     const follow = (x, y) => {
         const by = scrolled();

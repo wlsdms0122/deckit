@@ -1,3 +1,4 @@
+import * as LAYER from '../layer/index.js';
 import * as PRESENTATION from '../presentation/index.js';
 
 // MARK: - Property
@@ -80,7 +81,7 @@ function modal(
     }
 ) {
     // Read before the callbacks run, so they see where the keyboard came from, not the button that answered.
-    const before = document.activeElement;
+    const before = LAYER.activeElement();
     const scrim = document.createElement('div');
     scrim.className = 'deckit-modal';
     scrim.dataset.align = align;
@@ -97,7 +98,7 @@ function modal(
         if (closed) return;
         closed = true;
         presented.close();
-        if (before && before !== document.body && before.isConnected) before.focus({ preventScroll: true });
+        if (before?.isConnected) before.focus({ preventScroll: true });
         onClose?.();
     };
     const submit = () => {

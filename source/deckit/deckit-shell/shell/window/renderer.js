@@ -3,6 +3,7 @@ import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
 import * as LAYER from '../ui/layer/index.js';
 import * as POINTER from '../ui/pointer/index.js';
+import * as PRESENTATION from '../ui/presentation/index.js';
 
 // MARK: - Property
 // What the content's document wears under the page's rules: clear, the content filling it.
@@ -20,9 +21,9 @@ const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'd
 // A mod's windows, in its own page: `forScope(scope)` is `shell.windows` for a lifecycle, whose windows close as
 // `scope` is cut; `windowOf(element)` the id of the window an element is in, or null; `reopen(listener)` what main's
 // reopen calls; `unmount()`, each window on screen disappearing and its parts told nothing more. Each window's content
-// is a document the page opens beside itself, which wears the page's rules and whose drag regions move the window
-// (`drags`, environment: PAGE.drags). `running` is the mod, `deliver` calls what the mod handed, and `channels` binds
-// the windows' channels in the page.
+// is a document the page opens beside itself, which wears the page's rules, where the pointer and what is presented
+// are heard as in the page, and whose drag regions move the window (`drags`, environment: PAGE.drags). `running` is
+// the mod, `deliver` calls what the mod handed, and `channels` binds the windows' channels in the page.
 function createWindows({ running, deliver, channels, drags }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
@@ -92,6 +93,7 @@ function createWindows({ running, deliver, channels, drags }) {
             drags.take(document, (down) => moved(id, down))
         );
         POINTER.watch(view);
+        PRESENTATION.watch(view);
         held.handle = handleOf(id, held);
         open.set(id, held);
         return held.handle;

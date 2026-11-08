@@ -89,9 +89,11 @@ function open() {
     return { layer: LAYER.add(element), element };
 }
 
-// Under the title bars the page lays, or at its top.
+// Under the title bars the page's documents lay, or at their top.
 function topOf() {
-    const bars = [...document.querySelectorAll('.deckit-title-bar')].map((bar) => bar.getBoundingClientRect());
+    const bars = LAYER.windows()
+        .flatMap(({ document }) => [...document.querySelectorAll('.deckit-title-bar')])
+        .map((bar) => bar.getBoundingClientRect());
     return Math.max(0, ...bars.filter((box) => box.width && box.height).map((box) => box.bottom)) + GAP;
 }
 

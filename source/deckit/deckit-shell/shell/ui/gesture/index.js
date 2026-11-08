@@ -47,12 +47,14 @@ function press(area, down, pick, begin, cursor) {
     let release = null;
     let presented = null;
     let frame = 0;
+    // The window the press is in, whose document the area is in.
+    const view = area.ownerDocument.defaultView;
 
     const listen = (on) => {
         const method = on ? 'addEventListener' : 'removeEventListener';
-        window[method]('pointermove', onMove, true);
-        window[method]('pointerup', onUp, true);
-        window[method]('pointercancel', onCancel, true);
+        view[method]('pointermove', onMove, true);
+        view[method]('pointerup', onUp, true);
+        view[method]('pointercancel', onCancel, true);
     };
     const letGo = () => {
         release?.();
@@ -104,13 +106,13 @@ function press(area, down, pick, begin, cursor) {
     const onUp = (event) => {
         listen(false);
         if (phase === 'pressed') return finished();
-        swallowClick();
+        swallowClick(view);
         if (phase === 'held') settle(() => held.drop(event.clientX, event.clientY));
     };
     const onCancel = () => {
         listen(false);
         if (phase === 'pressed') return finished();
-        swallowClick();
+        swallowClick(view);
         callOff();
     };
     const onWheel = (event) => {
@@ -157,13 +159,13 @@ function scrollNear({ element, axis }, x, y, moved) {
     if (element[offset] !== before) moved();
 }
 
-function swallowClick() {
+function swallowClick(view) {
     const swallow = (event) => {
         event.stopPropagation();
         event.preventDefault();
     };
-    window.addEventListener('click', swallow, true);
-    setTimeout(() => window.removeEventListener('click', swallow, true), 0);
+    view.addEventListener('click', swallow, true);
+    setTimeout(() => view.removeEventListener('click', swallow, true), 0);
 }
 
 export { SLOP, drag };

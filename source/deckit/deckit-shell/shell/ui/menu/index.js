@@ -168,7 +168,7 @@ function select({ options, value = null, onChange }) {
 
 // The menu of a row of `area`, opened by the context click, or by the ContextMenu key or Shift+F10 on the row
 // with the focus. The row it is about is marked while it is open.
-function contextMenu(area, { rowAt, items, keyRow = () => rowAt(document.activeElement) }) {
+function contextMenu(area, { rowAt, items, keyRow = () => rowAt(area.ownerDocument.activeElement) }) {
     let shown = null;
     const show = (row, where) => {
         if (shown?.isOpen()) {
@@ -202,16 +202,18 @@ function contextMenu(area, { rowAt, items, keyRow = () => rowAt(document.activeE
     };
 }
 
-// A bar over what its caller acts on: `show(rect)` puts it centred above the rect, or below when only that fits.
-// A press on it never takes the focus from the text it acts on.
-function floatingToolbar() {
+// A bar over what its caller acts on: `show(rect)` puts it centred above the rect, or below when only that fits, in
+// the document `over` is in as it shows, the element whose text it acts on (the page's own unless given). A press on
+// it never takes the focus from the text it acts on.
+function floatingToolbar({ over = null } = {}) {
     const element = tag('div', 'deckit-menu deckit-toolbar');
     element.style.zIndex = String(PLACE.Z.float);
     element.addEventListener('mousedown', (event) => event.preventDefault());
-    document.body.append(element);
     return {
         element,
         show: (rect) => {
+            const body = (over?.ownerDocument ?? document).body;
+            if (element.parentNode !== body) body.append(element);
             element.style.display = 'flex';
             PLACE.place(element, { rect, gap: 8, align: 'center', prefer: 'top' });
         },
@@ -219,9 +221,10 @@ function floatingToolbar() {
     };
 }
 
-// Candidates under a text its caller edits: the caller moves through them with its own keys. In the page only
-// while open: left in it, it would keep alive whatever its rows hold.
-function autocomplete({ onPick }) {
+// Candidates under a text its caller edits: the caller moves through them with its own keys. In the document `over`
+// is in, the element holding that text (the page's own unless given), only while open: left in it, it would keep alive
+// whatever its rows hold.
+function autocomplete({ onPick, over = null }) {
     const box = tag('div', 'deckit-menu');
     Object.assign(box.style, { minWidth: '220px', zIndex: String(PLACE.Z.float) });
     box.addEventListener('mousedown', (event) => event.preventDefault());
@@ -251,7 +254,8 @@ function autocomplete({ onPick }) {
             { active: Math.max(0, list.active()) }
         );
         open = true;
-        if (!box.isConnected) document.body.append(box);
+        const body = (over?.ownerDocument ?? document).body;
+        if (box.parentNode !== body) body.append(box);
         place(rect);
     };
     return { show, place, move: (by) => list.move(by), pick: () => pick(), close, isOpen: () => open };

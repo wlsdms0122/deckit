@@ -27,6 +27,7 @@ const stack = [];
 let backdrop = null;
 // Tells whether anything is presented, as that changes.
 let tell = () => {};
+let overlayDocument = null;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -37,15 +38,22 @@ let tell = () => {};
 function start({ tell: given }) {
     tell = given;
     const [page, overlay] = LAYER.windows();
-    for (const each of [page, overlay]) {
-        each.addEventListener('pointerdown', dismissOutside, true);
-        each.addEventListener('keydown', route, true);
-        each.addEventListener('blur', () => requestAnimationFrame(() => setTimeout(dismissUnfocused)));
-    }
-    page.addEventListener('focus', () => keepKeyboard(overlay.document));
-    page.addEventListener('scroll', dismissScrolledAway, true);
+    overlayDocument = overlay.document;
+    watch(page);
+    overlay.addEventListener('pointerdown', dismissOutside, true);
+    overlay.addEventListener('keydown', route, true);
+    overlay.addEventListener('blur', unfocused);
     overlay.addEventListener('wheel', dismissWheeledOutside, true);
-    page.addEventListener('resize', () => {
+}
+
+// What is presented is heard in one more document of the page's, as in the page: a window's content.
+function watch(each) {
+    each.addEventListener('pointerdown', dismissOutside, true);
+    each.addEventListener('keydown', route, true);
+    each.addEventListener('blur', unfocused);
+    each.addEventListener('focus', () => keepKeyboard(overlayDocument));
+    each.addEventListener('scroll', dismissScrolledAway, true);
+    each.addEventListener('resize', () => {
         dismissTransient();
         placeAgain();
     });
@@ -107,7 +115,7 @@ function count() {
 // top hears it as it hears any key. Answers whether anything is presented.
 function escape() {
     if (!stack.length) return false;
-    const target = LAYER.focused() || document.activeElement || document.body;
+    const target = LAYER.activeElement() || document.body;
     target.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
     );
@@ -196,10 +204,13 @@ function dismissTransient() {
     for (const presented of [...stack].reverse()) if (presented.transient) presented.dismiss();
 }
 
-// Once neither the page nor its overlay has the keyboard: it went to another page or another app.
-function dismissUnfocused() {
-    const [page, overlay] = LAYER.windows();
-    if (!page.document.hasFocus() && !overlay.document.hasFocus()) dismissTransient();
+function unfocused() {
+    requestAnimationFrame(() => setTimeout(dismissUnfocused));
 }
 
-export { STYLE, start, present, top, count, escape };
+// Once none of the page's documents has the keyboard: it went to another page or another app.
+function dismissUnfocused() {
+    if (!LAYER.windows().some(({ document }) => document.hasFocus())) dismissTransient();
+}
+
+export { STYLE, start, watch, present, top, count, escape };
