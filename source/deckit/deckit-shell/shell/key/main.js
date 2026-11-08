@@ -18,8 +18,8 @@ export function createKey({ deckit }) {
     // MARK: - Public
     // The shell's own keys, each with its default chord, and the chords the person set, kept in the shell's state,
     // which a mod with deckit.shell-keys lists, sets and resets. Each holds its chord in every page of the app, before
-    // any mod can take one: `press(id, page) -> taken` is a press of it in `page`, answering whether it took it. Any
-    // mod's page records the keys pressed in it.
+    // any mod can take one: `press(id, page) -> taken` is a press of it in `page` that the page did not handle,
+    // answering whether it took it. Any mod's page records the keys pressed in it.
     function start(press) {
         pressed = press;
         set = KEY.keptOf(deckit.state.read(KEPT, {}));

@@ -491,7 +491,8 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         return !!pageOf(page);
     }
 
-    // A press of the shell's key `id` in a page of the app: the desktop takes it in its own pages while it is shown.
+    // A press of the shell's key `id` in a page of the app that the page did not handle: the desktop takes it in its
+    // own pages while it is shown.
     function pressKey(id, pressedIn) {
         if (!shown || !pageOf(pressedIn)) return false;
         KEY_ACTIONS[id]();
