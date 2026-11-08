@@ -1,8 +1,9 @@
 // Deckit as a layer on the runner in a mod's page (deckit-shell/deckit/mod/renderer.js), with a layer over it stacking
 // a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's
-// handle, which takes a chord only for a mod with deckit.app-keys or system.global-keys; a press of the chord runs what
-// took it, and the chord is let go once the lifecycle that took it ends. Exits 1 with a line for each check that
-// failed. The packages are ES modules, so they are imported as such.
+// handle, which opens an address outside the app with openExternal and takes a chord only for a mod with
+// deckit.app-keys or system.global-keys; a press of the chord runs what took it, and the chord is let go once the
+// lifecycle that took it ends. Exits 1 with a line for each check that failed. The packages are ES modules, so they
+// are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -67,7 +68,18 @@ async function main() {
     const scope = makeScope();
     await lifecycle.start({}, { deckit: { exports: {} }, shell: {} }, scope);
     const handle = handed?.deckit;
-    check("a lifecycle over deckit is handed deckit's handle", typeof handle?.urls?.open === 'function', handed);
+    check(
+        "a lifecycle over deckit is handed deckit's handle, which opens outside the app with openExternal",
+        typeof handle?.openExternal === 'function' && !('urls' in handle),
+        handed
+    );
+    await handle.openExternal('https://example.com', { activates: false });
+    const opened = sent.find(({ channel }) => channel === 'deckit-shell:open');
+    check(
+        'openExternal asks main to open the address with the system',
+        JSON.stringify(opened?.payload) === '{"url":"https://example.com","activates":false}',
+        opened
+    );
     check(
         'the handle holds no commands or configuration',
         !handle.commands && !handle.configuration && !handle.modConfiguration,
