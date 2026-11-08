@@ -7,7 +7,7 @@ import * as CONNECTION from '../core/connection.js';
 import * as LOG_FILE from '../log/file.js';
 import * as FILES from '../files/index.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
-import { clearStorage, serve, storeFor } from '../sandbox/index.js';
+import { clearStorage, countStorage, serve, storeFor } from '../sandbox/index.js';
 import { createFolder } from '../mod/folder.js';
 import { createWebKit } from '../webkit/index.js';
 import { createMessages, CHANNEL } from '../messages/main.js';
@@ -136,6 +136,7 @@ function createEnvironment({ core, preload, openWindow }) {
             pin: (page) => pin(guard, page, pins),
             watchInput: (page, listener) => watchInput(guard, page, listener),
             clearStorage: (modId) => clearStorage(WEBKIT, CONFIG.id, modId),
+            countStorage: (modId) => countStorage(WEBKIT, CONFIG.id, modId),
         }),
         keys: Object.freeze({
             capture: (page, handler) => capture(guard, page, handler),
