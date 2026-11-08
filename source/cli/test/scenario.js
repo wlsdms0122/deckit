@@ -1268,7 +1268,12 @@ async function run({
                 started
             );
             await browser?.key('w', 'KeyW', META, 87);
-            await until(async () => (await browser?.evaluate(tabCount)) === before, 3000);
+            const closedTab = await until(async () => (await browser?.evaluate(tabCount)) === before, 3000);
+            check(
+                "⌘W the Browser's window handles closes its tab, and the shell's Close Window does not run",
+                closedTab && (await windowsNow()).some(({ mod }) => mod === 'browser'),
+                await windowsNow()
+            );
             await pressTab(FRONT_TAB);
             await until(async () => (await shownAt()) === FRONT_TAB, 3000);
         }

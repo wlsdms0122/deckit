@@ -421,7 +421,8 @@ async function main() {
 // `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage
 // 1200 by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
 // desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that
-// page, `page()` is what it was told last, and `press(name, page)` presses the shell's key `name` in `page`.
+// page, `page()` is what it was told last, and `press(name, page)` presses the shell's key `name` in `page`, which
+// the page did not handle.
 function desktopOver(createDesktop, { state = {} }) {
     const handlers = {};
     const sent = [];
