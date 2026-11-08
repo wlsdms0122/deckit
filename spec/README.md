@@ -52,7 +52,7 @@ A draft that changes accepted DECKITs lists the changes in `IMPACT.md`, beside i
 
 Deckit as it stands is every accepted DECKIT that no accepted DECKIT supersedes, the live set. Which DECKITs those are is worked out by a tool and never written down.
 
-The DECKITs can be read in any order and cannot be *built* in any order. Their numbers follow the order in which each one's questions can be decided, which is also the order in which an implementation can keep its cases passing as it grows. The case format comes first, since every other DECKIT's cases are written in it. Then the system, from the bundle up: permissions, the catalog, the lifecycle, the handle, connections and events, storage, the standard interfaces and embedding. Then the shell, then the app, then each shipped mod.
+The DECKITs can be read in any order and cannot be *built* in any order. Their numbers follow the order in which each one's questions can be decided, which is also the order in which an implementation can keep its cases passing as it grows. The case format comes first, since every other DECKIT's cases are written in it. Then the system, from the bundle up: permissions, the catalog, the lifecycle, the entry, the handle, connections and events, storage, the standard interfaces and embedding. Then the shell, then the app, then each shipped mod.
 
 **How the DECKITs write examples.** A block of TOML is manifest text as [the bundle](DECKIT-2/SPEC.md) reads it. An inline table, `{ id = "mod-a" }`, shows a value, and brackets, `[1, 2]`, a list.
 

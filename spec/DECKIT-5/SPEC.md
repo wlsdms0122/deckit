@@ -55,7 +55,7 @@ It moves between them by these steps and no others:
 | its code has ended it, or the time its end is given has run out | `terminating` | `notRunning` |
 | its sandbox ends | `launching`, `running`, `terminating` | `notRunning` |
 
-Launching evaluates the file `main` names as the mod's entry. What the entry exports, what starting the mod's code is and when it has started, and the time a run's end is given: the handle's DECKIT.
+Launching evaluates the file `main` names as the mod's entry. What the entry exports, what starting the mod's code is and when it has started, and the time a run's end is given: [the entry](../DECKIT-6/SPEC.md).
 
 A run **fails to launch** when evaluating its entry throws, or when its code does not start, and its sandbox is then ended at once. A run **times out** when its code has not started 20 seconds after it launched, and it then moves as a run that fails to launch. A run **crashes** when its sandbox ends while it has not ended. A run **failed** when it failed to launch, timed out, or crashed before its end was asked.
 
@@ -118,7 +118,8 @@ A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one,
 - What a bundle is, which bundles are taken, the `background` key, and the refusal at `read`: [the bundle](../DECKIT-2/SPEC.md).
 - `deckit.mods`, and the refusal of a request made by a mod not granted it: [the permissions](../DECKIT-3/SPEC.md).
 - Which bundle the catalog holds under a name, the catalog's order, what a host ships, and installing and removing a bundle: [the catalog](../DECKIT-4/SPEC.md).
-- What the entry exports, what starting and ending the mod's code is, the time a run's end is given, a mod quitting itself, and the input that hands a case's request: the handle's DECKIT.
+- What the entry exports, what a run needs of it, what starting and ending the mod's code is, and the time a run's end is given: [the entry](../DECKIT-6/SPEC.md).
+- A mod quitting itself, and the input that hands a case's request: the handle's DECKIT.
 - A lifecycle that waits for a mod, and what a run that ends does to its connections: the connections' DECKIT.
 - Being told that a run has moved: the events' DECKIT.
 - When the app has quit, as a host is told it: the embedding DECKIT. What a host is given of the runs: [the case format](../DECKIT-1/SPEC.md).
