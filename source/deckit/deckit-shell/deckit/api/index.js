@@ -107,10 +107,15 @@ export function createApi({
             }),
             // listen(page): a page of the host app's or its shell's where the chords mods take work too.
             // monitor(handler(page, keystroke) -> taken) -> off: a look at each key pressed in a page listened to,
-            // before the chords mods take, taking it by answering true (deckit/keymap/main.js).
+            // before the chords mods take, taking it by answering true. hold(keystroke, handler(page, keystroke) ->
+            // taken, { name }) -> release: a chord held in every page listened to, refused where it is held or taken,
+            // and a mod's take of it refused while it is held. record(page, handler(keystroke)) -> stop: each key
+            // pressed in the page, taken from it, before anything else (deckit/keymap/main.js).
             keymap: Object.freeze({
                 listen: (page) => KEYMAP.listen(page),
                 monitor: (handler) => KEYMAP.monitor(handler),
+                hold: (keystroke, handler, options) => KEYMAP.hold(keystroke, handler, options),
+                record: (page, handler) => KEYMAP.record(page, handler),
             }),
             permissions: Object.freeze({ define: PERMISSION.define }),
             // define(key): a top-level manifest key the UI reads, named before deckit starts.

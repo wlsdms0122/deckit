@@ -6,13 +6,18 @@ import * as KEYS_PERMISSION from './model/permission.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The keys a mod cannot take alone: a chord taken from every page of the app with deckit.app-keys, or from every app
-// too with system.global-keys, its press told to the page of the mod that took it. A chord is one mod's at a time, and
-// let go when the mod's page ends. A layer over deckit monitors the keys pressed in those pages before any chord
-// taken. `keys` is the environment's.
+// too with system.global-keys, its press told to the page of the mod that took it, let go when the mod's page ends. A
+// layer over deckit holds a chord in every page of the app too, in the same table: a chord is its first holder's, a
+// layer's or one mod's, at a time. A page that records is handed each key pressed in it, before anything else looks at
+// it; then a layer over deckit monitors the keys pressed in those pages, before any chord. `keys` is the
+// environment's.
 export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
     // MARK: - Property
-    const taken = new Map(); // a chord, by its name -> { page, id, off, drop }, `off` the system's hold or null
+    // A chord, by its name -> { page, id, off, drop } for one a mod took, `off` the system's hold or null, or
+    // { holder, handler } for one a layer holds, `holder` its name as a person reads it.
+    const taken = new Map();
     const monitors = new Set(); // what looks at each key pressed before the chords taken, in the order it began
+    const recording = new Map(); // a page that records -> { handler, stop }
 
     // MARK: - Initializer
     // MARK: - Public
@@ -35,6 +40,37 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         return () => monitors.delete(handler);
     }
 
+    // `keystroke` held in every page listened to by `name`, its holder as a person reads it: `handler(page, keystroke)
+    // -> taken` is each press of it, answering whether it took it from the page, which has the key where it did not.
+    // Refused, REFUSED, for a chord held or taken already. Answers its release.
+    function hold(keystroke, handler, { name } = {}) {
+        if (typeof handler !== 'function') throw new Error('a chord is held with a function');
+        const read = keystrokeOf(keystroke ?? {});
+        if (typeof read.code !== 'string' || !read.code) throw new Error('a chord names its key by its code');
+        const chord = nameOf(read);
+        refuseTaken(chord);
+        const one = { holder: String(name), handler };
+        taken.set(chord, one);
+        return () => {
+            if (taken.get(chord) === one) taken.delete(chord);
+        };
+    }
+
+    // `page` records: each key pressed in it is taken from it and handed to `handler(keystroke)` alone, until the
+    // answered stop, its next record or its end. Answers the stop.
+    function record(page, handler) {
+        recording.get(page)?.stop();
+        const one = { handler, stop: null };
+        const drop = IDENTITY.whenPageEnds(page, () => one.stop());
+        one.stop = () => {
+            if (recording.get(page) !== one) return;
+            recording.delete(page);
+            drop();
+        };
+        recording.set(page, one);
+        return one.stop;
+    }
+
     // MARK: - Private
     // A chord, as `page`'s mod takes it under `id`: held by the system too in `global`, where one the system does not
     // give works in every page of the app still. Answers whether it works where its scope says.
@@ -45,11 +81,7 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         const read = keystrokeOf(keystroke);
         if (typeof read.code !== 'string' || !read.code) throw new Error('a chord names its key by its code');
         const name = nameOf(read);
-        const holder = taken.get(name);
-        if (holder) {
-            const by = IDENTITY.modOf(holder.page)?.id || 'a mod';
-            throw Object.assign(new Error(`${name} is taken by ${by}`), { kind: 'REFUSED' });
-        }
+        refuseTaken(name);
         if ([...taken.values()].some((one) => one.page === page && one.id === id))
             throw new Error(`${mod.id} took a chord under ${id} already`);
         let off = null;
@@ -60,6 +92,13 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         const drop = IDENTITY.whenPageEnds(page, () => letGo(name));
         taken.set(name, { page, id, off, drop });
         return scope !== 'global' || !!off;
+    }
+
+    function refuseTaken(name) {
+        const holder = taken.get(name);
+        if (!holder) return;
+        const by = holder.holder ?? (IDENTITY.modOf(holder.page)?.id || 'a mod');
+        throw Object.assign(new Error(`${name} is taken by ${by}`), { kind: 'REFUSED' });
     }
 
     function release(page, id) {
@@ -74,9 +113,18 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         one.drop();
     }
 
-    // The monitors first, in order, then the chords taken: answers whether the key was taken. A monitor that throws
-    // takes nothing.
+    // The page's recording first, then the monitors, in order, then the chords: answers whether the key was taken. A
+    // monitor or a holder that throws takes nothing.
     function handle(page, keystroke) {
+        const recorder = recording.get(page);
+        if (recorder) {
+            try {
+                recorder.handler(keystroke);
+            } catch (error) {
+                LOG.error('a recording failed', error);
+            }
+            return true;
+        }
         for (const handler of monitors) {
             try {
                 if (handler(page, keystroke)) return true;
@@ -84,15 +132,24 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
                 LOG.error('a key monitor failed', error);
             }
         }
-        return press(keystroke);
+        return press(page, keystroke);
     }
 
-    // Answers whether a chord taken was pressed.
-    function press(keystroke) {
+    // Answers whether a chord was pressed and taken: one a mod took always is, one a layer holds as its handler says.
+    function press(page, keystroke) {
         const name = nameOf(keystroke);
-        if (!taken.has(name)) return false;
-        tell(name);
-        return true;
+        const one = taken.get(name);
+        if (!one) return false;
+        if (!one.handler) {
+            tell(name);
+            return true;
+        }
+        try {
+            return !!one.handler(page, keystroke);
+        } catch (error) {
+            LOG.error(`what holds ${name} failed`, error);
+            return false;
+        }
     }
 
     function tell(name) {
@@ -116,5 +173,5 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         return [...held.filter(([on]) => on).map(([, label]) => label), code].join('+');
     }
 
-    return { start, listen, monitor };
+    return { start, listen, monitor, hold, record };
 }
