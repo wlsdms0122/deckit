@@ -13,6 +13,8 @@ public enum ConnectionError: Refusal, Equatable {
     case notAnEnd(principal: String)
     case notUp(Endpoint)
     case outOfReach(principal: String, client: String)
+    // The principal runs with no exports for the name that reach the lifecycle that reaches it by it.
+    case notExported(name: String, principal: String)
 
     // MARK: - Property
     public var message: String {
@@ -31,6 +33,9 @@ public enum ConnectionError: Refusal, Equatable {
 
         case let .outOfReach(principal, client):
             "\(client) may not reach \(principal) by id"
+
+        case let .notExported(name, principal):
+            "\(principal) runs with no exports for \(name) that reach the lifecycle"
         }
     }
 

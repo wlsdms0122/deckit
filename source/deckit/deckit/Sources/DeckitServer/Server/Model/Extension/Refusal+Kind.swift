@@ -36,6 +36,9 @@ extension Refusal {
 
             case .outOfReach:
                 "REFUSED"
+
+            case .notExported:
+                "NOT_EXPORTED"
             }
 
         case let error as InstallError:

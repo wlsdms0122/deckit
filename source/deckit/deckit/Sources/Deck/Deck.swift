@@ -115,8 +115,9 @@ public final class Deck {
     }
 
     // The `lifecycle`th lifecycle of the `run`th run of `id`, up, asks to reach `target` by its id, until it releases
-    // it or ends: it connects once that principal runs and opened its exports for those that reach it by id, and is
-    // told it waits while that principal does not run. Refused for an id its job may not reach, or its own.
+    // it or ends: it connects once that principal runs and opened its exports for those that reach it by id, is told it
+    // waits while that principal does not run, and is told it is refused while it runs without them. Refused for an
+    // id its job may not reach, or its own.
     public func reach(_ target: String, from id: String, run: Int, lifecycle: Int) throws -> [Effect] {
         try connections.reach(target, from: Endpoint(principal: id, run: run, lifecycle: lifecycle))
         return withChanges([])

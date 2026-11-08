@@ -93,6 +93,9 @@ extension EffectAnswer: Encodable {
             try container.encode(name, forKey: .name)
             try container.encode(client, forKey: .client)
             try encodeRefusal(in: &container)
+
+        case .refuse:
+            try container.encode("refuse", forKey: .effect)
         }
     }
 

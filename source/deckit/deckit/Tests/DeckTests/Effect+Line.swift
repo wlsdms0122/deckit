@@ -52,6 +52,9 @@ extension Effect {
 
         case let .wait(name, client, service):
             "wait \(client.principal)#\(client.run)@\(client.lifecycle) for \(service) by \(name)"
+
+        case let .refuse(name, client, refusal):
+            "refuse \(client.principal)#\(client.run)@\(client.lifecycle) by \(name): \(refusal.message)"
         }
     }
 
