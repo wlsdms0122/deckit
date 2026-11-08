@@ -107,7 +107,7 @@ Inputs:
 |---|---|---|---|
 | `start` | none | the host app starts, on the host `[host]` gives | nothing, or a refusal at `call` of what the host hands as the host app starts |
 | `quit` | none | the host app quits | nothing |
-| `call` | `mod` and `member`, and `args`, `folders`, `part`, `of`, `listener` and `handed` if written | format 3: the run of the mod listed under the name `mod` makes a request through its handle: the member `member`, called with the path of each bundle `folders` names, in order, then each value of `args`, in order, and then, format 4, a listener where `listener` is `true`. Format 4: where `of` is written, `member` names a member of what the call at that place answered, as the run holds it, and not of the handle. Format 5: where `handed` is `true`, `member` names a member of the first value the listener the call at `of` handed was last called with, as the run holds it. A member that holds a value is read, and is written with no `args`, no `folders` and no `listener` | what the request answers, or the value under the key `part` of it, or its refusal at its stage with its kind, as [the handle](../DECKIT-7/SPEC.md) fixes them |
+| `call` | `mod` and `member`, and `args`, `folders`, `part`, `of`, `listener` and `handed` if written | format 3: the run of the mod listed under the name `mod` makes a request through its handle: the member `member`, called with the path of each bundle `folders` names, in order, then each value of `args`, in order, and then, format 4, a listener where `listener` is `true`. Format 4: where `of` is written, `member` names a member of what the call at that place answered, as the run holds it, and not of the handle. Format 5: where `handed` is `true`, `member` names a member of the first value the listener was last called with, as the run holds it, and not of the handle. A member that holds a value is read, and is written with no `args`, no `folders` and no `listener` | what the request answers, or the value under the key `part` of it, or its refusal at its stage with its kind, as [the handle](../DECKIT-7/SPEC.md) fixes them |
 
 Looks:
 
@@ -130,7 +130,7 @@ Their keys take:
 | `folders` | array of `bundle-name`: format 3 |
 | `of` | integer: the place, from 1, of an earlier `call` of the same `mod`: format 4 |
 | `listener` | boolean: format 4 |
-| `handed` | boolean: written `true` beside an `of` whose call writes `listener`, format 5 |
+| `handed` | boolean: written `true`, and never beside `of`: format 5 |
 
 ```
 member = name *( "." name )
@@ -141,9 +141,9 @@ A `member` names a member of the handle: each `name` a member of the one before 
 
 A step that writes `part` answers the value under that key of what it reads: of the answer, where the answer is a table, and, format 3, of each element of the answer that holds the key, in order, where the answer is an array of tables.
 
-A **listener**, format 4, is a function the host gives: each call of it is kept, with the values it is called with, and it answers nothing. What a step answers, and each value a listener is called with, is read as a value: a function is no value, so a key of a table bound to one is a key not answered, a request that answers one answers nothing, and an answer that holds one anywhere else comes to nothing, as does such a value a listener is called with; a refusal, as [the handle](../DECKIT-7/SPEC.md) fixes one, is read as the table `{ stage, kind }`.
+A **listener**, format 4, is a function the host gives, one for each run, handed to every `call` of that run that writes `listener`: each call of it is kept, with the values it is called with, and it answers nothing. What a step answers, and each value a listener is called with, is read as a value: a function is no value, so a key of a table bound to one is a key not answered, a request that answers one answers nothing, and an answer that holds one anywhere else comes to nothing, as does such a value a listener is called with; a refusal, as [the handle](../DECKIT-7/SPEC.md) fixes one, is read as the table `{ stage, kind }`.
 
-A look at a name no bundle is listed under, and a step whose `part` a table answer does not hold, or whose answer with a `part` is no table and no array of tables, come to nothing, which no `[step.expect]` matches. A key's absence from an answer is read by a look at the whole bundle. A `call` comes to nothing where no run of the mod listed under `mod` is `running` as the step is taken, where `member` names no member of the handle or of what the call at `of` answered, or, format 4, where the run that answered the call at `of` is not the one `running`, or, format 5, where `handed` is written and the listener the call at `of` handed has not been called. A `heard` look at a mod with no run `running` comes to nothing.
+A look at a name no bundle is listed under, and a step whose `part` a table answer does not hold, or whose answer with a `part` is no table and no array of tables, come to nothing, which no `[step.expect]` matches. A key's absence from an answer is read by a look at the whole bundle. A `call` comes to nothing where no run of the mod listed under `mod` is `running` as the step is taken, where `member` names no member of the handle or of what the call at `of` answered, or, format 4, where the run that answered the call at `of` is not the one `running`, or, format 5, where `handed` is written and the run's listener has not been called. A `heard` look at a mod with no run `running` comes to nothing.
 
 `start` is the first step. A case starts the host app again only after a `quit`, and calls and looks only while the host app is started: after a `start` and before the next `quit`. A case whose `start` is refused writes no step after it.
 
