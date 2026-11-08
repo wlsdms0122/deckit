@@ -4,6 +4,13 @@
 // each call answered, by the call's place, and each call of a listener it hands a request, for the look heard.
 function conformanceLayer({ channels }) {
     let handle = null;
+    // A request through the system after a call, so that what the call sent it, an event among it, is told before the
+    // call is answered: the system answers a page's requests in the order they are sent.
+    const settle = () => {
+        try {
+            handle?.storage.records.keys();
+        } catch {}
+    };
     const answered = new Map(); // a call's place -> what its request answered, as the run holds it
     const heard = []; // the arguments of each call of a listener, in the order called, each as a step reads it
     const listener = (...args) => {
@@ -27,6 +34,7 @@ function conformanceLayer({ channels }) {
             let came = value;
             if (typeof value === 'function') came = await value.apply(holder, hands ? [...args, listener] : args);
             else if (args.length || hands) return { none: `${member} holds a value, and is called` };
+            settle();
             answered.set(step, came);
             if (typeof came === 'function') return {};
             const read = valueOf(came);
