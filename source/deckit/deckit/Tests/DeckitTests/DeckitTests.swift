@@ -221,7 +221,7 @@ struct DeckitTests {
         #expect(launches(in: effects) == ["p"])
     }
 
-    @Test("a mod granted deckit.reach-mods reaches any mod by id, which launches as it waits for it, and others none")
+    @Test("a mod granted deckit.reach-mods reaches any mod by id, which launches as it waits for it; others are refused")
     func reachModsReachesEveryMod() throws {
         // Given
         try fixture.write("t")
@@ -234,7 +234,7 @@ struct DeckitTests {
 
         // When
         let reached = try sut.reach("t", from: "r", run: 1, lifecycle: 0)
-        let refused = #expect(throws: ConnectionError.self) { try sut.reach("t", from: "n", run: 1, lifecycle: 0) }
+        let refused = #expect(throws: LaunchError.self) { try sut.reach("t", from: "n", run: 1, lifecycle: 0) }
 
         // Then
         #expect(sut.deck.job(of: "r")?.reaches == .every)
@@ -244,7 +244,7 @@ struct DeckitTests {
             return name == "t" && client.principal == "r" && service == "t"
         })
         #expect(launches(in: reached) == ["t"])
-        #expect(refused == .outOfReach(principal: "t", client: "n"))
+        #expect(refused == .notPermitted(mod: "n", permission: "deckit.reach-mods"))
     }
 
     @Test("a mod reached by id connects once it opens its exports for its id, and a release ends the connection")

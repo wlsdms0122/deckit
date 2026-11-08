@@ -225,9 +225,13 @@ public final class Deckit {
     }
 
     // The `lifecycle`th lifecycle of the `run`th run of `id` asks to reach the mod `target` by its id, as deck reaches
-    // it: the mod it waits for launches.
+    // it: the mod it waits for launches. Refused unless the mod is granted `deckit.reach-mods`.
     public func reach(_ target: String, from id: String, run: Int, lifecycle: Int) throws -> [Effect] {
-        try observed(deck.reach(target, from: id, run: run, lifecycle: lifecycle))
+        guard deck.job(of: id)?.permissions.contains(Deckit.reachMods.id) ?? false else {
+            throw LaunchError.notPermitted(mod: id, permission: Deckit.reachMods.id)
+        }
+
+        return try observed(deck.reach(target, from: id, run: run, lifecycle: lifecycle))
     }
 
     // The lifecycle lets the mod `target` go, as deck releases it.

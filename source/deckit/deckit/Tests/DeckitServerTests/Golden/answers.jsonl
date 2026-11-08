@@ -17,7 +17,7 @@
 {"id":83,"jsonrpc":"2.0","result":[{"client":{"lifecycle":1,"mod":"b","run":1},"credential":{"mod":"b","permissions":[]},"id":2,"name":"a\/own","service":{"lifecycle":0,"mod":"a","run":1}}]}
 {"id":84,"jsonrpc":"2.0","result":true}
 {"id":85,"jsonrpc":"2.0","result":[]}
-{"error":{"code":-32803,"data":{"kind":"REFUSED","stage":"call"},"message":"b may not reach a by id"},"id":97,"jsonrpc":"2.0"}
+{"error":{"code":-32803,"data":{"kind":"NOT_PERMITTED","stage":"call"},"message":"b does not have the deckit.reach-mods permission"},"id":97,"jsonrpc":"2.0"}
 {"id":98,"jsonrpc":"2.0","result":[]}
 {"error":{"code":-32803,"data":{"kind":"NOT_UP","stage":"call"},"message":"lifecycle 1 of run 1 of c is not up"},"id":99,"jsonrpc":"2.0"}
 {"id":100,"jsonrpc":"2.0","result":[{"client":{"lifecycle":0,"mod":"c","run":1},"effect":"wait","mod":"d","name":"d","refusal":{"kind":"NOT_INSTALLED","message":"no mod is listed under d","stage":"launch"}}]}
