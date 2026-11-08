@@ -156,10 +156,11 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
 
     content.append(head, body, firstLoad, empty);
 
-    const resizing = new ResizeObserver(() => {
+    // The body's size is observed in the window it is shown in, from each time it appears.
+    let resizing = null;
+    const fit = () => {
         if (mode === 'month' && !month.fitsAsDrawn()) render();
-    });
-    resizing.observe(body);
+    };
 
     // Being past changes with the clock alone, and so does the current-time line: each is moved in place, and only
     // a new day, which changes what today is, draws the view again.
@@ -204,7 +205,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
             visible = false;
             keys.listen(false);
             clearInterval(ticking);
-            resizing.disconnect();
+            resizing?.disconnect();
             for (const close of [...asking]) close();
             calendar.follow(null);
         },
@@ -216,6 +217,9 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
             content: split.element,
             didAppear() {
                 visible = true;
+                resizing?.disconnect();
+                resizing = new body.ownerDocument.defaultView.ResizeObserver(fit);
+                resizing.observe(body);
                 calendar.read();
                 render();
                 calendar.follow(rangeOf(mode, cursor));

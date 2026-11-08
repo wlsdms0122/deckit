@@ -265,6 +265,7 @@ class Note {
                 name: 'main',
                 content: split.element,
                 didAppear: () => {
+                    editor.setRoot(content.ownerDocument);
                     notesFolder.watch(true).catch(() => {});
                     refresh();
                     noteSession.reconcile();

@@ -187,6 +187,8 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         toggleChecked: () => toggleChecked(),
         text: () => (view ? view.state.doc.toString() : ''),
         isOpen: () => !!view,
+        // Its window opened again, in a document of its own.
+        setRoot: (document) => view?.setRoot(document),
         hasFocus: () => !!view && view.hasFocus,
         // The page's focus is in the note, whether or not its window has the keyboard: a command picked in the
         // switcher's window acts where the person was writing.
@@ -342,7 +344,8 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         hideFloats();
         if (view) view.setState(state);
         else {
-            view = new engine.EditorView({ state, parent: element });
+            // The engine puts its rules in the document it is told it is in, the window's.
+            view = new engine.EditorView({ state, parent: element, root: element.ownerDocument });
             // The engine ignores presses in the scroller's side margins, so one there is replayed at the nearest edge
             // of the text, keeping drags, double and triple clicks and shift-extend.
             view.scrollDOM.addEventListener('mousedown', (event) => {
@@ -354,7 +357,7 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
                     new MouseEvent('mousedown', {
                         bubbles: true,
                         cancelable: true,
-                        view: window,
+                        view: event.view,
                         detail: event.detail,
                         button: event.button,
                         buttons: event.buttons,

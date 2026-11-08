@@ -275,10 +275,10 @@ class Finder {
         bar.setView(area.view());
         content.append(bar.element, list.header, area.element, area.footer);
         sidebar.append(tabs.element, favorites.element);
-        this.resizing = new ResizeObserver(() => {
+        // The content's size is observed in the window it is shown in, from each time it appears.
+        const fit = () => {
             if (list.fit(content.clientWidth)) area.draw();
-        });
-        this.resizing.observe(content);
+        };
         for (const part of [area, bar, tabs, favorites]) operator.acceptDrops(part.element, part.folderAt);
         settings.on((key) => {
             if (key === 'showHidden' || key === 'foldersFirst') area.draw();
@@ -311,6 +311,9 @@ class Finder {
                 content: split.element,
                 didAppear: () => {
                     showing = true;
+                    this.resizing?.disconnect();
+                    this.resizing = new content.ownerDocument.defaultView.ResizeObserver(fit);
+                    this.resizing.observe(content);
                     if (tabs.front()) {
                         watchShown();
                         load();

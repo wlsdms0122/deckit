@@ -456,7 +456,7 @@ class Editor {
             paint();
             session.save();
             workspaces.front().tree?.reveal(file.path);
-            if (!preserveFocus) requestAnimationFrame(() => file.view.focus());
+            if (!preserveFocus) stage.ownerDocument.defaultView?.requestAnimationFrame(() => file.view.focus());
         }
 
         function stepTab(by) {

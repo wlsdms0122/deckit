@@ -181,7 +181,7 @@ class Settings {
                 run: async ({ action, index, mod }) => {
                     if (action === 'show-section') {
                         openWindow();
-                        requestAnimationFrame(() => contents.go(sections[index]));
+                        body.ownerDocument.defaultView.requestAnimationFrame(() => contents.go(sections[index]));
                     } else await showSettingsOf({ mod }, { ready: openWindow });
                 },
             })
@@ -275,7 +275,7 @@ class Settings {
             await modSettings.draw();
             if (!modSettings.groups().some((group) => group.id === id)) throw new Error(`${id} has no settings`);
             ready();
-            requestAnimationFrame(() => {
+            body.ownerDocument.defaultView.requestAnimationFrame(() => {
                 const card = modSettings.cardOf(id);
                 if (!card) return;
                 contents.reveal(modSettings, card);

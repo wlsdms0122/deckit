@@ -50,7 +50,7 @@ function timeGridView({ detail }) {
             hourScroll = scroller.scrollTop;
         });
         into.appendChild(scroller);
-        requestAnimationFrame(() => {
+        scroller.ownerDocument.defaultView?.requestAnimationFrame(() => {
             scroller.scrollTop = hourScroll;
         });
     }

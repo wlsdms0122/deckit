@@ -38,7 +38,7 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
     let mode = 'scroll';
     let view = null;
     let shown = false;
-    let drawQueued = false;
+    let drawQueuedIn = null; // the window whose next frame draws, the one of the document the minimap is in then
     let pointerOver = false;
     let lingering = null;
     // Where the frame was taken hold of, as a share of its height, so a frame resizing under the pointer stays held there.
@@ -242,7 +242,7 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
     // Placed, measured and drawn in one pass from the editor as it is now: a find bar opening between would leave the
     // frame off the map. Aligned to the scroller, so a find bar keeps its place.
     function draw() {
-        drawQueued = false;
+        drawQueuedIn = null;
         if (!shown || !view) return;
         const box = element.offsetParent?.getBoundingClientRect();
         if (!box) return;
@@ -308,9 +308,10 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
     }
 
     function redraw() {
-        if (!shown || drawQueued) return;
-        drawQueued = true;
-        requestAnimationFrame(draw);
+        const view = element.ownerDocument.defaultView;
+        if (!shown || !view || drawQueuedIn === view) return;
+        drawQueuedIn = view;
+        view.requestAnimationFrame(draw);
     }
 
     function show() {
