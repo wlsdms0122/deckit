@@ -23,7 +23,7 @@ async function main() {
             await promise;
             return null;
         } catch (error) {
-            return { message: error.message, kind: error.kind };
+            return { message: error.message, kind: error.kind, stage: error.stage };
         }
     };
 
@@ -61,39 +61,25 @@ async function main() {
         { mod: { id: 'off', name: 'Off' }, entry: { id: 'go', title: 'Go' } },
     ];
 
-    // The core: `reach(id)` resolves, and the connection stands as `stand(id)` says.
-    const listeners = new Map(); // id -> [listener]
-    const cleanups = new Map(); // id -> [cleanup]
+    // The core: `reach(id)` answers the exports a running mod opens for its id once its connection stands, or rejects
+    // with the kind and stage `refusing` holds for it.
     const asked = [];
     const exportsOf = new Map(); // id -> exports a running mod opens for its id
-    const refusing = new Set();
-    const silent = new Set(); // ids whose connection never stands
-    const standing = new Set();
-    const stand = async (id) => {
-        standing.add(id);
-        const cuts = [];
-        for (const listener of listeners.get(id) ?? []) {
-            const cut = await listener(exportsOf.get(id));
-            if (typeof cut === 'function') cuts.push(cut);
-        }
-        cleanups.set(id, cuts);
-    };
+    const refusing = new Map(); // id -> [kind, stage]
     const deckit = {
         dependencies: {
-            onConnect: (id, listener) => {
-                if (!listeners.has(id)) listeners.set(id, []);
-                listeners.get(id).push(listener);
-            },
             reach: async (id) => {
                 asked.push(['reach', id]);
-                if (refusing.has(id)) throw Object.assign(new Error(`${id} is out of reach`), { kind: 'REFUSED' });
-                if (!silent.has(id)) setTimeout(() => stand(id), 5);
+                await wait(5);
+                const refused = refusing.get(id);
+                if (refused) {
+                    const [kind, stage] = refused;
+                    throw Object.assign(new Error(`${id} is out of reach`), { kind, stage });
+                }
+                return exportsOf.get(id);
             },
             release: async (id) => {
                 asked.push(['release', id]);
-                standing.delete(id);
-                for (const cut of cleanups.get(id) ?? []) cut();
-                cleanups.delete(id);
             },
         },
         exports: { contributions: async (name) => (name === 'deckit/commands' ? contributions : []) },
@@ -110,8 +96,13 @@ async function main() {
     });
     exportsOf.set('note', { runCommand: async () => () => 1 });
     exportsOf.set('plain', {});
+    exportsOf.set('off', {
+        runCommand: async () => {
+            throw Object.assign(new Error('it broke'), { kind: 'BROKE' });
+        },
+    });
 
-    const commands = registry(deckit, { within: 60 });
+    const commands = registry(deckit);
     const credential = (permissions) => ({
         mod: { id: 'switcher', name: 'Switcher' },
         credential: { mod: 'switcher', permissions },
@@ -184,7 +175,7 @@ async function main() {
         asked
     );
 
-    // Runs at once on one mod share one reach.
+    // Runs at once on one mod: each reaches and lets go.
     asked.length = 0;
     const both = await Promise.all([client.run('calendar', 'today'), client.run('calendar', 'today')]);
     await ticks();
@@ -194,42 +185,50 @@ async function main() {
         both
     );
     check(
-        'one reach',
+        'each reach let go',
         JSON.stringify(asked) ===
             JSON.stringify([
                 ['reach', 'calendar'],
+                ['reach', 'calendar'],
+                ['release', 'calendar'],
                 ['release', 'calendar'],
             ]),
         asked
     );
 
-    // A refused reach is the run's refusal, and nothing is let go; the next run asks again.
-    asked.length = 0;
-    refusing.add('calendar');
-    check('reach refused', (await kinds('calendar', 'today')) === 'REFUSED');
-    await ticks();
-    check('refused not let go', JSON.stringify(asked) === JSON.stringify([['reach', 'calendar']]), asked);
+    // A refused reach is the run's refusal, with its stage, and nothing is let go; the next run asks again.
+    for (const [kind, stage] of [
+        ['NOT_INSTALLED', 'launch'],
+        ['TIMED_OUT', 'launch'],
+        ['NOT_EXPORTED', 'call'],
+        ['REFUSED', 'call'],
+    ]) {
+        asked.length = 0;
+        refusing.set('calendar', [kind, stage]);
+        const refused = await rejection(client.run('calendar', 'today'));
+        await ticks();
+        check(`reach refused ${kind}`, refused?.kind === kind && refused?.stage === stage, refused);
+        check(`${kind} not let go`, JSON.stringify(asked) === JSON.stringify([['reach', 'calendar']]), asked);
+    }
     refusing.delete('calendar');
     check('asks again', (await client.run('calendar', 'today'))?.day === 7);
 
-    // No exports in time.
+    // No runCommand, a throw, and a function answered: each let go.
     asked.length = 0;
-    silent.add('off');
-    const late = await rejection(client.run('off', 'go'));
+    check('no runCommand', (await kinds('plain', 'go')) === 'COMMAND');
+    check('a throw handed on', (await kinds('off', 'go')) === 'BROKE');
     await ticks();
-    check('in time', late?.kind === 'NOT_RUNNING', late);
     check(
-        'late let go',
+        'let go after a throw',
         JSON.stringify(asked) ===
             JSON.stringify([
+                ['reach', 'plain'],
+                ['release', 'plain'],
                 ['reach', 'off'],
                 ['release', 'off'],
             ]),
         asked
     );
-
-    // No runCommand, and a function answered.
-    check('no runCommand', (await kinds('plain', 'go')) === 'COMMAND');
     const answered = await rejection(client.run('note', 'today'));
     check('function answered', !!answered && answered.kind === undefined, answered);
     check('nothing logged', errors.length === 0, errors);

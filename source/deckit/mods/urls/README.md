@@ -31,7 +31,7 @@ Each scheme has a list of mods: those that declare it, and those that declare `*
 - The mod you chose for the scheme first, where its patterns take the address.
 - Then the others, by the narrowest of their patterns that takes the address: a host and a path first, the longer path first, then a scheme, then `*`. Of two as narrow, the one of the lower id first. The order mods are installed in says nothing of who opens what.
 
-A mod is reached by its id as its turn comes, which launches it if it does not run, and let go as it answers. One that passes, does not launch, opens no exports for its id within 10 seconds, has no `openURL`, throws, or does not answer within 3 seconds passes the address on to the next, which is logged.
+A mod is reached by its id as its turn comes, which launches it if it does not run, and let go as it answers. One that passes, is not reached (it does not launch, or opens no exports for its id), has no `openURL` or throws passes the address on to the next, which is logged. One that never answers holds that address only.
 
 A scheme you chose to open outside the app offers its addresses to no mod: each opens outside the app at once.
 

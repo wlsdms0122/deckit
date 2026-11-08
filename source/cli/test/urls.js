@@ -103,20 +103,11 @@ async function main() {
         ...of('refusing', [{ scheme: 'late' }]),
     ];
 
-    // The core: `reach(id)` resolves, and the connection stands as `stand(id)` says.
-    const listeners = new Map(); // id -> [listener]
-    const cleanups = new Map(); // id -> [cleanup]
+    // The core: `reach(id)` answers the exports a running mod opens for its id once its connection stands; `silent`
+    // times out at launch and `refusing` is refused.
     const asked = [];
     const exportsOf = new Map(); // id -> exports a running mod opens for its id
-    const silent = new Set(['silent']); // ids whose connection never stands
-    const stand = async (id) => {
-        const cuts = [];
-        for (const listener of listeners.get(id) ?? []) {
-            const cut = await listener(exportsOf.get(id));
-            if (typeof cut === 'function') cuts.push(cut);
-        }
-        cleanups.set(id, cuts);
-    };
+    const refusal = (message, kind, stage) => Object.assign(new Error(message), { kind, stage });
     const store = new Map();
     let refusingWrites = false;
     const records = {
@@ -130,19 +121,15 @@ async function main() {
     let outsideAnswers = true;
     const deckit = {
         dependencies: {
-            onConnect: (id, listener) => {
-                if (!listeners.has(id)) listeners.set(id, []);
-                listeners.get(id).push(listener);
-            },
             reach: async (id) => {
                 asked.push(['reach', id]);
-                if (id === 'refusing') throw Object.assign(new Error(`${id} is out of reach`), { kind: 'REFUSED' });
-                if (!silent.has(id)) setTimeout(() => stand(id), 5);
+                await tick();
+                if (id === 'refusing') throw refusal(`${id} is out of reach`, 'REFUSED', 'call');
+                if (id === 'silent') throw refusal(`${id} did not start in time`, 'TIMED_OUT', 'launch');
+                return exportsOf.get(id);
             },
             release: async (id) => {
                 asked.push(['release', id]);
-                for (const cut of cleanups.get(id) ?? []) cut();
-                cleanups.delete(id);
             },
         },
         exports: { contributions: async (name) => (name === 'deckit/urls' ? contributions : []) },
@@ -173,7 +160,7 @@ async function main() {
     exportsOf.set('c-plain', {});
     exportsOf.set('stuck', { openURL: () => new Promise(() => {}) });
 
-    const urls = router(deckit, { within: 60, answerWithin: 40 });
+    const urls = router(deckit);
     const connection = (id, permissions) => ({ mod: mod(id), credential: { mod: id, permissions } });
     const settings = urls.exportsFor(connection('settings', ['deckit.system-services']));
     const plain = urls.exportsFor(connection('note', []));
@@ -304,22 +291,30 @@ async function main() {
         warnings
     );
     warnings.length = 0;
+
+    // One not reached passes it on and is not let go; one that never answers holds its address only.
     asked.length = 0;
-    seen = await opened(plain, 'late:1');
-    check('passed on to the next', json(seen) === json({ answer: false, offered: ['any'], outside: [] }), seen);
+    offers.length = 0;
+    let held = false;
+    plain.open('late:1').then(() => (held = true));
+    await ticks(10);
     check(
-        'refused, late, stuck',
-        warnings.length === 3 &&
-            /Refusing.*out of reach/.test(warnings[0]) &&
-            /Silent.*in time/.test(warnings[1]) &&
-            /Stuck.*answer within/.test(warnings[2]),
+        'refused, late',
+        warnings.length === 2 && /Refusing.*out of reach/.test(warnings[0]) && /Silent.*in time/.test(warnings[1]),
         warnings
     );
     check(
-        'the late let go',
-        json(asked.filter(([what]) => what === 'release').map(([, id]) => id)) === json(['silent', 'stuck', 'any']),
+        'the refused not let go',
+        json(asked) ===
+            json([
+                ['reach', 'refusing'],
+                ['reach', 'silent'],
+                ['reach', 'stuck'],
+            ]),
         asked
     );
+    seen = await opened(plain, 'chain:1');
+    check('another address meanwhile', !held && json(seen.offered) === json(['a-pass', 'd-take']), { held, seen });
     warnings.length = 0;
 
     // Choosing what opens a scheme.
@@ -398,9 +393,7 @@ async function main() {
             late: 7,
         })
     );
-    const restarted = router(deckit, { within: 60, answerWithin: 40 }).exportsFor(
-        connection('settings', ['deckit.system-services'])
-    );
+    const restarted = router(deckit).exportsFor(connection('settings', ['deckit.system-services']));
     const again = await restarted.list();
     check('told again after a restart', warnings.length === 9, warnings);
     warnings.length = 0;

@@ -1,5 +1,4 @@
 const { handlersOf, listsOf, routeOf } = require('../handler/handler.js');
-const { reacher } = require('../reach/reach.js');
 
 // MARK: - Property
 const INTERFACE = 'deckit/urls';
@@ -9,19 +8,16 @@ const SYSTEM_SERVICES = 'deckit.system-services';
 const FILE_HANDLERS = 'system.file-handlers';
 // The record of the choices: scheme -> `{ mod: id }` or `{ system: true }`.
 const KEPT = 'chosen';
-// How long a mod has to answer whether it opened an address, in milliseconds, once its exports for its id stand: one
-// that has not by then passes it on, so one stuck mod does not hold every address.
-const ANSWER_WITHIN = 3000;
 
 // MARK: - Initializer
 // MARK: - Public
 // The addresses mods declare to deckit/urls, read from what is declared on each ask: an address opened is offered to
 // the mods that open it in turn, each reached by its id, and opened outside the app when none takes it. The choices
 // are kept in the mod's records. `deckit` is the function lifecycle's handle.
-function router(deckit, { within, answerWithin = ANSWER_WITHIN } = {}) {
+function router(deckit) {
     // MARK: - Property
+    const { dependencies } = deckit;
     const records = deckit.storage.records;
-    const reached = reacher(deckit.dependencies, { within });
     const warned = new Set(); // what was told about a declaration, told once
     let chosen = choicesOf(records.get(KEPT, {}));
     let queue = Promise.resolve(); // the choice under way, which the next waits for
@@ -80,14 +76,17 @@ function router(deckit, { within, answerWithin = ANSWER_WITHIN } = {}) {
         return (await deckit.openExternal(address, options)) === true;
     }
 
-    // Whether the mod `mod` took `address`: only a plain true takes it. One that does not launch, has no `openURL`,
-    // throws or does not answer in time passes it on, which is logged.
+    // Whether the mod `mod` took `address`, reached by its id for the offer: only a plain true takes it. One that is
+    // not reached, has no `openURL` or throws passes it on, which is logged.
     async function offer(mod, address, options) {
         try {
-            return await reached.using(mod.id, async (exports) => {
+            const exports = await dependencies.reach(mod.id);
+            try {
                 if (typeof exports.openURL !== 'function') throw new Error('its exports for its id have no openURL');
-                return (await bounded(exports.openURL(address, options), answerWithin)) === true;
-            });
+                return (await exports.openURL(address, options)) === true;
+            } finally {
+                dependencies.release(mod.id).catch((error) => console.error(`[urls] ${mod.id} was not let go`, error));
+            }
         } catch (error) {
             console.warn(`[urls] ${mod.name} did not open ${address}: ${error.message || error}`);
             return false;
@@ -130,15 +129,6 @@ function choiceOf(value) {
     if (typeof value.mod === 'string') return Object.freeze({ mod: value.mod });
     if (value.system === true) return Object.freeze({ system: true });
     return undefined;
-}
-
-// What `answer` settles to, or a rejection once `ms` pass first.
-function bounded(answer, ms) {
-    let timer;
-    const late = new Promise((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error(`it did not answer within ${ms / 1000} seconds`)), ms);
-    });
-    return Promise.race([answer, late]).finally(() => clearTimeout(timer));
 }
 
 module.exports = { router, INTERFACE };

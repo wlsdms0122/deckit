@@ -64,9 +64,8 @@ Every call needs `deckit.system-services`: a client that does not hold it is con
 | `REFUSED` | the client does not hold `deckit.system-services` |
 | `COMMAND` | the mod declares no such command, or its exports for its id have no `runCommand` |
 | `ARGUMENTS` | `args` do not fit its `params`, or hold a function |
-| `NOT_RUNNING` | the mod did not open its exports for its id within 10 seconds: it did not launch, or opens none |
 
-A reach the core refuses rejects with the core's kind (`REFUSED`, `NOT_UP`). A throw of the command is handed to the client as the mod threw it, with its `kind`. A mod running a command of its own calls its own code, and needs nothing of Commands.
+A mod that is not reached rejects with the reach's kind and stage: at `launch` one the system does not launch (`NOT_INSTALLED`, `NOT_LOADABLE`, `RELAUNCH_LIMIT`) or one whose run failed (`NOT_LAUNCHED`, `TIMED_OUT`), at `call` one that opens no exports for its id (`NOT_EXPORTED`) or a reach the core refuses (`REFUSED`, `NOT_UP`). A throw of the command is handed to the client as the mod threw it, with its `kind`. A mod running a command of its own calls its own code, and needs nothing of Commands.
 
 ## What a mod answers
 
@@ -93,7 +92,7 @@ start(deckit) {
 }
 ```
 
-Commands checks the command is declared and its args fit before it asks, and reaches the mod only while a command of its runs: it lets the mod go as the last one ends. A mod is reached by id only by a mod granted `deckit.reach-mods`, which only a system mod is; `connection.credential` says which one asks.
+Commands checks the command is declared and its args fit before it asks, and reaches the mod for each run and lets it go as the run ends. A mod is reached by id only by a mod granted `deckit.reach-mods`, which only a system mod is; `connection.credential` says which one asks.
 
 ## Permissions
 
