@@ -368,15 +368,13 @@ async function main() {
     // A mod quits its own run; what an older run asks is not the latest's.
     const unloads = () => methods('runner/unload').length;
     const unloadsBefore = unloads();
-    fromPage('mod-quit', { run: 9 });
-    await tick();
+    await heard.asked(page, { channel: 'deckit-shell:mod-quit', payload: { run: 9 } });
     check("an older run's quit ends nothing", unloads() === unloadsBefore, asked.slice(-1));
     answers.set('runner/unload', [[told('didTerminate', 'notRunning')]]);
-    fromPage('mod-quit', { run: 1 });
-    await tick();
+    const quitAnswer = await heard.asked(page, { channel: 'deckit-shell:mod-quit', payload: { run: 1 } });
     check(
-        'a mod that quits ends its run',
-        unloads() === unloadsBefore + 1 && RUNNER.runOf('a').state === 'notRunning',
+        'a mod that quits ends its run, answered once its end is asked',
+        unloads() === unloadsBefore + 1 && RUNNER.runOf('a').state === 'notRunning' && !quitAnswer.error,
         asked.slice(-1)
     );
     answers.set('runner/launch', [[told('willLaunch', 'launching'), told('didLaunch', 'running')]]);

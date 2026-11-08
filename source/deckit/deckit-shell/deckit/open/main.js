@@ -25,7 +25,8 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
     // `url` read as a URL and handed the environment as it serializes, the web's to open in the browser and a file's
     // path to open in its app, either with `activates`, a file only where the caller may open files (`opensFiles`, a
     // mod's system.file-handlers): refused with NOT_PERMITTED otherwise. Refused with UNSUPPORTED_URL for what is no
-    // URL, a URL of another scheme, or a file on another host. Answers nothing once it is handed on.
+    // URL, a URL of another scheme, a file on another host, or one whose path does not decode. Answers nothing once
+    // it is handed on.
     async function open(url, { activates = true, opensFiles = false } = {}) {
         const address = URL.canParse(url) ? new URL(url) : null;
         const file = address?.protocol === 'file:';
@@ -37,9 +38,10 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
             await SYSTEM.url(address.href, { activate: activates });
             return;
         }
-        if (!file || (address.host && address.host !== 'localhost'))
+        const path = file && !address.host ? decoded(address.pathname) : null;
+        if (path === null)
             throw REQUEST.refusal('call', 'UNSUPPORTED_URL', `${url} is no address opened outside the app`);
-        await SYSTEM.file(decodeURIComponent(address.pathname), { activate: activates });
+        await SYSTEM.file(path, { activate: activates });
     }
 
     // What a page asks to open outside itself, a window or an address its document leaves for, opened as `open`
@@ -51,6 +53,16 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
     }
 
     // MARK: - Private
+    // A path percent-decoded, its bytes read as UTF-8, or null where a `%` is not two hexadecimal digits or the bytes
+    // are not UTF-8.
+    function decoded(path) {
+        try {
+            return decodeURIComponent(path);
+        } catch {
+            return null;
+        }
+    }
+
     function opensFiles(page) {
         const mod = IDENTITY.modFrom(page);
         return mod.permissions.some(({ id }) => id === OPEN_PERMISSION.FILE_HANDLERS);

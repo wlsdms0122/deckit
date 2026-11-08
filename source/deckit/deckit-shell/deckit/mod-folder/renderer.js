@@ -15,7 +15,7 @@ const pick = Object.freeze({
     send: (options) => PROTOCOL.pick.invoke({ multiple: options?.multiple ?? false }),
 });
 
-// `reveal(id)`: the mod's folder, shown in Finder.
+// `reveal(id)`: the mod's folder, shown outside the app.
 const reveal = Object.freeze({
     signature: [['id', 'string']],
     send: (id) => PROTOCOL.reveal.invoke({ id }),

@@ -465,9 +465,13 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         PROTOCOL.notStarted.on(({ run: number, problem }, sender) =>
             send('runner/not-started', { mod: IDENTITY.modFrom(sender).id, run: number, problem })
         );
-        PROTOCOL.quit.on(({ run: number }, sender) => {
+        // A run's own quit answers once its end is asked, not once it has ended: its code ends with it.
+        PROTOCOL.quit.handle(async ({ run: number }, sender) => {
             const run = currentRun(sender, number);
-            if (run) unload([run.mod.id]).catch((error) => LOG.error(`${run.mod.id} did not quit`, error));
+            if (!run) return;
+            await ask('runner/unload', { mods: [run.mod.id] }).catch((error) =>
+                LOG.error(`${run.mod.id} did not quit`, error)
+            );
         });
     }
 

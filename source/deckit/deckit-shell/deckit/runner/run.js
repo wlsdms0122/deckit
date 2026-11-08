@@ -46,7 +46,7 @@ export function createRun() {
 
     // The mod ends its run, as any request ends it: fulfilled once its end is asked.
     async function quit() {
-        if (number !== null) PROTOCOL.quit.send({ run: number });
+        if (number !== null) await PROTOCOL.quit.invoke({ run: number });
     }
 
     // MARK: - Private

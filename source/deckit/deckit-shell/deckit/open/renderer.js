@@ -44,7 +44,7 @@ function filePath(url) {
     refuseArguments('filePath', [['url', 'string']], [url]);
     try {
         const parsed = new URL(url);
-        if (parsed.protocol !== 'file:' || (parsed.host && parsed.host !== 'localhost')) return '';
+        if (parsed.protocol !== 'file:' || parsed.host) return '';
         const file = decodeURIComponent(parsed.pathname);
         return file.startsWith('/') ? file : '';
     } catch {
