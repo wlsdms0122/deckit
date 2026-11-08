@@ -4,11 +4,12 @@
 // (model/layout): a new one cascaded from the key window or centred, a restored one kept reachable, a resize held to
 // the minimum, zoom to the desktop but the Dock's sliver, and the frame's parts; and the desktop (desktop/main) over
 // stand-ins for what connect answers, the shell's pages and a stage: the pages laid in the local seat's order, the
-// keyboard and the host's title following its key window, a window ordered front or opened without taking it, the
-// shell's keys, a frame restored and remembered by the window's name, a mod's windows brought in front for a seat from
-// the Dock, the Dock's pointer room, a zoomed window following the desktop's size and any other kept reachable as it
-// shrinks, and a titled window's content under the title bar the shell draws, its title told and its drag. Exits 1
-// with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// keyboard and the host's title following its key window, the host window coming up as a window opens to activate, a
+// window ordered front or opened without taking it, the shell's keys, a frame restored and remembered by the window's
+// name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window following
+// the desktop's size and any other kept reachable as it shrinks, and a titled window's content under the title bar the
+// shell draws, its title told and its drag. Exits 1 with a line for each check that failed. The packages are ES
+// modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -253,6 +254,7 @@ async function main() {
         desk.focused.at(-1)?.name === 'content-3' && desk.titles.at(-1) === 'B' && desk.page().title === 'B',
         { focused: desk.focused.at(-1), titles: desk.titles }
     );
+    check('a window opened to activate brings the host window up', desk.hostShown() === 3, desk.hostShown());
     desk.fromPage('press', { id: 2 });
     check(
         "a press on a window's frame makes it key, in front",
@@ -263,13 +265,14 @@ async function main() {
         { focused: desk.focused.at(-1), titles: desk.titles, names: names() }
     );
     const keyboardBefore = desk.focused.length;
+    const hostBefore = desk.hostShown();
     desk.desktop.orderFront(three);
     check(
         'a window ordered front comes in front and leaves the key window and the keyboard where they are',
         names().at(-2) === 'buttons-3' &&
             desk.desktop.isKey(two) &&
             desk.focused.length === keyboardBefore &&
-            desk.hostShown() === 0,
+            desk.hostShown() === hostBefore,
         { names: names(), focused: desk.focused.slice(keyboardBefore) }
     );
     desk.desktop.makeKeyAndOrderFront(two, { activates: true });
@@ -278,15 +281,18 @@ async function main() {
         names().at(-2) === 'buttons-2' &&
             desk.desktop.isKey(two) &&
             desk.focused.at(-1)?.name === 'content-2' &&
-            desk.hostShown() === 1,
+            desk.hostShown() === hostBefore + 1,
         { names: names(), shown: desk.hostShown() }
     );
     const toast = windowOf(9, 'b', 'toast');
     desk.desktop.open(toast, { activates: false });
     desk.openSurfaces(9);
     check(
-        'a window opened without activating comes in front, the key window left where it is',
-        names().at(-2) === 'buttons-9' && desk.desktop.isKey(two) && desk.focused.at(-1)?.name === 'content-2',
+        'a window opened without activating comes in front, the key window and the host window left where they are',
+        names().at(-2) === 'buttons-9' &&
+            desk.desktop.isKey(two) &&
+            desk.focused.at(-1)?.name === 'content-2' &&
+            desk.hostShown() === hostBefore + 1,
         names()
     );
     desk.desktop.close(toast);

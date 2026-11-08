@@ -71,8 +71,9 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     }
 
     // A normal window opens where its mod last left the window of its name, or cascaded from the key window where it
-    // left none or one of that name is open, in front and the key window unless `activates` is false. A window with a
-    // `title` is titled: the shell draws its title bar, holding the title, over its content.
+    // left none or one of that name is open, in front: the key window, the host window coming up too, unless
+    // `activates` is false. A window with a `title` is titled: the shell draws its title bar, holding the title, over
+    // its content.
     function open(window, { activates = true } = {}) {
         const desktopNow = area();
         const after = keyWindow() && MANAGER.frameOf(keyWindow().id);
@@ -85,6 +86,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
             PAGES.allowSurface(desktop.page, name, (surface) => openSurface(name, surface));
         MANAGER.open(LOCAL, window.id, { frame, minimum: LAYOUT.minimumOf(window.minimum) }, { activates });
         update();
+        if (activates) host.show();
     }
 
     function close(window) {
