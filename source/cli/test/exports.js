@@ -48,7 +48,7 @@ async function main() {
     const answers = {
         'deckit-shell:mod-load': () => ({ manifest: MANIFEST, source: '', run: 1 }),
         'deckit-shell:contributions': () => [
-            { mod: { id: 'a', name: 'A' }, credential: { mod: 'a', permissions: ['p/read'] }, entry: { key: 1 } },
+            { mod: { name: 'A' }, credential: { mod: 'a', permissions: ['p/read'] }, entry: { key: 1 } },
         ],
         'deckit-shell:connection-begin': ({ lifecycle }) =>
             lifecycle === 0
@@ -446,10 +446,16 @@ async function main() {
     check(
         "an entry declared to an interface is handed with the declaring mod's credential, frozen",
         JSON.stringify(declared) ===
-            '{"mod":{"id":"a","name":"A"},"credential":{"mod":"a","permissions":["p/read"]},"entry":{"key":1}}' &&
+            '{"mod":{"name":"A"},"credential":{"mod":"a","permissions":["p/read"]},"entry":{"key":1}}' &&
             Object.isFrozen(declared.credential) &&
             Object.isFrozen(declared.credential.permissions),
         declared
+    );
+    const unnamed = await CONTRIBUTION.contributions(5).catch((error) => error);
+    check(
+        'what is declared to an interface not named by a string is refused at call, INVALID_ARGUMENT',
+        unnamed.stage === 'call' && unnamed.kind === 'INVALID_ARGUMENT',
+        unnamed
     );
 
     for (const line of failed) console.error(line);
