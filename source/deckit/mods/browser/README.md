@@ -88,7 +88,7 @@ The open tabs, as they come back at the next start:
 |---|---|
 | `tabs` | the top level of the tree of open tabs |
 | `front` | the id of the tab in front |
-| `closed` | the last 20 tabs closed, the newest last, for Reopen Closed Tab: `parent` is the id of the folder it was in, or `null` at the top level, and `index` its place there |
+| `closed` | the last 20 tabs closed, the newest last, for Reopen Closed Tab: `parent` is the id of the folder it was in, left out at the top level, and `index` its place there |
 
 ### bookmarks
 

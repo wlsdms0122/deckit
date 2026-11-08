@@ -154,7 +154,7 @@ function tabList({
     function reopen() {
         const last = closed.pop();
         if (!last) return;
-        const folder = last.parent === null ? nodes.root : nodes.find(last.parent);
+        const folder = last.parent === undefined ? nodes.root : nodes.find(last.parent);
         const where = folder ? { parent: folder, index: Math.min(last.index, folder.children.length) } : {};
         add(last.url, { title: last.title, icon: last.icon, ...where });
     }
@@ -273,7 +273,7 @@ function tabList({
         // One whose page has shown no page has nothing to come back to.
         if (tab.url !== START && !tab.page?.state.blank) {
             const { url, title, icon } = tab;
-            closed.push({ url, title, icon, parent: parent === nodes.root ? null : parent.id, index });
+            closed.push({ url, title, icon, parent: parent === nodes.root ? undefined : parent.id, index });
             closed.splice(0, Math.max(0, closed.length - KEPT_CLOSED));
         }
         release(tab, tab.page);

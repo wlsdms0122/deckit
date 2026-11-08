@@ -4,6 +4,7 @@
 // sender's command through deckit/commands. Then a sender, Calendar's notices, with an owner to post to and with none. Exits 1
 // with a line for each check that failed.
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const ticks = async (count = 5) => {
@@ -13,6 +14,9 @@ const ticks = async (count = 5) => {
 async function main() {
     const mods = path.join(__dirname, '..', '..', 'deckit', 'mods');
     const { center, RATE, TOASTS } = require(path.join(mods, 'notifications', 'src', 'center', 'center.js'));
+    const { valueProblem } = await import(
+        pathToFileURL(path.join(__dirname, '..', '..', 'deckit', 'deckit-shell', 'deckit', 'request', 'index.js')).href
+    );
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -23,6 +27,7 @@ async function main() {
     let time = 1000;
     let active = false;
     const records = new Map();
+    const refused = []; // what storage refused to keep, as it refuses what is no value
     const emitted = [];
     const ran = []; // [mod, command, args]
     const system = []; // { title, press }
@@ -30,7 +35,11 @@ async function main() {
         storage: {
             records: {
                 get: (key, fallback) => structuredClone(records.get(key) ?? fallback),
-                set: async (key, value) => records.set(key, structuredClone(value)),
+                set: async (key, value) => {
+                    const problem = valueProblem(value);
+                    if (problem) return refused.push(problem);
+                    records.set(key, JSON.parse(JSON.stringify(value)));
+                },
             },
         },
         events: { emit: (name, ...args) => emitted.push([name, ...args]) },
@@ -190,6 +199,8 @@ async function main() {
         ),
         null
     );
+
+    check('every record written is a value storage keeps', !refused.length, refused);
 
     for (const line of failed) console.error(line);
     if (failed.length) {

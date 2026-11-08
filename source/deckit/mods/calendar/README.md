@@ -93,7 +93,7 @@ An occurrence, one for each time an event happens, in what every provider maps i
 | `rsvp` | the account's answer, `ACCEPTED`, `DECLINED`, `TENTATIVE` or `NEEDS-ACTION`, or `''` when it is not a guest |
 | `invited` | the account is a guest and not the organiser, so it has an answer to give |
 
-Calendar reads an occurrence in this shape by these rules. `id` and `uid` are read as strings, and `uid` is the `id` when there is none. A text field (`summary`, `location`, `description`, `rsvp`, `call.name`, a room) of another type is read as empty. A `call` whose `url` is not an http or https address is read as `null`. An occurrence without an `id`, or whose `start` or `end` is not a date, is left out.
+Calendar reads an occurrence in this shape by these rules. `id` and `uid` are read as strings, and `uid` is the `id` when there is none. A text field (`summary`, `location`, `description`, `rsvp`, `call.name`, a room) of another type is read as empty. A `call` whose `url` is not an http or https address is read as none. An occurrence without an `id`, or whose `start` or `end` is not a date, is left out.
 
 A call that fails because the account has to sign in again throws an error whose `kind` is `SIGN_IN`: Calendar shows a Sign in button that calls `signIn` again. Any other error is shown as it is, and the read is tried again a minute later.
 

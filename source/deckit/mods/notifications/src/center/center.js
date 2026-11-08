@@ -131,9 +131,9 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
         return args === null || (typeof args === 'object' && !Array.isArray(args));
     }
 
-    // What a press runs, as it is kept: a command with its args, `{}` for none, or no command.
+    // What a press runs, as it is kept: a command with its args, `{}` for none, or neither for no command.
     function ran({ command = null, args = null }) {
-        return command ? { command, args: args ?? {} } : { command: null, args: null };
+        return command ? { command, args: args ?? {} } : {};
     }
 
     // Unguessable and never repeated, across runs too.

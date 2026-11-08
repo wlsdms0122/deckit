@@ -104,9 +104,12 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
 
     const renderAxes = () => axisList.set([{ name: null, count: axes.total }, ...axes.axes]);
 
+    // The axis chosen is kept; all of them, null, keeps none.
+    const keepAxis = () => (axis === null ? store.remove('axis') : store.set('axis', axis));
+
     const chooseAxis = (name) => {
         axis = name;
-        store.set('axis', name);
+        keepAxis();
         renderAxes();
         refresh();
     };
@@ -650,7 +653,7 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         wake();
         if (axis !== null) {
             axis = null;
-            store.set('axis', null);
+            keepAxis();
             renderAxes();
         }
         query = String(text || '').trim();

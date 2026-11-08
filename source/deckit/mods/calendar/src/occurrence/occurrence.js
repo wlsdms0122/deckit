@@ -16,7 +16,7 @@ function occurrencesOf(events) {
             call:
                 event.call && isWebAddress(event.call.url)
                     ? { name: textOf(event.call.name), url: event.call.url }
-                    : null,
+                    : undefined,
             rooms: Array.isArray(event.rooms) ? event.rooms.filter((room) => typeof room === 'string') : [],
             location: textOf(event.location),
             description: textOf(event.description),
