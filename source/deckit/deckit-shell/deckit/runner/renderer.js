@@ -37,7 +37,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     // called with what it registered once start has ended.
     // Each lifecycle has a `scope`: what its handles made that calls back into the mod's code is cut as it ends. The
     // lowest failing fails the run; another failing ends alone, none stacks on it, and the run starts with those under
-    // it.
+    // it. A layer whose read throws is left out of the run with the layers over it, and the lowest's fails the run.
     async function start({ layers = [] } = {}) {
         try {
             await run(layers);
@@ -65,16 +65,18 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         RUN.begin(loaded);
         const mod = RUN.mod;
         const { deliver, fail } = RUN;
-        const given = stacked(layers, { mod, run: RUN.number, deliver, fail });
+        const made = make(layers, { mod, run: RUN.number, deliver, fail });
         const Entry = evaluate(loaded.source);
         if (!Entry) return RUN.notStarted();
-        let described;
+        let read;
         try {
-            described = given.read(Entry);
+            read = readOf(made, Entry);
         } catch (error) {
             fail(error.message || String(error));
             return RUN.notStarted();
         }
+        const given = stacked(read.layers);
+        const { described } = read;
         PROTOCOL.described.send({ run: RUN.number, summary: described, lifecycles: given.lifecycles.length });
         if (stopping) return;
         try {
@@ -114,17 +116,37 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         if (!stopping) tellStarted({ described, joined, reported: given.report() });
     }
 
-    // The layers on the runner as one: what each reads and reports, a lower one's where two say the same, their
-    // lifecycles in order, and the lowest's handle.
-    function stacked(layers, context) {
-        const given = [];
+    // Each layer made with the mod, the lowest first, each offered what the one under it offers.
+    function make(layers, context) {
+        const made = [];
         for (const layer of layers)
-            given.push({ ...NOTHING, ...layer({ ...context, under: given.at(-1)?.over ?? null }) });
+            made.push({ ...NOTHING, ...layer({ ...context, under: made.at(-1)?.over ?? null }) });
+        return made;
+    }
+
+    // What the layers read of the class, a lower one's where two say the same, and the layers that run: one whose read
+    // throws is left out, its problem recorded, with those over it, and the lowest's throw is thrown.
+    function readOf(made, Entry) {
+        const reads = [];
+        for (const [index, layer] of made.entries()) {
+            try {
+                reads.push(layer.read(Entry));
+            } catch (error) {
+                if (index === 0) throw error;
+                RUN.fail(error.message || String(error));
+                break;
+            }
+        }
+        return { layers: made.slice(0, reads.length), described: Object.assign({}, ...reads.reverse()) };
+    }
+
+    // The layers on the runner as one: what each reports, a lower one's where two say the same, their lifecycles in
+    // order, and the lowest's handle.
+    function stacked(given) {
         if (!given.length) return NOTHING;
         return {
             handle: given[0].handle,
             mods: given[0].mods,
-            read: (Entry) => Object.assign({}, ...given.map((one) => one.read(Entry)).reverse()),
             report: () => {
                 const reports = given.map((one) => one.report()).reverse();
                 return {

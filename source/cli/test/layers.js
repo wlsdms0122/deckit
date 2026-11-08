@@ -2,13 +2,13 @@
 // a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's
 // handle, which opens an address outside the app with openExternal and takes a chord only for a mod with
 // deckit.app-keys or system.global-keys; a press of the chord runs what took it, and the chord is let go once the
-// lifecycle that took it ends. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and two layers over
-// it: the run is told started once, after the lifecycle over deckit's has ended as its start threw, none over it
-// started; and the handle of a mod granted nothing: `mods` on it, each request refused at call with NOT_PERMITTED
-// before its arguments are read, `quit()` a promise, and `openExternal` refused NOT_PERMITTED for a file, then
-// INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request refused INVALID_ARGUMENT for an
-// argument of another type and asked of main otherwise. Exits 1 with a line for each check that failed. The packages
-// are ES modules, so they are imported as such.
+// lifecycle that took it ends. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and layers over it:
+// the run is told started once, after the lifecycle over deckit's has ended as its start threw, none over it started,
+// and a layer whose read threw left out with the one over it; and the handle of a mod granted nothing: `mods` on it,
+// each request refused at call with NOT_PERMITTED before its arguments are read, `quit()` a promise, and `openExternal`
+// refused NOT_PERMITTED for a file, then INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request
+// refused INVALID_ARGUMENT for an argument of another type and asked of main otherwise. Exits 1 with a line for each
+// check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -130,7 +130,8 @@ async function main() {
     await plain.lifecycles[0].start(instance, { deckit: { exports: {} } }, makeScope());
     check('a mod with neither key permission takes no chord', plainHanded && !plainHanded.keys, plainHanded);
 
-    // The runner with deckit, a layer whose lifecycle throws as it starts, and one over that.
+    // The runner with deckit, a layer whose lifecycle throws as it starts, one over that, a layer whose read throws,
+    // and one over that.
     const { createRun } = await import(url('deckit-shell', 'deckit', 'runner', 'run.js'));
     const { createRunner } = await import(url('deckit-shell', 'deckit', 'runner', 'renderer.js'));
     const { createMods } = await import(url('deckit-shell', 'deckit', 'mods', 'renderer.js'));
@@ -182,6 +183,19 @@ async function main() {
             ),
         ],
     });
+    const unread = () => ({
+        read: () => {
+            throw new Error('no reading');
+        },
+        lifecycles: [
+            stacked(
+                'unread',
+                async () => order.push('unread'),
+                async () => {}
+            ),
+        ],
+    });
+    const reading = () => ({ read: () => ({ reading: true }) });
     const RUN = createRun();
     const runner = createRunner({
         RUN,
@@ -197,7 +211,7 @@ async function main() {
         NOTIFICATION: { listen: () => {}, notificationsOf: () => ({}) },
         KEYMAP: createKeymap(),
     }).layer;
-    await runner.start({ layers: [deckitLayer, attaching, above] });
+    await runner.start({ layers: [deckitLayer, attaching, above, unread, reading] });
     const channels = sent.map(({ channel }) => channel.replace('deckit-shell:', ''));
     check(
         'a lifecycle over deckit that throws as it starts ends alone, and none over it starts',
@@ -207,9 +221,16 @@ async function main() {
     check(
         'the run is told started once, after the lifecycle that threw has ended, and not as not started',
         channels.filter((channel) => channel === 'mod-started').length === 1 &&
-            channels.indexOf('mod-started') > channels.indexOf('mod-problem') &&
+            channels.indexOf('mod-started') > channels.lastIndexOf('mod-problem') &&
             !channels.includes('mod-not-started'),
         channels
+    );
+    const told = (channel) => sent.filter((one) => one.channel === `deckit-shell:${channel}`).map((one) => one.payload);
+    check(
+        'a layer whose read throws is left out of the run with the one over it, its problem recorded',
+        JSON.stringify(told('mod-described')) === '[{"run":1,"summary":{},"lifecycles":3}]' &&
+            told('mod-problem').some(({ problem }) => problem === 'no reading'),
+        sent
     );
 
     const refusalOf = (promise) =>
