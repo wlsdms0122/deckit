@@ -66,6 +66,10 @@ const MAIN = Object.freeze({
         // the page when `handler` answers true, at once. Told after what `pages.watchInput` told of it, when that
         // watch began first
         capture: 'function',
+        // unhandled(page, handler(keystroke) -> boolean): each key down pressed in the page that the page did not
+        // handle, by cancelling it or acting on it, `{ code, meta, control, alt, shift }`, told after the page had it
+        // and taken from the rest of the app when `handler` answers true
+        unhandled: 'function',
         // hotkey(keystroke, handler()) -> off, or null when the system does not give it: a key, `{ code, meta,
         // control, alt, shift }`, heard wherever the keyboard is, in any app, once the app is ready, `handler()` told
         // each time it is pressed and the key taken from wherever it was pressed

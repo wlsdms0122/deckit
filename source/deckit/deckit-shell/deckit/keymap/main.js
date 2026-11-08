@@ -8,8 +8,9 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // The keys a mod cannot take alone: a chord taken from every page of the app with deckit.app-keys, or from every app
 // too with system.global-keys, its press told to the page of the mod that took it, let go when the mod's page ends. A
 // layer over deckit holds a chord in every page of the app too, in the same table: a chord is its first holder's, a
-// layer's or one mod's, at a time. A page that records is handed each key pressed in it, before anything else looks at
-// it; then a layer over deckit monitors the keys pressed in those pages, before any chord. `keys` is the
+// layer's or one mod's, at a time. A mod's chord is taken before the page has the key; a layer's runs only once the
+// page did not handle it. A page that records is handed each key pressed in it, before anything else looks at it; then
+// a layer over deckit monitors the keys pressed in those pages, before any chord a mod took. `keys` is the
 // environment's.
 export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
     // MARK: - Property
@@ -26,23 +27,25 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         PROTOCOL.release.on(({ id }, sender) => release(sender, id));
     }
 
-    // Keystrokes in `target`, a page of the app, go by the chords taken: one pressed there is taken from the page and
-    // told to its mod. Deckit listens on the pages mods run in and the web pages they show; an app hands its own.
+    // Keystrokes in `target`, a page of the app, go by the chords taken: one a mod took pressed there is taken from the
+    // page and told to its mod, and one a layer holds is its once the page did not handle it. Deckit listens on the
+    // pages mods run in and the web pages they show; an app hands its own.
     function listen(target) {
         KEYS.capture(target, (pressed) => pressed.type === 'keydown' && handle(target, keystrokeOf(pressed)));
+        KEYS.unhandled(target, (pressed) => pass(target, keystrokeOf(pressed)));
     }
 
     // `handler(page, keystroke) -> taken` looks at each key pressed in a page listened to, `page` the one it was
-    // pressed in and `keystroke` `{ code, meta, control, alt, shift }`, before any chord taken: answering true takes
-    // it from the page, and no chord runs for it. Answers its off.
+    // pressed in and `keystroke` `{ code, meta, control, alt, shift }`, before any chord a mod took: answering true
+    // takes it from the page, and no chord runs for it. Answers its off.
     function monitor(handler) {
         monitors.add(handler);
         return () => monitors.delete(handler);
     }
 
     // `keystroke` held in every page listened to by `name`, its holder as a person reads it: `handler(page, keystroke)
-    // -> taken` is each press of it, answering whether it took it from the page, which has the key where it did not.
-    // Refused, REFUSED, for a chord held or taken already. Answers its release.
+    // -> taken` is each press of it the page did not handle, after the page had it, answering whether it took it from
+    // the rest of the app. Refused, REFUSED, for a chord held or taken already. Answers its release.
     function hold(keystroke, handler, { name } = {}) {
         if (typeof handler !== 'function') throw new Error('a chord is held with a function');
         const read = keystrokeOf(keystroke ?? {});
@@ -113,8 +116,8 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
         one.drop();
     }
 
-    // The page's recording first, then the monitors, in order, then the chords: answers whether the key was taken. A
-    // monitor or a holder that throws takes nothing.
+    // The page's recording first, then the monitors, in order, then the chords mods took: answers whether the key was
+    // taken. A monitor that throws takes nothing.
     function handle(page, keystroke) {
         const recorder = recording.get(page);
         if (recorder) {
@@ -132,18 +135,24 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
                 LOG.error('a key monitor failed', error);
             }
         }
-        return press(page, keystroke);
+        return press(keystroke);
     }
 
-    // Answers whether a chord was pressed and taken: one a mod took always is, one a layer holds as its handler says.
-    function press(page, keystroke) {
+    // Answers whether a chord a mod took was pressed, which is taken.
+    function press(keystroke) {
         const name = nameOf(keystroke);
         const one = taken.get(name);
-        if (!one) return false;
-        if (!one.handler) {
-            tell(name);
-            return true;
-        }
+        if (!one || one.handler) return false;
+        tell(name);
+        return true;
+    }
+
+    // A key the page did not handle, to the layer that holds its chord: answers whether its handler took it. A holder
+    // that throws takes nothing.
+    function pass(page, keystroke) {
+        const name = nameOf(keystroke);
+        const one = taken.get(name);
+        if (!one?.handler) return false;
         try {
             return !!one.handler(page, keystroke);
         } catch (error) {

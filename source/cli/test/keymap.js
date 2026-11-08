@@ -3,8 +3,8 @@
 // hotkey too, and a press is told to the page of the mod that took it. A chord is one mod's at a time, a mod without
 // the permission for the scope is refused, and a chord is let go when released or when the mod's page ends. A monitor
 // looks at each key pressed in a page listened to before the chords, and what it takes runs none. A chord a layer
-// holds is in the same table: its first holder keeps it, a mod's take of it is refused with the holder's name, and a
-// press its handler leaves is the page's. A page that records is handed each key pressed in it before anything else,
+// holds is in the same table: its first holder keeps it, a mod's take of it is refused with the holder's name, and it
+// runs only for a key the page did not handle, after the page had it. A page that records is handed each key pressed in it before anything else,
 // until it stops or ends. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
 // imported as such.
 const path = require('path');
@@ -22,15 +22,17 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    // The environment: what captures a page's keys is kept, and the test presses keys and reads what main tells a
-    // page.
+    // The environment: what captures a page's keys and what hears the keys it did not handle are kept, and the test
+    // presses keys and reads what main tells a page.
     const capturing = new Map(); // page -> handler
+    const passing = new Map(); // page -> handler of the keys it did not handle
     const tells = []; // [page, message]
     let heard = null;
     const hotkeys = []; // { keystroke, handler, held }, each hotkey asked for
     let refusing = false; // whether the system gives no hotkey
     const keys = {
         capture: (page, handler) => capturing.set(page, handler),
+        unhandled: (page, handler) => passing.set(page, handler),
         hotkey: (keystroke, handler) => {
             const hotkey = { keystroke, handler, held: !refusing };
             hotkeys.push(hotkey);
@@ -88,6 +90,7 @@ async function main() {
     });
     const press = (page, code, modifiers = {}, type = 'keydown') =>
         capturing.get(page)({ type, ...keystroke(code, modifiers) });
+    const pass = (page, code, modifiers = {}) => passing.get(page)(keystroke(code, modifiers));
     const ask = async (page, channel, payload) => {
         const answer = await heard.asked(page, { channel, payload });
         return answer.error ? { error: answer.error } : { value: answer.value };
@@ -110,6 +113,12 @@ async function main() {
     );
     check('a key released is not taken', press(shell, 'KeyK', { alt: true }, 'keyup') === false, tells);
     check('a chord no mod took is not taken', press(shell, 'KeyJ', { alt: true }) === false, tells);
+    tells.length = 0;
+    check(
+        'a chord a mod took does not run for a key the page did not handle',
+        pass(n, 'KeyK', { alt: true }) === false && !told().length,
+        told()
+    );
 
     // A monitor looks at each key pressed before the chords taken, and what it takes runs no chord.
     const looked = []; // [page, keystroke]
@@ -224,7 +233,7 @@ async function main() {
     onK.handler();
     check('a hotkey let go tells no page', told().length === 0, told());
 
-    // A chord a layer holds: in the one table, its first holder's, a press its handler leaves the page's.
+    // A chord a layer holds: in the one table, its first holder's, run for a key the page did not handle alone.
     const heldPresses = []; // [page, keystroke]
     let holderTakes = true;
     const releaseHeld = KEYMAP.hold(
@@ -258,14 +267,24 @@ async function main() {
         heldTaken?.message
     );
     tells.length = 0;
-    check('a press of a chord held its handler takes is taken', press(n, 'Backslash', { meta: true }) === true, '');
+    check(
+        'a chord held is left to the page before it has the key',
+        press(n, 'Backslash', { meta: true }) === false && !heldPresses.length,
+        heldPresses
+    );
+    check(
+        'a key the page did not handle of a chord held its handler takes is taken',
+        pass(n, 'Backslash', { meta: true }) === true,
+        ''
+    );
     check(
         'the handler is handed the page and the keystroke, and no mod is told',
         heldPresses.length === 1 && heldPresses[0][0] === n && heldPresses[0][1].code === 'Backslash' && !told().length,
         heldPresses
     );
     holderTakes = false;
-    check("a press the handler leaves is the page's", press(n, 'Backslash', { meta: true }) === false, heldPresses);
+    check('a key the handler leaves goes on in the app', pass(n, 'Backslash', { meta: true }) === false, heldPresses);
+    check('a key no chord is held for is not taken after the page', pass(n, 'KeyJ', { meta: true }) === false, '');
     releaseHeld();
     const afterHeld = await take(a, 11, keystroke('Backslash', { meta: true }), 'app');
     check("a chord let go by its holder is a mod's to take", afterHeld.value === true, afterHeld);
