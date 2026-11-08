@@ -1,0 +1,21 @@
+id = "mod-b"
+name = "MOD B"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."deckit/configuration"]]
+key = "tab-size"
+type = "number"
+title = "Tab size"
+default = 4
+minimum = 1
+maximum = 8
+unit = "spaces"
+
+[[contributes."deckit/configuration"]]
+key = "theme"
+type = "string"
+title = "Theme"
+default = "light"
+oneOf = [{ const = "light", title = "Light" }, { const = "dark", title = "Dark" }]

@@ -1,0 +1,41 @@
+case = 5
+name = "a-change-is-heard-by-a-listener-of-its-mod"
+note = "onChange(listener) calls listener with the key and the value it reads as now for each setting of the client's own mod whose value changes. mod-a hears its settings and sets theme to dark."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "onChange"
+handed = true
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["theme", "dark"]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[{}], ["theme", "dark"]]

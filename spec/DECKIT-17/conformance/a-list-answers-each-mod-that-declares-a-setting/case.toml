@@ -1,0 +1,29 @@
+case = 5
+name = "a-list-answers-each-mod-that-declares-a-setting"
+note = "list answers each mod that declares a setting, in the catalog's order, with each of its settings in the order written: the entry as written, keys the owner does not read among them, and its value, left out where it has none. mod-b declares tab-size with a unit, and theme, and mod-c name."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+
+[step.expect]
+answers = { mods = [{ mod = { id = "mod-b", name = "MOD B" }, items = [{ entry = { key = "tab-size", type = "number", title = "Tab size", default = 4, minimum = 1, maximum = 8, unit = "spaces" }, value = 4 }, { entry = { key = "theme", type = "string", title = "Theme", default = "light", oneOf = [{ const = "light", title = "Light" }, { const = "dark", title = "Dark" }] }, value = "light" }] }, { mod = { id = "mod-c", name = "mod-c" }, items = [{ entry = { key = "name", type = "string", title = "Name" } }] }], refused = [] }

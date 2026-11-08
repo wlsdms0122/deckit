@@ -1,0 +1,31 @@
+case = 5
+name = "a-set-of-a-value-of-no-choice-is-refused"
+note = "set is refused at call with kind INVALID_ARGUMENT where the setting writes oneOf and value is the const of none. mod-a sets theme to blue."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["theme", "blue"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

@@ -1,0 +1,51 @@
+case = 5
+name = "a-setting-set-by-another-client-is-heard-by-its-mod"
+note = "setOf(mod, key, value) sets a setting of the mod mod for a client granted deckit.system-services, and the listeners of that mod hear it. mod-b hears its settings, and mod-a sets mod-b's theme to dark."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "onChange"
+handed = true
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "setOf"
+handed = true
+args = ["mod-b", "theme", "dark"]
+
+[step.expect]
+answers = "dark"
+
+[[step]]
+look = "heard"
+mod = "mod-b"
+
+[step.expect]
+answers = [[{}], ["theme", "dark"]]

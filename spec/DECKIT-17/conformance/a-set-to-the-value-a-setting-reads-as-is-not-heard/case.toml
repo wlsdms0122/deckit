@@ -1,0 +1,41 @@
+case = 5
+name = "a-set-to-the-value-a-setting-reads-as-is-not-heard"
+note = "A set that leaves the value a setting reads as what it was is heard by no listener. mod-a hears its settings and sets theme to light, its default."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "onChange"
+handed = true
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["theme", "light"]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[{}]]

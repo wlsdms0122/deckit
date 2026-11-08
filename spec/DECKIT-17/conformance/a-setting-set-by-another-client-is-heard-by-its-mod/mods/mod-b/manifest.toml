@@ -1,0 +1,15 @@
+id = "mod-b"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+background = "Reads its settings."
+
+[interfaces]
+uses = { "deckit/configuration" = 1 }
+
+[[contributes."deckit/configuration"]]
+key = "theme"
+type = "string"
+title = "Theme"
+default = "light"
+oneOf = [{ const = "light", title = "Light" }, { const = "dark", title = "Dark" }]

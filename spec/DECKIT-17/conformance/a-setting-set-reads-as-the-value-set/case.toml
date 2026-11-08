@@ -1,0 +1,40 @@
+case = 5
+name = "a-setting-set-reads-as-the-value-set"
+note = "set(key, value) sets the client's own mod's setting and answers the value it reads as now, which get answers after it. mod-a sets theme to dark."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["theme", "dark"]
+
+[step.expect]
+answers = "dark"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "get"
+handed = true
+args = ["theme"]
+
+[step.expect]
+answers = "dark"

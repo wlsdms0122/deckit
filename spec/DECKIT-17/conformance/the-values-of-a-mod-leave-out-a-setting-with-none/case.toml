@@ -1,0 +1,29 @@
+case = 5
+name = "the-values-of-a-mod-leave-out-a-setting-with-none"
+note = "values() answers a table of each setting the client's own mod declares with its value, and leaves out one with none. mod-a declares tab-size, 4 by default, wrap, false by default, and name, with no default."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "values"
+handed = true
+
+[step.expect]
+answers = { tab-size = 4, wrap = false }
