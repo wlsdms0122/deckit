@@ -18,11 +18,12 @@ export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app:
     // MARK: - Public
     function start() {
         RUNNER.observe('willLaunch', ({ mod }) => MODULES.launching(modOf(mod)));
-        RUNNER.observe('didTerminate', ({ mod }) => {
-            const ending = MODULES.ended(modOf(mod), { within: LIMIT.END_LIMIT_MS }).catch(() => {});
-            endings.add(ending);
-            ending.then(() => endings.delete(ending));
-        });
+        for (const name of ['didFailToLaunch', 'didTerminate'])
+            RUNNER.observe(name, ({ mod }) => {
+                const ending = MODULES.ended(modOf(mod), { within: LIMIT.END_LIMIT_MS }).catch(() => {});
+                endings.add(ending);
+                ending.then(() => endings.delete(ending));
+            });
         APP.onQuit(() => {
             if (!endings.size) return false;
             Promise.all([...endings]).then(() => APP.quit());

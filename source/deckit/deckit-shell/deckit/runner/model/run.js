@@ -8,8 +8,8 @@
 // layers on it join of it, both as its page last reported them;
 // `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed;
 // `failed`, whether it failed or crashed rather than ending as asked;
-// `relaunchLimited`, whether its mod reached the relaunch limit as it failed, so it launches again only as its launch
-// is asked;
+// `refusal`, `{ stage, kind, message }`, what it is refused with at launch once it has ended without launching or its
+// mod is at the relaunch limit, or null;
 // `launchedAt`, when it came to run, in ms since the epoch as this process tells it, or null before;
 // `relaunches`, whether the runner loads the mod again once it has ended.
 function makeRun({ mod, number, relaunches = false }) {
@@ -19,7 +19,7 @@ function makeRun({ mod, number, relaunches = false }) {
         contributions: null,
         problem: null,
         failed: false,
-        relaunchLimited: false,
+        refusal: null,
         launchedAt: null,
         relaunches,
     };
@@ -41,8 +41,8 @@ function makeRun({ mod, number, relaunches = false }) {
         get failed() {
             return facts.failed;
         },
-        get relaunchLimited() {
-            return facts.relaunchLimited;
+        get refusal() {
+            return facts.refusal;
         },
         get launchedAt() {
             return facts.launchedAt;

@@ -117,13 +117,17 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     // The mod launches as asked, once its run that terminates has ended: `by` is the id of the mod that asks, which the
     // core refuses unless it is granted deckit.mods, and with none the shell asks. A launch takes the mod off the
-    // relaunch limit. One launching or running is left as it is, and none launches while the app quits. Resolves once
-    // it has launched, or failed to.
+    // relaunch limit. One launching or running is left as it is. Resolves once it has launched, or ended; rejects with
+    // what the run it asked for is refused with at launch where it did not launch, and with NOT_LAUNCHED while the app
+    // quits.
     async function launch(id, by = null) {
         await until(() => quitHold === 'held' || runOf(id)?.state !== 'terminating');
-        if (quitHold === 'held') return;
-        await ask('runner/launch', by ? { mod: id, by } : { mod: id });
-        await until(() => runOf(id)?.state !== 'launching');
+        if (quitHold === 'held') throw refused('NOT_LAUNCHED', `${id} does not launch while the app quits`);
+        const effects = await ask('runner/launch', by ? { mod: id, by } : { mod: id });
+        const launched = effects.some(({ notification, mod }) => notification === 'willLaunch' && mod === id);
+        const run = launched ? runOf(id) : null;
+        await until(() => (run ?? runOf(id))?.state !== 'launching');
+        if (run?.refusal) throw refused(run.refusal.kind, run.refusal.message);
     }
 
     // The mods named terminate. Resolves once each has ended.
@@ -131,6 +135,13 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         if (!ids.length) return;
         await ask('runner/unload', { mods: ids });
         await until(() => ids.every((id) => (runOf(id)?.state ?? 'notRunning') === 'notRunning'));
+    }
+
+    // The mod quits as asked, as `unload` ends it: `by` is the id of the mod that asks, refused as `launch` refuses
+    // it, and so is an id no mod is listed under. Resolves once it has ended.
+    async function quit(id, by = null) {
+        await ask('runner/quit', by ? { mod: id, by } : { mod: id });
+        await until(() => (runOf(id)?.state ?? 'notRunning') === 'notRunning');
     }
 
     // The mods named terminate, or are not running, and then each launches as `launch` does, for `by`, their runs
@@ -257,6 +268,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
                 case 'stop':
                     stop(effect.mod, effect.run);
                     break;
+                case 'kill':
+                    kill(effect.mod);
+                    break;
                 case 'close':
                     closeSandbox(effect.mod);
                     break;
@@ -281,6 +295,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         if (name === 'willLaunch') {
             const relaunches = reloading.has(sandbox.mod.id);
             Object.assign(sandbox, RUN.makeRun({ mod: sandbox.mod, number: told.run, relaunches }));
+            limitLaunch(sandbox.run);
         }
         update(sandbox, told);
         const { run } = sandbox;
@@ -294,8 +309,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     function update(sandbox, told) {
-        const { state, failed, relaunchLimited, problem = null } = told;
-        sandbox.update({ state, failed, relaunchLimited, problem });
+        const { state, failed, refusal = null, problem = null } = told;
+        sandbox.update({ state, failed, refusal, problem });
     }
 
     // What the page of the mod reports of its `number`th run, kept on it while it is the mod's latest.
@@ -309,11 +324,18 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return { exportedIn, awaits };
     }
 
-    // The page is made, known as the mod's and set up before it loads, so what it asks as it starts is the mod's. A
-    // page that did not load runs no mod: what loaded instead is never the mod's page.
     function openSandbox(mod) {
+        const sandbox = { mod, page: null, run: null, update: null, loadedItself: false, lifecycles: 1 };
+        makePage(sandbox);
+        sandboxes.set(mod.id, sandbox);
+    }
+
+    // The sandbox's page is made, known as the mod's and set up before it loads, so what it asks as it starts is the
+    // mod's. A page that did not load runs no mod: what loaded instead is never the mod's page.
+    function makePage(sandbox) {
+        const { mod } = sandbox;
         const page = PAGES.make({ modId: mod.id });
-        const sandbox = { mod, page, run: null, update: null, loadedItself: false, lifecycles: 1 };
+        sandbox.page = page;
         PAGES.watch(page, {
             failed: (why) => crash(sandbox.run, `its page did not load (${why})`),
             gone: (why) => crash(sandbox.run, endedProblem({ gone: why })),
@@ -321,7 +343,26 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         });
         IDENTITY.add(page, { mod });
         preparePage(page, mod);
-        sandboxes.set(mod.id, sandbox);
+    }
+
+    // The sandbox's page closes at once, asked nothing, and a new one takes its place for the mod's next launch.
+    function kill(modId) {
+        const sandbox = sandboxes.get(modId);
+        PAGES.close(sandbox.page);
+        makePage(sandbox);
+    }
+
+    // A run whose code has not started `LIMIT.LAUNCH_LIMIT_MS` after it launched has timed out.
+    function limitLaunch(run) {
+        const timer = setTimeout(() => {
+            if (runOf(run.mod.id) === run && run.state === 'launching')
+                send('runner/timed-out', { mod: run.mod.id, run: run.number });
+        }, LIMIT.LAUNCH_LIMIT_MS);
+        timer.unref?.();
+    }
+
+    function refused(kind, message) {
+        return Object.assign(new Error(message), { kind });
     }
 
     // A page that has just loaded by itself is not loaded again: whatever run launches in it meanwhile, the page
@@ -442,6 +483,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         whenReconciled,
         launch,
         unload,
+        quit,
         relaunch,
         relaunchAll,
     };

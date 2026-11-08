@@ -5,8 +5,9 @@
 // with the mod that asks or none, once a run that terminates has ended, a mod relaunched as it ends and launches
 // again, the core asked first what the owners come to as the catalog changes, with no new mod loaded for it and the
 // owner change it delivers reaching the page that listens, a changed mod that ran loaded again, a launch the core
-// answers for a failed run done as told, a mod that quits its run, the page closed, and the quit held while a run has
-// not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// answers for a failed run done as told, what a run is refused with at launch, a launch whose run did not launch
+// refused, its page killed and made anew, a quit asked of the core, a mod that quits its run, the page closed, and the
+// quit held while a run has not ended, a launch meanwhile refused. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -83,7 +84,6 @@ async function main() {
         notification,
         state,
         failed: false,
-        relaunchLimited: false,
         ...facts,
     });
     answers.set('runner/start', [
@@ -352,11 +352,21 @@ async function main() {
         asked.slice(-2)
     );
     answers.set('runner/crash', [
-        [told('didTerminate', 'notRunning', 'b', { run: 5, failed: true, relaunchLimited: true })],
+        [
+            told('didTerminate', 'notRunning', 'b', {
+                run: 5,
+                failed: true,
+                refusal: { stage: 'launch', kind: 'RELAUNCH_LIMIT', message: 'b is at the relaunch limit' },
+            }),
+        ],
     ]);
     await RUNNER.ask('runner/crash', { mod: 'b', run: 5, problem: 'x' });
     check('a run says it failed as the core told', RUNNER.runOf('b').failed === true, RUNNER.runOf('b'));
-    check('a run says its mod reached the relaunch limit', RUNNER.runOf('b').relaunchLimited === true, null);
+    check(
+        'a run says what it is refused with at launch',
+        RUNNER.runOf('b').refusal?.kind === 'RELAUNCH_LIMIT',
+        RUNNER.runOf('b').refusal
+    );
 
     // A mod quits its own run; what an older run asks is not the latest's.
     const unloads = () => methods('runner/unload').length;
@@ -385,6 +395,46 @@ async function main() {
     );
     check('a closed sandbox is no run', !RUNNER.runOf('a'), RUNNER.runs());
 
+    // A launch whose run fails to launch: its page killed and made anew, and the launch refused as the run is.
+    answers.set('runner/launch', [
+        [
+            { effect: 'open', found: found('a') },
+            told('willLaunch', 'launching', 'a', { run: 2 }),
+            { effect: 'loadPage', mod: 'a' },
+        ],
+    ]);
+    const failing = RUNNER.launch('a', 'm').catch((error) => error);
+    await tick();
+    answers.set('runner/not-started', [
+        [
+            told('didFailToLaunch', 'notRunning', 'a', {
+                run: 2,
+                failed: true,
+                problem: 'threw',
+                refusal: { stage: 'launch', kind: 'NOT_LAUNCHED', message: 'a did not launch: threw' },
+            }),
+            { effect: 'kill', mod: 'a' },
+        ],
+    ]);
+    const madeBefore = done.filter(([what, id]) => what === 'make' && id === 'a').length;
+    await RUNNER.ask('runner/not-started', { mod: 'a', run: 2, problem: 'threw' });
+    const failure = await failing;
+    check('a launch whose run did not launch is refused as the run is', failure?.kind === 'NOT_LAUNCHED', failure);
+    check(
+        "a killed sandbox's page closes, and a new one is made for its next launch",
+        done.at(-1)?.[0] !== 'load' &&
+            done.filter(([what, id]) => what === 'make' && id === 'a').length === madeBefore + 1 &&
+            RUNNER.runOf('a')?.state === 'notRunning',
+        done.slice(-6)
+    );
+    answers.set('runner/quit', [[]]);
+    await RUNNER.quit('x', 'm');
+    check(
+        'a quit is asked of the core with the mod that asks',
+        JSON.stringify(methods('runner/quit').at(-1)?.params) === '{"mod":"x","by":"m"}',
+        methods('runner/quit')
+    );
+
     // The quit, held while a run has not ended, and a core that ended frees it.
     let end = null;
     answers.set('runner/unload', [
@@ -399,8 +449,10 @@ async function main() {
     await RUNNER.launch('b');
     check('the quit is held while a run has not ended', hold() === true, RUNNER.runs());
     const quit = methods('runner/unload').at(-1)?.params;
-    check('the core is asked to stop the runs as the app quits', quit?.mods.join() === 'b', quit);
+    check('the core is asked to stop the runs as the app quits', quit?.mods.join() === 'b,a', quit);
     check('a quit asked again meanwhile waits too', hold() === true, null);
+    const meanwhile = await RUNNER.launch('a').catch((error) => error);
+    check('a launch while the app quits is refused', meanwhile?.kind === 'NOT_LAUNCHED', meanwhile);
     end();
     await tick();
     check('a core that ended frees the quit, and the quit is asked again', done.at(-1)?.[0] === 'quit', done.at(-1));
