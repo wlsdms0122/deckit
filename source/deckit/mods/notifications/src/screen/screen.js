@@ -48,7 +48,7 @@ function screen(shell, center) {
         draw();
         if (!window) return open(LIST_HEIGHT);
         window.resize(WIDTH, LIST_HEIGHT);
-        window.orderFront();
+        window.makeKeyAndOrderFront();
     }
 
     function end() {
@@ -83,17 +83,19 @@ function screen(shell, center) {
             return;
         }
         if (window) window.resize(WIDTH, heightOf(toasts.size));
-        else open(heightOf(toasts.size));
+        else open(heightOf(toasts.size), { activates: false });
     }
 
-    // The window opened `height` tall. One closed where the screen did not ask opens again with the next toast or list.
-    function open(height) {
+    // The window opened `height` tall, taking the keyboard unless `activates` is false. One closed where the screen did
+    // not ask opens again with the next toast or list.
+    function open(height, { activates = true } = {}) {
         const opened = shell.windows.open({
             name: 'main',
             content,
             level: 'overlay',
             width: WIDTH,
             height,
+            activates,
             didResignKey: () => face === 'list' && window === opened && toToasts(),
             didClose: () => {
                 if (window !== opened) return;
