@@ -1,4 +1,5 @@
-// Deckit.app's Electron entry: deckit's main bundles, the app's own files, then the environment, connect and attach.
+// Deckit.app's Electron entry: deckit's main bundles, the app's own files, then the environment, connect and attach,
+// and the app's menu once Electron is ready.
 const path = require('path');
 const { app } = require('electron');
 
@@ -23,6 +24,7 @@ if (!app.requestSingleInstanceLock()) {
     const { createWindow } = require('./window/window.js');
     const { createApp } = require('./app/app.js');
     const { createTheme } = require('./theme/theme.js');
+    const { setMenu } = require('./menu/menu.js');
     // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
     const restart = () => {
         if (UNPACKAGED) app.once('quit', () => app.exit(RESTART));
@@ -40,6 +42,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     const deckit = DECKIT.connect(environment, { host, config, folders });
     DECKIT.attach(deckit, environment, { host });
+    app.whenReady().then(setMenu);
     // Closing the host window leaves the app running; the Dock icon and a second launch bring it back.
     app.on('activate', () => host.show());
     app.on('second-instance', () => host.show());
