@@ -4,7 +4,7 @@ Web pages in tabs, in folders, with bookmarks, an address bar in its title bar, 
 
 ## Addresses
 
-The Browser declares the `http` and `https` addresses in its manifest to `deckit/urls` (see the URLs mod), and opens one another mod asks to open from `openURL(url, { activates })` in the exports it opens for its id in `start`: in a new tab at the end, the Browser coming to the front unless `activates` is false. An address that comes while the Browser has no view open is passed on.
+The Browser declares the `http` and `https` addresses in its manifest to `deckit/urls` (see the URLs mod), and opens one another mod asks to open from `openURL(url, { activates })` in the exports it opens for its id in `start`: in a new tab at the end, the Browser's window coming to the front unless `activates` is false. An address that comes while the Browser is not attached is passed on.
 
 ## Notifications
 
@@ -21,7 +21,7 @@ Declared in the manifest to `deckit/configuration` (see the Configuration mod), 
 
 ## Commands
 
-What a CLI, the switcher, a notification or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports the Browser opens for its id in `start`. Each acts on the Browser's view, and one run while the Browser has no view open fails, saying so.
+What a CLI, the switcher, a notification or another mod runs by name: declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports the Browser opens for its id in `start`. Each acts on the tabs in the Browser's window, open or not, `show-notification` bringing the window to the front and `new-tab` at no address opening it where it is closed; one run while the Browser is not attached fails, saying so.
 
 | Command | Title | Args | What it does |
 |---|---|---|---|
@@ -35,7 +35,7 @@ The switcher (`switcher/actions`) offers New Tab, Reopen Closed Tab, Switch to T
 
 ## Keys
 
-The view's own shortcuts, which the Browser handles in its page while the view is in front.
+The window's own shortcuts, which the Browser handles in its window while it is the key window.
 
 | Key | Action |
 |---|---|

@@ -17,15 +17,18 @@ const { viewKeys } = require('./keys/keys.js');
 const NOTICES_KEPT = 100;
 
 class Browser {
-    // What the view has put on screen for the commands and the addresses to reach, while it is attached.
+    // What attach has put on screen for the commands, the addresses and reopen() to reach, while it is attached:
+    // `openWindow()` opens the Browser's window, or orders it front where it is open.
     screen = null;
 
     // The commands its manifest declares to `deckit/commands`, and the `http` and `https` addresses it declares to
-    // `deckit/urls`, each taken from the exports for its id and run on the view. A command run while the Browser has
-    // no view open says so, and an address that comes then is passed on.
+    // `deckit/urls`, each taken from the exports for its id and run on the tabs in its window, open or not:
+    // `show-notification` brings the window front, and `new-tab` at no address opens it where it is closed, as the
+    // address is typed in it. A command run while the Browser is not attached says so, and an address that comes then
+    // is passed on.
     start(deckit) {
         const onScreen = () => {
-            if (!this.screen) throw new Error('Browser has no view open');
+            if (!this.screen) throw new Error('Browser has no window to open');
             return this.screen;
         };
         const commands = {
@@ -73,7 +76,7 @@ class Browser {
         const filesSession = deckit.web.session('files');
         const { bookmarks, certificates, sitePermissions } = store({ records, onBookmarksChange: showBookmarks });
         const editor = bookmarkEditor({ ui, bookmarks });
-        // The view is the toolbar over the area of pages.
+        // The content is the toolbar, the window's title bar, over the area of pages.
         const content = ui.element('div', {
             style: { display: 'flex', flexDirection: 'column', width: '100%', height: '100%', overflow: 'hidden' },
         });
@@ -158,7 +161,7 @@ class Browser {
         tabs.restore();
         showBookmarks();
 
-        // The view's own keys, while it is in front.
+        // The window's own keys, while it is key.
         const keys = viewKeys(
             {
                 newTab: { key: 'mod+t', run: () => newTab() },
@@ -177,30 +180,39 @@ class Browser {
                 ),
                 lastTab: { key: 'mod+9', run: () => showTab(-1) },
             },
-            { log: 'browser' }
+            { log: 'browser', within: content }
         );
         this.endKeys = () => keys.listen(false);
 
-        shell.view.register({
-            content,
+        // The pages beside the sidebar's tabs and bookmarks, whose width and fold are kept as the person leaves them.
+        const split = ui.splitView({
             sidebar: sidePanel.element,
-            didAppear() {
-                shown = true;
-                keys.listen(true);
-                prompter.askPending(tabs.front());
-            },
-            didDisappear() {
-                shown = false;
-                keys.listen(false);
-            },
+            content,
+            ...values.get('sidebar', {}),
+            onChange: (kept) => values.set('sidebar', kept),
         });
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear() {
+                    shown = true;
+                    prompter.askPending(tabs.front());
+                },
+                didBecomeKey: () => keys.listen(true),
+                didResignKey: () => keys.listen(false),
+                didDisappear() {
+                    shown = false;
+                },
+            });
+        openWindow();
 
         const actions = switcher({
             ui,
             util: deckit.util,
             tabs,
             bookmarks,
-            show: shell.show,
+            show: openWindow,
             does: inFront({
                 'new-tab': ({ url }) => newTab(url),
                 'reopen-tab': reopenTab,
@@ -215,7 +227,19 @@ class Browser {
             }),
         });
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
-        this.screen = { newTab, reopenTab, showNotification, switchToTab, openBookmark, openURL };
+        this.screen = {
+            openWindow,
+            // One at no address has its address typed in the window, opened where it is closed.
+            newTab: (url) => {
+                if (url === undefined && !shell.windows.list().length) openWindow();
+                newTab(url);
+            },
+            reopenTab,
+            showNotification,
+            switchToTab,
+            openBookmark,
+            openURL,
+        };
 
         function home() {
             return parseAddress(settings.get('homepage')) || START;
@@ -276,7 +300,7 @@ class Browser {
         // An address another mod asked to open, in a new tab, in front unless `activates` is false.
         function openURL(address, { activates }) {
             const front = activates !== false;
-            if (front) shell.show();
+            if (front) openWindow();
             tabs.open(address, { activates: front });
             return true;
         }
@@ -341,7 +365,7 @@ class Browser {
         function showNotification({ tab, notification }) {
             const found = tabs.list().find((each) => String(each.id) === tab);
             if (!found) throw new Error('The tab the notification came from is closed');
-            shell.show();
+            openWindow();
             tabs.select(found);
             notices.get(notification)?.click();
             notices.delete(notification);
@@ -350,6 +374,11 @@ class Browser {
         function notAnAddress(text) {
             ui.dialog({ title: 'Not a web address', message: text, confirmLabel: 'OK', cancelLabel: null });
         }
+    }
+
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
     }
 
     detach() {

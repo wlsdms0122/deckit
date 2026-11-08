@@ -127,7 +127,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
     list.element.addEventListener('focusout', () => {
         if (!leadKey) return;
         queueMicrotask(() => {
-            if (!leadKey || list.element.contains(document.activeElement)) return;
+            if (!leadKey || list.element.contains(list.element.ownerDocument.activeElement)) return;
             leadKey = null;
             draw();
         });
