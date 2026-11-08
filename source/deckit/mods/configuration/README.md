@@ -36,7 +36,7 @@ oneOf = [{ const = "light", title = "Light" }, { const = "dark", title = "Dark" 
 
 Any other field of the entry (one a client that draws settings reads, as `placeholder` or `unit`) is not read by Configuration, and is handed on as written in `list()`.
 
-An entry that cannot be used (a key that is no key, a type of another word, no title, a description that is not text, bounds on a type other than `number` or that are not numbers, a `minimum` above the `maximum`, a `oneOf` that is not a list of `{ const, title }` or whose `const` it does not take, a `default` it does not take) is left out and logged once, as is a second entry of one key from one mod. The others of that mod are read.
+An entry that cannot be used (a key that is no key, a type of another word, no title, a description that is not text, bounds on a type other than `number` or that are not numbers, a `minimum` above the `maximum`, a `oneOf` that is not a list of `{ const, title }` or whose `const` it does not take, a `default` it does not take) is left out, logged once and answered in `list()`'s `refused`, as is a second entry of one key from one mod. The others of that mod are read.
 
 ## Providing `deckit/configuration`
 
@@ -58,20 +58,20 @@ deckit.dependencies.onConnect('deckit/configuration', (configuration) => {
 });
 const size = await this.configuration.get('tab-size');
 await this.configuration.set('theme', 'dark');
-const listed = await this.configuration.list();
+const { mods, refused } = await this.configuration.list();
 await this.configuration.setOf('editor', 'tab-size', 2);
 ```
 
 ## What a client calls
 
-| Export                   | Who                      | What it is                                                                                                                                                                                   |
-| ------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get(key)`               | any client               | the value of its own mod's `key`: what was set, or else its default                                                                                                                          |
-| `values()`               | any client               | every key its own mod declares with its value, as `get` answers it, in an object                                                                                                             |
-| `set(key, value)`        | any client               | sets its own mod's `key` to `value`, or unsets it for null so it reads as its default again, and answers the value it reads as now                                                           |
-| `onChange(listener)`     | any client               | `listener(key, value)` hears each key of its own mod whose value changes, by `set` or `setOf`, with the value it reads as now, until the connection ends. What it throws is told no one      |
-| `list()`                 | `deckit.system-services` | every mod that declares a setting, in the mods' order, `[{ mod, items }]`: `mod` its `{ id, name }`, and `items` `[{ entry, value }]` its settings in the order declared, `entry` as written |
-| `setOf(mod, key, value)` | `deckit.system-services` | as `set`, for the mod of the id `mod`                                                                                                                                                        |
+| Export                   | Who                      | What it is                                                                                                                                                                                                                                                                                                                |
+| ------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get(key)`               | any client               | the value of its own mod's `key`: what was set, or else its default                                                                                                                                                                                                                                                       |
+| `values()`               | any client               | every key its own mod declares with its value, as `get` answers it, in an object                                                                                                                                                                                                                                          |
+| `set(key, value)`        | any client               | sets its own mod's `key` to `value`, or unsets it for null so it reads as its default again, and answers the value it reads as now                                                                                                                                                                                        |
+| `onChange(listener)`     | any client               | `listener(key, value)` hears each key of its own mod whose value changes, by `set` or `setOf`, with the value it reads as now, until the connection ends. What it throws is told no one                                                                                                                                   |
+| `list()`                 | `deckit.system-services` | `{ mods, refused }`: `mods` every mod that declares a setting, in the mods' order, `[{ mod, items }]`, `mod` its `{ id, name }` and `items` `[{ entry, value }]` its settings in the order declared, `entry` as written; `refused` `[{ mod, entry, problem }]` the entries left out, `entry` as written and `problem` why |
+| `setOf(mod, key, value)` | `deckit.system-services` | as `set`, for the mod of the id `mod`                                                                                                                                                                                                                                                                                     |
 
 What is set is kept in Configuration's storage across runs, by mod id. A set to null keeps nothing for the key. A value kept for a key no longer declared is left out of every answer, and kept, so it reads so again as the key comes back. A value kept that the key no longer takes reads as its default until it is set.
 

@@ -6,22 +6,24 @@ const ID = /^[A-Za-z0-9_-]+$/;
 
 // MARK: - Initializer
 // MARK: - Public
-// The commands in what mods declare to deckit/commands, as `contributions` answers it, `[{ mod, entry }]`: each
-// `{ mod: { id, name }, id, title, keywords, params }`, in the mods' order and then the order declared, `params` null
-// for one that takes no args. An entry that cannot be used, or a second of one id from one mod, is told to `warn` and
-// left out.
-function commandsOf(contributions, warn) {
+// The commands in what mods declare to deckit/commands, as `contributions` answers it, `[{ mod, entry }]`:
+// `{ commands, refused }`, `commands` each `{ mod: { id, name }, id, title, keywords, params }`, in the mods' order and
+// then the order declared, `params` null for one that takes no args. An entry that cannot be used, or a second of one
+// id from one mod, is left out, in `refused` as `{ mod, entry, problem }`.
+function commandsOf(contributions) {
     const commands = [];
+    const refused = [];
     const ids = new Set(); // "<mod id> <command id>"
+    const refuse = (mod, entry, problem) => refused.push({ mod: { id: mod.id, name: mod.name }, entry, problem });
     for (const { mod, entry } of contributions) {
         const problem = problemOf(entry);
         if (problem) {
-            warn(`${mod.id}: a command is left out: ${problem}`);
+            refuse(mod, entry, `a command is left out: ${problem}`);
             continue;
         }
         const key = `${mod.id} ${entry.id}`;
         if (ids.has(key)) {
-            warn(`${mod.id}: command "${entry.id}" is declared already, so a second one is left out`);
+            refuse(mod, entry, `command "${entry.id}" is declared already, so a second one is left out`);
             continue;
         }
         ids.add(key);
@@ -33,7 +35,7 @@ function commandsOf(contributions, warn) {
             params: entry.params ?? null,
         });
     }
-    return commands;
+    return { commands, refused };
 }
 
 // Why `args`, as a client hands them, do not fit what `command` takes, or null. One that takes no args takes none or

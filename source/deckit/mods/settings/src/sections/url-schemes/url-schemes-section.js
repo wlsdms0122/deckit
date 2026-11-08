@@ -66,14 +66,16 @@ function urlSchemesSection({ ui, urls, appName, onChange }) {
     body.append(cards.element);
     return { element, title: TITLE, keywords: KEYWORDS, read, draw };
 
-    // Every scheme as `deckit/urls` lists it, `[{ scheme, system, chosen, mods }]`, or none while it cannot be read.
+    // Every scheme and the entries left out, as `deckit/urls` lists them, `{ schemes, refused }`, `schemes`
+    // `[{ scheme, system, chosen, mods }]`; none while it cannot be read.
     async function read() {
-        if (!urls()) return [];
+        const none = { schemes: [], refused: [] };
+        if (!urls()) return none;
         try {
             return await urls().list();
         } catch (error) {
             console.warn('[settings] could not read the schemes', error);
-            return [];
+            return none;
         }
     }
 

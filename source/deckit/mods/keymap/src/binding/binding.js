@@ -9,24 +9,27 @@ const GRANTS = Object.freeze({ app: 'deckit.app-keys', global: 'system.global-ke
 // MARK: - Initializer
 // MARK: - Public
 // The keys in what mods declare to deckit/keys, as `contributions` answers it, `[{ mod, credential, entry }]`, each for
-// a command of its mod's in `commands`, as deckit/commands lists them: `{ mod: { id, name }, command, title, scope,
-// defaultKeystroke }`, in the mods' order and then the order declared. An entry that cannot be used, one of a scope its
-// mod is not granted, or a second key for one command, is told to `warn` and left out.
-function keysOf(contributions, commands, warn) {
+// a command of its mod's in `commands`, as deckit/commands lists them: `{ keys, refused }`, `keys` each
+// `{ mod: { id, name }, command, title, scope, defaultKeystroke }`, in the mods' order and then the order declared. An
+// entry that cannot be used, one of a scope its mod is not granted, or a second key for one command, is left out, in
+// `refused` as `{ mod, entry, problem }`.
+function keysOf(contributions, commands) {
     const keys = [];
+    const refused = [];
     const ids = new Set(); // "<mod id> <command id>"
+    const refuse = (mod, entry, problem) => refused.push({ mod: { id: mod.id, name: mod.name }, entry, problem });
     for (const { mod, credential, entry } of contributions) {
         const command = isObject(entry)
             ? commands.find((each) => each.mod.id === mod.id && each.id === entry.command)
             : null;
         const problem = problemOf(entry, command, mod, credential);
         if (problem) {
-            warn(`${mod.id}: a key is left out: ${problem}`);
+            refuse(mod, entry, `a key is left out: ${problem}`);
             continue;
         }
         const key = `${mod.id} ${entry.command}`;
         if (ids.has(key)) {
-            warn(`${mod.id}: a key for "${entry.command}" is declared already, so a second one is left out`);
+            refuse(mod, entry, `a key for "${entry.command}" is declared already, so a second one is left out`);
             continue;
         }
         ids.add(key);
@@ -38,7 +41,7 @@ function keysOf(contributions, commands, warn) {
             defaultKeystroke: parse(entry.keystroke),
         });
     }
-    return keys;
+    return { keys, refused };
 }
 
 // The bindings of `keys`, each bound to its default or to what a person set in `changes`, `[{ mod, command,

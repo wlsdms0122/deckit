@@ -128,7 +128,7 @@ async function main() {
     check('refused reaches nothing', asked.length === 0, asked);
 
     // The list.
-    const listed = await client.list();
+    const { commands: listed, refused } = await client.list();
     check(
         'list',
         JSON.stringify(listed.map((each) => `${each.mod.id}:${each.id}`)) ===
@@ -148,6 +148,20 @@ async function main() {
         listed[0]
     );
     check('warned', warnings.length === 5, warnings);
+    check(
+        'refused as warned',
+        JSON.stringify(
+            refused.map(({ mod, entry, problem }) => [mod, entry.id, `[commands] ${mod.id}: ${problem}`])
+        ) ===
+            JSON.stringify(
+                ['today', 'bad id', 'untitled', 'p', 'q'].map((id, index) => [
+                    { id: 'calendar', name: 'Calendar' },
+                    id,
+                    warnings[index],
+                ])
+            ),
+        refused
+    );
     await client.list();
     check('warned once', warnings.length === 5, warnings);
 
@@ -252,7 +266,7 @@ async function main() {
         [...heard.keys()]
     );
     const later = { mod: { id: 'plain', name: 'Plain' }, entry: { id: 'later', title: 'Later' } };
-    const hasLater = async () => (await client.list()).some((each) => each.id === 'later');
+    const hasLater = async () => (await client.list()).commands.some((each) => each.id === 'later');
     contributions.push(later);
     check('kept until a signal', !(await hasLater()));
     signal('deckit/commands:contributions-changed');

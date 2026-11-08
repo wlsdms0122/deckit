@@ -101,8 +101,8 @@ async function main() {
     const editor = settings.exportsFor(editorConnection);
     const forge = settings.exportsFor(connection('forge', []));
 
-    // The list.
-    const listed = await system.list();
+    // The list, and the entries left out.
+    const { mods: listed, refused } = await system.list();
     const shown = listed.map(({ mod, items }) => `${mod.id}: ${items.map(({ entry }) => entry.key).join(' ')}`);
     check(
         'list',
@@ -117,6 +117,15 @@ async function main() {
     const values = listed.map(({ items }) => items.map(({ value }) => value));
     check('defaults, or null', json(values) === json([['', null], [4, false, 'light', null], [null]]), values);
     check('warned', warnings.length === 16, warnings);
+    check(
+        'refused as warned',
+        refused.length === 16 &&
+            refused.every(
+                ({ mod, entry, problem }, index) =>
+                    warnings[index] === `[configuration] ${mod.id}: ${problem}` && entry !== undefined && !!mod.name
+            ),
+        refused
+    );
     await system.list();
     await editor.values();
     check('warned once', warnings.length === 16, warnings);
@@ -210,7 +219,7 @@ async function main() {
         heard
     );
     heard.length = 0;
-    const theme = (await system.list())[1].items[2];
+    const theme = (await system.list()).mods[1].items[2];
     check('listed as set', theme.value === 'dark' && theme.entry.key === 'theme', theme);
 
     // A connection that ended hears no more.

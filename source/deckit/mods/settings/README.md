@@ -5,14 +5,14 @@ Where the app is set up: the mods (installing, removing, restarting, pinning), w
 ```toml
 [interfaces]
 provides = { "settings/buttons" = [1] }
-uses = { "deckit/configuration" = 1, "deckit/keys" = 1, "deckit/urls" = 1, "switcher/actions" = 1 }
+uses = { "deckit/commands" = 1, "deckit/configuration" = 1, "deckit/keys" = 1, "deckit/urls" = 1, "switcher/actions" = 1 }
 ```
 
 Its Keyboard, URL Schemes and Mod Settings sections act on every mod through the system's services, `deckit/keys`, `deckit/urls` and `deckit/configuration` (see the Keymap, URLs and Configuration mods), with `deckit.system-services`. Settings holds each while it is connected (`deckit.dependencies.onConnect`); while one is not, its section lists nothing, and Mod Settings says it cannot read the settings.
 
 ## Mods
 
-Every mod found, in the mods' order, whether it loads or not (`deckit.mods`): its version, what its manifest contributes (a view, commands, keys, settings, the addresses it opens, the interfaces it provides) and, while it runs, the styles it lays on pages, with a restart, its folder shown in Finder, and a removal for one installed. A mod is installed from a folder picked or dropped on the section, once you agree to the permissions it asks for and to what it replaces. An opened row shows the interfaces it uses and what each reaches, whether a view shown in another mod's is kept in the Dock too (`shell.mods`), its permissions, where it stands in the turn of each scheme it opens, its keys, and its folder with what it stores. When a main process module keeps running what a mod no longer is, a notice asks to restart the app.
+Every mod found, in the mods' order, whether it loads or not (`deckit.mods`): its version, what its manifest contributes (a view, commands, keys, settings, the addresses it opens, the interfaces it provides) and, while it runs, the styles it lays on pages, with a restart, its folder shown in Finder, and a removal for one installed. A mod is installed from a folder picked or dropped on the section, once you agree to the permissions it asks for and to what it replaces. An opened row shows the interfaces it uses and what each reaches, whether a view shown in another mod's is kept in the Dock too (`shell.mods`), its permissions, where it stands in the turn of each scheme it opens, its keys, and its folder with what it stores. What the services of `deckit/commands`, `deckit/configuration`, `deckit/keys` and `deckit/urls` leave out of what a mod declares to them (each `list()`'s `refused`) is told on its row, with the interface. When a main process module keeps running what a mod no longer is, a notice asks to restart the app.
 
 ## Activity
 

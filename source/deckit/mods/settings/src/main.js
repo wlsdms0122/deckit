@@ -12,7 +12,12 @@ const { tableOfContents } = require('./table-of-contents/table-of-contents.js');
 const { urlSchemesSection } = require('./sections/url-schemes/url-schemes-section.js');
 
 // The system's services Settings draws and changes, each by the name it is held under while it is connected.
-const SERVICES = { keys: 'deckit/keys', urls: 'deckit/urls', configuration: 'deckit/configuration' };
+const SERVICES = {
+    keys: 'deckit/keys',
+    urls: 'deckit/urls',
+    configuration: 'deckit/configuration',
+    commands: 'deckit/commands',
+};
 
 class Settings {
     // What the view has put on screen for the command to reach, while it is attached.
@@ -38,7 +43,7 @@ class Settings {
         const APP_NAME = deckit.about().name;
 
         // name in SERVICES -> its exports while it is connected
-        const services = { keys: null, urls: null, configuration: null };
+        const services = { keys: null, urls: null, configuration: null, commands: null };
         let shown = false;
         let drawing = 0;
 
@@ -185,18 +190,44 @@ class Settings {
         // services draws instead.
         async function redraw() {
             const turn = ++drawing;
-            const [shortcuts, schemes] = await Promise.all([keyboard.read(), urlSchemes.read()]);
+            const [keys, urls, configured, commands] = await Promise.all([
+                keyboard.read(),
+                urlSchemes.read(),
+                refusedBy('configuration'),
+                refusedBy('commands'),
+            ]);
             if (turn !== drawing) return;
+            const { shortcuts } = keys;
+            const { schemes } = urls;
+            const refused = [
+                ...commands,
+                ...configured,
+                ...keys.refused.map((one) => ({ ...one, interface: SERVICES.keys })),
+                ...urls.refused.map((one) => ({ ...one, interface: SERVICES.urls })),
+            ];
             const { found, running: now, interfaces: interfaceQueues } = deckit.mods.list();
             const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
             const running = [...now, ...restarting];
-            mods.draw({ found, running, shortcuts, schemes });
+            mods.draw({ found, running, shortcuts, schemes, refused });
             activity.draw(found);
             modSettings.draw();
             urlSchemes.draw(schemes);
             interfaces.draw(interfaceQueues);
             general.draw();
             keyboard.draw(shortcuts);
+        }
+
+        // What the service held as `name` left out of what the mods declare to it, as its `list` answers them, each
+        // with the interface; none while it is not connected or cannot be read.
+        async function refusedBy(name) {
+            if (!services[name]) return [];
+            try {
+                const { refused } = await services[name].list();
+                return refused.map((one) => ({ ...one, interface: SERVICES[name] }));
+            } catch (error) {
+                console.warn(`[settings] could not read what ${SERVICES[name]} left out`, error);
+                return [];
+            }
         }
 
         // The mods with settings as they were last drawn, ranked for `partial`, matched by their name, id and the

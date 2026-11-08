@@ -48,16 +48,18 @@ function configuration(deckit) {
         hearing.delete(connection);
     }
 
-    // Every mod that declares a setting, in the mods' order, `[{ mod, items: [{ entry, value }] }]`.
+    // Every mod that declares a setting, in the mods' order, and the entries left out, `{ mods, refused }`: `mods`
+    // `[{ mod, items: [{ entry, value }] }]`, `refused` `[{ mod, entry, problem }]`.
     function list() {
         return serial(async () => {
+            const read = await declarations();
             const byMod = new Map(); // mod id -> { mod, items }
-            for (const setting of await settings()) {
+            for (const setting of read.settings) {
                 const { mod, entry } = setting;
                 if (!byMod.has(mod.id)) byMod.set(mod.id, { mod, items: [] });
                 byMod.get(mod.id).items.push({ entry, value: valueOf(setting, keptOf(mod.id)) });
             }
-            return [...byMod.values()];
+            return { mods: [...byMod.values()], refused: read.refused };
         });
     }
 
@@ -83,8 +85,15 @@ function configuration(deckit) {
     }
 
     // MARK: - Private
+    // The settings and the entries left out, as `settingsOf` reads them from what is declared now.
+    async function declarations() {
+        const read = settingsOf(await deckit.exports.contributions(INTERFACE));
+        for (const { mod, problem } of read.refused) warn(`${mod.id}: ${problem}`);
+        return read;
+    }
+
     async function settings() {
-        return settingsOf(await deckit.exports.contributions(INTERFACE), warn);
+        return (await declarations()).settings;
     }
 
     async function settingOf(mod, key) {

@@ -42,9 +42,10 @@ function router(deckit) {
         return Object.freeze({ open, list: refuse, choose: refuse });
     }
 
-    // Every scheme with a list, as `listsOf` answers them.
+    // Every scheme with a list, as `listsOf` answers them, and the entries left out, `{ schemes, refused }`.
     async function list() {
-        return listsOf(await handlers(), chosen);
+        const read = await declarations();
+        return { schemes: listsOf(read.handlers, chosen), refused: read.refused };
     }
 
     // The choice for `scheme`, `{ mod: id }`, `{ system: true }` or none for null: answers the scheme as `list` does.
@@ -103,8 +104,15 @@ function router(deckit) {
         return deckit.exports.contributions(INTERFACE);
     }
 
+    // The handlers and the entries left out, as `handlersOf` reads them.
+    async function declarations() {
+        const read = handlersOf(await declared);
+        for (const { mod, problem } of read.refused) warn(`${mod.id}: ${problem}`);
+        return read;
+    }
+
     async function handlers() {
-        return handlersOf(await declared, warn);
+        return (await declarations()).handlers;
     }
 
     function warn(problem) {

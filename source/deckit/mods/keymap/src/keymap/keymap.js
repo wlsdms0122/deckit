@@ -30,12 +30,13 @@ function keymap(deckit) {
     let declared = read(); // what is declared to deckit/keys, as last read
     let listed = null; // the commands deckit/commands lists, as last read while it is connected
     let bindings = []; // as last resolved
+    let refused = []; // the entries left out, as last read
     let queue = Promise.resolve(); // the work under way, which the next waits for
 
     // MARK: - Initializer
     deckit.dependencies.onConnect(COMMANDS, (exports) => {
         commands = exports;
-        listed = exports.list();
+        listed = commandsOf(exports);
         retake();
         return () => {
             if (commands !== exports) return;
@@ -50,7 +51,7 @@ function keymap(deckit) {
         });
     deckit.events.on(`${COMMANDS}:contributions-changed`, () => {
         if (!commands) return;
-        listed = commands.list();
+        listed = commandsOf(commands);
         retake();
     });
 
@@ -72,9 +73,10 @@ function keymap(deckit) {
     }
 
     // Every binding, as `resolved` answers it, with what the keys hole answered: `taken` for a chord another mod
-    // holds, which runs none of them, and `unavailable` for one the system did not give outside the app.
+    // holds, which runs none of them, and `unavailable` for one the system did not give outside the app. With the
+    // entries left out, `{ keys, refused }`.
     function list() {
-        return serial(refresh);
+        return serial(async () => ({ keys: await refresh(), refused }));
     }
 
     // The binding of `mod`'s key for `command` bound to `keystroke`, `{ code, meta, control, alt, shift }`, or to none
@@ -109,6 +111,11 @@ function keymap(deckit) {
         return deckit.exports.contributions(INTERFACE);
     }
 
+    // The commands `exports`, deckit/commands', lists.
+    async function commandsOf(exports) {
+        return (await exports.list()).commands;
+    }
+
     function retake() {
         serial(refresh).catch((error) => console.error('[keymap] the keys were not taken', error));
     }
@@ -116,7 +123,10 @@ function keymap(deckit) {
     // The bindings resolved again from what is declared, and the chords taken made theirs.
     async function refresh() {
         if (!commands) throw refusal('NOT_RUNNING', `${COMMANDS} is not connected, so no command is known`);
-        const next = resolved(keysOf(await declared, await listed, warn), changes);
+        const read = keysOf(await declared, await listed);
+        for (const { mod, problem } of read.refused) warn(`${mod.id}: ${problem}`);
+        refused = read.refused;
+        const next = resolved(read.keys, changes);
         const wanted = new Map(); // spec -> { keystroke, scope }, `global` where any on it is
         for (const binding of next) {
             const spec = binding.active && specOf(binding.keystroke);

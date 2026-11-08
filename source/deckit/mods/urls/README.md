@@ -22,7 +22,7 @@ scheme = "board"
 
 Scheme and host are compared in lower case. `https://github.com/*` takes `https://GitHub.com/deckit` and `https://github.com`, not `https://example.com/github.com/`; `https://github.com/deckit/issues*` takes `https://github.com/deckit/issues/1`, not `https://github.com/deckit?issues`.
 
-An entry that cannot be used (no scheme, a scheme that is no scheme or that is no place, `javascript`, `data`, `blob` and `about`, patterns not of its scheme or that are no patterns, patterns beside `*`) is left out and logged once, as is a second entry of one scheme from one mod, and any entry beside a mod's `*`, which already takes every address. The others of that mod are read.
+An entry that cannot be used (no scheme, a scheme that is no scheme or that is no place, `javascript`, `data`, `blob` and `about`, patterns not of its scheme or that are no patterns, patterns beside `*`) is left out and logged once, as is a second entry of one scheme from one mod, and any entry beside a mod's `*`, which already takes every address. Each is answered in `list()`'s `refused`. The others of that mod are read.
 
 ## Where an address goes
 
@@ -57,18 +57,18 @@ deckit.dependencies.onConnect('deckit/urls', (urls) => {
     return () => (this.urls = null);
 });
 const opened = await this.urls.open('https://github.com/deckit', { activates: false });
-const lists = await this.urls.list();
+const { schemes, refused } = await this.urls.list();
 await this.urls.choose('https', { mod: 'browser' });
 await this.urls.choose('http', { system: true });
 ```
 
 ## What a client calls
 
-| Export                   | Who                      | What it is                                                                                                                                                                                          |
-| ------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `open(url, options)`     | any client               | offers `url` as Where an address goes says, and resolves to whether a mod took it or it opened outside the app. `options.activates` false asks the mod, or the system, to leave the app where it is |
-| `list()`                 | `deckit.system-services` | every scheme with a list, `[{ scheme, system, chosen, mods }]`: `http`, `https` and `file`, then each one a mod declares, then `*` if a mod declares it                                             |
-| `choose(scheme, choice)` | `deckit.system-services` | chooses what opens `scheme`, `choice` one of the three in Choices, and answers the scheme as `list()` does                                                                                          |
+| Export                   | Who                      | What it is                                                                                                                                                                                                                                                                                  |
+| ------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open(url, options)`     | any client               | offers `url` as Where an address goes says, and resolves to whether a mod took it or it opened outside the app. `options.activates` false asks the mod, or the system, to leave the app where it is                                                                                         |
+| `list()`                 | `deckit.system-services` | `{ schemes, refused }`: `schemes` every scheme with a list, `[{ scheme, system, chosen, mods }]`, `http`, `https` and `file`, then each one a mod declares, then `*` if a mod declares it; `refused` `[{ mod, entry, problem }]` the entries left out, `entry` as written and `problem` why |
+| `choose(scheme, choice)` | `deckit.system-services` | chooses what opens `scheme`, `choice` one of the three in Choices, and answers the scheme as `list()` answers one                                                                                                                                                                           |
 
 A scheme as `list()` answers it:
 

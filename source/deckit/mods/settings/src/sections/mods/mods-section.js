@@ -242,6 +242,7 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
             failure.textContent = [
                 mod.notLoaded || mod.problem,
                 ...(mod.hides || []).map((folder) => `${folder} has the same id and is not read`),
+                ...mod.refused,
             ]
                 .filter(Boolean)
                 .join('\n');
@@ -407,8 +408,9 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
     // starting or stopping is in `running` as it last ran, and says so by its spinner. `notLoaded` is why one is not
     // running, `problem` what went wrong with one that is. What it declares and the permissions it asks for are read
     // from its manifest, so one that did not load still shows them. `shortcuts` are the keys as the Keyboard section
-    // read them, and `schemes` the schemes as the URL Schemes section did.
-    function modRowsOf({ found, running, shortcuts, schemes, pinned }) {
+    // read them, `schemes` the schemes as the URL Schemes section did, and `refused` what the services of the
+    // interfaces left out of what the mods declare, `[{ interface, mod, entry, problem }]`.
+    function modRowsOf({ found, running, shortcuts, schemes, refused, pinned }) {
         return found.map((mod) => {
             const live = running.find((entry) => entry.id === mod.id) ?? null;
             const mainProcessFailure = mod.mainProcess?.failure || null;
@@ -428,6 +430,9 @@ function modsSection({ ui, mods, pins, dropDestination, util, appName, onChange 
                 contributions: contributionsOf(mod, live),
                 keys: shortcuts.filter((shortcut) => shortcut.mod?.id === mod.id),
                 schemes: schemes.filter((scheme) => scheme.mods.some((entry) => entry.mod.id === mod.id)),
+                refused: refused
+                    .filter((one) => one.mod.id === mod.id)
+                    .map((one) => `${one.interface}: ${one.problem}`),
                 pinned: pinned.has(mod.id),
                 restarting: restarting.has(mod.id),
             };

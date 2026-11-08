@@ -19,7 +19,7 @@ deckit.dependencies.onConnect('deckit/commands', (commands) => {
     this.commands = commands;
     return () => (this.commands = null);
 });
-const listed = await this.commands.list();
+const { commands, refused } = await this.commands.list();
 await this.commands.run('calendar', 'open-event', { start: 1767225600000 });
 ```
 
@@ -46,7 +46,7 @@ params = { type = "object", properties = { start = { type = "integer", title = "
 | `keywords` | more words it is found by, a list of text. Left out, none |
 | `params` | the args it takes, as JSON Schema reads them, of `type`, `properties`, `required`, `items`, `enum`, and `oneOf` of `const`s, with `title` and `description` anywhere, and `type = "object"` at the top. Left out, it takes no args |
 
-An entry that cannot be used (an id that is no id, no title, keywords that are not text, params of another keyword or not an object) is left out and logged once, as is a second command of one id from one mod. The others of that mod are listed.
+An entry that cannot be used (an id that is no id, no title, keywords that are not text, params of another keyword or not an object) is left out, logged once and answered in `list()`'s `refused`, as is a second command of one id from one mod. The others of that mod are listed.
 
 ## What a client calls
 
@@ -54,7 +54,7 @@ Every call needs `deckit.system-services`: a client that does not hold it is con
 
 | Export | What it is |
 |---|---|
-| `list()` | every command declared by the mods that load, in the mods' order and then the order declared, `[{ mod, id, title, keywords, params }]`, `mod` the declaring mod's `{ id, name }` and `params` null for one that takes no args |
+| `list()` | `{ commands, refused }`: `commands` every command declared by the mods that load, in the mods' order and then the order declared, `[{ mod, id, title, keywords, params }]`, `mod` the declaring mod's `{ id, name }` and `params` null for one that takes no args; `refused` `[{ mod, entry, problem }]` the entries left out, `entry` as written and `problem` why |
 | `run(mod, id, args)` | runs the command `id` of the mod `mod` with `args`, and resolves to what it answers, JSON or null. `args` fit its `params`; one that takes no args takes none or `{}`. It reaches the mod by its id, which launches the mod if it does not run, and asks it to run the command (What a mod answers) |
 
 `run` rejects with why it did not run, the `kind` saying which:

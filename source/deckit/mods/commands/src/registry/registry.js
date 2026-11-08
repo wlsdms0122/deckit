@@ -31,15 +31,17 @@ function registry(deckit) {
         return Object.freeze({ list: refuse, run: refuse });
     }
 
-    // Every mod's commands, as `commandsOf` reads them.
+    // Every mod's commands and the entries left out, `{ commands, refused }`, as `commandsOf` reads them.
     async function list() {
-        return commandsOf(await declared, warn);
+        const read = commandsOf(await declared);
+        for (const { mod, problem } of read.refused) warn(`${mod.id}: ${problem}`);
+        return read;
     }
 
     // The command `id` of the mod `mod`, run with `args` on the exports the mod opens for its id, reached for the run,
     // which launches it if it does not run: answers its result, JSON or null, and rejects with why it did not run.
     async function run(mod, id, args = null) {
-        const command = (await list()).find((each) => each.mod.id === mod && each.id === id);
+        const command = (await list()).commands.find((each) => each.mod.id === mod && each.id === id);
         if (!command) throw refusal('COMMAND', `no such command: "${id}" of ${mod}`);
         const problem = problemOfArgs(command, args);
         if (problem) throw refusal('ARGUMENTS', `${command.title} cannot run: ${problem}`);

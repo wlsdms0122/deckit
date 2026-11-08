@@ -6,35 +6,40 @@ const SYSTEM = Object.freeze({ http: 'browser', https: 'browser', file: 'file' }
 
 // MARK: - Initializer
 // MARK: - Public
-// The handlers in what mods declare to deckit/urls, as `contributions` answers it, `[{ mod, entry }]`: each
-// `{ mod: { id, name }, scheme, patterns }`, a mod that opens the addresses of `scheme` its patterns take, `*` for
-// every scheme, in the mods' order and then the order declared. An entry that cannot be used, a second of one scheme
-// from one mod, or one beside a mod's `*`, is told to `warn` and left out.
-function handlersOf(contributions, warn) {
+// The handlers in what mods declare to deckit/urls, as `contributions` answers it, `[{ mod, entry }]`:
+// `{ handlers, refused }`, `handlers` each `{ mod: { id, name }, scheme, patterns }`, a mod that opens the addresses of
+// `scheme` its patterns take, `*` for every scheme, in the mods' order and then the order declared. An entry that
+// cannot be used, a second of one scheme from one mod, or one beside a mod's `*`, is left out, in `refused` as
+// `{ mod, entry, problem }`.
+function handlersOf(contributions) {
     const handlers = [];
+    const refused = [];
     const schemes = new Map(); // mod id -> the schemes it declares
+    const refuse = (mod, entry, problem) => refused.push({ mod: { id: mod.id, name: mod.name }, entry, problem });
     for (const { mod, entry } of contributions) {
         const read = readOf(entry);
         if (typeof read === 'string') {
-            warn(`${mod.id}: an address entry is left out: ${read}`);
+            refuse(mod, entry, `an address entry is left out: ${read}`);
             continue;
         }
         const own = schemes.get(mod.id) ?? new Set();
         schemes.set(mod.id, own);
         if (own.has(EVERY) || (read.scheme === EVERY && own.size)) {
-            warn(
-                `${mod.id}: "${EVERY}" already takes every address, so it stands alone and "${read.scheme}" is left out`
+            refuse(
+                mod,
+                entry,
+                `"${EVERY}" already takes every address, so it stands alone and "${read.scheme}" is left out`
             );
             continue;
         }
         if (own.has(read.scheme)) {
-            warn(`${mod.id}: ${read.scheme} is declared already, so a second entry is left out`);
+            refuse(mod, entry, `${read.scheme} is declared already, so a second entry is left out`);
             continue;
         }
         own.add(read.scheme);
         handlers.push({ mod: { id: mod.id, name: mod.name }, ...read });
     }
-    return handlers;
+    return { handlers, refused };
 }
 
 // Every scheme with a list, as a client of deckit/urls lists them: those opened outside the app, then each one a mod

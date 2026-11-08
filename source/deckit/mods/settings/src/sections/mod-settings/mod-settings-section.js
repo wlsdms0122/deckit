@@ -70,7 +70,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
     // Each mod's settings as `deckit/configuration` lists them, each drawn with the hints its entry carries.
     async function configurationsOf() {
         if (!configuration()) throw new Error('the Configuration mod is not running');
-        const listed = await configuration().list();
+        const { mods: listed } = await configuration().list();
         return listed.map(({ mod, items }) => ({
             id: mod.id,
             name: mod.name,

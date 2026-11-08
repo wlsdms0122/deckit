@@ -10,27 +10,30 @@ const TYPES = Object.freeze({
 
 // MARK: - Initializer
 // MARK: - Public
-// The settings in what mods declare to deckit/configuration, as `contributions` answers it, `[{ mod, entry }]`: each
-// `{ mod: { id, name }, key, entry }`, `entry` as written, in the mods' order and then the order declared. An entry
-// that cannot be used, or a second of one key from one mod, is told to `warn` and left out.
-function settingsOf(contributions, warn) {
+// The settings in what mods declare to deckit/configuration, as `contributions` answers it, `[{ mod, entry }]`:
+// `{ settings, refused }`, `settings` each `{ mod: { id, name }, key, entry }`, `entry` as written, in the mods' order
+// and then the order declared. An entry that cannot be used, or a second of one key from one mod, is left out, in
+// `refused` as `{ mod, entry, problem }`.
+function settingsOf(contributions) {
     const settings = [];
+    const refused = [];
     const keys = new Set(); // "<mod id> <key>"
+    const refuse = (mod, entry, problem) => refused.push({ mod: { id: mod.id, name: mod.name }, entry, problem });
     for (const { mod, entry } of contributions) {
         const problem = problemOf(entry);
         if (problem) {
-            warn(`${mod.id}: a setting is left out: ${problem}`);
+            refuse(mod, entry, `a setting is left out: ${problem}`);
             continue;
         }
         const key = `${mod.id} ${entry.key}`;
         if (keys.has(key)) {
-            warn(`${mod.id}: setting "${entry.key}" is declared already, so a second one is left out`);
+            refuse(mod, entry, `setting "${entry.key}" is declared already, so a second one is left out`);
             continue;
         }
         keys.add(key);
         settings.push({ mod: { id: mod.id, name: mod.name }, key: entry.key, entry });
     }
-    return settings;
+    return { settings, refused };
 }
 
 // Why `value` is not one `setting` takes, or null: not of its type, none of its `oneOf`, or outside its `minimum` and

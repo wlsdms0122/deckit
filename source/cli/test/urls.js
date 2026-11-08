@@ -179,7 +179,7 @@ async function main() {
     const opener = urls.exportsFor(connection('finder', ['system.file-handlers']));
 
     // The lists.
-    const lists = await settings.list();
+    const { schemes: lists, refused } = await settings.list();
     const shown = (list) => list.map(({ scheme, mods }) => `${scheme}: ${mods.map(({ mod }) => mod.id).join(' ')}`);
     check(
         'lists',
@@ -213,6 +213,18 @@ async function main() {
     );
     check('no system', lists[3].system === null && lists[2].system === 'file', lists.slice(2, 4));
     check('warned', warnings.length === 9, warnings);
+    check(
+        'refused as warned',
+        refused.length === 9 &&
+            refused.every(({ mod, problem }, index) => warnings[index] === `[urls] ${mod.id}: ${problem}`) &&
+            json(refused[0]) ===
+                json({
+                    mod: mod('browser'),
+                    entry: { scheme: 'https' },
+                    problem: 'https is declared already, so a second entry is left out',
+                }),
+        refused
+    );
     await settings.list();
     check('warned once', warnings.length === 9, warnings);
     warnings.length = 0;
@@ -358,7 +370,10 @@ async function main() {
     seen = await opened(plain, 'https://github.com/deckit/issues/1');
     check('the chosen before a narrower', json(seen.offered) === json(['github', 'issues', 'browser', 'any']), seen);
     await settings.choose('*', { mod: 'any' });
-    check('every scheme chosen', (await settings.list()).find(({ scheme }) => scheme === '*').chosen?.mod === 'any');
+    check(
+        'every scheme chosen',
+        (await settings.list()).schemes.find(({ scheme }) => scheme === '*').chosen?.mod === 'any'
+    );
 
     // A scheme chosen outside the app: offered to no mod, opened outside at once.
     const system = await settings.choose('https', { system: true });
@@ -406,7 +421,7 @@ async function main() {
         })
     );
     const restarted = router(deckit).exportsFor(connection('settings', ['deckit.system-services']));
-    const again = await restarted.list();
+    const again = (await restarted.list()).schemes;
     check('told again after a restart', warnings.length === 9, warnings);
     warnings.length = 0;
     const choices = again.map(({ scheme, chosen }) => `${scheme}:${json(chosen)}`);
@@ -436,7 +451,7 @@ async function main() {
         'a write refused',
         (await rejection(restarted.choose('https', { mod: 'browser' })))?.message === 'the disk is full'
     );
-    check('not chosen', (await restarted.list())[1].chosen === null);
+    check('not chosen', (await restarted.list()).schemes[1].chosen === null);
     refusingWrites = false;
     check('chosen after', (await restarted.choose('https', { mod: 'browser' })).chosen?.mod === 'browser');
 
@@ -446,7 +461,7 @@ async function main() {
         json([...heard.keys()]) === json(['deckit/urls:contributions-changed', 'deckit/urls:owner-changed']),
         [...heard.keys()]
     );
-    const hasGopher = async () => (await restarted.list()).some(({ scheme }) => scheme === 'gopher');
+    const hasGopher = async () => (await restarted.list()).schemes.some(({ scheme }) => scheme === 'gopher');
     contributions.push(...of('mail', [{ scheme: 'gopher' }]));
     check('kept until a signal', !(await hasGopher()));
     signal('deckit/urls:contributions-changed');

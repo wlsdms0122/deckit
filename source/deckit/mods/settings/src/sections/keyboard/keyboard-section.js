@@ -114,19 +114,21 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
     body.append(cards.element);
     return { element, title: TITLE, keywords: KEYWORDS, read, draw, stopRecording };
 
-    // Every key, the app's first and then the mods' in the order `deckit/keys` lists them, each `{ id, shell, mod,
-    // command, title, scope, keystroke, defaultKeystroke, chord, changed, issues }` as `deckit/keys` lists one: `shell`
-    // whether it is the app's, which has no `mod`, `scope` or `issues`. What cannot be read gives no keys.
+    // Every key and the mods' entries left out, `{ shortcuts, refused }`: `shortcuts` the app's first and then the
+    // mods' in the order `deckit/keys` lists them, each `{ id, shell, mod, command, title, scope, keystroke,
+    // defaultKeystroke, chord, changed, issues }` as `deckit/keys` lists one, `shell` whether it is the app's, which
+    // has no `mod`, `scope` or `issues`; `refused` as `deckit/keys` lists them. What cannot be read gives none.
     async function read() {
-        const unread = (what) => (error) => {
+        const unread = (what, none) => (error) => {
             console.warn(`[settings] could not read ${what}`, error);
-            return [];
+            return none;
         };
+        const none = { keys: [], refused: [] };
         const [own, declared] = await Promise.all([
-            shellKeys ? Promise.resolve(shellKeys.list()).catch(unread("the app's keys")) : [],
-            keys() ? keys().list().catch(unread("the mods' keys")) : [],
+            shellKeys ? Promise.resolve(shellKeys.list()).catch(unread("the app's keys", [])) : [],
+            keys() ? keys().list().catch(unread("the mods' keys", none)) : none,
         ]);
-        return [...own.map(shellShortcut), ...declared.map(modShortcut)];
+        return { shortcuts: [...own.map(shellShortcut), ...declared.keys.map(modShortcut)], refused: declared.refused };
     }
 
     // While a key is recorded the cards wait, and are drawn once it ends. A key that is gone ends its recording, as

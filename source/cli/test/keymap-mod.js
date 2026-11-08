@@ -134,7 +134,7 @@ async function main() {
     // deckit/commands: what a run was asked.
     const runs = [];
     const commands = {
-        list: async () => [...listed],
+        list: async () => ({ commands: [...listed], refused: [] }),
         run: async (id, command, args) => {
             runs.push([id, command, args ?? null]);
             if (command === 'fail') throw Object.assign(new Error('it fails'), { kind: 'COMMAND' });
@@ -205,8 +205,21 @@ async function main() {
             warnedOf(/switcher: .*"show" works anywhere in the app, which needs deckit\.app-keys/),
         warnings
     );
-    let bindings = await settings.list();
+    const first = await settings.list();
+    let bindings = first.keys;
     check('warned once', warnings.length === 11, warnings);
+    check(
+        'refused as warned',
+        first.refused.length === 11 &&
+            first.refused.every(({ mod, problem }, index) => warnings[index] === `[keymap] ${mod.id}: ${problem}`) &&
+            json(first.refused[0]) ===
+                json({
+                    mod: calendar,
+                    entry: { command: 'today', keystroke: 'mod+shift+y' },
+                    problem: 'a key for "today" is declared already, so a second one is left out',
+                }),
+        first.refused
+    );
     const ids = (list) => list.map((binding) => `${binding.mod.id}:${binding.command}`);
     check(
         'list',
@@ -296,7 +309,7 @@ async function main() {
     check('set answers', set.active && set.changed && set.chord === '⌃⌥T', set);
     check('kept', store.get('keys') === json([{ mod: 'calendar', command: 'today', keystroke: 'ctrl+alt+t' }]));
     check('retaken', json(takes) === json([['ctrl+alt+t', 'app']]), takes);
-    bindings = await settings.list();
+    bindings = (await settings.list()).keys;
     check('the shadowed one runs', of(bindings, 'note', 'new').active, of(bindings, 'note', 'new'));
     check('old chord stays for it', releases.length === 0, releases);
 
@@ -309,7 +322,7 @@ async function main() {
     check('held', !set.active && set.issues[0]?.kind === 'held' && set.issues[0].other.command === 'week', set.issues);
     set = await settings.reset('calendar', 'week');
     check('reset answers', !set.changed && set.active && set.chord === '⌃⌥W', set);
-    check('free, so applied', of(await settings.list(), 'switcher', 'show').active);
+    check('free, so applied', of((await settings.list()).keys, 'switcher', 'show').active);
     set = await settings.set('calendar', 'week', null);
     check('none', set.keystroke === null && set.chord === '' && set.changed && !set.active, set);
     check('none is let go', !holding.has('ctrl+alt+w'), [...holding.keys()]);
@@ -324,7 +337,10 @@ async function main() {
     refusingWrites = true;
     const before = store.get('keys');
     check('write refused', !!(await rejection(settings.set('note', 'new', stroke('ctrl+alt+n')))));
-    check('write refused keeps', store.get('keys') === before && !of(await settings.list(), 'note', 'new').changed);
+    check(
+        'write refused keeps',
+        store.get('keys') === before && !of((await settings.list()).keys, 'note', 'new').changed
+    );
     refusingWrites = false;
 
     // What the hole answers: a chord another mod took runs none on it, a global one not given works in the app.
@@ -332,7 +348,7 @@ async function main() {
     set = await settings.set('note', 'new', stroke('ctrl+alt+n'));
     check('taken', !set.active && set.issues[0]?.kind === 'taken' && set.issues[0].other === null, set.issues);
     othersHold.delete('ctrl+alt+n');
-    check('taken asks again', of(await settings.list(), 'note', 'new').active);
+    check('taken asks again', of((await settings.list()).keys, 'note', 'new').active);
     notGiven.add('ctrl+alt+g');
     set = await settings.set('switcher', 'show', stroke('ctrl+alt+g'));
     check('unavailable', set.active && set.issues[0]?.kind === 'unavailable', set.issues);
@@ -350,15 +366,15 @@ async function main() {
         [...heard.keys()]
     );
     contributions.push({ mod: note, entry: { command: 'later', keystroke: 'ctrl+alt+j' } });
-    check('kept until a signal', !of(await settings.list(), 'note', 'later'));
+    check('kept until a signal', !of((await settings.list()).keys, 'note', 'later'));
     takes.length = 0;
     releases.length = 0;
     await signal('deckit/keys:contributions-changed');
-    check('its command not known yet', !of(await settings.list(), 'note', 'later') && takes.length === 0, takes);
+    check('its command not known yet', !of((await settings.list()).keys, 'note', 'later') && takes.length === 0, takes);
     listed.push({ mod: note, id: 'later', title: 'Later', keywords: [], params: null });
     await signal('deckit/commands:contributions-changed');
     check('taken as its command is listed', json(takes) === json([['ctrl+alt+j', 'app']]), takes);
-    check('listed', of(await settings.list(), 'note', 'later')?.active === true);
+    check('listed', of((await settings.list()).keys, 'note', 'later')?.active === true);
     contributions.pop();
     await signal('deckit/keys:owner-changed');
     check('let go as the owner changes', json(releases) === json(['ctrl+alt+j']), releases);
@@ -378,7 +394,7 @@ async function main() {
     const again = keymap(deckitOf());
     listeners.get('deckit/commands')(commands);
     await ticks();
-    bindings = await again.exportsFor(connection('settings', ['deckit.system-services'])).list();
+    bindings = (await again.exportsFor(connection('settings', ['deckit.system-services'])).list()).keys;
     check('kept read', of(bindings, 'calendar', 'today').chord === '⌃⌥D', of(bindings, 'calendar', 'today'));
     check('malformed left out', of(bindings, 'calendar', 'week').chord === '⌃⌥W', of(bindings, 'calendar', 'week'));
     check('nothing logged', errors.length === 0, errors);
