@@ -1,7 +1,8 @@
 // The conformance runner's host app: Electron's main process embedding the deckit archive beside it as any host app
 // does, through the environment and connect, set up as the case's [host] says. It reaches deckit only through what
 // connect answers, and talks to the runner over a socket, a JSON message a line: it says once whether the start settled
-// or was refused (deckit.whenStarted()), answers each call and look it is asked, and quits when asked. It stacks a
+// or was refused (deckit.whenStarted()), answers each call and look it is asked, a start and a call once no run is
+// between two states, and quits when asked. It stacks a
 // layer of its own over deckit on each mod's page (page.js), which makes the requests a call hands it, and opens none
 // of the addresses it is handed to open outside the app: it keeps each one, for the look opened.
 const fs = require('fs');
@@ -71,7 +72,7 @@ try {
     deckit.stack('conformance');
     call = deckit.channels.bind({ channel: 'conformance/call', to: 'page', reply: true });
     // The start is complete, the launches at start included, or refused with its kind.
-    deckit.whenStarted().then(() => settle({}), refused);
+    deckit.whenStarted().then(() => runsSettled().then(() => settle({})), refused);
 } catch (error) {
     refused(error);
 }
@@ -84,9 +85,10 @@ socket.on('data', (chunk) => {
         buffered = buffered.slice(end + 1);
         if (asked.quit) app.quit();
         else
-            Promise.resolve(asked.input === 'call' ? request(asked) : look(asked)).then((came) =>
-                say({ id: asked.id, came })
-            );
+            Promise.resolve(asked.input === 'call' ? request(asked) : look(asked)).then(async (came) => {
+                if (asked.input === 'call') await runsSettled();
+                say({ id: asked.id, came });
+            });
     }
 });
 socket.on('close', () => app.exit(0));
@@ -103,6 +105,12 @@ async function request({ mod, member, args }) {
     } catch (error) {
         return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
     }
+}
+
+// Resolves once no run is between two states: each has started, or has ended.
+async function runsSettled() {
+    const moving = ({ run }) => run.state === 'launching' || run.state === 'terminating';
+    while (deckit?.mods.runs().some(moving)) await new Promise((resolve) => setTimeout(resolve, 10));
 }
 
 // What a look comes to: `{ answers }`, `{ refuses, kind, message }` for a bundle found and not taken or a run refused,
