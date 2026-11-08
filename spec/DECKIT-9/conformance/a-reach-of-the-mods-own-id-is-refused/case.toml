@@ -1,6 +1,6 @@
 case = 3
 name = "a-reach-of-the-mods-own-id-is-refused"
-note = "A mod reaches no one by its own id. mod-a reaches mod-a, which is refused at call with REFUSED."
+note = "A mod reaches no one by its own id. mod-a reaches mod-a, which is refused at call with INVALID_ARGUMENT."
 
 [host]
 base = "system"
@@ -19,4 +19,4 @@ args = ["mod-a"]
 
 [step.expect]
 refuses = "call"
-kind = "REFUSED"
+kind = "INVALID_ARGUMENT"
