@@ -1,17 +1,17 @@
 // A mod with windows of its own, which the test opens, resizes and closes by events it sends the page, each by its
 // name, and whose Dock item calls reopen(), which opens the first again. It marks on its page what its windows are
-// told, in turn, the windows it has, the size its page's ResizeObserver sees of each window's content, and the frames
-// its page draws.
+// told, in turn, the windows it has, the size a ResizeObserver of each window sees of its content, and the frames its
+// windows draw.
 const CALLBACKS = ['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didClose'];
 
 class WindowUser {
     attach(shell) {
         const marks = document.documentElement.dataset;
-        const sizes = new ResizeObserver((entries) => {
+        const sized = (entries) => {
             for (const { target, contentRect } of entries)
                 marks[`size${target.dataset.name}`] =
                     `${Math.round(contentRect.width)}x${Math.round(contentRect.height)}`;
-        });
+        };
         const told = (name, callback) => () => (marks.told = `${marks.told || ''}${name} ${callback},`);
         const windows = new Map();
         this.open = ({ name, width, height }) => {
@@ -19,14 +19,16 @@ class WindowUser {
             content.dataset.name = name;
             const callbacks = Object.fromEntries(CALLBACKS.map((callback) => [callback, told(name, callback)]));
             const window = shell.windows.open({ name, content, width, height, ...callbacks });
+            if (windows.get(name) === window) return;
             windows.set(name, window);
-            sizes.observe(content);
+            const view = content.ownerDocument.defaultView;
+            new view.ResizeObserver(sized).observe(content);
+            const frame = () => {
+                marks.frames = Number(marks.frames || 0) + 1;
+                view.requestAnimationFrame(frame);
+            };
+            view.requestAnimationFrame(frame);
         };
-        const frame = () => {
-            marks.frames = Number(marks.frames || 0) + 1;
-            requestAnimationFrame(frame);
-        };
-        requestAnimationFrame(frame);
         document.addEventListener('test-window-open', ({ detail }) => this.open(detail));
         document.addEventListener('test-window-close', ({ detail: name }) => windows.get(name)?.close());
         document.addEventListener('test-window-resize', ({ detail: { name, width, height } }) =>

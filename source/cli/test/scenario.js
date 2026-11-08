@@ -1837,7 +1837,7 @@ async function run({
                 JSON.stringify({ now: (await userWindows()).at(-1)?.rect, zoomedIn })
             );
             check(
-                "a mod's page observes its window's content resize, and draws frames while its windows are open",
+                "a mod's window observes its content resize, and draws frames while it is open",
                 seen && Number(await mark(windowed, 'frames')) > framesBefore + 5,
                 `${await mark(windowed, sizeName)} ${framesBefore} -> ${await mark(windowed, 'frames')}`
             );
