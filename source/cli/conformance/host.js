@@ -7,7 +7,6 @@
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
-const { pathToFileURL } = require('url');
 const { app, globalShortcut } = require('electron');
 
 const setup = JSON.parse(fs.readFileSync(process.env.DECKIT_CONFORMANCE_SETUP, 'utf8'));
@@ -52,8 +51,9 @@ try {
         url: async (url, { activate = true } = {}) => {
             opened.push({ url, activates: activate });
         },
-        file: async (file) => {
-            opened.push({ url: pathToFileURL(file).href, activates: true });
+        // A file kept as the file URL of its path, each segment of it percent-encoded.
+        file: async (file, { activate = true } = {}) => {
+            opened.push({ url: 'file://' + file.split('/').map(encodeURIComponent).join('/'), activates: activate });
             return true;
         },
     });

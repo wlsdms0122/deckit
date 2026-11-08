@@ -1,7 +1,8 @@
 // Opening outside the app (deckit-shell/deckit/open/main.js) over a stand-in for the system and the pages: an address
-// of the web is handed the browser as the URL Standard serializes it, brought forward unless asked not to; a file opens
-// in its app only for a mod with system.file-handlers, refused NOT_PERMITTED otherwise, and only one on this host; what
-// is no URL, or a URL of any other scheme, is refused UNSUPPORTED_URL. Revealing a file takes system.file-handlers.
+// of the web is handed the browser as the URL Standard serializes it, and a file its app, either brought forward unless
+// asked not to; a file opens only for a mod with system.file-handlers, refused NOT_PERMITTED otherwise, and only one on
+// this host; what is no URL, or a URL of any other scheme, is refused UNSUPPORTED_URL. Revealing a file takes
+// system.file-handlers.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -42,7 +43,7 @@ async function main() {
     const opened = []; // [what, address, options]
     const SYSTEM = {
         url: async (address, options) => opened.push(['url', address, options]),
-        file: async (file) => opened.push(['file', file]) > 0,
+        file: async (file, options) => opened.push(['file', file, options]) > 0,
         reveal: async (file) => opened.push(['reveal', file]) > 0,
     };
     const OPEN = createOpen({ LOG: { warn: () => {} }, IDENTITY, open: SYSTEM });
@@ -100,9 +101,19 @@ async function main() {
     );
     const file = await open(files, 'file:///Users/me/a%20b.txt');
     check(
-        'a file opens in its app for a mod with system.file-handlers, by its path',
-        !file.error && opened[0]?.[0] === 'file' && opened[0][1] === '/Users/me/a b.txt',
+        'a file opens in its app for a mod with system.file-handlers, by its path, brought forward',
+        !file.error &&
+            opened[0]?.[0] === 'file' &&
+            opened[0][1] === '/Users/me/a b.txt' &&
+            opened[0][2].activate === true,
         { file, opened }
+    );
+    opened.length = 0;
+    await open(files, 'file:///Users/me/a.txt', false);
+    check(
+        'a file is handed with activates as asked',
+        opened[0]?.[0] === 'file' && opened[0][2].activate === false,
+        opened
     );
     opened.length = 0;
     const remote = await open(files, 'file://elsewhere/a.txt');
