@@ -119,15 +119,13 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
 
     // Brought forward for the local seat as its mod asks: where the mod may activate for the seat, in front, and the
     // key window with the host window coming up unless `activates` is false; where it may not, right behind the key
-    // window, not key, its mod asking for the seat's attention.
+    // window, not key, its mod asking for the seat's attention unless `activates` is false, or in front where the seat
+    // has no key window to hold it behind.
     function orderFront(window, { activates = true } = {}) {
         if (!windows.has(window.id)) return;
         const may = ACTIVATION.mayActivate(LOCAL, window.mod);
         if (may) MANAGER.orderFront(LOCAL, window.id, { activates });
-        else {
-            MANAGER.orderBehindKey(LOCAL, window.id);
-            ACTIVATION.requestAttention(LOCAL, window.mod);
-        }
+        else holdBack(LOCAL, [window.id], window.mod, { activates });
         update();
         if (may && activates) host.show();
     }
@@ -189,14 +187,11 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // the mod has any.
     function activate(seat, mod) {
         const ids = MANAGER.orderOf(seat).filter((id) => windows.get(id).mod === mod);
-        const may = ACTIVATION.mayActivate(seat, mod);
-        for (const id of ids) {
-            if (may) MANAGER.orderFront(seat, id);
-            else MANAGER.orderBehindKey(seat, id);
-        }
-        if (ids.length && !may) ACTIVATION.requestAttention(seat, mod);
-        if (ids.length) update();
-        return ids.length > 0;
+        if (!ids.length) return false;
+        if (ACTIVATION.mayActivate(seat, mod)) for (const id of ids) MANAGER.orderFront(seat, id);
+        else holdBack(seat, ids, mod);
+        update();
+        return true;
     }
 
     // The seat whose screen `page` is: the desktop's page is the local seat's; null for any other page.
@@ -256,6 +251,14 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // refuses the write, as it does state it did not read; deckit logs why it refused.
     function keep(key, value) {
         deckit.state.write(key, value).catch(() => {});
+    }
+
+    // Windows of `mod`, which may not activate for `seat`, right behind its key window, not key: the mod asks for the
+    // seat's attention when it asked to activate and the seat has a key window it is held behind.
+    function holdBack(seat, ids, mod, { activates = true } = {}) {
+        const held = activates && MANAGER.keyOf(seat) !== null;
+        for (const id of ids) MANAGER.orderBehindKey(seat, id);
+        if (held) ACTIVATION.requestAttention(seat, mod);
     }
 
     // The frame the window was left at, by its mod and its name: zoomed, the one zoom left.

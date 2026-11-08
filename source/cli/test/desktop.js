@@ -307,12 +307,12 @@ async function main() {
     desk.openSurfaces(1);
     check(
         'at start no window takes the keyboard by itself: one a mod opens is in front, not key, its mod asking for ' +
-            'attention, the host window left down',
+            'no attention with no key window to be held behind, the host window left down',
         names().at(-2) === 'buttons-1' &&
             !desk.desktop.isKey(one) &&
             !desk.focused.some(({ name }) => name === 'content-1') &&
             desk.hostShown() === 0 &&
-            JSON.stringify(desk.page().dock.attention) === '["a"]',
+            !desk.page().dock.attention.length,
         { names: names(), shown: desk.hostShown(), dock: desk.page().dock }
     );
     desk.fromPage('press', { id: 1 });
@@ -383,6 +383,17 @@ async function main() {
             JSON.stringify(desk.page().dock.attention) === '["b"]',
         { names: names(), shown: desk.hostShown(), dock: desk.page().dock }
     );
+    const quiet = windowOf(7, 'c', 'quiet');
+    desk.desktop.open(quiet, { activates: false });
+    desk.openSurfaces(7);
+    check(
+        'a window such a mod opens without activating goes right behind the key window, its mod asking for no attention',
+        names().at(-5) === 'buttons-7' &&
+            desk.desktop.isKey(two) &&
+            JSON.stringify(desk.page().dock.attention) === '["b"]',
+        { names: names(), dock: desk.page().dock }
+    );
+    desk.desktop.close(quiet);
     desk.desktop.orderFront(three);
     check(
         'a window such a mod orders front goes right behind the key window too',
