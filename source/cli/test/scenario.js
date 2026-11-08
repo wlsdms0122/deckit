@@ -920,6 +920,42 @@ async function run({
             stacked && stackSeen.right === 12 && stackSeen.top >= titleBottom,
             JSON.stringify({ stackSeen, titleBottom })
         );
+        // A folder whose package file names a mod not installed is planned through deckit/packages: the sheet shows
+        // what it depends on and why it cannot install, and offers no install.
+        const needsAbsent = path.join(home, '..', 'needs-absent');
+        fs.mkdirSync(needsAbsent, { recursive: true });
+        fs.writeFileSync(
+            path.join(needsAbsent, 'manifest.toml'),
+            'id = "needs-absent"\nname = "Needs Absent"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\n'
+        );
+        fs.writeFileSync(path.join(needsAbsent, 'main.js'), 'module.exports = class { start() {} };\n');
+        fs.writeFileSync(path.join(needsAbsent, 'package.toml'), '[dependencies]\nabsent-mod = "1.2"\n');
+        const droppedNeeds = JSON.stringify({ files: [fs.realpathSync(needsAbsent)], ...modsHead });
+        await main(`return webkit.sendDrop(${settingsId}, ${droppedNeeds})`);
+        const sheetOf = `(() => {
+            const title = document.querySelector('.deckit-modal-title')?.textContent;
+            const row = document.querySelector('.settings-dependency');
+            const buttons = [...document.querySelectorAll('.deckit-modal-actions button')].map((one) => one.textContent);
+            return title && row && {
+                title,
+                row: row.textContent,
+                unmet: row.querySelector('.settings-dependency-state').hasAttribute('data-unmet'),
+                buttons,
+            };
+        })()`;
+        const sheet = await until(() => settingsOverlay?.evaluate(sheetOf), 4000);
+        check(
+            'a folder whose dependency is not installed is shown with it, and offers no install',
+            sheet?.title === 'Cannot install Needs Absent' &&
+                sheet.row === 'absent-mod1.2Not installed' &&
+                sheet.unmet &&
+                JSON.stringify(sheet.buttons) === '["OK"]',
+            JSON.stringify(sheet)
+        );
+        await settingsOverlay?.evaluate(
+            `[...document.querySelectorAll('.deckit-modal-actions button')].find((one) => one.textContent === 'OK')?.click()`
+        );
+        await until(async () => !(await settingsOverlay?.evaluate(`!!document.querySelector('.deckit-modal')`)), 2000);
         const browserPage = await page('deckit://browser.mod');
         const browser = await windowOf('browser');
         // A tab's page is reached through its element, which names it once main has given it its id.
