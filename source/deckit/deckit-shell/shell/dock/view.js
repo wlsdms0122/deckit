@@ -150,7 +150,7 @@ function make({ ui, channels, onOut }) {
         event.preventDefault();
         const release = hold();
         row.setAttribute('data-deckit-target', '');
-        const shown = ui.menu({
+        ui.menu({
             items: menuOf(item),
             point: { x: event.clientX, y: event.clientY },
             onClose: () => {
@@ -158,10 +158,6 @@ function make({ ui, channels, onOut }) {
                 release();
             },
         });
-        if (!shown) {
-            row.removeAttribute('data-deckit-target');
-            release();
-        }
     });
 
     // `dock` `{ items, active }`, as main tells it.
@@ -218,14 +214,11 @@ function make({ ui, channels, onOut }) {
         ];
     }
 
-    // Kept out until the returned release runs.
+    // Kept out until the returned release runs, once.
     function hold() {
         holds++;
         settle();
-        let released = false;
         return () => {
-            if (released) return;
-            released = true;
             holds--;
             settle();
         };
