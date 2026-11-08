@@ -331,7 +331,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         const showing = new Map(
             deckit.mods
                 .runs()
-                .filter(({ run, page }) => joinedView(run) ?? (pages.get(run.mod.id) === page && inTransition(run)))
+                .filter(({ run, page }) => runningView(run) ?? (pages.get(run.mod.id) === page && inTransition(run)))
                 .map(({ run, page }) => [run.mod.id, page])
         );
         for (const [id, page] of pages) {
@@ -356,12 +356,12 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
     function mayShow(id) {
         const run = deckit.mods.runOf(id);
         if (!run) return false;
-        return joinedView(run) ?? inTransition(run);
+        return runningView(run) ?? inTransition(run);
     }
 
-    // Whether a running run has a view, once the shell's lifecycle of it has joined or ended; undefined before.
-    function joinedView(run) {
-        return run.state === 'running' && run.summary?.view !== undefined ? run.summary.view : undefined;
+    // Whether a running run has a view; undefined for one not running.
+    function runningView(run) {
+        return run.state === 'running' ? run.summary.view : undefined;
     }
 
     // Launching, terminating, or ended to launch again.
@@ -375,7 +375,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, d
         return inPanel(id) && (!run || (run.state === 'notRunning' && !run.relaunches));
     }
 
-    // The person opens a mod that does not run: it launches, and comes on screen once its view joins.
+    // The person opens a mod that does not run: it launches, and comes on screen once it runs with a view.
     function open(id) {
         remember(id);
         returning = id;
