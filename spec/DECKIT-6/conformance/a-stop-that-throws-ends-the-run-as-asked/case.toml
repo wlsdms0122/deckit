@@ -1,0 +1,25 @@
+case = 3
+name = "a-stop-that-throws-ends-the-run-as-asked"
+note = "An end that throws has ended all the same, and the run ends as asked, so it has not failed. mod-b is a background mod whose stop throws, so after the quit mod-a asks for mod-b is notRunning and is not launched again."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"

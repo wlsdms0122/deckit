@@ -1,0 +1,25 @@
+case = 3
+name = "a-function-that-holds-a-prototype-is-a-class"
+note = "A class is a function that holds a prototype object, which the system makes an instance of with new. The entry of mod-b exports a function written without the class keyword, so mod-b runs once the launch mod-a asks for is answered."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"
