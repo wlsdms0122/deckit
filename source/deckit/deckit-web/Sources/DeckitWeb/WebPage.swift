@@ -107,8 +107,11 @@ final class WebPage: NSObject {
         emitter.emit("adopted", ["id": id])
     }
 
+    // The load under way is stopped first: WebKit drops a load asked while a cross-site one is still provisional, and
+    // the page is left loading what it had.
     func load(_ url: URL) {
         requested = url
+        view.stopLoading()
         view.load(URLRequest(url: url))
     }
 
