@@ -2,6 +2,9 @@ import { checked } from '../../deckit/environment/index.js';
 import * as ENVIRONMENT from '../environment/index.js';
 import { shellOf } from '../mod/renderer.js';
 import * as SHELL_LAYER from '../mod/model/layer.js';
+import * as PAGE from '../page/renderer.js';
+import * as DESKTOP from '../desktop/frame.js';
+import * as DESKTOP_PAGE from '../desktop/model/page-name.js';
 
 // MARK: - Property
 // MARK: - Initializer
@@ -14,7 +17,11 @@ function layersOf(given) {
     return Object.freeze({ [SHELL_LAYER.LAYER]: ({ channels }) => shellOf({ channels, drags: ENV.drags }) });
 }
 
+// A page the shell made: the desktop's. `channels` binds the shell's channels in the page.
+function page(name, { channels }) {
+    if (name === DESKTOP_PAGE.PAGE_NAME) DESKTOP.boot(PAGE.start({ channels }), channels);
+}
+
 // MARK: - Private
 
-export { layersOf };
-export { page } from '../page/renderer.js';
+export { layersOf, page };

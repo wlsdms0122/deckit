@@ -3,8 +3,6 @@ import * as LAYER from '../ui/layer/index.js';
 import * as PRESENTATION from '../ui/presentation/index.js';
 import * as OVERLAY from '../overlay/renderer.js';
 import * as KIT from '../ui/kit/index.js';
-import * as DESKTOP from '../desktop/frame.js';
-import * as DESKTOP_PAGE from '../desktop/model/page-name.js';
 import * as THEME from '../theme/renderer.js';
 
 // MARK: - Property
@@ -17,11 +15,6 @@ const PAGE_STYLE = `
 
 // MARK: - Initializer
 // MARK: - Public
-// A page the shell made: the desktop's. `channels` binds the shell's channels in the page.
-function page(name, { channels }) {
-    if (name === DESKTOP_PAGE.PAGE_NAME) DESKTOP.boot(start({ channels }), channels);
-}
-
 // Every page the shell draws in starts the same: its look, the pointer, its layers and what is presented, over the page
 // and its overlay, in the app's theme, which the overlay wears too. `tell(listener)` calls a listener of the theme's,
 // on a mod's page through the mod's own record of what throws, and `channels` binds the theme's channels in the page.
@@ -38,4 +31,4 @@ function start({ channels, tell }) {
 
 // MARK: - Private
 
-export { page, start };
+export { start };
