@@ -10,8 +10,9 @@ import * as SURFACE from './model/surface.js';
 // for an element focused there; the page has it again once that is not so. Its keys reach the key map as the page's,
 // and as those of a page that is no mod's while anything is presented over the page: no key of the page's own runs
 // behind it.
-// `deckit` is what connect answered, and `PAGES` the shell's pages.
-export function createOverlay({ deckit, PAGES }) {
+// `deckit` is what connect answered, `web` what the web engine answered (`holdsKeyboard`), and `PAGES` the shell's
+// pages.
+export function createOverlay({ deckit, web, PAGES }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const overlays = new Map(); // a page -> { surface, shows, focused, regions, presents }, once the page asked for it
@@ -45,7 +46,7 @@ export function createOverlay({ deckit, PAGES }) {
 
     // Whether `page` has the keyboard: itself, a web page in it or its overlay.
     function holdsKeyboard(page) {
-        return deckit.web.holdsKeyboard(page) || overlayHoldsKeyboard(overlays.get(page));
+        return web.holdsKeyboard(page) || overlayHoldsKeyboard(overlays.get(page));
     }
 
     // The page `page` is: itself, or the page whose overlay it is.
@@ -101,7 +102,7 @@ export function createOverlay({ deckit, PAGES }) {
     // The keyboard `page` has, or a web page in it, goes to its overlay, for an element focused there.
     function take(page) {
         const held = overlays.get(page);
-        if (held?.shows && deckit.web.holdsKeyboard(page)) focusOverlay(held);
+        if (held?.shows && web.holdsKeyboard(page)) focusOverlay(held);
     }
 
     // The overlay to lay over `page`, while it shows anything, or null.
@@ -122,7 +123,7 @@ export function createOverlay({ deckit, PAGES }) {
     }
 
     function overlayHoldsKeyboard(held) {
-        return !!held?.surface && PAGES.isAlive(held.surface) && deckit.web.holdsKeyboard(held.surface);
+        return !!held?.surface && PAGES.isAlive(held.surface) && web.holdsKeyboard(held.surface);
     }
 
     function focusOverlay(held) {

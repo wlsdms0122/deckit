@@ -1,5 +1,5 @@
 import * as ENVIRONMENT from '../../deckit-shell/environment/index.js';
-import * as SITE from '../../deckit-shell/deckit/web/model/site.js';
+import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 import { createPartition } from './model/partition.js';
 import { createRegistry } from './registry.js';
 import { createCertificate } from './certificate.js';
@@ -8,10 +8,10 @@ import { createScript } from './script.js';
 import { storeOf } from '../webkit/index.js';
 import { CHANNEL } from '../messages/main.js';
 
-// The web pages a mod's page shows, as the Electron environment shows them (deckit-shell/environment: MAIN.web), on
-// WebKit: laid just over the document the element that holds a web page's place is in, the mod's page or a surface it
-// opened, or alone in a window of the app's, each in a session of the mod's, kept in a data store of its own.
-// `MESSAGES` carries what the mod's page says of them, `relayOf(page)` lays a page's web pages again where it is shown,
+// The web pages a mod's page shows, as the Electron environment shows them (deckit-shell/environment: WEB), on WebKit:
+// laid just over the document the element that holds a web page's place is in, the mod's page or a surface it opened,
+// or alone in a window of the app's, each in a session of the mod's, kept in a data store of its own. `MESSAGES`
+// carries what the mod's page says of them, `relayOf(page)` lays a page's web pages again where it is shown,
 // `WINDOWS.openForStage` asks the host app for a window, and `surfaceOf(page, name)` is the surface a page opened by
 // that name.
 export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf }) {

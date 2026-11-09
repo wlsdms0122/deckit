@@ -7,8 +7,8 @@ import * as REQUEST from '../request/index.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Opening outside the app, with the system: the web in the browser, and a file in its app for a caller that may open
-// files, and what a mod's page opens by itself. `open` and `pages` are the environment's.
-export function createOpen({ LOG, IDENTITY, RUNNER, open: SYSTEM, pages: PAGES }) {
+// files. `open` is the environment's.
+export function createOpen({ IDENTITY, open: SYSTEM }) {
     // MARK: - Property
     const WEB = Object.freeze(['http:', 'https:']);
 
@@ -20,12 +20,6 @@ export function createOpen({ LOG, IDENTITY, RUNNER, open: SYSTEM, pages: PAGES }
             IDENTITY.modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS);
             return SYSTEM.reveal(file);
         });
-        RUNNER.onSandbox((page) =>
-            PAGES.watch(page, {
-                opens: (url, options) => openFrom(page, url, options),
-                leaves: (url) => openFrom(page, url),
-            })
-        );
     }
 
     // `url` read as a URL and handed the environment as it serializes, the web's to open in the browser and a file's
@@ -51,14 +45,6 @@ export function createOpen({ LOG, IDENTITY, RUNNER, open: SYSTEM, pages: PAGES }
     }
 
     // MARK: - Private
-    // What a page asks to open outside itself, a window or an address its document leaves for, opened as `open`
-    // does for the mod the page runs. `options` are what `open` takes.
-    function openFrom(page, url, options = {}) {
-        open(url, { ...options, opensFiles: opensFiles(page) }).catch((error) =>
-            LOG.warn(`${IDENTITY.modOf(page)?.id || 'a page'}: ${url} did not open`, error)
-        );
-    }
-
     // A path percent-decoded, its bytes read as UTF-8, or null where a `%` is not two hexadecimal digits or the bytes
     // are not UTF-8.
     function decoded(path) {

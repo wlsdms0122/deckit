@@ -8,7 +8,6 @@ import { createRecord } from '../record/renderer.js';
 import { createConnection } from '../connection/renderer.js';
 import { createEvent } from '../event/renderer.js';
 import { createMods } from '../mods/renderer.js';
-import { createWeb } from '../web/renderer.js';
 import { createNotification } from '../notification/renderer.js';
 import { createKeymap } from '../keymap/renderer.js';
 import { createMod } from '../mod/renderer.js';
@@ -17,11 +16,10 @@ import { createMod } from '../mod/renderer.js';
 // Deckit on every page it makes, a mod's or one that runs no mod, as the environment boots the page with what it gives
 // a page (environment: PAGE). Called as the page's preload runs: the page listens to main at once, so what main asks
 // before the page's code answers waits for it, and the rest starts once the document is there.
-// `layers` makes each layer that may stack over deckit's on a mod's page, by its name: `make({ WEB, setup, channels,
-// drags })` -> the layer, `WEB` deckit's web in the page, `setup` what the layer's setup in main answered for the mod,
-// or null, `channels` what binds the layer's channels and `drags` the presses in the page's drag regions
-// (environment: PAGE.drags). `page(name, { channels, drags })` draws a page that runs no mod,
-// `name` the name it was made by.
+// `layers` makes each layer that may stack over deckit's on a mod's page, by its name: `make({ setup, channels, drags
+// })` -> the layer, `setup` what the layer's setup in main answered for the mod, or null, `channels` what binds the
+// layer's channels and `drags` the presses in the page's drag regions (environment: PAGE.drags). `page(name, {
+// channels, drags })` draws a page that runs no mod, `name` the name it was made by.
 function connect(given, { layers, page }) {
     const ENV = ENVIRONMENT.checked(given, ENVIRONMENT.PAGE, 'what the environment gives a page');
     if (typeof layers !== 'object' || !layers || !Object.values(layers).every((make) => typeof make === 'function'))
@@ -38,7 +36,7 @@ function connect(given, { layers, page }) {
 // A page that runs no mod is drawn; a mod's runs, the runner handed deckit's layer with those stacked over it, each
 // part handed what it uses.
 function run({ ENV, layers, page }) {
-    const { page: name, sessions, layers: stacked } = SETUP.setup();
+    const { page: name, layers: stacked } = SETUP.setup();
     if (name) return page(name, { channels: IPC.layerChannels, drags: ENV.drags });
     const RUN = createRun();
     const RUNNER = createRunner({
@@ -49,12 +47,11 @@ function run({ ENV, layers, page }) {
         MODS: createMods({ RUN }),
         modules: ENV.modules,
     });
-    const WEB = createWeb({ sessions, web: ENV.web });
-    const MOD = createMod({ WEB, NOTIFICATION: createNotification(), KEYMAP: createKeymap() });
+    const MOD = createMod({ NOTIFICATION: createNotification(), KEYMAP: createKeymap() });
     // The layers stacked over deckit, in the order they stacked, each by its name.
     const over = stacked.flatMap(({ name: each, setup }) => {
         if (Object.hasOwn(layers, each))
-            return [[each, layers[each]({ WEB, setup, channels: IPC.layerChannels, drags: ENV.drags })]];
+            return [[each, layers[each]({ setup, channels: IPC.layerChannels, drags: ENV.drags })]];
         LOG.error(`no layer on a mod's page is named ${each}, so none stacks for it`);
         return [];
     });

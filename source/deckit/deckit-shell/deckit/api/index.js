@@ -17,7 +17,6 @@ export function createApi({
     REQUEST,
     PERMISSION,
     MANIFEST_FIELD,
-    WEB,
     KEYMAP,
     MAIN_PROCESS,
     SETUP,
@@ -156,7 +155,6 @@ export function createApi({
             // beside deckit's state. `state` is the host app's and its shell's, `stateIn('host')`.
             stateIn: (name) => STORAGE.stateIn(name),
             state: STORAGE.stateIn('host'),
-            web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
             log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error }),
             // How the UI binds its own channels: as deckit/channel declares them, never one of deckit's own.
             channels: IPC.layerChannels,

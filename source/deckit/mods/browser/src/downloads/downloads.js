@@ -1,4 +1,4 @@
-// The Browser's downloads (`deckit.web.downloads`): a button at the toolbar's end, there once anything was downloaded,
+// The Browser's downloads (`web.downloads`): a button at the toolbar's end, there once anything was downloaded,
 // that opens them newest first. A row is a file and how far it got, and a press on a finished one opens it in its
 // app. Its action stops one under way, shows a finished one in Finder, or forgets one that did not finish; Clear
 // forgets every one that ended. The button bounces as a download starts.

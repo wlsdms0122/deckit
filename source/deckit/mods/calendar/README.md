@@ -66,7 +66,7 @@ deckit.dependencies.onConnect('calendar/accounts', (calendar) => {
 
 The provider's data is copied and its functions are called across the connection; an object made from a class crosses with its methods, so `setProvider(new ExampleProvider())` works. Setting one again replaces it.
 
-Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's id, and hands it to every call. What the account signs in with (cookies, tokens, a web session) is the provider's, kept by `account.id` in its own mod: `deckit.web.session('account-' + account.id)` is one way.
+Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's id, and hands it to every call. What the account signs in with (cookies, tokens, a web session) is the provider's, kept by `account.id` in its own mod: `web.session('account-' + account.id)` of the handle `web` its lifecycles are given is one way.
 
 | Member | What it is |
 |---|---|

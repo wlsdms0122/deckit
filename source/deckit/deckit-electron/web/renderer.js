@@ -5,11 +5,11 @@ import { surfaceNameOf } from '../page/renderer.js';
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// A web page shown in a mod's page, as the Electron environment shows one (deckit-shell/environment: PAGE.web): WebKit
+// A web page shown in a mod's page, as the Electron environment shows one (deckit-shell/environment: WEB_PAGE): WebKit
 // draws it in a view of its own laid just over the document its element is in, this page's or a surface it opened, so
-// the element only holds its place, and each frame its place is told to main. What that document draws where it is
-// lies under it; what floats over the page is in its overlay, over both. The keyboard goes to one of the two: the
-// element is focused while the web page has it, and a press in the web page is a press on the element.
+// the element only holds its place, and each frame its place is told to main. What that document draws where it is lies
+// under it; what floats over the page is in its overlay, over both. The keyboard goes to one of the two: the element is
+// focused while the web page has it, and a press in the web page is a press on the element.
 function createViews() {
     const shown = new Map(); // id -> what main tells of it, `told(event)`
     on(CHANNEL.webTold, ({ id, event }) => shown.get(id)?.told(event));

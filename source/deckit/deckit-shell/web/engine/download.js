@@ -1,12 +1,13 @@
-import * as OPEN_PERMISSION from '../open/model/permission.js';
+import * as OPEN_PERMISSION from '../../deckit/open/model/permission.js';
 
 // The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's and any
-// older one still under way. The mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id
-// deckit gives it, for its list and for one to be stopped or forgotten, and, with system.file-handlers as for any file,
-// shown in Finder or opened in its app. A download stays the mod's it started for, whatever becomes of its page. Before
-// it is saved, the mod's page is asked whether to save it (`saving`). `web` and `open` are the environment's: what
-// stops a download, and what shows and opens a file.
-export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: PAGES, open: SYSTEM }) {
+// older one still under way. The mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id the
+// web engine gives it, for its list and for one to be stopped or forgotten, and, with system.file-handlers as for any
+// file, shown where it lies or opened in its app. A download stays the mod's it started for, whatever becomes of its
+// page. Before it is saved, the mod's page is asked whether to save it (`saving`). `deckit` is what connect answered,
+// `state` the web engine's own state, and `modFrom(page, permission)` the id of the mod that sent a request, held to
+// `permission`. `web` and `open` are the environment's: what stops a download, and what shows and opens a file.
+export function createDownload({ deckit, state: STATE, PROTOCOL, modFrom, web: WEB, pages: PAGES, open: SYSTEM }) {
     // MARK: - Property
     const KEY = 'web-downloads'; // the state's key: mod id -> its downloads, newest first
     const LIMIT = 100;
@@ -22,27 +23,27 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: P
     // MARK: - Initializer
     // MARK: - Public
     function start() {
-        kept = STORAGE.state.read(KEY, {});
+        kept = STATE.read(KEY, {});
         for (const download of Object.values(kept).flat()) {
             if (download.state !== 'downloading') continue;
             download.state = 'failed';
             download.error = QUIT;
         }
         save();
-        PROTOCOL.downloads.handle((_payload, sender) => listOf(IDENTITY.modFrom(sender).id).map(copy));
+        PROTOCOL.downloads.handle((_payload, sender) => listOf(modFrom(sender)).map(copy));
         PROTOCOL.cancelDownload.on(({ id }, sender) => {
-            const under = underWay(IDENTITY.modFrom(sender).id, id);
+            const under = underWay(modFrom(sender), id);
             if (under !== null) WEB.cancelDownload(under);
         });
         PROTOCOL.revealDownload.handle(({ id }, sender) => {
-            const download = find(IDENTITY.modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS).id, id);
+            const download = find(modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS), id);
             return !!download && SYSTEM.reveal(download.path);
         });
         PROTOCOL.openDownload.handle(async ({ id }, sender) => {
-            const download = find(IDENTITY.modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS).id, id);
+            const download = find(modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS), id);
             return download?.state === 'finished' && !!(await SYSTEM.file(download.path));
         });
-        PROTOCOL.removeDownload.handle(({ id }, sender) => remove(IDENTITY.modFrom(sender).id, id));
+        PROTOCOL.removeDownload.handle(({ id }, sender) => remove(modFrom(sender), id));
         PROTOCOL.save.on(({ ask, save }, sender) => {
             if (questions.get(ask)?.embedder === sender) settle(ask, save);
         });
@@ -70,7 +71,7 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: P
         const known = live.get(download.id);
         if (download.state !== 'downloading') live.delete(download.id);
         if (known?.forgotten) return;
-        const modId = known?.mod ?? IDENTITY.modOf(embedder)?.id;
+        const modId = known?.mod ?? deckit.mods.modOf(embedder);
         if (!modId) return;
         let entry = known && find(modId, known.id);
         if (!entry) {
@@ -85,7 +86,7 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: P
         const { url, name, path, state, received, expected, error } = download;
         Object.assign(entry, { url, name, path, state, received, expected, error });
         if (changed) save();
-        const page = IDENTITY.pageOf(modId);
+        const page = deckit.mods.runs().find(({ run }) => run.mod.id === modId)?.page;
         if (page) PROTOCOL.downloaded.send(page, copy(entry));
     }
 
@@ -137,7 +138,7 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: P
     }
 
     function save() {
-        STORAGE.state.write(KEY, kept);
+        STATE.write(KEY, kept);
     }
 
     function copy(download) {

@@ -1,5 +1,4 @@
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
-import * as WEB_PERMISSION from '../web/model/permission.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
@@ -21,7 +20,6 @@ import { createConnection } from '../connection/main.js';
 import { createEvent } from '../event/main.js';
 import { createMods } from '../mods/main.js';
 import { createCore } from '../core/main.js';
-import { createWeb } from '../web/main.js';
 import { createKeymap } from '../keymap/main.js';
 import { createOpen } from '../open/main.js';
 import { createNotification } from '../notification/main.js';
@@ -48,7 +46,6 @@ const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
 // The permissions deckit's passages define, in the order a person reads them.
 const DECKIT_PERMISSIONS = [
     MAIN_PROCESS_PERMISSION,
-    WEB_PERMISSION,
     CLIPBOARD_PERMISSION,
     NOTIFICATION_PERMISSION,
     KEYMAP_PERMISSION,
@@ -118,18 +115,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
     const KEYMAP = createKeymap({ LOG, IDENTITY, RUNNER, keys: ENV.keys });
-    const WEB = createWeb({
-        LOG,
-        IDENTITY,
-        RUNNER,
-        MODS,
-        KEYMAP,
-        STORAGE,
-        web: ENV.web,
-        pages: ENV.pages,
-        open: ENV.open,
-    });
-    const OPEN = createOpen({ LOG, IDENTITY, RUNNER, open: ENV.open, pages: ENV.pages });
+    const OPEN = createOpen({ IDENTITY, open: ENV.open });
     const NOTIFICATION = createNotification({
         LOG,
         IDENTITY,
@@ -157,7 +143,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         user: ENV.folders.user,
         focused: ENV.keys.focused,
     });
-    const SETUP = createSetup({ IDENTITY, web: ENV.web });
+    const SETUP = createSetup({ IDENTITY });
     const API = createApi({
         CONFIG,
         CORE,
@@ -171,7 +157,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         REQUEST,
         PERMISSION,
         MANIFEST_FIELD,
-        WEB,
         KEYMAP,
         MAIN_PROCESS,
         SETUP,
@@ -212,7 +197,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             await CATALOG.load();
         }
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
-        WEB.start();
         KEYMAP.start();
         OPEN.start();
         NOTIFICATION.start();

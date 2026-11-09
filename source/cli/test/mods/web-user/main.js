@@ -3,9 +3,9 @@
 // is done loading. It also sends the requests the test hands it, as its session, and keeps what each was answered, by
 // the name the test gives it.
 class WebUser {
-    attach(shell, deckit) {
+    attach(shell, deckit, { web }) {
         const marks = document.documentElement.dataset;
-        const session = deckit.web.session('sign-in');
+        const session = web.session('sign-in');
         let window = null;
         document.addEventListener('test-web-open', ({ detail: url }) => {
             window = shell.web.window({ session, url, title: 'Web User' });

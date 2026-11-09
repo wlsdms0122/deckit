@@ -4,15 +4,19 @@
 // for a mod with deckit.app-keys; a press of the chord runs what took it, and the chord is let go once the lifecycle
 // that took it ends. Every member a permission guards is on the handle of a mod granted nothing, and refuses at call
 // with NOT_PERMITTED; for a mod granted it, an argument of another type or left out is refused with INVALID_ARGUMENT,
-// none turned into its type, and fileURL and filePath throw that refusal. Then the runner
-// (deckit-shell/deckit/runner/renderer.js) with deckit and layers over it: each layer is offered what those under it
-// offer, by name; deckit's start is handed a frozen table of the frameworks of the layers that run, each made with its
-// lifecycle's scope; the run is told started once, after the lifecycle over deckit's has ended as its start threw, none
-// over it started, and a layer whose read threw left out with the one over it, with its frameworks; and the handle of a
-// mod granted nothing: `mods` on it, each request refused at call with NOT_PERMITTED before its arguments are read,
-// `quit()` a promise, and `openExternal` refused NOT_PERMITTED for a file, then INVALID_ARGUMENT for an argument of
-// another type; with deckit.mods, a request refused INVALID_ARGUMENT for an argument of another type and asked of main
-// otherwise. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// none turned into its type, and fileURL and filePath throw that refusal. Then the web engine's layer
+// (deckit-shell/web/attach/renderer.js), which stacks no lifecycle: the members of the handle `web` a permission guards
+// refuse a mod granted nothing at call with NOT_PERMITTED, and an argument of another type is refused INVALID_ARGUMENT;
+// a web page that leaves, with no delegate to keep it, opens its address with the `open` the layer over it hands; and
+// what the handle adds is cut with its lifecycle's scope. Then the runner (deckit-shell/deckit/runner/renderer.js) with
+// deckit and layers over it: each layer is offered what those under it offer, by name; deckit's start is handed a
+// frozen table of the frameworks of the layers that run, each made with its lifecycle's scope; the run is told started
+// once, after the lifecycle over deckit's has ended as its start threw, none over it started, and a layer whose read
+// threw left out with the one over it, with its frameworks; and the handle of a mod granted nothing: `mods` on it, each
+// request refused at call with NOT_PERMITTED before its arguments are read, `quit()` a promise, and `openExternal`
+// refused NOT_PERMITTED for a file, then INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request
+// refused INVALID_ARGUMENT for an argument of another type and asked of main otherwise. Exits 1 with a line for each
+// check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -23,7 +27,6 @@ async function main() {
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'renderer.js'));
     const { createMod } = await import(url('deckit-shell', 'deckit', 'mod', 'renderer.js'));
     const { createKeymap } = await import(url('deckit-shell', 'deckit', 'keymap', 'renderer.js'));
-    const { createWeb } = await import(url('deckit-shell', 'deckit', 'web', 'renderer.js'));
     const { createNotification } = await import(url('deckit-shell', 'deckit', 'notification', 'renderer.js'));
     const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
     const failed = [];
@@ -66,7 +69,6 @@ async function main() {
 
     const layerOf = (granted) =>
         createMod({
-            WEB: createWeb({ sessions: {}, web: {} }),
             NOTIFICATION: createNotification(),
             KEYMAP: createKeymap(),
         }).layer({ mod: { id: 'a' }, granted, deliver: () => {} });
@@ -168,12 +170,6 @@ async function main() {
         'clipboard.writeText': () => on.clipboard.writeText('a'),
         'notifications.show': () => on.notifications.show({ title: 'a' }),
         mainProcess: () => on.mainProcess('main.js'),
-        'web.session.fetch': () => on.web.session('a').fetch('https://example.com'),
-        'web.session.trust': () => on.web.session('a').trust([]),
-        'web.session.allow': () => on.web.session('a').allow([]),
-        'web.session.revoke': () => on.web.session('a').revoke([]),
-        'web.downloads.reveal': () => on.web.downloads.reveal('1'),
-        'web.downloads.open': () => on.web.downloads.open('1'),
     });
     const plain = await handleOf([]);
     sent.length = 0;
@@ -197,9 +193,6 @@ async function main() {
         'system.clipboard-write',
         'system.notifications',
         'system.main-process',
-        'system.network',
-        'system.certificates',
-        'system.site-permissions',
     ]);
     sent.length = 0;
     const mistyped = {
@@ -212,11 +205,6 @@ async function main() {
         'clipboard.writeText with its text left out': () => all.clipboard.writeText(),
         'notifications.show with a title of another type': () => all.notifications.show({ title: 1 }),
         'mainProcess with a number': () => all.mainProcess(5),
-        'web.session.trust with one entry': () => all.web.session('a').trust({ host: 'a', fingerprint: 'b' }),
-        'web.downloads.cancel with a number': () => all.web.downloads.cancel(1),
-        'web.downloads.remove with a number': () => all.web.downloads.remove(1),
-        'web.downloads.reveal with a number': () => all.web.downloads.reveal(1),
-        'web.downloads.open with a number': () => all.web.downloads.open(1),
     };
     for (const [what, call] of Object.entries(mistyped))
         check(
@@ -240,6 +228,87 @@ async function main() {
         JSON.stringify(sent.map(({ payload }) => payload)) ===
             '[{"text":"a"},{"id":"notification-1","title":"a","body":"","silent":false}]',
         sent
+    );
+
+    // The web engine's layer, which has no lifecycle of its own: it hands every lifecycle the handle `web`, made with
+    // that lifecycle's scope, and offers a layer over it what shows the pages of the mod's web sessions.
+    const { layersOf } = await import(url('deckit-shell', 'web', 'attach', 'renderer.js'));
+    let views = 0;
+    const WEB_LAYERS = layersOf({
+        web: { view: () => ({ element: {}, id: Promise.resolve(70 + ++views), close: () => {} }) },
+    });
+    const webLayerOf = (granted) =>
+        WEB_LAYERS.web({ setup: { sessions: 'sessions' }, channels: IPC.layerChannels })({ mod: { id: 'a' }, granted });
+    const webGuarded = (on) => ({
+        'web.session.fetch': () => on.session('a').fetch('https://example.com'),
+        'web.session.trust': () => on.session('a').trust([]),
+        'web.session.allow': () => on.session('a').allow([]),
+        'web.session.revoke': () => on.session('a').revoke([]),
+        'web.downloads.reveal': () => on.downloads.reveal('1'),
+        'web.downloads.open': () => on.downloads.open('1'),
+    });
+    sent.length = 0;
+    for (const [member, call] of Object.entries(webGuarded(webLayerOf([]).frameworks.web(makeScope()))))
+        check(
+            `${member} is on the handle web of a mod granted nothing, and refuses at call with NOT_PERMITTED`,
+            (await refusalOf(call())) === 'call NOT_PERMITTED',
+            member
+        );
+    check('a member of web refused for its permission asks nothing of main', !sent.length, sent);
+    const allWeb = webLayerOf([
+        'system.file-handlers',
+        'system.network',
+        'system.certificates',
+        'system.site-permissions',
+    ]).frameworks.web(makeScope());
+    const webMistyped = {
+        'web.session.trust with one entry': () => allWeb.session('a').trust({ host: 'a', fingerprint: 'b' }),
+        'web.downloads.cancel with a number': () => allWeb.downloads.cancel(1),
+        'web.downloads.remove with a number': () => allWeb.downloads.remove(1),
+        'web.downloads.reveal with a number': () => allWeb.downloads.reveal(1),
+        'web.downloads.open with a number': () => allWeb.downloads.open(1),
+    };
+    for (const [what, call] of Object.entries(webMistyped))
+        check(
+            `${what} is refused at call with INVALID_ARGUMENT`,
+            (await refusalOf(call())) === 'call INVALID_ARGUMENT',
+            what
+        );
+    check('a request of web refused for its arguments asks nothing of main', !sent.length, sent);
+
+    const webLayer = webLayerOf([]);
+    check(
+        "the web engine's layer stacks no lifecycle, and offers a layer over it surfaces",
+        !webLayer.lifecycles && Object.isFrozen(webLayer.over) && typeof webLayer.over.surfaces === 'function',
+        webLayer
+    );
+    const webScope = makeScope();
+    const web = webLayer.frameworks.web(webScope);
+    const downloads = [];
+    web.downloads.onChange((download) => downloads.push(download.id));
+    tell({ channel: 'deckit-shell:web-downloaded', payload: { id: 'd1' } });
+    const failures = [];
+    const externals = [];
+    const surfaces = webLayer.over.surfaces({
+        owner: { deliver: () => {}, recordFailure: (why) => failures.push(why) },
+        open: async (to, options) => externals.push([to, options ?? null]),
+        scope: webScope,
+    });
+    surfaces.page({ session: web.session('main'), url: 'file:///a.html' });
+    await tick();
+    tell({ channel: 'deckit-shell:web-leaving', payload: { id: 70 + views, url: 'https://example.com' } });
+    await tick();
+    check(
+        'a web page that leaves, with no delegate to keep it, opens its address with what the layer over it hands',
+        JSON.stringify(externals) === '[["https://example.com",null]]' && !failures.length,
+        { externals, failures }
+    );
+    webScope.cut();
+    tell({ channel: 'deckit-shell:web-downloaded', payload: { id: 'd2' } });
+    check(
+        "what the handle web adds is cut with its lifecycle's scope",
+        JSON.stringify(downloads) === '["d1"]',
+        downloads
     );
 
     // The runner with deckit, a layer whose lifecycle throws as it starts, one over that, a layer whose read throws,
@@ -323,7 +392,6 @@ async function main() {
     });
     sent.length = 0;
     const deckitLayer = createMod({
-        WEB: { forMod: () => ({}) },
         NOTIFICATION: { listen: () => {}, notificationsOf: () => ({}) },
         KEYMAP: createKeymap(),
     }).layer;

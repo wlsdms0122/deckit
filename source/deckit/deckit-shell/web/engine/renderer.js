@@ -1,18 +1,17 @@
-import * as CHANNEL from '../channel/index.js';
-import * as IPC from '../ipc/renderer.js';
-import * as LISTENER from '../listener/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
+import * as LISTENER from '../../deckit/listener/index.js';
 import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
-import * as OPEN_PERMISSION from '../open/model/permission.js';
+import * as OPEN_PERMISSION from '../../deckit/open/model/permission.js';
 import * as SESSION from './model/session.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
 // A mod's web in its page: its sessions, and the pages that show what they load, in its page, as an element of it, and
-// in windows. `web` is the environment's (environment/: PAGE.web): what shows a web page in this page. `sessions` is
-// what the environment names this mod's web sessions by, as the page was told it, handed back as it is.
-export function createWeb({ sessions, web: WEB }) {
+// in windows. `web` is the environment's (environment: WEB_PAGE): what shows a web page in this page. `sessions` is
+// what the environment names this mod's web sessions by, as the page was told it, handed back as it is. `channels`
+// binds the web engine's channels in the page.
+export function createWeb({ sessions, web: WEB, channels }) {
     // MARK: - Property
+    const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const pages = new Map(); // page id -> { receive }
     // What main said about a page before this side knew which element it was, in order.
     const early = new Map(); // page id -> [[event, payload]]
@@ -27,9 +26,9 @@ export function createWeb({ sessions, web: WEB }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // `deckit.web`: the mod's sessions by name, one handle for each, and the downloads its web pages started, written
-    // to the Downloads folder. `request` (mod/renderer.js) makes a member a request, refused for the permission that
-    // guards it; `scoped(subscribe)` cuts what a listener added with the handle's scope.
+    // The handle `web`: the mod's sessions by name, one handle for each, and the downloads its web pages started,
+    // written to the Downloads folder. `request` makes a member a request, refused for the permission that guards it;
+    // `scoped(subscribe)` cuts what a listener added with the handle's scope.
     function forMod({ request, scoped }) {
         const id = [['id', 'string']];
         const entries = [['entries', 'array']];
@@ -87,13 +86,13 @@ export function createWeb({ sessions, web: WEB }) {
     }
 
     // What shows web pages: pages in the mod's page, as elements of it, and in windows, each showing what a session
-    // from `deckit.web.session` loads. `owner` is whoever hands it out ({ deliver, recordFailure }), `opener`
-    // what opens an address the page passes on; a page or window made is closed, and nothing more is heard about it,
-    // once `scope` is cut.
-    function surfacesOf({ owner, opener, scope }) {
+    // from `web.session` loads. `owner` is whoever hands it out ({ deliver, recordFailure }), `open(url, options)`
+    // what opens outside the app an address the page passes on, as the mod's openExternal does; a page or window made
+    // is closed, and nothing more is heard about it, once `scope` is cut.
+    function surfacesOf({ owner, open, scope }) {
         if (!listening) listen();
         const named = (handle) => {
-            if (!names.has(handle)) throw new Error('a web page needs a session from deckit.web.session(name)');
+            if (!names.has(handle)) throw new Error('a web page needs a session from web.session(name)');
             return names.get(handle);
         };
         // One the mod closes is closed as it asked, its delegate still told.
@@ -111,9 +110,9 @@ export function createWeb({ sessions, web: WEB }) {
             return made;
         };
         return Object.freeze({
-            page: ({ session: handle, url = '' } = {}) => kept(page(named(handle), url, owner, opener, handle)),
+            page: ({ session: handle, url = '' } = {}) => kept(page(named(handle), url, owner, open, handle)),
             window: ({ session: handle, url = '', title = '' } = {}) =>
-                kept(windowPage(named(handle), url, title, owner, opener, handle)),
+                kept(windowPage(named(handle), url, title, owner, open, handle)),
         });
     }
 
@@ -210,7 +209,7 @@ export function createWeb({ sessions, web: WEB }) {
     }
 
     // The handle a mod holds for a page, and the delegate it answers through.
-    function handleOf(owner, opener, session, url) {
+    function handleOf(owner, open, session, url) {
         let delegate = null;
         let id = null;
         const waiting = [];
@@ -243,9 +242,7 @@ export function createWeb({ sessions, web: WEB }) {
         };
         // Only false keeps the default back, so a delegate that forgot to answer does not lose the request.
         const openElsewhere = (to, options) =>
-            opener
-                .open(to, options)
-                .catch((error) => owner.recordFailure(`${to} did not open: ${error.message || error}`));
+            open(to, options).catch((error) => owner.recordFailure(`${to} did not open: ${error.message || error}`));
         const otherwiseOpen = async (method, to, options) => {
             if ((await ask(method, true, to, options)) === false) return;
             openElsewhere(to, options);
@@ -254,7 +251,7 @@ export function createWeb({ sessions, web: WEB }) {
         // address opens elsewhere, as one of a page with no window to hand over does.
         const takeWindow = async ({ page: given, url: to, activates }) => {
             if (given === undefined || given === null) return void openElsewhere(to, { activates });
-            const opened = page(names.get(session), to, owner, opener, session, given);
+            const opened = page(names.get(session), to, owner, open, session, given);
             if ((await ask('openWindow', false, opened, { url: to, activates })) !== false) return;
             opened.close();
             openElsewhere(to, { activates });
@@ -338,8 +335,8 @@ export function createWeb({ sessions, web: WEB }) {
 
     // A web page shown in this page, as an element of it: a new one at `url`, or the window of id `given` a web page
     // opened.
-    function page(name, url, owner, opener, session, given) {
-        const { handle, know, receive, isKnown } = handleOf(owner, opener, session, url);
+    function page(name, url, owner, open, session, given) {
+        const { handle, know, receive, isKnown } = handleOf(owner, open, session, url);
         let closed = false;
         const { element, id, close } = WEB.view(
             { sessions, session: name, url, ...(given === undefined ? {} : { page: given }) },
@@ -361,8 +358,8 @@ export function createWeb({ sessions, web: WEB }) {
         });
     }
 
-    function windowPage(name, url, title, owner, opener, session) {
-        const { handle, know, receive, close } = handleOf(owner, opener, session, url);
+    function windowPage(name, url, title, owner, open, session) {
+        const { handle, know, receive, close } = handleOf(owner, open, session, url);
         PROTOCOL.window.invoke({ name, url: String(url), title: String(title) }).then(
             (id) => (id ? know(id) : receive('closed')),
             () => receive('closed')

@@ -4,9 +4,8 @@ import * as DECLARED from './protocol.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// What each page deckit makes is, answered to the page as it starts. `web` is what the environment gives of the web
-// (environment: MAIN.web).
-export function createSetup({ IDENTITY, web }) {
+// What each page deckit makes is, answered to the page as it starts.
+export function createSetup({ IDENTITY }) {
     // MARK: - Property
     const layers = []; // the layers stacked over deckit on each mod's page, each { name, setup }
 
@@ -17,10 +16,7 @@ export function createSetup({ IDENTITY, web }) {
             const page = IDENTITY.pageNameOf(sender);
             if (page) return { page };
             const { id } = IDENTITY.modOf(sender);
-            return {
-                sessions: web.sessionsOf(id),
-                layers: layers.map(({ name, setup }) => ({ name, setup: setup ? setup(id) : null })),
-            };
+            return { layers: layers.map(({ name, setup }) => ({ name, setup: setup ? setup(id) : null })) };
         });
     }
 

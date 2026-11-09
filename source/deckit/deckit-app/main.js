@@ -1,5 +1,5 @@
-// Deckit.app's Electron entry: deckit's main bundles, the app's own files, then the environment, connect and attach,
-// and the app's menu once Electron is ready.
+// Deckit.app's Electron entry: deckit's main bundles, the app's own files, then the environment, connect, the web
+// engine's attach and the shell's, and the app's menu once Electron is ready.
 const path = require('path');
 const { app } = require('electron');
 
@@ -41,7 +41,8 @@ if (!app.requestSingleInstanceLock()) {
         host,
     });
     const deckit = DECKIT.connect(environment, { host, config, folders });
-    DECKIT.attach(deckit, environment, { host });
+    const web = DECKIT.attachWeb(deckit, environment);
+    DECKIT.attach(deckit, environment, { host, web });
     app.whenReady().then(setMenu);
     // Closing the host window leaves the app running; the Dock icon and a second launch bring it back.
     app.on('activate', () => host.show());

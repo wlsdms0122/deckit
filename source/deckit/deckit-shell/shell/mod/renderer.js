@@ -16,17 +16,19 @@ import { createWindows } from '../window/renderer.js';
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// The shell as a layer on deckit in a mod's page (deckit/runner/renderer.js), stacked with what deckit offers a layer
-// over it (`under.deckit`): the lifecycle it calls, attach(shell, deckit, frameworks) and detach(), the instance's
-// reopen() as its Dock item is clicked with no window open, and the handle `shell`: the theme, the kit, `windows`,
-// `iconOf(mod)`, `region(element, interface)`, `children`, `dropDestination(element, options)`, `web`, `keys`, which
-// records the keys pressed in the page and with deckit.shell-keys changes the shell's own, with deckit.fonts `fonts`,
-// with deckit.mods the Dock on `mods`, `view.register()` for a mod whose manifest fields give its view a parent, and,
-// with deckit.styles, `styles.register()`. The page wears the theme, the kit and the styles from just before attach().
-// Once attach() has ended, a child's view is laid where a region of its parent's shows it. `WEB` is deckit's web in the
-// page, whose pages the shell hands the mod; `channels` binds the shell's channels in the page, and `drags` takes the
-// presses in the drag regions of a window's content (environment: PAGE.drags).
-function shellOf({ WEB, channels, drags }) {
+// The shell as a layer on deckit in a mod's page (deckit/runner/renderer.js), stacked with what the layers under it
+// offer (`under`), over deckit's (`under.deckit`): the lifecycle it calls, attach(shell, deckit, frameworks) and
+// detach(), the instance's reopen() as its Dock item is clicked with no window open, and the handle `shell`: the
+// theme, the kit, `windows`, `iconOf(mod)`, `region(element, interface)`, `children`, `dropDestination(element,
+// options)`, `web`, `keys`, which records the keys pressed in the page and with deckit.shell-keys changes the shell's
+// own, with deckit.fonts `fonts`, with deckit.mods the Dock on `mods`, `view.register()` for a mod whose manifest
+// fields give its view a parent, and, with deckit.styles, `styles.register()`. The page wears the theme, the kit and
+// the styles from just before attach().
+// Once attach() has ended, a child's view is laid where a region of its parent's shows it. `web` shows the pages of the
+// mod's web sessions, as the web engine's layer offers them (`under.web.surfaces`), what they pass on opened as the
+// mod's openExternal opens it. `channels` binds the shell's channels in the page, and `drags` takes the presses in the
+// drag regions of a window's content (environment: PAGE.drags).
+function shellOf({ channels, drags }) {
     return ({ mod: running, granted, deliver, fail, under }) => {
         const has = (permission) => granted.includes(permission);
         const WINDOWS = createWindows({ granted, deliver, channels, drags });
@@ -57,7 +59,7 @@ function shellOf({ WEB, channels, drags }) {
                         scope.add(() => (reported = ENDED));
                         if (typeof instance.attach !== 'function') return;
                         page ??= wear();
-                        const opener = handles.deckit;
+                        const deckit = handles.deckit;
                         const handle = Object.freeze({
                             ...(handles.shell ?? {}),
                             theme: themeOf(page.theme, scope),
@@ -66,7 +68,11 @@ function shellOf({ WEB, channels, drags }) {
                             iconOf: DOCK.iconOf,
                             ...REGION.forScope(scope),
                             ...DROP.forScope(scope),
-                            web: WEB.surfacesOf({ owner: { deliver, recordFailure: fail }, opener, scope }),
+                            web: under.web.surfaces({
+                                owner: { deliver, recordFailure: fail },
+                                open: deckit.openExternal,
+                                scope,
+                            }),
                             ...(has(FONTS_PERMISSION.FONTS) ? { fonts: FONTS.tool({ channels }) } : {}),
                             ...(has(MOD_PERMISSION.MODS) ? { mods: DOCK.mods } : {}),
                             keys: KEYS.forScope(scope, { changes: has(KEY_PERMISSION.SHELL_KEYS) }),
@@ -76,7 +82,7 @@ function shellOf({ WEB, channels, drags }) {
                             scope.add(() => WINDOWS.reopen(null));
                         }
                         try {
-                            await instance.attach(handle, opener, frameworks);
+                            await instance.attach(handle, deckit, frameworks);
                         } catch (error) {
                             throw new Error(`attach() threw: ${error.message || error}`);
                         }

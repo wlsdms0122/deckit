@@ -7,8 +7,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // MARK: - Initializer
 // MARK: - Public
-// What this page is: { page }, the name a page that runs no mod was made by, or for a mod's { sessions, layers }, what
-// its web sessions are named by and the layers stacked over deckit on it, each { name, setup }.
+// What this page is: { page }, the name a page that runs no mod was made by, or for a mod's { layers }, the layers
+// stacked over deckit on it, each { name, setup }.
 function setup() {
     return PROTOCOL.setup.invoke();
 }

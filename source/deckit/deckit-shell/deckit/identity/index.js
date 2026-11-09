@@ -74,14 +74,6 @@ export function createIdentity({ pages: PAGES }) {
         });
     }
 
-    // Whether a person just pressed a key or the mouse in this page, used up by the answer: one press, one act.
-    // Main sees the input itself, so a page cannot claim it.
-    function consumeUserActivation(page) {
-        const fresh = Date.now() - (activated.get(page) || 0) < ACTIVATION_MS;
-        activated.delete(page);
-        return fresh;
-    }
-
     // Whether a person is pressing in this page now, or just pressed: what the page tells main comes of their act
     // and not of the page's own code, and the press is not used up, so a drag tells as it goes.
     function isPressing(page) {
@@ -126,7 +118,6 @@ export function createIdentity({ pages: PAGES }) {
         add,
         whenPageEnds,
         watchPresses,
-        consumeUserActivation,
         isPressing,
         isPointing,
         modOf,

@@ -29,10 +29,11 @@ let attached = false;
 
 // MARK: - Public
 // How a host app puts deckit's UI on deckit, once, before it is ready: `deckit` is what connect answered,
-// `environment` what the environment gives the UI (environment: SHELL), `host` answers where the UI is shown, and
-// `config` is the UI's configuration: `dock`, the ids of the mods the Dock keeps at the first start, in order, or else
-// the app mods the host app ships. The UI starts with deckit, before any mod launches.
-function attach(deckit, environment, { host, config = {} } = {}) {
+// `environment` what the environment gives the UI (environment: SHELL), `host` answers where the UI is shown, `web`
+// is what the web engine's attach answered, the UI laying the web pages mods show, and `config` is the UI's
+// configuration: `dock`, the ids of the mods the Dock keeps at the first start, in order, or else the app mods the host
+// app ships. The UI starts with deckit, before any mod launches.
+function attach(deckit, environment, { host, web, config = {} } = {}) {
     if (attached) throw new Error('[deckit] attach is called once');
     if (!answered()) throw new Error('[deckit] attach comes after connect');
     if (deckit !== answered()) throw new Error('[deckit] attach takes what connect answered');
@@ -46,8 +47,8 @@ function attach(deckit, environment, { host, config = {} } = {}) {
     for (const key of FIELD.KEYS) deckit.fields.define(key);
     for (const model of SHELL_PERMISSIONS)
         for (const permission of model.PERMISSIONS) deckit.permissions.define(permission);
-    const PAGES = createPage({ deckit, pages: ENV.pages });
-    const OVERLAY = createOverlay({ deckit, PAGES });
+    const PAGES = createPage({ deckit, web, pages: ENV.pages });
+    const OVERLAY = createOverlay({ deckit, web, PAGES });
     // A stage, held to what a stage is as the environment makes it.
     const makeStage = () => checked(ENV.stage(), ENVIRONMENT.STAGE, 'a stage');
     const REGION = createRegion({ deckit });
@@ -59,10 +60,12 @@ function attach(deckit, environment, { host, config = {} } = {}) {
         makeStage,
         actionOnDoubleClick: ENV.actionOnDoubleClick,
         deckit,
+        web,
         host,
     });
     const WINDOWS = createWindows({
         deckit,
+        web,
         PAGES,
         OVERLAY,
         DESKTOP,

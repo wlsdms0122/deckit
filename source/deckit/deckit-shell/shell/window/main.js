@@ -3,11 +3,12 @@ import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
 import * as SURFACE from './model/surface.js';
 
-// `deckit` is what connect answered, `PAGES` the shell's pages, `OVERLAY` their overlays, `DESKTOP` where normal
-// windows are and which mods may activate, and `makeStage()` a stage to lay pages on (environment: SHELL.stage);
-// `showWindow(control, { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on
-// screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it.
-export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, showWindow, closeWindow }) {
+// `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `PAGES` the shell's pages,
+// `OVERLAY` their overlays, `DESKTOP` where normal windows are and which mods may activate, and `makeStage()` a stage
+// to lay pages on (environment: SHELL.stage); `showWindow(control, { activates })` and `closeWindow(control)` are the
+// host app's, which puts an overlay window on screen in a floating window of its own, taking the keyboard unless
+// `activates` is false, and closes it.
+export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, makeStage, showWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const NORMAL = 'normal';
@@ -67,7 +68,7 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
     // draws. Answers what the environment drives of it: `setTitle(text)`, `close()`, and `on('close', listener)`, its
     // off answered, heard once as the window closes, however it closes.
     function openWeb({ title = '', size = null, page: content }) {
-        const page = deckit.web.pageFor(content);
+        const page = web.pageFor(content);
         const mod = page && deckit.mods.modOf(page);
         if (!mod) throw new Error('only a web page a mod shows opens a window');
         const id = ++count;

@@ -1,6 +1,6 @@
 // Between a mod's view and main, about the web pages it shows. `name` is a session's name within the mod; `id` is a
 // web page's, as the environment hands it out, which the mod's page keeps and hands back, never reads.
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
 
 // Answers the new window page's id, or 0 when it may not be shown.
 export const window = CHANNEL.pageToMain(
@@ -57,7 +57,8 @@ export const permit = CHANNEL.pageToMain('deckit-shell:web-permit', { ask: 'numb
 // Answers the `saving` of that number.
 export const save = CHANNEL.pageToMain('deckit-shell:web-save', { ask: 'number', save: 'boolean' });
 
-// The mod's downloads, by the id deckit gives each: { id, url, name, path, state, received, expected, error, started }.
+// The mod's downloads, by the id the web engine gives each: { id, url, name, path, state, received, expected, error,
+// started }.
 export const downloads = CHANNEL.pageToMain('deckit-shell:web-downloads', {}, { reply: true });
 export const cancelDownload = CHANNEL.pageToMain('deckit-shell:web-download-cancel', { id: 'string' });
 export const revealDownload = CHANNEL.pageToMain('deckit-shell:web-download-reveal', { id: 'string' }, { reply: true });

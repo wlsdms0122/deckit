@@ -1,5 +1,5 @@
-import * as CHANNEL from '../channel/index.js';
-import * as IPC from '../ipc/main.js';
+import * as CHANNEL from '../../deckit/channel/index.js';
+import * as REQUEST from '../../deckit/request/index.js';
 import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 import * as SESSION from './model/session.js';
@@ -7,12 +7,13 @@ import * as SITE from './model/site.js';
 import * as SITE_PERMISSION from './model/site-permission.js';
 import { createDownload } from './download.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
-// `web` is the environment's: the web pages a mod's page shows, their sessions, and what a site was allowed. `pages`
-// and `open` are the environment's too: what it tells of a page, and what opens an address outside the app.
-export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: WEB, pages: PAGES, open: SYSTEM }) {
+// The web engine in main, on `deckit`, what connect answered, its channels bound with `deckit.channels`. `state` is its
+// own state. `web` is the environment's: the web pages a mod's page shows, their sessions, and what a site was allowed.
+// `pages` and `open` are the environment's too: what it tells of a page, and what opens an address outside the app
+// (environment: WEB).
+export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: SYSTEM }) {
     // MARK: - Property
+    const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const SESSIONS = 'web-sessions'; // the state's key: mod id -> the names of the web sessions it used
     const TITLE_LIMIT = 200;
     const BODY_LIMIT = 400;
@@ -22,6 +23,9 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
     // `fetch` reads in the app's process, and a huge answer would be held whole there.
     const FETCH_LIMIT = 4 * 1024 * 1024;
     const WINDOW_SIZE = Object.freeze({ width: 520, height: 700 });
+    // How long after a key or mouse press in a web page its window.open is taken as coming of that press, as a browser
+    // keeps a page's transient user activation.
+    const ACTIVATION_MS = 5000;
     // Asked per scheme, so a site allowed one app is not allowed every app. These are the web's own, never an app's.
     const NEVER_OUT = new Set([
         'javascript',
@@ -41,8 +45,9 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
     // mod|session|origin|permission: what a mod let a site have in one of its sessions, until the app quits. The mod
     // hands it back through allow(); a refusal is not kept, so a page refused by mistake can ask again once reloaded.
     const granted = new Set();
+    const activated = new WeakMap(); // a web page -> when a key or the mouse was last pressed in it
     let sequence = 0;
-    const DOWNLOAD = createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: PAGES, open: SYSTEM });
+    const DOWNLOAD = createDownload({ deckit, state: STATE, PROTOCOL, modFrom, web: WEB, pages: PAGES, open: SYSTEM });
 
     // MARK: - Initializer
     // MARK: - Public
@@ -75,14 +80,14 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
         });
         listen();
         DOWNLOAD.start();
-        RUNNER.onSandbox(prepare);
-        MODS.onErase(erase);
+        deckit.pages.onSandbox(prepare);
+        deckit.mods.onErase(erase);
     }
 
     // The page of deckit's a page answers to: a mod's or one that runs no mod, or the mod's page that shows it as a
     // web page, in the page or in a window, so a keystroke in the web page is the mod page's.
     function pageFor(page) {
-        if (IDENTITY.modOf(page) || IDENTITY.pageNameOf(page)) return page;
+        if (deckit.mods.modOf(page) || deckit.pages.nameOf(page)) return page;
         return WEB.holderOf(page)?.embedder ?? null;
     }
 
@@ -95,17 +100,18 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
     // read again once they are cleared, so what another mod used meanwhile stays.
     async function erase(modId) {
         DOWNLOAD.forget(modId);
-        for (const name of STORAGE.state.read(SESSIONS, {})[modId] || []) await WEB.clear(modId, name);
-        const sessions = STORAGE.state.read(SESSIONS, {});
+        for (const name of STATE.read(SESSIONS, {})[modId] || []) await WEB.clear(modId, name);
+        const sessions = STATE.read(SESSIONS, {});
         delete sessions[modId];
-        STORAGE.state.write(SESSIONS, sessions);
-        LOG.info(`forgot the web sessions of ${modId}`);
+        STATE.write(SESSIONS, sessions);
+        deckit.log.info(`forgot the web sessions of ${modId}`);
     }
 
     // A mod's page that shows web pages: only that mod's sessions attach there, and only the web, or a file for a mod
     // with system.files, loads in them. A window it asked for answers to the document that asked for it, and a new
-    // document has no delegate for it, so it closes.
-    function prepare(modPage) {
+    // document has no delegate for it, so it closes. What the page asks to open outside itself, a window or an address
+    // its document leaves for, is opened for the mod `modId` as its own openExternal opens it.
+    function prepare(modPage, modId) {
         WEB.embed(modPage);
         const closeWindows = () => {
             for (const [id, embedder] of windows) {
@@ -113,29 +119,52 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
                 if (page) WEB.close(page);
             }
         };
-        PAGES.watch(modPage, { ended: closeWindows, destroyed: closeWindows });
+        const openFrom = (url, { activates } = {}) =>
+            deckit.mods
+                .openExternal(modId, url, { activates })
+                .catch((error) => deckit.log.warn(`${modId}: ${url} did not open`, error));
+        PAGES.watch(modPage, {
+            ended: closeWindows,
+            destroyed: closeWindows,
+            opens: (url, options) => openFrom(url, options),
+            leaves: (url) => openFrom(url),
+        });
+    }
+
+    // The mod in the page that sent this, by its id, held to being granted `permission` when one is named: refused at
+    // call.
+    function modFrom(page, permission = null) {
+        const id = deckit.mods.modOf(page);
+        if (!id) throw REQUEST.refusal('call', 'REFUSED', 'only a mod asks this');
+        if (permission && !grantedOf(page).includes(permission))
+            throw REQUEST.refusal('call', 'NOT_PERMITTED', `${id} does not have the ${permission} permission`);
+        return id;
+    }
+
+    // The ids of the permissions the run of the mod in the page holds, none for a page that runs no mod.
+    function grantedOf(page) {
+        const id = deckit.mods.modOf(page);
+        return (id && deckit.mods.runOf(id)?.granted) || [];
     }
 
     function listen() {
-        PROTOCOL.window.handle(({ name, url, title }, sender) =>
-            openWindow(sender, IDENTITY.modFrom(sender), name, url, title)
-        );
+        PROTOCOL.window.handle(({ name, url, title }, sender) => openWindow(sender, modFrom(sender), name, url, title));
         PROTOCOL.fetch.handle(({ name, ...request }, sender) =>
-            fetch(IDENTITY.modFrom(sender, WEB_PERMISSION.NETWORK), name, request)
+            fetch(modFrom(sender, WEB_PERMISSION.NETWORK), name, request)
         );
-        PROTOCOL.clear.handle(({ name }, sender) => clear(IDENTITY.modFrom(sender), name));
+        PROTOCOL.clear.handle(({ name }, sender) => clear(modFrom(sender), name));
         PROTOCOL.trust.handle(({ name, entries }, sender) =>
-            WEB.trust(IDENTITY.modFrom(sender, WEB_PERMISSION.CERTIFICATES).id, SESSION.nameOf(name), entries)
+            WEB.trust(modFrom(sender, WEB_PERMISSION.CERTIFICATES), SESSION.nameOf(name), entries)
         );
         PROTOCOL.allow.handle(({ name, entries }, sender) =>
-            change(IDENTITY.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS).id, SESSION.nameOf(name), entries, (key) =>
+            change(modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS), SESSION.nameOf(name), entries, (key) =>
                 granted.add(key)
             )
         );
         // A page already holding a stream keeps it, and one told "granted" keeps believing it: the mod reloads its
         // pages of that origin.
         PROTOCOL.revoke.handle(({ name, entries }, sender) =>
-            change(IDENTITY.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS).id, SESSION.nameOf(name), entries, (key) =>
+            change(modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS), SESSION.nameOf(name), entries, (key) =>
                 granted.delete(key)
             )
         );
@@ -194,29 +223,29 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
     // A session named is one the mod used, kept so its data goes with the mod.
     function use(modId, name) {
         SESSION.nameOf(name);
-        const sessions = STORAGE.state.read(SESSIONS, {});
+        const sessions = STATE.read(SESSIONS, {});
         if ((sessions[modId] || []).includes(name)) return;
         sessions[modId] = [...(sessions[modId] || []), name];
-        STORAGE.state.write(SESSIONS, sessions);
+        STATE.write(SESSIONS, sessions);
     }
 
-    function openWindow(modPage, mod, name, url, title) {
+    function openWindow(modPage, modId, name, url, title) {
         if (!mayShow(modPage, url, { inPage: false })) return 0;
-        use(mod.id, name);
-        const id = WEB.openWindow(modPage, { mod: mod.id, session: name, url, title });
+        use(modId, name);
+        const id = WEB.openWindow(modPage, { mod: modId, session: name, url, title });
         windows.set(id, modPage);
         return id;
     }
 
-    async function fetch(mod, name, request) {
+    async function fetch(modId, name, request) {
         if (!/^https?:\/\//i.test(request.url)) throw new Error('not a web address: ' + request.url);
-        use(mod.id, name);
-        return WEB.fetch(mod.id, name, request);
+        use(modId, name);
+        return WEB.fetch(modId, name, request);
     }
 
-    async function clear(mod, name) {
-        use(mod.id, name);
-        return WEB.clear(mod.id, name);
+    async function clear(modId, name) {
+        use(modId, name);
+        return WEB.clear(modId, name);
     }
 
     // The web anywhere. A file only in the mod's own page, and only for a mod with system.files, asked at each load so
@@ -224,7 +253,7 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
     function mayShow(modPage, url, { inPage }) {
         if (/^https?:\/\//i.test(url)) return true;
         if (!inPage || !/^file:\/\//i.test(url)) return false;
-        return !!IDENTITY.modOf(modPage)?.granted.includes(WEB_PERMISSION.FILES);
+        return grantedOf(modPage).includes(WEB_PERMISSION.FILES);
     }
 
     // What becomes of a web page `page` asked to load `to`, from `from`, where it is: `load`, `refuse`, or `leave`. A
@@ -243,17 +272,27 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
     // Only the mod's own sessions attach in its page: `session` is the one the page names, `{ mod, name }`, or null for
     // one that is no mod's.
     function attaching(modPage, session) {
-        const mod = IDENTITY.modOf(modPage);
-        if (session?.mod !== mod.id) return false;
-        use(mod.id, session.name);
+        const modId = deckit.mods.modOf(modPage);
+        if (session?.mod !== modId) return false;
+        use(modId, session.name);
         return true;
     }
 
-    // A web page is a page of its own: the chords taken work in it only when it is listened to, and what a person
-    // does in it is watched, as a window it opens takes a press.
+    // A web page is a page of its own: the chords taken work in it only when it is listened to, and the key and mouse
+    // presses in it are watched, as a window it opens takes a press. Main sees the input itself, so a page cannot claim
+    // it.
     function adopted(modPage, page) {
-        KEYMAP.listen(page);
-        IDENTITY.watchPresses(page);
+        deckit.keymap.listen(page);
+        PAGES.watchInput(page, ({ type }) => {
+            if (type === 'keydown' || type === 'mousedown' || type === 'mouseup') activated.set(page, Date.now());
+        });
+    }
+
+    // Whether a key or the mouse was just pressed in this web page, used up by the answer: one press, one act.
+    function consumeActivation(page) {
+        const fresh = Date.now() - (activated.get(page) || 0) < ACTIVATION_MS;
+        activated.delete(page);
+        return fresh;
     }
 
     // What a web page's window.open gets: a window of its own only in a window, or when it asks for one with features,
@@ -262,8 +301,8 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
     // A window a page asked for is a window of the app's when it asked for one or is in one; a tab's is handed to its
     // mod's page, which shows it. A file page's window to the web is no window of its session: its address is opened.
     function windowOpen(modPage, page, { url, tab, from, inPage, ownWindow, activates }) {
-        // A page opens what it opens during a person's click or key, as a browser blocks a popup otherwise.
-        if (!IDENTITY.consumeUserActivation(page)) return '';
+        // A page opens what it opens just after a key or mouse press in it, as a browser blocks a popup otherwise.
+        if (!consumeActivation(page)) return '';
         // An app's address opened as a window is the same question as one navigated to.
         if (!/^https?:\/\//i.test(url)) {
             mayOpenApp(modPage, tab, url, SITE.originOf(from)).then((ok) => ok && SYSTEM.url(url));
@@ -306,8 +345,8 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
             .map((key) => key.slice(prefix.length, -name.length - 1));
     }
 
-    // What a site asks: refused when it asks for nothing deckit names or for something it is never let have, let
-    // through when it is all it is let have without asking, and otherwise asked of the mod showing it.
+    // What a site asks: refused when it asks for nothing the web engine names or for something it is never let have,
+    // let through when it is all it is let have without asking, and otherwise asked of the mod showing it.
     function request(embedder, id, { origin, permissions }) {
         const rules = permissions.map(SITE_PERMISSION.ruleOf);
         if (!permissions.length || rules.some((rule) => rule === 'refuse' || rule === 'checked'))
@@ -365,8 +404,7 @@ export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: W
     }
 
     function decides(embedder) {
-        const mod = IDENTITY.modOf(embedder);
-        return !!mod && mod.granted.includes(WEB_PERMISSION.SITE_PERMISSIONS);
+        return grantedOf(embedder).includes(WEB_PERMISSION.SITE_PERMISSIONS);
     }
 
     function settle(id, allowed) {

@@ -1,6 +1,7 @@
-// What Electron gives deck and the shell in main (deckit-shell/environment: MAIN, SHELL): every page is WebKit's,
-// through the module beside the core, laid in the module's windows, and carries the messages; Electron runs the app,
-// its keys, menus and the system's services, the core is a child process, and the log a file of its own.
+// What Electron gives deck, the web engine and the shell in main (deckit-shell/environment: MAIN, WEB, SHELL): every
+// page is WebKit's, through the module beside the core, laid in the module's windows, and carries the messages;
+// Electron runs the app, its keys, menus and the system's services, the core is a child process, and the log a file of
+// its own.
 import * as LISTENER from '../listener/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';

@@ -48,11 +48,7 @@ async function main() {
         file: async (file, options) => opened.push(['file', file, options]) > 0,
         reveal: async (file) => opened.push(['reveal', file]) > 0,
     };
-    let sandboxed = null; // what opening sets a mod's page up with
-    const RUNNER = { onSandbox: (listener) => (sandboxed = listener) };
-    const watching = new Map(); // page -> what watches it
-    const pages = { watch: (page, watchers) => watching.set(page, watchers) };
-    const OPEN = createOpen({ LOG: { warn: () => {} }, IDENTITY, RUNNER, open: SYSTEM, pages });
+    const OPEN = createOpen({ IDENTITY, open: SYSTEM });
     OPEN.start();
 
     const ask = async (page, channel, payload) => {
@@ -151,18 +147,6 @@ async function main() {
         undecodedPlain
     );
 
-    // What a page opens by itself, a window or a link that leaves, goes the same way.
-    sandboxed(plain);
-    watching.get(plain).opens('https://example.org', { activates: true, target: 'x' });
-    watching.get(plain).leaves('file:///Users/me/a.txt');
-    await new Promise((resolve) => setImmediate(resolve));
-    check(
-        'what a page opens by itself opens as an address it asks to open',
-        opened.length === 1 && opened[0][1] === 'https://example.org/',
-        opened
-    );
-    opened.length = 0;
-
     const hidden = await ask(plain, 'deckit-shell:open-reveal', { file: '/Users/me/a.txt' });
     check('revealing takes system.file-handlers', !!hidden.error && !opened.length, { hidden, opened });
     const shown = await ask(files, 'deckit-shell:open-reveal', { file: '/Users/me/a.txt' });
@@ -186,7 +170,6 @@ async function main() {
         REQUEST: {},
         PERMISSION: {},
         MANIFEST_FIELD: {},
-        WEB: {},
         KEYMAP: {},
         MAIN_PROCESS: {},
         SETUP: {},

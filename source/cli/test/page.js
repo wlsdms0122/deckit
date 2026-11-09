@@ -1,8 +1,8 @@
 // What a page deckit makes is told as it starts (deckit-shell/deckit/setup), over a stand-in for the environment's
-// messages: a page that runs no mod by its name, and a mod's page its web sessions and the layers stacked over deckit
-// on it, each once and with what its setup answered for the mod, or null without one, so a host app that never
-// attaches the shell runs its mods with deckit's alone. Exits 1 with a line
-// for each check that failed. The packages are ES modules, so they are imported as such.
+// messages: a page that runs no mod by its name, and a mod's page the layers stacked over deckit on it, each once and
+// with what its setup answered for the mod, or null without one, so a host app that never attaches the shell runs its
+// mods with deckit's alone. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -27,15 +27,18 @@ async function main() {
         pageNameOf: (page) => page.name || null,
         modOf: (page) => (page.mod ? { id: page.mod } : null),
     };
-    const SETUP = createSetup({ IDENTITY, web: { sessionsOf: (mod) => `sessions of ${mod}` } });
+    const SETUP = createSetup({ IDENTITY });
     SETUP.start();
     const setup = (page) => heard.askedSync(page, { channel: 'deckit-shell:page-setup', payload: {} });
 
     const named = await setup(frame);
     check('a page that runs no mod is told its name', named.value?.page === 'panel', named);
     const before = await setup(modPage);
-    check("a mod's page is told its web sessions", before.value?.sessions === 'sessions of a', before);
-    check("a mod's page has no layer over deckit before one stacks", before.value?.layers?.length === 0, before);
+    check(
+        "a mod's page has no layer over deckit before one stacks, and is told nothing else",
+        before.value?.layers?.length === 0 && Object.keys(before.value).join() === 'layers',
+        before
+    );
     SETUP.stack('shell');
     SETUP.stack('shell', { setup: () => 'second' });
     SETUP.stack('sessions', { setup: (id) => ({ of: id }) });

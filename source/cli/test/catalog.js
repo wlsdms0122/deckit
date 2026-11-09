@@ -204,7 +204,6 @@ async function main() {
         REQUEST,
         PERMISSION: { define: () => {} },
         MANIFEST_FIELD: { define: () => {} },
-        WEB: {},
         KEYMAP: {},
         MAIN_PROCESS: { onChange: () => () => {}, restartPending: () => [] },
         SETUP: { stack: () => {} },

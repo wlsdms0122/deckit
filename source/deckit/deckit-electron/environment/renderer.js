@@ -1,8 +1,8 @@
-// What Electron gives deck on a page's side (deckit-shell/environment: PAGE): the page is WebKit's, through the module
-// in main, which carries the messages; what runs a mod's code runs in deckit's world, which the page's policy on
-// scripts leaves alone; a web page shown in the page, or in a surface it opened, is laid over an element that holds
-// its place (web/renderer.js); and the presses in a document's drag regions are taken by what draws there
-// (page/renderer.js).
+// What Electron gives deck and the web engine on a page's side (deckit-shell/environment: PAGE, WEB_PAGE): the page is
+// WebKit's, through the module in main, which carries the messages; what runs a mod's code runs in deckit's world,
+// which the page's policy on scripts leaves alone; a web page shown in the page, or in a surface it opened, is laid
+// over an element that holds its place (web/renderer.js); and the presses in a document's drag regions are taken by
+// what draws there (page/renderer.js).
 import * as ORIGIN from '../sandbox/model/origin.js';
 import { messages } from '../messages/renderer.js';
 import { createViews } from '../web/renderer.js';

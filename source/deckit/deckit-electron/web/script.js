@@ -1,4 +1,4 @@
-import * as SITE from '../../deckit-shell/deckit/web/model/site.js';
+import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 
 // What deckit runs in a web page: in the page's own world, the page's Notification, which deckit shows, and in
 // deckit's, which the page does not see, what tells deckit the page's icon and whether it plays sound, mutes it, and

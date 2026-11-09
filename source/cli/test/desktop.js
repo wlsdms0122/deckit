@@ -617,7 +617,6 @@ function desktopOver(createDesktop, { state = {} }) {
         config: { name: 'Deckit' },
         core: { onDown() {} },
         pages: { whenEnds() {} },
-        web: { pageFor: () => null },
         keymap: {
             listen() {},
             monitor: (handler) => (heard.monitor = handler),
@@ -663,6 +662,7 @@ function desktopOver(createDesktop, { state = {} }) {
         makeStage: () => stage,
         actionOnDoubleClick: () => 'zoom',
         deckit,
+        web: { pageFor: () => null },
         host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
     });
     desktop.start({

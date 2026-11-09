@@ -14,7 +14,7 @@ import * as REQUEST from '../request/index.js';
 
 // What deckit puts on the runner for a mod's page: the handle `deckit`, the runner's members and the layer's, the
 // lifecycle deckit calls, start() and stop(), and what a layer over deckit stacks a lifecycle of its own with.
-export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
+export function createMod({ NOTIFICATION, KEYMAP }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -93,10 +93,6 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
                     : '';
             return REQUEST.requestOf(name, { denied, signature }, send);
         };
-        const scoped =
-            (subscribe) =>
-            (...args) =>
-                scope.add(subscribe(...args));
         // A chord is guarded by the permission its scope names; a scope that names none, by either.
         const keyGuards = (options) => {
             const named = options?.scope ?? 'app';
@@ -120,7 +116,6 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
             ['options', 'object?', [['scope', 'string?']]],
         ];
         return {
-            web: WEB.forMod({ request, scoped }),
             util: Object.freeze({
                 match: MATCH.match,
                 matchFields: MATCH.matchFields,

@@ -9,10 +9,11 @@ import * as TOKEN from '../ui/token/index.js';
 import * as MODS from '../mods/index.js';
 import { createKey } from '../key/main.js';
 
-// `deckit` is what connect answered, `host` the app's answers, `REGION` the regions mods give their children, `PAGES`
-// the shell's pages, `OVERLAY` their overlays, `makeStage()` a stage to lay them on (environment: SHELL.stage) and
-// `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL).
-export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubleClick, deckit, host }) {
+// `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `host` the app's answers, `REGION`
+// the regions mods give their children, `PAGES` the shell's pages, `OVERLAY` their overlays, `makeStage()` a stage to
+// lay them on (environment: SHELL.stage) and `actionOnDoubleClick()` what the person set a double click on a title bar
+// to do (environment: SHELL).
+export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubleClick, deckit, web, host }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const FRAMES = 'window-frames';
@@ -355,7 +356,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     // or null.
     function modAt(page) {
         const owner = OVERLAY.ownerOf(page);
-        return deckit.mods.modOf(WINDOWS.pageOf(deckit.web.pageFor(owner) ?? owner));
+        return deckit.mods.modOf(WINDOWS.pageOf(web.pageFor(owner) ?? owner));
     }
 
     // The local seat's key window, or null.
@@ -530,7 +531,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     function pageOf(given) {
         const owner = OVERLAY.ownerOf(given);
         if (owner === desktop.page || [...desktop.surfaces.values()].includes(owner)) return desktop.page;
-        const held = deckit.web.pageFor(owner) ?? owner;
+        const held = web.pageFor(owner) ?? owner;
         return [...windows.values()].find(({ surface, page }) => surface === held || page === held)?.page ?? null;
     }
 

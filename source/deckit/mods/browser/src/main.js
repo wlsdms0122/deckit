@@ -53,7 +53,7 @@ class Browser {
         });
     }
 
-    attach(shell, deckit) {
+    attach(shell, deckit, { web }) {
         const { theme, ui } = shell;
         const { storage } = deckit;
         const { values, records } = storage;
@@ -72,8 +72,8 @@ class Browser {
         });
 
         // Files get a session of their own (system.files), so a file page never holds the web's cookies.
-        const webSession = deckit.web.session('web');
-        const filesSession = deckit.web.session('files');
+        const webSession = web.session('web');
+        const filesSession = web.session('files');
         const { bookmarks, certificates, sitePermissions } = store({ records, onBookmarksChange: showBookmarks });
         const editor = bookmarkEditor({ ui, bookmarks });
         // The content is the toolbar, the window's title bar, over the area of pages.
@@ -95,7 +95,7 @@ class Browser {
         const bar = toolbar({
             theme,
             ui,
-            trailing: downloadList({ theme, ui, downloads: deckit.web.downloads }).element,
+            trailing: downloadList({ theme, ui, downloads: web.downloads }).element,
             onBack: goBack,
             onForward: goForward,
             onReload: reload,

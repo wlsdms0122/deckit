@@ -1,6 +1,6 @@
 # Writing a mod
 
-A mod is a manifest and one entry, and the entry exports one class. deck reads the manifest, runs the entry in a sandbox of the mod's own, and makes one instance of the class for the run. Two lifecycles are stacked on that instance. deckit calls `start(deckit)` on every host app, and the mod registers there what it does: keys, commands, a handler for the addresses it asks for, and exports for the mods that depend on it. Where a UI shell draws mods, deckit's shell then calls `attach(shell, deckit)` on the same instance, and the mod registers there what it shows: a view, a window, styles for other mods' pages, and the keys, actions and handlers that work on what it shows. A host app with no UI shell, or with a shell that only manages mods, never calls `attach`, and the mod runs on what `start` registered. Every method is optional, so a mod with only `start` is headless, and one with only `attach` only draws. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
+A mod is a manifest and one entry, and the entry exports one class. deck reads the manifest, runs the entry in a sandbox of the mod's own, and makes one instance of the class for the run. Two lifecycles are stacked on that instance. deckit calls `start(deckit, frameworks)` on every host app, and the mod registers there what it does: keys, commands, a handler for the addresses it asks for, and exports for the mods that depend on it. Where a UI shell draws mods, deckit's shell then calls `attach(shell, deckit, frameworks)` on the same instance, and the mod registers there what it shows: a view, a window, styles for other mods' pages, and the keys, actions and handlers that work on what it shows. A host app with no UI shell, or with a shell that only manages mods, never calls `attach`, and the mod runs on what `start` registered. Every method is optional, so a mod with only `start` is headless, and one with only `attach` only draws. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
 
 How the folder is laid out is the mod's own. The folder's name says nothing; the manifest says who the mod is, and its `main` names the entry:
 
@@ -183,10 +183,12 @@ module.exports = Calendar;
 
 | Member | Read or called by | What it is |
 |---|---|---|
-| `start(deckit)` | deckit | the function lifecycle starts: it registers what the mod does; may be async, and the run waits for it |
+| `start(deckit, frameworks)` | deckit | the function lifecycle starts: it registers what the mod does; may be async, and the run waits for it |
 | `stop()` | deckit | the function lifecycle ends, with the run |
-| `attach(shell, deckit)` | deckit's shell | the screen lifecycle starts, once `start` has ended: it registers what the mod shows; may be async |
+| `attach(shell, deckit, frameworks)` | deckit's shell | the screen lifecycle starts, once `start` has ended: it registers what the mod shows; may be async |
 | `detach()` | deckit's shell | the screen lifecycle ends, before `stop()` |
+
+`frameworks` is a frozen table, by name, of the handles the frameworks the host app stacks hand every lifecycle, each made for that lifecycle: `web`, the mod's web sessions and downloads, where the host app puts the web engine on deckit, as Deckit.app does (web, below), read as `start(deckit, { web })` and `attach(shell, deckit, { web })`; `{}` on a host app with none, where `web` is `undefined`.
 
 Each layer reads only the members it knows, and every one is optional. What is listed and shown of a mod that does not run (its view, icon, keywords, configuration and form) is declared in its contributes, not in the class. The class may have any other member it likes: no layer reads it, and none catches a misspelt `detatch`. Share state between the methods through `this`.
 
@@ -194,7 +196,7 @@ Each layer reads only the members it knows, and every one is optional. What is l
 
 | | Function lifecycle | Screen lifecycle |
 |---|---|---|
-| Methods | `start(deckit)`, `stop()` | `attach(shell, deckit)`, `detach()` |
+| Methods | `start(deckit, frameworks)`, `stop()` | `attach(shell, deckit, frameworks)`, `detach()` |
 | Called by | deckit, on every host app | deckit's shell, only where it draws mods |
 | What goes in it | what must happen on a host app with no UI: commands a CLI runs by name, exports that work with no UI, what it hands a dependency that does a job, reminders and notifications, `app` and `global` keys that do a job | what exists to be shown: the view or window, styles, `local` keys, keys and handlers that bring something on screen, exports that mean something only on screen, switcher actions and Settings buttons |
 | If it throws | the run does not start: the mod is broken | only the screen lifecycle ends, and the run goes on with what `start` registered |
@@ -209,7 +211,7 @@ If `attach` throws, or what deckit's shell does to the page as the screen lifecy
 
 ### What a lifecycle's handles make
 
-Each method that starts a lifecycle receives handles of its own: the `deckit` that `attach` receives has the members of the one `start` received, with its own `dependencies`, and registers into the screen lifecycle. What a handle makes that calls back into the mod's code is cut as its lifecycle ends, without the mod undoing it: registrations; `events.on`, `configuration.on`, `keys.onChange`, `commands.onChange`, `mods.onChange` and `dependencies.onConnect`; `notifications.show`'s `onPress`; the `on` of a main process module's methods; `shell.theme.onChange` and `children.onChange`; regions, drop destinations, `shell.web` pages and windows, the window, and the view. A view or window on screen disappears first (`didDisappear`), then the end method runs, then the rest is cut, and then the lifecycle's connections end (Dependencies and connections). What the mod makes itself (an emitter of its own, a timer, a listener on the DOM) it undoes in `detach` or `stop` when it would call back into a lifecycle that has ended. A main process module started in `attach` ends with the run.
+Each method that starts a lifecycle receives handles of its own: the `deckit` that `attach` receives has the members of the one `start` received, with its own `dependencies`, and registers into the screen lifecycle, and each receives a `web` of its own. What a handle makes that calls back into the mod's code is cut as its lifecycle ends, without the mod undoing it: registrations; `events.on`, `configuration.on`, `keys.onChange`, `commands.onChange`, `mods.onChange` and `dependencies.onConnect`; `notifications.show`'s `onPress`; `web.downloads.onChange`; the `on` of a main process module's methods; `shell.theme.onChange` and `children.onChange`; regions, drop destinations, `shell.web` pages and windows, the window, and the view. A view or window on screen disappears first (`didDisappear`), then the end method runs, then the rest is cut, and then the lifecycle's connections end (Dependencies and connections). What the mod makes itself (an emitter of its own, a timer, a listener on the DOM) it undoes in `detach` or `stop` when it would call back into a lifecycle that has ended. A main process module started in `attach` ends with the run.
 
 ### Registering
 
@@ -326,7 +328,6 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `quit()` | ends the mod's own run (Running and quitting, below) |
 | `configuration` | above |
 | `storage` | below |
-| `web` | `web.session(name)` and `web.downloads`, below |
 | `commands` | `register(commands)`; `tokens`, `mint(command, args)`, `run(token)`, `cancel(token)` and `release(token)` (Command tokens, below); with `deckit.command-registry`: `list()`, `[{ provider, command, description, params }]`, the app's commands first, then the mods' in their order, `provider` the id of what declared and runs one: a mod's, or a host's `@` name; `run({ provider, command }, args)`, which resolves to the command's result or null and rejects with why it did not run; `complete({ provider, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
 | `keys` | `register(keys)`; `chordOf(name, { provider })`, the chord one of the mod's keys is bound to now, or `''`, and with `provider`, a key of that mod or host; with `deckit.keymap`: `list`, `bind`, `reset`, `record`, `onChange`, where `bind` gives a key the chord a person chose, as Settings does; `list` answers at once, `onChange` returns the unsubscribe |
 | `urls` | `register(handler)`; `open(url, { activates, usesDefaultApp, target })`, which offers an address to the handlers its patterns match in turn, then deckit's own answer (`urls`, above), and resolves to whether anything opened it. A `file://` address goes anywhere only with `system.file-handlers`, and otherwise resolves `false`; a web address goes to the default browser with no permission. With `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, undecided, handlers }` at once, `undecided` its undecided patterns as written, `handlers` in the order Settings shows (`urls`, above), a handler `{ id, name, patterns, on }`; `set(scheme, { order, off })`, which gives the handlers in `order` the places they held among themselves in the scheme's list, in the order given, puts those placed it does not name after them, and switches off those in `off`, as the person's; `everyScheme`, the name of the list for every scheme |
@@ -350,23 +351,6 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 
 - `storage.values`: `get(key, fallback)`, `set(key, value)`, `remove(key)`. Small state that costs a click to lose (a fold, a width), in the sandbox's own storage. `set` throws `QUOTA_EXCEEDED` once that storage has no room.
 - `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by deckit's core. `get` and `keys` are synchronous, and `get` answers a copy: change it and `set` it to keep the change. `set` and `remove` resolve once written, and a write that fails rejects with its refusal, `QUOTA_EXCEEDED` once the disk has no room. A key is lower case letters, digits, `.`, `_` and `-`, starting with a letter or a digit, at most 64: it names a file, and a Mac's disk is blind to case; any other is refused `INVALID_ARGUMENT`. Both take values alone: strings, numbers, booleans, and arrays and plain tables of them, with no null among them.
-
-### web.session(name)
-
-A web session of the mod's own, kept across restarts: `{ name, clear() }`, and with permissions `fetch(input, init)`, `trust([{ host, fingerprint }])`, `allow([{ origin, permission }])` and `revoke(entries)`. Its pages share its cookies and nobody else's. A session does its work with no UI; its pages are shown by `shell.web`.
-
-`fetch` takes what a page's `fetch` takes and resolves to a `Response`, with its `url` and `redirected`, sent as the session's pages send it: with the session's cookies, whatever `credentials` says, and its pages' user agent, the cookies the answers set kept in the session. It heeds `redirect` and `signal`, sends only to `http` and `https` addresses, and rejects an answer over 4 MB. It runs no script of what it is answered: a page that goes on only once its scripts run stops it there.
-
-### web.downloads
-
-What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on, once the page's delegate lets it (`shouldDownload`); one it does not is not listed, and one that fails before it can be asked is listed as `failed`, named for its address. Deckit keeps the mod's last 100 downloads, and any older one still under way, across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
-
-- `list()` resolves to the downloads.
-- `onChange(listener)` hears a download each time it changes, a new one first, and returns its off.
-- `cancel(id)` stops one under way.
-- `remove(id)` forgets one, stopping it first if it is under way, and resolves to whether there was one. The file stays.
-- `reveal(id)`, with `system.file-handlers`, shows its file in Finder and resolves to whether it was there.
-- `open(id)`, with `system.file-handlers`, opens a finished one's file in its app and resolves to whether it opened.
 
 ### mods
 
@@ -405,6 +389,27 @@ With `deckit.mods`: `list`, `pick`, `planInstall`, `install`, `remove`, `relaunc
 
 A mod says what happened to it, for whoever cares, as events. `deckit.events.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. The owner of an interface also sends the interface's signals, named after it: `emit('deckit/notifications:posted', id)` from the owner is `deckit/notifications:posted`, and from any other mod is named after that mod. The names deck sends of an interface, `<interface>:owner-changed` and `<interface>:contributions-changed`, are deck's own: the owner's `emit` of one throws its refusal, `NOT_PERMITTED`, and is not sent. `deckit.events.on('<mod id>:<name>', listener)` hears one and returns its off. A mod hears only the names it may hear: its own id, any mod's id when it is granted `deckit.reach-mods`, and an interface it uses or provides, whose signals (`<interface>:owner-changed`) are named after it; `on` with any other name is refused. Values are copied, and only values cross (strings, numbers, booleans, arrays and plain tables of them): `emit` of an event that holds anything else, a function or a null among it, throws its refusal, `INVALID_ARGUMENT`, and sends nothing. Listening to a dependency, optional or not, waits for nothing: a mod's events go out while it launches and runs, from when its code starts until it terminates, and nothing arrives from one that does neither.
 
+## web
+
+What every lifecycle receives as `web` in its `frameworks`, where the host app puts the web engine on deckit: `session(name)` and `downloads`, below. It runs with no UI, as `deckit` does; the pages of its sessions are shown by `shell.web`.
+
+### web.session(name)
+
+A web session of the mod's own, kept across restarts: `{ name, clear() }`, and with permissions `fetch(input, init)`, `trust([{ host, fingerprint }])`, `allow([{ origin, permission }])` and `revoke(entries)`. Its pages share its cookies and nobody else's. A session does its work with no UI; its pages are shown by `shell.web`.
+
+`fetch` takes what a page's `fetch` takes and resolves to a `Response`, with its `url` and `redirected`, sent as the session's pages send it: with the session's cookies, whatever `credentials` says, and its pages' user agent, the cookies the answers set kept in the session. It heeds `redirect` and `signal`, sends only to `http` and `https` addresses, and rejects an answer over 4 MB. It runs no script of what it is answered: a page that goes on only once its scripts run stops it there.
+
+### web.downloads
+
+What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on, once the page's delegate lets it (`shouldDownload`); one it does not is not listed, and one that fails before it can be asked is listed as `failed`, named for its address. The web engine keeps the mod's last 100 downloads, and any older one still under way, across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
+
+- `list()` resolves to the downloads.
+- `onChange(listener)` hears a download each time it changes, a new one first, and returns its off.
+- `cancel(id)` stops one under way.
+- `remove(id)` forgets one, stopping it first if it is under way, and resolves to whether there was one. The file stays.
+- `reveal(id)`, with `system.file-handlers`, shows its file in Finder and resolves to whether it was there.
+- `open(id)`, with `system.file-handlers`, opens a finished one's file in its app and resolves to whether it opened.
+
 ## shell
 
 What `attach` receives as `shell`, from deckit's shell (the panel and the kit). A shell of another host app that calls `attach` gives the same.
@@ -436,7 +441,7 @@ A mod's view is shown in another's when that one gives a place in its view for a
 
 ### web
 
-`shell.web` shows the pages of a session `deckit.web.session(name)` gave:
+`shell.web` shows the pages of a session `web.session(name)` gave:
 
 - `web.page({ session, url })` shows a web page the way a browser tab does, in the mod's view.
 - `web.window({ session, url, title })` shows one in a window of its own, for a step taken and finished, such as signing in.
@@ -471,8 +476,8 @@ Each launch of a mod's entry is a run, and a run is in one of four states:
 
 | State | What happens |
 |---|---|
-| `launching` | its sandbox loads and the entry is evaluated; once what it requires runs, the instance is made and `start(deckit)` registers, and starts main process modules if it needs them |
-| `running` | `start` has ended and deck has joined what it registered. Where a UI shell draws mods, `attach(shell, deckit)` runs then, and what it registered joins as it ends; a view, if it registered one, is in the panel: didAppear and didDisappear |
+| `launching` | its sandbox loads and the entry is evaluated; once what it requires runs, the instance is made and `start(deckit, frameworks)` registers, and starts main process modules if it needs them |
+| `running` | `start` has ended and deck has joined what it registered. Where a UI shell draws mods, `attach(shell, deckit, frameworks)` runs then, and what it registered joins as it ends; a view, if it registered one, is in the panel: didAppear and didDisappear |
 | `terminating` | `detach()` then `stop()` are asked: quit by the mod or the person, removed, updated, the app quitting, restarted from Settings, a mod it requires ending, or `start` failed. An end asked while its start is still going runs at once |
 | `notRunning` | it ended: each end answered or its time ran out, or its page went away |
 

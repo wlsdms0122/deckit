@@ -1,8 +1,9 @@
-// The web pages a mod shows (deckit-shell/deckit/web) over a stand-in for the environment's web: what loads in them,
-// the mod's page a web page answers to, which sessions attach and are kept, a mod's windows closing with its document,
-// what a web page's window.open gets, what a site may have and the question put to the mod showing it, a site's
-// notifications, and a mod's tabs held to the mod. Exits 1 with a line for each check that failed. The packages are ES
-// modules, so they are imported as such.
+// The web engine in main (deckit-shell/web/engine) on a stand-in for what connect answers and for the environment's
+// web: what loads in web pages, the mod's page a web page answers to, which sessions attach and are kept, a mod's
+// windows closing with its document, what a mod's page opens by itself opened for the mod, what a web page's
+// window.open gets, what a site may have and the question put to the mod showing it, a site's notifications, and a
+// mod's tabs held to the mod. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -10,7 +11,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
-    const { createWeb } = await import(url('deckit-shell', 'deckit', 'web', 'main.js'));
+    const { createWeb } = await import(url('deckit-shell', 'web', 'engine', 'main.js'));
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const ENVIRONMENT = await import(url('deckit-shell', 'environment', 'index.js'));
     const failed = [];
@@ -38,32 +39,16 @@ async function main() {
         [filesPage, files],
         [plainPage, plain],
     ]);
-    const activated = new Set();
-    const IDENTITY = {
-        modOf: (page) => mods.get(page) || null,
-        pageNameOf: () => null,
-        modFrom: (page, permission = null) => {
-            const mod = mods.get(page);
-            if (permission && !mod.granted.includes(permission)) throw new Error('refused');
-            return mod;
-        },
-        consumeUserActivation: (page) => activated.delete(page),
-        watchPresses: () => {},
-        pageOf: (modId) => [...mods].find(([, mod]) => mod.id === modId)?.[0] || null,
-    };
-    const KEYMAP = { listen: () => {} };
     // A download still under way as Deckit quit, kept from the run before.
     const state = {
         'web-downloads': {
             plain: [{ id: 'quit', url: 'https://a.com/q.zip', name: 'q.zip', path: '/D/q.zip', state: 'downloading' }],
         },
     };
-    const STORAGE = {
-        // Kept as text, as the core keeps it: each read is a copy of its own.
-        state: {
-            read: (key, fallback) => (key in state ? JSON.parse(JSON.stringify(state[key])) : fallback),
-            write: (key, value) => (state[key] = JSON.parse(JSON.stringify(value))),
-        },
+    // Kept as text, as the core keeps it: each read is a copy of its own.
+    const STATE = {
+        read: (key, fallback) => (key in state ? JSON.parse(JSON.stringify(state[key])) : fallback),
+        write: (key, value) => (state[key] = JSON.parse(JSON.stringify(value))),
     };
     // Web pages by id: 7 is a tab of files' page, 8 one of plain's.
     const tab = { id: 7, embedder: filesPage };
@@ -99,13 +84,17 @@ async function main() {
         stateOf: () => null,
         cancelDownload: (id) => done.push(['cancelDownload', id]),
     };
+    const inputs = new Map(); // page -> what hears the input to it
     const pages = {
         isGone: () => false,
         watch: (page, watchers) => {
             watching.set(page, watchers);
             return () => watching.delete(page);
         },
+        watchInput: (page, listener) => inputs.set(page, listener),
     };
+    // A key or mouse press in a web page, as the environment tells it.
+    const press = (page, type = 'mousedown') => inputs.get(page)({ type });
     const opened = [];
     const open = {
         appFor: (address) => (address.startsWith('zoommtg:') ? 'zoom.us' : ''),
@@ -113,14 +102,33 @@ async function main() {
         reveal: (file) => opened.push(['reveal', file]) > 0,
         file: async (file) => opened.push(['file', file]) > 0,
     };
-    let sandboxed = null; // what the web sets a mod's page up with
-    const RUNNER = { onSandbox: (listener) => (sandboxed = listener) };
-    let eraser = null; // what the web erases a mod removed with its data with
-    const MODS = { onErase: (given) => (eraser = given) };
-    const WEB = createWeb({ LOG: { info: () => {} }, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web, pages, open });
+    let sandboxed = null; // what the web engine sets a mod's page up with
+    let eraser = null; // what the web engine erases a mod removed with its data with
+    const externals = []; // [mod id, address, options]: what was opened outside the app for a mod
+    let refuseExternal = null; // why opening outside the app is refused, while it is
+    const warned = [];
+    // What connect answers, as the web engine reaches it: a run's facts by mod id, its page the mod's page.
+    const runs = () => [...mods].map(([page, mod]) => ({ run: { mod: { id: mod.id }, granted: mod.granted }, page }));
+    const deckit = {
+        channels: IPC.layerChannels,
+        log: { info: () => {}, warn: (...args) => warned.push(args) },
+        mods: {
+            modOf: (page) => mods.get(page)?.id ?? null,
+            runOf: (id) => runs().find(({ run }) => run.mod.id === id)?.run ?? null,
+            runs,
+            onErase: (given) => (eraser = given),
+            openExternal: async (id, address, options) => {
+                if (refuseExternal) throw refuseExternal;
+                externals.push([id, address, options]);
+            },
+        },
+        pages: { nameOf: () => null, onSandbox: (listener) => (sandboxed = listener) },
+        keymap: { listen: () => {} },
+    };
+    const WEB = createWeb({ deckit, state: STATE, web, pages, open });
     WEB.start();
     check(
-        'deckit hands the web all it declares',
+        'the web engine hands the web all it declares',
         ENVIRONMENT.missingIn(listened, ENVIRONMENT.WEB_DECK).length === 0,
         ''
     );
@@ -176,7 +184,7 @@ async function main() {
     );
 
     // A window a mod asked for closes with the document that asked.
-    sandboxed(filesPage);
+    sandboxed(filesPage, 'files');
     heard.asked(filesPage, {
         channel: 'deckit-shell:web-window',
         payload: { name: 'web', url: 'https://a.com', title: '' },
@@ -189,6 +197,28 @@ async function main() {
         done
     );
 
+    // What a mod's page opens by itself, a window or an address its document leaves for, is opened outside the app for
+    // the mod, as its own openExternal opens it, and what is refused is only logged.
+    sandboxed(plainPage, 'plain');
+    watching.get(plainPage).opens('https://example.org', { activates: false, target: 'x' });
+    watching.get(plainPage).leaves('https://example.net');
+    await tick();
+    check(
+        "what a mod's page opens by itself is opened outside the app for the mod, as asked to bring it forward",
+        JSON.stringify(externals) ===
+            '[["plain","https://example.org",{"activates":false}],["plain","https://example.net",{}]]',
+        externals
+    );
+    refuseExternal = Object.assign(new Error('plain does not have system.file-handlers'), { kind: 'NOT_PERMITTED' });
+    watching.get(plainPage).leaves('file:///Users/me/a.txt');
+    await tick();
+    refuseExternal = null;
+    check(
+        'what is refused opening is logged, and nothing more',
+        externals.length === 2 && warned.length === 1 && String(warned[0][0]).includes('file:///Users/me/a.txt'),
+        [externals, warned]
+    );
+
     // A web page's window.open.
     const asked = (fields) => ({
         url: 'https://a.com',
@@ -199,20 +229,28 @@ async function main() {
         activates: true,
         ...fields,
     });
+    listened.adopted(filesPage, tab);
     check('without a press nothing opens', listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');
-    activated.add(tab);
+    press(tab, 'keyup');
+    check('a key let go is no press', listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');
+    press(tab);
     check(
         'a window page opens a window',
         listened.windowOpen(filesPage, tab, asked({ inPage: false })) === 'window',
         ''
     );
-    activated.add(tab);
+    check(
+        'a press opens one window, used up by it',
+        listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '',
+        ''
+    );
+    press(tab, 'keydown');
     check(
         'a tab asking for a window with features gets one',
         listened.windowOpen(filesPage, tab, asked({ ownWindow: true })) === 'window',
         ''
     );
-    activated.add(tab);
+    press(tab, 'keydown');
     check("a tab's window is handed to its mod's page", listened.windowOpen(filesPage, tab, asked({})) === 'page', '');
     listened.opened(filesPage, 7, 9, { url: 'https://a.com', activates: true });
     const handed = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
@@ -221,7 +259,7 @@ async function main() {
         handed?.id === 7 && handed.page === 9 && handed.url === 'https://a.com',
         handed
     );
-    activated.add(tab);
+    press(tab, 'keydown');
     const fileOpens = listened.windowOpen(filesPage, tab, asked({ from: 'file:///a.html', inPage: false }));
     const fileOpening = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
     check(
@@ -231,7 +269,7 @@ async function main() {
     );
 
     // The question put to the mod showing a site.
-    activated.add(tab);
+    press(tab, 'keydown');
     listened.windowOpen(filesPage, tab, asked({ url: 'zoommtg://join' }));
     await tick();
     const app = toldOn('deckit-shell:web-asking').at(-1)?.[1].payload;
@@ -247,7 +285,7 @@ async function main() {
     await tick();
     check('an app allowed opens', opened.at(-1) === 'zoommtg://join', opened);
     const before = toldOn('deckit-shell:web-asking').length;
-    activated.add(tab);
+    press(tab, 'keydown');
     listened.windowOpen(filesPage, tab, asked({ url: 'javascript:alert(1)' }));
     await tick();
     check('a scheme that never leaves is never asked', toldOn('deckit-shell:web-asking').length === before, '');
@@ -308,7 +346,7 @@ async function main() {
         ''
     );
     check(
-        'a site is refused what deckit does not name',
+        'a site is refused what the web engine does not name',
         listened.permits(session, 'https://b.com', 'midi') === false,
         ''
     );
@@ -325,7 +363,7 @@ async function main() {
         listened.permitted(session, 'notifications')
     );
     check(
-        'a request for nothing deckit names, or for what is never let, is refused without asking',
+        'a request for nothing the web engine names, or for what is never let, is refused without asking',
         (await listened.request(filesPage, 7, { origin: 'https://a.com', permissions: [] })) === false &&
             (await listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['camera', 'midi'] })) ===
                 false,

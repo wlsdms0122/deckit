@@ -6,9 +6,9 @@
         "./renderer.js": "./renderer.js",
         "./deckit/contract/index.js": "./deckit/contract/index.js",
         "./environment/index.js": "./environment/index.js",
-        "./deckit/web/model/session.js": "./deckit/web/model/session.js",
-        "./deckit/web/model/site-permission.js": "./deckit/web/model/site-permission.js",
-        "./deckit/web/model/site.js": "./deckit/web/model/site.js"
+        "./web/engine/model/session.js": "./web/engine/model/session.js",
+        "./web/engine/model/site-permission.js": "./web/engine/model/site-permission.js",
+        "./web/engine/model/site.js": "./web/engine/model/site.js"
     },
     "dependencies": {}
 }

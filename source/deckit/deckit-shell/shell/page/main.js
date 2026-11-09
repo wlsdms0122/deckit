@@ -3,8 +3,9 @@ const PAGE_NAME = /^[a-z][a-z0-9-]*$/;
 
 // The pages that run no mod, which the shell's UI draws, and what any page of deck's is to the UI: a token it keeps and
 // hands back, never reads. A page it makes is told deck as the host app's, by its name. `deckit` is what connect
-// answered, and `pages` what the environment makes and tells of a page (environment: SHELL.pages).
-export function createPage({ deckit, pages }) {
+// answered, `web` what the web engine answered (`pageFor`), and `pages` what the environment makes and tells of a page
+// (environment: SHELL.pages).
+export function createPage({ deckit, web, pages }) {
     // MARK: - Property
     // A page -> { allowed: surface name -> onOpen(surface), opened: surface name -> its page, while it is there }
     const openable = new WeakMap();
@@ -83,7 +84,7 @@ export function createPage({ deckit, pages }) {
     // is refused.
     function known(page) {
         if (deckit.pages.nameOf(page) || deckit.mods.modOf(page) || surfacePages.has(page)) return;
-        if (deckit.web.pageFor(page)) return;
+        if (web.pageFor(page)) return;
         throw new Error(
             "[deckit] it takes a page of deck's: a mod's, one that runs none, a surface one opened or a web page a mod's shows"
         );

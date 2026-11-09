@@ -282,7 +282,6 @@ function windowsOver(createWindows) {
         },
         keymap: { listen: (page) => listened.push(page) },
         pages: { whenEnds: (page, listener) => endListeners.set(page, listener) },
-        web: { pageFor: (page) => (modOf.has(page) ? page : (webOf.get(page) ?? null)) },
     };
     const PAGES = {
         allowSurface: (_page, name, onOpen) => allowed.set(name, onOpen),
@@ -332,6 +331,7 @@ function windowsOver(createWindows) {
     };
     const windows = createWindows({
         deckit,
+        web: { pageFor: (page) => (modOf.has(page) ? page : (webOf.get(page) ?? null)) },
         PAGES,
         OVERLAY,
         DESKTOP,
