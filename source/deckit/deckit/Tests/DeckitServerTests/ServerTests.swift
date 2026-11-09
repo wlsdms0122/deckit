@@ -29,8 +29,8 @@ struct ServerTests {
     }
 
     // MARK: - Test
-    @Test("initialize answers where deck keeps the mods it installed and their data folders")
-    func initializeAnswersFolders() throws {
+    @Test("initialize answers where deck keeps the mods it installed, their data folders and how long a run is given")
+    func initializeAnswersFoldersAndTimeout() throws {
         // Given
         // When
         let response = try send(initializeRequest, to: sut)
@@ -38,6 +38,7 @@ struct ServerTests {
         // Then
         #expect(value(in: response, at: "result", "mods") == .string(home + "/mods"))
         #expect(value(in: response, at: "result", "data") == .string(home + "/data"))
+        #expect(value(in: response, at: "result", "timeout") == (try json(#"{"launch":20,"end":5}"#)))
     }
 
     @Test("a call before initialize is refused")

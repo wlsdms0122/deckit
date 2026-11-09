@@ -16,6 +16,7 @@ public final class Deckit {
     // The state the layers above keep, each its own.
     public let state: State
     public let runs: RunTable
+    public let timeout: RunTimeout
     // A mod at the relaunch limit launches again only as its launch is asked.
     private var limit: RelaunchLimit
     // Interface -> what the mods declare to it, as the runs were last told.
@@ -50,7 +51,8 @@ public final class Deckit {
     // `home` is deckit's folder, `ship` the mods the app ships, and `sources` folders of mods read in place. A manifest
     // is read against `api`, the mod contract the mods are run with, deckit's own permissions and `permissions`, those
     // the layers the driver runs define, and `fields`, the names of the fields the layers add to the manifest, whose
-    // values it carries for them. `limit` is how often a mod's runs may fail, `now` the time a run fails at.
+    // values it carries for them. `limit` is how often a mod's runs may fail, `timeout` how long a run is given, `now`
+    // the time a run fails at.
     public init(
         home: URL,
         ship: [ShippedMod],
@@ -59,6 +61,7 @@ public final class Deckit {
         permissions: [Permission],
         fields: [String] = [],
         limit: RelaunchLimit = RelaunchLimit(burst: 5, interval: 10),
+        timeout: RunTimeout = RunTimeout(launch: 20, end: 5),
         now: @escaping () -> Date = Date.init
     ) throws {
         let store = Store()
@@ -87,6 +90,7 @@ public final class Deckit {
         self.state = state
         self.runs = runs
         self.limit = limit
+        self.timeout = timeout
         self.now = now
     }
 

@@ -89,7 +89,11 @@ final class Server {
             )
             self.deckit = deckit
 
-            return InitializeResult(mods: deckit.catalog.folder, data: deckit.deck.dataFolder.folder)
+            return InitializeResult(
+                mods: deckit.catalog.folder,
+                data: deckit.deck.dataFolder.folder,
+                timeout: deckit.timeout
+            )
         }
 
         guard let deckit else {
