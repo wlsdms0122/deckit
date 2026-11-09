@@ -7,8 +7,8 @@ const PLACES = ['forge', 'forgeConfig'];
 // hands the process that starts it, and runs forge's operations on them. Starting, stopping and restarting a daemon
 // are commands too, run from the exports for its id. It has no view.
 class Forge {
-    async start(deckit) {
-        const forge = await deckit.mainProcess('main-process/forge.js');
+    async start(deckit, { mainProcess }) {
+        const forge = await mainProcess.start('main-process/forge.js');
 
         // Where forge is, as `deckit/configuration` says: read once it is connected, and again as one changes.
         deckit.dependencies.onConnect('deckit/configuration', async (configuration) => {

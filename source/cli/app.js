@@ -16,8 +16,8 @@ function builtArchive() {
 }
 
 // The archive unpacked into `to`/deckit, the app's own files beside it, and the preload every deckit page loads with:
-// the renderer bundles, then what Electron gives the page, handed to the shell's start, in a function of its own, so
-// what the bundles declare stays in it.
+// the renderer bundles, then what Electron gives the page, handed to the shell's start with the main process modules'
+// layer, in a function of its own, so what the bundles declare stays in it.
 function assemble(archive, to) {
     const order = require(path.join(APP, 'bundle.js'));
     fs.rmSync(to, { recursive: true, force: true });
@@ -38,7 +38,7 @@ function assemble(archive, to) {
             'const before = new Set(Object.keys(globalThis));',
             ...order.preload.map(read),
             `const environment = ${built.bundles.renderer.global}.boot({ before });`,
-            `if (environment) ${built.bundles['shell-renderer'].global}.start(environment);`,
+            `if (environment) ${built.bundles['shell-renderer'].global}.start(environment, { layers: ${built.bundles.renderer.global}.LAYERS });`,
             '})();',
         ].join('\n;\n') + '\n'
     );

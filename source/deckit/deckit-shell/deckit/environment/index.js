@@ -3,7 +3,7 @@ import * as CHANNEL from '../channel/index.js';
 // What an environment gives deckit, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deckit reaches the core, the files and
 // the log, the pages a mod runs in, the app starting and quitting, what deckit does through the system for a mod (keys,
-// opening, notifications, the clipboard, a folder chosen, main process modules), and what only the environment knows:
+// opening, notifications, the clipboard, a folder chosen), and what only the environment knows:
 // the person's home folder and what runs deckit. An environment gives at least this, and each is handed what it is
 // checked against alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a
 // list read.
@@ -96,32 +96,6 @@ const MAIN = Object.freeze({
     // chooseFolders({ title, buttonLabel, message, multiple }) -> Promise of the folders the person chose, one unless
     // `multiple`, none when they chose none
     dialogs: { chooseFolders: 'function' },
-    // A mod's main process modules, which the environment runs, deckit saying which mod starts what and when. A mod is
-    // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
-    mainProcess: {
-        // start(mod, path, handed) -> Promise of { path, methods }: the module, started once in a run, handed what
-        // `handed(path)` answers for its path relative to the mod's folder, and what the environment adds of its own
-        start: 'function',
-        // call(modId, path, method, args) -> Promise of what the method answered, refused with kind `NOT_STARTED` for
-        // a module not started in this run
-        call: 'function',
-        launching: 'function', // launching(mod): its run is about to launch
-        // ended(mod, { within }) -> Promise, settled once they have: its run ended, and its modules end with it, each
-        // given `within` ms to finish starting and to dispose
-        ended: 'function',
-        removed: 'function', // removed(modId, { running }): the mod was taken away, its run not ended when `running`
-        // installed(modId) -> Promise of { restart }: the mod installed again, once what ran in its place has ended,
-        // `restart` whether only a restart of the app brings its modules up to date
-        installed: 'function',
-        // stateOf(modId) -> { running, failure }: whether a module of its runs, and why those that did not start did
-        // not, or null
-        stateOf: 'function',
-        onChange: 'function', // onChange(listener()) -> off: what `stateOf` or `restartPending` answer may have changed
-        // restartPending() -> [{ id, why }]: the mods whose modules only a restart of the app finishes, `why` one of
-        // `updated` (its code changed while a module stayed), `removed`, `reinstalled` (removed, then installed again)
-        // and `leftover` (a module with no dispose, or whose dispose failed or ran late, may have left what it made)
-        restartPending: 'function',
-    },
     core: {
         // open({ onMessage(line), onLog(line), onEnd(why) }) -> { send(line) }: the core, started, a message a line
         // each way. `onLog` hears what it logs, and `onEnd` once that it ended, whether it ran or never started, after

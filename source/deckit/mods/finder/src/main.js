@@ -51,7 +51,7 @@ class Finder {
         });
     }
 
-    async attach(shell, deckit) {
+    async attach(shell, deckit, { mainProcess }) {
         const { theme, ui } = shell;
         const { storage, util } = deckit;
         const { values, records } = storage;
@@ -66,7 +66,7 @@ class Finder {
         };
         // Every folder, icon and file change goes through this module, so a Finder whose module cannot start shows
         // nothing.
-        const disk = await deckit.mainProcess('main-process/disk.js');
+        const disk = await mainProcess.start('main-process/disk.js');
         const STYLE = `
             .finder-content {
                 position: relative;

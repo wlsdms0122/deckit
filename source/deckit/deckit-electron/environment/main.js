@@ -1,7 +1,7 @@
-// What Electron gives deck, the web engine and the shell in main (deckit-shell/environment: MAIN, WEB, SHELL): every
-// page is WebKit's, through the module beside the core, laid in the module's windows, and carries the messages;
-// Electron runs the app, its keys, menus and the system's services, the core is a child process, and the log a file of
-// its own.
+// What Electron gives deck, the web engine and the shell in main (deckit-shell/environment: MAIN, WEB, SHELL), and
+// what runs a mod's main process modules (`mainProcess`, main-process/loader.js): every page is WebKit's, through the
+// module beside the core, laid in the module's windows, and carries the messages; Electron runs the app, its keys,
+// menus and the system's services, the core is a child process, and the log a file of its own.
 import * as LISTENER from '../listener/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
@@ -15,7 +15,7 @@ import { createMessages, CHANNEL } from '../messages/main.js';
 import { createWindows } from '../window/index.js';
 import { createStages } from '../stage/main.js';
 import { createNotifications } from '../notification/main.js';
-import { createMainProcess } from '../main-process/main.js';
+import { createLoader } from '../main-process/loader.js';
 import { createWeb } from '../web/main.js';
 
 // MARK: - Property
@@ -79,7 +79,7 @@ function createEnvironment({ core, preload, openWindow }) {
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
     const STAGES = createStages({ LOG, WEBKIT, idOf: WINDOWS.idOf, webPagesIn: (page) => WEB.webPagesIn(page) });
     const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf });
-    const MAIN_PROCESS = createMainProcess({ LOG, FOLDER, windowShowing });
+    const LOADER = createLoader({ LOG, FOLDER, windowShowing });
     const NOTIFICATIONS = createNotifications({ guard });
     const origins = new WeakMap(); // a page deck made -> its origin
     const mods = new WeakSet(); // the pages mods run in
@@ -179,16 +179,17 @@ function createEnvironment({ core, preload, openWindow }) {
             trust: WEB.trust,
             sessionsOf: WEB.sessionsOf,
         }),
+        // Read by attachMainProcess alone (main-process/main.js).
         mainProcess: Object.freeze({
-            start: MAIN_PROCESS.start,
-            call: MAIN_PROCESS.call,
-            launching: MAIN_PROCESS.launching,
-            ended: MAIN_PROCESS.ended,
-            removed: MAIN_PROCESS.removed,
-            installed: MAIN_PROCESS.installed,
-            stateOf: MAIN_PROCESS.stateOf,
-            onChange: MAIN_PROCESS.onChange,
-            restartPending: MAIN_PROCESS.restartPending,
+            start: LOADER.start,
+            call: LOADER.call,
+            launching: LOADER.launching,
+            ended: LOADER.ended,
+            removed: LOADER.removed,
+            installed: LOADER.installed,
+            stateOf: LOADER.stateOf,
+            onChange: LOADER.onChange,
+            restartPending: LOADER.restartPending,
         }),
         core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
         folders: Object.freeze({ user: require('os').homedir() }),

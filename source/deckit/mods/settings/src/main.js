@@ -41,7 +41,7 @@ class Settings {
         });
     }
 
-    attach(shell, deckit) {
+    attach(shell, deckit, { mainProcess }) {
         const { ui } = shell;
         const { util } = deckit;
         const APP_NAME = deckit.about().name;
@@ -78,6 +78,7 @@ class Settings {
         const mods = modsSection({
             ui,
             mods: deckit.mods,
+            mainProcess,
             packages: () => services.packages,
             pins: shell.mods,
             dropDestination: shell.dropDestination,
@@ -189,6 +190,7 @@ class Settings {
             })
         );
         deckit.mods.onChange(() => shown && redraw());
+        mainProcess?.onChange(() => shown && redraw());
         // Fonts set elsewhere come as a new theme, which a mod's setting left unset may inherit.
         shell.theme.onChange(() => {
             if (!shown) return;
@@ -200,7 +202,7 @@ class Settings {
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         // A mod starting or stopping keeps what its run that launched showed (deckit.mods.list()'s `launched`), so a
         // restart reads as one, not as a mod gone and back. A later drawing that starts while this one reads the
-        // services draws instead.
+        // services, or how the mods' main process modules are, draws instead.
         async function redraw() {
             const turn = ++drawing;
             const [keys, urls, configured, commands, answered] = await Promise.all([
@@ -210,6 +212,8 @@ class Settings {
                 refusedBy('commands'),
                 deckit.mods.list(),
             ]);
+            if (turn !== drawing) return;
+            const failures = await failuresOf(answered.found);
             if (turn !== drawing) return;
             listed = answered;
             const { shortcuts } = keys;
@@ -223,13 +227,21 @@ class Settings {
             const { found, running: now, interfaces: interfaceQueues } = listed;
             const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
             const running = [...now, ...restarting];
-            mods.draw({ found, running, shortcuts, schemes, refused });
+            mods.draw({ found, running, shortcuts, schemes, refused, failures });
             activity.draw(listed);
             modSettings.draw();
             urlSchemes.draw(schemes);
             interfaces.draw(interfaceQueues);
             general.draw();
             keyboard.draw(shortcuts);
+        }
+
+        // Why the main process modules of each mod of `found` that did not start did not, by its id; none where the
+        // host runs no main process modules.
+        async function failuresOf(found) {
+            if (!mainProcess) return new Map();
+            const states = await Promise.all(found.map((mod) => mainProcess.stateOf(mod.id)));
+            return new Map(found.map((mod, index) => [mod.id, states[index]?.failure || null]));
         }
 
         // What the service held as `name` left out of what the mods declare to it, as its `list` answers them, each

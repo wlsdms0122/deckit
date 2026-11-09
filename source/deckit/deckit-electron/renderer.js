@@ -1,6 +1,7 @@
 import * as ORIGIN from './sandbox/model/origin.js';
 import { environment } from './environment/renderer.js';
 import { start } from './page/renderer.js';
+import { LAYERS } from './main-process/renderer.js';
 
 // MARK: - Public
 // The start of the preload of every page deckit makes: a mod's, or one that runs no mod, run in deckit's world as each
@@ -15,4 +16,4 @@ function boot({ before }) {
     return environment;
 }
 
-export { boot };
+export { boot, LAYERS };

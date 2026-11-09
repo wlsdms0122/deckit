@@ -147,7 +147,7 @@ async function main() {
         REQUEST,
         pages: { clearStorage: async () => {} },
     });
-    MODS.start({ facts: () => ({}) });
+    MODS.start();
     await tick();
     const listed = await heard.asked(PAGE, { channel: 'deckit-shell:mods', payload: {} });
     const entries = listed?.value?.found ?? [];
@@ -205,7 +205,6 @@ async function main() {
         PERMISSION: { define: () => {} },
         MANIFEST_FIELD: { define: () => {} },
         KEYMAP: {},
-        MAIN_PROCESS: { onChange: () => () => {}, restartPending: () => [] },
         SETUP: { stack: () => {} },
     }).make({ onStart: () => {}, restart: () => {} });
     const fields = api.mods.fieldsOf('s');

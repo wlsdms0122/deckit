@@ -8,7 +8,7 @@ How the folder is laid out is the mod's own. The folder's name says nothing; the
 dashboard/
   manifest.toml       main = "dist/main.js"
   dist/main.js        the entry: what deck runs in the sandbox
-  dist/daemon.js      a main process module, started with deckit.mainProcess('dist/daemon.js')
+  dist/daemon.js      a main process module, started with mainProcess.start('dist/daemon.js')
   src/ …              the author's sources, if the entry is bundled from them
 ```
 
@@ -96,7 +96,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 
 | Permission | What it reaches | Where it lands |
 |---|---|---|
-| `system.main-process` | the app's main process, where the mod's modules run and can read and write files, reach the network and start programs | `deckit.mainProcess` |
+| `system.main-process` | the app's main process, where the mod's modules run and can read and write files, reach the network and start programs | `mainProcess.start` |
 | `system.files` | files on this Mac, opened in its own pages | `file://` addresses in its web pages |
 | `system.network` | any address, past the rules that keep one site from reading another | `fetch(input, init)` on a web session |
 | `system.certificates` | trusting a certificate this Mac cannot verify, in one of its sessions | `trust` on a web session |
@@ -188,7 +188,7 @@ module.exports = Calendar;
 | `attach(shell, deckit, frameworks)` | deckit's shell | the screen lifecycle starts, once `start` has ended: it registers what the mod shows; may be async |
 | `detach()` | deckit's shell | the screen lifecycle ends, before `stop()` |
 
-`frameworks` is a frozen table, by name, of the handles the frameworks the host app stacks hand every lifecycle, each made for that lifecycle: `web`, the mod's web sessions and downloads, where the host app puts the web engine on deckit, as Deckit.app does (web, below), read as `start(deckit, { web })` and `attach(shell, deckit, { web })`; `{}` on a host app with none, where `web` is `undefined`.
+`frameworks` is a frozen table, by name, of the handles the frameworks the host app stacks hand every lifecycle, each made for that lifecycle: `web`, the mod's web sessions and downloads, where the host app puts the web engine on deckit, as Deckit.app does (web, below), read as `start(deckit, { web })` and `attach(shell, deckit, { web })`, and `mainProcess`, the mod's main process modules, where the host app runs them, as Deckit.app does (mainProcess, below); `{}` on a host app with none, where `web` and `mainProcess` are `undefined`.
 
 Each layer reads only the members it knows, and every one is optional. What is listed and shown of a mod that does not run (its view, icon, keywords, configuration and form) is declared in its contributes, not in the class. The class may have any other member it likes: no layer reads it, and none catches a misspelt `detatch`. Share state between the methods through `this`.
 
@@ -211,7 +211,7 @@ If `attach` throws, or what deckit's shell does to the page as the screen lifecy
 
 ### What a lifecycle's handles make
 
-Each method that starts a lifecycle receives handles of its own: the `deckit` that `attach` receives has the members of the one `start` received, with its own `dependencies`, and registers into the screen lifecycle, and each receives a `web` of its own. What a handle makes that calls back into the mod's code is cut as its lifecycle ends, without the mod undoing it: registrations; `events.on`, `configuration.on`, `keys.onChange`, `commands.onChange`, `mods.onChange` and `dependencies.onConnect`; `notifications.show`'s `onPress`; `web.downloads.onChange`; the `on` of a main process module's methods; `shell.theme.onChange` and `children.onChange`; regions, drop destinations, `shell.web` pages and windows, the window, and the view. A view or window on screen disappears first (`didDisappear`), then the end method runs, then the rest is cut, and then the lifecycle's connections end (Dependencies and connections). What the mod makes itself (an emitter of its own, a timer, a listener on the DOM) it undoes in `detach` or `stop` when it would call back into a lifecycle that has ended. A main process module started in `attach` ends with the run.
+Each method that starts a lifecycle receives handles of its own: the `deckit` that `attach` receives has the members of the one `start` received, with its own `dependencies`, and registers into the screen lifecycle, and each receives a `web` and a `mainProcess` of its own. What a handle makes that calls back into the mod's code is cut as its lifecycle ends, without the mod undoing it: registrations; `events.on`, `configuration.on`, `keys.onChange`, `commands.onChange`, `mods.onChange` and `dependencies.onConnect`; `notifications.show`'s `onPress`; `web.downloads.onChange`; `mainProcess.onChange` and the `on` of a main process module's methods; `shell.theme.onChange` and `children.onChange`; regions, drop destinations, `shell.web` pages and windows, the window, and the view. A view or window on screen disappears first (`didDisappear`), then the end method runs, then the rest is cut, and then the lifecycle's connections end (Dependencies and connections). What the mod makes itself (an emitter of its own, a timer, a listener on the DOM) it undoes in `detach` or `stop` when it would call back into a lifecycle that has ended. A main process module started in `attach` ends with the run.
 
 ### Registering
 
@@ -343,7 +343,6 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `clipboard.writeText(text)` | with `system.clipboard-write` |
 | `clipboard.readText()` | with `system.clipboard-read` |
 | `notifications.show({ title, body, silent })` | with `system.notifications`: shows a notification of the system's, and resolves to `{ shown, onPress(listener) }`, `shown` false where the system has none, and `onPress` hearing the person press it, which answers its off. That is all deckit does: which notifications a mod sends and how they are shown is the owner's of `deckit/notifications` (Standard interfaces), and a mod that tells the person something posts there |
-| `mainProcess(path)` | with `system.main-process` (below) |
 | `mods` | with `deckit.mods` (below) |
 | `modConfiguration` | with `deckit.mod-configuration`: `list()`, each mod that declares any configuration as `{ id, name, items }`, an item its declaration with `key` and `value`, what it reads as; `set(id, key, value)`, checked as the mod's own `set` is, which resolves to the value as kept |
 
@@ -354,16 +353,15 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 
 ### mods
 
-With `deckit.mods`: `list`, `pick`, `planInstall`, `install`, `remove`, `relaunch`, `load`, `quit`, `arrange`, `pin`, `approveStartup`, `reveal`, `usage`, `restartPending`, `restart`, `onChange`; `list` and `restartPending` answer at once, the rest resolve. `pick()` resolves to the folder the person picks as it would install, or null; `pick({ multiple: true })` to the folders they pick, each as it would install or, refused, `{ from, problem }`. The mods kept in the Dock are the shell's, on `shell.mods`.
+With `deckit.mods`: `list`, `pick`, `planInstall`, `install`, `remove`, `relaunch`, `load`, `quit`, `arrange`, `pin`, `approveStartup`, `reveal`, `usage`, `restart`, `onChange`; `list` answers at once, the rest resolve. `pick()` resolves to the folder the person picks as it would install, or null; `pick({ multiple: true })` to the folders they pick, each as it would install or, refused, `{ from, problem }`. The mods kept in the Dock are the shell's, on `shell.mods`.
 
-- `list()` answers `{ found, running }`. `found` is every mod deck found, loaded or not, in the mods' order, each its manifest with `folder`, `installed` (a copy in deckit's mods folder), `shipped`, `hides` (folders of the same id not read), `problem` (why it does not load, or null), `declarationProblems` (what is wrong with what it declares, read as deck reads the mod, whether it runs or not), `startupApproved` (whether the person approved it to start with the app), `run` (its latest run's `{ state, problem, origin, failed, refusal, launchedAt }`, `launchedAt` when it came to run in ms since the epoch, or null before, or null for one with no sandbox: Running and quitting, below), `launched` (while it starts or stops again, what its latest run that launched contributed, as `running` lists it, or null), `mainProcess` (`{ running, failure }`: whether a main process module of its started, and why one did not, or null), `relations` (`[{ id, optional, version, name, problem, running }]`, a row for each mod in its `[dependencies]`: `optional` whether it runs without it, `version` the version it names, `name` that mod's, its id when it is not found, `problem` what is wrong with it, absent when nothing is: a required one not there at that version or that did not load, or an optional one there at a version it does not take, `running` whether that mod is running), `uses` (`[{ interface, major, owner, name, problem }]`, a row for each interface in its `uses`: `major` the major it uses, `owner` and `name` the interface's owner, absent when it has none or the mod owns it itself, `problem`, absent when nothing is wrong: an owner that does not speak that major or is not found, so the mod reaches no one by it; `name` is absent too for an owner not found) and `dependents` (the ids of the mods that load and require it, directly or through another: none of them loads without it). Each permission in a manifest is `{ id, reason, usable, name, description, privileged }`, with no `name`, `description` and `privileged` and `usable` false for one no layer on this host app defines. `running` is each running mod's `id`, `name` and summary: what it contributes as each layer tells it, with `exports` (whether a lifecycle of it opened exports) and `problem`. `view` in a summary is absent until a screen lifecycle has joined, and false once it has ended.
+- `list()` answers `{ found, running }`. `found` is every mod deck found, loaded or not, in the mods' order, each its manifest with `folder`, `installed` (a copy in deckit's mods folder), `shipped`, `hides` (folders of the same id not read), `problem` (why it does not load, or null), `declarationProblems` (what is wrong with what it declares, read as deck reads the mod, whether it runs or not), `startupApproved` (whether the person approved it to start with the app), `run` (its latest run's `{ state, problem, origin, failed, refusal, launchedAt }`, `launchedAt` when it came to run in ms since the epoch, or null before, or null for one with no sandbox: Running and quitting, below), `launched` (while it starts or stops again, what its latest run that launched contributed, as `running` lists it, or null), `relations` (`[{ id, optional, version, name, problem, running }]`, a row for each mod in its `[dependencies]`: `optional` whether it runs without it, `version` the version it names, `name` that mod's, its id when it is not found, `problem` what is wrong with it, absent when nothing is: a required one not there at that version or that did not load, or an optional one there at a version it does not take, `running` whether that mod is running), `uses` (`[{ interface, major, owner, name, problem }]`, a row for each interface in its `uses`: `major` the major it uses, `owner` and `name` the interface's owner, absent when it has none or the mod owns it itself, `problem`, absent when nothing is wrong: an owner that does not speak that major or is not found, so the mod reaches no one by it; `name` is absent too for an owner not found) and `dependents` (the ids of the mods that load and require it, directly or through another: none of them loads without it). Each permission in a manifest is `{ id, reason, usable, name, description, privileged }`, with no `name`, `description` and `privileged` and `usable` false for one no layer on this host app defines. `running` is each running mod's `id`, `name` and summary: what it contributes as each layer tells it, with `exports` (whether a lifecycle of it opened exports) and `problem`. `view` in a summary is absent until a screen lifecycle has joined, and false once it has ended.
 - `list()` answers `interfaces` too: every interface a mod provides or uses, `[{ interface, name, owner, pinned, providers }]`, `name` the defining mod's, absent when no mod of that id is found, `owner` the id of its owner, absent while no mod provides it, `pinned` whether the person pinned the owner, and `providers` its queue, the earliest first, `[{ id, name, majors, pinnable }]`, `name` absent and `majors` empty for one kept and not found, `majors` those the mod speaks, `pinnable` whether `pin` takes it: it loads and provides the interface now (Interfaces).
 - `pin(interface, id)` pins the provider `id` as the interface's owner, as the person's, and `pin(interface, null)` clears the pin; it rejects a mod that does not provide the interface now, one kept in its queue with a problem too, and while `deck.json` does not read, and resolves once `list()` has it.
 - `approveStartup(id, approved)` approves the mod to start with the app, as the person's, or takes the approval back (Running and quitting, below); it rejects a mod whose manifest does not ask to, and resolves once `list()` has it.
-- `onChange(listener)` hears that what `list` or `restartPending` answers may have changed (a mod found or gone, a run that moved or joined a lifecycle, a problem against a run, a main process module that ended), and answers its off.
+- `onChange(listener)` hears that what `list` answers may have changed (a mod found or gone, a run that moved or joined a lifecycle, a problem against a run), and answers its off.
 - `planInstall(from)` resolves to the folder `from` as it would install, as `pick` answers a folder, without asking the person anything, and rejects with why for a folder install refuses: for a folder the person handed over another way, a drop on the page (`shell.dropDestination`).
 - `install(from)` resolves, once the mod it replaces, if that ran, and the mods that require it and ran have launched again or failed to, to the mod's manifest with `restart`: whether only a restart of the app finishes the install.
-- `restartPending()` answers `[{ id, why }]`, the mods whose main process modules only a restart finishes; `why` is `updated`, `removed`, `reinstalled` or `leftover` (a `dispose` that failed).
 - `relaunch(id)` terminates the mod and launches it again as the person opens it, or launches one not running, and the mods that require it and run load again with it, as they launched, resolving once each has launched or failed to: one launched while a mod it requires is not running fails as it launches; for a mod that did not load it resolves and does nothing.
 - `load(ids)` loads the mods named that are not running as the person opens them, with the mods they require by id, in the mods' order, each once a run of its that terminates has ended and what it requires has launched or failed to, and resolves once each has launched or failed to.
 - `quit(id)` ends the mod's run, after the mods that require it, and resolves once it has ended.
@@ -380,10 +378,6 @@ With `deckit.mods`: `list`, `pick`, `planInstall`, `install`, `remove`, `relaunc
 | `ranker({ paths })` | the same off the page, for a list too long to rank on every key (`paths`: the names are paths, matched by their last part first): `{ rank(names, query, { limit }), close() }`, closed as the lifecycle whose handle made it ends |
 | `movePath(path, from, to)` | a path after `from` moved to `to`, or null when it went with it |
 | `tildify(path)` | a path as it is shown, from `~` under the home folder |
-
-### mainProcess
-
-`mainProcess(path)` starts a main process module of the mod's (below) and resolves to its methods, each called through the main process and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe. A path outside the mod's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for.
 
 ### events
 
@@ -409,6 +403,22 @@ What the mod's web pages download goes to the Downloads folder, under the name t
 - `remove(id)` forgets one, stopping it first if it is under way, and resolves to whether there was one. The file stays.
 - `reveal(id)`, with `system.file-handlers`, shows its file in Finder and resolves to whether it was there.
 - `open(id)`, with `system.file-handlers`, opens a finished one's file in its app and resolves to whether it opened.
+
+## mainProcess
+
+What every lifecycle receives as `mainProcess` in its `frameworks`, where the host app runs mods' main process modules (A main process module, below): `start(path)`, and `restartPending()`, `stateOf(id)` and `onChange(listener)`, below. A host app that runs none hands no `mainProcess`.
+
+### mainProcess.start(path)
+
+With `system.main-process`: starts a main process module of the mod's and resolves to its methods, each called through the main process and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe, and a listener is heard until the lifecycle whose `mainProcess` made it ends. A module starts once on the mod's page, however many lifecycles ask for it. A path outside the mod's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for. A method of a module not started in the mod's run rejects `NOT_STARTED`.
+
+### mainProcess.restartPending(), stateOf(id), onChange(listener)
+
+With `deckit.mods`, what the main process modules of every mod come to:
+
+- `restartPending()` resolves to `[{ id, why }]`, the mods whose main process modules only a restart finishes; `why` is `updated`, `removed`, `reinstalled` or `leftover` (a `dispose` that failed).
+- `stateOf(id)` resolves to `{ running, failure }`: whether a main process module of the mod's runs, and why those that did not start did not, or null.
+- `onChange(listener)` hears that what `restartPending` or `stateOf` answers may have changed (a module that started, failed or ended, a mod that came to need a restart or no longer does), and answers its off.
 
 ## shell
 

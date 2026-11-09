@@ -8,9 +8,10 @@ const { section } = require('../section/section.js');
 
 // The Mods section: every mod found in their order, what each contributes, and installing and removing them.
 // `onChange` hears that a mod was installed, removed, restarted or pinned here. Failures and what was done are told
-// in a toast. `mods` is deckit.mods; `packages()`, deckit/packages while it is connected, which plans and installs;
-// `pins`, the Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination` the shell's.
-function modsSection({ ui, mods, packages, pins, dropDestination, util, appName, onChange }) {
+// in a toast. `mods` is deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a
+// host that runs none; `packages()`, deckit/packages while it is connected, which plans and installs; `pins`, the
+// Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination` the shell's.
+function modsSection({ ui, mods, mainProcess, packages, pins, dropDestination, util, appName, onChange }) {
     const TITLE = 'Mods';
     const PACKAGES = 'deckit/packages';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
@@ -136,7 +137,7 @@ function modsSection({ ui, mods, packages, pins, dropDestination, util, appName,
         create: modRow,
         update: (row, mod) => rowFills.get(row)(mod),
     });
-    const restart = restartNotice({ ui, mods, appName });
+    const restart = restartNotice({ ui, mods, mainProcess, appName });
     const headings = COLUMNS.map((text) => ui.element('div', { text }));
 
     // Over the name, past the caret in front of it.
@@ -447,12 +448,13 @@ function modsSection({ ui, mods, packages, pins, dropDestination, util, appName,
     // starting or stopping is in `running` as it last ran, and says so by its spinner. `notLoaded` is why one is not
     // running, `problem` what went wrong with one that is. What it declares and the permissions it asks for are read
     // from its manifest, so one that did not load still shows them. `shortcuts` are the keys as the Keyboard section
-    // read them, `schemes` the schemes as the URL Schemes section did, and `refused` what the services of the
-    // interfaces left out of what the mods declare, `[{ interface, mod, entry, problem }]`.
-    function modRowsOf({ found, running, shortcuts, schemes, refused, pinned }) {
+    // read them, `schemes` the schemes as the URL Schemes section did, `refused` what the services of the
+    // interfaces left out of what the mods declare, `[{ interface, mod, entry, problem }]`, and `failures` why the
+    // main process modules of a mod that did not start did not, by its id.
+    function modRowsOf({ found, running, shortcuts, schemes, refused, failures, pinned }) {
         return found.map((mod) => {
             const live = running.find((entry) => entry.id === mod.id) ?? null;
-            const mainProcessFailure = mod.mainProcess?.failure || null;
+            const mainProcessFailure = failures.get(mod.id) ?? null;
             const row = {
                 id: mod.id,
                 name: live?.name ?? mod.name,

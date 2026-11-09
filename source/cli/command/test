@@ -55,6 +55,7 @@ const main = async () => {
         'catalog.js',
         'open.js',
         'web.js',
+        'main-process.js',
         'page.js',
         'desktop.js',
         'window.js',

@@ -1,7 +1,8 @@
 // A main process module runs in the host app's main process. One with no dispose is kept until the host app quits,
 // so one whose code changed underneath it keeps running the old code, and one whose dispose failed may have left what
-// it made: only a restart finishes those.
-function restartNotice({ ui, mods, appName }) {
+// it made: only a restart finishes those. `mainProcess` says which mods those are, and is nothing under a host that
+// runs no main process modules, where the notice shows nothing; `mods` (deckit.mods) restarts the app.
+function restartNotice({ ui, mods, mainProcess, appName }) {
     ui.addStyle(`
         .settings-restart {
             display: flex;
@@ -26,7 +27,8 @@ function restartNotice({ ui, mods, appName }) {
     return { element, draw };
 
     async function draw(found) {
-        const pending = await mods.restartPending();
+        if (!mainProcess) return;
+        const pending = await mainProcess.restartPending();
         element.hidden = !pending.length;
         if (!pending.length) return;
         const nameOf = (id) => found.find((mod) => mod.id === id)?.name || id;

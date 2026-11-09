@@ -114,7 +114,7 @@ What a mod stored is its records, its values, its data folder and what each laye
 - `install` and `remove`, what `remove` answers of what it erased, the bundles listed and `NOT_INSTALLED`: [the catalog](../DECKIT-4/SPEC.md).
 - A problem of a run: [the lifecycle](../DECKIT-5/SPEC.md).
 - The handle, requests, values, an argument left out, an error and `INVALID_ARGUMENT`: [the handle](../DECKIT-7/SPEC.md). `QUOTA_EXCEEDED`: here.
-- The mod's data folder, which a module of the mod's started in the host's own process writes: the main process' DECKIT.
+- The mod's data folder, which a module of the mod's started in the host's own process writes: a framework a host stacks, outside this spec.
 - A layer a host stacks, and what it keeps of a mod: the embedding DECKIT.
 
 ## Alternatives considered
@@ -132,6 +132,6 @@ What a mod stored is its records, its values, its data folder and what each laye
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `QUOTA_EXCEEDED`: a case cannot fill the disk or the page's storage. That what a run does with what it read changes nothing of what is stored: a case reads no value in place. A mod's data folder and `capped`: no member of the handle a case's request reaches writes it, and the main process' DECKIT holds it. `hidden`, and `kept` of a layer that keeps anything: a case writes no file into what the system keeps, and stacks no layer of its own. That values may be lost: no rule fixes when.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `QUOTA_EXCEEDED`: a case cannot fill the disk or the page's storage. That what a run does with what it read changes nothing of what is stored: a case reads no value in place. A mod's data folder and `capped`: no member of the handle a case's request reaches writes it, and what writes it is a framework a host stacks, outside this spec. `hidden`, and `kept` of a layer that keeps anything: a case writes no file into what the system keeps, and stacks no layer of its own. That values may be lost: no rule fixes when.
 
 **Note.** What this costs an implementation: it keeps records apart for each mod in a place that survives the host app's start, reads a record back at once, judges a key by the bundle's grammar and a value by the handle's, counts what each mod has in each place it is kept, its values beside its page among them, and erases every place as a mod is removed with `erase`.

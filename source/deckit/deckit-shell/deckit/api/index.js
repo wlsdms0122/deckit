@@ -17,7 +17,6 @@ export function createApi({
     PERMISSION,
     MANIFEST_FIELD,
     KEYMAP,
-    MAIN_PROCESS,
     SETUP,
 }) {
     // MARK: - Property
@@ -60,11 +59,8 @@ export function createApi({
                             .filter((mod) => mod.shipped)
                             .map((mod) => mod.id)
                     ),
-                // A mod found or gone, or what restartPending answers.
-                onChange: (listener) => {
-                    const offs = [CATALOG.onChange(listener), MAIN_PROCESS.onChange(listener)];
-                    return () => offs.forEach((off) => off?.());
-                },
+                // A mod found or gone.
+                onChange: (listener) => CATALOG.onChange(listener),
                 // The id of the mod that owns an interface, as its queue says, or null; with `dependent`, the id of a
                 // mod, null too where that mod does not reach it: it uses no such interface, owns it itself, or the
                 // owner does not provide the major it uses.
@@ -114,8 +110,6 @@ export function createApi({
                 quit: (id) => RUNNER.quit(id),
                 relaunch: (id) => RUNNER.relaunch([id]),
                 relaunchAll: RUNNER.relaunchAll,
-                // The mods whose main process modules only a restart of the app finishes: [{ id, why }].
-                restartPending: () => frozen(MAIN_PROCESS.restartPending()),
                 // onErase(eraser(id) -> Promise) -> off: what an owner keeps of a mod removed with its data, erased as
                 // the eraser asks; a rejection leaves the erasure to be tried again at the next start.
                 onErase: (eraser) => MODS.onErase(eraser),

@@ -4,7 +4,11 @@
     "exports": {
         "./main.js": "./main.js",
         "./renderer.js": "./renderer.js",
+        "./deckit/channel/index.js": "./deckit/channel/index.js",
         "./deckit/contract/index.js": "./deckit/contract/index.js",
+        "./deckit/event/bus.js": "./deckit/event/bus.js",
+        "./deckit/permission/index.js": "./deckit/permission/index.js",
+        "./deckit/request/index.js": "./deckit/request/index.js",
         "./environment/index.js": "./environment/index.js",
         "./web/engine/model/session.js": "./web/engine/model/session.js",
         "./web/engine/model/site-permission.js": "./web/engine/model/site-permission.js",

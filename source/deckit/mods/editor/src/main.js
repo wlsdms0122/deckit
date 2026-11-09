@@ -63,7 +63,7 @@ class Editor {
         });
     }
 
-    async attach(shell, deckit) {
+    async attach(shell, deckit, { mainProcess }) {
         const { theme, ui } = shell;
         const { storage, util } = deckit;
         const { values: store, records } = storage;
@@ -77,7 +77,7 @@ class Editor {
             console.warn(`[editor] ${url} did not open: deckit/urls is not connected`);
             return false;
         };
-        const fileSystem = await deckit.mainProcess('main-process/file-system.js');
+        const fileSystem = await mainProcess.start('main-process/file-system.js');
 
         const workspaces = workspaceModel({
             fileSystem,

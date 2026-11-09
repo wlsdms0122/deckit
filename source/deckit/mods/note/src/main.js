@@ -53,7 +53,7 @@ class Note {
         });
     }
 
-    async attach(shell, deckit) {
+    async attach(shell, deckit, { mainProcess }) {
         const { theme, ui } = shell;
         const { storage, util } = deckit;
         const settings = settingsOf();
@@ -79,7 +79,7 @@ class Note {
             .note-pane[hidden] { display: none; }
         `;
         const { values: store } = storage;
-        const notesFolder = await deckit.mainProcess('main-process/notes-folder.js');
+        const notesFolder = await mainProcess.start('main-process/notes-folder.js');
 
         // Everything in the notes folder, with the relocation count it was asked at (`since`).
         let allNotes = { name: '', path: '', folders: [], notes: [], count: 0, since: 0 };

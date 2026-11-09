@@ -13,7 +13,6 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // requests of that mod. `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages }) {
     // MARK: - Property
-    let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
     const watching = new Set(); // the pages told when what `mods` answers may have changed
     const installedListeners = new Set(); // told of a mod installed
@@ -22,10 +21,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
 
     // MARK: - Initializer
     // MARK: - Public
-    // What `start` is handed is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed
-    // (`onFactsChange(tell)`).
-    function start(given) {
-        layer = given;
+    function start() {
         eraseUncleared();
         listen();
     }
@@ -109,7 +105,6 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
             for (const page of watching) PROTOCOL.modsChanged.send(page);
         };
         CATALOG.onChange(tell);
-        layer.onFactsChange?.(tell);
         for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, tell);
         RUNNER.onProblem(tell);
     }
@@ -146,7 +141,6 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
                         TRANSITIONS.includes(run?.state) && RUNNER.launchedOf(mod.id)
                             ? entryOf(mod, RUNNER.launchedOf(mod.id))
                             : null,
-                    ...layer.facts(mod),
                     uses: mod.uses,
                 };
             }),

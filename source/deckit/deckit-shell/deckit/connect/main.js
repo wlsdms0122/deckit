@@ -1,4 +1,3 @@
-import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
@@ -25,7 +24,6 @@ import { createOpen } from '../open/main.js';
 import { createNotification } from '../notification/main.js';
 import { createClipboard } from '../clipboard/main.js';
 import { createContribution } from '../contribution/main.js';
-import { createMainProcess } from '../main-process/main.js';
 import { createModFolder } from '../mod-folder/main.js';
 import { createRuntime } from '../runtime/main.js';
 import { createSetup } from '../setup/main.js';
@@ -44,13 +42,7 @@ const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process and its windows are its own.
 const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
 // The permissions deckit's passages define, in the order a person reads them.
-const DECKIT_PERMISSIONS = [
-    MAIN_PROCESS_PERMISSION,
-    CLIPBOARD_PERMISSION,
-    NOTIFICATION_PERMISSION,
-    KEYMAP_PERMISSION,
-    OPEN_PERMISSION,
-];
+const DECKIT_PERMISSIONS = [CLIPBOARD_PERMISSION, NOTIFICATION_PERMISSION, KEYMAP_PERMISSION, OPEN_PERMISSION];
 // Main's channels are the process's: deckit connects once.
 let connected = null;
 
@@ -123,15 +115,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         notifications: ENV.notifications,
     });
     const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
-    const MAIN_PROCESS = createMainProcess({
-        CORE,
-        IDENTITY,
-        RUNNER,
-        MODS,
-        mainProcess: ENV.mainProcess,
-        app: ENV.app,
-        files: ENV.files,
-    });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
     const RUNTIME = createRuntime({
         CONFIG,
@@ -158,7 +141,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         PERMISSION,
         MANIFEST_FIELD,
         KEYMAP,
-        MAIN_PROCESS,
         SETUP,
     });
     const starting = []; // what starts with deckit, before any mod launches: the UI on it
@@ -202,7 +184,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         NOTIFICATION.start();
         CLIPBOARD.start();
         CONTRIBUTION.start();
-        MAIN_PROCESS.start();
         MOD_FOLDER.start();
         RUNTIME.start();
         SETUP.start();
@@ -219,10 +200,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         RECORD.start();
         CONNECTION.start();
         EVENT.start();
-        MODS.start({
-            facts: (mod) => ({ mainProcess: MAIN_PROCESS.stateOf(mod.id) }),
-            onFactsChange: MAIN_PROCESS.onChange,
-        });
+        MODS.start();
         await RUNNER.start();
     }
 }

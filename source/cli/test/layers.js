@@ -169,7 +169,6 @@ async function main() {
         'clipboard.readText': () => on.clipboard.readText(),
         'clipboard.writeText': () => on.clipboard.writeText('a'),
         'notifications.show': () => on.notifications.show({ title: 'a' }),
-        mainProcess: () => on.mainProcess('main.js'),
     });
     const plain = await handleOf([]);
     sent.length = 0;
@@ -192,7 +191,6 @@ async function main() {
         'system.clipboard-read',
         'system.clipboard-write',
         'system.notifications',
-        'system.main-process',
     ]);
     sent.length = 0;
     const mistyped = {
@@ -204,7 +202,6 @@ async function main() {
         'clipboard.writeText with a number': () => all.clipboard.writeText(5),
         'clipboard.writeText with its text left out': () => all.clipboard.writeText(),
         'notifications.show with a title of another type': () => all.notifications.show({ title: 1 }),
-        'mainProcess with a number': () => all.mainProcess(5),
     };
     for (const [what, call] of Object.entries(mistyped))
         check(

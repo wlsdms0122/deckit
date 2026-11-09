@@ -1,6 +1,6 @@
 case = 3
 name = "an-argument-of-another-type-is-refused"
-note = "A request whose argument is of another type than its signature gives is refused at call with INVALID_ARGUMENT, and the argument is not turned into the type. mod-a, granted deckit.mods and each permission a request below needs, hands the integer 1 where each takes a string: it asks that the mod 1 launch, that the folder of the mod 1 be shown, that the file 1 be shown, that 1 be copied, and that the module 1 be started in the host's process."
+note = "A request whose argument is of another type than its signature gives is refused at call with INVALID_ARGUMENT, and the argument is not turned into the type. mod-a, granted deckit.mods and each permission a request below needs, hands the integer 1 where each takes a string: it asks that the mod 1 launch, that the folder of the mod 1 be shown, that the file 1 be shown, and that 1 be copied."
 
 [host]
 base = "system"
@@ -45,16 +45,6 @@ kind = "INVALID_ARGUMENT"
 input = "call"
 mod = "mod-a"
 member = "clipboard.writeText"
-args = [1]
-
-[step.expect]
-refuses = "call"
-kind = "INVALID_ARGUMENT"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "mainProcess"
 args = [1]
 
 [step.expect]

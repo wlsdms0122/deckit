@@ -108,17 +108,23 @@ async function main() {
         { name: 'review', up: true, authority: false },
         { name: 'deploy', up: false, authority: false },
     ];
-    await new Forge().start({
-        mainProcess: async () => ({
-            sessions: async () => ({ main: 'default', sessions }),
-            on: () => {},
-        }),
-        dependencies: { onConnect: () => {} },
-        exports: {
-            register: (...args) => registered.set(args.length > 1 ? args[0] : '', args[args.length - 1]),
+    await new Forge().start(
+        {
+            dependencies: { onConnect: () => {} },
+            exports: {
+                register: (...args) => registered.set(args.length > 1 ? args[0] : '', args[args.length - 1]),
+            },
+            util: { matchFields: MATCH.matchFields, TIER: MATCH.TIER },
         },
-        util: { matchFields: MATCH.matchFields, TIER: MATCH.TIER },
-    });
+        {
+            mainProcess: {
+                start: async () => ({
+                    sessions: async () => ({ main: 'default', sessions }),
+                    on: () => {},
+                }),
+            },
+        }
+    );
     const own = registered.get('').connect({});
     const all = await own.completeCommand('start', 'session', '', {});
     check(

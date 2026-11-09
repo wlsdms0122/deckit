@@ -39,12 +39,12 @@ class Bot {
         });
     }
 
-    async attach(shell, deckit) {
+    async attach(shell, deckit, { mainProcess }) {
         const { ui } = shell;
         const store = deckit.storage.values;
         const forge = forgeOf();
         const settings = settingsOf();
-        const bot = await deckit.mainProcess('main-process/bot/bot.js');
+        const bot = await mainProcess.start('main-process/bot/bot.js');
         const places = () => Object.fromEntries(PLACES.map((key) => [key, settings.get(key)]));
         // An address in a note opens through `deckit/urls`; one asked while it is not connected is logged.
         let urls = null;

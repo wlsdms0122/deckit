@@ -4,7 +4,7 @@
 // on it. It is a system mod, which the test ships with the app: it opens the switcher by its command and binds another
 // mod's key again through the system's services.
 class WindowProbe {
-    attach(shell, deckit) {
+    attach(shell, deckit, { mainProcess }) {
         const marks = document.documentElement.dataset;
         const install = document.createElement('button');
         install.id = 'install';
@@ -60,7 +60,7 @@ class WindowProbe {
             )
         );
         document.addEventListener('test-stack', async () => {
-            const probe = await deckit.mainProcess('main-process/stack.js');
+            const probe = await mainProcess.start('main-process/stack.js');
             marks.found = String(await probe.found());
         });
     }

@@ -3,10 +3,8 @@ import * as RANKER from '../match/ranker.js';
 import * as CLIPBOARD from '../clipboard/renderer.js';
 import * as RUNTIME from '../runtime/renderer.js';
 import * as OPEN from '../open/renderer.js';
-import * as MAIN_PROCESS from '../main-process/renderer.js';
 import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as CONTRIBUTION from '../contribution/renderer.js';
-import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as KEYS_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
@@ -24,16 +22,13 @@ export function createMod({ NOTIFICATION, KEYMAP }) {
     // the frameworks as the runner made them.
     function layer({ mod, granted, deliver }) {
         NOTIFICATION.listen(deliver);
-        const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
         KEYMAP.hear();
-        const handleOf = (runner, scope) =>
-            Object.freeze({ ...runner, ...membersOf(mod, granted, runner, scope, { mainProcess }) });
+        const handleOf = (runner, scope) => Object.freeze({ ...runner, ...membersOf(mod, granted, runner, scope) });
         return {
             handle: 'deckit',
             mods: {
                 pick: MOD_FOLDER.pick,
                 reveal: MOD_FOLDER.reveal,
-                restartPending: { signature: [], send: MAIN_PROCESS.restartPending },
                 restart: { signature: [], send: RUNTIME.restart },
             },
             lifecycles: [
@@ -83,7 +78,7 @@ export function createMod({ NOTIFICATION, KEYMAP }) {
     // Deckit's members on a handle, what they make that calls back into the mod's code cut with `scope`: each
     // namespace holds what `runner`, the runner's members, registers in it beside what reaches others'
     // (deckit-shell/deckit/runner). A member a permission guards is on it all the same, and refuses a mod without it.
-    function membersOf(mod, granted, runner, scope, { mainProcess }) {
+    function membersOf(mod, granted, runner, scope) {
         const has = (permission) => granted.includes(permission);
         // The request `name`, refused NOT_PERMITTED unless the mod holds one of `guards`, then for its arguments.
         const request = (name, { guards = [], signature }, send) => {
@@ -159,11 +154,6 @@ export function createMod({ NOTIFICATION, KEYMAP }) {
                 ),
             }),
             notifications: NOTIFICATION.notificationsOf(scope, request),
-            mainProcess: request(
-                'mainProcess',
-                { guards: [MAIN_PROCESS_PERMISSION.MAIN_PROCESS], signature: [['path', 'string']] },
-                mainProcess.forScope(scope)
-            ),
         };
     }
 

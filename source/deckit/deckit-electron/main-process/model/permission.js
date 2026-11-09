@@ -7,7 +7,8 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: MAIN_PROCESS,
         name: 'Main Process',
-        description: "It starts code in the app's main process, outside its own pages, where code can read and write your files, reach the network and start programs.",
+        description:
+            "It starts code in the app's main process, outside its own pages, where code can read and write your files, reach the network and start programs.",
     }),
 ]);
 

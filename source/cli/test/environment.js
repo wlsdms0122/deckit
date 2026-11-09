@@ -8,7 +8,7 @@ const { pathToFileURL } = require('url');
 
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
-// What the UI and the web engine on deckit use of what connect answers.
+// What the UI, the web engine and the main process modules on deckit use of what connect answers.
 const USED = {
     config: { name: 'string' },
     onStart: 'function',
@@ -26,6 +26,9 @@ const USED = {
         runs: 'function',
         runOf: 'function',
         observe: 'function',
+        onInstalled: 'function',
+        onRemoved: 'function',
+        timeout: 'function',
         modOf: 'function',
         modFrom: 'function',
         onErase: 'function',
