@@ -39,7 +39,8 @@ export function createApi({
             // Resolves once deckit has started, the background mods launched or failed to. Rejects with what refused
             // the start, its `kind` on it: what the core refused initialize with (FIELD, PERMISSION), or ENDED.
             whenStarted,
-            // stack(name): a layer, by its name, stacks over deckit on each mod's page that starts from now on.
+            // stack(name, { setup }): a layer, by its name, stacks over deckit on each mod's page that starts from
+            // now on, once for a name; `setup(id)`, where given, answers what the layer is handed on the mod's page.
             stack: SETUP.stack,
             // The core that answers nothing more, told once with why, so a person can be asked to restart the app.
             core: Object.freeze({ onDown: CORE.onDown }),

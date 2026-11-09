@@ -1,6 +1,7 @@
 // What a page deckit makes is told as it starts (deckit-shell/deckit/setup), over a stand-in for the environment's
 // messages: a page that runs no mod by its name, and a mod's page its web sessions and the layers stacked over deckit
-// on it, so a host app that never attaches the shell runs its mods with deckit's alone. Exits 1 with a line
+// on it, each once and with what its setup answered for the mod, or null without one, so a host app that never
+// attaches the shell runs its mods with deckit's alone. Exits 1 with a line
 // for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -36,9 +37,19 @@ async function main() {
     check("a mod's page is told its web sessions", before.value?.sessions === 'sessions of a', before);
     check("a mod's page has no layer over deckit before one stacks", before.value?.layers?.length === 0, before);
     SETUP.stack('shell');
-    SETUP.stack('shell');
+    SETUP.stack('shell', { setup: () => 'second' });
+    SETUP.stack('sessions', { setup: (id) => ({ of: id }) });
     const after = await setup(modPage);
-    check("a mod's page is told a layer stacked over deckit, once", after.value?.layers?.join() === 'shell', after);
+    check(
+        "a mod's page is told each layer stacked over deckit, once, in the order stacked",
+        after.value?.layers?.map(({ name }) => name).join() === 'shell,sessions',
+        after
+    );
+    check(
+        "a mod's page is told what a layer's setup answered for the mod, and null for a layer with none",
+        JSON.stringify(after.value?.layers?.map(({ setup }) => setup)) === '[null,{"of":"a"}]',
+        after
+    );
     check('a page that runs no mod is told only its name', Object.keys(named.value || {}).join() === 'page', named);
 
     if (failed.length) {

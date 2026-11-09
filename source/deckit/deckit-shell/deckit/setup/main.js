@@ -8,7 +8,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // (environment: MAIN.web).
 export function createSetup({ IDENTITY, web }) {
     // MARK: - Property
-    const layers = []; // the names of the layers stacked over deckit on each mod's page
+    const layers = []; // the layers stacked over deckit on each mod's page, each { name, setup }
 
     // MARK: - Initializer
     // MARK: - Public
@@ -16,13 +16,18 @@ export function createSetup({ IDENTITY, web }) {
         PROTOCOL.setup.handle((_payload, sender) => {
             const page = IDENTITY.pageNameOf(sender);
             if (page) return { page };
-            return { sessions: web.sessionsOf(IDENTITY.modOf(sender).id), layers };
+            const { id } = IDENTITY.modOf(sender);
+            return {
+                sessions: web.sessionsOf(id),
+                layers: layers.map(({ name, setup }) => ({ name, setup: setup ? setup(id) : null })),
+            };
         });
     }
 
-    // A layer, by its name, stacks over deckit on each mod's page that starts from now on.
-    function stack(name) {
-        if (!layers.includes(name)) layers.push(name);
+    // A layer, by its name, stacks over deckit on each mod's page that starts from now on, once for a name.
+    // `setup(id)`, where given, answers what the layer is handed on the page of the mod `id` as it starts.
+    function stack(name, { setup = null } = {}) {
+        if (!layers.some((one) => one.name === name)) layers.push({ name, setup });
     }
 
     // MARK: - Private
