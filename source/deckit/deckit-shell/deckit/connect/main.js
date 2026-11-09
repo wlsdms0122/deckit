@@ -128,6 +128,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     });
     const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
     const MAIN_PROCESS = createMainProcess({
+        CORE,
         IDENTITY,
         RUNNER,
         mainProcess: ENV.mainProcess,

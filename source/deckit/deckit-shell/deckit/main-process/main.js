@@ -3,14 +3,13 @@ import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as MOD_PERMISSION from '../permission/index.js';
-import * as LIMIT from '../runner/model/limit.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // A mod's main process modules, which the environment runs (`mainProcess`): a mod with system.main-process starts
 // and calls its own, they start anew with each run and end with it, and what they emit goes to the mod's page. The
 // app quits once the modules of the runs that ended have ended too. `files` is the environment's.
-export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app: APP, files: FILES }) {
+export function createMainProcess({ CORE, IDENTITY, RUNNER, mainProcess: MODULES, app: APP, files: FILES }) {
     // MARK: - Property
     const endings = new Set(); // the ends of modules still to come, each settled in its limit
 
@@ -20,7 +19,7 @@ export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app:
         RUNNER.observe('willLaunch', ({ mod }) => MODULES.launching(modOf(mod)));
         for (const name of ['didFailToLaunch', 'didTerminate'])
             RUNNER.observe(name, ({ mod }) => {
-                const ending = MODULES.ended(modOf(mod), { within: LIMIT.END_LIMIT_MS }).catch(() => {});
+                const ending = MODULES.ended(modOf(mod), { within: CORE.timeout().end }).catch(() => {});
                 endings.add(ending);
                 ending.then(() => endings.delete(ending));
             });

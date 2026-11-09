@@ -75,6 +75,7 @@ async function main() {
     const asked = [];
     const answers = new Map();
     const CORE = {
+        timeout: () => ({ launch: 20000, end: 5000 }),
         request: (method, params) => {
             asked.push({ method, params });
             const queued = answers.get(method)?.shift();

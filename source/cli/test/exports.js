@@ -48,7 +48,13 @@ async function main() {
     const asks = [];
     let heard = null;
     const answers = {
-        'deckit-shell:mod-load': () => ({ manifest: MANIFEST, granted: ['deckit.reach-mods'], source: '', run: 1 }),
+        'deckit-shell:mod-load': () => ({
+            manifest: MANIFEST,
+            granted: ['deckit.reach-mods'],
+            end: 5000,
+            source: '',
+            run: 1,
+        }),
         'deckit-shell:contributions': () => [
             { mod: { name: 'A' }, credential: { mod: 'a', permissions: ['p/read'] }, entry: { key: 1 } },
         ],

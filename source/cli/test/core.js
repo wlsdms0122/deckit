@@ -133,8 +133,13 @@ async function main() {
             kindThrown(() => MANIFEST_FIELD.define('keywords')) === 'FIELD',
         ''
     );
-    answer(sent[0].id, {});
+    answer(sent[0].id, { mods: '/home/deckit/mods', data: '/home/deckit/data', timeout: { launch: 20, end: 5 } });
     check('the start resolves once the core answered initialize', 'value' in (await initialized), await initialized);
+    check(
+        'what initialize answered is kept: the folders, and how long a run is given in milliseconds',
+        CORE.folders().mods === '/home/deckit/mods' && CORE.timeout().launch === 20000 && CORE.timeout().end === 5000,
+        [CORE.folders(), CORE.timeout()]
+    );
     await tick();
     check('what was asked before initialize is sent once it is answered', sent[1]?.method === 'catalog/read', sent);
     answer(sent[1].id, [1, 2]);

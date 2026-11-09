@@ -51,6 +51,7 @@ async function main() {
                               ? {
                                     manifest: { id: 'm', name: 'M', main: 'main.js', permissions: [] },
                                     granted: [],
+                                    end: 5000,
                                     source: '',
                                     run: 1,
                                 }

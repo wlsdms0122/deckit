@@ -5,21 +5,25 @@ import * as LOG from '../log/renderer.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// What a mod's page knows of its run: the mod, the ids of the permissions it is granted, the run's number main counts
-// it by, and what went wrong with it, which main is told as it is recorded.
+// What a mod's page knows of its run: the mod, the ids of the permissions it is granted, how long each of its
+// lifecycles is given to end, in milliseconds, the run's number main counts it by, and what went wrong with it, which
+// main is told as it is recorded.
 export function createRun() {
     // MARK: - Property
     const failures = [];
     let mod = null;
     let granted = [];
+    let end = 0;
     let number = null;
 
     // MARK: - Initializer
     // MARK: - Public
-    // What main answered as the page loaded: the mod's manifest, what it is granted and which run this is.
+    // What main answered as the page loaded: the mod's manifest, what it is granted, how long an end is given and which
+    // run this is.
     function begin(loaded) {
         mod = loaded.manifest;
         granted = Object.freeze([...loaded.granted]);
+        end = loaded.end;
         number = loaded.run;
     }
 
@@ -64,6 +68,9 @@ export function createRun() {
         },
         get granted() {
             return granted;
+        },
+        get end() {
+            return end;
         },
         get number() {
             return number;

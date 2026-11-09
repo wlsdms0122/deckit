@@ -8,6 +8,7 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
     let connection = null;
     let ready = null; // settled once the core has answered initialize
     let kept = null; // where the core keeps the mods it installed and their data folders, as initialize answered
+    let given = null; // how long a run is given, as initialize answered
     let ended = null; // why the core is gone, once it is
     let down = null; // why the core answers nothing more, once it does not: it ended, or did not start
     const downListeners = [];
@@ -31,8 +32,9 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
             sources: FOLDERS.sources,
             permissions,
             fields,
-        }).then((folders) => {
-            kept = folders;
+        }).then(({ mods, data, timeout }) => {
+            kept = { mods, data };
+            given = { launch: timeout.launch * 1000, end: timeout.end * 1000 };
         });
         // A core that does not start is down, and each request after it is refused with why. Its refusal is what
         // started it to report.
@@ -48,6 +50,13 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
     // Where the core keeps the mods it installed and their data folders, `{ mods, data }`, once the core has started.
     function folders() {
         return kept;
+    }
+
+    // How long a run is given, in milliseconds, `{ launch, end }`, once the core has started: its code `launch` to
+    // start once it launched, and each of its lifecycles `end` to end once its end is asked. The core says how long,
+    // and what runs the mods keeps the time.
+    function timeout() {
+        return given;
     }
 
     // `listener(why)` is told once the core answers nothing more: it ended, or it did not start. Told at once when that
@@ -112,5 +121,5 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
         else asked.resolve(response.result);
     }
 
-    return { start, request, folders, onDown };
+    return { start, request, folders, timeout, onDown };
 }

@@ -4,7 +4,6 @@ import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as MOD from '../catalog/model/mod.js';
 import * as RUN from './model/run.js';
-import * as LIMIT from './model/limit.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -367,12 +366,12 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         makePage(sandbox);
     }
 
-    // A run whose code has not started `LIMIT.LAUNCH_LIMIT_MS` after it launched has timed out.
+    // A run whose code has not started in the time the core gives a launch has timed out.
     function limitLaunch(run) {
         const timer = setTimeout(() => {
             if (runOf(run.mod.id) === run && run.state === 'launching')
                 send('runner/timed-out', { mod: run.mod.id, run: run.number });
-        }, LIMIT.LAUNCH_LIMIT_MS);
+        }, CORE.timeout().launch);
         timer.unref?.();
     }
 
@@ -393,7 +392,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         const sandbox = sandboxes.get(modId);
         const stopping = sandbox
             ? PROTOCOL.stop
-                  .invoke(sandbox.page, {}, { timeout: LIMIT.END_LIMIT_MS * sandbox.lifecycles })
+                  .invoke(sandbox.page, {}, { timeout: CORE.timeout().end * sandbox.lifecycles })
                   .catch(() => {})
             : Promise.resolve();
         stopping.then(() => send('runner/stopped', { mod: modId, run: number }));
@@ -453,7 +452,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             });
             sandbox.lifecycles = 1;
             const source = await CATALOG.sourceOf(mod);
-            return { manifest: mod.manifest, granted: mod.granted, source, run: run.number };
+            const end = CORE.timeout().end;
+            return { manifest: mod.manifest, granted: mod.granted, end, source, run: run.number };
         });
         PROTOCOL.described.on(({ run: number, summary, lifecycles }, sender) => {
             const sandbox = sandboxes.get(IDENTITY.modFrom(sender).id);

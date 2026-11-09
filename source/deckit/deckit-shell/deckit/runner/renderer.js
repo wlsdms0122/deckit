@@ -1,7 +1,6 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as LIMIT from './model/limit.js';
 import { makeScope } from './model/scope.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
@@ -180,7 +179,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             const ran = (async () => lifecycle.end(instance))().catch((error) =>
                 RUN.fail(error.message || String(error))
             );
-            const late = new Promise((resolve) => (timer = setTimeout(resolve, LIMIT.END_LIMIT_MS)));
+            const late = new Promise((resolve) => (timer = setTimeout(resolve, RUN.end)));
             await Promise.race([ran, late]);
             clearTimeout(timer);
             scope.cut();
