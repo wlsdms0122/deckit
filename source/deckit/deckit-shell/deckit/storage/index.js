@@ -25,10 +25,10 @@ export function createStorage({ CORE, LOG }) {
         unread = null;
     }
 
-    // The state in `folder`, a folder of its own one down for one who names its keys as it likes (the host app), or
-    // null for the state folder. A read answers from what the core keeps at once. A write answers once the core has
-    // kept it, and one refused is taken back, unless the key was written again since. A write to state not read is
-    // refused with why it was not, which is logged where that is.
+    // The state in `folder`, a folder of its own one down for an owner who names its keys as it likes (deckit/api:
+    // stateIn), or null for the state folder. A read answers from what the core keeps at once. A write answers once the
+    // core has kept it, and one refused is taken back, unless the key was written again since. A write to state not
+    // read is refused with why it was not, which is logged where that is.
     function stateIn(folder) {
         const texts = textsIn(folder);
         return Object.freeze({

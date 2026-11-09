@@ -1,4 +1,5 @@
 import * as MOD_PERMISSION from '../permission/index.js';
+import * as OPEN_PERMISSION from '../open/model/permission.js';
 import * as LIFECYCLE from '../runner/model/lifecycle.js';
 import * as IPC from '../ipc/main.js';
 
@@ -11,6 +12,8 @@ export function createApi({
     IDENTITY,
     CATALOG,
     RUNNER,
+    MODS,
+    OPEN,
     REQUEST,
     PERMISSION,
     MANIFEST_FIELD,
@@ -29,9 +32,10 @@ export function createApi({
     // MARK: - Public
     // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages, the
     // pages where the chords mods take work and the keys pressed there, permissions for what the UI adds and the
-    // manifest fields it reads, their own state, the log, and the layers stacked over deckit on a mod's page. No more
-    // of deckit is theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what
-    // starts with it, `whenStarted()` when it has started, and `restart()` the host app's.
+    // manifest fields it reads, their own state, opening outside the app for a mod, the log, and the layers stacked
+    // over deckit on a mod's page. No more of deckit is theirs. Every fact it hands out is a frozen copy.
+    // `onStart(listener)` is how deckit is told what starts with it, `whenStarted()` when it has started, and
+    // `restart()` the host app's.
     function make({ onStart, whenStarted, restart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
@@ -105,6 +109,18 @@ export function createApi({
                 relaunchAll: RUNNER.relaunchAll,
                 // The mods whose main process modules only a restart of the app finishes: [{ id, why }].
                 restartPending: () => frozen(MAIN_PROCESS.restartPending()),
+                // onErase(eraser(id) -> Promise) -> off: what an owner keeps of a mod removed with its data, erased as
+                // the eraser asks; a rejection leaves the erasure to be tried again at the next start.
+                onErase: (eraser) => MODS.onErase(eraser),
+                // openExternal(id, url, { activates }): `url` opened outside the app for the mod `id`, as the mod's
+                // own openExternal opens it: the web, and a file only where the mod's run holds
+                // system.file-handlers, refused NOT_PERMITTED otherwise, and what is no such address refused
+                // UNSUPPORTED_URL. Answers nothing once it is handed on.
+                openExternal: (id, url, { activates } = {}) =>
+                    OPEN.open(url, {
+                        activates,
+                        opensFiles: !!RUNNER.runOf(id)?.mod.granted.includes(OPEN_PERMISSION.FILE_HANDLERS),
+                    }),
             }),
             pages: Object.freeze({
                 // add(page, name): a page the host app or its shell made that runs no mod, known as theirs by `name`
@@ -114,6 +130,9 @@ export function createApi({
                 whenEnds: IDENTITY.whenPageEnds,
                 isPressing: IDENTITY.isPressing,
                 isPointing: IDENTITY.isPointing,
+                // onSandbox(listener(page, id)) -> off: each mod's sandbox page as it is made, known as the page of
+                // the mod `id` and before it loads, so what its owner sets up is in place before the mod's code runs.
+                onSandbox: (listener) => RUNNER.onSandbox((page, mod) => listener(page, mod.id)),
             }),
             // listen(page): a page of the host app's or its shell's where the chords mods take work too.
             // monitor(handler(page, keystroke) -> taken) -> off: a look at each key pressed in a page listened to,
@@ -133,7 +152,9 @@ export function createApi({
             permissions: Object.freeze({ define: PERMISSION.define }),
             // define(key): a top-level manifest key the UI reads, named before deckit starts.
             fields: Object.freeze({ define: MANIFEST_FIELD.define }),
-            // What the host app and its shell keep of the person's, in a folder of their own beside deckit's state.
+            // stateIn(name): what an owner keeps of the person's, `{ read, write }` in a folder of its own, by `name`,
+            // beside deckit's state. `state` is the host app's and its shell's, `stateIn('host')`.
+            stateIn: (name) => STORAGE.stateIn(name),
             state: STORAGE.stateIn('host'),
             web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
             log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error }),

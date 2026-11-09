@@ -166,6 +166,8 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         IDENTITY,
         CATALOG,
         RUNNER,
+        MODS,
+        OPEN,
         REQUEST,
         PERMISSION,
         MANIFEST_FIELD,

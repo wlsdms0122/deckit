@@ -2,7 +2,8 @@
 // of the web is handed the browser as the URL Standard serializes it, and a file its app, either brought forward unless
 // asked not to; a file opens only for a mod with system.file-handlers, refused NOT_PERMITTED otherwise, and only one on
 // this host whose path decodes; what is no URL, or a URL of any other scheme, is refused UNSUPPORTED_URL. Revealing a
-// file takes system.file-handlers.
+// file takes system.file-handlers. What the host app opens for a mod (deckit/api/index.js: mods.openExternal) opens
+// the same way, a file only for a mod whose run holds system.file-handlers.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -11,6 +12,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 
 async function main() {
     const { createOpen } = await import(url('deckit-shell', 'deckit', 'open', 'main.js'));
+    const { createApi } = await import(url('deckit-shell', 'deckit', 'api', 'index.js'));
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;
@@ -168,6 +170,54 @@ async function main() {
         shown,
         opened,
     });
+
+    // The host app opens for a mod by its id, as the mod's run is granted.
+    const runs = new Map([...mods.values()].map((mod) => [mod.id, { mod }]));
+    const api = createApi({
+        CONFIG: {},
+        CORE: {},
+        STORAGE: { stateIn: () => ({}) },
+        LOG: {},
+        IDENTITY: {},
+        CATALOG: {},
+        RUNNER: { runOf: (id) => runs.get(id) ?? null },
+        MODS: {},
+        OPEN,
+        REQUEST: {},
+        PERMISSION: {},
+        MANIFEST_FIELD: {},
+        WEB: {},
+        KEYMAP: {},
+        MAIN_PROCESS: {},
+        SETUP: {},
+    }).make({});
+    const thrown = (opening) =>
+        opening.then(
+            () => '',
+            (error) => `${error.stage} ${error.kind}`
+        );
+    opened.length = 0;
+    const forPlain = await thrown(api.mods.openExternal('c', 'file:///Users/me/a.txt'));
+    const forNone = await thrown(api.mods.openExternal('x', 'file:///Users/me/a.txt'));
+    check(
+        'the host app opens no file for a mod without system.file-handlers, or with no run, refused NOT_PERMITTED',
+        forPlain === 'call NOT_PERMITTED' && forNone === 'call NOT_PERMITTED' && !opened.length,
+        { forPlain, forNone, opened }
+    );
+    await api.mods.openExternal('f', 'file:///Users/me/a.txt', { activates: false });
+    await api.mods.openExternal('c', 'https://example.com');
+    check(
+        'the host app opens a file for a mod with system.file-handlers, and the web for any, as asked to bring forward',
+        JSON.stringify(opened) ===
+            '[["file","/Users/me/a.txt",{"activate":false}],["url","https://example.com/",{"activate":true}]]',
+        opened
+    );
+    const scheme = await thrown(api.mods.openExternal('f', 'deckit://finder.mod/'));
+    check(
+        'the host app opens no address of another scheme, refused UNSUPPORTED_URL',
+        scheme === 'call UNSUPPORTED_URL',
+        scheme
+    );
 
     for (const line of failed) console.error(line);
     if (failed.length) {

@@ -2,8 +2,9 @@
 // a system mod, the manifest fields the layers named, by key, as written, whether a permission is privileged, and why
 // one does not load, with its kind; what a mod with deckit.mods (deckit/mods/main.js) is answered of them, a launch it
 // asks made in its name and a refusal of a request answered with its stage and kind; and what the host app
-// (deckit/api/index.js) is answered of them. Exits 1 with a line for each check that failed. The packages are ES
-// modules, so they are imported as such.
+// (deckit/api/index.js) is answered of them, and what it hears through it: each mod's sandbox page by the mod's id,
+// each erase of a mod's data, and its own state in a folder by name. Exits 1 with a line for each check that failed.
+// The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -185,14 +186,21 @@ async function main() {
     );
 
     // The host app reads a mod's fields.
+    const sandboxListeners = []; // what hears each sandbox page through the runner
+    const erasers = []; // what MODS asks to erase
     const api = createApi({
         CONFIG: { id: 'deckit', name: 'Deckit' },
         CORE: { onDown: () => () => {} },
-        STORAGE: { stateIn: () => ({}) },
+        STORAGE: { stateIn: (folder) => ({ folder }) },
         LOG,
         IDENTITY,
         CATALOG,
-        RUNNER,
+        RUNNER: {
+            ...RUNNER,
+            onSandbox: (listener) => sandboxListeners.push(listener) && (() => sandboxListeners.pop()),
+        },
+        MODS: { onErase: (eraser) => erasers.push(eraser) && (() => erasers.pop()) },
+        OPEN: {},
         REQUEST,
         PERMISSION: { define: () => {} },
         MANIFEST_FIELD: { define: () => {} },
@@ -236,6 +244,26 @@ async function main() {
         'what the host app lists is frozen',
         Object.isFrozen(hosted) && Object.isFrozen(hosted[2].refusal) && Object.isFrozen(hosted[0].fields),
         ''
+    );
+
+    const sandboxed = [];
+    const offSandbox = api.pages.onSandbox((page, id) => sandboxed.push([page, id]));
+    for (const listener of sandboxListeners) listener(PAGE, { id: 's', granted: [] });
+    offSandbox();
+    check(
+        "the host app hears each mod's sandbox page with the mod's id, until its off",
+        JSON.stringify(sandboxed) === '[[{"mod":"s"},"s"]]' && !sandboxListeners.length,
+        sandboxed
+    );
+    const eraser = async () => {};
+    const offErase = api.mods.onErase(eraser);
+    const asked = erasers[0] === eraser;
+    offErase();
+    check('the host app erases what it keeps of a mod as deckit erases its data', asked && !erasers.length, '');
+    check(
+        "the host app keeps its state in a folder by name, and its own in the host's",
+        api.stateIn('web').folder === 'web' && api.state.folder === 'host',
+        api.state
     );
 
     for (const line of failed) console.error(line);
