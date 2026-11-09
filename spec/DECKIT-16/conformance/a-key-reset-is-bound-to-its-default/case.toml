@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-reset-is-bound-to-its-default"
 note = "reset(mod, command) binds the key to its default again and answers it. mod-a sets the key of today to ctrl+alt+k, then resets it."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

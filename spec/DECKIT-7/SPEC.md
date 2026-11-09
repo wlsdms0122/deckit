@@ -58,10 +58,11 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `exports.register(exports)` | the exports the mod opens for its id | | [the connections](../DECKIT-9/SPEC.md) |
 | `dependencies.reach(id)`, `dependencies.release(id)` | reaching a mod by its id, and letting it go | `deckit.reach-mods`, for `reach` | [the connections](../DECKIT-9/SPEC.md) |
 | `exports.register(interface, exports)`, `exports.contributions(interface)`, `dependencies.onConnect(interface, listener)`, `dependencies.onRefuse(interface, listener)` | what the mod provides of an interface, and what it is connected to by one | | [the interfaces](../DECKIT-10/SPEC.md) |
-| `keys.take(keystroke, run, options)` | a chord the mod takes | `deckit.app-keys` or `system.global-keys`, by where the chord works | the keys' DECKIT; the keys a mod declares, which the owner of `deckit/keys` takes: [the key bindings](../DECKIT-16/SPEC.md) |
 | `clipboard.readText()`, `clipboard.writeText(text)` | what the person copied, read and replaced | `system.clipboard-read`, `system.clipboard-write` | the clipboard's DECKIT |
 | `notifications.show(notification)` | a notification of the machine's | `system.notifications` | the notifications' DECKIT |
 | `util` | matching text and moving paths | | the utilities' DECKIT |
+
+**Note.** `keys.take(keystroke, run, options)`, a chord the mod takes, is a member of the handle `shell`, not of this one: the shell's DECKITs, and for the keys a mod declares, which the owner of `deckit/keys` takes, [the key bindings](../DECKIT-16/SPEC.md).
 
 A `.` names a member of the member before it, as [the case format](../DECKIT-1/SPEC.md)'s `member` does. A member's DECKIT fixes what it takes, answers and is refused with, and whether it is a request.
 

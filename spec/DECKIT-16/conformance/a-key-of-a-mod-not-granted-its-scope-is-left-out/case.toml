@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-of-a-mod-not-granted-its-scope-is-left-out"
 note = "An entry is left out where its mod is not granted the permission of its scope, deckit.app-keys for app. mod-b asks for no permission and declares a key for today."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

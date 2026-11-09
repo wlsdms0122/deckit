@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-for-a-command-that-requires-args-is-left-out"
 note = "An entry whose command requires args is left out: a key runs its command with none. mod-b declares a key for echo, which requires text."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

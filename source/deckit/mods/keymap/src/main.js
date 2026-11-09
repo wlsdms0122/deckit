@@ -1,11 +1,19 @@
 const { keymap, INTERFACE } = require('./keymap/keymap.js');
 
-// The owner of deckit/keys: binds the keys mods declare to it, takes their chords from the start through the keys hole,
-// and runs a key's command through deckit/commands as its chord is pressed. It has no view.
+// The owner of deckit/keys: binds the keys mods declare to it, takes their chords through the keys of the shell's
+// handle from attach, and runs a key's command through deckit/commands as its chord is pressed. It has no view.
 class Keymap {
     start(deckit) {
-        const keys = keymap(deckit);
-        deckit.exports.register(INTERFACE, { connect: (connection) => keys.exportsFor(connection) });
+        this.keymap = keymap(deckit);
+        deckit.exports.register(INTERFACE, { connect: (connection) => this.keymap.exportsFor(connection) });
+    }
+
+    attach(shell) {
+        this.keymap.attach(shell.keys);
+    }
+
+    detach() {
+        this.keymap.attach(null);
     }
 }
 

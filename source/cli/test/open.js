@@ -170,7 +170,6 @@ async function main() {
         REQUEST: {},
         PERMISSION: {},
         MANIFEST_FIELD: {},
-        KEYMAP: {},
         SETUP: {},
     }).make({});
     const thrown = (opening) =>

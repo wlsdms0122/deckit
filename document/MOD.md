@@ -106,17 +106,17 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.file-handlers` | handing files on this Mac to whatever opens them, a mod or the app for them, which can start programs, and showing them in Finder | `deckit.urls.open` of a `file://` address, `deckit.reveal`, `web.downloads.open` and `reveal` |
 | `system.overlay-windows` | a window of its own over every app's, on every desktop, whichever app is in front | `overlay` on `shell.window.register` |
 | `system.notifications` | the system's notifications, in the corner of the screen | `deckit.notifications` |
-| `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `scope: 'global'` on a key |
+| `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `scope: 'global'` on a key, on `shell.keys.take` |
 | `deckit.command-registry` | listing the commands of every mod and of the app, and running them, doing whatever they do | `list`, `run`, `complete` and `onChange` on `deckit.commands` |
 | `deckit.mods` | every mod: listing, installing, removing, launching them again, putting them in an order and choosing the mod that owns each interface, approving the mods that start with the app, picking and revealing their folders, keeping mods in the Dock and opening them, and restarting the app | `deckit.mods`, `shell.mods` |
 | `deckit.mod-configuration` | every mod's configuration | `deckit.modConfiguration` |
-| `deckit.app-keys` | keys that work wherever the keyboard is in the app, whatever is in front | `scope: 'app'` on a key |
+| `deckit.app-keys` | keys that work wherever the keyboard is in the app, whatever is in front | `scope: 'app'` on a key, on `shell.keys.take` |
 | `deckit.keymap` | binding, changing and switching off the keys of every mod | `list`, `bind`, `reset`, `record` and `onChange` on `deckit.keys` |
 | `deckit.url-schemes` | the order of each scheme's handlers, and which are switched off | `list`, `set` and `everyScheme` on `deckit.urls` |
 | `deckit.styles` | how every page looks, other mods' among them, and so what they show | `shell.styles.register` |
 | `deckit.fonts` | the fonts and the text size every mod writes text in | `shell.fonts` |
 
-Each layer defines the names of what it adds and checks them where the mod asks; deck only keeps what a mod asked for. A name without a reason stops the mod. A name no layer on this host app defines (`system.overlay-windows`, `deckit.styles` and `deckit.fonts` where no UI shell is, or one misspelled) is not usable here: the mod runs without what it guards. Without asking, a mod has its own sandbox, records, values, configuration, keys and web sessions, and of deckit and its shell: asking for an address to be opened, putting itself on screen, a window of its own, and `about()`. None of it reaches another mod.
+Each layer defines the names of what it adds and checks them where the mod asks; deck only keeps what a mod asked for. A name without a reason stops the mod. A name no layer on this host app defines (`system.overlay-windows`, `deckit.styles`, `deckit.fonts`, `deckit.app-keys` and `system.global-keys` where no UI shell is, or one misspelled) is not usable here: the mod runs without what it guards. Without asking, a mod has its own sandbox, records, values, configuration, keys and web sessions, and of deckit and its shell: asking for an address to be opened, putting itself on screen, a window of its own, and `about()`. None of it reaches another mod.
 
 ### contributes
 
@@ -437,6 +437,7 @@ What `attach` receives as `shell`, from deckit's shell (the panel and the kit). 
 | `web` | `page({ session, url })`, `window({ session, url, title })` (below) |
 | `fonts` | with `deckit.fonts`: `get()`, the person's `{ text, size }` at once, each null for the default: a face's name for `text`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `textSize`) |
 | `mods` | with `deckit.mods`: `list()`, every mod that declares a view in the mods' order, `[{ id, name, icon, keywords, pinned, running }]`, `pinned` whether the person keeps it in the Dock and `running` whether it runs, at once, `pinned()`, the ids of the mods the person keeps in the Dock, at once, `setPinned(id, pinned)`, keeping one there or taking it out, and `open(id)`, the mod on screen as the person opens it, launched when it does not run; it rejects a mod with nothing to show in the panel |
+| `keys` | `take(keystroke, run, { scope })`, a chord taken for the mod, `keystroke` `{ code, meta, control, alt, shift }`, in `scope` `app`, the default, with `deckit.app-keys`, or `global` with `system.global-keys`, `run()` what each press does; it resolves to `{ held, release }`, `held` false for a chord the system did not give, which works in the app still, and the chord is let go as `attach`'s run ends. `record(onKeystroke)`, each key pressed in the page handed over until its stop; with `deckit.shell-keys`, `list`, `set` and `reset` of the shell's own keys |
 | `view`, `window`, `styles` | each `register` (Registering); `styles` with `deckit.styles` |
 
 The page wears the theme, the kit's styles and other mods' styles from just before `attach` runs.

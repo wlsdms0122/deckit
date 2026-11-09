@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-list-answers-each-key-the-mods-declare"
 note = "list answers each key declared to deckit/keys, app keys in the catalog's order and then the order written, each bound to its default, with its command's title, its scope, app where it is left out, its keystroke and its chord as a person reads it. mod-b declares keys for today and week, and mod-c one for note in a spec of other words and case."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b", "mod-c"]

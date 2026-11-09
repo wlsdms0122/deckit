@@ -1,11 +1,34 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
+import * as KEY_PERMISSION from './model/permission.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+// What `keys.take` takes: the keystroke, what a press runs, and where the chord works.
+const TAKES = Object.freeze([
+    [
+        'keystroke',
+        'object',
+        [
+            ['code', 'string'],
+            ['meta', 'boolean?'],
+            ['control', 'boolean?'],
+            ['alt', 'boolean?'],
+            ['shift', 'boolean?'],
+        ],
+    ],
+    ['run', 'function'],
+    ['options', 'object?', [['scope', 'string?']]],
+]);
+
 // MARK: - Initializer
 // MARK: - Public
-// `shell.keys` in a mod's page, its channels bound with `channels`. `forScope(scope, { changes })` answers it for a
-// lifecycle: `record(onKeystroke) -> stop` hands `onKeystroke(keystroke)`, `{ code, meta, control, alt, shift }`,
+// `shell.keys` in a mod's page, its channels bound with `channels`. `forScope(scope, { changes, request })` answers it
+// for a lifecycle, `request` making each of its requests as the shell's handle guards them: `take(keystroke, run, {
+// scope })` takes `keystroke`, `{ code, meta, control, alt, shift }`, `code` as a keyboard event names the key, in
+// `scope`: `app`, every page of the app, with deckit.app-keys, or `global`, every app, with system.global-keys, `run()`
+// what each press does. It resolves to `{ held, release }`: `held` whether it works where its scope says, false for a
+// chord the system did not give, which works in every page of the app still, and `release()` letting it go, as the end
+// of `scope` does; it rejects for a chord another holds. `record(onKeystroke) -> stop` hands `onKeystroke(keystroke)`
 // each key pressed in the page, taken from it, until `stop()`, the next record or the end of `scope`. With `changes`,
 // for a mod with deckit.shell-keys, `list()` answers the shell's keys, `[{ id, name, defaultKeystroke, keystroke }]`,
 // at once; `set(id, keystroke)` gives one a chord, `{ code, meta, control, alt, shift }`, or none for null, and
@@ -13,10 +36,23 @@ import * as DECLARED from './protocol.js';
 function createKeys({ channels }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
+    const runs = new Map(); // the id a chord is taken under -> what a press of it runs
     const recorders = new Map(); // the id a recording is asked under -> what it hands each key to
-    let next = 0;
+    let lastTake = 0; // the id the last chord was taken under
+    let lastRecording = 0; // the id the last recording was asked under
 
     // MARK: - Initializer
+    // A press of a chord the mod took runs what it took it with, here. What that throws is only logged: no one asked
+    // to be told.
+    PROTOCOL.pressed.on(async ({ id }) => {
+        const run = runs.get(id);
+        if (!run) return;
+        try {
+            await run();
+        } catch (error) {
+            console.warn('[deckit] what a chord runs threw', error);
+        }
+    });
     PROTOCOL.recorded.on(({ id, keystroke }) => {
         const recorder = recorders.get(id);
         if (!recorder) return;
@@ -28,8 +64,12 @@ function createKeys({ channels }) {
     });
 
     // MARK: - Public
-    function forScope(scope, { changes }) {
+    function forScope(scope, { changes, request }) {
         return Object.freeze({
+            take: (...args) =>
+                request('keys.take', { guards: guardsOf(args[2]), signature: TAKES }, (keystroke, run, options) =>
+                    take(keystroke, run, options, scope)
+                )(...args),
             record: (onKeystroke) => record(onKeystroke, scope),
             ...(changes
                 ? {
@@ -42,10 +82,45 @@ function createKeys({ channels }) {
     }
 
     // MARK: - Private
+    // A chord is guarded by the permission its scope names; a scope that names none, by either.
+    function guardsOf(options) {
+        const named = options?.scope ?? 'app';
+        return Object.hasOwn(KEY_PERMISSION.SCOPES, named)
+            ? [KEY_PERMISSION.SCOPES[named]]
+            : Object.values(KEY_PERMISSION.SCOPES);
+    }
+
+    async function take({ code, meta, control, alt, shift }, run, options, scope) {
+        const id = ++lastTake;
+        runs.set(id, run);
+        try {
+            const held = await PROTOCOL.take.invoke({
+                id,
+                keystroke: {
+                    code,
+                    meta: meta ?? false,
+                    control: control ?? false,
+                    alt: alt ?? false,
+                    shift: shift ?? false,
+                },
+                scope: options?.scope ?? 'app',
+            });
+            return Object.freeze({ held, release: scope.add(() => release(id)) });
+        } catch (error) {
+            runs.delete(id);
+            throw error;
+        }
+    }
+
+    function release(id) {
+        if (!runs.delete(id)) return;
+        PROTOCOL.release.send({ id });
+    }
+
     // A recording asked again ends the one before it, as main ends it.
     function record(onKeystroke, scope) {
         if (typeof onKeystroke !== 'function') throw new Error('shell.keys.record() takes a function');
-        const id = ++next;
+        const id = ++lastRecording;
         recorders.clear();
         recorders.set(id, onKeystroke);
         PROTOCOL.record.send({ id });

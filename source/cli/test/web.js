@@ -1,9 +1,9 @@
 // The web engine in main (deckit-shell/web/engine) on a stand-in for what connect answers and for the environment's
 // web: what loads in web pages, the mod's page a web page answers to, which sessions attach and are kept, a mod's
 // windows closing with its document, what a mod's page opens by itself opened for the mod, what a web page's
-// window.open gets, what a site may have and the question put to the mod showing it, a site's notifications, and a
-// mod's tabs held to the mod. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// window.open gets, what a site may have and the question put to the mod showing it, a site's notifications, a mod's
+// tabs held to the mod, and each web page told as it is adopted. Exits 1 with a line for each check that failed. The
+// packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -131,7 +131,6 @@ async function main() {
             },
         },
         pages: { nameOf: () => null, onSandbox: (listener) => (sandboxed = listener) },
-        keymap: { listen: () => {} },
     };
     const WEB = createWeb({ deckit, state: STATE, web, pages, open });
     WEB.start();
@@ -237,7 +236,14 @@ async function main() {
         activates: true,
         ...fields,
     });
+    const adoptedTold = []; // [page, whether its input was watched as it was told]
+    WEB.onPage((page) => adoptedTold.push([page, inputs.has(page)]));
     listened.adopted(filesPage, tab);
+    check(
+        'a web page adopted is told to what listens, before its input is watched',
+        adoptedTold.length === 1 && adoptedTold[0][0] === tab && adoptedTold[0][1] === false && inputs.has(tab),
+        adoptedTold
+    );
     check('without a press nothing opens', listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');
     press(tab, 'keyup');
     check('a key let go is no press', listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');

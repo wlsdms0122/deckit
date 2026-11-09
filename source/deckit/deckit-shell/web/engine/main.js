@@ -1,4 +1,5 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
+import * as LISTENER from '../../deckit/listener/index.js';
 import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 import * as SESSION from './model/session.js';
@@ -45,6 +46,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     // hands it back through allow(); a refusal is not kept, so a page refused by mistake can ask again once reloaded.
     const granted = new Set();
     const activated = new WeakMap(); // a web page -> when a key or the mouse was last pressed in it
+    const adopting = new Set(); // what is told of each web page as it is adopted
     let sequence = 0;
     const DOWNLOAD = createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages: PAGES, open: SYSTEM });
 
@@ -92,6 +94,13 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
 
     function holdsKeyboard(modPage) {
         return WEB.holdsKeyboard(modPage);
+    }
+
+    // `listener(page)` is told of each web page as it is adopted, before its input is watched. Answers its off.
+    function onPage(listener) {
+        const told = LISTENER.wrap(listener, 'a web page listener');
+        adopting.add(told);
+        return () => adopting.delete(told);
     }
 
     // MARK: - Private
@@ -273,11 +282,10 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return true;
     }
 
-    // A web page is a page of its own: the chords taken work in it only when it is listened to, and the key and mouse
-    // presses in it are watched, as a window it opens takes a press. Main sees the input itself, so a page cannot claim
-    // it.
+    // A web page is a page of its own: what listens on it is told of it, and then the key and mouse presses in it are
+    // watched, as a window it opens takes a press. Main sees the input itself, so a page cannot claim it.
     function adopted(modPage, page) {
-        deckit.keymap.listen(page);
+        for (const listener of [...adopting]) listener(page);
         PAGES.watchInput(page, ({ type }) => {
             if (type === 'keydown' || type === 'mousedown' || type === 'mouseup') activated.set(page, Date.now());
         });
@@ -411,5 +419,5 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         for (const resolve of question.waiting) resolve(!!allowed);
     }
 
-    return { start, pageFor, holdsKeyboard };
+    return { start, pageFor, holdsKeyboard, onPage };
 }

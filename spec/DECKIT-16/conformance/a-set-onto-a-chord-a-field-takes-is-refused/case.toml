@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-set-onto-a-chord-a-field-takes-is-refused"
 note = "set is refused at call with kind INVALID_ARGUMENT where keystroke is a chord a text field with focus takes. mod-a sets the key of today to cmd+v."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

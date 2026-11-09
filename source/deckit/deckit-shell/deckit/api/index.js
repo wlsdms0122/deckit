@@ -16,7 +16,6 @@ export function createApi({
     REQUEST,
     PERMISSION,
     MANIFEST_FIELD,
-    KEYMAP,
     SETUP,
 }) {
     // MARK: - Property
@@ -27,12 +26,11 @@ export function createApi({
     // MARK: - Initializer
 
     // MARK: - Public
-    // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages, the
-    // pages where the chords mods take work and the keys pressed there, permissions for what the UI adds and the
-    // manifest fields it reads, their own state, opening outside the app for a mod, the log, and the layers stacked
-    // over deckit on a mod's page. No more of deckit is theirs. Every fact it hands out is a frozen copy.
-    // `onStart(listener)` is how deckit is told what starts with it, `whenStarted()` when it has started, and
-    // `restart()` the host app's.
+    // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages,
+    // permissions for what the UI adds and the manifest fields it reads, their own state, opening outside the app for a
+    // mod, the log, and the layers stacked over deckit on a mod's page. No more of deckit is theirs. Every fact it
+    // hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it, `whenStarted()` when
+    // it has started, and `restart()` the host app's.
     function make({ onStart, whenStarted, restart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
@@ -134,21 +132,6 @@ export function createApi({
                 // onSandbox(listener(page, id)) -> off: each mod's sandbox page as it is made, known as the page of
                 // the mod `id` and before it loads, so what its owner sets up is in place before the mod's code runs.
                 onSandbox: (listener) => RUNNER.onSandbox((page, mod) => listener(page, mod.id)),
-            }),
-            // listen(page): a page of the host app's or its shell's where the chords mods take work too.
-            // monitor(handler(page, keystroke) -> taken) -> off: a look at each key pressed in a page listened to,
-            // before the chords mods take, taking it by answering true. hold(keystroke, handler(page, keystroke) ->
-            // taken, { name }) -> release: a chord held in every page listened to, its press told once the page did
-            // not handle it, refused where it is held or taken, and a mod's take of it refused while it is held.
-            // record(page, handler(keystroke)) -> stop: each key pressed in the page, taken from it, before anything
-            // else. onChord(listener(mod)) -> off: a chord a mod took, as it is told to that mod's page, by the mod's
-            // id (deckit/keymap/main.js).
-            keymap: Object.freeze({
-                listen: (page) => KEYMAP.listen(page),
-                monitor: (handler) => KEYMAP.monitor(handler),
-                hold: (keystroke, handler, options) => KEYMAP.hold(keystroke, handler, options),
-                record: (page, handler) => KEYMAP.record(page, handler),
-                onChord: (listener) => KEYMAP.onChord(listener),
             }),
             permissions: Object.freeze({ define: PERMISSION.define }),
             // define(key): a top-level manifest key the UI reads, named before deckit starts.

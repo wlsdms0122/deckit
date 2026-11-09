@@ -16,14 +16,14 @@ const KEPT = 'keys';
 // MARK: - Initializer
 // MARK: - Public
 // The keys mods declare to deckit/keys, bound to their defaults or to what a person set, kept in the mod's records,
-// each chord taken through the keys hole, and a press running its command through deckit/commands. What is declared to
-// deckit/keys is read as the keymap starts and again on its signals, and the commands as deckit/commands connects and
-// again as what is declared to it changes; the chords are taken again after each. `deckit` is the function
-// lifecycle's handle.
+// each chord taken through the keys of the shell's handle once `attach` hands them, and a press running its command
+// through deckit/commands. What is declared to deckit/keys is read as the keymap starts and again on its signals, and
+// the commands as deckit/commands connects and again as what is declared to it changes; the chords are taken again
+// after each. `deckit` is the function lifecycle's handle.
 function keymap(deckit) {
     // MARK: - Property
     const records = deckit.storage.records;
-    const taken = chords(deckit.keys, press);
+    const taken = chords(press);
     const warned = new Set(); // what was told about a declaration, told once
     let changes = changesOf(records.get(KEPT, []));
     let commands = null; // deckit/commands' exports, while connected
@@ -73,9 +73,15 @@ function keymap(deckit) {
         return Object.freeze({ list: refuse, set: refuse, reset: refuse, chordOf });
     }
 
-    // Every binding, as `resolved` answers it, with what the keys hole answered: `taken` for a chord another mod
-    // holds, which runs none of them, and `unavailable` for one the system did not give outside the app. With the
-    // entries left out, `{ keys, refused }`.
+    // `keys`, the screen lifecycle's `shell.keys`, takes the chords, taken again at once; null takes none.
+    function attach(keys) {
+        taken.use(keys);
+        if (commands) retake();
+    }
+
+    // Every binding, as `resolved` answers it, with what the shell answered: `taken` for a chord another mod holds,
+    // which runs none of them, and `unavailable` for one the system did not give outside the app. With the entries
+    // left out, `{ keys, refused }`.
     function list() {
         return serial(async () => ({ keys: await refresh(), refused }));
     }
@@ -142,6 +148,7 @@ function keymap(deckit) {
         for (const binding of next) {
             if (!binding.active) continue;
             const outcome = outcomes.get(specOf(binding.keystroke));
+            if (!outcome) continue;
             if (outcome.problem) {
                 binding.active = false;
                 binding.issues.push(issue('taken', outcome.problem));
@@ -200,7 +207,7 @@ function keymap(deckit) {
         return Object.assign(new Error(message), { kind });
     }
 
-    return Object.freeze({ exportsFor });
+    return Object.freeze({ exportsFor, attach });
 }
 
 // MARK: - Private

@@ -1,6 +1,5 @@
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
-import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 import * as ENVIRONMENT from '../environment/index.js';
 import * as IPC from '../ipc/main.js';
@@ -19,7 +18,6 @@ import { createConnection } from '../connection/main.js';
 import { createEvent } from '../event/main.js';
 import { createMods } from '../mods/main.js';
 import { createCore } from '../core/main.js';
-import { createKeymap } from '../keymap/main.js';
 import { createOpen } from '../open/main.js';
 import { createNotification } from '../notification/main.js';
 import { createClipboard } from '../clipboard/main.js';
@@ -42,7 +40,7 @@ const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process and its windows are its own.
 const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
 // The permissions deckit's passages define, in the order a person reads them.
-const DECKIT_PERMISSIONS = [CLIPBOARD_PERMISSION, NOTIFICATION_PERMISSION, KEYMAP_PERMISSION, OPEN_PERMISSION];
+const DECKIT_PERMISSIONS = [CLIPBOARD_PERMISSION, NOTIFICATION_PERMISSION, OPEN_PERMISSION];
 // Main's channels are the process's: deckit connects once.
 let connected = null;
 
@@ -106,7 +104,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
-    const KEYMAP = createKeymap({ LOG, IDENTITY, RUNNER, keys: ENV.keys });
     const OPEN = createOpen({ IDENTITY, open: ENV.open });
     const NOTIFICATION = createNotification({
         LOG,
@@ -140,7 +137,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         REQUEST,
         PERMISSION,
         MANIFEST_FIELD,
-        KEYMAP,
         SETUP,
     });
     const starting = []; // what starts with deckit, before any mod launches: the UI on it
@@ -179,7 +175,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             await CATALOG.load();
         }
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
-        KEYMAP.start();
         OPEN.start();
         NOTIFICATION.start();
         CLIPBOARD.start();

@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-list-of-keys-with-no-connection-to-commands-is-refused"
 note = "list is refused at call with kind NOT_CONNECTED while the owner has no connection to deckit/commands, which no command is known without. The host ships no owner of deckit/commands."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys"]
 ship = ["mod-a", "mod-b"]

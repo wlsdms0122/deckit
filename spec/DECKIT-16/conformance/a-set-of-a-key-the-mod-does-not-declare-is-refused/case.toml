@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-set-of-a-key-the-mod-does-not-declare-is-refused"
 note = "set is refused at call with kind NOT_DECLARED where the mod declares no key for the command. mod-b declares a key for today, and mod-a sets one for week."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

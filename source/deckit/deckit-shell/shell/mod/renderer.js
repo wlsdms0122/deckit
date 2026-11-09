@@ -5,6 +5,7 @@ import * as STYLE_PERMISSION from '../style/model/permission.js';
 import * as FONTS from '../fonts/renderer.js';
 import * as FONTS_PERMISSION from '../fonts/model/permission.js';
 import * as MOD_PERMISSION from '../../deckit/permission/index.js';
+import * as REQUEST from '../../deckit/request/index.js';
 import { createKeys } from '../key/renderer.js';
 import * as KEY_PERMISSION from '../key/model/permission.js';
 import * as PAGE from '../page/renderer.js';
@@ -20,10 +21,10 @@ import { createWindows } from '../window/renderer.js';
 // offer (`under`), over deckit's (`under.deckit`): the lifecycle it calls, attach(shell, deckit, frameworks) and
 // detach(), the instance's reopen() as its Dock item is clicked with no window open, and the handle `shell`: the
 // theme, the kit, `windows`, `iconOf(mod)`, `region(element, interface)`, `children`, `dropDestination(element,
-// options)`, `web`, `keys`, which records the keys pressed in the page and with deckit.shell-keys changes the shell's
-// own, with deckit.fonts `fonts`, with deckit.mods the Dock on `mods`, `view.register()` for a mod whose manifest
-// fields give its view a parent, and, with deckit.styles, `styles.register()`. The page wears the theme, the kit and
-// the styles from just before attach().
+// options)`, `web`, `keys`, which takes a chord for the mod with the permission its scope picks, records the keys
+// pressed in the page and with deckit.shell-keys changes the shell's own, with deckit.fonts `fonts`, with deckit.mods
+// the Dock on `mods`, `view.register()` for a mod whose manifest fields give its view a parent, and, with
+// deckit.styles, `styles.register()`. The page wears the theme, the kit and the styles from just before attach().
 // Once attach() has ended, a child's view is laid where a region of its parent's shows it. `web` shows the pages of the
 // mod's web sessions, as the web engine's layer offers them (`under.web.surfaces`), what they pass on opened as the
 // mod's openExternal opens it. `channels` binds the shell's channels in the page, and `drags` takes the presses in the
@@ -36,6 +37,14 @@ function shellOf({ channels, drags }) {
         const DOCK = createDock({ channels });
         const DROP = createDrop({ deliver, channels });
         const KEYS = createKeys({ channels });
+        // The request `name`, refused NOT_PERMITTED unless the mod holds one of `guards`, then for its arguments.
+        const request = (name, { guards = [], signature }, send) => {
+            const denied =
+                guards.length && !guards.some(has)
+                    ? `${running.id} does not have the ${guards.join(' or ')} permission`
+                    : '';
+            return REQUEST.requestOf(name, { denied, signature }, send);
+        };
         // What it tells of the run: nothing until its lifecycle has joined, nothing on screen once it has ended.
         const ENDED = Object.freeze({
             summary: { view: false, styles: [] },
@@ -75,7 +84,7 @@ function shellOf({ channels, drags }) {
                             }),
                             ...(has(FONTS_PERMISSION.FONTS) ? { fonts: FONTS.tool({ channels }) } : {}),
                             ...(has(MOD_PERMISSION.MODS) ? { mods: DOCK.mods } : {}),
-                            keys: KEYS.forScope(scope, { changes: has(KEY_PERMISSION.SHELL_KEYS) }),
+                            keys: KEYS.forScope(scope, { changes: has(KEY_PERMISSION.SHELL_KEYS), request }),
                         });
                         if (typeof instance.reopen === 'function') {
                             WINDOWS.reopen(() => deliver('reopen()', () => instance.reopen()));

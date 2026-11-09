@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-whose-keystroke-is-no-chord-is-left-out"
 note = "An entry whose keystroke is not a spec is left out: a spec names one key. mod-b declares a key for today on ctrl+a+b."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

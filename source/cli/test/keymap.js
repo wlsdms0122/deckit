@@ -1,19 +1,19 @@
-// The keys hole (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a mod with
-// deckit.app-keys takes a chord in every page listened to, one with system.global-keys takes it as a system hotkey too,
-// and a press is told to the page of the mod that took it. A chord is one mod's at a time, a mod without the permission
-// for the scope is refused, and a chord is let go when released or when the mod's page ends. A monitor looks at each
-// key pressed in a page listened to before the chords, and what it takes runs none. A chord a layer holds is in the
-// same table: its first holder keeps it, a mod's take of it is refused with the holder's name, and it runs only for a
-// key the page did not handle, after the page had it. Each chord told to a mod is heard by its id. A page that records
-// is handed each key pressed in it before anything else, until it stops or ends. Exits 1 with a line for each check
-// that failed. The packages are ES modules, so they are imported as such.
+// The key map (deckit-shell/shell/key/main.js) over a stand-in for the environment's keys and messages and for what
+// connect answers: a mod with deckit.app-keys takes a chord in every page listened to, every mod's page among them, one
+// with system.global-keys takes it as a system hotkey too, and a press is told to the page of the mod that took it. A
+// chord is one mod's at a time, a mod without the permission for the scope is refused, and a chord is let go when
+// released or when the mod's page ends. A monitor looks at each key pressed in a page listened to before the chords,
+// and what it takes runs none. The shell's own keys are in the same table: a mod's take of one's chord is refused with
+// the key's name, and it runs only for a key the page did not handle, after the page had it. Each chord told to a mod
+// is heard by its id. A page that records is handed each key pressed in it before anything else, until it stops or
+// ends. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
 async function main() {
-    const { createKeymap } = await import(url('deckit-shell', 'deckit', 'keymap', 'main.js'));
+    const { createKey } = await import(url('deckit-shell', 'shell', 'key', 'main.js'));
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;
@@ -46,41 +46,56 @@ async function main() {
     };
     IPC.carry({ messages, pages }, { report: () => {} });
 
-    // Mod a holds deckit.app-keys, mod g system.global-keys, mod n neither; the shell's page runs no mod.
+    // Mod a holds deckit.app-keys, mod g system.global-keys, mod n neither, mod s deckit.shell-keys; the shell's page
+    // runs no mod.
     const shell = { name: 'shell' };
     const a = { name: 'mod a' };
     const g = { name: 'mod g' };
     const n = { name: 'mod n' };
+    const s = { name: 'mod s' };
     const mods = new Map([
         [a, { id: 'a', granted: ['deckit.app-keys'] }],
         [g, { id: 'g', granted: ['system.global-keys'] }],
         [n, { id: 'n', granted: [] }],
+        [s, { id: 's', granted: ['deckit.shell-keys'] }],
     ]);
     const ends = new Map(); // page -> what its end calls
-    const IDENTITY = {
-        modOf: (page) => mods.get(page) || null,
-        modFrom: (page, permission) => {
-            const mod = mods.get(page);
-            if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
-            if (permission && !mod.granted.includes(permission))
-                throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
-            return mod;
-        },
-        whenPageEnds: (page, undo) => {
-            const undos = ends.get(page) || new Set();
-            ends.set(page, undos.add(undo));
-            return () => undos.delete(undo);
-        },
-    };
     const end = (page) => [...(ends.get(page) || [])].forEach((undo) => undo({ replaced: true }));
+    const sandboxed = []; // what hears each mod's sandbox page as it is made
     const warned = [];
     const errors = [];
-    const LOG = { warn: (line) => warned.push(line), error: (line) => errors.push(line) };
-    const KEYMAP = createKeymap({ LOG, IDENTITY, RUNNER: { onSandbox: () => () => {} }, keys });
-    KEYMAP.start();
-    for (const page of [shell, a, g, n]) KEYMAP.listen(page);
+    const deckit = {
+        channels: IPC.layerChannels,
+        pages: {
+            onSandbox: (listener) => sandboxed.push(listener),
+            whenEnds: (page, undo) => {
+                const undos = ends.get(page) || new Set();
+                ends.set(page, undos.add(undo));
+                return () => undos.delete(undo);
+            },
+        },
+        mods: {
+            modOf: (page) => mods.get(page)?.id || null,
+            modFrom: (page, permission) => {
+                const mod = mods.get(page);
+                if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
+                if (permission && !mod.granted.includes(permission))
+                    throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
+                return mod.id;
+            },
+            runOf: (id) => [...mods.values()].find((mod) => mod.id === id) ?? null,
+        },
+        state: { read: (_key, fallback) => fallback, write: async () => {} },
+        log: { warn: (line) => warned.push(line), error: (line) => errors.push(line) },
+    };
+    const keyPresses = []; // [id, page], each press of one of the shell's keys
+    let keyTakes = true;
+    const KEY = createKey({ deckit, keys });
+    KEY.start((id, page) => keyPresses.push([id, page]) > 0 && keyTakes);
+    KEY.listen(shell);
+    for (const page of [a, g, n]) for (const listener of sandboxed) listener(page);
     const chords = []; // the mods each chord told was heard for
-    KEYMAP.onChord((mod) => chords.push(mod));
+    KEY.onChord((mod) => chords.push(mod));
 
     const keystroke = (code, modifiers = {}) => ({
         code,
@@ -97,9 +112,11 @@ async function main() {
         const answer = await heard.asked(page, { channel, payload });
         return answer.error ? { error: answer.error } : { value: answer.value };
     };
-    const take = (page, id, chord, scope) => ask(page, 'deckit-shell:keymap-take', { id, keystroke: chord, scope });
-    const release = (page, id) => heard.told(page, { channel: 'deckit-shell:keymap-release', payload: { id } });
-    const told = () => tells.filter(([, message]) => message.channel === 'deckit-shell:keymap-key');
+    const take = (page, id, chord, scope) => ask(page, 'deckit-shell:key-take', { id, keystroke: chord, scope });
+    const release = (page, id) => heard.told(page, { channel: 'deckit-shell:key-release', payload: { id } });
+    const told = () => tells.filter(([, message]) => message.channel === 'deckit-shell:key-pressed');
+    const recorded = () => tells.filter(([, message]) => message.channel === 'deckit-shell:key-recorded');
+    const record = (page, channel, id) => heard.told(page, { channel: `deckit-shell:key-${channel}`, payload: { id } });
 
     // A chord taken in the app works in every page listened to, and the press is told to the mod that took it.
     const altK = keystroke('KeyK', { alt: true });
@@ -126,7 +143,7 @@ async function main() {
     // A monitor looks at each key pressed before the chords taken, and what it takes runs no chord.
     const looked = []; // [page, keystroke]
     let takes = true;
-    const off = KEYMAP.monitor((page, pressed) => looked.push([page, pressed]) && takes);
+    const off = KEY.monitor((page, pressed) => looked.push([page, pressed]) && takes);
     tells.length = 0;
     check('a key a monitor takes is taken', press(n, 'KeyK', { alt: true }) === true, looked);
     check(
@@ -147,7 +164,7 @@ async function main() {
     takes = true;
     press(shell, 'KeyJ', { alt: true });
     check('a monitor off looks no more', looked.length === 0, looked);
-    const offThrows = KEYMAP.monitor(() => {
+    const offThrows = KEY.monitor(() => {
         throw new Error('broken');
     });
     tells.length = 0;
@@ -237,91 +254,70 @@ async function main() {
     onK.handler();
     check('a hotkey let go tells no page', told().length === 0, told());
 
-    // A chord a layer holds: in the one table, its first holder's, run for a key the page did not handle alone.
-    const heldPresses = []; // [page, keystroke]
-    let holderTakes = true;
-    const releaseHeld = KEYMAP.hold(
-        keystroke('Backslash', { meta: true }),
-        (page, pressed) => heldPresses.push([page, pressed]) && holderTakes,
-        { name: 'the shell' }
-    );
-    const onHeld = await take(a, 9, keystroke('Backslash', { meta: true }), 'app');
+    // One of the shell's keys: in the one table, held before any mod takes its chord, run for a key the page did not
+    // handle alone.
+    const onHeld = await take(a, 9, keystroke('KeyM', { meta: true }), 'app');
     check(
-        "a mod's take of a chord held is refused, REFUSED, with the holder's name",
-        onHeld.error?.kind === 'REFUSED' && /taken by the shell/.test(onHeld.error.message),
+        "a mod's take of the chord of one of the shell's keys is refused, REFUSED, with the key's name",
+        onHeld.error?.kind === 'REFUSED' && /taken by Minimize Window/.test(onHeld.error.message),
         onHeld
-    );
-    let heldTwice = null;
-    try {
-        KEYMAP.hold(keystroke('Backslash', { meta: true }), () => true, { name: 'another' });
-    } catch (error) {
-        heldTwice = error;
-    }
-    check('a chord held already is not held again', heldTwice?.kind === 'REFUSED', heldTwice?.message);
-    await take(a, 10, keystroke('KeyH', { meta: true }), 'app');
-    let heldTaken = null;
-    try {
-        KEYMAP.hold(keystroke('KeyH', { meta: true }), () => true, { name: 'the shell' });
-    } catch (error) {
-        heldTaken = error;
-    }
-    check(
-        'a chord a mod took first is refused to a holder, with the mod',
-        heldTaken?.kind === 'REFUSED' && /taken by a/.test(heldTaken.message),
-        heldTaken?.message
     );
     tells.length = 0;
     check(
-        'a chord held is left to the page before it has the key',
-        press(n, 'Backslash', { meta: true }) === false && !heldPresses.length,
-        heldPresses
+        "the chord of one of the shell's keys is left to the page before it has the key",
+        press(n, 'KeyM', { meta: true }) === false && !keyPresses.length,
+        keyPresses
     );
     check(
-        'a key the page did not handle of a chord held its handler takes is taken',
-        pass(n, 'Backslash', { meta: true }) === true,
+        "a key the page did not handle of the chord of one of the shell's keys that takes it is taken",
+        pass(n, 'KeyM', { meta: true }) === true,
         ''
     );
     check(
-        'the handler is handed the page and the keystroke, and no mod is told',
-        heldPresses.length === 1 && heldPresses[0][0] === n && heldPresses[0][1].code === 'Backslash' && !told().length,
-        heldPresses
+        'the press is handed the key and the page, and no mod is told',
+        keyPresses.length === 1 && keyPresses[0][0] === 'minimizeWindow' && keyPresses[0][1] === n && !told().length,
+        keyPresses
     );
-    holderTakes = false;
-    check('a key the handler leaves goes on in the app', pass(n, 'Backslash', { meta: true }) === false, heldPresses);
+    keyTakes = false;
+    check("a key one of the shell's keys leaves goes on in the app", pass(n, 'KeyM', { meta: true }) === false, '');
     check('a key no chord is held for is not taken after the page', pass(n, 'KeyJ', { meta: true }) === false, '');
-    releaseHeld();
-    const afterHeld = await take(a, 11, keystroke('Backslash', { meta: true }), 'app');
-    check("a chord let go by its holder is a mod's to take", afterHeld.value === true, afterHeld);
+    await ask(s, 'deckit-shell:key-set', { id: 'minimizeWindow', keystroke: null });
+    const afterHeld = await take(a, 11, keystroke('KeyM', { meta: true }), 'app');
+    check("a chord one of the shell's keys let go is a mod's to take", afterHeld.value === true, afterHeld);
 
     // A page that records: each key pressed in it is handed over first, and taken, until it stops or ends.
-    const recorded = [];
     const seenByMonitor = [];
-    const offMonitor = KEYMAP.monitor((page, pressed) => seenByMonitor.push(pressed) && false);
+    const offMonitor = KEY.monitor((page, pressed) => seenByMonitor.push(pressed) && false);
     tells.length = 0;
-    const stop = KEYMAP.record(n, (pressed) => recorded.push(pressed));
+    record(n, 'record', 1);
     check(
-        'a key pressed in a page that records is handed to it and taken, before monitors and chords',
-        press(n, 'Backslash', { meta: true }) === true &&
-            recorded.length === 1 &&
-            recorded[0].code === 'Backslash' &&
-            recorded[0].meta &&
+        'a key pressed in a page that records is told to it under its id and taken, before monitors and chords',
+        press(n, 'KeyM', { meta: true }) === true &&
+            recorded().length === 1 &&
+            recorded()[0][0] === n &&
+            recorded()[0][1].payload.id === 1 &&
+            recorded()[0][1].payload.keystroke.code === 'KeyM' &&
+            recorded()[0][1].payload.keystroke.meta &&
             !seenByMonitor.length &&
             !told().length,
-        { recorded, seenByMonitor, told: told() }
+        { recorded: recorded(), seenByMonitor, told: told() }
     );
     check(
         'a key pressed in another page is not recorded',
-        press(shell, 'Backslash', { meta: true }) === true && recorded.length === 1 && told().length === 1,
-        recorded
+        press(shell, 'KeyM', { meta: true }) === true && recorded().length === 1 && told().length === 1,
+        recorded()
     );
-    stop();
+    record(n, 'stop-recording', 2);
+    press(n, 'KeyQ');
+    check('a stop of another recording stops nothing', recorded().length === 2, recorded());
+    record(n, 'stop-recording', 1);
     tells.length = 0;
-    press(n, 'Backslash', { meta: true });
-    check('a recording stopped is handed nothing', recorded.length === 1 && told().length === 1, recorded);
-    KEYMAP.record(n, (pressed) => recorded.push(pressed));
+    press(n, 'KeyM', { meta: true });
+    check('a recording stopped is told nothing', !recorded().length && told().length === 1, recorded());
+    record(n, 'record', 3);
     end(n);
     press(n, 'KeyQ');
-    check('a recording ends with its page', recorded.length === 1, recorded);
+    check('a recording ends with its page', !recorded().length, recorded());
     offMonitor();
 
     for (const line of failed) console.error(line);

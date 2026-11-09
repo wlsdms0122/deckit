@@ -204,7 +204,6 @@ async function main() {
         REQUEST,
         PERMISSION: { define: () => {} },
         MANIFEST_FIELD: { define: () => {} },
-        KEYMAP: {},
         SETUP: { stack: () => {} },
     }).make({ onStart: () => {}, restart: () => {} });
     const fields = api.mods.fieldsOf('s');

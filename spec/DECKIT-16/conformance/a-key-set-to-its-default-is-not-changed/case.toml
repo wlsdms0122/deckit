@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-set-to-its-default-is-not-changed"
 note = "A key set to its default keystroke is not changed. mod-a sets the key of today to ctrl+alt+t, its default."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

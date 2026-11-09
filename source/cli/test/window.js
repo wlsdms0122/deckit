@@ -280,7 +280,6 @@ function windowsOver(createWindows) {
             modOf: (page) => modOf.get(page) ?? null,
             runOf: (mod) => ({ granted: granted[mod] }),
         },
-        keymap: { listen: (page) => listened.push(page) },
         pages: { whenEnds: (page, listener) => endListeners.set(page, listener) },
     };
     const PAGES = {
@@ -335,6 +334,7 @@ function windowsOver(createWindows) {
         PAGES,
         OVERLAY,
         DESKTOP,
+        KEY: { listen: (page) => listened.push(page) },
         makeStage,
         showWindow: (control, options) => host.shown.push({ control, ...options }),
         closeWindow: (control) => host.closed.push(control),

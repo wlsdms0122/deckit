@@ -4,11 +4,11 @@ import * as WINDOW_PERMISSION from './model/permission.js';
 import * as SURFACE from './model/surface.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `PAGES` the shell's pages,
-// `OVERLAY` their overlays, `DESKTOP` where normal windows are and which mods may activate, and `makeStage()` a stage
-// to lay pages on (environment: SHELL.stage); `showWindow(control, { activates })` and `closeWindow(control)` are the
-// host app's, which puts an overlay window on screen in a floating window of its own, taking the keyboard unless
-// `activates` is false, and closes it.
-export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, makeStage, showWindow, closeWindow }) {
+// `OVERLAY` their overlays, `DESKTOP` where normal windows are and which mods may activate, `KEY` the keys of the app,
+// and `makeStage()` a stage to lay pages on (environment: SHELL.stage); `showWindow(control, { activates })` and
+// `closeWindow(control)` are the host app's, which puts an overlay window on screen in a floating window of its own,
+// taking the keyboard unless `activates` is false, and closes it.
+export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeStage, showWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const NORMAL = 'normal';
@@ -18,9 +18,9 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, makeStage,
     // The name the frame of a web page's window is remembered by.
     const WEB = 'web';
     // id -> { id, mod, page, name, level, size, minimum, surface, sent, host, title, web }: `surface` its content once
-    // the page opened it, `sent` what the page was last told of it, `host` an overlay window's `{ control, stage, key }`;
-    // and for a web page's window, `title`, what its title bar holds, and `web`, `{ closed }`, the listeners of its
-    // close.
+    // the page opened it, `sent` what the page was last told of it, `host` an overlay window's
+    // `{ control, stage, key }`; and for a web page's window, `title`, what its title bar holds, and `web`,
+    // `{ closed }`, the listeners of its close.
     const windows = new Map();
     const heard = new Set(); // the pages whose end closes their windows
     let count = 0;
@@ -171,13 +171,13 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, makeStage,
         return { id, surface: SURFACE.nameOf(id) };
     }
 
-    // The content, once the page opened it: its keys reach the key map as the page's, and a press in it is the
+    // The content, once the page opened it: its keys reach the keys of the app as the page's, and a press in it is the
     // person's on its window. Only a press takes the keyboard to a window that is not key, the shell giving it to the
     // key window's content alone.
     function opened(window, surface) {
         if (windows.get(window.id) !== window) return PAGES.close(surface);
         window.surface = surface;
-        deckit.keymap.listen(surface);
+        KEY.listen(surface);
         PAGES.whenFocused(surface, () => focused(window));
         if (window.level === NORMAL) DESKTOP.update();
         else lay(window);
@@ -251,8 +251,8 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, makeStage,
             get height() {
                 return window.size.height;
             },
-            // Into one of the host app's windows, as a stage is placed (`front`, `bounds`, `onClose`): the content fills
-            // it. A window the host app closes closes the mod's.
+            // Into one of the host app's windows, as a stage is placed (`front`, `bounds`, `onClose`): the content
+            // fills it. A window the host app closes closes the mod's.
             place: (into, { onClose = null, ...options } = {}) =>
                 stageOf(window).place(into, {
                     ...options,

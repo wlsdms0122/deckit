@@ -6,13 +6,12 @@ import * as OPEN from '../open/renderer.js';
 import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as CONTRIBUTION from '../contribution/renderer.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
-import * as KEYS_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 import * as REQUEST from '../request/index.js';
 
 // What deckit puts on the runner for a mod's page: the handle `deckit`, the runner's members and the layer's, the
 // lifecycle deckit calls, start() and stop(), and what a layer over deckit stacks a lifecycle of its own with.
-export function createMod({ NOTIFICATION, KEYMAP }) {
+export function createMod({ NOTIFICATION }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -22,7 +21,6 @@ export function createMod({ NOTIFICATION, KEYMAP }) {
     // the frameworks as the runner made them.
     function layer({ mod, granted, deliver }) {
         NOTIFICATION.listen(deliver);
-        KEYMAP.hear();
         const handleOf = (runner, scope) => Object.freeze({ ...runner, ...membersOf(mod, granted, runner, scope) });
         return {
             handle: 'deckit',
@@ -88,28 +86,6 @@ export function createMod({ NOTIFICATION, KEYMAP }) {
                     : '';
             return REQUEST.requestOf(name, { denied, signature }, send);
         };
-        // A chord is guarded by the permission its scope names; a scope that names none, by either.
-        const keyGuards = (options) => {
-            const named = options?.scope ?? 'app';
-            return Object.hasOwn(KEYS_PERMISSION.SCOPES, named)
-                ? [KEYS_PERMISSION.SCOPES[named]]
-                : Object.values(KEYS_PERMISSION.SCOPES);
-        };
-        const takes = [
-            [
-                'keystroke',
-                'object',
-                [
-                    ['code', 'string'],
-                    ['meta', 'boolean?'],
-                    ['control', 'boolean?'],
-                    ['alt', 'boolean?'],
-                    ['shift', 'boolean?'],
-                ],
-            ],
-            ['run', 'function'],
-            ['options', 'object?', [['scope', 'string?']]],
-        ];
         return {
             util: Object.freeze({
                 match: MATCH.match,
@@ -123,14 +99,6 @@ export function createMod({ NOTIFICATION, KEYMAP }) {
                 tildify: tildifyOf(),
             }),
             exports: Object.freeze({ ...runner.exports, contributions: CONTRIBUTION.contributions }),
-            // A chord taken is let go once `scope` is cut.
-            keys: Object.freeze({
-                take: (...args) =>
-                    request('keys.take', { guards: keyGuards(args[2]), signature: takes }, async (...taken) => {
-                        const { held, release } = await KEYMAP.take(...taken);
-                        return Object.freeze({ held, release: scope.add(release) });
-                    })(...args),
-            }),
             openExternal: OPEN.openExternalOf(mod, granted),
             reveal: request(
                 'reveal',

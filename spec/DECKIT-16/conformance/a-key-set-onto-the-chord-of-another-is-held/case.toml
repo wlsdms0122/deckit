@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-set-onto-the-chord-of-another-is-held"
 note = "A key set onto a chord a key of its scope has is held, and does not run. mod-b declares keys for today on ctrl+alt+t and week on ctrl+alt+w, and mod-a sets week to ctrl+alt+t."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

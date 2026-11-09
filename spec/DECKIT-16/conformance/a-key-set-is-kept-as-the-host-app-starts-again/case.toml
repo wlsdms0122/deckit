@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-set-is-kept-as-the-host-app-starts-again"
 note = "What is set is kept by the owner in its storage, so a key stays bound to it as the host app starts again. mod-a sets the key of today to ctrl+alt+k, and the host app quits and starts."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

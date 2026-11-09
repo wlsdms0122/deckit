@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-second-key-for-one-command-is-left-out"
 note = "A mod's second entry for a command it declared a key for already is left out. mod-b declares a key for today on ctrl+alt+t, then another on ctrl+alt+y."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

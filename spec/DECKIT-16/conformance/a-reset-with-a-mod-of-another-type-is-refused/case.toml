@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-reset-with-a-mod-of-another-type-is-refused"
 note = "reset is refused at call with kind INVALID_ARGUMENT where mod is not a string. mod-a resets the key of today with the mod 1."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

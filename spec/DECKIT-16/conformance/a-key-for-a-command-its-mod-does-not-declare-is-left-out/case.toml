@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-for-a-command-its-mod-does-not-declare-is-left-out"
 note = "An entry whose command its mod does not declare to deckit/commands is left out. mod-b declares a key for month, and no command month."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

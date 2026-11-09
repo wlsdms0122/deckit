@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-set-with-a-key-no-spec-names-is-refused"
 note = "set is refused at call with kind INVALID_ARGUMENT where the code of keystroke names a key a spec does not. mod-a sets the key of today to ctrl+alt and the code Numpad1."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

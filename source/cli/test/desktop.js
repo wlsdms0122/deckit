@@ -456,24 +456,24 @@ async function main() {
         names()
     );
     desk.desktop.close(toast);
-    desk.press('Cycle Through Windows', one.surface);
+    desk.press('cycleWindows', one.surface);
     check('the next window of the active mod comes in front', desk.desktop.isKey(one), names());
-    desk.press('Close Window', two.surface);
+    desk.press('closeWindow', two.surface);
     check(
         'the key window closes, and the next in the order is key',
         !names().includes('content-1') && desk.desktop.isKey(two),
         names()
     );
-    desk.press('Minimize Window', two.surface);
+    desk.press('minimizeWindow', two.surface);
     check(
         'the key window minimizes, and the next is key',
         !names().includes('content-2') && desk.desktop.isKey(three) && desk.titles.at(-1) === 'B',
         { names: names(), titles: desk.titles }
     );
-    const pressedOff = desk.press('Close Window', { name: 'elsewhere' });
+    const pressedOff = desk.press('closeWindow', { name: 'elsewhere' });
     check("a shell key in a page that is not the desktop's is not taken", pressedOff === false, pressedOff);
     desk.desktop.control.hide();
-    const pressedHidden = desk.press('Close Window', three.surface);
+    const pressedHidden = desk.press('closeWindow', three.surface);
     desk.desktop.control.show();
     check(
         'a shell key is not taken while the desktop is not shown',
@@ -582,13 +582,12 @@ async function main() {
 // `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage
 // 1200 by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
 // desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that
-// page, `page()` is what it was told last, and `press(name, page)` presses the shell's key `name` in `page`, which
+// page, `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in `page`, which
 // the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it, `key(page)` a
 // key pressed in a page and `chord(mod)` a chord told to a mod.
 function desktopOver(createDesktop, { state = {} }) {
     const handlers = {};
     const sent = [];
-    const holds = {};
     const titles = [];
     const focused = [];
     const allowed = new Map(); // a surface's name -> its onOpen
@@ -596,7 +595,13 @@ function desktopOver(createDesktop, { state = {} }) {
     let size = { width: 1200, height: 800 };
     let resized = () => {};
     const desktopPage = { name: 'desktop' };
-    const heard = { requests: null, monitor: null, chords: null };
+    const heard = { requests: null, monitor: null, chords: null, press: null };
+    const KEY = {
+        start: (press) => (heard.press = press),
+        listen() {},
+        monitor: (handler) => (heard.monitor = handler),
+        onChord: (listener) => (heard.chords = listener),
+    };
     const mods = [
         { id: 'a', name: 'A', uses: {} },
         { id: 'b', name: 'B', uses: {} },
@@ -617,15 +622,6 @@ function desktopOver(createDesktop, { state = {} }) {
         config: { name: 'Deckit' },
         core: { onDown() {} },
         pages: { whenEnds() {} },
-        keymap: {
-            listen() {},
-            monitor: (handler) => (heard.monitor = handler),
-            onChord: (listener) => (heard.chords = listener),
-            hold: (_keystroke, press, { name }) => {
-                holds[name] = press;
-                return () => {};
-            },
-        },
         mods: {
             list: () => mods,
             runs: () => [],
@@ -659,6 +655,7 @@ function desktopOver(createDesktop, { state = {} }) {
         REGION: { onChange() {}, show() {}, laidOut: () => new Map() },
         PAGES,
         OVERLAY: { onChange() {}, withOverlays: (layers) => layers, ownerOf: (page) => page },
+        KEY,
         makeStage: () => stage,
         actionOnDoubleClick: () => 'zoom',
         deckit,
@@ -693,7 +690,7 @@ function desktopOver(createDesktop, { state = {} }) {
         },
         fromPage: (name, payload) => handlers[`deckit-shell:desktop-${name}`](payload, desktopPage),
         page: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-state').at(-1).payload,
-        press: (name, page) => holds[name](page),
+        press: (id, page) => heard.press(id, page),
         request: (from, to) => heard.requests({ from, to }),
         key: (page) => heard.monitor(page, { code: 'KeyA' }),
         chord: (mod) => heard.chords(mod),

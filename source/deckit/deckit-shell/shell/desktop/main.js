@@ -7,13 +7,12 @@ import * as ACTIVATION_MODEL from './model/activation.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as MODS from '../mods/index.js';
-import { createKey } from '../key/main.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `host` the app's answers, `REGION`
-// the regions mods give their children, `PAGES` the shell's pages, `OVERLAY` their overlays, `makeStage()` a stage to
-// lay them on (environment: SHELL.stage) and `actionOnDoubleClick()` what the person set a double click on a title bar
-// to do (environment: SHELL).
-export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubleClick, deckit, web, host }) {
+// the regions mods give their children, `PAGES` the shell's pages, `OVERLAY` their overlays, `KEY` the keys of the app,
+// `makeStage()` a stage to lay them on (environment: SHELL.stage) and `actionOnDoubleClick()` what the person set a
+// double click on a title bar to do (environment: SHELL).
+export function createDesktop({ REGION, PAGES, OVERLAY, KEY, makeStage, actionOnDoubleClick, deckit, web, host }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const FRAMES = 'window-frames';
@@ -21,7 +20,6 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
     const LOCAL = 'local';
     const MANAGER = WM.createWindowManager();
     const ACTIVATION = ACTIVATION_MODEL.createActivation();
-    const KEY = createKey({ deckit });
     // What each of the shell's keys does, by its id, to the local seat's key window.
     const KEY_ACTIONS = Object.freeze({
         closeWindow: () => keyWindow() && WINDOWS.close(keyWindow()),
@@ -65,11 +63,11 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
         MANAGER.addSeat(LOCAL);
         ACTIVATION.addSeat(LOCAL);
         deckit.mods.onRequest(({ from, to }) => ACTIVATION.request(from, to));
-        deckit.keymap.monitor((page) => {
+        KEY.monitor((page) => {
             ACTIVATION.input(LOCAL, modAt(page));
             return false;
         });
-        deckit.keymap.onChord((mod) => ACTIVATION.input(LOCAL, mod));
+        KEY.onChord((mod) => ACTIVATION.input(LOCAL, mod));
         KEY.start(pressKey);
         stage = makeStage();
         stage.whenResized(resized);
@@ -324,7 +322,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, makeStage, actionOnDoubl
             reloadsOnCrash: true,
             surfaces: { names: [PAGE.BACKDROP], onOpen: openSurface },
         });
-        deckit.keymap.listen(page);
+        KEY.listen(page);
         PAGES.whenFocused(page, giveBack);
         desktop.page = page;
         update();

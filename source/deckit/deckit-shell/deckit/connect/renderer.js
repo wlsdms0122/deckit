@@ -9,7 +9,6 @@ import { createConnection } from '../connection/renderer.js';
 import { createEvent } from '../event/renderer.js';
 import { createMods } from '../mods/renderer.js';
 import { createNotification } from '../notification/renderer.js';
-import { createKeymap } from '../keymap/renderer.js';
 import { createMod } from '../mod/renderer.js';
 
 // MARK: - Public
@@ -47,7 +46,7 @@ function run({ ENV, layers, page }) {
         MODS: createMods({ RUN }),
         modules: ENV.modules,
     });
-    const MOD = createMod({ NOTIFICATION: createNotification(), KEYMAP: createKeymap() });
+    const MOD = createMod({ NOTIFICATION: createNotification() });
     // The layers stacked over deckit, in the order they stacked, each by its name.
     const over = stacked.flatMap(({ name: each, setup }) => {
         if (Object.hasOwn(layers, each))

@@ -1,6 +1,7 @@
-// The keymap mod (mods/keymap/src) over a stand-in for deckit: its specs, the keys it reads from what mods declare to
-// deckit/keys, the chords it takes through the keys hole, a press running a command through deckit/commands, and
-// what a client sets and reads. Exits 1 with a line for each check that failed.
+// The keymap mod (mods/keymap/src) over a stand-in for deckit and the shell's keys: its specs, the keys it reads from
+// what mods declare to deckit/keys, the chords it takes through the shell's keys once attach hands them and none
+// before, a press running a command through deckit/commands, and what a client sets and reads. Exits 1 with a line for
+// each check that failed.
 const path = require('path');
 
 const MOD = path.join(__dirname, '..', '..', 'deckit', 'mods', 'keymap', 'src');
@@ -108,7 +109,7 @@ async function main() {
         { mod: switcher, entry: { command: 'show', keystroke: 'ctrl+alt+s' } },
     ];
 
-    // The keys hole: a chord in `othersHold` is another mod's, and the system gives no global chord in `notGiven`.
+    // The shell's keys: a chord in `othersHold` is another mod's, and the system gives no global chord in `notGiven`.
     const takes = []; // [spec, scope], each take asked
     const releases = [];
     const holding = new Map(); // spec -> { scope, run }
@@ -164,7 +165,6 @@ async function main() {
     };
     const deckitOf = () => ({
         storage: { records },
-        keys,
         active: async () => front,
         dependencies: {
             onConnect: (name, listener) => listeners.set(name, listener),
@@ -190,6 +190,16 @@ async function main() {
 
     // As it connects the keys are read and their chords taken.
     let cut = listeners.get('deckit/commands')(commands);
+    await ticks();
+    check('nothing taken before attach', takes.length === 0, takes);
+    const unattached = (await settings.list()).keys;
+    check(
+        'no key taken or unavailable before attach',
+        unattached.length > 0 &&
+            unattached.every(({ issues }) => !issues.some(({ kind }) => kind === 'taken' || kind === 'unavailable')),
+        unattached
+    );
+    keymapped.attach(keys);
     await ticks();
     check(
         'taken as connected',
@@ -403,6 +413,7 @@ async function main() {
     for (const spec of [...holding.keys()]) holding.delete(spec);
     cut?.();
     const again = keymap(deckitOf());
+    again.attach(keys);
     listeners.get('deckit/commands')(commands);
     await ticks();
     bindings = (await again.exportsFor(connection('settings', ['deckit.system-services'])).list()).keys;

@@ -1,22 +1,21 @@
 // Deckit as a layer on the runner in a mod's page (deckit-shell/deckit/mod/renderer.js), with a layer over it stacking
 // a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's handle
-// and the frameworks as they came, and the handle opens an address outside the app with openExternal and takes a chord
-// for a mod with deckit.app-keys; a press of the chord runs what took it, and the chord is let go once the lifecycle
-// that took it ends. Every member a permission guards is on the handle of a mod granted nothing, and refuses at call
-// with NOT_PERMITTED; for a mod granted it, an argument of another type or left out is refused with INVALID_ARGUMENT,
-// none turned into its type, and fileURL and filePath throw that refusal. Then the web engine's layer
-// (deckit-shell/web/attach/renderer.js), which stacks no lifecycle: the members of the handle `web` a permission guards
-// refuse a mod granted nothing at call with NOT_PERMITTED, and an argument of another type is refused INVALID_ARGUMENT;
-// a web page that leaves, with no delegate to keep it, opens its address with the `open` the layer over it hands; and
-// what the handle adds is cut with its lifecycle's scope. Then the runner (deckit-shell/deckit/runner/renderer.js) with
-// deckit and layers over it: each layer is offered what those under it offer, by name; deckit's start is handed a
-// frozen table of the frameworks of the layers that run, each made with its lifecycle's scope; the run is told started
-// once, after the lifecycle over deckit's has ended as its start threw, none over it started, and a layer whose read
-// threw left out with the one over it, with its frameworks; and the handle of a mod granted nothing: `mods` on it, each
-// request refused at call with NOT_PERMITTED before its arguments are read, `quit()` a promise, and `openExternal`
-// refused NOT_PERMITTED for a file, then INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request
-// refused INVALID_ARGUMENT for an argument of another type and asked of main otherwise. Exits 1 with a line for each
-// check that failed. The packages are ES modules, so they are imported as such.
+// and the frameworks as they came, and the handle opens an address outside the app with openExternal. Every member a
+// permission guards is on the handle of a mod granted nothing, and refuses at call with NOT_PERMITTED; for a mod
+// granted it, an argument of another type or left out is refused with INVALID_ARGUMENT, none turned into its type, and
+// fileURL and filePath throw that refusal. Then the web engine's layer (deckit-shell/web/attach/renderer.js), which
+// stacks no lifecycle: the members of the handle `web` a permission guards refuse a mod granted nothing at call with
+// NOT_PERMITTED, and an argument of another type is refused INVALID_ARGUMENT; a web page that leaves, with no delegate
+// to keep it, opens its address with the `open` the layer over it hands; and what the handle adds is cut with its
+// lifecycle's scope. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and layers over it: each
+// layer is offered what those under it offer, by name; deckit's start is handed a frozen table of the frameworks of the
+// layers that run, each made with its lifecycle's scope; the run is told started once, after the lifecycle over
+// deckit's has ended as its start threw, none over it started, and a layer whose read threw left out with the one over
+// it, with its frameworks; and the handle of a mod granted nothing: `mods` on it, each request refused at call with
+// NOT_PERMITTED before its arguments are read, `quit()` a promise, and `openExternal` refused NOT_PERMITTED for a file,
+// then INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request refused INVALID_ARGUMENT for an
+// argument of another type and asked of main otherwise. Exits 1 with a line for each check that failed. The packages
+// are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -26,7 +25,6 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 async function main() {
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'renderer.js'));
     const { createMod } = await import(url('deckit-shell', 'deckit', 'mod', 'renderer.js'));
-    const { createKeymap } = await import(url('deckit-shell', 'deckit', 'keymap', 'renderer.js'));
     const { createNotification } = await import(url('deckit-shell', 'deckit', 'notification', 'renderer.js'));
     const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
     const failed = [];
@@ -46,7 +44,7 @@ async function main() {
                 tell: (message) => sent.push(message),
                 ask: async (message) => {
                     sent.push(message);
-                    return { value: message.channel === 'deckit-shell:keymap-take' };
+                    return { value: false };
                 },
                 askSync: (message) => ({
                     value:
@@ -68,12 +66,9 @@ async function main() {
     );
 
     const layerOf = (granted) =>
-        createMod({
-            NOTIFICATION: createNotification(),
-            KEYMAP: createKeymap(),
-        }).layer({ mod: { id: 'a' }, granted, deliver: () => {} });
+        createMod({ NOTIFICATION: createNotification() }).layer({ mod: { id: 'a' }, granted, deliver: () => {} });
 
-    const deckit = layerOf(['deckit.app-keys']);
+    const deckit = layerOf([]);
     check('deckit registers nothing of its own', Object.keys(deckit.lifecycles[0].registrations).length === 0, deckit);
     let handed = null;
     let handedFrameworks = null;
@@ -115,31 +110,6 @@ async function main() {
         !handle.commands && !handle.configuration && !handle.modConfiguration,
         handle
     );
-    check('a mod with deckit.app-keys takes a chord', typeof handle.keys?.take === 'function', handle.keys);
-
-    let ran = 0;
-    const chord = await handle.keys.take({ code: 'KeyK', alt: true }, () => ran++);
-    const asked = sent.find(({ channel }) => channel === 'deckit-shell:keymap-take');
-    check('a chord taken answers whether it is held', chord.held === true, chord);
-    check(
-        'a chord is asked of main with its keystroke and scope, in the app when none is named',
-        asked?.payload.keystroke.code === 'KeyK' && asked.payload.keystroke.alt && asked.payload.scope === 'app',
-        asked
-    );
-    tell({ channel: 'deckit-shell:keymap-key', payload: { id: asked.payload.id } });
-    await tick();
-    check('a press told to the page runs what took the chord', ran === 1, ran);
-    tell({ channel: 'deckit-shell:keymap-key', payload: { id: asked.payload.id + 1 } });
-    await tick();
-    check('a press of a chord not taken here runs nothing', ran === 1, ran);
-
-    scope.cut();
-    const released = sent.find(({ channel }) => channel === 'deckit-shell:keymap-release');
-    check('a chord is let go once its lifecycle ends', released?.payload.id === asked.payload.id, sent);
-    tell({ channel: 'deckit-shell:keymap-key', payload: { id: asked.payload.id } });
-    await tick();
-    check('a chord let go runs nothing', ran === 1, ran);
-
     const refusalOf = (promise) =>
         promise.then(
             () => 'fulfilled',
@@ -163,8 +133,6 @@ async function main() {
         return given;
     };
     const guarded = (on) => ({
-        'keys.take': () => on.keys.take({ code: 'KeyK' }, () => {}),
-        'keys.take in global': () => on.keys.take({ code: 'KeyK' }, () => {}, { scope: 'global' }),
         reveal: () => on.reveal('/a'),
         'clipboard.readText': () => on.clipboard.readText(),
         'clipboard.writeText': () => on.clipboard.writeText('a'),
@@ -179,14 +147,8 @@ async function main() {
             member
         );
     check('a member refused for its permission asks nothing of main', !sent.length, sent);
-    check(
-        'a mod with deckit.app-keys alone is refused a chord in global, before its arguments',
-        (await refusalOf(handle.keys.take(5, 5, { scope: 'global' }))) === 'call NOT_PERMITTED',
-        ''
-    );
 
     const all = await handleOf([
-        'deckit.app-keys',
         'system.file-handlers',
         'system.clipboard-read',
         'system.clipboard-write',
@@ -194,10 +156,6 @@ async function main() {
     ]);
     sent.length = 0;
     const mistyped = {
-        'keys.take with a keystroke of no code': () => all.keys.take({ meta: true }, () => {}),
-        'keys.take with a key of another type': () => all.keys.take({ code: 'KeyK', alt: 1 }, () => {}),
-        'keys.take with no function to run': () => all.keys.take({ code: 'KeyK' }, 'run'),
-        'keys.take with a scope of another type': () => all.keys.take({ code: 'KeyK' }, () => {}, { scope: 1 }),
         'reveal with a number': () => all.reveal(5),
         'clipboard.writeText with a number': () => all.clipboard.writeText(5),
         'clipboard.writeText with its text left out': () => all.clipboard.writeText(),
@@ -390,7 +348,6 @@ async function main() {
     sent.length = 0;
     const deckitLayer = createMod({
         NOTIFICATION: { listen: () => {}, notificationsOf: () => ({}) },
-        KEYMAP: createKeymap(),
     }).layer;
     await runner.start({
         layers: [

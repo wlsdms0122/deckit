@@ -1,6 +1,6 @@
 case = 3
 name = "a-key-of-a-table-of-another-type-is-refused"
-note = "A request a key of whose table is of another type than the table gives is refused at call with INVALID_ARGUMENT, and the key is not turned into the type. mod-a, granted deckit.mods and each permission a request below needs, hands the host an address to open with options holding activates as a string where the options give a boolean, asks for a folder to install with multiple as a string, for a notification whose title is an integer, and for a chord whose alt is an integer."
+note = "A request a key of whose table is of another type than the table gives is refused at call with INVALID_ARGUMENT, and the key is not turned into the type. mod-a, granted deckit.mods and each permission a request below needs, hands the host an address to open with options holding activates as a string where the options give a boolean, asks for a folder to install with multiple as a string, for a notification whose title is an integer, and for one whose silent is a string."
 
 [host]
 base = "system"
@@ -44,8 +44,8 @@ kind = "INVALID_ARGUMENT"
 [[step]]
 input = "call"
 mod = "mod-a"
-member = "keys.take"
-args = [{ code = "KeyK", alt = 1 }]
+member = "notifications.show"
+args = [{ title = "a", silent = "no" }]
 
 [step.expect]
 refuses = "call"

@@ -2,10 +2,10 @@
 // does, through the environment and connect, set up as the case's [host] says. It reaches deckit only through what
 // connect answers, and talks to the runner over a socket, a JSON message a line: it says once whether the start settled
 // or was refused (deckit.whenStarted()), answers each call and look it is asked, a start and a call once no run is
-// between two states, and quits when asked. It stacks a
-// layer of its own over deckit on each mod's page (page.js), which makes the requests a call hands it and keeps what
-// its listeners heard, and opens none of the addresses it is handed to open outside the app: it keeps each one, for the
-// look opened.
+// between two states, and quits when asked. It stacks a layer of its own over deckit on each mod's page (page.js),
+// which makes the requests a call hands it and keeps what its listeners heard, attaches the web engine and the shell on
+// the base shell, and opens none of the addresses it is handed to open outside the app: it keeps each one, for the look
+// opened.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -30,6 +30,14 @@ let settled = false;
 let call = null; // the channels to the conformance layer on a mod's page
 let heard = null;
 const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
+// What the host app answers the shell: nothing it is asked to show is shown.
+const SHOWS_NOTHING = Object.freeze({
+    start() {},
+    show() {},
+    desktopTitled() {},
+    showWindow() {},
+    closeWindow() {},
+});
 
 const settle = (came) => {
     if (settled) return;
@@ -60,7 +68,8 @@ try {
             return true;
         },
     });
-    deckit = DECKIT.connect(Object.create(environment, { open: { value: open } }), {
+    const given = Object.create(environment, { open: { value: open } });
+    deckit = DECKIT.connect(given, {
         host: { notificationClicked: () => {}, restart: () => {} },
         config: {
             id: setup.id,
@@ -69,9 +78,13 @@ try {
         },
         folders: { home: setup.home, ship: setup.ship, sources: setup.sources },
     });
+    deckit.stack('conformance');
+    // On the base shell, the web engine and the shell are attached as a host app attaches them, the shell shown
+    // nowhere, before the case's fields and permissions, which come after the base's.
+    if (setup.base === 'shell')
+        DECKIT.attach(deckit, given, { host: SHOWS_NOTHING, web: DECKIT.attachWeb(deckit, given) });
     for (const field of setup.fields) deckit.fields.define(field);
     for (const permission of setup.permissions) deckit.permissions.define(permission);
-    deckit.stack('conformance');
     call = deckit.channels.bind({ channel: 'conformance/call', to: 'page', reply: true });
     heard = deckit.channels.bind({ channel: 'conformance/heard', to: 'page', reply: true });
     // The start is complete, the launches at start included, or refused with its kind.

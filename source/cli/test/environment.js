@@ -35,7 +35,6 @@ const USED = {
         openExternal: 'function',
     },
     pages: { add: 'function', whenEnds: 'function', nameOf: 'function', onSandbox: 'function' },
-    keymap: { listen: 'function', monitor: 'function' },
     stateIn: 'function',
     state: { read: 'function', write: 'function' },
     log: { info: 'function', warn: 'function' },
@@ -170,7 +169,10 @@ async function main() {
     const webAttached = thrown(() => (web = SHELL.attachWeb(answer, webEnvironment)));
     check(
         "the web engine's attach answers what the UI reads of the web pages mods show",
-        webAttached === '' && typeof web?.pageFor === 'function' && typeof web.holdsKeyboard === 'function',
+        webAttached === '' &&
+            typeof web?.pageFor === 'function' &&
+            typeof web.holdsKeyboard === 'function' &&
+            typeof web.onPage === 'function',
         webAttached
     );
     const network = { id: 'system.network', name: 'x', description: 'x' };
@@ -193,9 +195,13 @@ async function main() {
     );
     const attached = thrown(() => SHELL.attach(answer, shellEnvironment, { host: deckitApp, web }));
     check("attach refused can be called again, and takes Deckit.app's answers", attached === '', attached);
-    const shellKeys = { id: 'deckit.shell-keys', name: 'x', description: 'x' };
-    const twice = thrown(() => answer.permissions.define(shellKeys));
-    check('attach defines the permissions of the UI, the shell keys included', /defined twice/.test(twice), twice);
+    const keys = ['deckit.app-keys', 'system.global-keys', 'deckit.shell-keys'];
+    const twice = keys.map((id) => thrown(() => answer.permissions.define({ id, name: 'x', description: 'x' })));
+    check(
+        'attach defines the permissions of the UI, those of the keys included',
+        twice.every((one) => /defined twice/.test(one)),
+        twice
+    );
     check(
         'attach is called once',
         /once/.test(thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }))),

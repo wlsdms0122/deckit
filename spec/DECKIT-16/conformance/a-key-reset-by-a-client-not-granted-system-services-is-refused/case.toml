@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-reset-by-a-client-not-granted-system-services-is-refused"
 note = "reset is refused at call with kind NOT_PERMITTED for a client not granted deckit.system-services."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

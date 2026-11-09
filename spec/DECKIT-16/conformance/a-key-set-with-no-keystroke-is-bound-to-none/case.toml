@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-set-with-no-keystroke-is-bound-to-none"
 note = "A key set with keystroke left out is bound to none: its keystroke is left out, its chord is empty, it is changed and does not run. mod-a sets the key of today with no keystroke."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

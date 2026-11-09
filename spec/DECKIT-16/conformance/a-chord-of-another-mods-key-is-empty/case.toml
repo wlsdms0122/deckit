@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-chord-of-another-mods-key-is-empty"
 note = "chordOf answers an empty string for a command of which the client's own mod declares no key. mod-b declares a key for today, and mod-a asks for the chord of today."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

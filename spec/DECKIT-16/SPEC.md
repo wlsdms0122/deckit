@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-`deckit/keys` is the standard interface through which a key runs a mod's command. A mod declares its keys in its manifest, as entries to `deckit/keys`, each a chord bound to a command it declares to [the commands](../DECKIT-15/SPEC.md). The interface's owner binds each key to its chord, or to the one a person set, takes the chords through `keys.take` of its handle, and runs a key's command through `deckit/commands` as its chord is pressed. Any client reads the chord of a key of its own mod; a client granted `deckit.system-services` lists every key and sets or resets one, which the owner keeps as the host app starts again. This DECKIT fixes what is declared and when an entry is left out, a spec and a keystroke, which of the keys on one chord runs, the requests `chordOf`, `list`, `set` and `reset` with their answers and refusals, and what the owner does with a chord. Which mod ships as the owner is the embedding's.
+`deckit/keys` is the standard interface through which a key runs a mod's command. A mod declares its keys in its manifest, as entries to `deckit/keys`, each a chord bound to a command it declares to [the commands](../DECKIT-15/SPEC.md). The interface's owner binds each key to its chord, or to the one a person set, takes the chords through `keys.take` of the shell's handle, and runs a key's command through `deckit/commands` as its chord is pressed. Any client reads the chord of a key of its own mod; a client granted `deckit.system-services` lists every key and sets or resets one, which the owner keeps as the host app starts again. This DECKIT fixes what is declared and when an entry is left out, a spec and a keystroke, which of the keys on one chord runs, the requests `chordOf`, `list`, `set` and `reset` with their answers and refusals, and what the owner does with a chord. Which mod ships as the owner is the embedding's.
 
 ## Motivation
 
@@ -21,7 +21,7 @@ command = "today"
 keystroke = "ctrl+alt+t"
 ```
 
-and `mod-c` declares one on the same chord. One implementation runs `today` as the chord is pressed, another `mod-c`'s command, a third both. A settings mod sets `today` to ⌘V, which one implementation takes from every text field and another refuses, and sets it with `{ code = "KeyK", alt = "yes" }`, which one reads as ⌥K. A person's choice is gone on one host as the app starts again. `mod-b` could take its chord itself through `keys.take`, and then no other mod could list it or move it, and no key would run its command where `mod-b` is not running. The key a mod declares and what each request answers are the system's to fix, not the owner's.
+and `mod-c` declares one on the same chord. One implementation runs `today` as the chord is pressed, another `mod-c`'s command, a third both. A settings mod sets `today` to ⌘V, which one implementation takes from every text field and another refuses, and sets it with `{ code = "KeyK", alt = "yes" }`, which one reads as ⌥K. A person's choice is gone on one host as the app starts again. `mod-b` could take its chord itself through `keys.take` of the shell's handle, and then no other mod could list it or move it, and no key would run its command where `mod-b` is not running. The key a mod declares and what each request answers are the system's to fix, not the owner's.
 
 ## Rules
 
@@ -35,7 +35,7 @@ A mod declares its keys as entries to `deckit/keys`, under `contributes` as [the
 | `keystroke` | string: a `spec`, below | yes | the chord it is bound to by default |
 | `scope` | `"app"` or `"global"` | no | where it works: `app` wherever the person is in the host app, `global` in every app too; left out, `app` |
 
-A key of scope `app` needs its mod granted `deckit.app-keys`, and one of scope `global` `system.global-keys`, as [the handle](../DECKIT-7/SPEC.md) names the permissions of `keys.take`.
+A key of scope `app` needs its mod granted `deckit.app-keys`, and one of scope `global` `system.global-keys`, the permissions of `keys.take` of the shell's handle. The shell defines both: on a host with no shell, no mod is granted the permission of either scope, and every key is left out.
 
 An entry is **left out** where it is not a table, where a key does not take what the table gives, where its command is none that [the commands](../DECKIT-15/SPEC.md)' `list` answers of its mod, or one whose `params` require a key, where its mod is not granted the permission of its scope, where its keystroke does not fit, below, or where its mod declared a key for its command in an entry before it that is not left out. Entries are read in [the catalog's](../DECKIT-4/SPEC.md) order and then the order written.
 
@@ -72,7 +72,7 @@ Two keys **share** a chord where they are of one scope and bound to one keystrok
 
 ### What the owner does with a chord
 
-The owner takes the chord of each key that runs through `keys.take` of its handle, once for each keystroke, in the scope `global` where a key of `global` runs on it and `app` otherwise. A key whose chord `keys.take` refuses does not run, and is **taken**; one of `global` whose chord `keys.take` answers not held runs in the host app alone, and is **unavailable**. A press of a chord runs the command of the key that runs on it, of scope `app` while the host app is in front, through the request `run` of [the commands](../DECKIT-15/SPEC.md), with no args, and what that request is refused with is told no one.
+The owner takes the chord of each key that runs through `keys.take` of the shell's handle, from its `attach`, once for each keystroke, in the scope `global` where a key of `global` runs on it and `app` otherwise. A key whose chord `keys.take` refuses does not run, and is **taken**; one of `global` whose chord `keys.take` answers not held runs in the host app alone, and is **unavailable**. On a host with no shell the owner takes no chord, and no key is taken or unavailable. A press of a chord runs the command of the key that runs on it, of scope `app` while the host app is in front, through the request `run` of [the commands](../DECKIT-15/SPEC.md), with no args, and what that request is refused with is told no one.
 
 The owner takes the chords again as what is declared to `deckit/keys` or to `deckit/commands` changes and as a key is set or reset, and lets go of each chord no key runs on.
 
@@ -121,18 +121,18 @@ The owner keeps what a person set in its own storage, as [the storage](../DECKIT
 ## Interactions
 
 - `contributes`, an entry as a value, and a bundle's `id` and `name`: [the bundle](../DECKIT-2/SPEC.md).
-- `deckit.system-services` and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md). `deckit.app-keys`, `system.global-keys` and `keys.take`: [the handle](../DECKIT-7/SPEC.md), and the keys' DECKIT.
+- `deckit.system-services` and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md). `deckit.app-keys`, `system.global-keys`, `keys.take` and the handle `shell` it is on, handed to `attach`: the shell's DECKITs.
 - The catalog's order: [the catalog](../DECKIT-4/SPEC.md).
 - `INVALID_ARGUMENT`, and what a value is: [the handle](../DECKIT-7/SPEC.md).
 - The owner of an interface, the connection to it, and the entries declared to it: [the interfaces](../DECKIT-10/SPEC.md). A call of a member of the exports and its refusal: [calls across a connection](../DECKIT-11/SPEC.md).
 - Where the owner keeps what is set: [the storage](../DECKIT-13/SPEC.md).
 - The commands a key runs, their titles and `params`, and the request that runs one: [the commands](../DECKIT-15/SPEC.md).
-- The owner a case's host ships, and the call of what a listener was handed: [the case format](../DECKIT-1/SPEC.md).
+- The owner a case's host ships, the base `shell`, and the call of what a listener was handed: [the case format](../DECKIT-1/SPEC.md).
 - Which mod a host ships as the owner: the embedding DECKIT.
 
 ## Alternatives considered
 
-- Every mod taking its own chords through `keys.take`. No person could list or move a key, and a key would do nothing while its mod is not running.
+- Every mod taking its own chords through `keys.take` of the shell's handle. No person could list or move a key, and a key would do nothing while its mod is not running.
 - A key that runs a function of its mod rather than a command. It could run only where the mod runs, and the command a switcher or a notification runs would be another thing.
 - Of two keys on one chord, both running, or the last one installed. A press would do two things, or what was installed when would decide it; the order read is a fact of the catalog, and a person who moves a key decides the rest.
 - A key set onto a chord another key has taking it from that key. A person would move a key they did not touch; the one set waits until the chord is free.

@@ -1,9 +1,9 @@
-case = 5
+case = 6
 name = "a-key-set-is-bound-to-the-keystroke-set"
 note = "set(mod, command, keystroke) binds the key to keystroke and answers it as list answers a key, changed. mod-a sets the key of today, ctrl+alt+t by default, to ctrl+alt+k."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 owners = ["deckit/keys", "deckit/commands"]
 ship = ["mod-a", "mod-b"]

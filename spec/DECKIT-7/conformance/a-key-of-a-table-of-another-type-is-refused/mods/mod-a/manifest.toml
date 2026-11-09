@@ -7,4 +7,3 @@ background = "Keeps the index."
 [permissions]
 "deckit.mods" = "Installs the mods a person picks."
 "system.notifications" = "Shows what it is handed."
-"deckit.app-keys" = "Takes the chord it is handed."

@@ -41,9 +41,9 @@ Of the keys of one scope on one chord, one runs:
 
 A key of `app` and one of `global` on one chord do not contend: the `app` one runs while the app is in front, the `global` one in every other app.
 
-A chord another mod took through the keys hole (`deckit.keys.take`) runs none of the keys on it (`taken`), until that mod lets it go and the keys are read again. A `global` chord the system does not give works in the app only (`unavailable`).
+Keymap takes the chords through the keys of the shell's handle (`shell.keys.take`), from its `attach`: on a host with no shell it takes none, and no key is `taken` or `unavailable`. A chord another mod took (`shell.keys.take`) runs none of the keys on it (`taken`), until that mod lets it go and the keys are read again. A `global` chord the system does not give works in the app only (`unavailable`).
 
-The shell's own keys (`shell.keys`) are the shell's, not the keymap's, and hold their chords in the same table as the chords Keymap takes, from before Keymap starts: a key on a chord the shell holds is `taken` and runs nowhere, its message naming the shell's key.
+The shell's own keys (`shell.keys.list()`) are the shell's, not the keymap's, and hold their chords in the same table as the chords Keymap takes, from before Keymap starts: a key on a chord the shell holds is `taken` and runs nowhere, its message naming the shell's key.
 
 ## Providing `deckit/keys`
 

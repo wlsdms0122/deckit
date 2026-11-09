@@ -2,11 +2,11 @@ import * as CHANNEL from '../channel/index.js';
 
 // What an environment gives deckit, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deckit reaches the core, the files and
-// the log, the pages a mod runs in, the app starting and quitting, what deckit does through the system for a mod (keys,
-// opening, notifications, the clipboard, a folder chosen), and what only the environment knows:
-// the person's home folder and what runs deckit. An environment gives at least this, and each is handed what it is
-// checked against alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a
-// list read.
+// the log, the pages a mod runs in and which of the app's pages has the keyboard, the app starting and quitting, what
+// deckit does through the system for a mod (opening, notifications, the clipboard, a folder chosen), and what only the
+// environment knows: the person's home folder and what runs deckit. An environment gives at least this, and each is
+// handed what it is checked against alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`,
+// or `array`, a list read.
 // MARK: - Property
 /**
  * A page: a token deckit keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -63,20 +63,6 @@ const MAIN = Object.freeze({
         countStorage: 'function',
     },
     keys: {
-        // capture(page, handler(pressed) -> boolean): each key pressed in the page, `{ type, code, meta, control, alt,
-        // shift }` with `type` as UI Events names it (`keydown`, `keyup`), told before the page has it and taken from
-        // the page when `handler` answers true, at once. Told after what `pages.watchInput` told of it, when that
-        // watch began first
-        capture: 'function',
-        // unhandled(page, handler(keystroke) -> boolean): each key down pressed in the page that the page did not
-        // handle, by cancelling it or acting on it, `{ code, meta, control, alt, shift }`, told after the page had it
-        // and taken from the rest of the app when `handler` answers true. One a web page shown in an element did not
-        // handle is the element's page's next: a key down at its element, then told as that page's when not cancelled
-        unhandled: 'function',
-        // hotkey(keystroke, handler()) -> off, or null when the system does not give it: a key, `{ code, meta,
-        // control, alt, shift }`, heard wherever the keyboard is, in any app, once the app is ready, `handler()` told
-        // each time it is pressed and the key taken from wherever it was pressed
-        hotkey: 'function',
         // focused() -> Page or null: the page of the app's that has the keyboard, or null when the app does not
         focused: 'function',
     },
