@@ -1,8 +1,8 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as IPC from '../ipc/main.js';
-import * as DECLARED from './protocol.js';
+import * as DECLARED from '../../../deckit-sdk/deckit/runtime/protocol.js';
 import * as BUILD from '../build/index.js';
-import * as MOD_PERMISSION from '../permission/index.js';
+import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 

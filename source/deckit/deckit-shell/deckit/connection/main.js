@@ -1,4 +1,4 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 

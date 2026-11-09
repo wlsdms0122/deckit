@@ -12,7 +12,7 @@ const SETTLE = 10000;
 // The keys of a manifest the system reads itself (spec/DECKIT-2).
 const MANIFEST = ['id', 'name', 'version', 'api', 'main', 'background', 'interfaces', 'permissions', 'contributes'];
 // The manifest fields each base defines itself, by the base: the shell's are those it reads of a mod.
-const BASE_FIELDS = { system: [], shell: require('../../deckit/deckit-shell/shell/mods/field.js').KEYS };
+const BASE_FIELDS = { system: [], shell: require('../../deckit/deckit-sdk/shell/mods/field.js').KEYS };
 
 // Runs `theCase` in `folder`, made afresh, on the host app in `hostApp` that Electron at `electron` runs. Comes to
 // `{ outcome }`: 'passed'; 'failed', with `step`, `came` and `expected` for its first step that did not match; or

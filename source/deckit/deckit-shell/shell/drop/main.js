@@ -1,5 +1,5 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
-import * as DECLARED from './protocol.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/drop/protocol.js';
 
 // `deckit` is what connect answered.
 export function createDrop({ deckit, PAGES }) {

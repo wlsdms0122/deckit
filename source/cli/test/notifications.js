@@ -15,7 +15,7 @@ async function main() {
     const mods = path.join(__dirname, '..', '..', 'deckit', 'mods');
     const { center, RATE, TOASTS } = require(path.join(mods, 'notifications', 'src', 'center', 'center.js'));
     const { valueProblem } = await import(
-        pathToFileURL(path.join(__dirname, '..', '..', 'deckit', 'deckit-shell', 'deckit', 'request', 'index.js')).href
+        pathToFileURL(path.join(__dirname, '..', '..', 'deckit', 'deckit-sdk', 'deckit', 'request', 'index.js')).href
     );
     const failed = [];
     let count = 0;

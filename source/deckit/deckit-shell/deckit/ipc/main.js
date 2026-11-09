@@ -1,10 +1,10 @@
 // Channels between main and a page, main's side: every one crosses as a message carrying its channel's name, which the
 // environment carries (environment/: MAIN.messages). `ownChannels` binds deckit's own, and `layerChannels`, handed
 // to a layer on deckit, binds the layer's.
-import * as CHANNEL from '../channel/index.js';
-import * as LISTENER from '../listener/index.js';
-import * as ENVELOPE from './model/envelope.js';
-import * as TABLE from './index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
+import * as ENVELOPE from '../../../deckit-sdk/deckit/ipc/model/envelope.js';
+import * as TABLE from '../../../deckit-sdk/deckit/ipc/index.js';
 
 // MARK: - Property
 const table = TABLE.createTable({ toMain, toPage });

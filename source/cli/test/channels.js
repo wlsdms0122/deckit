@@ -7,7 +7,6 @@ const { pathToFileURL } = require('url');
 
 const DECKIT = path.join(__dirname, '..', '..', 'deckit');
 const url = (...parts) => pathToFileURL(path.join(DECKIT, ...parts)).href;
-const IPC = (side) => url('deckit-shell', 'deckit', 'ipc', side);
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const outcome = (promise) =>
@@ -77,18 +76,18 @@ function pageNamed(name) {
 }
 
 async function main() {
-    const CHANNEL = await import(url('deckit-shell', 'deckit', 'channel', 'index.js'));
+    const CHANNEL = await import(url('deckit-sdk', 'deckit', 'channel', 'index.js'));
     const reported = [];
     const report = (label) => reported.push(label);
     const [A, B, C, D] = ['A', 'B', 'C', 'D'].map((name) => pageNamed(name));
-    const MAIN = await import(`${IPC('main.js')}?main`);
+    const MAIN = await import(`${url('deckit-shell', 'deckit', 'ipc', 'main.js')}?main`);
     const unborne = thrown(() =>
         CHANNEL.bindAll(MAIN.layerChannels, { early: CHANNEL.mainToPage('deckit-shell:early') }).early.send(A.page, {})
     );
     MAIN.carry(MAIN_ENVIRONMENT, { report });
     const pages = [];
     for (const [at, { environment }] of [A, B, C, D].entries()) {
-        const side = await import(`${IPC('renderer.js')}?page${at}`);
+        const side = await import(`${url('deckit-sdk', 'deckit', 'ipc', 'renderer.js')}?page${at}`);
         side.carry(environment, { report });
         pages.push(side);
     }

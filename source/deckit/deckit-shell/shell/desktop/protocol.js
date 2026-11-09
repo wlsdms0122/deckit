@@ -1,5 +1,5 @@
 // Between main and the desktop's page, deckit://desktop/, where the backdrop and the windows' frames are drawn.
-import * as CHANNEL from '../../deckit/channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 // Answers { glass, state } at once: the page is built in one pass.
 export const setup = CHANNEL.pageToMain('deckit-shell:desktop-setup', {}, { reply: true, sync: true });

@@ -1,13 +1,13 @@
-import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
-import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
-import * as OPEN_PERMISSION from '../open/model/permission.js';
+import * as CLIPBOARD_PERMISSION from '../../../deckit-sdk/deckit/clipboard/model/permission.js';
+import * as NOTIFICATION_PERMISSION from '../../../deckit-sdk/deckit/notification/model/permission.js';
+import * as OPEN_PERMISSION from '../../../deckit-sdk/deckit/open/model/permission.js';
 import * as ENVIRONMENT from '../environment/index.js';
 import * as IPC from '../ipc/main.js';
 import { createHome } from '../home/index.js';
 import { createStorage } from '../storage/index.js';
 import * as BUILD from '../build/index.js';
 import { createLog } from '../log/main.js';
-import { createPermission } from '../permission/index.js';
+import { createPermission } from '../../../deckit-sdk/deckit/permission/index.js';
 import { createManifestField } from '../manifest-field/index.js';
 import { createCatalog } from '../catalog/index.js';
 import { createIdentity } from '../identity/index.js';

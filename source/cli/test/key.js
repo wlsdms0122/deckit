@@ -15,13 +15,13 @@ const { pathToFileURL } = require('url');
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
 async function main() {
-    const KEY_PERMISSION = await import(url('deckit-shell', 'shell', 'key', 'model', 'permission.js'));
+    const KEY_PERMISSION = await import(url('deckit-sdk', 'shell', 'key', 'model', 'permission.js'));
     const { createKey } = await import(url('deckit-shell', 'shell', 'key', 'main.js'));
-    const { createKeys } = await import(url('deckit-shell', 'shell', 'key', 'renderer.js'));
+    const { createKeys } = await import(url('deckit-sdk', 'shell', 'key', 'renderer.js'));
     const { createFiles } = await import(url('deckit-shell', 'shell', 'files', 'main.js'));
-    const { filesOf } = await import(url('deckit-shell', 'shell', 'files', 'renderer.js'));
+    const { filesOf } = await import(url('deckit-sdk', 'shell', 'files', 'renderer.js'));
     const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
-    const REQUEST = await import(url('deckit-shell', 'deckit', 'request', 'index.js'));
+    const REQUEST = await import(url('deckit-sdk', 'deckit', 'request', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

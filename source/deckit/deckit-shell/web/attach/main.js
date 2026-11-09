@@ -1,7 +1,7 @@
 import { checked } from '../../deckit/environment/index.js';
 import * as ENVIRONMENT from '../environment/index.js';
-import * as WEB_PERMISSION from '../engine/model/permission.js';
-import * as WEB_LAYER from '../engine/model/layer.js';
+import * as WEB_PERMISSION from '../../../deckit-sdk/web/engine/model/permission.js';
+import * as WEB_LAYER from '../../../deckit-sdk/web/engine/model/layer.js';
 import { createWeb } from '../engine/main.js';
 
 // MARK: - Property

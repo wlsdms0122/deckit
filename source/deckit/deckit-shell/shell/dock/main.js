@@ -1,9 +1,9 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
-import * as MOD_PERMISSION from '../../deckit/permission/index.js';
-import * as DECLARED from './protocol.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/dock/protocol.js';
 import * as LIST_ORDER from './model/list-order.js';
 import * as DOCK from './model/dock.js';
-import * as FIELD from '../mods/field.js';
+import * as FIELD from '../../../deckit-sdk/shell/mods/field.js';
 import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered, `host` the app's answers, `DESKTOP` the desktop, `WINDOWS` the mods' windows, and

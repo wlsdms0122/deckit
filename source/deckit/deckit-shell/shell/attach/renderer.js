@@ -1,8 +1,8 @@
 import { checked } from '../../deckit/environment/index.js';
 import * as ENVIRONMENT from '../environment/index.js';
-import { shellOf } from '../mod/renderer.js';
-import * as SHELL_LAYER from '../mod/model/layer.js';
-import * as PAGE from '../page/renderer.js';
+import { shellOf } from '../../../deckit-sdk/shell/mod/renderer.js';
+import * as SHELL_LAYER from '../../../deckit-sdk/shell/mod/model/layer.js';
+import * as PAGE from '../../../deckit-sdk/shell/page/renderer.js';
 import * as DESKTOP from '../desktop/frame.js';
 import * as DESKTOP_PAGE from '../desktop/model/page-name.js';
 

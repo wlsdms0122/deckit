@@ -1,8 +1,8 @@
 import { checked } from '../../deckit/environment/index.js';
-import * as REQUEST from '../../deckit/request/index.js';
+import * as REQUEST from '../../../deckit-sdk/deckit/request/index.js';
 import * as ENVIRONMENT from '../environment/index.js';
-import * as WEB_LAYER from '../engine/model/layer.js';
-import { createWeb } from '../engine/renderer.js';
+import * as WEB_LAYER from '../../../deckit-sdk/web/engine/model/layer.js';
+import { createWeb } from '../../../deckit-sdk/web/engine/renderer.js';
 
 // MARK: - Property
 // MARK: - Initializer

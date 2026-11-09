@@ -1,8 +1,8 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
-import * as LISTENER from '../../deckit/listener/index.js';
-import * as DECLARED from './protocol.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/key/protocol.js';
 import * as KEY from './model/key.js';
-import * as KEY_PERMISSION from './model/permission.js';
+import * as KEY_PERMISSION from '../../../deckit-sdk/shell/key/model/permission.js';
 
 // The keys of the app, in one table of chords, a chord its first holder's at a time: one of the shell's own keys, or
 // one a mod took from every page of the app with deckit.app-keys, or from every app too with system.global-keys, its

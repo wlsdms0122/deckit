@@ -1,4 +1,4 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 // What an environment gives deckit, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deckit reaches the core, the files and

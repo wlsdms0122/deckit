@@ -1,5 +1,5 @@
 // Between a mod's page and main, about the mod's records.
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 export const readRecord = CHANNEL.pageToMain(
     'deckit-shell:record-read',

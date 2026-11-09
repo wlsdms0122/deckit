@@ -1,6 +1,6 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
-import * as DECLARED from './protocol.js';
-import * as STYLE_PERMISSION from './model/permission.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/style/protocol.js';
+import * as STYLE_PERMISSION from '../../../deckit-sdk/shell/style/model/permission.js';
 import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered.

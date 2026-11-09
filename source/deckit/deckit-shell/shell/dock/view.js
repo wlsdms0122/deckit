@@ -1,8 +1,8 @@
-import * as ICON from '../ui/icon/index.js';
-import * as LIST from '../ui/list/index.js';
-import * as CHANNEL from '../../deckit/channel/index.js';
+import * as ICON from '../../../deckit-sdk/shell/ui/icon/index.js';
+import * as LIST from '../../../deckit-sdk/shell/ui/list/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DOCK from './model/dock.js';
-import * as DECLARED from './protocol.js';
+import * as DECLARED from '../../../deckit-sdk/shell/dock/protocol.js';
 
 // MARK: - Property
 const { SLIVER, WIDTH } = DOCK;

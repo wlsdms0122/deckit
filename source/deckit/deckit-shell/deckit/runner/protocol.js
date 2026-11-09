@@ -1,6 +1,6 @@
 // Between a mod's page and the runner. Main knows which mod a message is from by the page it came from, and which run
 // of that page by the `run` that `load` answered, carried back by what tells main how the run went.
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 // What the page runs: the mod's manifest, its entry's source, and which run this is.
 export const load = CHANNEL.pageToMain('deckit-shell:mod-load', {}, { reply: true, sync: true });

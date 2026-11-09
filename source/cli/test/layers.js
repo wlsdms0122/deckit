@@ -23,9 +23,9 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
-    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'renderer.js'));
-    const { createMod } = await import(url('deckit-shell', 'deckit', 'mod', 'renderer.js'));
-    const { createNotification } = await import(url('deckit-shell', 'deckit', 'notification', 'renderer.js'));
+    const IPC = await import(url('deckit-sdk', 'deckit', 'ipc', 'renderer.js'));
+    const { createMod } = await import(url('deckit-sdk', 'deckit', 'mod', 'renderer.js'));
+    const { createNotification } = await import(url('deckit-sdk', 'deckit', 'notification', 'renderer.js'));
     const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
     const failed = [];
     let count = 0;

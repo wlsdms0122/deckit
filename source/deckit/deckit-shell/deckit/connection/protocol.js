@@ -2,7 +2,7 @@
 // for it by its service, a mod it reaches by id or the owner of an interface it uses. What crosses a connection is
 // described as wire.js writes it: `{ value, references }`. The client's end is told the name, the mod id or the
 // interface, and never the mod that owns an interface.
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 // A lifecycle of the page's run begins: answered with the connections it has from now on to the interfaces it uses,
 // each `{ id, name, exports }`, or with `refusal`, `{ stage, kind, message }`, in place of `exports` for one the

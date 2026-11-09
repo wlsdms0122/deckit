@@ -1,7 +1,7 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as IPC from '../ipc/main.js';
-import * as DECLARED from './protocol.js';
-import * as NOTIFICATION_PERMISSION from './model/permission.js';
+import * as DECLARED from '../../../deckit-sdk/deckit/notification/protocol.js';
+import * as NOTIFICATION_PERMISSION from '../../../deckit-sdk/deckit/notification/model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 

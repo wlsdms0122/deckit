@@ -1,10 +1,10 @@
-import * as EVENT_BUS from './bus.js';
-import * as CHANNEL from '../channel/index.js';
-import * as IPC from '../ipc/renderer.js';
+import * as EVENT_BUS from '../../../deckit-sdk/deckit/event/bus.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as IPC from '../../../deckit-sdk/deckit/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 import * as SCOPED from './model/scoped-name.js';
-import * as REQUEST from '../request/index.js';
-import * as MOD_PERMISSION from '../permission/index.js';
+import * as REQUEST from '../../../deckit-sdk/deckit/request/index.js';
+import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 

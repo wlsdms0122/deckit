@@ -1,7 +1,7 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
-import * as DECLARED from './protocol.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/fonts/protocol.js';
 import * as FONTS from './model/fonts.js';
-import * as FONTS_PERMISSION from './model/permission.js';
+import * as FONTS_PERMISSION from '../../../deckit-sdk/shell/fonts/model/permission.js';
 
 // `deckit` is what connect answered; `installed()` answers the fonts installed (environment: SHELL.fonts).
 export function createFonts({ deckit, installed }) {

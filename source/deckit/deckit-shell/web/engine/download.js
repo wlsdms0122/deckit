@@ -1,5 +1,5 @@
-import * as OPEN_PERMISSION from '../../deckit/open/model/permission.js';
-import * as FILE_URL from '../../deckit/open/model/file-url.js';
+import * as OPEN_PERMISSION from '../../../deckit-sdk/deckit/open/model/permission.js';
+import * as FILE_URL from '../../../deckit-sdk/deckit/open/model/file-url.js';
 
 // The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's and any
 // older one still under way. The mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id the

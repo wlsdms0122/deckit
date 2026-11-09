@@ -21,11 +21,11 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
-    const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'renderer.js'));
+    const IPC = await import(url('deckit-sdk', 'deckit', 'ipc', 'renderer.js'));
     const { createRun } = await import(url('deckit-shell', 'deckit', 'runner', 'run.js'));
     const { createRunner } = await import(url('deckit-shell', 'deckit', 'runner', 'renderer.js'));
     const { createConnection } = await import(url('deckit-shell', 'deckit', 'connection', 'renderer.js'));
-    const CONTRIBUTION = await import(url('deckit-shell', 'deckit', 'contribution', 'renderer.js'));
+    const CONTRIBUTION = await import(url('deckit-sdk', 'deckit', 'contribution', 'renderer.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

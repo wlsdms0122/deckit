@@ -35,7 +35,7 @@ const outcome = (promise) =>
 
 async function main() {
     const { createCore } = await import(url('deckit-shell', 'deckit', 'core', 'main.js'));
-    const { createPermission } = await import(url('deckit-shell', 'deckit', 'permission', 'index.js'));
+    const { createPermission } = await import(url('deckit-sdk', 'deckit', 'permission', 'index.js'));
     const { createManifestField } = await import(url('deckit-shell', 'deckit', 'manifest-field', 'index.js'));
     const { createStorage } = await import(url('deckit-shell', 'deckit', 'storage', 'index.js'));
     const failed = [];

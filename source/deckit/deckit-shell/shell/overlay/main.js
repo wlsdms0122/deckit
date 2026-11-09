@@ -1,5 +1,5 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
-import * as DECLARED from './protocol.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/overlay/protocol.js';
 import * as SURFACE from './model/surface.js';
 
 // The overlay over each page the shell draws in, a mod's or its own: a document the page opens beside itself, where the

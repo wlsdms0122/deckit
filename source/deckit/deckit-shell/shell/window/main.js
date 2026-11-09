@@ -1,6 +1,6 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
-import * as DECLARED from './protocol.js';
-import * as WINDOW_PERMISSION from './model/permission.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/window/protocol.js';
+import * as WINDOW_PERMISSION from '../../../deckit-sdk/shell/window/model/permission.js';
 import * as SURFACE from './model/surface.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `PAGES` the shell's pages,

@@ -190,7 +190,7 @@ async function main() {
     check('the owner of the interface it names is no child', REGION.parentOf('tool') === null, '');
     check('a child with no parent is still a child', REGION.interfaceOf('tool') === 'dash/tools', '');
 
-    const FIELD = await import(url('deckit-shell', 'shell', 'mods', 'field.js'));
+    const FIELD = await import(url('deckit-sdk', 'shell', 'mods', 'field.js'));
     const child = { uses: { 'dash/boards': 1 } };
     const named = FIELD.parentOf({ view: { parent: 'dash/boards' } }, child);
     check('a view may name as parent an interface its mod uses', named === 'dash/boards', named);

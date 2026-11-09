@@ -1,4 +1,4 @@
-import * as LISTENER from '../listener/index.js';
+import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
 
 // The requests one mod makes of another as deckit relays them: a call on a connection, a mod reached by its id, and a
 // launch or relaunch a mod with deckit.mods asks for. What listens is told each as `{ from, to }`, the ids of the mod

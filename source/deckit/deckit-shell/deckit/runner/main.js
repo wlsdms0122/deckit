@@ -1,5 +1,5 @@
-import * as EVENT_BUS from '../event/bus.js';
-import * as CHANNEL from '../channel/index.js';
+import * as EVENT_BUS from '../../../deckit-sdk/deckit/event/bus.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as MOD from '../catalog/model/mod.js';

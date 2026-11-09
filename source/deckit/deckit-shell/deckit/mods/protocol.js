@@ -1,5 +1,5 @@
 // Between a page of a mod with deckit.mods and main, about the mods.
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 export const mods = CHANNEL.pageToMain('deckit-shell:mods', {}, { reply: true });
 export const plan = CHANNEL.pageToMain('deckit-shell:mods-plan', { folder: 'string' }, { reply: true });

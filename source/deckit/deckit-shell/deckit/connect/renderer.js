@@ -1,4 +1,4 @@
-import * as IPC from '../ipc/renderer.js';
+import * as IPC from '../../../deckit-sdk/deckit/ipc/renderer.js';
 import * as LOG from '../log/renderer.js';
 import * as ENVIRONMENT from '../environment/index.js';
 import * as SETUP from '../setup/renderer.js';
@@ -8,8 +8,8 @@ import { createRecord } from '../record/renderer.js';
 import { createConnection } from '../connection/renderer.js';
 import { createEvent } from '../event/renderer.js';
 import { createMods } from '../mods/renderer.js';
-import { createNotification } from '../notification/renderer.js';
-import { createMod } from '../mod/renderer.js';
+import { createNotification } from '../../../deckit-sdk/deckit/notification/renderer.js';
+import { createMod } from '../../../deckit-sdk/deckit/mod/renderer.js';
 
 // MARK: - Public
 // Deckit on every page it makes, a mod's or one that runs no mod, as the environment boots the page with what it gives

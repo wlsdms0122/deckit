@@ -1,9 +1,9 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
-import * as MOD_PERMISSION from '../permission/index.js';
+import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 import * as LIFECYCLE from '../runner/model/lifecycle.js';
-import * as LISTENER from '../listener/index.js';
+import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 

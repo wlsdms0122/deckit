@@ -1,6 +1,6 @@
-import * as CHANNEL from '../../deckit-shell/deckit/channel/index.js';
-import * as MOD_PERMISSION from '../../deckit-shell/deckit/permission/index.js';
-import * as REQUEST from '../../deckit-shell/deckit/request/index.js';
+import * as CHANNEL from '../../deckit-sdk/deckit/channel/index.js';
+import * as MOD_PERMISSION from '../../deckit-sdk/deckit/permission/index.js';
+import * as REQUEST from '../../deckit-sdk/deckit/request/index.js';
 import * as DECLARED from './protocol.js';
 import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
 import * as MAIN_PROCESS_LAYER from './model/layer.js';

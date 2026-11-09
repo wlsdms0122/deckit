@@ -3,7 +3,16 @@
     "private": true,
     "exports": {
         "./match": "./match/index.js",
-        "./path": "./path/index.js"
+        "./path": "./path/index.js",
+        "./deckit/*": {
+            "os": "./deckit/*"
+        },
+        "./shell/*": {
+            "os": "./shell/*"
+        },
+        "./web/*": {
+            "os": "./web/*"
+        }
     },
     "dependencies": {}
 }

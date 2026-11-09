@@ -1,11 +1,11 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
 import * as WM from './model/window-manager.js';
 import * as ACTIVATION_MODEL from './model/activation.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
-import * as TOKEN from '../ui/token/index.js';
+import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `host` the app's answers, `REGION`

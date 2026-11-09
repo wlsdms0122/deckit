@@ -1,8 +1,8 @@
-import * as CHANNEL from '../../deckit/channel/index.js';
-import * as LISTENER from '../../deckit/listener/index.js';
-import * as DECLARED from './protocol.js';
-import * as WEB_PERMISSION from './model/permission.js';
-import * as SESSION from './model/session.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
+import * as DECLARED from '../../../deckit-sdk/web/engine/protocol.js';
+import * as WEB_PERMISSION from '../../../deckit-sdk/web/engine/model/permission.js';
+import * as SESSION from '../../../deckit-sdk/web/engine/model/session.js';
 import * as SITE from './model/site.js';
 import * as SITE_PERMISSION from './model/site-permission.js';
 import { createDownload } from './download.js';

@@ -1,4 +1,4 @@
-import * as LISTENER from '../listener/index.js';
+import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
 
 // Which page is which mod's, or which runs none. `pages` is the environment's (environment/: MAIN.pages); a page is its
 // token, kept and compared, never read.

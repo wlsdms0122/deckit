@@ -1,4 +1,4 @@
-import * as OPEN_PERMISSION from '../open/model/permission.js';
+import * as OPEN_PERMISSION from '../../../deckit-sdk/deckit/open/model/permission.js';
 import * as LIFECYCLE from '../runner/model/lifecycle.js';
 import * as IPC from '../ipc/main.js';
 

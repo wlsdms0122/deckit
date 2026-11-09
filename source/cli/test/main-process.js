@@ -15,7 +15,7 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
     const MAIN_IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
-    const PAGE_IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'renderer.js'));
+    const PAGE_IPC = await import(url('deckit-sdk', 'deckit', 'ipc', 'renderer.js'));
     const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
     const { attach } = await import(url('deckit-electron', 'main-process', 'main.js'));
     const { LAYERS } = await import(url('deckit-electron', 'main-process', 'renderer.js'));

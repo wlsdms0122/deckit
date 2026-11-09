@@ -1,13 +1,13 @@
 import { answered, refuseUnknown } from '../../deckit/connect/main.js';
 import { checked } from '../../deckit/environment/index.js';
-import * as STYLE_PERMISSION from '../style/model/permission.js';
-import * as FONTS_PERMISSION from '../fonts/model/permission.js';
-import * as WINDOW_PERMISSION from '../window/model/permission.js';
-import * as KEY_PERMISSION from '../key/model/permission.js';
+import * as STYLE_PERMISSION from '../../../deckit-sdk/shell/style/model/permission.js';
+import * as FONTS_PERMISSION from '../../../deckit-sdk/shell/fonts/model/permission.js';
+import * as WINDOW_PERMISSION from '../../../deckit-sdk/shell/window/model/permission.js';
+import * as KEY_PERMISSION from '../../../deckit-sdk/shell/key/model/permission.js';
 import * as ENVIRONMENT from '../environment/index.js';
 import { createDrop } from '../drop/main.js';
 import { createPage } from '../page/main.js';
-import * as SHELL_LAYER from '../mod/model/layer.js';
+import * as SHELL_LAYER from '../../../deckit-sdk/shell/mod/model/layer.js';
 import { createRegion } from '../region/main.js';
 import { createDesktop } from '../desktop/main.js';
 import { createDock } from '../dock/main.js';
@@ -18,7 +18,7 @@ import { createWindows } from '../window/main.js';
 import { createOverlay } from '../overlay/main.js';
 import { createKey } from '../key/main.js';
 import { createFiles } from '../files/main.js';
-import * as FIELD from '../mods/field.js';
+import * as FIELD from '../../../deckit-sdk/shell/mods/field.js';
 
 // MARK: - Property
 const SHELL_CONFIG = { dock: null };

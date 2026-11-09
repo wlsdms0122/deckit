@@ -1,10 +1,10 @@
-import * as KIT from '../ui/kit/index.js';
-import * as FONTS from '../fonts/renderer.js';
-import * as LAYER from '../ui/layer/index.js';
-import * as MOD_STYLE from '../style/renderer.js';
+import * as KIT from '../../../deckit-sdk/shell/ui/kit/index.js';
+import * as FONTS from '../../../deckit-sdk/shell/fonts/renderer.js';
+import * as LAYER from '../../../deckit-sdk/shell/ui/layer/index.js';
+import * as MOD_STYLE from '../../../deckit-sdk/shell/style/renderer.js';
 import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
-import * as CHANNEL from '../../deckit/channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DOCK from '../dock/view.js';
 import * as DECLARED from './protocol.js';
 

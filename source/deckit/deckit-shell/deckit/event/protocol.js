@@ -1,4 +1,4 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 // An event the page's run sends of its mod, to every mod that listens to it: answered once it is sent, or refused.
 export const emit = CHANNEL.pageToMain(
