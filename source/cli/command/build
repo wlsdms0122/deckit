@@ -18,8 +18,8 @@ SOURCE_HASH="$({ find source/deckit/deckit source/deckit/deckit-web source/decki
 cp document/EMBEDDING.md document/GUIDELINES.md document/MOD.md document/UI.md "$LIB/document/"
 
 # deckit's own mods keep their sandbox code as CommonJS files under src/, with src/main.js the entry; what the
-# manifest's main names is that, bundled from src/ and the SDK it requires alone, with the licences it carries. The
-# rest of the folder ships as it is.
+# manifest's main names is that, bundled from src/ and the SDK's folders a mod links alone, with the licences it
+# carries. The rest of the folder ships as it is.
 ESBUILD=esbuild@0.28.2
 for dir in source/deckit/mods/*/; do
   dir="${dir%/}"
@@ -32,16 +32,18 @@ for dir in source/deckit/mods/*/; do
     || { echo "$dir could not be bundled: stopping" >&2; exit 1; }
   node -e "
     const path = require('path');
-    const within = [path.resolve('$dir/src'), path.resolve('source/deckit/deckit-sdk')].map((folder) => folder + '/');
+    const { DECKIT, LINKED } = require('./source/cli/library.js');
+    const within = [path.resolve('$dir/src'), ...LINKED.map((folder) => path.join(DECKIT, folder))]
+      .map((folder) => folder + '/');
     const inside = (file) => within.some((folder) => path.resolve('$dir/src', file).startsWith(folder));
     const outside = Object.keys(require('./$WORK/meta.json').inputs)
       .filter((file) => file.includes('node_modules') || !inside(file));
     if (outside.length) {
-      console.error('$dir bundles files from outside its src/ and the SDK: ' + outside.join(', '));
+      console.error('$dir bundles files from outside its src/ and the SDK it links: ' + outside.join(', '));
       process.exit(1);
     }
     new Function('module', 'exports', require('fs').readFileSync('$OUTFILE', 'utf8'));
-  " || { echo "$dir does not bundle from its src/ and the SDK alone into an entry: stopping" >&2; exit 1; }
+  " || { echo "$dir does not bundle from its src/ and the SDK it links alone into an entry: stopping" >&2; exit 1; }
 done
 
 # The core, for both kinds of Mac, beside main.js. Its build is kept between runs, and it names no folder of the

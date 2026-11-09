@@ -7,6 +7,9 @@ const path = require('path');
 const DECKIT = path.join(__dirname, '..', 'deckit');
 // Which may depend on which is the check's (source/cli/command/check).
 const PACKAGES = ['deckit-electron', 'deckit-sdk', 'deckit-shell'];
+// The SDK's folders a mod links into its own bundle, by their paths under source/deckit: the SDK's plain entries are in
+// them, and its owners' folders are entries only to a package that resolves with the condition "os".
+const LINKED = ['deckit-sdk/match', 'deckit-sdk/path'];
 const MODS = path.join(DECKIT, 'mods');
 const APP = path.join(DECKIT, 'deckit-app');
 const ESBUILD = 'esbuild@0.28.2';
@@ -123,12 +126,23 @@ function bare(text) {
     return out;
 }
 
-// What a package says of itself in its package.json: its entries, what a package that depends on it imports of it,
-// by their paths under source/deckit, and the packages it depends on.
+// What a package says of itself in its package.json, by paths under source/deckit: its entries, what a package that
+// depends on it imports of it, those of them a package resolving with no condition reaches (plain), and the packages
+// it depends on. An export is a file, or {"os": file} for a package resolving with the condition "os"; a file with a
+// "*" names every script it matches, the "*" standing for any part of a path.
 function surfaceOf(name) {
     const described = JSON.parse(fs.readFileSync(path.join(DECKIT, name, 'package.json'), 'utf8'));
+    const scripts = filesOf(name);
+    const named = (entry) => {
+        const file = path.posix.join(name, entry);
+        if (!file.includes('*')) return [file];
+        const [before, after] = file.split('*');
+        return scripts.filter((each) => each.startsWith(before) && each.endsWith(after));
+    };
+    const exports = Object.values(described.exports || {});
     return {
-        entries: new Set(Object.values(described.exports || {}).map((entry) => path.posix.join(name, entry))),
+        entries: new Set(exports.flatMap((entry) => named(typeof entry === 'string' ? entry : entry.os))),
+        plain: new Set(exports.filter((entry) => typeof entry === 'string').flatMap(named)),
         depends: new Set(Object.keys(described.dependencies || {})),
     };
 }
@@ -144,13 +158,16 @@ function mods() {
 
 // Every script of the packages, by its path under source/deckit.
 function files() {
-    const walk = (folder) =>
-        fs.readdirSync(path.join(DECKIT, folder), { withFileTypes: true }).flatMap((entry) => {
-            const relative = path.posix.join(folder, entry.name);
-            if (entry.isDirectory()) return walk(relative);
-            return entry.name.endsWith('.js') ? [relative] : [];
-        });
-    return PACKAGES.flatMap(walk).sort();
+    return PACKAGES.flatMap(filesOf).sort();
+}
+
+// Every script under a folder, by its path under source/deckit.
+function filesOf(folder) {
+    return fs.readdirSync(path.join(DECKIT, folder), { withFileTypes: true }).flatMap((entry) => {
+        const relative = path.posix.join(folder, entry.name);
+        if (entry.isDirectory()) return filesOf(relative);
+        return entry.name.endsWith('.js') ? [relative] : [];
+    });
 }
 
 // What a file imports: each `import ... from`, `export ... from` and bare `import '...'`, with the file a relative
@@ -180,6 +197,7 @@ function reach(entry) {
 module.exports = {
     DECKIT,
     PACKAGES,
+    LINKED,
     MODS,
     APP,
     ESBUILD,
