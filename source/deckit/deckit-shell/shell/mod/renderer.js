@@ -28,7 +28,7 @@ import { createWindows } from '../window/renderer.js';
 // before attach(). Once attach() has ended, a child's view is laid where a region of its parent's shows it. `web` shows
 // the pages of the mod's web sessions, as the web engine's layer offers them (`under.web.surfaces`), what they pass on
 // opened as the mod's openExternal opens it. `channels` binds the shell's channels in the page, and `drags` takes the
-// presses in the drag regions of a window's content (environment: PAGE.drags).
+// presses in the drag regions of a window's content (environment: SHELL_PAGE.drags).
 function shellOf({ channels, drags }) {
     return ({ mod: running, granted, deliver, fail, under }) => {
         const has = (permission) => granted.includes(permission);

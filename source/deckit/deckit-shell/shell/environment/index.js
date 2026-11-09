@@ -58,6 +58,15 @@ const SHELL = Object.freeze({
     actionOnDoubleClick: 'function',
 });
 
+// What an environment gives a UI shell on deckit on a page's side: the presses in drag regions. Where a document marks
+// itself `--app-region: drag`, a press moves the window it is shown in and a double click does what the person set a
+// title bar's to do, `no-drag` marking what inside takes presses itself. take(document, pressed(event)) -> off: those
+// in `document`, this page's or a surface it opened, each handed to `pressed` as its `mousedown` event instead, the
+// moves and the release that follow the document's
+const SHELL_PAGE = Object.freeze({
+    drags: { take: 'function' },
+});
+
 // What SHELL.stage() makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
 // a time, `bounds` a rect or a function of the window's content size that it follows, `front` over what is in the
 // window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
@@ -65,7 +74,7 @@ const SHELL = Object.freeze({
 // out of the window, and a page left out, or gone, is taken off; `close()`, the stage ended, its pages taken off and it
 // out of its window. Where a page laid on it, or a surface it opened, marks itself with `--app-region: drag`, a press
 // drags the window it is in and a double click does what the person set a title bar's to do, unless what draws in that
-// document took its drags (PAGE.drags); `--app-region: no-drag` marks what inside it takes presses itself.
+// document took its drags (SHELL_PAGE.drags); `--app-region: no-drag` marks what inside it takes presses itself.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',
@@ -75,4 +84,4 @@ const STAGE = Object.freeze({
     close: 'function',
 });
 
-export { SHELL, STAGE };
+export { SHELL, SHELL_PAGE, STAGE };

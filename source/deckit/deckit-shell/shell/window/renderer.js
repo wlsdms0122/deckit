@@ -23,9 +23,9 @@ const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'd
 // reopen calls; `unmount()`, each window that is key resigning it and each on screen disappearing, and its parts told
 // nothing more. Each window's content
 // is a document the page opens beside itself, which wears the page's rules, where the pointer and what is presented
-// are heard as in the page, and whose drag regions move the window (`drags`, environment: PAGE.drags). `granted` is
-// the ids of the permissions the mod is granted, `deliver` calls what the mod handed, and `channels` binds the
-// windows' channels in the page.
+// are heard as in the page, and whose drag regions move the window (`drags`, environment: SHELL_PAGE.drags).
+// `granted` is the ids of the permissions the mod is granted, `deliver` calls what the mod handed, and `channels` binds
+// the windows' channels in the page.
 function createWindows({ granted, deliver, channels, drags }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
