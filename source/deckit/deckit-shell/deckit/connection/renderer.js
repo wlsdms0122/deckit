@@ -76,9 +76,10 @@ export function createConnection({ RUN }) {
             if (told.refusal) refuse(lifecycle, told.name, told.refusal);
             else open({ ...told, lifecycle });
         }
-        const { id: mod, permissions } = RUN.mod;
-        const granted = permissions.some((permission) => permission.id === MOD_PERMISSION.REACH_MODS);
-        const denied = granted ? '' : `${mod} does not have the ${MOD_PERMISSION.REACH_MODS} permission`;
+        const { id: mod } = RUN.mod;
+        const denied = RUN.granted.includes(MOD_PERMISSION.REACH_MODS)
+            ? ''
+            : `${mod} does not have the ${MOD_PERMISSION.REACH_MODS} permission`;
         const takes = [['id', 'string']];
         return Object.freeze({
             onConnect: (named, connected) => listen(lifecycle, named, connected, scope),

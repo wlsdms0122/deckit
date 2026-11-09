@@ -50,6 +50,7 @@ async function main() {
                             : message.channel === 'deckit-shell:mod-load'
                               ? {
                                     manifest: { id: 'm', name: 'M', main: 'main.js', permissions: [] },
+                                    granted: [],
                                     source: '',
                                     run: 1,
                                 }
@@ -60,12 +61,12 @@ async function main() {
         { report: () => {} }
     );
 
-    const layerOf = (permissions) =>
+    const layerOf = (granted) =>
         createMod({
             WEB: createWeb({ sessions: {}, web: {} }),
             NOTIFICATION: createNotification(),
             KEYMAP: createKeymap(),
-        }).layer({ mod: { id: 'a', permissions: permissions.map((id) => ({ id })) }, deliver: () => {} });
+        }).layer({ mod: { id: 'a' }, granted, deliver: () => {} });
 
     const deckit = layerOf(['deckit.app-keys']);
     check('deckit registers nothing of its own', Object.keys(deckit.lifecycles[0].registrations).length === 0, deckit);
@@ -367,10 +368,7 @@ async function main() {
         ''
     );
 
-    const granted = createMods({ RUN: { mod: { id: 'g', permissions: [{ id: 'deckit.mods' }] } } }).tool(
-        deckit.mods,
-        makeScope()
-    );
+    const granted = createMods({ RUN: { mod: { id: 'g' }, granted: ['deckit.mods'] } }).tool(deckit.mods, makeScope());
     sent.length = 0;
     check(
         'a request with an argument of another type is refused INVALID_ARGUMENT, and none read as a string',

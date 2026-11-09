@@ -18,15 +18,20 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    const mod = (id, permissions = [{ id: 'deckit.styles' }]) => ({ id, dependencies: {}, permissions });
+    const mod = (id) => ({ id, dependencies: {} });
+    const styles = ['deckit.styles'];
     const runs = {
-        a: { mod: mod('a'), state: 'running', contributions: { styles: { a: 'a-own', '*': 'a-all' } } },
-        b: { mod: mod('b'), state: 'running', contributions: { styles: { a: 'b-a', c: 'b-c' } } },
-        c: { mod: mod('c', []), state: 'running', contributions: { styles: { a: 'c-a' } } },
-        d: { mod: mod('d'), state: 'running', contributions: { styles: { a: 'd-a', '*': 'd-all' } } },
+        a: {
+            mod: mod('a'),
+            granted: styles,
+            state: 'running',
+            contributions: { styles: { a: 'a-own', '*': 'a-all' } },
+        },
+        b: { mod: mod('b'), granted: styles, state: 'running', contributions: { styles: { a: 'b-a', c: 'b-c' } } },
+        c: { mod: mod('c'), granted: [], state: 'running', contributions: { styles: { a: 'c-a' } } },
+        d: { mod: mod('d'), granted: styles, state: 'running', contributions: { styles: { a: 'd-a', '*': 'd-all' } } },
     };
-    const mods = { ...Object.fromEntries(Object.keys(runs).map((id) => [id, mod(id)])), e: mod('e'), f: mod('f', []) };
-    mods.c = mod('c', []);
+    const mods = { ...Object.fromEntries(Object.keys(runs).map((id) => [id, mod(id)])), e: mod('e'), f: mod('f') };
     // A bundle that does not load, as deckit lists it: it has no manifest, so it declares no styles.
     mods.broken = { id: 'broken', refusal: { stage: 'read', kind: 'NOT_LOADABLE', message: 'no main.js' } };
     const fields = {
@@ -42,6 +47,7 @@ async function main() {
             list: () => Object.values(mods),
             runOf: (id) => runs[id] ?? null,
             fieldsOf: (id) => (mods[id]?.refusal ? null : (fields[id] ?? {})),
+            grantedOf: (id) => (mods[id]?.refusal ? null : ['c', 'f'].includes(id) ? [] : styles),
             readFile: async (id, file) => files[`${id}/${file}`] ?? null,
             modOf: (page) => page.mod,
             observe() {},

@@ -35,13 +35,14 @@ async function main() {
 
     const RUN = {
         number: 1,
-        mod: { id: 'a', uses: { 'c/api': 1 }, provides: { 'a/api': [1] }, permissions: [] },
+        mod: { id: 'a', uses: { 'c/api': 1 }, provides: { 'a/api': [1] } },
+        granted: [],
         deliver: () => {},
         fail: () => {},
     };
     const { events } = createEvent({ RUN }).forScope({ handle: 'deckit', scope: makeScope() });
     const reaching = createEvent({
-        RUN: { ...RUN, mod: { ...RUN.mod, permissions: [{ id: 'deckit.reach-mods' }] } },
+        RUN: { ...RUN, granted: ['deckit.reach-mods'] },
     }).forScope({ handle: 'deckit', scope: makeScope() }).events;
     const thrown = (make) => {
         try {

@@ -27,15 +27,15 @@ async function main() {
     const plain = { name: 'page c' };
     const files = { name: 'page f' };
     const mods = new Map([
-        [plain, { id: 'c', permissions: [] }],
-        [files, { id: 'f', permissions: [{ id: 'system.file-handlers' }] }],
+        [plain, { id: 'c', granted: [] }],
+        [files, { id: 'f', granted: ['system.file-handlers'] }],
     ]);
     const IDENTITY = {
         modOf: (page) => mods.get(page) || null,
         modFrom: (page, permission) => {
             const mod = mods.get(page);
             if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
-            if (permission && !mod.permissions.some(({ id }) => id === permission))
+            if (permission && !mod.granted.includes(permission))
                 throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
             return mod;
         },

@@ -98,11 +98,11 @@ export function createIdentity({ pages: PAGES }) {
         return identities.get(page)?.mod || null;
     }
 
-    // The mod that sent this, held to holding `permission` when one is named: refused at call.
+    // The mod that sent this, held to being granted `permission` when one is named: refused at call.
     function modFrom(page, permission = null) {
         const mod = modOf(page);
         if (!mod) throw Object.assign(new Error('only a mod asks this'), { stage: 'call', kind: 'REFUSED' });
-        if (permission && !mod.permissions.some(({ id }) => id === permission)) {
+        if (permission && !mod.granted.includes(permission)) {
             throw Object.assign(new Error(`${mod.id} does not have the ${permission} permission`), {
                 stage: 'call',
                 kind: 'NOT_PERMITTED',

@@ -29,6 +29,7 @@ const found = (id, { system, fields, permissions = [] }) => ({
     installed: true,
     shipped: true,
     system,
+    granted: permissions.filter(({ usable }) => usable).map(({ id }) => id),
     hides: [],
     revision: '1',
     uses: [],
@@ -207,6 +208,12 @@ async function main() {
         fields
     );
     check('the host app reads no fields of a mod that does not load', api.mods.fieldsOf('none') === null, '');
+    const granted = api.mods.grantedOf('s');
+    check(
+        'the host app reads what a mod is granted, frozen, and nothing of a mod that does not load',
+        granted?.join() === 'deckit.reach-mods' && Object.isFrozen(granted) && api.mods.grantedOf('none') === null,
+        granted
+    );
     const hosted = api.mods.list();
     check(
         'the host app lists every mod found, in order',

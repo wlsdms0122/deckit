@@ -254,7 +254,7 @@ function windowsOver(createWindows) {
         [pages.a, 'a'],
         [pages.b, 'b'],
     ]);
-    const permissions = { a: [], b: [{ id: 'system.overlay-windows' }] };
+    const granted = { a: [], b: ['system.overlay-windows'] };
     const changes = [];
     const desktop = {
         opened: [],
@@ -278,7 +278,7 @@ function windowsOver(createWindows) {
         },
         mods: {
             modOf: (page) => modOf.get(page) ?? null,
-            runOf: (mod) => ({ mod: { permissions: permissions[mod] } }),
+            runOf: (mod) => ({ granted: granted[mod] }),
         },
         keymap: { listen: (page) => listened.push(page) },
         pages: { whenEnds: (page, listener) => endListeners.set(page, listener) },

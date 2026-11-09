@@ -21,12 +21,12 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
     // Deckit as a layer on the runner (deckit-shell/deckit/runner/renderer.js). `over` is what a layer over it is
     // handed: `lifecycle({ method, registrations, start, end, join })`, a lifecycle of that layer's, whose `start` is
     // handed the handle `deckit` with deckit's members.
-    function layer({ mod, deliver }) {
+    function layer({ mod, granted, deliver }) {
         NOTIFICATION.listen(deliver);
         const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
         KEYMAP.hear();
         const handleOf = (runner, scope) =>
-            Object.freeze({ ...runner, ...membersOf(mod, runner, scope, { mainProcess }) });
+            Object.freeze({ ...runner, ...membersOf(mod, granted, runner, scope, { mainProcess }) });
         return {
             handle: 'deckit',
             mods: {
@@ -77,8 +77,8 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
     // Deckit's members on a handle, what they make that calls back into the mod's code cut with `scope`: each
     // namespace holds what `runner`, the runner's members, registers in it beside what reaches others'
     // (deckit-shell/deckit/runner). A member a permission guards is on it all the same, and refuses a mod without it.
-    function membersOf(mod, runner, scope, { mainProcess }) {
-        const has = (permission) => mod.permissions.some(({ id }) => id === permission);
+    function membersOf(mod, granted, runner, scope, { mainProcess }) {
+        const has = (permission) => granted.includes(permission);
         // The request `name`, refused NOT_PERMITTED unless the mod holds one of `guards`, then for its arguments.
         const request = (name, { guards = [], signature }, send) => {
             const denied =
@@ -135,7 +135,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
                         return Object.freeze({ held, release: scope.add(release) });
                     })(...args),
             }),
-            openExternal: OPEN.openExternalOf(mod),
+            openExternal: OPEN.openExternalOf(mod, granted),
             reveal: request(
                 'reveal',
                 { guards: [OPEN_PERMISSION.FILE_HANDLERS], signature: [['path', 'string']] },

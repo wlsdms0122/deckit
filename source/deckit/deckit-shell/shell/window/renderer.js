@@ -23,9 +23,10 @@ const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'd
 // reopen calls; `unmount()`, each window that is key resigning it and each on screen disappearing, and its parts told
 // nothing more. Each window's content
 // is a document the page opens beside itself, which wears the page's rules, where the pointer and what is presented
-// are heard as in the page, and whose drag regions move the window (`drags`, environment: PAGE.drags). `running` is
-// the mod, `deliver` calls what the mod handed, and `channels` binds the windows' channels in the page.
-function createWindows({ running, deliver, channels, drags }) {
+// are heard as in the page, and whose drag regions move the window (`drags`, environment: PAGE.drags). `granted` is
+// the ids of the permissions the mod is granted, `deliver` calls what the mod handed, and `channels` binds the
+// windows' channels in the page.
+function createWindows({ granted, deliver, channels, drags }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const open = new Map(); // id -> { handle, options, document, state, off }, while it is open
@@ -77,7 +78,7 @@ function createWindows({ running, deliver, channels, drags }) {
 
     // MARK: - Private
     function opened(options) {
-        const problem = problemOf(options, running);
+        const problem = problemOf(options, granted);
         if (problem) throw new TypeError(`shell.windows.open() ${problem}`);
         const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
         const { id, surface } = PROTOCOL.open.invoke({ name, level, width, height, minWidth, minHeight, activates });
@@ -191,15 +192,15 @@ function createWindows({ running, deliver, channels, drags }) {
 
 // MARK: - Private
 // Why what `shell.windows.open` was handed is not a window this mod may have, or ''.
-function problemOf(options, running) {
+function problemOf(options, granted) {
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
         return `takes { name, content, level, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.join(' or ')}`;
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
-    const may = running.permissions.some(({ id }) => id === WINDOW_PERMISSION.OVERLAY_WINDOWS);
-    if (level === 'overlay' && !may) return `opens an overlay window with ${WINDOW_PERMISSION.OVERLAY_WINDOWS}`;
+    if (level === 'overlay' && !granted.includes(WINDOW_PERMISSION.OVERLAY_WINDOWS))
+        return `opens an overlay window with ${WINDOW_PERMISSION.OVERLAY_WINDOWS}`;
     return '';
 }
 

@@ -19,9 +19,10 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     // MARK: - Initializer
     // MARK: - Public
     // The mod this page runs. `layers` is what stacks on the runner, the lowest first, each `layer(context)` asked
-    // with the mod (`{ mod, run, deliver, fail, under }`, `mod` its manifest, whose `fields` are the manifest fields
-    // the layers named, by key, which the runner carries and does not read, and `under` what the layer under it offers
-    // a layer over it, null for the lowest) before its entry runs, and answering:
+    // with the mod (`{ mod, granted, run, deliver, fail, under }`, `mod` its manifest, whose `fields` are the manifest
+    // fields the layers named, by key, which the runner carries and does not read, `granted` the ids of the permissions
+    // it is granted, and `under` what the layer under it offers a layer over it, null for the lowest) before its entry
+    // runs, and answering:
     // `read(Entry)`, what it reads of the class the entry exports, before any instance is made, as part of the
     // summary;
     // `report()`, what main is told of the run beside the runner's own now, `{ summary, contributions }`, which the
@@ -65,7 +66,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         RUN.begin(loaded);
         const mod = RUN.mod;
         const { deliver, fail } = RUN;
-        const made = make(layers, { mod, run: RUN.number, deliver, fail });
+        const made = make(layers, { mod, granted: RUN.granted, run: RUN.number, deliver, fail });
         const Entry = evaluate(loaded.source);
         if (!Entry) return RUN.notStarted();
         let read;

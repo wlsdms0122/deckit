@@ -139,7 +139,7 @@ export function createWindows({ deckit, PAGES, OVERLAY, DESKTOP, makeStage, show
             return { id: same.id, surface: SURFACE.nameOf(same.id) };
         }
         const overlay = level === OVERLAY_LEVEL;
-        const may = deckit.mods.runOf(mod)?.mod.permissions.some(({ id }) => id === WINDOW_PERMISSION.OVERLAY_WINDOWS);
+        const may = deckit.mods.runOf(mod)?.granted.includes(WINDOW_PERMISSION.OVERLAY_WINDOWS);
         if (overlay && !may)
             throw Object.assign(new Error(`${mod} does not have ${WINDOW_PERMISSION.OVERLAY_WINDOWS}`), {
                 kind: 'NOT_PERMITTED',

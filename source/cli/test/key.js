@@ -24,7 +24,7 @@ async function main() {
     const handlers = {};
     const state = { 'panel-keys': { closeWindow: { code: 'KeyB', meta: true }, gone: null, cycleWindows: 'none' } };
     const written = [];
-    const holding = (id, permissions) => ({ mod: { id, permissions: permissions.map((one) => ({ id: one })) } });
+    const holding = (id, granted) => ({ mod: { id }, granted });
     const runs = { settings: holding('settings', ['deckit.shell-keys']), other: holding('other', ['deckit.mods']) };
     const keymap = keymapOver();
     const recordedTold = []; // [page, payload], what main told a page that records

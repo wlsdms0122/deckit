@@ -52,9 +52,9 @@ async function main() {
     const g = { name: 'mod g' };
     const n = { name: 'mod n' };
     const mods = new Map([
-        [a, { id: 'a', permissions: [{ id: 'deckit.app-keys' }] }],
-        [g, { id: 'g', permissions: [{ id: 'system.global-keys' }] }],
-        [n, { id: 'n', permissions: [] }],
+        [a, { id: 'a', granted: ['deckit.app-keys'] }],
+        [g, { id: 'g', granted: ['system.global-keys'] }],
+        [n, { id: 'n', granted: [] }],
     ]);
     const ends = new Map(); // page -> what its end calls
     const IDENTITY = {
@@ -62,7 +62,7 @@ async function main() {
         modFrom: (page, permission) => {
             const mod = mods.get(page);
             if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
-            if (permission && !mod.permissions.some(({ id }) => id === permission))
+            if (permission && !mod.granted.includes(permission))
                 throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
             return mod;
         },

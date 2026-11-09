@@ -222,7 +222,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     function mayShow(modPage, url, { inPage }) {
         if (/^https?:\/\//i.test(url)) return true;
         if (!inPage || !/^file:\/\//i.test(url)) return false;
-        return !!IDENTITY.modOf(modPage)?.permissions.some(({ id }) => id === WEB_PERMISSION.FILES);
+        return !!IDENTITY.modOf(modPage)?.granted.includes(WEB_PERMISSION.FILES);
     }
 
     // What becomes of a web page `page` asked to load `to`, from `from`, where it is: `load`, `refuse`, or `leave`. A
@@ -364,7 +364,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
 
     function decides(embedder) {
         const mod = IDENTITY.modOf(embedder);
-        return !!mod && mod.permissions.some(({ id }) => id === WEB_PERMISSION.SITE_PERMISSIONS);
+        return !!mod && mod.granted.includes(WEB_PERMISSION.SITE_PERMISSIONS);
     }
 
     function settle(id, allowed) {

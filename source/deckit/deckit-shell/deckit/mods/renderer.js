@@ -21,9 +21,10 @@ export function createMods({ RUN }) {
     // cut. It is no request, and throws its refusal: NOT_PERMITTED for a mod not granted deckit.mods, then
     // INVALID_ARGUMENT for a listener that is no function.
     function tool(added, scope) {
-        const { id, permissions } = RUN.mod;
-        const granted = permissions.some((permission) => permission.id === MOD_PERMISSION.MODS);
-        const denied = granted ? '' : `${id} does not have the ${MOD_PERMISSION.MODS} permission`;
+        const { id } = RUN.mod;
+        const denied = RUN.granted.includes(MOD_PERMISSION.MODS)
+            ? ''
+            : `${id} does not have the ${MOD_PERMISSION.MODS} permission`;
         const request = (name, signature, send) => REQUEST.requestOf(`mods.${name}`, { denied, signature }, send);
         return Object.freeze({
             ...Object.fromEntries(

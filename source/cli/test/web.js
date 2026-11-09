@@ -30,11 +30,8 @@ async function main() {
     IPC.carry({ messages, pages: { isGone: () => false } }, { report: () => {} });
     const toldOn = (channel) => tells.filter(([, message]) => message.channel === channel);
 
-    const files = {
-        id: 'files',
-        permissions: [{ id: 'system.files' }, { id: 'system.site-permissions' }, { id: 'system.file-handlers' }],
-    };
-    const plain = { id: 'plain', permissions: [] };
+    const files = { id: 'files', granted: ['system.files', 'system.site-permissions', 'system.file-handlers'] };
+    const plain = { id: 'plain', granted: [] };
     const filesPage = { name: 'files page' };
     const plainPage = { name: 'plain page' };
     const mods = new Map([
@@ -47,7 +44,7 @@ async function main() {
         pageNameOf: () => null,
         modFrom: (page, permission = null) => {
             const mod = mods.get(page);
-            if (permission && !mod.permissions.some(({ id }) => id === permission)) throw new Error('refused');
+            if (permission && !mod.granted.includes(permission)) throw new Error('refused');
             return mod;
         },
         consumeUserActivation: (page) => activated.delete(page),

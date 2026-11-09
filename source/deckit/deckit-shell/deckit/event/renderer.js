@@ -53,8 +53,8 @@ export function createEvent({ RUN }) {
     // Whether the mod may hear `owner`, a mod id or an interface (one that holds a slash): its own id, any mod's id
     // where it may reach mods by id, and an interface its manifest uses or provides.
     function isNamed(owner) {
-        const { id, uses, provides, permissions } = RUN.mod;
-        const reaches = permissions.some((permission) => permission.id === MOD_PERMISSION.REACH_MODS);
+        const { id, uses, provides } = RUN.mod;
+        const reaches = RUN.granted.includes(MOD_PERMISSION.REACH_MODS);
         return (
             owner === id ||
             (reaches && !owner.includes('/')) ||

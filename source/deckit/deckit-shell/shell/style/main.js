@@ -54,7 +54,8 @@ export function createStyle({ deckit }) {
         const next = new Map();
         for (const mod of MODS.loaded(deckit.mods)) {
             const files = deckit.mods.fieldsOf(mod.id)?.[FIELD];
-            if (!mayStyle(mod) || !files || typeof files !== 'object') continue;
+            const may = deckit.mods.grantedOf(mod.id)?.includes(STYLE_PERMISSION.STYLES);
+            if (!may || !files || typeof files !== 'object') continue;
             const styles = {};
             for (const [target, file] of Object.entries(files)) {
                 const css = typeof file === 'string' ? await deckit.mods.readFile(mod.id, file) : null;
@@ -71,11 +72,7 @@ export function createStyle({ deckit }) {
     function stylesOf(run) {
         const given = run.contributions?.styles;
         if (!given || !Object.keys(given).length) return null;
-        return mayStyle(run.mod) ? given : null;
-    }
-
-    function mayStyle(mod) {
-        return mod.permissions.some(({ id }) => id === STYLE_PERMISSION.STYLES);
+        return run.granted.includes(STYLE_PERMISSION.STYLES) ? given : null;
     }
 
     function tell() {

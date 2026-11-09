@@ -47,8 +47,7 @@ export function createFonts({ deckit, installed }) {
     // Held to the permission: main does not take a page's word for it.
     function holds(page) {
         const modId = deckit.mods.modOf(page);
-        const permissions = deckit.mods.runOf(modId)?.mod.permissions || [];
-        if (permissions.some(({ id }) => id === FONTS_PERMISSION.FONTS)) return;
+        if (deckit.mods.runOf(modId)?.granted.includes(FONTS_PERMISSION.FONTS)) return;
         const refused = new Error(`${modId || 'the page'} does not have the ${FONTS_PERMISSION.FONTS} permission`);
         throw Object.assign(refused, { kind: 'NOT_PERMITTED' });
     }

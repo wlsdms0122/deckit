@@ -9,11 +9,12 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // MARK: - Initializer
 // MARK: - Public
-// `openExternal(url, options)` on the handle of `mod`: `url` handed the host to open outside the app, the app that
-// opens it brought forward unless `options.activates` is false. A file URL is guarded by system.file-handlers.
-// Fulfilled with nothing once main has handed it on; refused at call with UNSUPPORTED_URL by main.
-function openExternalOf(mod) {
-    const opensFiles = mod.permissions.some(({ id }) => id === OPEN_PERMISSION.FILE_HANDLERS);
+// `openExternal(url, options)` on the handle of `mod`, which is granted `granted`: `url` handed the host to open
+// outside the app, the app that opens it brought forward unless `options.activates` is false. A file URL is guarded
+// by system.file-handlers. Fulfilled with nothing once main has handed it on; refused at call with UNSUPPORTED_URL by
+// main.
+function openExternalOf(mod, granted) {
+    const opensFiles = granted.includes(OPEN_PERMISSION.FILE_HANDLERS);
     return (url, options) => {
         const file = typeof url === 'string' && URL.canParse(url) && new URL(url).protocol === 'file:';
         const denied =

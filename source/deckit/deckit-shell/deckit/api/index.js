@@ -82,6 +82,11 @@ export function createApi({
                     const mod = CATALOG.mods().find((each) => each.id === id);
                     return mod ? frozen(mod.manifest.fields) : null;
                 },
+                // The ids of the permissions the mod is granted, or null for no mod that loads.
+                grantedOf: (id) => {
+                    const mod = CATALOG.mods().find((each) => each.id === id);
+                    return mod ? frozen(mod.granted) : null;
+                },
                 // The text of a file inside the mod's folder, by its path there, or null for none.
                 readFile: CATALOG.readFile,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
@@ -154,6 +159,7 @@ export function createApi({
                 run,
                 Object.freeze({
                     mod: manifestOf(run.mod),
+                    granted: frozen(run.mod.granted),
                     number: run.number,
                     get state() {
                         return run.state;

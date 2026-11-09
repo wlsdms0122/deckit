@@ -27,9 +27,9 @@ import { createWindows } from '../window/renderer.js';
 // page, whose pages the shell hands the mod; `channels` binds the shell's channels in the page, and `drags` takes the
 // presses in the drag regions of a window's content (environment: PAGE.drags).
 function shellOf({ WEB, channels, drags }) {
-    return ({ mod: running, deliver, fail, under: deckit }) => {
-        const has = (permission) => running.permissions.some(({ id }) => id === permission);
-        const WINDOWS = createWindows({ running, deliver, channels, drags });
+    return ({ mod: running, granted, deliver, fail, under: deckit }) => {
+        const has = (permission) => granted.includes(permission);
+        const WINDOWS = createWindows({ granted, deliver, channels, drags });
         const REGION = createRegion({ running, deliver, channels, windowOf: WINDOWS.windowOf });
         const DOCK = createDock({ channels });
         const DROP = createDrop({ deliver, channels });

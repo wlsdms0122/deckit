@@ -64,8 +64,7 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
     }
 
     function opensFiles(page) {
-        const mod = IDENTITY.modFrom(page);
-        return mod.permissions.some(({ id }) => id === OPEN_PERMISSION.FILE_HANDLERS);
+        return IDENTITY.modFrom(page).granted.includes(OPEN_PERMISSION.FILE_HANDLERS);
     }
 
     return { start, open, openFrom };

@@ -119,8 +119,7 @@ export function createKey({ deckit }) {
     // Held to the permission: main does not take a page's word for it.
     function holds(page) {
         const modId = deckit.mods.modOf(page);
-        const permissions = deckit.mods.runOf(modId)?.mod.permissions || [];
-        if (permissions.some(({ id }) => id === KEY_PERMISSION.SHELL_KEYS)) return;
+        if (deckit.mods.runOf(modId)?.granted.includes(KEY_PERMISSION.SHELL_KEYS)) return;
         const refused = new Error(`${modId || 'the page'} does not have the ${KEY_PERMISSION.SHELL_KEYS} permission`);
         throw Object.assign(refused, { kind: 'NOT_PERMITTED' });
     }
