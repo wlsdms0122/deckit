@@ -336,7 +336,8 @@ function checkFolder(folder, rootFiles, { scripts }) {
 }
 
 // A mod keeps the packages' shape: src/ holds its entry and its concepts' folders, and main-process/ its modules, each
-// folder a module or a group; it imports only its own files, and its folders beside each other use each other one way.
+// folder a module or a group; what it requires by a relative path is its own, and its folders beside each other use
+// each other one way.
 function checkMods() {
     const mods = LIBRARY.mods().map((name) => `mods/${name}`);
     // src/ is bundled for the sandbox and main-process/ runs in the app's main process, so neither reaches the other.
