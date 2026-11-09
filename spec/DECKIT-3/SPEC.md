@@ -37,9 +37,9 @@ A mod is granted exactly the permissions that the system answers usable for the 
 
 ### A request a permission guards
 
-The DECKIT that fixes a request the system or a layer handles names the permission that guards it, where one does, and a host names those of the requests of its own interfaces. A request is guarded by one permission at most, and a permission guards the requests named for it and no others.
+The DECKIT that fixes a request the system or a layer handles names the permission that guards it, where one does, and a host names those of the requests of its own interfaces. A call of a request is guarded by one permission at most. The DECKIT that fixes the request may have its arguments pick which, and a call is guarded by none only for the arguments that DECKIT names unguarded. A permission guards the requests named for it and no others.
 
-A request a permission guards, made by a mod that is not granted that permission, is refused at `call` with kind `NOT_PERMITTED`, whichever of the system, a layer or the host defines the permission, and nothing of the request is done. The permission is checked before anything else of the request, so a mod not granted it is refused with `NOT_PERMITTED` whatever else the request would be refused with.
+A request a permission guards, made by a mod that is not granted that permission, is refused at `call` with kind `NOT_PERMITTED`, whichever of the system, a layer or the host defines the permission, and nothing of the request is done. The permission is checked before anything else of the request but reading the arguments that pick it, so a mod not granted it is refused with `NOT_PERMITTED` whatever else the request would be refused with.
 
 ### The system's own permissions
 
@@ -65,7 +65,7 @@ The system's other DECKITs define permissions of their own, each in a table of t
 - Hearing the events of any mod, which `deckit.reach-mods` lets a mod do: [the events](../DECKIT-12/SPEC.md).
 - The requests `deckit.system-services` guards: the DECKITs of the standard interfaces, `deckit/*`, such as [the addresses](../DECKIT-14/SPEC.md), [the commands](../DECKIT-15/SPEC.md), [the key bindings](../DECKIT-16/SPEC.md) and [the configuration](../DECKIT-17/SPEC.md).
 - The handle a mod makes its requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
-- The permission `system.file-handlers` and the request it guards: [opening outside the app](../DECKIT-8/SPEC.md).
+- The permission `system.file-handlers` and the request it guards, for the address of a file: [opening outside the app](../DECKIT-8/SPEC.md).
 - The permissions the shell defines and the requests they guard: the shell's DECKITs.
 
 ## Alternatives considered
@@ -76,4 +76,4 @@ The system's other DECKITs define permissions of their own, each in a table of t
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That what a host asks is guarded by no permission: every case's host starts the app, quits it and looks, granted nothing. That a request is guarded by one permission at most: each DECKIT's table names one permission for a request, held by reading them. That a host names the guards of its own interfaces' requests waits on the embedding DECKIT, which gives a host interfaces of its own, as [the interfaces](../DECKIT-10/SPEC.md) fix what an interface is.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That what a host asks is guarded by no permission: every case's host starts the app, quits it and looks, granted nothing. That a call is guarded by one permission at most: each DECKIT's table names one permission for each call, held by reading them, and the cases of [opening outside the app](../DECKIT-8/SPEC.md) hold one its arguments pick. That a host names the guards of its own interfaces' requests waits on the embedding DECKIT, which gives a host interfaces of its own, as [the interfaces](../DECKIT-10/SPEC.md) fix what an interface is.

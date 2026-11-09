@@ -47,7 +47,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `mods.pin(interface, mod)` | the owner of an interface, as a person pins it | `deckit.mods` | [the interfaces](../DECKIT-10/SPEC.md) |
 | `mods.usage(id)` | what a mod has stored, in each place it is kept | `deckit.mods` | [the storage](../DECKIT-13/SPEC.md) |
 | `mods.restart()` | the request that restarts the app | `deckit.mods` | here |
-| `openExternal(url, options)` | the request that hands the host an address to open outside the app | `system.file-handlers`, for the address of a file | [opening outside the app](../DECKIT-8/SPEC.md) |
+| `openExternal(url, options)` | the request that hands the host an address to open outside the app | `system.file-handlers`, for the address of a file; none for any other | [opening outside the app](../DECKIT-8/SPEC.md) |
 | `fileURL(path)`, `filePath(url)` | the address of a file, and the file of an address | | the DECKIT of files outside the app |
 | `about()` | what the host tells a mod of itself | | the embedding DECKIT |
 | `storage` | what the mod stores | | [the storage](../DECKIT-13/SPEC.md) |
@@ -92,7 +92,7 @@ A request is refused with the first of these that is so, and nothing of it is do
 
 An argument the signature does not require may be left out. An argument past those the signature takes, and a key of a table that the table does not give, are not read, and refuse nothing.
 
-**Note.** What the request's own refusals read are its arguments, so they come once the arguments are known to be of their types, and a refusal such as `NOT_INSTALLED` is never the answer to an id handed as a number.
+**Note.** What the request's own refusals read are its arguments, so they come once the arguments are known to be of their types, and a refusal such as `NOT_INSTALLED` is never the answer to an id handed as a number. Arguments that pick the permission are read for it as handed, whatever their types, and pick one for every value but those their DECKIT names unguarded, so a mod not granted it is refused with `NOT_PERMITTED` however it handed them.
 
 ## Interactions
 
@@ -114,7 +114,7 @@ An argument the signature does not require may be left out. An argument past tho
 - A key bound to no value refused. Code builds a table with a key it has nothing for, and a table written down leaves such a key out; refusing it would have a mod build the table again without the key, to say the same.
 - An argument turned into the type the signature gives. A number handed for an id would be read as a string on one implementation and refused on another; refusing it is the answer every implementation can give alike.
 - An argument past the signature refused. What a request does is fixed by the arguments it takes, and one past them changes nothing of it; refusing it would be a check of its own beside the call.
-- The arguments checked before the permission. A mod not granted a request would learn from its refusals what the request takes, and the answer to a guarded request would depend on what the mod handed it.
+- The arguments checked before the permission. A mod not granted a request would learn from its refusals what the request takes, and whether it is refused with `NOT_PERMITTED` would depend on whether it handed the arguments of their types.
 - A refusal thrown at the call rather than carried by the promise. Code would handle a refusal in two places, and a request refused at once would be told apart from one refused later.
 - An error that carries its kind alone. A request such as `plan` is refused at `read` for its folder and at `call` for the catalog, and a mod manager that tells a person why would read the stage out of the message.
 
@@ -122,4 +122,4 @@ An argument the signature does not require may be left out. An argument past tho
 
 **Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a request answers a promise and never throws, and that the error is rejected rather than thrown: [the case format](../DECKIT-1/SPEC.md) reads what a request comes to, and not how it came. The `message` of an error: no rule states one. An argument handed with no value: the manifest text has no null, so a case hands one only by leaving it out. That a layer's lifecycles may be handed a handle of their own: no case's host stacks a layer a case writes, so the shell's DECKITs hold it with the shell on. What a framework hands: no case's host stacks a framework, so the web engine's DECKITs hold it with the web engine on. That `mods.restart()` restarts the app: a case runs in one app, which a restart would end. What the members the table leaves to another DECKIT take and answer, and which permission guards each: that DECKIT's cases hold them.
 
-**Note.** What this costs an implementation: every member is on every handle, and a guarded one checks its permission as it is called; every request answers a promise, `mods.list()` among them; the arguments are checked against the signature before the request goes on; and an error carries its `stage` beside its `kind` across every boundary it crosses.
+**Note.** What this costs an implementation: every member is on every handle, and a guarded one checks the permission its arguments pick as it is called; every request answers a promise, `mods.list()` among them; the arguments are checked against the signature before the request goes on; and an error carries its `stage` beside its `kind` across every boundary it crosses.
