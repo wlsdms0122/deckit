@@ -57,7 +57,7 @@ async function main() {
             },
             pages: { isGone: () => false, watch: () => {} },
         },
-        { report: () => {} }
+        { report: () => {}, identify: (page) => granted.get(page) ?? null }
     );
     PAGE_IPC.carry(
         {
@@ -124,16 +124,7 @@ async function main() {
             timeout: () => ({ launch: 20000, end: 5000 }),
             runOf: (id) => (id === 'a' ? run : null),
             runs: () => [{ run, page: modPage }],
-            modFrom: (page, permission) => {
-                const mod = granted.get(page);
-                if (!mod) throw Object.assign(new Error('only a mod asks this'), { stage: 'call', kind: 'REFUSED' });
-                if (permission && !mod.granted.includes(permission))
-                    throw Object.assign(new Error(`${mod.id} does not have the ${permission} permission`), {
-                        stage: 'call',
-                        kind: 'NOT_PERMITTED',
-                    });
-                return mod.id;
-            },
+            modOf: (page) => granted.get(page)?.id ?? null,
         },
         pages: { whenEnds: () => {} },
     };

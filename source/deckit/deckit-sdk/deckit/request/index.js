@@ -60,10 +60,21 @@ function argumentProblem(signature, args) {
     return '';
 }
 
-// The request `name`, which `send(...args)` makes: refused at call with NOT_PERMITTED where `denied` says why the mod
-// may not make it, then with INVALID_ARGUMENT where its arguments do not fit `signature`.
-function requestOf(name, { denied = '', signature = [] }, send) {
+// Why the mod of id `mod`, granted the permissions of ids `granted`, may not make a call that `guard`, its channel's
+// (channel/: pageToMain), holds with `payload`, or '': what the page refuses before main does.
+function deniedOf({ mod, granted, guard }, payload = {}) {
+    const permission = CHANNEL.permissionOf(guard, payload);
+    return permission === null || granted.includes(permission)
+        ? ''
+        : `${mod} does not have the ${permission} permission`;
+}
+
+// The request `name`, which `send(...args)` makes: refused at call with NOT_PERMITTED where the mod may not make the
+// call `guard` holds with the payload `payloadOf(...args)` (deniedOf), then with INVALID_ARGUMENT where its arguments
+// do not fit `signature`. `payloadOf` answers for any arguments it is handed and never throws.
+function requestOf(name, { mod, granted, guard, payloadOf = () => ({}), signature = [] }, send) {
     return (...args) => {
+        const denied = deniedOf({ mod, granted, guard }, payloadOf(...args));
         if (denied) return Promise.reject(refusal('call', 'NOT_PERMITTED', denied));
         const problem = argumentProblem(signature, args);
         if (problem) return Promise.reject(refusal('call', 'INVALID_ARGUMENT', `${name}: ${problem}`));
@@ -73,4 +84,4 @@ function requestOf(name, { denied = '', signature = [] }, send) {
 
 // MARK: - Private
 
-export { refusal, valueProblem, argumentProblem, requestOf };
+export { refusal, valueProblem, argumentProblem, deniedOf, requestOf };

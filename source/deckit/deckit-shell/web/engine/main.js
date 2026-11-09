@@ -141,36 +141,25 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
 
     // Whether the mod in the page holds `permission`, never so for a page that runs no mod.
     function holds(page, permission) {
-        try {
-            deckit.mods.modFrom(page, permission);
-            return true;
-        } catch {
-            return false;
-        }
+        return !!deckit.mods.grantedOf(deckit.mods.modOf(page))?.includes(permission);
     }
 
     function listen() {
         PROTOCOL.window.handle(({ name, url, title }, sender) =>
-            openWindow(sender, deckit.mods.modFrom(sender), name, url, title)
+            openWindow(sender, deckit.mods.modOf(sender), name, url, title)
         );
-        PROTOCOL.fetch.handle(({ name, ...request }, sender) =>
-            fetch(deckit.mods.modFrom(sender, WEB_PERMISSION.NETWORK), name, request)
-        );
-        PROTOCOL.clear.handle(({ name }, sender) => clear(deckit.mods.modFrom(sender), name));
+        PROTOCOL.fetch.handle(({ name, ...request }, sender) => fetch(deckit.mods.modOf(sender), name, request));
+        PROTOCOL.clear.handle(({ name }, sender) => clear(deckit.mods.modOf(sender), name));
         PROTOCOL.trust.handle(({ name, entries }, sender) =>
-            WEB.trust(deckit.mods.modFrom(sender, WEB_PERMISSION.CERTIFICATES), SESSION.nameOf(name), entries)
+            WEB.trust(deckit.mods.modOf(sender), SESSION.nameOf(name), entries)
         );
         PROTOCOL.allow.handle(({ name, entries }, sender) =>
-            change(deckit.mods.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS), SESSION.nameOf(name), entries, (key) =>
-                granted.add(key)
-            )
+            change(deckit.mods.modOf(sender), SESSION.nameOf(name), entries, (key) => granted.add(key))
         );
         // A page already holding a stream keeps it, and one told "granted" keeps believing it: the mod reloads its
         // pages of that origin.
         PROTOCOL.revoke.handle(({ name, entries }, sender) =>
-            change(deckit.mods.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS), SESSION.nameOf(name), entries, (key) =>
-                granted.delete(key)
-            )
+            change(deckit.mods.modOf(sender), SESSION.nameOf(name), entries, (key) => granted.delete(key))
         );
         PROTOCOL.permit.on(({ ask: id, allow }, sender) => {
             if (questions.get(id)?.embedder === sender) settle(id, allow);

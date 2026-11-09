@@ -2,7 +2,6 @@ import * as CLIPBOARD from '../clipboard/renderer.js';
 import * as RUNTIME from '../runtime/renderer.js';
 import * as OPEN from '../open/renderer.js';
 import * as CONTRIBUTION from '../contribution/renderer.js';
-import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as REQUEST from '../request/index.js';
 
 // What deckit puts on the runner for a mod's page: the handle `deckit`, the runner's members and the layer's, the
@@ -20,9 +19,7 @@ export function createMod({ NOTIFICATION }) {
         const handleOf = (runner, scope) => Object.freeze({ ...runner, ...membersOf(mod, granted, runner, scope) });
         return {
             handle: 'deckit',
-            mods: {
-                restart: { signature: [], send: RUNTIME.restart },
-            },
+            mods: RUNTIME.mods,
             lifecycles: [
                 {
                     method: 'start',
@@ -71,33 +68,15 @@ export function createMod({ NOTIFICATION }) {
     // namespace holds what `runner`, the runner's members, registers in it beside what reaches others'
     // (deckit-shell/deckit/runner). A member a permission guards is on it all the same, and refuses a mod without it.
     function membersOf(mod, granted, runner, scope) {
-        const has = (permission) => granted.includes(permission);
-        // The request `name`, refused NOT_PERMITTED unless the mod holds one of `guards`, then for its arguments.
-        const request = (name, { guards = [], signature }, send) => {
-            const denied =
-                guards.length && !guards.some(has)
-                    ? `${mod.id} does not have the ${guards.join(' or ')} permission`
-                    : '';
-            return REQUEST.requestOf(name, { denied, signature }, send);
-        };
+        // The request `name`, refused NOT_PERMITTED as its channel's guard holds the mod, then for its arguments.
+        const request = (name, asked, send) => REQUEST.requestOf(name, { ...asked, mod: mod.id, granted }, send);
         return {
             exports: Object.freeze({ ...runner.exports, contributions: CONTRIBUTION.contributions }),
             openExternal: OPEN.openExternalOf(mod, granted),
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,
             about: RUNTIME.about,
-            clipboard: Object.freeze({
-                readText: request(
-                    'clipboard.readText',
-                    { guards: [CLIPBOARD_PERMISSION.CLIPBOARD_READ], signature: [] },
-                    CLIPBOARD.readText
-                ),
-                writeText: request(
-                    'clipboard.writeText',
-                    { guards: [CLIPBOARD_PERMISSION.CLIPBOARD_WRITE], signature: [['text', 'string']] },
-                    CLIPBOARD.writeText
-                ),
-            }),
+            clipboard: CLIPBOARD.clipboardOf(request),
             notifications: NOTIFICATION.notificationsOf(scope, request),
         };
     }

@@ -39,14 +39,8 @@ function shellOf({ channels, drags }) {
         const DOCK = createDock({ channels });
         const DROP = createDrop({ deliver, channels });
         const KEYS = createKeys({ channels });
-        // The request `name`, refused NOT_PERMITTED unless the mod holds one of `guards`, then for its arguments.
-        const request = (name, { guards = [], signature }, send) => {
-            const denied =
-                guards.length && !guards.some(has)
-                    ? `${running.id} does not have the ${guards.join(' or ')} permission`
-                    : '';
-            return REQUEST.requestOf(name, { denied, signature }, send);
-        };
+        // The request `name`, refused NOT_PERMITTED as its channel's guard holds the mod, then for its arguments.
+        const request = (name, asked, send) => REQUEST.requestOf(name, { ...asked, mod: running.id, granted }, send);
         // What it tells of the run: nothing until its lifecycle has joined, nothing on screen once it has ended.
         const ENDED = Object.freeze({
             summary: { view: false, styles: [] },

@@ -4,16 +4,16 @@ import * as DECLARED from './protocol.js';
 
 // MARK: - Property
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
+// What the runtime adds to `deckit.mods`, each a request `{ guard, signature, send }`, `guard` its channel's.
+const mods = Object.freeze({
+    restart: Object.freeze({ guard: PROTOCOL.restart.guard, signature: [], send: () => PROTOCOL.restart.invoke() }),
+});
 // MARK: - Initializer
 // MARK: - Public
 function about() {
     return PROTOCOL.about.invoke();
 }
 
-function restart() {
-    return PROTOCOL.restart.invoke();
-}
-
 // MARK: - Private
 
-export { about, restart };
+export { mods, about };

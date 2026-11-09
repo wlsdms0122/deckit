@@ -1,3 +1,5 @@
+import * as CHANNEL from '../../channel/index.js';
+
 // MARK: - Property
 // The permissions this concept checks, as a person reads them before installing.
 const FILE_HANDLERS = 'system.file-handlers';
@@ -12,6 +14,13 @@ const PERMISSIONS = Object.freeze([
 
 // MARK: - Initializer
 // MARK: - Public
+// The permission an address opened with `payload` (open/protocol.js: open) is guarded by: system.file-handlers for a
+// URL whose scheme is `file`, and none for anything else.
+function permissionOf(payload) {
+    const url = CHANNEL.fieldOf(payload, 'url');
+    return typeof url === 'string' && URL.canParse(url) && new URL(url).protocol === 'file:' ? FILE_HANDLERS : null;
+}
+
 // MARK: - Private
 
-export { FILE_HANDLERS, PERMISSIONS };
+export { FILE_HANDLERS, PERMISSIONS, permissionOf };

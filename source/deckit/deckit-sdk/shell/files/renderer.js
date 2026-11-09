@@ -25,15 +25,20 @@ function filesOf({ channels, request }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     return Object.freeze({
         dialogs: Object.freeze({
-            chooseFolders: request('dialogs.chooseFolders', { signature: CHOOSES }, (options) =>
-                PROTOCOL.chooseFolders.invoke({
-                    multiple: options?.multiple ?? false,
-                    title: options?.title,
-                    message: options?.message,
-                })
+            chooseFolders: request(
+                'dialogs.chooseFolders',
+                { guard: PROTOCOL.chooseFolders.guard, signature: CHOOSES },
+                (options) =>
+                    PROTOCOL.chooseFolders.invoke({
+                        multiple: options?.multiple ?? false,
+                        title: options?.title,
+                        message: options?.message,
+                    })
             ),
         }),
-        reveal: request('reveal', { signature: [['path', 'string']] }, (path) => PROTOCOL.reveal.invoke({ path })),
+        reveal: request('reveal', { guard: PROTOCOL.reveal.guard, signature: [['path', 'string']] }, (path) =>
+            PROTOCOL.reveal.invoke({ path })
+        ),
     });
 }
 

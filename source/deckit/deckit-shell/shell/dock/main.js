@@ -1,5 +1,4 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
-import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 import * as DECLARED from '../../../deckit-sdk/shell/dock/protocol.js';
 import * as LIST_ORDER from './model/list-order.js';
 import * as DOCK from './model/dock.js';
@@ -32,20 +31,11 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         if (!kept) keep(PINNED, [...pinned]);
         if (!kept && !arranged) keep(ORDER, order);
         PROTOCOL.icon.handle(({ mod }) => FIELD.iconOf(deckit.mods.fieldsOf(mod)));
-        PROTOCOL.list.handle((_payload, sender) => {
-            deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
-            return listed();
-        });
-        PROTOCOL.pinned.handle((_payload, sender) => {
-            deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
-            return [...pinned];
-        });
-        PROTOCOL.setPinned.handle(({ id, pinned: on }, sender) => {
-            deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
-            setPinned(id, on);
-        });
+        PROTOCOL.list.handle(() => listed());
+        PROTOCOL.pinned.handle(() => [...pinned]);
+        PROTOCOL.setPinned.handle(({ id, pinned: on }) => setPinned(id, on));
         PROTOCOL.open.handle(({ id }, sender) => {
-            const from = deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
+            const from = deckit.mods.modOf(sender);
             if (!isApp(id)) throw new Error(`${id} is no app`);
             DESKTOP.activation.request(from, id);
             open(id, DESKTOP.localSeat);

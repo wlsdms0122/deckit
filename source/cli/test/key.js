@@ -1,13 +1,13 @@
 // The shell's own keys (deckit-shell/shell/key/main): their table, the chords set kept in the shell's state, each
 // holding its chord in the key map by the key's name and held again as it changes, a chord a mod took refused, the
-// permissions of the keys, the privileged one main holds a page to before it lists or changes them, and a page's
-// recording of its keys, for any page, as `shell.keys.record` asks it. Then `shell.keys` in a mod's page
+// permissions of the keys, the guard each channel of the keys declares, and a page's recording of its keys, for any
+// page, as `shell.keys.record` asks it. Then `shell.keys` in a mod's page
 // (shell/key/renderer): a chord taken for a mod with deckit.app-keys, a press of it running what took it and the chord
 // let go once the lifecycle that took it ends; `take` refuses a mod without the permission of its scope at call with
 // NOT_PERMITTED, before its arguments, and an argument of another type with INVALID_ARGUMENT. Then the person's files
 // shown to them (shell/files): `shell.dialogs.chooseFolders` and `shell.reveal` for a mod granted nothing, an argument
-// of another type refused INVALID_ARGUMENT, and main handing the environment what any mod's page asks and refusing a
-// page that runs no mod. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// of another type refused INVALID_ARGUMENT, and main handing the environment what a mod's page asks, the channels
+// guarded for a mod's page. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
 // imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -16,6 +16,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 
 async function main() {
     const KEY_PERMISSION = await import(url('deckit-sdk', 'shell', 'key', 'model', 'permission.js'));
+    const CHANNEL = await import(url('deckit-sdk', 'deckit', 'channel', 'index.js'));
     const { createKey } = await import(url('deckit-shell', 'shell', 'key', 'main.js'));
     const { createKeys } = await import(url('deckit-sdk', 'shell', 'key', 'renderer.js'));
     const { createFiles } = await import(url('deckit-shell', 'shell', 'files', 'main.js'));
@@ -32,6 +33,7 @@ async function main() {
     // The shell's keys, over a stand-in for what connect answers and for the environment's keys: `settings` holds
     // deckit.shell-keys, `other` does not, and `keeper` deckit.app-keys.
     const handlers = {};
+    const guards = {}; // a channel's name -> the guard its declaration names
     const state = { 'panel-keys': { closeWindow: { code: 'KeyB', meta: true }, gone: null, cycleWindows: 'none' } };
     const written = [];
     const holding = (id, granted) => ({ mod: { id }, granted });
@@ -52,12 +54,15 @@ async function main() {
     const press = (page, keystroke) => capturing.get(page)({ type: 'keydown', ...full(keystroke) });
     const deckit = {
         channels: {
-            bind: (declared) => ({
-                handle: (handler) => (handlers[declared.channel] = handler),
-                on: (handler) => (handlers[declared.channel] = handler),
-                send: (page, payload) =>
-                    declared.channel === 'deckit-shell:key-recorded' && recordedTold.push([page, payload]),
-            }),
+            bind: (declared) => {
+                guards[declared.channel] = declared.guard;
+                return {
+                    handle: (handler) => (handlers[declared.channel] = handler),
+                    on: (handler) => (handlers[declared.channel] = handler),
+                    send: (page, payload) =>
+                        declared.channel === 'deckit-shell:key-recorded' && recordedTold.push([page, payload]),
+                };
+            },
         },
         state: {
             read: (key, fallback) => state[key] ?? fallback,
@@ -70,10 +75,6 @@ async function main() {
         pages: { onSandbox: () => () => {}, whenEnds: () => () => {} },
         mods: {
             modOf: (page) => page.mod,
-            modFrom: (page, permission) => {
-                if (runs[page.mod]?.granted.includes(permission)) return page.mod;
-                throw Object.assign(new Error(`${page.mod} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
-            },
             runOf: (id) => runs[id] ?? null,
         },
     };
@@ -130,12 +131,29 @@ async function main() {
         }
         return '';
     };
+    const guarded = (name) => guards[`deckit-shell:key-${name}`];
     check(
-        'a page without deckit.shell-keys neither lists nor changes them',
-        refusedTo(() => channel('list')({}, 'other')) === 'NOT_PERMITTED' &&
-            refusedTo(() => channel('set')({ id: 'closeWindow', keystroke: null }, 'other')) === 'NOT_PERMITTED' &&
-            refusedTo(() => channel('reset')({ id: 'closeWindow' }, 'other')) === 'NOT_PERMITTED',
-        ''
+        "the shell's keys are listed and changed by a mod with deckit.shell-keys",
+        ['list', 'set', 'reset'].every((name) => guarded(name) === KEY_PERMISSION.SHELL_KEYS),
+        guards
+    );
+    check(
+        "a chord is taken by the permission its scope picks, released, recorded by any page, and a mod's page asks " +
+            'whether the app is in front',
+        guarded('take') === KEY_PERMISSION.permissionOf &&
+            ['release', 'record', 'stop-recording'].every((name) => guarded(name) === CHANNEL.GUARD.ANY) &&
+            guarded('active') === CHANNEL.GUARD.MOD,
+        guards
+    );
+    const picked = [{ scope: 'app' }, { scope: 'global' }, { scope: 'other' }, { scope: 5 }, {}, null, 'global'].map(
+        KEY_PERMISSION.permissionOf
+    );
+    check(
+        "a chord's scope picks its permission, and what names none the scope app's",
+        picked.join() ===
+            'deckit.app-keys,system.global-keys,deckit.app-keys,deckit.app-keys,deckit.app-keys,' +
+                'deckit.app-keys,deckit.app-keys',
+        picked
     );
     const chosen = { code: 'KeyS', meta: true, alt: true };
     const set = await channel('set')({ id: 'minimizeWindow', keystroke: chosen }, 'settings');
@@ -175,6 +193,14 @@ async function main() {
         (error) => error.kind
     );
     check('a chord another of the shell keys has is refused', taken === 'REFUSED', taken);
+    const elsewhere = refusedTo(() =>
+        handlers['deckit-shell:key-take']({ id: 2, keystroke: full({ code: 'KeyJ' }), scope: 'other' }, keeper)
+    );
+    check(
+        'a chord in a scope that names none is refused INVALID_ARGUMENT',
+        elsewhere === 'INVALID_ARGUMENT',
+        elsewhere
+    );
     await channel('set')({ id: 'closeWindow', keystroke: null }, 'settings');
     check(
         'a key set to none has no chord, and holds none',
@@ -224,18 +250,15 @@ async function main() {
     const pageHeard = {};
     const PAGE_CHANNELS = {
         bind: (declared) => ({
+            guard: declared.guard,
             send: (payload) => pageSent.push([declared.channel, payload]),
             on: (handler) => (pageHeard[declared.channel] = handler),
             invoke: async (payload) => pageSent.push([declared.channel, payload]) > 0,
         }),
     };
     const KEYS = createKeys({ channels: PAGE_CHANNELS });
-    const requestFor =
-        (granted) =>
-        (name, { guards = [], signature }, send) => {
-            const denied = guards.length && !guards.some((one) => granted.includes(one)) ? `a lacks ${guards}` : '';
-            return REQUEST.requestOf(name, { denied, signature }, send);
-        };
+    const requestFor = (granted) => (name, asked, send) =>
+        REQUEST.requestOf(name, { ...asked, mod: 'a', granted }, send);
     const keysScope = makeScope();
     const plainKeys = KEYS.forScope(keysScope, { changes: false, request: requestFor([]) });
     const keeperKeys = KEYS.forScope(keysScope, { changes: true, request: requestFor([]) });
@@ -314,6 +337,11 @@ async function main() {
         (await refusalOf(appKeys.take(5, 5, { scope: 'global' }))) === 'call NOT_PERMITTED',
         ''
     );
+    check(
+        'a scope that names none refuses a mod without deckit.app-keys NOT_PERMITTED, before its arguments',
+        (await refusalOf(plainTakes.take(5, 5, { scope: 'other' }))) === 'call NOT_PERMITTED',
+        ''
+    );
     const mistyped = {
         'a keystroke of no code': () => appKeys.take({ meta: true }, () => {}),
         'a key of another type': () => appKeys.take({ code: 'KeyK', alt: 1 }, () => {}),
@@ -354,16 +382,16 @@ async function main() {
         pageSent
     );
 
-    // Main hands the environment what any mod's page asks, and refuses a page that runs no mod.
+    // Main hands the environment what a mod's page asks, the channels guarded for a mod's page.
     const filesHandlers = {};
+    const filesGuards = {};
     const shown = []; // what the environment was handed
     createFiles({
         deckit: {
-            channels: { bind: (declared) => ({ handle: (handler) => (filesHandlers[declared.channel] = handler) }) },
-            mods: {
-                modFrom: (page) => {
-                    if (page.mod) return page.mod;
-                    throw Object.assign(new Error('the page runs no mod'), { kind: 'REFUSED' });
+            channels: {
+                bind: (declared) => {
+                    filesGuards[declared.channel] = declared.guard;
+                    return { handle: (handler) => (filesHandlers[declared.channel] = handler) };
                 },
             },
         },
@@ -384,10 +412,10 @@ async function main() {
         { revealed, folders, shown }
     );
     check(
-        'a page that runs no mod is shown nothing',
-        refusedTo(() => filesHandlers['deckit-shell:files-reveal']({ path: '/a' }, {})) === 'REFUSED' &&
-            shown.length === 2,
-        shown
+        "the files are shown for a mod's page alone",
+        Object.keys(filesGuards).length === 2 &&
+            Object.values(filesGuards).every((guard) => guard === CHANNEL.GUARD.MOD),
+        filesGuards
     );
 
     if (failed.length) {

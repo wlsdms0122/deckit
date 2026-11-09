@@ -3,6 +3,7 @@
 // described as wire.js writes it: `{ value, references }`. The client's end is told the name, the mod id or the
 // interface, and never the mod that owns an interface.
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 
 // A lifecycle of the page's run begins: answered with the connections it has from now on to the interfaces it uses,
 // each `{ id, name, exports }`, or with `refusal`, `{ stage, kind, message }`, in place of `exports` for one the
@@ -10,12 +11,14 @@ import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 export const begin = CHANNEL.pageToMain(
     'deckit-shell:connection-begin',
     { run: 'number', lifecycle: 'number' },
-    {
-        reply: true,
-    }
+    { reply: true, guard: CHANNEL.GUARD.MOD }
 );
 // A lifecycle of the page's run has ended, its end method run and what its handles made cut.
-export const end = CHANNEL.pageToMain('deckit-shell:connection-end', { run: 'number', lifecycle: 'number' });
+export const end = CHANNEL.pageToMain(
+    'deckit-shell:connection-end',
+    { run: 'number', lifecycle: 'number' },
+    { guard: CHANNEL.GUARD.MOD }
+);
 // A lifecycle of the page's run asks to reach the mod `target` by its id, until it lets it go or ends: answered once
 // the core took the ask, which launches the mod if it does not run, and the connection told with `connected` once it
 // stands, or `unreached` where the mod does not launch or runs with no exports for it. Refused with why:
@@ -24,13 +27,13 @@ export const end = CHANNEL.pageToMain('deckit-shell:connection-end', { run: 'num
 export const reach = CHANNEL.pageToMain(
     'deckit-shell:connection-reach',
     { run: 'number', lifecycle: 'number', target: 'string' },
-    { reply: true }
+    { reply: true, guard: MOD_PERMISSION.REACH_MODS }
 );
 // The lifecycle lets the mod `target` go: its connection by the id ends, told with `disconnected`.
 export const releaseReach = CHANNEL.pageToMain(
     'deckit-shell:connection-release-reach',
     { run: 'number', lifecycle: 'number', target: 'string' },
-    { reply: true }
+    { reply: true, guard: CHANNEL.GUARD.MOD }
 );
 // A function the other end handed over is called: answered with `{ returned }`, or `{ thrown: { stage, kind, message }
 // }` for what it threw, `kind` REFUSED where it threw none or one that is not a kind. Refused at `call` with kind ENDED
@@ -38,16 +41,20 @@ export const releaseReach = CHANNEL.pageToMain(
 export const call = CHANNEL.pageToMain(
     'deckit-shell:connection-call',
     { run: 'number', connection: 'number', number: 'number', args: 'object' },
-    { reply: true }
+    { reply: true, guard: CHANNEL.GUARD.MOD }
 );
 // A function the other end handed over is held no more: `count` is how many times it was handed over, so one handed
 // again meanwhile stays.
-export const release = CHANNEL.pageToMain('deckit-shell:connection-release', {
-    run: 'number',
-    connection: 'number',
-    number: 'number',
-    count: 'number',
-});
+export const release = CHANNEL.pageToMain(
+    'deckit-shell:connection-release',
+    {
+        run: 'number',
+        connection: 'number',
+        number: 'number',
+        count: 'number',
+    },
+    { guard: CHANNEL.GUARD.MOD }
+);
 
 // The exports the page's run opened for an interface are asked for a connection: `{ id, name, mod: { name },
 // lifecycle, credential: { mod, permissions } }`, `mod` the client's name and `credential` the client's as the core

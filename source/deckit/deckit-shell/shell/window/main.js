@@ -1,6 +1,5 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from '../../../deckit-sdk/shell/window/protocol.js';
-import * as WINDOW_PERMISSION from '../../../deckit-sdk/shell/window/model/permission.js';
 import * as SURFACE from './model/surface.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `PAGES` the shell's pages,
@@ -130,21 +129,15 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
     }
 
     // One window of a name per run: the one open orders front. It comes up as the key window unless `activates` is
-    // false. An overlay window is only for a mod that holds the permission, whatever its page says.
+    // false.
     function open(page, { name, level, width, height, minWidth, minHeight, activates = true }) {
         const mod = deckit.mods.modOf(page);
-        if (!mod) throw new Error('only a mod opens windows');
         const same = [...windows.values()].find((window) => window.page === page && window.name === name);
         if (same) {
             orderFront(same, { activates });
             return { id: same.id, surface: SURFACE.nameOf(same.id) };
         }
         const overlay = level === OVERLAY_LEVEL;
-        const may = deckit.mods.runOf(mod)?.granted.includes(WINDOW_PERMISSION.OVERLAY_WINDOWS);
-        if (overlay && !may)
-            throw Object.assign(new Error(`${mod} does not have ${WINDOW_PERMISSION.OVERLAY_WINDOWS}`), {
-                kind: 'NOT_PERMITTED',
-            });
         const id = ++count;
         const window = {
             id,

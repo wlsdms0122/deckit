@@ -1,8 +1,6 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as LISTENER from '../../deckit/listener/index.js';
 import * as DECLARED from './protocol.js';
-import * as WEB_PERMISSION from './model/permission.js';
-import * as OPEN_PERMISSION from '../../deckit/open/model/permission.js';
 import * as SESSION from './model/session.js';
 
 // A mod's web in its page: its sessions, and the pages that show what they load, in its page, as an element of it, and
@@ -27,8 +25,8 @@ export function createWeb({ sessions, web: WEB, channels }) {
     // MARK: - Initializer
     // MARK: - Public
     // The handle `web`: the mod's sessions by name, one handle for each, and the downloads its web pages started,
-    // written to the Downloads folder. `request` makes a member a request, refused for the permission that guards it;
-    // `scoped(subscribe)` cuts what a listener added with the handle's scope.
+    // written to the Downloads folder. `request` makes a member a request, refused as its channel's guard holds the
+    // mod; `scoped(subscribe)` cuts what a listener added with the handle's scope.
     function forMod({ request, scoped }) {
         const id = [['id', 'string']];
         const entries = [['entries', 'array']];
@@ -41,7 +39,7 @@ export function createWeb({ sessions, web: WEB, channels }) {
                 fetch: request(
                     'web.session.fetch',
                     {
-                        guards: [WEB_PERMISSION.NETWORK],
+                        guard: PROTOCOL.fetch.guard,
                         signature: [
                             ['input', 'any'],
                             ['init', 'object?'],
@@ -49,37 +47,32 @@ export function createWeb({ sessions, web: WEB, channels }) {
                     },
                     (input, init) => fetchIn(name, input, init)
                 ),
-                trust: request(
-                    'web.session.trust',
-                    { guards: [WEB_PERMISSION.CERTIFICATES], signature: entries },
-                    (given) => PROTOCOL.trust.invoke({ name, entries: given })
+                trust: request('web.session.trust', { guard: PROTOCOL.trust.guard, signature: entries }, (given) =>
+                    PROTOCOL.trust.invoke({ name, entries: given })
                 ),
-                allow: request(
-                    'web.session.allow',
-                    { guards: [WEB_PERMISSION.SITE_PERMISSIONS], signature: entries },
-                    (given) => PROTOCOL.allow.invoke({ name, entries: given })
+                allow: request('web.session.allow', { guard: PROTOCOL.allow.guard, signature: entries }, (given) =>
+                    PROTOCOL.allow.invoke({ name, entries: given })
                 ),
-                revoke: request(
-                    'web.session.revoke',
-                    { guards: [WEB_PERMISSION.SITE_PERMISSIONS], signature: entries },
-                    (given) => PROTOCOL.revoke.invoke({ name, entries: given })
+                revoke: request('web.session.revoke', { guard: PROTOCOL.revoke.guard, signature: entries }, (given) =>
+                    PROTOCOL.revoke.invoke({ name, entries: given })
                 ),
             });
             names.set(handle, name);
             made.set(name, handle);
             return handle;
         };
-        const opens = { guards: [OPEN_PERMISSION.FILE_HANDLERS], signature: id };
         const downloads = Object.freeze({
             list: () => PROTOCOL.downloads.invoke({}),
             onChange: scoped(onDownload),
-            cancel: request('web.downloads.cancel', { signature: id }, (given) =>
+            cancel: request('web.downloads.cancel', { guard: PROTOCOL.cancelDownload.guard, signature: id }, (given) =>
                 PROTOCOL.cancelDownload.send({ id: given })
             ),
-            remove: request('web.downloads.remove', { signature: id }, (given) =>
+            remove: request('web.downloads.remove', { guard: PROTOCOL.removeDownload.guard, signature: id }, (given) =>
                 PROTOCOL.removeDownload.invoke({ id: given })
             ),
-            open: request('web.downloads.open', opens, (given) => PROTOCOL.openDownload.invoke({ id: given })),
+            open: request('web.downloads.open', { guard: PROTOCOL.openDownload.guard, signature: id }, (given) =>
+                PROTOCOL.openDownload.invoke({ id: given })
+            ),
         });
         return Object.freeze({ session, downloads });
     }

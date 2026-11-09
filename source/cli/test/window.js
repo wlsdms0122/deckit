@@ -1,13 +1,13 @@
 // The windows mods open (deckit-shell/shell/window/main), over stand-ins for what connect answers, the shell's pages,
 // their overlays, the desktop and the host app: a normal window opened on the desktop at its size, one of a name per
 // run, a window opened or ordered front without taking the keyboard and one made key and ordered front, an overlay
-// window only with its permission and in a floating window of the host app's, taking the keyboard only where its mod
-// may activate, and its taking it the local seat's input, the mod's page laid in that window under
-// its content until the page has a normal window and again once it has none, the content's keys and presses heard and
-// the page told of its window, a window closed by its page and with its page, the keyboard of a page going to its key
-// window's content, and a web page's window: on the desktop for the mod whose page shows it, titled, closed however it
-// closes with those who listen told once. Exits 1 with a line for each check that failed. The packages are ES modules,
-// so they are imported as such.
+// window guarded by its permission, picked by its level, and in a floating window of the host app's, taking the
+// keyboard only where its mod may activate, and its taking it the local seat's input, the mod's page laid in that
+// window under its content until the page has a normal window and again once it has none, the content's keys and
+// presses heard and the page told of its window, a window closed by its page and with its page, the keyboard of a page
+// going to its key window's content, and a web page's window: on the desktop for the mod whose page shows it, titled,
+// closed however it closes with those who listen told once. Exits 1 with a line for each check that failed. The
+// packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -63,13 +63,14 @@ async function main() {
     );
     shell.fromPage('close', pages.a, { id: quiet.id });
 
-    let refused = null;
-    try {
-        shell.fromPage('open', pages.a, { name: 'float', level: 'overlay' });
-    } catch (error) {
-        refused = error;
-    }
-    check('an overlay window is refused to a mod without its permission', refused?.kind === 'NOT_PERMITTED', refused);
+    const picked = [{ level: 'overlay' }, { level: 'normal' }, { level: 5 }, {}, null, 'overlay'].map(
+        shell.guards['deckit-shell:window-open']
+    );
+    check(
+        'an overlay window is guarded by its permission, picked by its level, and any other window by none',
+        JSON.stringify(picked) === '["system.overlay-windows",null,null,null,null,null]',
+        picked
+    );
 
     const content = { name: 'content-a' };
     shell.openSurface(first.surface, content);
@@ -232,8 +233,8 @@ async function main() {
     process.exit(0);
 }
 
-// `createWindows` over stand-ins. Mods `a` and `b` run in `pages.a` and `pages.b`; `b` holds the overlay windows'
-// permission. `fromPage(name, page, payload)` sends a window channel as `page` and answers what it answers;
+// `createWindows` over stand-ins. Mods `a` and `b` run in `pages.a` and `pages.b`. `guards` is the guard each
+// channel's declaration names, by its name. `fromPage(name, page, payload)` sends a window channel as `page` and answers what it answers;
 // `openSurface(name, surface)` has a page open a window's content; `focus(page)` and `end(page)` are a page taking the
 // keyboard and its document ending; `webOf` maps a web page to the mod's page that shows it. `desktop` records what the
 // desktop was asked, `key` the id of its key window, `may` the mods that may activate for the local seat; `host` what
@@ -241,6 +242,7 @@ async function main() {
 // the channel's last word.
 function windowsOver(createWindows) {
     const handlers = {};
+    const guards = {};
     const sent = [];
     const allowed = new Map(); // a surface's name -> its onOpen
     const focusListeners = new Map(); // a page -> what hears it take the keyboard
@@ -254,7 +256,6 @@ function windowsOver(createWindows) {
         [pages.a, 'a'],
         [pages.b, 'b'],
     ]);
-    const granted = { a: [], b: ['system.overlay-windows'] };
     const changes = [];
     const desktop = {
         opened: [],
@@ -270,15 +271,17 @@ function windowsOver(createWindows) {
     const host = { shown: [], closed: [] };
     const deckit = {
         channels: {
-            bind: (declared) => ({
-                handle: (handler) => (handlers[declared.channel] = handler),
-                on: (handler) => (handlers[declared.channel] = handler),
-                send: (page, payload) => sent.push({ channel: declared.channel.split('-').at(-1), page, payload }),
-            }),
+            bind: (declared) => {
+                guards[declared.channel] = declared.guard;
+                return {
+                    handle: (handler) => (handlers[declared.channel] = handler),
+                    on: (handler) => (handlers[declared.channel] = handler),
+                    send: (page, payload) => sent.push({ channel: declared.channel.split('-').at(-1), page, payload }),
+                };
+            },
         },
         mods: {
             modOf: (page) => modOf.get(page) ?? null,
-            runOf: (mod) => ({ granted: granted[mod] }),
         },
         pages: { whenEnds: (page, listener) => endListeners.set(page, listener) },
     };
@@ -342,6 +345,7 @@ function windowsOver(createWindows) {
     windows.start();
     return {
         windows,
+        guards,
         pages,
         desktop,
         host,

@@ -38,7 +38,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     // `frameworks`, the handles it hands every lifecycle of the run, by name, each `handleOf(scope)` made with that
     // lifecycle's scope;
     // and, for the lowest, `handle`, the name of the handle the runner's members are on, and `mods`, the requests it
-    // adds to `mods`, by name, each `{ signature, send }` as deckit-sdk/deckit/request names them.
+    // adds to `mods`, by name, each `{ guard, signature, send }` as deckit-sdk/deckit/request names them.
     // A lifecycle is `{ method, registrations, start(instance, handles, scope, frameworks), end(instance),
     // join(parts, scope) }`: `method` names it in what a person reads; `registrations`, by name, `{ handle, check }`,
     // what the handles it hands out register beside the runner's own; `start`, which calls the instance with its

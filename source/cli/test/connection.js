@@ -32,8 +32,10 @@ async function main() {
             },
             pages: { isGone: () => false, watch: () => {} },
         },
+        // The router holds each channel to its guard by the mod a page runs, each a mod granted deckit.reach-mods.
         {
             report: () => {},
+            identify: (page) => (page.modId ? { id: page.modId, granted: ['deckit.reach-mods'] } : null),
         }
     );
     const tells = [];

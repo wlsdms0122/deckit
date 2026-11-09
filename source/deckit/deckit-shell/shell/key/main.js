@@ -53,24 +53,14 @@ export function createKey({ deckit, keys: KEYS }) {
             const one = recording.get(sender);
             if (one?.id === id) one.stop();
         });
-        PROTOCOL.active.handle((_payload, sender) => {
-            deckit.mods.modFrom(sender);
-            return !!KEYS.focused();
-        });
-        PROTOCOL.list.handle((_payload, sender) => {
-            holds(sender);
-            return listed();
-        });
-        PROTOCOL.set.handle(({ id, keystroke }, sender) => {
-            holds(sender);
+        PROTOCOL.active.handle(() => !!KEYS.focused());
+        PROTOCOL.list.handle(() => listed());
+        PROTOCOL.set.handle(({ id, keystroke }) => {
             const read = keystroke == null ? null : KEY.keystrokeOf(keystroke);
             if (!read && keystroke != null) throw new Error('keys.set() takes a keystroke with a code, or null');
             return change(id, read);
         });
-        PROTOCOL.reset.handle(({ id }, sender) => {
-            holds(sender);
-            return change(id, undefined);
-        });
+        PROTOCOL.reset.handle(({ id }) => change(id, undefined));
     }
 
     // Keystrokes in `target`, a page of the app, go by the chords taken: one a mod took pressed there is taken from the
@@ -107,7 +97,7 @@ export function createKey({ deckit, keys: KEYS }) {
     function take(page, { id, keystroke, scope }) {
         if (!Object.hasOwn(KEY_PERMISSION.SCOPES, scope))
             throw invalid(`a chord is taken in ${Object.keys(KEY_PERMISSION.SCOPES).join(' or ')}, not ${scope}`);
-        const mod = deckit.mods.modFrom(page, KEY_PERMISSION.SCOPES[scope]);
+        const mod = deckit.mods.modOf(page);
         const read = copied(keystroke);
         if (typeof read.code !== 'string' || !read.code) throw invalid('a chord names its key by its code');
         const name = nameOf(read);
@@ -283,14 +273,6 @@ export function createKey({ deckit, keys: KEYS }) {
         });
         keeping = kept.catch(() => {});
         return kept;
-    }
-
-    // Held to the permission: main does not take a page's word for it.
-    function holds(page) {
-        const modId = deckit.mods.modOf(page);
-        if (deckit.mods.runOf(modId)?.granted.includes(KEY_PERMISSION.SHELL_KEYS)) return;
-        const refused = new Error(`${modId || 'the page'} does not have the ${KEY_PERMISSION.SHELL_KEYS} permission`);
-        throw Object.assign(refused, { kind: 'NOT_PERMITTED' });
     }
 
     function refuse(why) {

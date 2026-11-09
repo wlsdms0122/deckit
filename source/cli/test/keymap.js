@@ -47,7 +47,8 @@ async function main() {
         listen: (listeners) => (heard = listeners),
         tell: (page, message) => tells.push([page, message]),
     };
-    IPC.carry({ messages, pages }, { report: () => {} });
+    // The router holds each channel to its guard by the mod a page runs, as `mods` below says.
+    IPC.carry({ messages, pages }, { report: () => {}, identify: (page) => mods.get(page) ?? null });
 
     // Mod a holds deckit.app-keys, mod g system.global-keys, mod n neither, mod s deckit.shell-keys; the shell's page
     // runs no mod.
@@ -79,13 +80,6 @@ async function main() {
         },
         mods: {
             modOf: (page) => mods.get(page)?.id || null,
-            modFrom: (page, permission) => {
-                const mod = mods.get(page);
-                if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
-                if (permission && !mod.granted.includes(permission))
-                    throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
-                return mod.id;
-            },
             runOf: (id) => [...mods.values()].find((mod) => mod.id === id) ?? null,
         },
         state: { read: (_key, fallback) => fallback, write: async () => {} },

@@ -11,12 +11,10 @@ export function createFiles({ deckit, dialogs: DIALOGS, reveal: REVEAL }) {
     // MARK: - Initializer
     // MARK: - Public
     function start() {
-        PROTOCOL.chooseFolders.handle(({ multiple, title, message }, sender) => {
-            deckit.mods.modFrom(sender);
-            return DIALOGS.chooseFolders({ title, buttonLabel: 'Choose', message, multiple });
-        });
-        PROTOCOL.reveal.handle(({ path }, sender) => {
-            deckit.mods.modFrom(sender);
+        PROTOCOL.chooseFolders.handle(({ multiple, title, message }) =>
+            DIALOGS.chooseFolders({ title, buttonLabel: 'Choose', message, multiple })
+        );
+        PROTOCOL.reveal.handle(({ path }) => {
             REVEAL(path);
         });
     }

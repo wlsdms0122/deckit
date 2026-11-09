@@ -1,5 +1,4 @@
 import * as CHANNEL from '../../deckit-sdk/deckit/channel/index.js';
-import * as MOD_PERMISSION from '../../deckit-sdk/deckit/permission/index.js';
 import * as REQUEST from '../../deckit-sdk/deckit/request/index.js';
 import * as DECLARED from './protocol.js';
 import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
@@ -43,22 +42,13 @@ export function attach(deckit, environment) {
             return true;
         });
         PROTOCOL.start.handle(({ path }, sender) => {
-            const mod = modOf(deckit.mods.runOf(deckit.mods.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS)));
+            const mod = modOf(deckit.mods.runOf(deckit.mods.modOf(sender)));
             return LOADER.start(mod, path, (relative) => handedTo(mod, relative));
         });
-        PROTOCOL.call.handle(({ path, method, args }, sender) =>
-            call(deckit.mods.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS), path, method, args)
-        );
-        PROTOCOL.restartPending.handle((_payload, sender) => {
-            deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
-            return LOADER.restartPending();
-        });
-        PROTOCOL.statusOf.handle(({ id }, sender) => {
-            deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
-            return LOADER.statusOf(id);
-        });
+        PROTOCOL.call.handle(({ path, method, args }, sender) => call(deckit.mods.modOf(sender), path, method, args));
+        PROTOCOL.restartPending.handle(() => LOADER.restartPending());
+        PROTOCOL.statusOf.handle(({ id }) => LOADER.statusOf(id));
         PROTOCOL.watch.on((_payload, sender) => {
-            deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
             if (watching.has(sender)) return;
             watching.add(sender);
             deckit.pages.whenEnds(sender, () => watching.delete(sender));

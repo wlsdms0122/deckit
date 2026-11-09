@@ -53,7 +53,11 @@ async function main() {
         listen: (listeners) => (heard = listeners),
         tell: (page, message) => tells.push([page, message]),
     };
-    IPC.carry({ messages, pages }, { report: () => {} });
+    // The router holds each channel to its guard by the mod a page runs, each a mod granted nothing.
+    IPC.carry(
+        { messages, pages },
+        { report: () => {}, identify: (page) => (page.modId ? { id: page.modId, granted: [] } : null) }
+    );
     const app = { onQuit: (given) => (hold = given), quit: () => done.push(['quit']) };
     const ends = new Map(); // page -> what undoes what its document set up, called with how it ended
     const IDENTITY = {

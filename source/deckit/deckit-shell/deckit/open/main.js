@@ -1,35 +1,28 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from '../../../deckit-sdk/deckit/open/protocol.js';
-import * as OPEN_PERMISSION from '../../../deckit-sdk/deckit/open/model/permission.js';
 import * as REQUEST from '../../../deckit-sdk/deckit/request/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// Opening outside the app, with the system: the web in the browser, and a file in its app for a caller that may open
-// files. `open` is the environment's.
-export function createOpen({ IDENTITY, open: SYSTEM }) {
+// Opening outside the app, with the system: the web in the browser, and a file in its app. `open` is the
+// environment's; what may open a file is held to system.file-handlers before it asks (open/protocol.js: open).
+export function createOpen({ open: SYSTEM }) {
     // MARK: - Property
     const WEB = Object.freeze(['http:', 'https:']);
 
     // MARK: - Initializer
     // MARK: - Public
     function start() {
-        PROTOCOL.open.handle(({ url, activates }, sender) => open(url, { activates, opensFiles: opensFiles(sender) }));
+        PROTOCOL.open.handle(({ url, activates }) => open(url, { activates }));
     }
 
     // `url` read as a URL and handed the environment as it serializes, the web's to open in the browser and a file's
-    // path to open in its app, either with `activates`, a file only where the caller may open files (`opensFiles`, a
-    // mod's system.file-handlers): refused with NOT_PERMITTED otherwise. Refused with UNSUPPORTED_URL for what is no
-    // URL, a URL of another scheme, a file on another host, or one whose path does not decode. Answers nothing once
-    // it is handed on.
-    async function open(url, { activates = true, opensFiles = false } = {}) {
+    // path to open in its app, either with `activates`. Refused with UNSUPPORTED_URL for what is no URL, a URL of
+    // another scheme, a file on another host, or one whose path does not decode. Answers nothing once it is handed on.
+    async function open(url, { activates = true } = {}) {
         const address = URL.canParse(url) ? new URL(url) : null;
         const file = address?.protocol === 'file:';
-        if (file && !opensFiles) {
-            const why = `a file opens only for a mod with the ${OPEN_PERMISSION.FILE_HANDLERS} permission`;
-            throw REQUEST.refusal('call', 'NOT_PERMITTED', why);
-        }
         if (WEB.includes(address?.protocol)) {
             await SYSTEM.url(address.href, { activate: activates });
             return;
@@ -49,10 +42,6 @@ export function createOpen({ IDENTITY, open: SYSTEM }) {
         } catch {
             return null;
         }
-    }
-
-    function opensFiles(page) {
-        return IDENTITY.modFrom(page).granted.includes(OPEN_PERMISSION.FILE_HANDLERS);
     }
 
     return { start, open };

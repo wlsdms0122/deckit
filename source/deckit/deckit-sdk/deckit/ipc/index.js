@@ -96,9 +96,9 @@ function copyOf(given) {
     if (read?.fields && typeof read.fields === 'object') read.fields = { ...read.fields };
     const problem = CHANNEL.declarationProblem(read);
     if (problem) throw new Error(`[deckit] ${problem}`);
-    const { channel, to, fields, reply, sync } = read;
+    const { channel, to, fields, reply, sync, guard } = read;
     return to === 'main'
-        ? CHANNEL.pageToMain(channel, fields, { reply, sync })
+        ? CHANNEL.pageToMain(channel, fields, { reply, sync, guard })
         : CHANNEL.mainToPage(channel, { reply });
 }
 

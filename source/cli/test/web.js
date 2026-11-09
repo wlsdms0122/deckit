@@ -28,7 +28,11 @@ async function main() {
         listen: (listeners) => (heard = listeners),
         tell: (page, message) => tells.push([page, message]),
     };
-    IPC.carry({ messages, pages: { isGone: () => false } }, { report: () => {} });
+    // The router holds each channel to its guard by the mod a page runs, as `mods` below says.
+    IPC.carry(
+        { messages, pages: { isGone: () => false } },
+        { report: () => {}, identify: (page) => mods.get(page) ?? null }
+    );
     const toldOn = (channel) => tells.filter(([, message]) => message.channel === channel);
 
     const files = { id: 'files', granted: ['system.files', 'system.site-permissions', 'system.file-handlers'] };
@@ -112,16 +116,7 @@ async function main() {
         log: { info: () => {}, warn: (...args) => warned.push(args) },
         mods: {
             modOf: (page) => mods.get(page)?.id ?? null,
-            modFrom: (page, permission) => {
-                const mod = mods.get(page);
-                if (!mod) throw Object.assign(new Error('only a mod asks this'), { stage: 'call', kind: 'REFUSED' });
-                if (permission && !mod.granted.includes(permission))
-                    throw Object.assign(new Error(`${mod.id} does not have the ${permission} permission`), {
-                        stage: 'call',
-                        kind: 'NOT_PERMITTED',
-                    });
-                return mod.id;
-            },
+            grantedOf: (id) => [...mods.values()].find((mod) => mod.id === id)?.granted ?? null,
             runs,
             onErase: (given) => (eraser = given),
             openExternal: async (id, address, options) => {

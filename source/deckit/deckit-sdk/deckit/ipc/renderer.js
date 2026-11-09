@@ -32,11 +32,12 @@ function carried() {
     return messages;
 }
 
+// `guard` is the declaration's, which a request on the page reads before it asks main.
 function toMain(copy) {
-    const { channel, reply, sync } = copy;
-    if (!reply) return { send: (payload = {}) => carried().tell({ channel, payload }) };
-    if (sync) return { invoke: (payload = {}) => TABLE.unwrap(carried().askSync({ channel, payload })) };
-    return { invoke: (payload = {}) => carried().ask({ channel, payload }).then(TABLE.unwrap) };
+    const { channel, reply, sync, guard } = copy;
+    if (!reply) return { guard, send: (payload = {}) => carried().tell({ channel, payload }) };
+    if (sync) return { guard, invoke: (payload = {}) => TABLE.unwrap(carried().askSync({ channel, payload })) };
+    return { guard, invoke: (payload = {}) => carried().ask({ channel, payload }).then(TABLE.unwrap) };
 }
 
 function toPage(copy) {

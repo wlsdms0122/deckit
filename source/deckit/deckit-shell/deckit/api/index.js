@@ -1,4 +1,5 @@
 import * as OPEN_PERMISSION from '../../../deckit-sdk/deckit/open/model/permission.js';
+import * as REFUSAL from '../../../deckit-sdk/deckit/request/index.js';
 import * as LIFECYCLE from '../runner/model/lifecycle.js';
 import * as IPC from '../ipc/main.js';
 
@@ -99,9 +100,6 @@ export function createApi({
                 // connection, a reach or a launch, the ids of the mod that asks and of the one asked, as it goes on.
                 onRequest: REQUEST.onRequest,
                 modOf: (page) => IDENTITY.modOf(page)?.id || null,
-                // The id of the mod in the page that sent a request, held to being granted `permission` when one is
-                // named: refused at call, REFUSED for a page that runs no mod and NOT_PERMITTED for a mod without it.
-                modFrom: (page, permission) => IDENTITY.modFrom(page, permission).id,
                 // The mod launches, the shell asking, or quits: resolve once it has launched, or has ended, and
                 // reject with why where it did not launch.
                 launch: (id) => RUNNER.launch(id),
@@ -112,14 +110,19 @@ export function createApi({
                 // the eraser asks; a rejection leaves the erasure to be tried again at the next start.
                 onErase: (eraser) => MODS.onErase(eraser),
                 // openExternal(id, url, { activates }): `url` opened outside the app for the mod `id`, as the mod's
-                // own openExternal opens it: the web, and a file only where the mod's run holds
-                // system.file-handlers, refused NOT_PERMITTED otherwise, and what is no such address refused
-                // UNSUPPORTED_URL. Answers nothing once it is handed on.
-                openExternal: (id, url, { activates } = {}) =>
-                    OPEN.open(url, {
-                        activates,
-                        opensFiles: !!RUNNER.runOf(id)?.mod.granted.includes(OPEN_PERMISSION.FILE_HANDLERS),
-                    }),
+                // own openExternal opens it: the web, and a file only where the mod's run holds the permission the
+                // address picks, system.file-handlers, refused NOT_PERMITTED otherwise, and what is no such address
+                // refused UNSUPPORTED_URL. Answers nothing once it is handed on.
+                openExternal: async (id, url, { activates } = {}) => {
+                    const permission = OPEN_PERMISSION.permissionOf({ url });
+                    if (permission && !RUNNER.runOf(id)?.mod.granted.includes(permission))
+                        throw REFUSAL.refusal(
+                            'call',
+                            'NOT_PERMITTED',
+                            `${id} does not have the ${permission} permission`
+                        );
+                    await OPEN.open(url, { activates });
+                },
             }),
             pages: Object.freeze({
                 // add(page, name): a page the host app or its shell made that runs no mod, known as theirs by `name`

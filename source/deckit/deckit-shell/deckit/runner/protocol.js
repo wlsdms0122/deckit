@@ -3,26 +3,50 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 // What the page runs: the mod's manifest, its entry's source, and which run this is.
-export const load = CHANNEL.pageToMain('deckit-shell:mod-load', {}, { reply: true, sync: true });
+export const load = CHANNEL.pageToMain(
+    'deckit-shell:mod-load',
+    {},
+    { reply: true, sync: true, guard: CHANNEL.GUARD.MOD }
+);
 // What it read of the class its entry exports, as part of `summary`, and how many lifecycles its run stacks.
-export const described = CHANNEL.pageToMain('deckit-shell:mod-described', {
-    run: 'number',
-    summary: 'object',
-    lifecycles: 'number',
-});
+export const described = CHANNEL.pageToMain(
+    'deckit-shell:mod-described',
+    {
+        run: 'number',
+        summary: 'object',
+        lifecycles: 'number',
+    },
+    { guard: CHANNEL.GUARD.MOD }
+);
 // Started, each of its lifecycles started or, its start refused, ended, with what it contributes. `contributions`:
 // `{ exportedIn, awaits }`, by interface the lifecycle that opened its exports, and by interface the lowest lifecycle
 // that waits for its exports, beside what the layers added; `summary`, what it contributes as a person reads it.
-export const started = CHANNEL.pageToMain('deckit-shell:mod-started', {
-    run: 'number',
-    contributions: 'object',
-    summary: 'object',
-});
+export const started = CHANNEL.pageToMain(
+    'deckit-shell:mod-started',
+    {
+        run: 'number',
+        contributions: 'object',
+        summary: 'object',
+    },
+    { guard: CHANNEL.GUARD.MOD }
+);
 // A problem recorded against the run, which whoever lists the mods reads.
-export const problem = CHANNEL.pageToMain('deckit-shell:mod-problem', { run: 'number', problem: 'string' });
+export const problem = CHANNEL.pageToMain(
+    'deckit-shell:mod-problem',
+    { run: 'number', problem: 'string' },
+    { guard: CHANNEL.GUARD.MOD }
+);
 // It did not start, and why: what the mods that require it are told.
-export const notStarted = CHANNEL.pageToMain('deckit-shell:mod-not-started', { run: 'number', problem: 'string' });
+export const notStarted = CHANNEL.pageToMain(
+    'deckit-shell:mod-not-started',
+    { run: 'number', problem: 'string' },
+    { guard: CHANNEL.GUARD.MOD }
+);
 // The mod asks its run to end: answered once its end is asked.
-export const quit = CHANNEL.pageToMain('deckit-shell:mod-quit', { run: 'number' }, { reply: true });
+export const quit = CHANNEL.pageToMain(
+    'deckit-shell:mod-quit',
+    { run: 'number' },
+    { reply: true, guard: CHANNEL.GUARD.MOD }
+);
 // Its run is ending: answered once each of its lifecycles has ended.
 export const stop = CHANNEL.mainToPage('deckit-shell:mod-stop', { reply: true });

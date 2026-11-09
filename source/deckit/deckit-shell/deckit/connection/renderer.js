@@ -2,7 +2,6 @@ import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as IPC from '../../../deckit-sdk/deckit/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 import * as WIRE from './model/wire.js';
-import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 import * as REQUEST from '../../../deckit-sdk/deckit/request/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
@@ -76,16 +75,21 @@ export function createConnection({ RUN }) {
             if (told.refusal) refuse(lifecycle, told.name, told.refusal);
             else open({ ...told, lifecycle });
         }
-        const { id: mod } = RUN.mod;
-        const denied = RUN.granted.includes(MOD_PERMISSION.REACH_MODS)
-            ? ''
-            : `${mod} does not have the ${MOD_PERMISSION.REACH_MODS} permission`;
+        const held = { mod: RUN.mod.id, granted: RUN.granted };
         const takes = [['id', 'string']];
         return Object.freeze({
             onConnect: (named, connected) => listen(lifecycle, named, connected, scope),
             onRefuse: (named, refused) => listenRefusals(lifecycle, named, refused, scope),
-            reach: REQUEST.requestOf('dependencies.reach', { denied, signature: takes }, (id) => reach(lifecycle, id)),
-            release: REQUEST.requestOf('dependencies.release', { signature: takes }, (id) => release(lifecycle, id)),
+            reach: REQUEST.requestOf(
+                'dependencies.reach',
+                { ...held, guard: PROTOCOL.reach.guard, signature: takes },
+                (id) => reach(lifecycle, id)
+            ),
+            release: REQUEST.requestOf(
+                'dependencies.release',
+                { ...held, guard: PROTOCOL.releaseReach.guard, signature: takes },
+                (id) => release(lifecycle, id)
+            ),
         });
     }
 

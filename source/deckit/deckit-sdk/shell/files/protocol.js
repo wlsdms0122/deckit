@@ -6,7 +6,11 @@ import * as CHANNEL from '../../deckit/channel/index.js';
 export const chooseFolders = CHANNEL.pageToMain(
     'deckit-shell:files-choose-folders',
     { multiple: 'boolean', title: 'string?', message: 'string?' },
-    { reply: true }
+    { reply: true, guard: CHANNEL.GUARD.MOD }
 );
 // Answers nothing once `path` is shown where it lies.
-export const reveal = CHANNEL.pageToMain('deckit-shell:files-reveal', { path: 'string' }, { reply: true });
+export const reveal = CHANNEL.pageToMain(
+    'deckit-shell:files-reveal',
+    { path: 'string' },
+    { reply: true, guard: CHANNEL.GUARD.MOD }
+);

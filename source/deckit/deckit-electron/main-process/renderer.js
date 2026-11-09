@@ -1,9 +1,7 @@
 import * as CHANNEL from '../../deckit-sdk/deckit/channel/index.js';
 import * as REQUEST from '../../deckit-sdk/deckit/request/index.js';
 import * as EVENT_BUS from '../../deckit-sdk/deckit/event/bus.js';
-import * as MOD_PERMISSION from '../../deckit-sdk/deckit/permission/index.js';
 import * as DECLARED from './protocol.js';
-import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
 import * as MAIN_PROCESS_LAYER from './model/layer.js';
 
 // MARK: - Property
@@ -42,19 +40,19 @@ function createMainProcess({ mod, granted, deliver, channels }) {
     // for. `onChange` is no request, and throws its refusal: NOT_PERMITTED for a mod not granted deckit.mods, then
     // INVALID_ARGUMENT for a listener that is no function.
     function forScope(scope) {
-        const managerDenied = deniedWithout(MOD_PERMISSION.MODS);
-        const manager = (name, signature, send) =>
-            REQUEST.requestOf(`mainProcess.${name}`, { denied: managerDenied, signature }, send);
+        const request = (name, guard, signature, send) =>
+            REQUEST.requestOf(`mainProcess.${name}`, { mod: mod.id, granted, guard, signature }, send);
         return Object.freeze({
-            start: REQUEST.requestOf(
-                'mainProcess.start',
-                { denied: deniedWithout(MAIN_PROCESS_PERMISSION.MAIN_PROCESS), signature: [['path', 'string']] },
-                (path) => moduleOf(path, scope)
+            start: request('start', PROTOCOL.start.guard, [['path', 'string']], (path) => moduleOf(path, scope)),
+            restartPending: request('restartPending', PROTOCOL.restartPending.guard, [], () =>
+                PROTOCOL.restartPending.invoke()
             ),
-            restartPending: manager('restartPending', [], () => PROTOCOL.restartPending.invoke()),
-            statusOf: manager('statusOf', [['id', 'string']], (id) => PROTOCOL.statusOf.invoke({ id })),
+            statusOf: request('statusOf', PROTOCOL.statusOf.guard, [['id', 'string']], (id) =>
+                PROTOCOL.statusOf.invoke({ id })
+            ),
             onChange: (listener) => {
-                if (managerDenied) throw REQUEST.refusal('call', 'NOT_PERMITTED', managerDenied);
+                const denied = REQUEST.deniedOf({ mod: mod.id, granted, guard: PROTOCOL.watch.guard });
+                if (denied) throw REQUEST.refusal('call', 'NOT_PERMITTED', denied);
                 if (typeof listener !== 'function')
                     throw REQUEST.refusal(
                         'call',
@@ -67,11 +65,6 @@ function createMainProcess({ mod, granted, deliver, channels }) {
     }
 
     // MARK: - Private
-    // Why the mod may not make a request `permission` guards, or ''.
-    function deniedWithout(permission) {
-        return granted.includes(permission) ? '' : `${mod.id} does not have the ${permission} permission`;
-    }
-
     function busOf(path) {
         if (!buses.has(path))
             buses.set(

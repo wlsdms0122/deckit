@@ -88,14 +88,14 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     ENV.configure({ id: CONFIG.id });
     const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
     const LOG = createLog({ log: ENV.log, reports: ENV.reports, about: ENV.about, folder: HOME.logs, name: CONFIG.id });
-    // The channels are carried before anything crosses.
-    IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
+    const IDENTITY = createIdentity({ pages: ENV.pages });
+    // The channels are carried before anything crosses, each held to its guard by the mod a page runs.
+    IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure), identify: IDENTITY.modOf });
     const CORE = createCore({ FOLDERS, LOG, core: ENV.core, home: HOME.folder, api: CONFIG.api });
     const STORAGE = createStorage({ CORE, LOG });
     const PERMISSION = createPermission();
     const MANIFEST_FIELD = createManifestField();
     const CATALOG = createCatalog({ CORE, LOG, files: ENV.files });
-    const IDENTITY = createIdentity({ pages: ENV.pages });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
     const RECORD = createRecord({ CORE, IDENTITY });
     const REQUEST = createRequest();
@@ -103,19 +103,17 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
-    const OPEN = createOpen({ IDENTITY, open: ENV.open });
+    const OPEN = createOpen({ open: ENV.open });
     const NOTIFICATION = createNotification({
         LOG,
-        IDENTITY,
         clicked: () => host.notificationClicked(),
         notifications: ENV.notifications,
     });
-    const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
+    const CLIPBOARD = createClipboard({ clipboard: ENV.clipboard });
     const RUNTIME = createRuntime({
         CONFIG,
         CORE,
         LOG,
-        IDENTITY,
         restart: () => host.restart(),
         about: ENV.about,
         user: ENV.folders.user,

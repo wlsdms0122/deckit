@@ -1,7 +1,6 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from '../../../deckit-sdk/shell/fonts/protocol.js';
 import * as FONTS from './model/fonts.js';
-import * as FONTS_PERMISSION from '../../../deckit-sdk/shell/fonts/model/permission.js';
 
 // `deckit` is what connect answered; `installed()` answers the fonts installed (environment: SHELL.fonts).
 export function createFonts({ deckit, installed }) {
@@ -18,13 +17,9 @@ export function createFonts({ deckit, installed }) {
     function start({ onChange }) {
         fonts = FONTS.keptOf(deckit.state.read(KEPT, {}));
         onChange(fonts);
-        PROTOCOL.current.handle((_payload, sender) => {
-            holds(sender);
-            return fonts;
-        });
+        PROTOCOL.current.handle(() => fonts);
         PROTOCOL.installed.handle(() => installed());
-        PROTOCOL.set.handle((change, sender) => {
-            holds(sender);
+        PROTOCOL.set.handle((change) => {
             const problem = FONTS.problemOf(change);
             if (problem) throw new Error(`fonts.set() ${problem}`);
             const kept = keeping.then(() => keep(change, onChange));
@@ -42,14 +37,6 @@ export function createFonts({ deckit, installed }) {
         fonts = next;
         onChange(fonts);
         return fonts;
-    }
-
-    // Held to the permission: main does not take a page's word for it.
-    function holds(page) {
-        const modId = deckit.mods.modOf(page);
-        if (deckit.mods.runOf(modId)?.granted.includes(FONTS_PERMISSION.FONTS)) return;
-        const refused = new Error(`${modId || 'the page'} does not have the ${FONTS_PERMISSION.FONTS} permission`);
-        throw Object.assign(refused, { kind: 'NOT_PERMITTED' });
     }
 
     return { start };

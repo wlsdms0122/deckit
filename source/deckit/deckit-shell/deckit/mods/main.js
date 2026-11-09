@@ -1,7 +1,6 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
-import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 import * as LIFECYCLE from '../runner/model/lifecycle.js';
 import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
 
@@ -56,47 +55,30 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
 
     // MARK: - Private
     function listen() {
-        PROTOCOL.mods.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return describe();
-        });
-        PROTOCOL.plan.handle(({ folder }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return plan(folder);
-        });
-        PROTOCOL.install.handle(({ folder }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return install(folder);
-        });
-        PROTOCOL.remove.handle(({ id, erase }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return remove(id, erase);
-        });
+        PROTOCOL.mods.handle(() => describe());
+        PROTOCOL.plan.handle(({ folder }) => plan(folder));
+        PROTOCOL.install.handle(({ folder }) => install(folder));
+        PROTOCOL.remove.handle(({ id, erase }) => remove(id, erase));
         PROTOCOL.launch.handle(({ id }, sender) => {
-            const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
+            const by = IDENTITY.modFrom(sender).id;
             REQUEST.tell(by, id);
             return RUNNER.launch(id, by);
         });
         PROTOCOL.relaunch.handle(({ id }, sender) => {
-            const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
+            const by = IDENTITY.modFrom(sender).id;
             REQUEST.tell(by, id);
             return RUNNER.relaunch([id], by);
         });
         PROTOCOL.quit.handle(({ id }, sender) => {
-            const by = IDENTITY.modFrom(sender, MOD_PERMISSION.MODS).id;
+            const by = IDENTITY.modFrom(sender).id;
             return RUNNER.quit(id, by);
         });
-        PROTOCOL.pin.handle(({ interface: named, mod }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return CATALOG.pin(named, mod);
-        });
-        PROTOCOL.usage.handle(async ({ id }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
+        PROTOCOL.pin.handle(({ interface: named, mod }) => CATALOG.pin(named, mod));
+        PROTOCOL.usage.handle(async ({ id }) => {
             const usage = await CORE.request('storage/usage', { mod: id });
             return { ...usage, values: { count: await pages.countStorage(id) } };
         });
         PROTOCOL.watchMods.on((_payload, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             if (watching.has(sender)) return;
             watching.add(sender);
             IDENTITY.whenPageEnds(sender, () => watching.delete(sender));

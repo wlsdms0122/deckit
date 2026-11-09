@@ -1,5 +1,4 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
-import * as KEY_PERMISSION from './model/permission.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
@@ -66,10 +65,15 @@ function createKeys({ channels }) {
     // MARK: - Public
     function forScope(scope, { changes, request }) {
         return Object.freeze({
-            take: (...args) =>
-                request('keys.take', { guards: guardsOf(args[2]), signature: TAKES }, (keystroke, run, options) =>
-                    take(keystroke, run, options, scope)
-                )(...args),
+            take: request(
+                'keys.take',
+                {
+                    guard: PROTOCOL.take.guard,
+                    payloadOf: (_keystroke, _run, options) => ({ scope: scopeOf(options) }),
+                    signature: TAKES,
+                },
+                (keystroke, run, options) => take(keystroke, run, options, scope)
+            ),
             record: (onKeystroke) => record(onKeystroke, scope),
             ...(changes
                 ? {
@@ -82,12 +86,9 @@ function createKeys({ channels }) {
     }
 
     // MARK: - Private
-    // A chord is guarded by the permission its scope names; a scope that names none, by either.
-    function guardsOf(options) {
-        const named = options?.scope ?? 'app';
-        return Object.hasOwn(KEY_PERMISSION.SCOPES, named)
-            ? [KEY_PERMISSION.SCOPES[named]]
-            : Object.values(KEY_PERMISSION.SCOPES);
+    // Where a chord taken with `options` works: `app` unless they name a scope.
+    function scopeOf(options) {
+        return options?.scope ?? 'app';
     }
 
     async function take({ code, meta, control, alt, shift }, run, options, scope) {
@@ -103,7 +104,7 @@ function createKeys({ channels }) {
                     alt: alt ?? false,
                     shift: shift ?? false,
                 },
-                scope: options?.scope ?? 'app',
+                scope: scopeOf(options),
             });
             return Object.freeze({ held, release: scope.add(() => release(id)) });
         } catch (error) {

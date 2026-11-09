@@ -1,7 +1,6 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as NOTIFICATION_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -63,7 +62,7 @@ export function createNotification() {
             });
         };
         return Object.freeze({
-            show: request('notifications.show', { guards: [NOTIFICATION_PERMISSION.NOTIFICATIONS], signature }, show),
+            show: request('notifications.show', { guard: PROTOCOL.show.guard, signature }, show),
         });
     }
 

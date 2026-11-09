@@ -101,7 +101,6 @@ export function createRegion({ deckit }) {
     // children of its own interface. A child that does not run launches as the person's screen shows it.
     function place(page, number, named, id) {
         const parent = deckit.mods.modOf(page);
-        if (!parent) throw new Error('only a mod has regions');
         if (!providesOf(parent).has(named)) throw new Error(`${parent} does not provide ${named}`);
         if (id !== null && (interfaceOf(id) !== named || parentOf(id) !== parent))
             throw new Error(`${id} is not a child of ${named} here`);

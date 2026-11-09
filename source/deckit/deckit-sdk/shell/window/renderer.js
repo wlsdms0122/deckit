@@ -1,6 +1,5 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
-import * as WINDOW_PERMISSION from './model/permission.js';
 import * as LAYER from '../ui/layer/index.js';
 import * as POINTER from '../ui/pointer/index.js';
 import * as PRESENTATION from '../ui/presentation/index.js';
@@ -78,10 +77,14 @@ function createWindows({ granted, deliver, channels, drags }) {
 
     // MARK: - Private
     function opened(options) {
-        const problem = problemOf(options, granted);
+        const problem = problemOf(options);
         if (problem) throw new TypeError(`shell.windows.open() ${problem}`);
         const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
-        const { id, surface } = PROTOCOL.open.invoke({ name, level, width, height, minWidth, minHeight, activates });
+        const payload = { name, level, width, height, minWidth, minHeight, activates };
+        const permission = CHANNEL.permissionOf(PROTOCOL.open.guard, payload);
+        if (permission !== null && !granted.includes(permission))
+            throw new TypeError(`shell.windows.open() opens an overlay window with ${permission}`);
+        const { id, surface } = PROTOCOL.open.invoke(payload);
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
         const document = view.document;
@@ -191,16 +194,14 @@ function createWindows({ granted, deliver, channels, drags }) {
 }
 
 // MARK: - Private
-// Why what `shell.windows.open` was handed is not a window this mod may have, or ''.
-function problemOf(options, granted) {
+// Why what `shell.windows.open` was handed is not a window, or ''.
+function problemOf(options) {
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
         return `takes { name, content, level, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.join(' or ')}`;
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
-    if (level === 'overlay' && !granted.includes(WINDOW_PERMISSION.OVERLAY_WINDOWS))
-        return `opens an overlay window with ${WINDOW_PERMISSION.OVERLAY_WINDOWS}`;
     return '';
 }
 

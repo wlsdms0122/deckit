@@ -3,19 +3,35 @@
 // MARK: - Property
 // What a field may be, written as is, or ending in `?` when it may be absent.
 const KINDS = Object.freeze(['string', 'number', 'boolean', 'object', 'array', 'any']);
+// Who may send on a channel a page sends main, besides a permission's id or a picker (pageToMain): ANY, any page, what
+// it may ask judged by what answers it; MOD, a mod's page.
+const GUARD = Object.freeze({ ANY: Symbol.for('deckit.guard.any-page'), MOD: Symbol.for('deckit.guard.mod-page') });
 
 // MARK: - Initializer
 // MARK: - Public
 // What a page asks or tells main. `fields` is what it may send, each a kind (`string`, `number`, `boolean`, `object`,
 // `array`, `any`), optional when it ends in `?`. A page runs code main does not trust, so main holds what arrives to
-// them; nothing else checks.
-function pageToMain(channel, fields, { reply = false, sync = false } = {}) {
-    return Object.freeze({ channel, to: 'main', fields: Object.freeze({ ...fields }), reply, sync });
+// them; nothing else checks. `guard` is who may send it: GUARD.ANY, GUARD.MOD, a permission's id, a mod's page granted
+// it, or a picker, a function of the payload as sent that answers the id of the permission guarding that call, or null
+// for none, a mod's page. A picker answers for any value it is handed and never throws.
+function pageToMain(channel, fields, { reply = false, sync = false, guard } = {}) {
+    return Object.freeze({ channel, to: 'main', fields: Object.freeze({ ...fields }), reply, sync, guard });
 }
 
 // What main tells or asks a page.
 function mainToPage(channel, { reply = false } = {}) {
     return Object.freeze({ channel, to: 'page', reply });
+}
+
+// The id of the permission `guard` holds a call with `payload` to, or null for none.
+function permissionOf(guard, payload) {
+    if (typeof guard === 'function') return guard(payload);
+    return typeof guard === 'string' ? guard : null;
+}
+
+// What `payload` holds under `key` as its own, or undefined for anything else: what a picker reads.
+function fieldOf(payload, key) {
+    return kindOf(payload) === 'object' && Object.hasOwn(payload, key) ? payload[key] : undefined;
 }
 
 // Why `payload` is not what the channel carries, or ''.
@@ -40,7 +56,7 @@ function problemOf({ channel, fields }, payload) {
 // Why `declared` is not a channel declared as above, or '': what is bound may come from code that is not trusted.
 function declarationProblem(declared) {
     if (kindOf(declared) !== 'object') return `a channel is declared as an object, not ${kindOf(declared)}`;
-    const { channel, to, fields, reply, sync = false } = declared;
+    const { channel, to, fields, reply, sync = false, guard } = declared;
     if (typeof channel !== 'string' || !channel) return 'a channel is declared with its name';
     if (to !== 'main' && to !== 'page') return `${channel} goes to main or to a page`;
     if (typeof reply !== 'boolean' || typeof sync !== 'boolean') return `${channel} says whether it is answered`;
@@ -50,6 +66,12 @@ function declarationProblem(declared) {
     for (const [key, written] of Object.entries(fields))
         if (typeof written !== 'string' || !KINDS.includes(written.replace(/\?$/, '')))
             return `${channel}'s ${key} is none of ${KINDS.join(', ')}`;
+    const guarded =
+        guard === GUARD.ANY ||
+        guard === GUARD.MOD ||
+        (typeof guard === 'string' && guard !== '') ||
+        typeof guard === 'function';
+    if (!guarded) return `${channel} is declared with its guard`;
     return '';
 }
 
@@ -69,4 +91,4 @@ function kindOf(value) {
 
 // MARK: - Private
 
-export { pageToMain, mainToPage, problemOf, declarationProblem, bindAll, kindOf };
+export { GUARD, pageToMain, mainToPage, permissionOf, fieldOf, problemOf, declarationProblem, bindAll, kindOf };

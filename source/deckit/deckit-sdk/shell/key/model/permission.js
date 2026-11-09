@@ -1,3 +1,5 @@
+import * as CHANNEL from '../../../deckit/channel/index.js';
+
 // MARK: - Property
 // The permissions a chord a mod takes works by, as a person reads them before installing: in every page of the app, or
 // in every app too. The shell's key checks them as a mod takes a chord.
@@ -31,6 +33,13 @@ const SCOPES = Object.freeze({ app: APP_KEYS, global: GLOBAL_KEYS });
 
 // MARK: - Initializer
 // MARK: - Public
+// The permission a chord taken with `payload` (key/protocol.js: take) is guarded by: its scope's, and for a scope that
+// names none the scope `app`'s.
+function permissionOf(payload) {
+    const scope = CHANNEL.fieldOf(payload, 'scope');
+    return typeof scope === 'string' && Object.hasOwn(SCOPES, scope) ? SCOPES[scope] : APP_KEYS;
+}
+
 // MARK: - Private
 
-export { APP_KEYS, GLOBAL_KEYS, SHELL_KEYS, PERMISSIONS, SCOPES };
+export { APP_KEYS, GLOBAL_KEYS, SHELL_KEYS, PERMISSIONS, SCOPES, permissionOf };

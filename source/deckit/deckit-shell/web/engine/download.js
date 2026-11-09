@@ -1,4 +1,3 @@
-import * as OPEN_PERMISSION from '../../../deckit-sdk/deckit/open/model/permission.js';
 import * as FILE_URL from '../../../deckit-sdk/deckit/open/model/file-url.js';
 
 // The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's and any
@@ -31,19 +30,19 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
             download.error = QUIT;
         }
         save();
-        PROTOCOL.downloads.handle((_payload, sender) => listOf(deckit.mods.modFrom(sender)).map(copy));
+        PROTOCOL.downloads.handle((_payload, sender) => listOf(deckit.mods.modOf(sender)).map(copy));
         PROTOCOL.cancelDownload.on(({ id }, sender) => {
-            const under = underWay(deckit.mods.modFrom(sender), id);
+            const under = underWay(deckit.mods.modOf(sender), id);
             if (under !== null) WEB.cancelDownload(under);
         });
         PROTOCOL.openDownload.handle(async ({ id }, sender) => {
-            const mod = deckit.mods.modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS);
+            const mod = deckit.mods.modOf(sender);
             const download = find(mod, id);
             if (download?.state !== 'finished') return false;
             await deckit.mods.openExternal(mod, FILE_URL.fileURL(download.path));
             return true;
         });
-        PROTOCOL.removeDownload.handle(({ id }, sender) => remove(deckit.mods.modFrom(sender), id));
+        PROTOCOL.removeDownload.handle(({ id }, sender) => remove(deckit.mods.modOf(sender), id));
         PROTOCOL.save.on(({ ask, save }, sender) => {
             if (questions.get(ask)?.embedder === sender) settle(ask, save);
         });

@@ -1,9 +1,10 @@
 // Opening outside the app (deckit-shell/deckit/open/main.js) over a stand-in for the system and the pages: an address
 // of the web is handed the browser as the URL Standard serializes it, and a file its app, either brought forward unless
-// asked not to; a file opens only for a mod with system.file-handlers, refused NOT_PERMITTED otherwise, and only one on
-// this host whose path decodes; what is no URL, or a URL of any other scheme, is refused UNSUPPORTED_URL. What the host
-// app opens for a mod (deckit/api/index.js: mods.openExternal) opens the same way, a file only for a mod whose run
-// holds system.file-handlers.
+// asked not to; a file opens only for a mod with system.file-handlers, the permission a file URL picks, refused
+// NOT_PERMITTED otherwise, and only one on this host whose path decodes; a page that runs no mod is refused REFUSED;
+// what is no URL, or a URL of any other scheme, is refused UNSUPPORTED_URL. What the host app opens for a mod
+// (deckit/api/index.js: mods.openExternal) opens the same way, a file only for a mod whose run holds
+// system.file-handlers.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -14,6 +15,7 @@ async function main() {
     const { createOpen } = await import(url('deckit-shell', 'deckit', 'open', 'main.js'));
     const { createApi } = await import(url('deckit-shell', 'deckit', 'api', 'index.js'));
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
+    const OPEN_PERMISSION = await import(url('deckit-sdk', 'deckit', 'open', 'model', 'permission.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -23,31 +25,21 @@ async function main() {
 
     let heard = null;
     const messages = { listen: (listeners) => (heard = listeners), tell: () => {} };
-    IPC.carry({ messages, pages: { isGone: () => false, watch: () => {} } }, { report: () => {} });
-
-    // Mod c holds nothing; mod f holds system.file-handlers.
+    // Mod c holds nothing; mod f holds system.file-handlers. The router holds the channel to its guard by them.
     const plain = { name: 'page c' };
     const files = { name: 'page f' };
     const mods = new Map([
         [plain, { id: 'c', granted: [] }],
         [files, { id: 'f', granted: ['system.file-handlers'] }],
     ]);
-    const IDENTITY = {
-        modOf: (page) => mods.get(page) || null,
-        modFrom: (page, permission) => {
-            const mod = mods.get(page);
-            if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
-            if (permission && !mod.granted.includes(permission))
-                throw Object.assign(new Error(`${mod.id} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
-            return mod;
-        },
-    };
+    const identify = (page) => mods.get(page) || null;
+    IPC.carry({ messages, pages: { isGone: () => false, watch: () => {} } }, { report: () => {}, identify });
     const opened = []; // [what, address, options]
     const SYSTEM = {
         url: async (address, options) => opened.push(['url', address, options]),
         file: async (file, options) => opened.push(['file', file, options]) > 0,
     };
-    const OPEN = createOpen({ IDENTITY, open: SYSTEM });
+    const OPEN = createOpen({ open: SYSTEM });
     OPEN.start();
 
     const ask = async (page, channel, payload) => {
@@ -144,6 +136,24 @@ async function main() {
         'a file whose path does not decode is refused for the permission first',
         refusalOf(undecodedPlain) === 'call NOT_PERMITTED',
         undecodedPlain
+    );
+
+    const byNone = await open({ name: 'a page that runs no mod' }, 'https://example.com');
+    check('a page that runs no mod is refused at call, REFUSED', refusalOf(byNone) === 'call REFUSED', byNone);
+    const picked = [
+        { url: 'file:///Users/me/a.txt' },
+        { url: 'FILE://localhost/a' },
+        { url: 'https://example.com' },
+        { url: 'no address' },
+        { url: 5 },
+        {},
+        null,
+        'file:///Users/me/a.txt',
+    ].map(OPEN_PERMISSION.permissionOf);
+    check(
+        'a file URL picks system.file-handlers, and anything else none',
+        JSON.stringify(picked) === '["system.file-handlers","system.file-handlers",null,null,null,null,null,null]',
+        picked
     );
 
     // The host app opens for a mod by its id, as the mod's run is granted.

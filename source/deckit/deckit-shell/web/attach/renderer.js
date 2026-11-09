@@ -18,14 +18,8 @@ function layersOf(given) {
         ({ setup, channels }) =>
         ({ mod, granted }) => {
             const WEB = createWeb({ sessions: setup.sessions, web: ENV.web, channels });
-            // The request `name`, refused NOT_PERMITTED unless the mod holds one of `guards`, then for its arguments.
-            const request = (name, { guards = [], signature }, send) => {
-                const denied =
-                    guards.length && !guards.some((one) => granted.includes(one))
-                        ? `${mod.id} does not have the ${guards.join(' or ')} permission`
-                        : '';
-                return REQUEST.requestOf(name, { denied, signature }, send);
-            };
+            // The request `name`, refused NOT_PERMITTED as its channel's guard holds the mod, then for its arguments.
+            const request = (name, asked, send) => REQUEST.requestOf(name, { ...asked, mod: mod.id, granted }, send);
             return {
                 frameworks: {
                     web: (scope) =>

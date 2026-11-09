@@ -18,6 +18,7 @@ async function main() {
     const LIST_ORDER = await import(url('deckit-shell', 'shell', 'dock', 'model', 'list-order.js'));
     const DOCK = await import(url('deckit-shell', 'shell', 'dock', 'model', 'dock.js'));
     const { createDock } = await import(url('deckit-shell', 'shell', 'dock', 'main.js'));
+    const CHANNEL = await import(url('deckit-sdk', 'deckit', 'channel', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -90,7 +91,6 @@ async function main() {
     const listing = dockOver(createDock, {
         mods: [...named(['a']), broken, ...named(['b', 'switcher'])],
         fields: { a: {}, b: {}, switcher: { activationPolicy: 'accessory' } },
-        managers: ['switcher'],
         running: ['b'],
     });
     listing.DOCK.start();
@@ -100,11 +100,14 @@ async function main() {
         listed.map(({ id, running }) => `${id}:${running}`).join() === 'a:false,b:true',
         listed
     );
-    const refused = await listing.ask('list', {}, 'a').then(
-        () => '',
-        (error) => error.kind
+    const guarded = (name) => listing.guards[`deckit-shell:dock-${kebab(name)}`];
+    check(
+        "a mod with deckit.mods reads and changes the Dock, any page asks a mod's icon, and the desktop's page sends " +
+            'what the person does',
+        ['list', 'pinned', 'setPinned', 'open'].every((name) => guarded(name) === 'deckit.mods') &&
+            ['icon', 'click', 'quit', 'keep', 'reorder'].every((name) => guarded(name) === CHANNEL.GUARD.ANY),
+        listing.guards
     );
-    check('a mod without deckit.mods is refused', refused === 'NOT_PERMITTED', refused);
     await listing.ask('setPinned', { id: 'b', pinned: false }, 'switcher');
     const keptNow = await listing.ask('pinned', {}, 'switcher');
     check(
@@ -117,7 +120,6 @@ async function main() {
     const opening = dockOver(createDock, {
         mods: named([...ids3, 'switcher']),
         fields: { ...apps(), switcher: { activationPolicy: 'accessory' } },
-        managers: ['switcher'],
         running: ['b', 'c'],
         windowed: ['b'],
         active: ['switcher'],
@@ -138,7 +140,6 @@ async function main() {
     const quietly = dockOver(createDock, {
         mods: named([...ids3, 'switcher']),
         fields: { ...apps(), switcher: { activationPolicy: 'accessory' } },
-        managers: ['switcher'],
         running: ['b'],
         windowed: ['b'],
     });
@@ -266,27 +267,18 @@ function named(ids) {
     return ids.map((id) => ({ id, name: id.toUpperCase(), uses: {} }));
 }
 
-// `createDock` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `managers` the mods
-// that hold deckit.mods, `active` those that may activate for the local seat, `running` the mods that run, as `runs`
-// lists them for a test to change, `windowed` those of them with a window open, `dock` as the host app hands it,
-// `state` what the shell kept, and `refusesWrites` deckit refusing every write to state, as it does state it did not
-// read. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and `click(name, payload)`
-// sends one as the desktop's page, the local seat's screen.
+// `createDock` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `active` those that
+// may activate for the local seat, `running` the mods that run, as `runs` lists them for a test to change, `windowed`
+// those of them with a window open, `dock` as the host app hands it, `state` what the shell kept, and `refusesWrites`
+// deckit refusing every write to state, as it does state it did not read. `guards` is the guard each channel's
+// declaration names, by its name. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and
+// `click(name, payload)` sends one as the desktop's page, the local seat's screen.
 function dockOver(
     createDock,
-    {
-        mods,
-        fields,
-        managers = [],
-        running = [],
-        windowed = [],
-        active = [],
-        dock = null,
-        state = {},
-        refusesWrites = false,
-    }
+    { mods, fields, running = [], windowed = [], active = [], dock = null, state = {}, refusesWrites = false }
 ) {
     const handlers = {};
+    const guards = {}; // a channel's name -> the guard its declaration names
     const requests = [];
     const inputs = [];
     let handed = new Set();
@@ -301,10 +293,13 @@ function dockOver(
     const runs = running.map(runOf);
     const deckit = {
         channels: {
-            bind: (declared) => ({
-                handle: (handler) => (handlers[declared.channel] = handler),
-                on: (handler) => (handlers[declared.channel] = handler),
-            }),
+            bind: (declared) => {
+                guards[declared.channel] = declared.guard;
+                return {
+                    handle: (handler) => (handlers[declared.channel] = handler),
+                    on: (handler) => (handlers[declared.channel] = handler),
+                };
+            },
         },
         state: {
             read: (key, fallback) => state[key] ?? fallback,
@@ -320,10 +315,7 @@ function dockOver(
             runs: () => runs,
             runOf: (id) => runs.find(({ run }) => run.mod.id === id)?.run ?? null,
             fieldsOf: (id) => fields[id] ?? null,
-            modFrom: (sender, permission) => {
-                if (permission === 'deckit.mods' && managers.includes(sender?.mod)) return sender.mod;
-                throw Object.assign(new Error(`${sender?.mod} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
-            },
+            modOf: (sender) => sender?.mod ?? null,
             launch: async (id) => launched.push(id),
             quit: async (id) => quit.push(id),
         },
@@ -354,7 +346,22 @@ function dockOver(
     const ask = async (name, payload, mod) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, page(mod));
     // One of the Dock's channels sent from the desktop's page.
     const click = (name, payload) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, desktopPage);
-    return { DOCK, state, runs, launched, activated, reopened, shown, quit, updates, requests, inputs, ask, click };
+    return {
+        DOCK,
+        guards,
+        state,
+        runs,
+        launched,
+        activated,
+        reopened,
+        shown,
+        quit,
+        updates,
+        requests,
+        inputs,
+        ask,
+        click,
+    };
 }
 
 function kebab(name) {

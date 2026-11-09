@@ -55,7 +55,8 @@ async function main() {
             messages: { listen: (listeners) => (heard = listeners), tell: () => {} },
             pages: { isGone: () => false, watch: () => {} },
         },
-        { report: () => {} }
+        // The router holds each channel to its guard by the mod a page runs, as IDENTITY below answers it.
+        { report: () => {}, identify: (page) => IDENTITY.modOf(page) }
     );
     // Mod s is a system mod granted a privileged permission and writes two fields; mod p is not, and writes none. Mod r
     // is refused as it is read, and mod d, shipped, did not install, with no refusal.
@@ -121,7 +122,7 @@ async function main() {
     const PAGE = { mod: 's' };
     const IDENTITY = {
         modFrom: (page) => ({ id: page.mod }),
-        modOf: (page) => ({ id: page.mod }),
+        modOf: (page) => ({ id: page.mod, granted: ['deckit.mods'] }),
         whenPageEnds: () => {},
     };
     const launches = [];

@@ -10,6 +10,7 @@ import * as TABLE from '../../../deckit-sdk/deckit/ipc/index.js';
 const table = TABLE.createTable({ toMain, toPage });
 // What carries the channels, once it is handed over: { messages, pages } of the environment.
 let carrier = null;
+let identify = null; // the mod a page runs, { id, granted }, or null for one that runs none
 // What a page was asked and has not answered: channel -> Map(id -> { resolve, reject, page, timer }).
 const asked = new Map();
 const watched = new WeakSet(); // pages whose document going rejects what was asked of them
@@ -20,10 +21,12 @@ let sequence = 0;
 const { ownChannels, layerChannels } = table;
 
 // What carries the channels from now on, handed over once, before anything crosses: a channel is bound as its module
-// loads, and heard once something carries it. `report` is told what a listener on them throws.
-function carry(environment, { report }) {
+// loads, and heard once something carries it. `report` is told what a listener on them throws, and `identify(page)`
+// answers the mod a page runs, `{ id, granted }`, or null, which each channel's guard is held to.
+function carry(environment, { report, identify: identifyPage }) {
     if (carrier) throw new Error('[deckit] the channels are carried already');
     carrier = environment;
+    identify = identifyPage;
     LISTENER.reportTo(report);
     carrier.messages.listen({
         told: (page, message) => (ENVELOPE.ofQuestion(message) ? answered(page, message) : told(page, message)),
@@ -58,7 +61,8 @@ function toPage(copy) {
     };
 }
 
-// A page runs code main does not trust, so main holds what it says to the channel's fields; nothing else checks.
+// A page runs code main does not trust, so main holds what it says to the channel's guard, then to its fields; nothing
+// else checks.
 function told(page, message) {
     const problem = CHANNEL.problemOf(ENVELOPE.told, message);
     const entry = !problem && table.heardOf(message.channel);
@@ -66,13 +70,15 @@ function told(page, message) {
         problem ||
         (!entry || entry.copy.to !== 'main' || entry.copy.reply
             ? `${message.channel} is not told to main`
-            : CHANNEL.problemOf(entry.copy, message.payload));
+            : guardRefusal(entry.copy, message.payload, page)?.message ||
+              CHANNEL.problemOf(entry.copy, message.payload));
     if (refused) return console.error(`[deckit] refused: ${refused}`);
     for (const listener of entry.listeners) listener(message.payload, page);
 }
 
 // What main answers a page that asks as `envelope` says: refused when the message is not what it carries, the channel
-// is none main answers, it is asked sync or not otherwise than it is declared, or its payload is not its fields'.
+// is none main answers, it is asked sync or not otherwise than it is declared, its guard does not let the page make
+// the call, or its payload is not its fields'.
 function answerPage(envelope, message, page) {
     const problem = CHANNEL.problemOf(envelope, message);
     if (problem) return Promise.resolve(TABLE.refusal(problem));
@@ -81,9 +87,23 @@ function answerPage(envelope, message, page) {
         return Promise.resolve({ error: { message: `${message.channel} is not answered`, kind: null } });
     if (entry.copy.sync !== envelope.sync)
         return Promise.resolve(TABLE.refusal(`${message.channel} is ${entry.copy.sync ? '' : 'not '}asked sync`));
+    const guarded = guardRefusal(entry.copy, message.payload, page);
+    if (guarded) return Promise.resolve({ error: guarded });
     const refused = CHANNEL.problemOf(entry.copy, message.payload);
     if (refused) return Promise.resolve(TABLE.refusal(refused));
     return TABLE.settle(() => entry.answer(message.payload, page));
+}
+
+// Why the channel's guard does not let `page` make a call with `payload`, a table, as the error it is answered with:
+// REFUSED for a page that runs no mod, unless any page may, and NOT_PERMITTED for a mod not granted the permission the
+// guard holds the call to; or null.
+function guardRefusal({ guard }, payload, page) {
+    if (guard === CHANNEL.GUARD.ANY) return null;
+    const mod = identify(page);
+    if (!mod) return { message: 'only a mod asks this', kind: 'REFUSED', stage: 'call' };
+    const permission = CHANNEL.permissionOf(guard, payload);
+    if (permission === null || mod.granted.includes(permission)) return null;
+    return { message: `${mod.id} does not have the ${permission} permission`, kind: 'NOT_PERMITTED', stage: 'call' };
 }
 
 // A page's answer counts only from the page that was asked.
