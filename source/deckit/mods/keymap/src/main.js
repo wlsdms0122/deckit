@@ -9,7 +9,7 @@ class Keymap {
     }
 
     attach(shell) {
-        this.keymap.attach(shell.keys);
+        this.keymap.attach(shell);
     }
 
     detach() {

@@ -43,7 +43,6 @@ async function main() {
             },
         },
         events: { emit: (name, ...args) => emitted.push([name, ...args]) },
-        active: async () => active,
         notifications: {
             show: async ({ title }) => {
                 const shown = { title, press: null };
@@ -137,7 +136,11 @@ async function main() {
     active = true;
     const drawn = [];
     const hidden = [];
-    sut.drawWith({ show: (notification) => drawn.push(notification.id), hide: (id) => hidden.push(id) });
+    sut.drawWith({
+        show: (notification) => drawn.push(notification.id),
+        hide: (id) => hidden.push(id),
+        active: async () => active,
+    });
     const posts = [];
     for (let index = 0; index < TOASTS + 1; index++) {
         time += RATE.within;

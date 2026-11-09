@@ -37,7 +37,7 @@ function screen(shell, center) {
     let face = 'toasts';
     let window = null; // the window, while it is open
     const offs = [
-        center.drawWith({ show: showToast, hide: (id) => hideToast(id, { told: false }) }),
+        center.drawWith({ show: showToast, hide: (id) => hideToast(id, { told: false }), active: shell.active }),
         center.onChange(() => face === 'list' && draw()),
     ];
 

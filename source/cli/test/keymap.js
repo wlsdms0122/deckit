@@ -6,7 +6,8 @@
 // and what it takes runs none. The shell's own keys are in the same table: a mod's take of one's chord is refused with
 // the key's name, and it runs only for a key the page did not handle, after the page had it. Each chord told to a mod
 // is heard by its id. A page that records is handed each key pressed in it before anything else, until it stops or
-// ends. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// ends. A mod's page asks whether the app is in front. Exits 1 with a line for each check that failed. The packages
+// are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -38,7 +39,9 @@ async function main() {
             hotkeys.push(hotkey);
             return refusing ? null : () => (hotkey.held = false);
         },
+        focused: () => focused,
     };
+    let focused = null; // the page that has the keyboard, or null while another app is in front
     const pages = { isGone: () => false, watch: () => {} };
     const messages = {
         listen: (listeners) => (heard = listeners),
@@ -319,6 +322,19 @@ async function main() {
     press(n, 'KeyQ');
     check('a recording ends with its page', !recorded().length, recorded());
     offMonitor();
+
+    // Any mod's page asks whether the app is in front; a page that runs no mod is refused.
+    const front = [];
+    for (const page of [null, shell]) {
+        focused = page;
+        front.push((await ask(n, 'deckit-shell:key-active', {})).value);
+    }
+    check('a mod asks whether the app is in front', front[0] === false && front[1] === true, front);
+    check(
+        'a page that runs no mod asks nothing',
+        (await ask(shell, 'deckit-shell:key-active', {})).error?.kind === 'REFUSED',
+        await ask(shell, 'deckit-shell:key-active', {})
+    );
 
     for (const line of failed) console.error(line);
     if (failed.length) process.exit(1);

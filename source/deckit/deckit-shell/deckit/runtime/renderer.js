@@ -10,14 +10,10 @@ function about() {
     return PROTOCOL.about.invoke();
 }
 
-function active() {
-    return PROTOCOL.active.invoke();
-}
-
 function restart() {
     return PROTOCOL.restart.invoke();
 }
 
 // MARK: - Private
 
-export { about, active, restart };
+export { about, restart };

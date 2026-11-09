@@ -6,9 +6,9 @@ import * as MOD_PERMISSION from '../permission/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// `restart` is the app's: the process is its own. `about`, `user` and `focused` are the environment's: the host app,
-// what runs it, the person's home folder, and the page that has the keyboard, null while another app is in front.
-export function createRuntime({ CONFIG, CORE, LOG, IDENTITY, restart, about: ABOUT, user, focused }) {
+// `restart` is the app's: the process is its own. `about` and `user` are the environment's: the host app, what runs
+// it, and the person's home folder.
+export function createRuntime({ CONFIG, CORE, LOG, IDENTITY, restart, about: ABOUT, user }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -26,10 +26,6 @@ export function createRuntime({ CONFIG, CORE, LOG, IDENTITY, restart, about: ABO
                 data: CORE.folders().data,
                 log: LOG.file(),
             };
-        });
-        PROTOCOL.active.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender);
-            return !!focused();
         });
         PROTOCOL.restart.handle((_payload, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);

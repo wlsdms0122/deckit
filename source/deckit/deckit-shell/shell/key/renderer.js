@@ -32,7 +32,7 @@ const TAKES = Object.freeze([
 // each key pressed in the page, taken from it, until `stop()`, the next record or the end of `scope`. With `changes`,
 // for a mod with deckit.shell-keys, `list()` answers the shell's keys, `[{ id, name, defaultKeystroke, keystroke }]`,
 // at once; `set(id, keystroke)` gives one a chord, `{ code, meta, control, alt, shift }`, or none for null, and
-// `reset(id)` its default again, each resolving to the key as kept.
+// `reset(id)` its default again, each resolving to the key as kept. `active()` resolves to whether the app is in front.
 function createKeys({ channels }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
@@ -130,7 +130,11 @@ function createKeys({ channels }) {
         });
     }
 
-    return { forScope };
+    function active() {
+        return PROTOCOL.active.invoke();
+    }
+
+    return { forScope, active };
 }
 
 export { createKeys };

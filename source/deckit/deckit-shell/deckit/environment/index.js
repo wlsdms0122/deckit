@@ -2,11 +2,10 @@ import * as CHANNEL from '../channel/index.js';
 
 // What an environment gives deckit, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deckit reaches the core, the files and
-// the log, the pages a mod runs in and which of the app's pages has the keyboard, the app starting and quitting, what
-// deckit does through the system for a mod (opening, notifications, the clipboard, a folder chosen), and what only the
-// environment knows: the person's home folder and what runs deckit. An environment gives at least this, and each is
-// handed what it is checked against alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`,
-// or `array`, a list read.
+// the log, the pages a mod runs in, the app starting and quitting, what deckit does through the system for a mod
+// (opening, notifications, the clipboard, a folder chosen), and what only the environment knows: the person's home
+// folder and what runs deckit. An environment gives at least this, and each is handed what it is checked against alone
+// (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a list read.
 // MARK: - Property
 /**
  * A page: a token deckit keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -61,10 +60,6 @@ const MAIN = Object.freeze({
         clearStorage: 'function',
         // countStorage(modId) -> Promise of an integer: how many items the mod's pages keep in the web's local storage
         countStorage: 'function',
-    },
-    keys: {
-        // focused() -> Page or null: the page of the app's that has the keyboard, or null when the app does not
-        focused: 'function',
     },
     // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that
     // opens its scheme, the browser for the web, brought forward unless `activate` is false; `file(path, { activate })

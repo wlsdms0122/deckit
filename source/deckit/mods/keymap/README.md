@@ -39,7 +39,7 @@ Of the keys of one scope on one chord, one runs:
 - Defaults first: of keys on one chord by default, the first listed runs, in the mods' order and then the order declared, and the others are `shadowed`.
 - Then what you set, in the order you set it: a chord you set onto one a key of that scope has already is `held`, not applied, until that chord is free.
 
-A key of `app` and one of `global` on one chord do not contend: the `app` one runs while the app is in front, the `global` one in every other app.
+A key of `app` and one of `global` on one chord do not contend: the `app` one runs while the app is in front, as the shell's handle tells it (`shell.active()`), the `global` one in every other app.
 
 Keymap takes the chords through the keys of the shell's handle (`shell.keys.take`), from its `attach`: on a host with no shell it takes none, and no key is `taken` or `unavailable`. A chord another mod took (`shell.keys.take`) runs none of the keys on it (`taken`), until that mod lets it go and the keys are read again. A `global` chord the system does not give works in the app only (`unavailable`).
 

@@ -1,5 +1,5 @@
 // Between main and a mod's page, about the chords a mod takes, the shell's own keys, which a page with
-// deckit.shell-keys changes, and the keys pressed in a page that records them.
+// deckit.shell-keys changes, the keys pressed in a page that records them, and whether the app has the keyboard.
 import * as CHANNEL from '../../deckit/channel/index.js';
 
 // The sending page's mod takes a chord, `keystroke` `{ code, meta, control, alt, shift }`, under the page's own `id`,
@@ -23,6 +23,8 @@ export const reset = CHANNEL.pageToMain('deckit-shell:key-reset', { id: 'string'
 // it stops that recording, records again or ends.
 export const record = CHANNEL.pageToMain('deckit-shell:key-record', { id: 'number' });
 export const stopRecording = CHANNEL.pageToMain('deckit-shell:key-stop-recording', { id: 'number' });
+// Whether the app is in front: one of its pages has the keyboard.
+export const active = CHANNEL.pageToMain('deckit-shell:key-active', {}, { reply: true });
 
 // The chord the page's mod took under `id` was pressed: `{ id }`.
 export const pressed = CHANNEL.mainToPage('deckit-shell:key-pressed');

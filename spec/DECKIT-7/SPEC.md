@@ -52,7 +52,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `openExternal(url, options)` | the request that hands the host an address to open outside the app | `system.file-handlers`, for the address of a file | [opening outside the app](../DECKIT-8/SPEC.md) |
 | `reveal(path)` | a file, shown outside the app | `system.file-handlers` | the DECKIT of files outside the app |
 | `fileURL(path)`, `filePath(url)` | the address of a file, and the file of an address | | the DECKIT of files outside the app |
-| `about()`, `active()` | what the host tells a mod of itself, and whether the app is in front | | the embedding DECKIT |
+| `about()` | what the host tells a mod of itself | | the embedding DECKIT |
 | `storage` | what the mod stores | | [the storage](../DECKIT-13/SPEC.md) |
 | `events` | the events the mod sends and hears | | [the events](../DECKIT-12/SPEC.md) |
 | `exports.register(exports)` | the exports the mod opens for its id | | [the connections](../DECKIT-9/SPEC.md) |
@@ -62,7 +62,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `notifications.show(notification)` | a notification of the machine's | `system.notifications` | the notifications' DECKIT |
 | `util` | matching text and moving paths | | the utilities' DECKIT |
 
-**Note.** `keys.take(keystroke, run, options)`, a chord the mod takes, is a member of the handle `shell`, not of this one: the shell's DECKITs, and for the keys a mod declares, which the owner of `deckit/keys` takes, [the key bindings](../DECKIT-16/SPEC.md).
+**Note.** `keys.take(keystroke, run, options)`, a chord the mod takes, and `active()`, whether the app is in front, are members of the handle `shell`, not of this one: the shell's DECKITs, and for the keys a mod declares, which the owner of `deckit/keys` takes, [the key bindings](../DECKIT-16/SPEC.md).
 
 A `.` names a member of the member before it, as [the case format](../DECKIT-1/SPEC.md)'s `member` does. A member's DECKIT fixes what it takes, answers and is refused with, and whether it is a request.
 

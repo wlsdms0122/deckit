@@ -9,8 +9,9 @@
  */
 
 // What an environment gives a UI shell on deckit, on main's side: the pages it draws in, which run no mod, the keys
-// pressed in the app's pages and in every app, a stage to lay pages on, the fonts installed, and what the person set a
-// double click on a title bar to do. `load`, `close` and `watch` are as `MAIN.pages` says.
+// pressed in the app's pages and in every app and which of the app's pages has the keyboard, a stage to lay pages on,
+// the fonts installed, and what the person set a double click on a title bar to do. `load`, `close` and `watch` are as
+// `MAIN.pages` says.
 const SHELL = Object.freeze({
     pages: {
         // make({ name, keepsDrawing }) -> page, made and not loaded: a page that runs no mod, `name` a lower case
@@ -45,6 +46,8 @@ const SHELL = Object.freeze({
         // control, alt, shift }`, heard wherever the keyboard is, in any app, once the app is ready, `handler()` told
         // each time it is pressed and the key taken from wherever it was pressed
         hotkey: 'function',
+        // focused() -> Page or null: the page of the app's that has the keyboard, or null when the app does not
+        focused: 'function',
     },
     // stage() -> a stage (`STAGE`): where pages are laid in one of the host app's windows
     stage: 'function',

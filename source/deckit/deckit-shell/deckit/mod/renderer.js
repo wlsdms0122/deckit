@@ -108,7 +108,6 @@ export function createMod({ NOTIFICATION }) {
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,
             about: RUNTIME.about,
-            active: RUNTIME.active,
             clipboard: Object.freeze({
                 readText: request(
                     'clipboard.readText',

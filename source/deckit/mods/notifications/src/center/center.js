@@ -19,7 +19,7 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
     const queue = []; // what waits to be shown
     const toasts = new Set(); // ids on screen as toasts
     const listeners = new Set();
-    let drawer = null; // { show(notification), hide(id) }
+    let drawer = null; // { show(notification), hide(id), active() }
     let draining = false;
 
     // MARK: - Initializer
@@ -81,7 +81,8 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
         return () => listeners.delete(listener);
     }
 
-    // What draws toasts, while the screen lifecycle lasts; answers its off. A toast it took away lets the next out.
+    // What draws toasts, while the screen lifecycle lasts, `active()` resolving to whether the app is in front; answers
+    // its off. A toast it took away lets the next out.
     function drawWith(given) {
         drawer = given;
         drain();
@@ -158,7 +159,7 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
         (async () => {
             try {
                 while (queue.length) {
-                    const toasting = !!drawer && (await deckit.active());
+                    const toasting = !!drawer && (await drawer.active());
                     if (toasting && toasts.size >= TOASTS) break;
                     const next = queue.shift();
                     if (!kept.includes(next)) continue;

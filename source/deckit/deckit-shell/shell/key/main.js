@@ -9,8 +9,9 @@ import * as KEY_PERMISSION from './model/permission.js';
 // press told to the page of the mod that took it and let go when the mod's page ends. A mod's chord is taken before the
 // page has the key; one of the shell's keys runs only once the page did not handle it. A page that records is handed
 // each key pressed in it, before anything else looks at it; then the monitors look at the keys pressed in the pages
-// listened to, before any chord a mod took, and what hears each chord told to a mod hears it. `deckit` is what connect
-// answered, and `keys` the environment's (environment: SHELL.keys).
+// listened to, before any chord a mod took, and what hears each chord told to a mod hears it. A mod's page asks whether
+// the app is in front: one of its pages has the keyboard. `deckit` is what connect answered, and `keys` the
+// environment's (environment: SHELL.keys).
 export function createKey({ deckit, keys: KEYS }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -31,8 +32,8 @@ export function createKey({ deckit, keys: KEYS }) {
     // The shell's own keys, each with its default chord, and the chords the person set, kept in the shell's state,
     // which a mod with deckit.shell-keys lists, sets and resets. Each holds its chord in every page listened to, before
     // any mod can take one: `press(id, page) -> taken` is a press of it in `page` that the page did not handle,
-    // answering whether it took it. The keys are listened to in every mod's page, and any mod's page records the keys
-    // pressed in it.
+    // answering whether it took it. The keys are listened to in every mod's page, any mod's page records the keys
+    // pressed in it, and any mod's page asks whether the app is in front.
     function start(press) {
         pressed = press;
         PROTOCOL.take.handle(({ id, keystroke, scope }, sender) => take(sender, { id, keystroke, scope }));
@@ -51,6 +52,10 @@ export function createKey({ deckit, keys: KEYS }) {
         PROTOCOL.stopRecording.on(({ id }, sender) => {
             const one = recording.get(sender);
             if (one?.id === id) one.stop();
+        });
+        PROTOCOL.active.handle((_payload, sender) => {
+            deckit.mods.modFrom(sender);
+            return !!KEYS.focused();
         });
         PROTOCOL.list.handle((_payload, sender) => {
             holds(sender);

@@ -121,7 +121,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         restart: () => host.restart(),
         about: ENV.about,
         user: ENV.folders.user,
-        focused: ENV.keys.focused,
     });
     const SETUP = createSetup({ IDENTITY });
     const API = createApi({

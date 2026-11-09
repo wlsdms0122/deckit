@@ -111,7 +111,6 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `deckit.mods` | every mod: listing, installing, removing, launching them again, putting them in an order and choosing the mod that owns each interface, approving the mods that start with the app, picking and revealing their folders, keeping mods in the Dock and opening them, and restarting the app | `deckit.mods`, `shell.mods` |
 | `deckit.mod-configuration` | every mod's configuration | `deckit.modConfiguration` |
 | `deckit.app-keys` | keys that work wherever the keyboard is in the app, whatever is in front | `scope: 'app'` on a key, on `shell.keys.take` |
-| `deckit.keymap` | binding, changing and switching off the keys of every mod | `list`, `bind`, `reset`, `record` and `onChange` on `deckit.keys` |
 | `deckit.url-schemes` | the order of each scheme's handlers, and which are switched off | `list`, `set` and `everyScheme` on `deckit.urls` |
 | `deckit.styles` | how every page looks, other mods' among them, and so what they show | `shell.styles.register` |
 | `deckit.fonts` | the fonts and the text size every mod writes text in | `shell.fonts` |
@@ -146,7 +145,6 @@ What the mod declares, by contribution point: what is there from the time the mo
 | `configuration` | what the person can configure about the mod, a list of declarations (Configuration) |
 | `form` | how Settings draws the configuration, by key (Configuration, form) |
 | `commands` | commands by name, `{ description, params }` each (`deckit.commands.register`) |
-| `keys` | `app` and `global` keys by name, `{ label, key, scope }` each (`deckit.keys.register`) |
 | `styles` | `{ '<mod id>' or '*': a CSS file inside the folder, `/` separated }`, worn as `shell.styles.register`'s are, from the time the mod is installed, running or not, with `deckit.styles` |
 | `interfaces` | `{ '<interface>': [entry, …] }`, entries handed to each interface's owner, each an object whose shape the interface's README says, with `command` and `args` naming a command of the mod's own (Declared contributions) |
 
@@ -171,7 +169,6 @@ class Calendar {
 
     attach(shell, deckit) {
         shell.view.register({ content, sidebar, didAppear, didDisappear });
-        deckit.keys.register({ today: { label: 'Today', key: 'mod+shift+y', scope: 'app', run: today } });
         deckit.dependencies.onConnect('switcher/actions', (switcher) => switcher.setActions(actions));
     }
 
@@ -198,7 +195,7 @@ Each layer reads only the members it knows, and every one is optional. What is l
 |---|---|---|
 | Methods | `start(deckit, frameworks)`, `stop()` | `attach(shell, deckit, frameworks)`, `detach()` |
 | Called by | deckit, on every host app | deckit's shell, only where it draws mods |
-| What goes in it | what must happen on a host app with no UI: commands a CLI runs by name, exports that work with no UI, what it hands a dependency that does a job, reminders and notifications, `app` and `global` keys that do a job | what exists to be shown: the view or window, styles, `local` keys, keys and handlers that bring something on screen, exports that mean something only on screen, switcher actions and Settings buttons |
+| What goes in it | what must happen on a host app with no UI: commands a CLI runs by name, exports that work with no UI, what it hands a dependency that does a job, reminders and notifications | what exists to be shown: the view or window, styles, the chords it takes, handlers that bring something on screen, exports that mean something only on screen, switcher actions and Settings buttons |
 | If it throws | the run does not start: the mod is broken | only the screen lifecycle ends, and the run goes on with what `start` registered |
 
 Which method a mod registers a thing in is one question: does this job have to happen on a host app with no UI? A calendar's reminders do, so `start` sets them and posts their notifications to `deckit/notifications`; pressing one runs a token of the calendar's `show-date` command (Command tokens), which `attach` registers with what it shows. A browser opening an address in a tab does not, so its `deckit.urls.register` is in `attach`, and on a host app with no UI the address passes to the next handler. Which lifecycle a mod opens its exports in is part of what it promises, and its documentation says it: the Switcher opens `setActions` in `attach`, so a mod hands it actions in `attach`; Calendar opens `setProvider` in `start`, so a provider hands itself over in `start`.
@@ -211,7 +208,7 @@ If `attach` throws, or what deckit's shell does to the page as the screen lifecy
 
 ### What a lifecycle's handles make
 
-Each method that starts a lifecycle receives handles of its own: the `deckit` that `attach` receives has the members of the one `start` received, with its own `dependencies`, and registers into the screen lifecycle, and each receives a `web` and a `mainProcess` of its own. What a handle makes that calls back into the mod's code is cut as its lifecycle ends, without the mod undoing it: registrations; `events.on`, `configuration.on`, `keys.onChange`, `commands.onChange`, `mods.onChange` and `dependencies.onConnect`; `notifications.show`'s `onPress`; `web.downloads.onChange`; `mainProcess.onChange` and the `on` of a main process module's methods; `shell.theme.onChange` and `children.onChange`; regions, drop destinations, `shell.web` pages and windows, the window, and the view. A view or window on screen disappears first (`didDisappear`), then the end method runs, then the rest is cut, and then the lifecycle's connections end (Dependencies and connections). What the mod makes itself (an emitter of its own, a timer, a listener on the DOM) it undoes in `detach` or `stop` when it would call back into a lifecycle that has ended. A main process module started in `attach` ends with the run.
+Each method that starts a lifecycle receives handles of its own: the `deckit` that `attach` receives has the members of the one `start` received, with its own `dependencies`, and registers into the screen lifecycle, and each receives a `web` and a `mainProcess` of its own. What a handle makes that calls back into the mod's code is cut as its lifecycle ends, without the mod undoing it: registrations; `events.on`, `configuration.on`, `commands.onChange`, `mods.onChange` and `dependencies.onConnect`; `notifications.show`'s `onPress`; `web.downloads.onChange`; `mainProcess.onChange` and the `on` of a main process module's methods; `shell.theme.onChange` and `children.onChange`; regions, drop destinations, `shell.web` pages and windows, the window, and the view. A view or window on screen disappears first (`didDisappear`), then the end method runs, then the rest is cut, and then the lifecycle's connections end (Dependencies and connections). What the mod makes itself (an emitter of its own, a timer, a listener on the DOM) it undoes in `detach` or `stop` when it would call back into a lifecycle that has ended. A main process module started in `attach` ends with the run.
 
 ### Registering
 
@@ -219,7 +216,6 @@ Each concept on a handle is one namespace, and `register` on it puts up the mod'
 
 | Registration | On | What it registers |
 |---|---|---|
-| `deckit.keys.register(keys)` | `deckit` | keys |
 | `deckit.commands.register(commands)` | `deckit` | commands |
 | `deckit.urls.register(handler)` | `deckit` | the handler of the addresses its `urls` patterns match |
 | `deckit.exports.register(interface, { connect, disconnect })` | `deckit`, once for the run for each interface | the exports of an interface it provides, which the mods that use it are connected to while it owns it |
@@ -228,19 +224,11 @@ Each concept on a handle is one namespace, and `register` on it puts up the mod'
 | `shell.window.register(window)` | `shell` | a window of its own |
 | `shell.styles.register(styles)` | `shell`, with `deckit.styles` | styles for other pages |
 
-Keys and commands are named in one space for the mod. When `start` and `attach` register the same name (a key, a command) or both register a URL handler, the one from `start` stands, and the other is left out with a warning on the row. `exports.register` is called once for the run for each interface, and once for the mod's own exports, in the lifecycle that has the job: once one lifecycle opened a set of exports, a call for it in the other is refused.
+Commands are named in one space for the mod. When `start` and `attach` register the same name (a command) or both register a URL handler, the one from `start` stands, and the other is left out with a warning on the row. `exports.register` is called once for the run for each interface, and once for the mod's own exports, in the lifecycle that has the job: once one lifecycle opened a set of exports, a call for it in the other is refused.
 
-### deckit.keys.register(keys)
+### Keys
 
-```js
-deckit.keys.register({ home: { label: 'Open Home', key: 'mod+shift+h', scope: 'local', run: () => tabs.open('https://example.com') } });
-```
-
-A key that works past its page, `app` or `global`, is declared under `keys` in `contributes`, `{ label, key, scope }`, and the run attaches its `run` by its name: `deckit.keys.register({ summon: { run: () => list.toggle() } })`. A declared key is bound, and listed in Settings, whether its mod runs or not; pressed while its mod is not running, it launches the mod and runs once `start` has ended (Running and quitting), and pressed while no `run` is attached then, it does nothing. A `local` key belongs to what the mod shows and is registered with it, in `attach`, with its `label`, `key` and `scope` beside `run`; one declared is refused and shown on the mod's row. A name `contributes` declares takes its `label`, `key` and `scope` from there.
-
-Each key is `{ label, key, scope, run }`: `run()` is what pressing it does, in the mod's page, and `label` is what Settings calls it. A key takes no args: the same thing done two ways is two keys, each `run` with its own. What `run` throws is only logged, since no one asked to be told. A key is refused and shown on the mod's row when it has no `label` or no `run`. A key that does what one of the mod's commands does calls the same function. `key` is the default chord; the person can give the key another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these.
-
-`scope` is where it works. `local`, the default, is only while its mod is on screen, in its view, its window and the web pages it shows, so a mod registers its `local` keys in `attach`, with what it shows. `app` is wherever the keyboard is in the app, its mod off screen and the panel closed included, and needs `deckit.app-keys`. `global` is in every app too, where the system gives the app its chord, and needs `system.global-keys`; where it does not, the key works as an `app` one does. Which page is in front is the shell's to answer: where no UI shell is, no key comes from within the app, and only `global` keys run. Of keys on one chord the narrowest scope runs where it works: a mod's `local` key in its page, then the app's own on any mod, then `app` keys, then `global` ones. Two keys of one scope that work in the same place on one chord conflict: the one loaded first runs, and Settings shows the other as never running. A key that works past its page has ⌘, ⌃ or ⌥ in it and is not one a text field uses, Return with ⌘, ⌃ or ⌥ among them. A `local` key pressed while a dialog or menu is open in the page is dropped. A mod that shows nothing has only keys that work past its page: as the screen lifecycle joins, each `local` key of the mod, from `start` too, is checked against its view and window, and one that would never run is left out and shown on its row.
+A key that runs one of the mod's commands, wherever the keyboard is in the app or in every app, is declared to `deckit/keys` in the manifest, `[[contributes."deckit/keys"]]`: its owner binds it, lists it in Settings and takes its chord, whether the mod runs or not ([README](../source/deckit/mods/keymap/README.md)). A chord the mod takes itself is `shell.keys.take` (shell, below), from `attach`, `app` with `deckit.app-keys` and `global` with `system.global-keys`, and it is let go as `attach`'s run ends. A key of what the mod shows is its page's, heard in its document.
 
 ### deckit.commands.register(commands)
 
@@ -329,15 +317,13 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `configuration` | above |
 | `storage` | below |
 | `commands` | `register(commands)`; `tokens`, `mint(command, args)`, `run(token)`, `cancel(token)` and `release(token)` (Command tokens, below); with `deckit.command-registry`: `list()`, `[{ provider, command, description, params }]`, the app's commands first, then the mods' in their order, `provider` the id of what declared and runs one: a mod's, or a host's `@` name; `run({ provider, command }, args)`, which resolves to the command's result or null and rejects with why it did not run; `complete({ provider, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
-| `keys` | `register(keys)`; `chordOf(name, { provider })`, the chord one of the mod's keys is bound to now, or `''`, and with `provider`, a key of that mod or host; with `deckit.keymap`: `list`, `bind`, `reset`, `record`, `onChange`, where `bind` gives a key the chord a person chose, as Settings does; `list` answers at once, `onChange` returns the unsubscribe |
 | `urls` | `register(handler)`; `open(url, { activates, usesDefaultApp, target })`, which offers an address to the handlers its patterns match in turn, then deckit's own answer (`urls`, above), and resolves to whether anything opened it. A `file://` address goes anywhere only with `system.file-handlers`, and otherwise resolves `false`; a web address goes to the default browser with no permission. With `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, undecided, handlers }` at once, `undecided` its undecided patterns as written, `handlers` in the order Settings shows (`urls`, above), a handler `{ id, name, patterns, on }`; `set(scheme, { order, off })`, which gives the handlers in `order` the places they held among themselves in the scheme's list, in the order given, puts those placed it does not name after them, and switches off those in `off`, as the person's; `everyScheme`, the name of the list for every scheme |
 | `events` | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` (below) |
 | `exports` | `register(interface, { connect, disconnect })` and `register({ connect, disconnect })`; `contributions(interface)`, what mods declare to an interface the mod owns (Dependencies and connections) |
 | `dependencies` | `dependencies.<id>` and `onConnect(name, connected)` (Dependencies and connections) |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | with `system.file-handlers`: shows a file in the system's Finder |
-| `provider(id)` | with `deckit.command-registry` or `deckit.keymap`: who declares keys or commands as `id`, `{ id, name, host }`: a host by the name it gives, or a mod deck loads; null for neither |
-| `active()` | resolves to whether the app is in front: one of its windows has the keyboard |
+| `provider(id)` | with `deckit.command-registry`: who declares commands as `id`, `{ id, name, host }`: a host by the name it gives, or a mod deck loads; null for neither |
 | `about()` | `{ name, app, version, source, engines, home, mods, data, log }`: the host app's name and version, deckit's version and the hash of its sources, the engines deckit runs on, outermost first, each `{ key, name, version }` with `key` its name in lower case (`electron` and `chrome` on Electron), the person's home folder, and the folders of deckit's mods, data and log |
 | `util` | below |
 | `clipboard.writeText(text)` | with `system.clipboard-write` |
@@ -438,6 +424,7 @@ What `attach` receives as `shell`, from deckit's shell (the panel and the kit). 
 | `fonts` | with `deckit.fonts`: `get()`, the person's `{ text, size }` at once, each null for the default: a face's name for `text`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `textSize`) |
 | `mods` | with `deckit.mods`: `list()`, every mod that declares a view in the mods' order, `[{ id, name, icon, keywords, pinned, running }]`, `pinned` whether the person keeps it in the Dock and `running` whether it runs, at once, `pinned()`, the ids of the mods the person keeps in the Dock, at once, `setPinned(id, pinned)`, keeping one there or taking it out, and `open(id)`, the mod on screen as the person opens it, launched when it does not run; it rejects a mod with nothing to show in the panel |
 | `keys` | `take(keystroke, run, { scope })`, a chord taken for the mod, `keystroke` `{ code, meta, control, alt, shift }`, in `scope` `app`, the default, with `deckit.app-keys`, or `global` with `system.global-keys`, `run()` what each press does; it resolves to `{ held, release }`, `held` false for a chord the system did not give, which works in the app still, and the chord is let go as `attach`'s run ends. `record(onKeystroke)`, each key pressed in the page handed over until its stop; with `deckit.shell-keys`, `list`, `set` and `reset` of the shell's own keys |
+| `active()` | resolves to whether the app is in front: one of its pages has the keyboard |
 | `view`, `window`, `styles` | each `register` (Registering); `styles` with `deckit.styles` |
 
 The page wears the theme, the kit's styles and other mods' styles from just before `attach` runs.

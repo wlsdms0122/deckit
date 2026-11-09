@@ -32,6 +32,7 @@ function keymap(deckit) {
     let bindings = []; // as last resolved
     let refused = []; // the entries left out, as last read
     let queue = Promise.resolve(); // the work under way, which the next waits for
+    let shell = null; // the screen lifecycle's `shell`, from its attach to its detach
 
     // MARK: - Initializer
     deckit.dependencies.onConnect(COMMANDS, (exports) => {
@@ -73,9 +74,11 @@ function keymap(deckit) {
         return Object.freeze({ list: refuse, set: refuse, reset: refuse, chordOf });
     }
 
-    // `keys`, the screen lifecycle's `shell.keys`, takes the chords, taken again at once; null takes none.
-    function attach(keys) {
-        taken.use(keys);
+    // `handed`, the screen lifecycle's `shell`, takes the chords through its `keys`, taken again at once, and tells
+    // whether the app is in front; null takes none.
+    function attach(handed) {
+        shell = handed;
+        taken.use(handed?.keys ?? null);
         if (commands) retake();
     }
 
@@ -175,12 +178,12 @@ function keymap(deckit) {
     }
 
     // A press of the chord `spec` runs its binding's command: of an `app` and a `global` one on it, the `app` one while
-    // the app is in front. What the run throws is only logged: no one asked to be told.
+    // the app is in front, as the shell tells it. What the run throws is only logged: no one asked to be told.
     async function press(spec) {
         const on = bindings.filter((binding) => binding.active && specOf(binding.keystroke) === spec);
         const app = on.find((binding) => binding.scope === 'app');
         const global = on.find((binding) => binding.scope === 'global');
-        const binding = app && global ? ((await deckit.active()) ? app : global) : (app ?? global);
+        const binding = app && global ? ((await shell?.active()) ? app : global) : (app ?? global);
         if (!binding) return;
         const name = `${binding.title} of ${binding.mod.name}`;
         if (!commands) return console.warn(`[keymap] ${name} did not run: ${COMMANDS} is not connected`);

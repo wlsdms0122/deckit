@@ -1,7 +1,7 @@
-// The keymap mod (mods/keymap/src) over a stand-in for deckit and the shell's keys: its specs, the keys it reads from
-// what mods declare to deckit/keys, the chords it takes through the shell's keys once attach hands them and none
-// before, a press running a command through deckit/commands, and what a client sets and reads. Exits 1 with a line for
-// each check that failed.
+// The keymap mod (mods/keymap/src) over a stand-in for deckit and the shell's keys and whether the app is in front: its
+// specs, the keys it reads from what mods declare to deckit/keys, the chords it takes through the shell's keys once
+// attach hands them and none before, a press running a command through deckit/commands, and what a client sets and
+// reads. Exits 1 with a line for each check that failed.
 const path = require('path');
 
 const MOD = path.join(__dirname, '..', '..', 'deckit', 'mods', 'keymap', 'src');
@@ -131,6 +131,7 @@ async function main() {
             };
         },
     };
+    const shell = { keys, active: async () => front };
     const pressed = async (spec) => {
         await holding.get(spec)?.run();
         await ticks();
@@ -165,7 +166,6 @@ async function main() {
     };
     const deckitOf = () => ({
         storage: { records },
-        active: async () => front,
         dependencies: {
             onConnect: (name, listener) => listeners.set(name, listener),
         },
@@ -199,7 +199,7 @@ async function main() {
             unattached.every(({ issues }) => !issues.some(({ kind }) => kind === 'taken' || kind === 'unavailable')),
         unattached
     );
-    keymapped.attach(keys);
+    keymapped.attach(shell);
     await ticks();
     check(
         'taken as connected',
@@ -413,7 +413,7 @@ async function main() {
     for (const spec of [...holding.keys()]) holding.delete(spec);
     cut?.();
     const again = keymap(deckitOf());
-    again.attach(keys);
+    again.attach(shell);
     listeners.get('deckit/commands')(commands);
     await ticks();
     bindings = (await again.exportsFor(connection('settings', ['deckit.system-services'])).list()).keys;
