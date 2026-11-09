@@ -9,8 +9,8 @@ import Foundation
 import Deck
 import Deckit
 
-// Its folders as paths, and why it does not load as its message and its kind, the kind absent for a problem that is
-// no refusal.
+// Its folders as paths, the ids of the permissions it is granted, and why it does not load as its message and its
+// kind, the kind absent for a problem that is no refusal.
 extension Mod: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -20,6 +20,7 @@ extension Mod: Encodable {
         case installed
         case shipped
         case system
+        case granted
         case problem
         case hides
         case revision
@@ -42,6 +43,7 @@ extension Mod: Encodable {
         try container.encode(installed, forKey: .installed)
         try container.encode(shipped, forKey: .shipped)
         try container.encode(system, forKey: .system)
+        try container.encode(granted, forKey: .granted)
         if let problem {
             var why = container.nestedContainer(keyedBy: ProblemKeys.self, forKey: .problem)
             let refusal = problem as? any Refusal

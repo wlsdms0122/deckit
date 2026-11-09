@@ -301,6 +301,28 @@ struct ServerTests {
         )
     }
 
+    @Test("a mod is read with the ids of the permissions it is granted: those it asks for that are defined here")
+    func modIsReadWithWhatItIsGranted() throws {
+        // Given
+        let permission = #"{"id":"host.x","name":"X","description":"What x guards.","privileged":false}"#
+        try mod("a", adding: "[permissions]\n\"host.x\" = \"to test\"\n\"host.y\" = \"to test\"")
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","implementations":{},"#
+                + #""api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[\#(permission)],"fields":[]}}"#,
+            to: sut
+        )
+
+        // When
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+
+        // Then
+        guard case let .array(mods)? = value(in: response, at: "result"), mods.count == 1 else {
+            Issue.record("catalog/read answered no one mod: \(response)")
+            return
+        }
+        #expect(value(in: mods[0], at: "granted") == (try json(#"["host.x"]"#)))
+    }
+
     @Test("what a run contributed comes back with it as deck reads it, and a user connects to its exports")
     func contributionsRoundTrip() throws {
         // Given

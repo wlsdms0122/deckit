@@ -11,7 +11,7 @@ import Deck
 extension Mod {
     // MARK: - Property
     // The permissions its manifest asks for that this host defines, granted as installing it consented to them.
-    var granted: [String] {
+    public var granted: [String] {
         manifest.permissions.filter(\.usable).map(\.id)
     }
 
