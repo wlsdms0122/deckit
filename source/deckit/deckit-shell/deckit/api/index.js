@@ -1,4 +1,3 @@
-import * as MOD_PERMISSION from '../permission/index.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 import * as LIFECYCLE from '../runner/model/lifecycle.js';
 import * as IPC from '../ipc/main.js';
@@ -94,12 +93,21 @@ export function createApi({
                 // The text of a file inside the mod's folder, by its path there, or null for none.
                 readFile: CATALOG.readFile,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
+                // `listener(id)` is told of a mod installed, once the one it replaced, if that ran, has launched again,
+                // and of a mod removed, before what runs in its place launches, while its run, if any, has not ended.
+                // Each answers its off.
+                onInstalled: (listener) => MODS.onInstalled(listener),
+                onRemoved: (listener) => MODS.onRemoved(listener),
+                // How long a run is given, in milliseconds, `{ launch, end }`: its code `launch` to start once it
+                // launched, and each of its lifecycles `end` to end once its end is asked.
+                timeout: () => frozen(CORE.timeout()),
                 // onRequest(listener({ from, to })) -> off: each request one mod makes of another, a call on a
                 // connection, a reach or a launch, the ids of the mod that asks and of the one asked, as it goes on.
                 onRequest: REQUEST.onRequest,
                 modOf: (page) => IDENTITY.modOf(page)?.id || null,
-                // The mod in the page, which may drive mods; throws for any other page.
-                managerFrom: (page) => IDENTITY.modFrom(page, MOD_PERMISSION.MODS).id,
+                // The id of the mod in the page that sent a request, held to being granted `permission` when one is
+                // named: refused at call, REFUSED for a page that runs no mod and NOT_PERMITTED for a mod without it.
+                modFrom: (page, permission) => IDENTITY.modFrom(page, permission).id,
                 // The mod launches, the shell asking, or quits: resolve once it has launched, or has ended, and
                 // reject with why where it did not launch.
                 launch: (id) => RUNNER.launch(id),
@@ -179,6 +187,8 @@ export function createApi({
                 run,
                 Object.freeze({
                     mod: manifestOf(run.mod),
+                    folder: run.mod.folder,
+                    data: run.mod.data,
                     granted: frozen(run.mod.granted),
                     number: run.number,
                     get state() {

@@ -320,9 +320,9 @@ function dockOver(
             runs: () => runs,
             runOf: (id) => runs.find(({ run }) => run.mod.id === id)?.run ?? null,
             fieldsOf: (id) => fields[id] ?? null,
-            managerFrom: (sender) => {
-                if (managers.includes(sender?.mod)) return sender.mod;
-                throw Object.assign(new Error(`${sender?.mod} does not have deckit.mods`), { kind: 'NOT_PERMITTED' });
+            modFrom: (sender, permission) => {
+                if (permission === 'deckit.mods' && managers.includes(sender?.mod)) return sender.mod;
+                throw Object.assign(new Error(`${sender?.mod} does not have ${permission}`), { kind: 'NOT_PERMITTED' });
             },
             launch: async (id) => launched.push(id),
             quit: async (id) => quit.push(id),

@@ -27,7 +27,7 @@ const USED = {
         runOf: 'function',
         observe: 'function',
         modOf: 'function',
-        managerFrom: 'function',
+        modFrom: 'function',
         onErase: 'function',
         openExternal: 'function',
     },

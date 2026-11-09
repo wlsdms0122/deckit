@@ -113,7 +113,16 @@ async function main() {
         log: { info: () => {}, warn: (...args) => warned.push(args) },
         mods: {
             modOf: (page) => mods.get(page)?.id ?? null,
-            runOf: (id) => runs().find(({ run }) => run.mod.id === id)?.run ?? null,
+            modFrom: (page, permission) => {
+                const mod = mods.get(page);
+                if (!mod) throw Object.assign(new Error('only a mod asks this'), { stage: 'call', kind: 'REFUSED' });
+                if (permission && !mod.granted.includes(permission))
+                    throw Object.assign(new Error(`${mod.id} does not have the ${permission} permission`), {
+                        stage: 'call',
+                        kind: 'NOT_PERMITTED',
+                    });
+                return mod.id;
+            },
             runs,
             onErase: (given) => (eraser = given),
             openExternal: async (id, address, options) => {

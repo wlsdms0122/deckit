@@ -1,5 +1,4 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
-import * as REQUEST from '../../deckit/request/index.js';
 import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 import * as SESSION from './model/session.js';
@@ -47,7 +46,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     const granted = new Set();
     const activated = new WeakMap(); // a web page -> when a key or the mouse was last pressed in it
     let sequence = 0;
-    const DOWNLOAD = createDownload({ deckit, state: STATE, PROTOCOL, modFrom, web: WEB, pages: PAGES, open: SYSTEM });
+    const DOWNLOAD = createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages: PAGES, open: SYSTEM });
 
     // MARK: - Initializer
     // MARK: - Public
@@ -131,40 +130,36 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         });
     }
 
-    // The mod in the page that sent this, by its id, held to being granted `permission` when one is named: refused at
-    // call.
-    function modFrom(page, permission = null) {
-        const id = deckit.mods.modOf(page);
-        if (!id) throw REQUEST.refusal('call', 'REFUSED', 'only a mod asks this');
-        if (permission && !grantedOf(page).includes(permission))
-            throw REQUEST.refusal('call', 'NOT_PERMITTED', `${id} does not have the ${permission} permission`);
-        return id;
-    }
-
-    // The ids of the permissions the run of the mod in the page holds, none for a page that runs no mod.
-    function grantedOf(page) {
-        const id = deckit.mods.modOf(page);
-        return (id && deckit.mods.runOf(id)?.granted) || [];
+    // Whether the mod in the page holds `permission`, never so for a page that runs no mod.
+    function holds(page, permission) {
+        try {
+            deckit.mods.modFrom(page, permission);
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     function listen() {
-        PROTOCOL.window.handle(({ name, url, title }, sender) => openWindow(sender, modFrom(sender), name, url, title));
-        PROTOCOL.fetch.handle(({ name, ...request }, sender) =>
-            fetch(modFrom(sender, WEB_PERMISSION.NETWORK), name, request)
+        PROTOCOL.window.handle(({ name, url, title }, sender) =>
+            openWindow(sender, deckit.mods.modFrom(sender), name, url, title)
         );
-        PROTOCOL.clear.handle(({ name }, sender) => clear(modFrom(sender), name));
+        PROTOCOL.fetch.handle(({ name, ...request }, sender) =>
+            fetch(deckit.mods.modFrom(sender, WEB_PERMISSION.NETWORK), name, request)
+        );
+        PROTOCOL.clear.handle(({ name }, sender) => clear(deckit.mods.modFrom(sender), name));
         PROTOCOL.trust.handle(({ name, entries }, sender) =>
-            WEB.trust(modFrom(sender, WEB_PERMISSION.CERTIFICATES), SESSION.nameOf(name), entries)
+            WEB.trust(deckit.mods.modFrom(sender, WEB_PERMISSION.CERTIFICATES), SESSION.nameOf(name), entries)
         );
         PROTOCOL.allow.handle(({ name, entries }, sender) =>
-            change(modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS), SESSION.nameOf(name), entries, (key) =>
+            change(deckit.mods.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS), SESSION.nameOf(name), entries, (key) =>
                 granted.add(key)
             )
         );
         // A page already holding a stream keeps it, and one told "granted" keeps believing it: the mod reloads its
         // pages of that origin.
         PROTOCOL.revoke.handle(({ name, entries }, sender) =>
-            change(modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS), SESSION.nameOf(name), entries, (key) =>
+            change(deckit.mods.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS), SESSION.nameOf(name), entries, (key) =>
                 granted.delete(key)
             )
         );
@@ -253,7 +248,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     function mayShow(modPage, url, { inPage }) {
         if (/^https?:\/\//i.test(url)) return true;
         if (!inPage || !/^file:\/\//i.test(url)) return false;
-        return grantedOf(modPage).includes(WEB_PERMISSION.FILES);
+        return holds(modPage, WEB_PERMISSION.FILES);
     }
 
     // What becomes of a web page `page` asked to load `to`, from `from`, where it is: `load`, `refuse`, or `leave`. A
@@ -404,7 +399,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     }
 
     function decides(embedder) {
-        return grantedOf(embedder).includes(WEB_PERMISSION.SITE_PERMISSIONS);
+        return holds(embedder, WEB_PERMISSION.SITE_PERMISSIONS);
     }
 
     function settle(id, allowed) {
