@@ -44,7 +44,7 @@ class Deckit {
         // What the switcher's actions search and do, for attach().
         this.actions = { util, appName: APP_NAME, address, modsFor, versions, does: commands };
 
-        // One of deckit's places in `deckit.about()`, shown in Finder by the shell's reveal, which attach() keeps.
+        // One of deckit's places in `deckit.about()`, shown where it lies by the shell's reveal, which attach() keeps.
         const reveal = (place) => this.reveal(deckit.about()[place]);
 
         // Only a version About lists is copied.
