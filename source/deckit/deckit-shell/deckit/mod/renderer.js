@@ -18,9 +18,10 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // Deckit as a layer on the runner (deckit-shell/deckit/runner/renderer.js). `over` is what a layer over it is
-    // handed: `lifecycle({ method, registrations, start, end, join })`, a lifecycle of that layer's, whose `start` is
-    // handed the handle `deckit` with deckit's members.
+    // Deckit as a layer on the runner (deckit-shell/deckit/runner/renderer.js). Its lifecycle calls
+    // `start(deckit, frameworks)`. `over` is what a layer over it is handed: `lifecycle({ method, registrations, start,
+    // end, join })`, a lifecycle of that layer's, whose `start` is handed the handle `deckit` with deckit's members and
+    // the frameworks as the runner made them.
     function layer({ mod, granted, deliver }) {
         NOTIFICATION.listen(deliver);
         const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
@@ -39,10 +40,10 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
                 {
                     method: 'start',
                     registrations: {},
-                    async start(instance, handles, scope) {
+                    async start(instance, handles, scope, frameworks) {
                         if (typeof instance.start !== 'function') return;
                         try {
-                            await instance.start(handleOf(handles.deckit, scope));
+                            await instance.start(handleOf(handles.deckit, scope), frameworks);
                         } catch (error) {
                             throw new Error(`start() threw: ${error.message || error}`);
                         }
@@ -62,8 +63,13 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP }) {
                 lifecycle: (over) => ({
                     method: over.method,
                     registrations: { ...over.registrations },
-                    start: (instance, handles, scope) =>
-                        over.start(instance, { ...handles, deckit: handleOf(handles.deckit, scope) }, scope),
+                    start: (instance, handles, scope, frameworks) =>
+                        over.start(
+                            instance,
+                            { ...handles, deckit: handleOf(handles.deckit, scope) },
+                            scope,
+                            frameworks
+                        ),
                     end: (instance) => over.end(instance),
                     join: (parts, scope) => {
                         over.join(parts, scope);

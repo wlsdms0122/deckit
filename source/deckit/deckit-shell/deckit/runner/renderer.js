@@ -13,27 +13,37 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     // MARK: - Property
     // What a layer gives of what it leaves out, and what the runner has when no layer is given: no lifecycle, so the
     // run starts once its class is made.
-    const NOTHING = Object.freeze({ handle: 'deck', read: () => ({}), report: () => ({}), mods: {}, lifecycles: [] });
+    const NOTHING = Object.freeze({
+        handle: 'deck',
+        read: () => ({}),
+        report: () => ({}),
+        mods: {},
+        lifecycles: [],
+        frameworks: {},
+    });
 
     // MARK: - Initializer
     // MARK: - Public
-    // The mod this page runs. `layers` is what stacks on the runner, the lowest first, each `layer(context)` asked
-    // with the mod (`{ mod, granted, run, deliver, fail, under }`, `mod` its manifest, whose `fields` are the manifest
-    // fields the layers named, by key, which the runner carries and does not read, `granted` the ids of the permissions
-    // it is granted, and `under` what the layer under it offers a layer over it, null for the lowest) before its entry
-    // runs, and answering:
+    // The mod this page runs. `layers` is what stacks on the runner, the lowest first, each `[name, layer]`, and each
+    // `layer(context)` asked with the mod (`{ mod, granted, run, deliver, fail, under }`, `mod` its manifest, whose
+    // `fields` are the manifest fields the layers named, by key, which the runner carries and does not read, `granted`
+    // the ids of the permissions it is granted, and `under` what each layer under it offers a layer over it, by that
+    // layer's name, `{}` for the lowest) before its entry runs, and answering:
     // `read(Entry)`, what it reads of the class the entry exports, before any instance is made, as part of the
     // summary;
     // `report()`, what main is told of the run beside the runner's own now, `{ summary, contributions }`, which the
     // runner carries and does not read;
     // `lifecycles`, the lifecycles it stacks on the run, over those of the layers under it, the lowest first;
     // `over`, what it offers a layer over it;
+    // `frameworks`, the handles it hands every lifecycle of the run, by name, each `handleOf(scope)` made with that
+    // lifecycle's scope;
     // and, for the lowest, `handle`, the name of the handle the runner's members are on, and `mods`, the requests it
     // adds to `mods`, by name, each `{ signature, send }` as deckit-shell/deckit/request names them.
-    // A lifecycle is `{ method, registrations, start(instance, handles, scope), end(instance), join(parts, scope) }`:
-    // `method` names it in what a person reads; `registrations`, by name, `{ handle, check }`, what the handles it
-    // hands out register beside the runner's own; `start`, which calls the instance with its handles, by name, each of
-    // the runner's members and registrations on the one named `handle`; `end`, which ends what start began; `join`,
+    // A lifecycle is `{ method, registrations, start(instance, handles, scope, frameworks), end(instance),
+    // join(parts, scope) }`: `method` names it in what a person reads; `registrations`, by name, `{ handle, check }`,
+    // what the handles it hands out register beside the runner's own; `start`, which calls the instance with its
+    // handles, by name, each of the runner's members and registrations on the one named `handle`, and with
+    // `frameworks`, a frozen table of the layers' frameworks made for it; `end`, which ends what start began; `join`,
     // called with what it registered once start has ended.
     // Each lifecycle has a `scope`: what its handles made that calls back into the mod's code is cut as it ends. The
     // lowest failing fails the run; another failing ends alone, none stacks on it, and the run starts with those under
@@ -96,7 +106,12 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             try {
                 const dependencies = await CONNECTION.begin(index, scope);
                 handles[given.handle] = { ...membersOf({ given, scope, dependencies }), ...handles[given.handle] };
-                await lifecycle.start(instance, handles, scope);
+                const frameworks = Object.freeze(
+                    Object.fromEntries(
+                        Object.entries(given.frameworks).map(([name, handleOf]) => [name, handleOf(scope)])
+                    )
+                );
+                await lifecycle.start(instance, handles, scope, frameworks);
                 if (stopping) return;
                 const parts = registry.close();
                 lifecycle.join(parts, scope);
@@ -116,11 +131,15 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         if (!stopping) tellStarted({ described, joined, reported: given.report() });
     }
 
-    // Each layer made with the mod, the lowest first, each offered what the one under it offers.
+    // Each layer made with the mod, the lowest first, each offered what every one under it offers, by its name.
     function make(layers, context) {
         const made = [];
-        for (const layer of layers)
-            made.push({ ...NOTHING, ...layer({ ...context, under: made.at(-1)?.over ?? null }) });
+        for (const [name, layer] of layers) {
+            const under = Object.freeze(
+                Object.fromEntries(made.filter((one) => one.over).map((one) => [one.name, one.over]))
+            );
+            made.push({ ...NOTHING, ...layer({ ...context, under }), name });
+        }
         return made;
     }
 
@@ -140,8 +159,8 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         return { layers: made.slice(0, reads.length), described: Object.assign({}, ...reads.reverse()) };
     }
 
-    // The layers on the runner as one: what each reports, a lower one's where two say the same, their lifecycles in
-    // order, and the lowest's handle.
+    // The layers on the runner as one: what each reports and the frameworks each hands, a lower one's where two say
+    // the same, their lifecycles in order, and the lowest's handle.
     function stacked(given) {
         if (!given.length) return NOTHING;
         return {
@@ -155,6 +174,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
                 };
             },
             lifecycles: given.flatMap((one) => one.lifecycles),
+            frameworks: Object.assign({}, ...given.map((one) => one.frameworks).reverse()),
         };
     }
 

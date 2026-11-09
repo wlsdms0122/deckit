@@ -1,16 +1,18 @@
 // Deckit as a layer on the runner in a mod's page (deckit-shell/deckit/mod/renderer.js), with a layer over it stacking
-// a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's
-// handle, which opens an address outside the app with openExternal and takes a chord for a mod with
-// deckit.app-keys; a press of the chord runs what took it, and the chord is let go once the lifecycle that took it
-// ends. Every member a permission guards is on the handle of a mod granted nothing, and refuses at call with
-// NOT_PERMITTED; for a mod granted it, an argument of another type or left out is refused with INVALID_ARGUMENT, none
-// turned into its type, and fileURL and filePath throw that refusal. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and layers over it:
-// the run is told started once, after the lifecycle over deckit's has ended as its start threw, none over it started,
-// and a layer whose read threw left out with the one over it; and the handle of a mod granted nothing: `mods` on it,
-// each request refused at call with NOT_PERMITTED before its arguments are read, `quit()` a promise, and `openExternal`
-// refused NOT_PERMITTED for a file, then INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request
-// refused INVALID_ARGUMENT for an argument of another type and asked of main otherwise. Exits 1 with a line for each
-// check that failed. The packages are ES modules, so they are imported as such.
+// a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's handle
+// and the frameworks as they came, and the handle opens an address outside the app with openExternal and takes a chord
+// for a mod with deckit.app-keys; a press of the chord runs what took it, and the chord is let go once the lifecycle
+// that took it ends. Every member a permission guards is on the handle of a mod granted nothing, and refuses at call
+// with NOT_PERMITTED; for a mod granted it, an argument of another type or left out is refused with INVALID_ARGUMENT,
+// none turned into its type, and fileURL and filePath throw that refusal. Then the runner
+// (deckit-shell/deckit/runner/renderer.js) with deckit and layers over it: each layer is offered what those under it
+// offer, by name; deckit's start is handed a frozen table of the frameworks of the layers that run, each made with its
+// lifecycle's scope; the run is told started once, after the lifecycle over deckit's has ended as its start threw, none
+// over it started, and a layer whose read threw left out with the one over it, with its frameworks; and the handle of a
+// mod granted nothing: `mods` on it, each request refused at call with NOT_PERMITTED before its arguments are read,
+// `quit()` a promise, and `openExternal` refused NOT_PERMITTED for a file, then INVALID_ARGUMENT for an argument of
+// another type; with deckit.mods, a request refused INVALID_ARGUMENT for an argument of another type and asked of main
+// otherwise. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -72,10 +74,14 @@ async function main() {
     const deckit = layerOf(['deckit.app-keys']);
     check('deckit registers nothing of its own', Object.keys(deckit.lifecycles[0].registrations).length === 0, deckit);
     let handed = null;
+    let handedFrameworks = null;
     const lifecycle = deckit.over.lifecycle({
         method: 'attach',
         registrations: { view: { handle: 'shell', check: () => '' } },
-        start: async (_instance, handles) => (handed = handles),
+        start: async (_instance, handles, _scope, frameworks) => {
+            handed = handles;
+            handedFrameworks = frameworks;
+        },
         end: async () => {},
         join: () => {},
     });
@@ -86,8 +92,10 @@ async function main() {
     );
 
     const scope = makeScope();
-    await lifecycle.start({}, { deckit: { exports: {} }, shell: {} }, scope);
+    const frameworks = Object.freeze({ probe: {} });
+    await lifecycle.start({}, { deckit: { exports: {} }, shell: {} }, scope, frameworks);
     const handle = handed?.deckit;
+    check('a lifecycle over deckit is handed the frameworks as they came', handedFrameworks === frameworks, '');
     check(
         "a lifecycle over deckit is handed deckit's handle, which opens outside the app with openExternal",
         typeof handle?.openExternal === 'function' && !('urls' in handle),
@@ -242,9 +250,11 @@ async function main() {
     console.warn = () => {};
     const order = [];
     let given = null;
+    let givenFrameworks = null;
     class Mod {
-        start(deckit) {
+        start(deckit, frameworks) {
             given = deckit;
+            givenFrameworks = frameworks;
             order.push('start');
         }
 
@@ -264,9 +274,11 @@ async function main() {
         end,
         join: () => {},
     });
+    let offered = null;
     const attaching = ({ under }) => ({
+        frameworks: { probe: (scope) => ({ scope }) },
         lifecycles: [
-            under.lifecycle(
+            under.deckit.lifecycle(
                 stacked(
                     'attach',
                     async (instance) => instance.attach(),
@@ -274,11 +286,11 @@ async function main() {
                 )
             ),
         ],
-        over: under,
+        over: Object.freeze({ attaching: true }),
     });
     const above = ({ under }) => ({
         lifecycles: [
-            under.lifecycle(
+            (offered = under).deckit.lifecycle(
                 stacked(
                     'above',
                     async () => order.push('above'),
@@ -299,7 +311,7 @@ async function main() {
             ),
         ],
     });
-    const reading = () => ({ read: () => ({ reading: true }) });
+    const reading = () => ({ read: () => ({ reading: true }), frameworks: { lost: () => ({}) } });
     const RUN = createRun();
     const runner = createRunner({
         RUN,
@@ -315,8 +327,31 @@ async function main() {
         NOTIFICATION: { listen: () => {}, notificationsOf: () => ({}) },
         KEYMAP: createKeymap(),
     }).layer;
-    await runner.start({ layers: [deckitLayer, attaching, above, unread, reading] });
+    await runner.start({
+        layers: [
+            ['deckit', deckitLayer],
+            ['attaching', attaching],
+            ['above', above],
+            ['unread', unread],
+            ['reading', reading],
+        ],
+    });
     const channels = sent.map(({ channel }) => channel.replace('deckit-shell:', ''));
+    check(
+        'a layer is offered what each layer under it offers, by its name',
+        Object.isFrozen(offered) &&
+            Object.keys(offered).join() === 'deckit,attaching' &&
+            offered.attaching.attaching === true &&
+            typeof offered.deckit.lifecycle === 'function',
+        Object.keys(offered ?? {})
+    );
+    check(
+        "deckit's start is handed a frozen table of the frameworks of the layers that run, made with its scope",
+        Object.isFrozen(givenFrameworks) &&
+            Object.keys(givenFrameworks).join() === 'probe' &&
+            typeof givenFrameworks.probe.scope?.add === 'function',
+        Object.keys(givenFrameworks ?? {})
+    );
     check(
         'a lifecycle over deckit that throws as it starts ends alone, and none over it starts',
         order.join() === 'start,attach,detach',

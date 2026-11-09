@@ -16,8 +16,8 @@ import { createWindows } from '../window/renderer.js';
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// The shell as a layer on deckit in a mod's page (deckit/runner/renderer.js), stacked with what deckit
-// offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), the instance's
+// The shell as a layer on deckit in a mod's page (deckit/runner/renderer.js), stacked with what deckit offers a layer
+// over it (`under.deckit`): the lifecycle it calls, attach(shell, deckit, frameworks) and detach(), the instance's
 // reopen() as its Dock item is clicked with no window open, and the handle `shell`: the theme, the kit, `windows`,
 // `iconOf(mod)`, `region(element, interface)`, `children`, `dropDestination(element, options)`, `web`, `keys`, which
 // records the keys pressed in the page and with deckit.shell-keys changes the shell's own, with deckit.fonts `fonts`,
@@ -27,7 +27,7 @@ import { createWindows } from '../window/renderer.js';
 // page, whose pages the shell hands the mod; `channels` binds the shell's channels in the page, and `drags` takes the
 // presses in the drag regions of a window's content (environment: PAGE.drags).
 function shellOf({ WEB, channels, drags }) {
-    return ({ mod: running, granted, deliver, fail, under: deckit }) => {
+    return ({ mod: running, granted, deliver, fail, under }) => {
         const has = (permission) => granted.includes(permission);
         const WINDOWS = createWindows({ granted, deliver, channels, drags });
         const REGION = createRegion({ running, deliver, channels, windowOf: WINDOWS.windowOf });
@@ -45,7 +45,7 @@ function shellOf({ WEB, channels, drags }) {
         return {
             report: () => reported,
             lifecycles: [
-                deckit.lifecycle({
+                under.deckit.lifecycle({
                     method: 'attach',
                     registrations: {
                         view: { handle: 'shell', check: (value) => viewProblem(value, running) },
@@ -53,7 +53,7 @@ function shellOf({ WEB, channels, drags }) {
                             ? { styles: { handle: 'shell', check: STYLE.problemOf } }
                             : {}),
                     },
-                    async start(instance, handles, scope) {
+                    async start(instance, handles, scope, frameworks) {
                         scope.add(() => (reported = ENDED));
                         if (typeof instance.attach !== 'function') return;
                         page ??= wear();
@@ -76,7 +76,7 @@ function shellOf({ WEB, channels, drags }) {
                             scope.add(() => WINDOWS.reopen(null));
                         }
                         try {
-                            await instance.attach(handle, opener);
+                            await instance.attach(handle, opener, frameworks);
                         } catch (error) {
                             throw new Error(`attach() threw: ${error.message || error}`);
                         }

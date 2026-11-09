@@ -162,7 +162,7 @@ async function main() {
         MODS: { tool: () => ({}) },
         modules: { evaluate: () => Mod },
     });
-    await RUNNER.start({ layers: [layer] });
+    await RUNNER.start({ layers: [['deckit', layer]] });
     for (let at = 0; at < 5; at++) await tick();
 
     check(

@@ -51,7 +51,7 @@ function conformanceLayer({ channels }) {
         });
     return ({ under }) => ({
         lifecycles: [
-            under.lifecycle({
+            under.deckit.lifecycle({
                 method: 'conformance',
                 registrations: {},
                 start: (_instance, handles, scope) => {

@@ -52,11 +52,12 @@ function run({ ENV, layers, page }) {
     const MOD = createMod({ WEB, NOTIFICATION: createNotification(), KEYMAP: createKeymap() });
     // The layers stacked over deckit, in the order they stacked, each by its name.
     const over = stacked.flatMap((each) => {
-        if (Object.hasOwn(layers, each)) return [layers[each]({ WEB, channels: IPC.layerChannels, drags: ENV.drags })];
+        if (Object.hasOwn(layers, each))
+            return [[each, layers[each]({ WEB, channels: IPC.layerChannels, drags: ENV.drags })]];
         LOG.error(`no layer on a mod's page is named ${each}, so none stacks for it`);
         return [];
     });
-    RUNNER.start({ layers: [MOD.layer, ...over] });
+    RUNNER.start({ layers: [['deckit', MOD.layer], ...over] });
 }
 
 export { connect };
