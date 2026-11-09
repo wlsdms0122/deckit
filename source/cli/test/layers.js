@@ -1,4 +1,4 @@
-// Deckit as a layer on the runner in a mod's page (deckit-shell/deckit/mod/renderer.js), with a layer over it stacking
+// Deckit as a layer on the runner in a mod's page (deckit-sdk/deckit/mod/renderer.js), with a layer over it stacking
 // a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's handle
 // and the frameworks as they came, and the handle opens an address outside the app with openExternal. Every member a
 // permission guards is on the handle of a mod granted nothing, and refuses at call with NOT_PERMITTED; for a mod

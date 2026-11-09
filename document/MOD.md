@@ -358,14 +358,14 @@ A mod says what happened to it, for whoever cares, as events. `deckit.events.emi
 
 ## The SDK
 
-What a mod's code works out by itself, asking nothing of deck or deckit, is in the SDK: `deckit-sdk`, a package of ES modules. A mod requires each part by its entry, and the bundler that makes the mod's entry carries what it requires into it, as it carries the mod's own files:
+What a mod's code works out by itself, asking nothing of deck or deckit, is the library it links from the SDK, `deckit-sdk`, a package of ES modules: `deckit-sdk/match` and `deckit-sdk/path`. A mod requires each by its entry, and the bundler that makes the mod's entry carries what it requires into it, as it carries the mod's own files:
 
 ```js
 const { match, matchFields, TIER, ranker } = require('deckit-sdk/match');
 const { tildify, movePath } = require('deckit-sdk/path');
 ```
 
-The SDK runs as it is written, on the engine the pages run on, and is bundled as it is, not lowered to older JavaScript: a bundler that lowers it rewrites the code `ranker`'s worker runs from its own source, and the worker fails. deckit's own mods reach it through `mods/node_modules/deckit-sdk`, a link to the package, and their build bundles it into each entry with the mod's own files.
+The SDK runs as it is written, on the engine the pages run on, and is bundled as it is, not lowered to older JavaScript: a bundler that lowers it rewrites the code `ranker`'s worker runs from its own source, and the worker fails. deckit's own mods reach it through `mods/node_modules/deckit-sdk`, a link to the package, and their build bundles it into each entry with the mod's own files. The SDK's other folders hold the frameworks a mod's page is handed (`deckit`, `shell`, `web`), which a mod reaches only through its handles: a mod's `require` of one of their files does not resolve, and the build bundles only `match` and `path`.
 
 ### deckit-sdk/match
 

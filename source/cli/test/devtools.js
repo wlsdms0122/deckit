@@ -79,7 +79,7 @@ function connect({ port, shots, module }) {
         if (typeof png === 'string') fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(png, 'base64'));
     }
 
-    // The session of the overlay `opener`'s page opened beside it (deckit-shell/shell/overlay), or null.
+    // The session of the overlay `opener`'s page opened beside it (deckit-sdk/shell/overlay), or null.
     async function overlayOf(opener) {
         if (!opener) return null;
         for (const target of (await targets()).filter((candidate) => candidate.url === 'about:blank')) {

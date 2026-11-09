@@ -1,6 +1,7 @@
 // The packages as the build reads them: deckit-electron, the environment deckit runs on in Electron, deckit-shell, deck
-// and deckit with the shell on them, and deckit-sdk, the library a mod's code requires, each a package of ES modules
-// under source/deckit, and the bundles deckit is carried in. A file is named by its path under source/deckit.
+// and deckit with the shell on them, and deckit-sdk, the library a mod links and the frameworks a page is handed, each
+// a package of ES modules under source/deckit, and the bundles deckit is carried in. A file is named by its path under
+// source/deckit.
 const fs = require('fs');
 const path = require('path');
 

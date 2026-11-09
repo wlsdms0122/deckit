@@ -1,7 +1,8 @@
-// The channels between main and a page (deckit-shell/deckit/ipc), checked over a stand-in for what an environment
-// carries them with (deckit-shell/environment): main and pages, each its own copy of its side's module, as each is its
-// own bundle. Exits 1 with a line for each check that failed. What a page is asked before its code says how to answer
-// cannot be timed in the app, so it is checked here. The packages are ES modules, so they are imported as such.
+// The channels between main and a page (deckit/ipc: main.js in deckit-shell, renderer.js in deckit-sdk), checked over
+// a stand-in for what an environment carries them with (deckit-shell/environment): main and pages, each its own copy of
+// its side's module, as each is its own bundle. Exits 1 with a line for each check that failed. What a page is asked
+// before its code says how to answer cannot be timed in the app, so it is checked here. The packages are ES modules,
+// so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
