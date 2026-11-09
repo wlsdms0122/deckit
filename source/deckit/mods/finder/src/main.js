@@ -134,7 +134,7 @@ class Finder {
         const tabs = tabList({
             ui,
             chordOf: (name) => keys.chordOf(name),
-            reveal: deckit.reveal,
+            reveal: shell.reveal,
             records,
             tildify: util.tildify,
             folds,
@@ -151,7 +151,7 @@ class Finder {
             ui,
             chordOf: (name) => keys.chordOf(name),
             onShowHidden: () => settings.set('showHidden', true).catch(() => {}),
-            onReveal: deckit.reveal,
+            onReveal: shell.reveal,
             onPrivacySettings: () => disk.privacySettings().catch(() => {}),
         });
         const area = fileArea({
@@ -204,7 +204,7 @@ class Finder {
         });
         const favorites = favoriteList({
             ui,
-            reveal: deckit.reveal,
+            reveal: shell.reveal,
             records,
             tildify: util.tildify,
             folds,
@@ -239,7 +239,7 @@ class Finder {
         fileMenu({
             ui,
             chordOf: (name) => keys.chordOf(name),
-            reveal: deckit.reveal,
+            reveal: shell.reveal,
             writeText: deckit.clipboard.writeText,
             areaElement: area.element,
             entryAt: listings.entryAt,

@@ -145,13 +145,14 @@ function createEnvironment({ core, preload, openWindow }) {
             hotkey,
             focused: () => WEBKIT.focusedPage(),
         }),
-        open: Object.freeze({ url: openURL, file: openFile, reveal, appFor }),
+        open: Object.freeze({ url: openURL, file: openFile, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({
             readText: () => require('electron').clipboard.readText(),
             writeText: (text) => require('electron').clipboard.writeText(text),
         }),
         dialogs: Object.freeze({ chooseFolders }),
+        reveal,
         stage: STAGE,
         fonts: () => WEBKIT.native().fonts(),
         // What the person set a double click on a title bar to do: `zoom`, `minimize` or `none`, as read at each call.
@@ -454,7 +455,6 @@ async function openFile(file, { activate = true } = {}) {
 function reveal(file) {
     const found = existing(file);
     if (found) require('electron').shell.showItemInFolder(found);
-    return !!found;
 }
 
 // An app's name as a person reads it.

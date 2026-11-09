@@ -1,8 +1,8 @@
 // The Browser's downloads (`web.downloads`): a button at the toolbar's end, there once anything was downloaded,
 // that opens them newest first. A row is a file and how far it got, and a press on a finished one opens it in its
-// app. Its action stops one under way, shows a finished one in Finder, or forgets one that did not finish; Clear
-// forgets every one that ended. The button bounces as a download starts.
-function downloadList({ theme, ui, downloads }) {
+// app. Its action stops one under way, shows a finished one in Finder (`reveal`, the shell's), or forgets one that did
+// not finish; Clear forgets every one that ended. The button bounces as a download starts.
+function downloadList({ theme, ui, downloads, reveal }) {
     const ICON_SIZE = 16;
     const MAX_ROWS = 8;
     const UNITS = ['bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -124,7 +124,7 @@ function downloadList({ theme, ui, downloads }) {
         element.append(actionOf(download).element);
     }
 
-    function actionOf({ id, state }) {
+    function actionOf({ id, state, path }) {
         if (state === 'downloading')
             return ui.rowAction({
                 icon: ui.icon('x', { size: ICON_SIZE }),
@@ -135,7 +135,7 @@ function downloadList({ theme, ui, downloads }) {
             return ui.rowAction({
                 icon: ui.icon('search', { size: ICON_SIZE }),
                 title: 'Show in Finder',
-                onClick: () => downloads.reveal(id),
+                onClick: () => reveal(path),
             });
         return ui.rowAction({
             icon: ui.icon('x', { size: ICON_SIZE }),

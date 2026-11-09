@@ -21,6 +21,6 @@ part = "permissions"
 answers = [
     { id = "deckit.mods", reason = "Lists the mods.", usable = true, name = "Mods", description = "It can see every mod, launch and quit them, add one from a folder and delete installed ones, with what they stored.", privileged = true },
     { id = "deckit.system-services", reason = "Runs the commands.", usable = true, name = "System Services", description = "It can act on other mods through the system's services: run their commands, change their keys and settings, and choose which mod opens an address.", privileged = true },
-    { id = "system.file-handlers", reason = "Opens the reports.", usable = true, name = "File Handlers", description = "It can open files in the app for them, which can start programs, and show them in their folders.", privileged = false },
+    { id = "system.file-handlers", reason = "Opens the reports.", usable = true, name = "File Handlers", description = "It can open files in the app for them, which can start programs.", privileged = false },
     { id = "case.sync", reason = "Syncs the pages.", usable = true, name = "Sync", description = "Syncs the pages.", privileged = false },
 ]

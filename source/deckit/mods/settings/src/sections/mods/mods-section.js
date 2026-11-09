@@ -10,8 +10,21 @@ const { section } = require('../section/section.js');
 // `onChange` hears that a mod was installed, removed, restarted or pinned here. Failures and what was done are told
 // in a toast. `mods` is deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a
 // host that runs none; `packages()`, deckit/packages while it is connected, which plans and installs; `pins`, the
-// Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination` the shell's.
-function modsSection({ ui, mods, mainProcess, packages, pins, dropDestination, util, appName, onChange }) {
+// Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination`, `dialogs` and `reveal` the
+// shell's.
+function modsSection({
+    ui,
+    mods,
+    mainProcess,
+    packages,
+    pins,
+    dropDestination,
+    dialogs,
+    reveal,
+    util,
+    appName,
+    onChange,
+}) {
     const TITLE = 'Mods';
     const PACKAGES = 'deckit/packages';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
@@ -189,7 +202,7 @@ function modsSection({ ui, mods, mainProcess, packages, pins, dropDestination, u
         const revealAction = ui.rowAction({
             icon: ui.icon('externalWindow', { size: 14 }),
             title: 'Show in Finder',
-            onClick: () => mods.reveal(current.id),
+            onClick: () => reveal(current.folder),
         });
         const removeAction = ui.rowAction({
             icon: ui.icon('x', { size: 14 }),
@@ -266,13 +279,17 @@ function modsSection({ ui, mods, mainProcess, packages, pins, dropDestination, u
     }
 
     async function pickAndInstall() {
-        let picked;
+        let folders;
         try {
-            picked = await mods.pick({ multiple: true });
+            folders = await dialogs.chooseFolders({
+                multiple: true,
+                title: 'Choose mod folders',
+                message: 'Pick the folders that have manifest.toml in them',
+            });
         } catch (error) {
             return ui.toast('Could not install: ' + error.message);
         }
-        askAndInstall(await Promise.all(picked.map((entry) => (entry.problem ? entry : planOf(entry.from)))));
+        askAndInstall(await Promise.all(folders.map(planOf)));
     }
 
     // Each folder refused on its own, so one refused leaves the others to install.

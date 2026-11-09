@@ -4,8 +4,11 @@
 // recording of its keys, for any page, as `shell.keys.record` asks it. Then `shell.keys` in a mod's page
 // (shell/key/renderer): a chord taken for a mod with deckit.app-keys, a press of it running what took it and the chord
 // let go once the lifecycle that took it ends; `take` refuses a mod without the permission of its scope at call with
-// NOT_PERMITTED, before its arguments, and an argument of another type with INVALID_ARGUMENT. Exits 1 with a line for
-// each check that failed. The packages are ES modules, so they are imported as such.
+// NOT_PERMITTED, before its arguments, and an argument of another type with INVALID_ARGUMENT. Then the person's files
+// shown to them (shell/files): `shell.dialogs.chooseFolders` and `shell.reveal` for a mod granted nothing, an argument
+// of another type refused INVALID_ARGUMENT, and main handing the environment what any mod's page asks and refusing a
+// page that runs no mod. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -15,6 +18,8 @@ async function main() {
     const KEY_PERMISSION = await import(url('deckit-shell', 'shell', 'key', 'model', 'permission.js'));
     const { createKey } = await import(url('deckit-shell', 'shell', 'key', 'main.js'));
     const { createKeys } = await import(url('deckit-shell', 'shell', 'key', 'renderer.js'));
+    const { createFiles } = await import(url('deckit-shell', 'shell', 'files', 'main.js'));
+    const { filesOf } = await import(url('deckit-shell', 'shell', 'files', 'renderer.js'));
     const { makeScope } = await import(url('deckit-shell', 'deckit', 'runner', 'model', 'scope.js'));
     const REQUEST = await import(url('deckit-shell', 'deckit', 'request', 'index.js'));
     const failed = [];
@@ -217,15 +222,14 @@ async function main() {
     // each request refused as the shell's handle refuses one for a mod granted `granted`.
     const pageSent = []; // [channel, payload]
     const pageHeard = {};
-    const KEYS = createKeys({
-        channels: {
-            bind: (declared) => ({
-                send: (payload) => pageSent.push([declared.channel, payload]),
-                on: (handler) => (pageHeard[declared.channel] = handler),
-                invoke: async (payload) => pageSent.push([declared.channel, payload]) > 0,
-            }),
-        },
-    });
+    const PAGE_CHANNELS = {
+        bind: (declared) => ({
+            send: (payload) => pageSent.push([declared.channel, payload]),
+            on: (handler) => (pageHeard[declared.channel] = handler),
+            invoke: async (payload) => pageSent.push([declared.channel, payload]) > 0,
+        }),
+    };
+    const KEYS = createKeys({ channels: PAGE_CHANNELS });
     const requestFor =
         (granted) =>
         (name, { guards = [], signature }, send) => {
@@ -323,6 +327,68 @@ async function main() {
             what
         );
     check('a take refused asks nothing of main', !pageSent.length, pageSent);
+
+    // shell.dialogs and shell.reveal in a mod's page, for a mod granted nothing.
+    const files = filesOf({ channels: PAGE_CHANNELS, request: requestFor([]) });
+    const filesMistyped = {
+        'reveal with a number': () => files.reveal(5),
+        'reveal with its path left out': () => files.reveal(),
+        'dialogs.chooseFolders with multiple of another type': () => files.dialogs.chooseFolders({ multiple: 'yes' }),
+        'dialogs.chooseFolders with options of another type': () => files.dialogs.chooseFolders(5),
+    };
+    for (const [what, call] of Object.entries(filesMistyped))
+        check(
+            `${what} is refused at call with INVALID_ARGUMENT`,
+            (await refusalOf(call())) === 'call INVALID_ARGUMENT',
+            what
+        );
+    check('a request of the files refused asks nothing of main', !pageSent.length, pageSent);
+    await files.reveal('/a');
+    await files.dialogs.chooseFolders();
+    await files.dialogs.chooseFolders({ multiple: true, title: 'T' });
+    check(
+        'reveal and dialogs.chooseFolders are asked of main for a mod granted nothing, one folder unless multiple',
+        JSON.stringify(pageSent) ===
+            '[["deckit-shell:files-reveal",{"path":"/a"}],["deckit-shell:files-choose-folders",{"multiple":false}],' +
+                '["deckit-shell:files-choose-folders",{"multiple":true,"title":"T"}]]',
+        pageSent
+    );
+
+    // Main hands the environment what any mod's page asks, and refuses a page that runs no mod.
+    const filesHandlers = {};
+    const shown = []; // what the environment was handed
+    createFiles({
+        deckit: {
+            channels: { bind: (declared) => ({ handle: (handler) => (filesHandlers[declared.channel] = handler) }) },
+            mods: {
+                modFrom: (page) => {
+                    if (page.mod) return page.mod;
+                    throw Object.assign(new Error('the page runs no mod'), { kind: 'REFUSED' });
+                },
+            },
+        },
+        dialogs: { chooseFolders: async (options) => shown.push(['chooseFolders', options]) && ['/f'] },
+        reveal: (path) => shown.push(['reveal', path]),
+    }).start();
+    const revealed = await filesHandlers['deckit-shell:files-reveal']({ path: '/a' }, { mod: 'a' });
+    const folders = await filesHandlers['deckit-shell:files-choose-folders'](
+        { multiple: true, title: 'T', message: 'M' },
+        { mod: 'a' }
+    );
+    check(
+        "a mod's page has a path shown, answered nothing, and the folders it asks the person for",
+        revealed === undefined &&
+            JSON.stringify(folders) === '["/f"]' &&
+            JSON.stringify(shown) ===
+                '[["reveal","/a"],["chooseFolders",{"title":"T","buttonLabel":"Choose","message":"M","multiple":true}]]',
+        { revealed, folders, shown }
+    );
+    check(
+        'a page that runs no mod is shown nothing',
+        refusedTo(() => filesHandlers['deckit-shell:files-reveal']({ path: '/a' }, {})) === 'REFUSED' &&
+            shown.length === 2,
+        shown
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);

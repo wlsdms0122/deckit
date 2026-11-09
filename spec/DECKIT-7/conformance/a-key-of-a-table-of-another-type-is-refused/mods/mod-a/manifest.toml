@@ -5,5 +5,4 @@ main = "main.js"
 background = "Keeps the index."
 
 [permissions]
-"deckit.mods" = "Installs the mods a person picks."
 "system.notifications" = "Shows what it is handed."

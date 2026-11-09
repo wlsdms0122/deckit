@@ -22,7 +22,6 @@ import { createOpen } from '../open/main.js';
 import { createNotification } from '../notification/main.js';
 import { createClipboard } from '../clipboard/main.js';
 import { createContribution } from '../contribution/main.js';
-import { createModFolder } from '../mod-folder/main.js';
 import { createRuntime } from '../runtime/main.js';
 import { createSetup } from '../setup/main.js';
 import { createApi } from '../api/index.js';
@@ -112,7 +111,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         notifications: ENV.notifications,
     });
     const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
-    const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
     const RUNTIME = createRuntime({
         CONFIG,
         CORE,
@@ -178,7 +176,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         NOTIFICATION.start();
         CLIPBOARD.start();
         CONTRIBUTION.start();
-        MOD_FOLDER.start();
         RUNTIME.start();
         SETUP.start();
         told = true;

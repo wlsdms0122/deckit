@@ -133,7 +133,6 @@ async function main() {
         return given;
     };
     const guarded = (on) => ({
-        reveal: () => on.reveal('/a'),
         'clipboard.readText': () => on.clipboard.readText(),
         'clipboard.writeText': () => on.clipboard.writeText('a'),
         'notifications.show': () => on.notifications.show({ title: 'a' }),
@@ -156,7 +155,6 @@ async function main() {
     ]);
     sent.length = 0;
     const mistyped = {
-        'reveal with a number': () => all.reveal(5),
         'clipboard.writeText with a number': () => all.clipboard.writeText(5),
         'clipboard.writeText with its text left out': () => all.clipboard.writeText(),
         'notifications.show with a title of another type': () => all.notifications.show({ title: 1 }),
@@ -199,7 +197,6 @@ async function main() {
         'web.session.trust': () => on.session('a').trust([]),
         'web.session.allow': () => on.session('a').allow([]),
         'web.session.revoke': () => on.session('a').revoke([]),
-        'web.downloads.reveal': () => on.downloads.reveal('1'),
         'web.downloads.open': () => on.downloads.open('1'),
     });
     sent.length = 0;
@@ -220,7 +217,6 @@ async function main() {
         'web.session.trust with one entry': () => allWeb.session('a').trust({ host: 'a', fingerprint: 'b' }),
         'web.downloads.cancel with a number': () => allWeb.downloads.cancel(1),
         'web.downloads.remove with a number': () => allWeb.downloads.remove(1),
-        'web.downloads.reveal with a number': () => allWeb.downloads.reveal(1),
         'web.downloads.open with a number': () => allWeb.downloads.open(1),
     };
     for (const [what, call] of Object.entries(webMistyped))
@@ -435,11 +431,10 @@ async function main() {
             !sent.length,
         sent
     );
+    await granted.restart('past the signature');
     check(
-        'a request deckit adds to mods is refused INVALID_ARGUMENT for an argument of another type',
-        (await refusalOf(granted.pick({ multiple: 'yes' }))) === 'call INVALID_ARGUMENT' &&
-            (await refusalOf(granted.reveal(5))) === 'call INVALID_ARGUMENT' &&
-            !sent.length,
+        'a request deckit adds to mods is asked of main, none past its signature',
+        JSON.stringify(sent.at(-1)) === '{"channel":"deckit-shell:runtime-restart","payload":{}}',
         sent
     );
     await granted.launch('x', 'past the signature');

@@ -10,8 +10,8 @@
 
 // What an environment gives a UI shell on deckit, on main's side: the pages it draws in, which run no mod, the keys
 // pressed in the app's pages and in every app and which of the app's pages has the keyboard, a stage to lay pages on,
-// the fonts installed, and what the person set a double click on a title bar to do. `load`, `close` and `watch` are as
-// `MAIN.pages` says.
+// the fonts installed, what the person set a double click on a title bar to do, the folders the person chooses in a
+// dialog, and a path shown where it lies. `load`, `close` and `watch` are as `MAIN.pages` says.
 const SHELL = Object.freeze({
     pages: {
         // make({ name, keepsDrawing }) -> page, made and not loaded: a page that runs no mod, `name` a lower case
@@ -56,6 +56,11 @@ const SHELL = Object.freeze({
     fonts: 'function',
     // actionOnDoubleClick() -> 'zoom', 'minimize' or 'none', as read at each call
     actionOnDoubleClick: 'function',
+    // chooseFolders({ title, buttonLabel, message, multiple }) -> Promise of the folders the person chose, one unless
+    // `multiple`, none when they chose none
+    dialogs: { chooseFolders: 'function' },
+    // reveal(path): an absolute path shown where it lies, nothing shown when there is none there
+    reveal: 'function',
 });
 
 // What an environment gives a UI shell on deckit on a page's side: the presses in drag regions. Where a document marks

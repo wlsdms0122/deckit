@@ -48,7 +48,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     const activated = new WeakMap(); // a web page -> when a key or the mouse was last pressed in it
     const adopting = new Set(); // what is told of each web page as it is adopted
     let sequence = 0;
-    const DOWNLOAD = createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages: PAGES, open: SYSTEM });
+    const DOWNLOAD = createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages: PAGES });
 
     // MARK: - Initializer
     // MARK: - Public

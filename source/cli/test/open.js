@@ -1,9 +1,9 @@
 // Opening outside the app (deckit-shell/deckit/open/main.js) over a stand-in for the system and the pages: an address
 // of the web is handed the browser as the URL Standard serializes it, and a file its app, either brought forward unless
 // asked not to; a file opens only for a mod with system.file-handlers, refused NOT_PERMITTED otherwise, and only one on
-// this host whose path decodes; what is no URL, or a URL of any other scheme, is refused UNSUPPORTED_URL. Revealing a
-// file takes system.file-handlers. What the host app opens for a mod (deckit/api/index.js: mods.openExternal) opens
-// the same way, a file only for a mod whose run holds system.file-handlers.
+// this host whose path decodes; what is no URL, or a URL of any other scheme, is refused UNSUPPORTED_URL. What the host
+// app opens for a mod (deckit/api/index.js: mods.openExternal) opens the same way, a file only for a mod whose run
+// holds system.file-handlers.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -46,7 +46,6 @@ async function main() {
     const SYSTEM = {
         url: async (address, options) => opened.push(['url', address, options]),
         file: async (file, options) => opened.push(['file', file, options]) > 0,
-        reveal: async (file) => opened.push(['reveal', file]) > 0,
     };
     const OPEN = createOpen({ IDENTITY, open: SYSTEM });
     OPEN.start();
@@ -146,14 +145,6 @@ async function main() {
         refusalOf(undecodedPlain) === 'call NOT_PERMITTED',
         undecodedPlain
     );
-
-    const hidden = await ask(plain, 'deckit-shell:open-reveal', { file: '/Users/me/a.txt' });
-    check('revealing takes system.file-handlers', !!hidden.error && !opened.length, { hidden, opened });
-    const shown = await ask(files, 'deckit-shell:open-reveal', { file: '/Users/me/a.txt' });
-    check('a mod with system.file-handlers reveals a file', shown.value === true && opened[0]?.[0] === 'reveal', {
-        shown,
-        opened,
-    });
 
     // The host app opens for a mod by its id, as the mod's run is granted.
     const runs = new Map([...mods.values()].map((mod) => [mod.id, { mod }]));

@@ -17,5 +17,5 @@ part = "permissions"
 
 [step.expect]
 answers = [
-    { id = "system.file-handlers", reason = "Opens the reports.", usable = true, name = "File Handlers", description = "It can open files in the app for them, which can start programs, and show them in their folders.", privileged = false },
+    { id = "system.file-handlers", reason = "Opens the reports.", usable = true, name = "File Handlers", description = "It can open files in the app for them, which can start programs.", privileged = false },
 ]

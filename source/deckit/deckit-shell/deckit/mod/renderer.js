@@ -3,10 +3,8 @@ import * as RANKER from '../match/ranker.js';
 import * as CLIPBOARD from '../clipboard/renderer.js';
 import * as RUNTIME from '../runtime/renderer.js';
 import * as OPEN from '../open/renderer.js';
-import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as CONTRIBUTION from '../contribution/renderer.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
-import * as OPEN_PERMISSION from '../open/model/permission.js';
 import * as REQUEST from '../request/index.js';
 
 // What deckit puts on the runner for a mod's page: the handle `deckit`, the runner's members and the layer's, the
@@ -25,8 +23,6 @@ export function createMod({ NOTIFICATION }) {
         return {
             handle: 'deckit',
             mods: {
-                pick: MOD_FOLDER.pick,
-                reveal: MOD_FOLDER.reveal,
                 restart: { signature: [], send: RUNTIME.restart },
             },
             lifecycles: [
@@ -100,11 +96,6 @@ export function createMod({ NOTIFICATION }) {
             }),
             exports: Object.freeze({ ...runner.exports, contributions: CONTRIBUTION.contributions }),
             openExternal: OPEN.openExternalOf(mod, granted),
-            reveal: request(
-                'reveal',
-                { guards: [OPEN_PERMISSION.FILE_HANDLERS], signature: [['path', 'string']] },
-                OPEN.reveal
-            ),
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,
             about: RUNTIME.about,

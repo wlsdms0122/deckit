@@ -6,7 +6,7 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: FILE_HANDLERS,
         name: 'File Handlers',
-        description: 'It can open files in the app for them, which can start programs, and show them in their folders.',
+        description: 'It can open files in the app for them, which can start programs.',
     }),
 ]);
 

@@ -235,7 +235,7 @@ class Editor {
         const entryActions = treeEntryActions({
             ui,
             chordOf: (name) => keys.chordOf(name),
-            reveal: deckit.reveal,
+            reveal: shell.reveal,
             clipboard: deckit.clipboard,
             fileSystem,
             disk,

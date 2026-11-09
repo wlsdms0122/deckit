@@ -17,6 +17,7 @@ import { createFonts } from '../fonts/main.js';
 import { createWindows } from '../window/main.js';
 import { createOverlay } from '../overlay/main.js';
 import { createKey } from '../key/main.js';
+import { createFiles } from '../files/main.js';
 import * as FIELD from '../mods/field.js';
 
 // MARK: - Property
@@ -83,6 +84,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
     const FONTS = createFonts({ deckit, installed: ENV.fonts });
+    const FILES = createFiles({ deckit, dialogs: ENV.dialogs, reveal: ENV.reveal });
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         FONTS.start({ onChange: THEME.setFonts });
@@ -93,6 +95,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         DESKTOP.start({ WINDOWS, DOCK });
         WINDOWS.start();
         DOCK.start();
+        FILES.start();
         host.start({ setTheme: THEME.set, desktop: DESKTOP.control, openWindow: WINDOWS.openWeb });
     });
 }

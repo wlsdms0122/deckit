@@ -79,7 +79,6 @@ export function createWeb({ sessions, web: WEB, channels }) {
             remove: request('web.downloads.remove', { signature: id }, (given) =>
                 PROTOCOL.removeDownload.invoke({ id: given })
             ),
-            reveal: request('web.downloads.reveal', opens, (given) => PROTOCOL.revealDownload.invoke({ id: given })),
             open: request('web.downloads.open', opens, (given) => PROTOCOL.openDownload.invoke({ id: given })),
         });
         return Object.freeze({ session, downloads });

@@ -31,11 +31,6 @@ function openExternalOf(mod, granted) {
     };
 }
 
-// `path` shown in its folder.
-function reveal(path) {
-    return PROTOCOL.reveal.invoke({ file: path });
-}
-
 function fileURL(path) {
     refuseArguments('fileURL', [['path', 'string']], [path]);
     return FILE_URL.fileURL(path);
@@ -60,4 +55,4 @@ function refuseArguments(name, signature, args) {
     if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `${name}: ${problem}`);
 }
 
-export { openExternalOf, reveal, fileURL, filePath };
+export { openExternalOf, fileURL, filePath };

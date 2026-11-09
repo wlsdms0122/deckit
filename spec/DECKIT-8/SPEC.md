@@ -62,7 +62,7 @@ The system defines this permission, in a table of the shape [the permissions](..
 
 | id | name | description | privileged |
 |---|---|---|---|
-| `system.file-handlers` | `File Handlers` | `It can open files in the app for them, which can start programs, and show them in their folders.` | `false` |
+| `system.file-handlers` | `File Handlers` | `It can open files in the app for them, which can start programs.` | `false` |
 
 It guards `openExternal` of a `file` URL. The other requests it guards are those [the handle](../DECKIT-7/SPEC.md) names it for, each stated by its own DECKIT.
 

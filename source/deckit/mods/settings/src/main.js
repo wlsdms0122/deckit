@@ -82,6 +82,8 @@ class Settings {
             packages: () => services.packages,
             pins: shell.mods,
             dropDestination: shell.dropDestination,
+            dialogs: shell.dialogs,
+            reveal: shell.reveal,
             util,
             appName: APP_NAME,
             onChange: redraw,

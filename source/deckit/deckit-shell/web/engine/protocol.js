@@ -61,7 +61,6 @@ export const save = CHANNEL.pageToMain('deckit-shell:web-save', { ask: 'number',
 // started }.
 export const downloads = CHANNEL.pageToMain('deckit-shell:web-downloads', {}, { reply: true });
 export const cancelDownload = CHANNEL.pageToMain('deckit-shell:web-download-cancel', { id: 'string' });
-export const revealDownload = CHANNEL.pageToMain('deckit-shell:web-download-reveal', { id: 'string' }, { reply: true });
 export const openDownload = CHANNEL.pageToMain('deckit-shell:web-download-open', { id: 'string' }, { reply: true });
 export const removeDownload = CHANNEL.pageToMain('deckit-shell:web-download-remove', { id: 'string' }, { reply: true });
 

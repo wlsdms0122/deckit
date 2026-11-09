@@ -9,7 +9,7 @@ keywords = ["deckit", "deck"]
 
 [permissions]
 "deckit.mods" = "Restarts a mod you pick, or the whole app."
-"system.file-handlers" = "Shows deckit's folders and its log in Finder, and opens a file:// address you type."
+"system.file-handlers" = "Opens a file:// address you type."
 "system.clipboard-write" = "Copies a version you pick from About, for a report."
 
 [interfaces]

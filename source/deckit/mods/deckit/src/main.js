@@ -44,10 +44,8 @@ class Deckit {
         // What the switcher's actions search and do, for attach().
         this.actions = { util, appName: APP_NAME, address, modsFor, versions, does: commands };
 
-        // One of deckit's places in `deckit.about()`, shown in Finder.
-        async function reveal(place) {
-            await deckit.reveal(deckit.about()[place]);
-        }
+        // One of deckit's places in `deckit.about()`, shown in Finder by the shell's reveal, which attach() keeps.
+        const reveal = (place) => this.reveal(deckit.about()[place]);
 
         // Only a version About lists is copied.
         async function copyVersion({ version }) {
@@ -103,7 +101,8 @@ class Deckit {
         }
     }
 
-    attach(_shell, deckit) {
+    attach(shell, deckit) {
+        this.reveal = shell.reveal;
         const actions = switcher(this.actions);
         deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
     }

@@ -3,9 +3,9 @@ import * as CHANNEL from '../channel/index.js';
 // What an environment gives deckit, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deckit reaches the core, the files and
 // the log, the pages a mod runs in, the app starting and quitting, what deckit does through the system for a mod
-// (opening, notifications, the clipboard, a folder chosen), and what only the environment knows: the person's home
-// folder and what runs deckit. An environment gives at least this, and each is handed what it is checked against alone
-// (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a list read.
+// (opening, notifications, the clipboard), and what only the environment knows: the person's home folder and what runs
+// deckit. An environment gives at least this, and each is handed what it is checked against alone (`checked`). Each
+// leaf says what a member is: `function`, `object`, `string`, or `array`, a list read.
 // MARK: - Property
 /**
  * A page: a token deckit keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -61,9 +61,8 @@ const MAIN = Object.freeze({
     // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that
     // opens its scheme, the browser for the web, brought forward unless `activate` is false; `file(path, { activate })
     // -> Promise of boolean`, a file at an absolute path in its app, brought forward as `url` brings it, false when
-    // there is none there or it did not open;
-    // `reveal(path) -> boolean`, an absolute path shown where it lies, false when there is none there
-    open: { url: 'function', file: 'function', reveal: 'function' },
+    // there is none there or it did not open
+    open: { url: 'function', file: 'function' },
     notifications: {
         // show({ title, body, silent }, { onClick }) -> Promise: true once shown, false where the system has none;
         // rejects with why when the system says it did not show it. `onClick()` hears a click on it
@@ -71,9 +70,6 @@ const MAIN = Object.freeze({
     },
     // The clipboard's text: readText() -> string, writeText(text)
     clipboard: { readText: 'function', writeText: 'function' },
-    // chooseFolders({ title, buttonLabel, message, multiple }) -> Promise of the folders the person chose, one unless
-    // `multiple`, none when they chose none
-    dialogs: { chooseFolders: 'function' },
     core: {
         // open({ onMessage(line), onLog(line), onEnd(why) }) -> { send(line) }: the core, started, a message a line
         // each way. `onLog` hears what it logs, and `onEnd` once that it ended, whether it ran or never started, after

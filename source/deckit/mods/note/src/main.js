@@ -152,7 +152,7 @@ class Note {
         const fileOperations = operations({
             ui,
             clipboard: deckit.clipboard,
-            reveal: deckit.reveal,
+            reveal: shell.reveal,
             notesFolder,
             relocations,
             settle: noteSession.settle,

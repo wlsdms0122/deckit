@@ -16,10 +16,6 @@ export function createOpen({ IDENTITY, open: SYSTEM }) {
     // MARK: - Public
     function start() {
         PROTOCOL.open.handle(({ url, activates }, sender) => open(url, { activates, opensFiles: opensFiles(sender) }));
-        PROTOCOL.reveal.handle(({ file }, sender) => {
-            IDENTITY.modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS);
-            return SYSTEM.reveal(file);
-        });
     }
 
     // `url` read as a URL and handed the environment as it serializes, the web's to open in the browser and a file's

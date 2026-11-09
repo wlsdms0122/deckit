@@ -95,7 +95,7 @@ class Browser {
         const bar = toolbar({
             theme,
             ui,
-            trailing: downloadList({ theme, ui, downloads: web.downloads }).element,
+            trailing: downloadList({ theme, ui, downloads: web.downloads, reveal: shell.reveal }).element,
             onBack: goBack,
             onForward: goForward,
             onReload: reload,
