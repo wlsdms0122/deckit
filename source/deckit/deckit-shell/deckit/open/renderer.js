@@ -3,6 +3,7 @@ import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 import * as REQUEST from '../request/index.js';
 import * as OPEN_PERMISSION from './model/permission.js';
+import * as FILE_URL from './model/file-url.js';
 
 // MARK: - Property
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
@@ -35,10 +36,9 @@ function reveal(path) {
     return PROTOCOL.reveal.invoke({ file: path });
 }
 
-// Each part escaped, so a space or a # stays part of the name.
 function fileURL(path) {
     refuseArguments('fileURL', [['path', 'string']], [path]);
-    return path.startsWith('/') ? 'file://' + path.split('/').map(encodeURIComponent).join('/') : '';
+    return FILE_URL.fileURL(path);
 }
 
 function filePath(url) {

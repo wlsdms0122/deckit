@@ -1,4 +1,5 @@
 import * as OPEN_PERMISSION from '../../deckit/open/model/permission.js';
+import * as FILE_URL from '../../deckit/open/model/file-url.js';
 
 // The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's and any
 // older one still under way. The mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id the
@@ -6,7 +7,8 @@ import * as OPEN_PERMISSION from '../../deckit/open/model/permission.js';
 // file, shown where it lies or opened in its app. A download stays the mod's it started for, whatever becomes of its
 // page. Before it is saved, the mod's page is asked whether to save it (`saving`). `deckit` is what connect answered,
 // `state` the web engine's own state, and `modFrom(page, permission)` the id of the mod that sent a request, held to
-// `permission`. `web` and `open` are the environment's: what stops a download, and what shows and opens a file.
+// `permission`. `web` and `open` are the environment's: what stops a download, and what shows a file where it lies.
+// A download is opened through deckit, as the mod's own openExternal opens a file.
 export function createDownload({ deckit, state: STATE, PROTOCOL, modFrom, web: WEB, pages: PAGES, open: SYSTEM }) {
     // MARK: - Property
     const KEY = 'web-downloads'; // the state's key: mod id -> its downloads, newest first
@@ -40,8 +42,11 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, modFrom, web: W
             return !!download && SYSTEM.reveal(download.path);
         });
         PROTOCOL.openDownload.handle(async ({ id }, sender) => {
-            const download = find(modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS), id);
-            return download?.state === 'finished' && !!(await SYSTEM.file(download.path));
+            const mod = modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS);
+            const download = find(mod, id);
+            if (download?.state !== 'finished') return false;
+            await deckit.mods.openExternal(mod, FILE_URL.fileURL(download.path));
+            return true;
         });
         PROTOCOL.removeDownload.handle(({ id }, sender) => remove(modFrom(sender), id));
         PROTOCOL.save.on(({ ask, save }, sender) => {

@@ -100,7 +100,6 @@ async function main() {
         appFor: (address) => (address.startsWith('zoommtg:') ? 'zoom.us' : ''),
         url: (address) => opened.push(address),
         reveal: (file) => opened.push(['reveal', file]) > 0,
-        file: async (file) => opened.push(['file', file]) > 0,
     };
     let sandboxed = null; // what the web engine sets a mod's page up with
     let eraser = null; // what the web engine erases a mod removed with its data with
@@ -465,14 +464,15 @@ async function main() {
         state['web-downloads']
     );
     check(
-        'a finished one opens in its app',
-        (await openIt()) === true && JSON.stringify(opened.at(-1)) === '["file","/D/a.zip"]',
-        opened
+        'a finished one opens through deckit, as the mod opens a file',
+        (await openIt()) === true && JSON.stringify(externals.at(-1)?.slice(0, 2)) === '["files","file:///D/a.zip"]',
+        externals
     );
     const revealed = (await heard.asked(filesPage, { channel: 'deckit-shell:web-download-reveal', payload: { id } }))
         .value;
     check('a download is shown in Finder', revealed === true && opened.at(-1)[0] === 'reveal', opened);
     const openedBefore = opened.length;
+    const externalsBefore = externals.length;
     const plainOpen = await heard.asked(plainPage, {
         channel: 'deckit-shell:web-download-open',
         payload: { id: 'quit' },
@@ -483,8 +483,11 @@ async function main() {
     });
     check(
         'a download opens and shows in Finder only for a mod with system.file-handlers',
-        !plainOpen?.value && !plainReveal?.value && opened.length === openedBefore,
-        [plainOpen, plainReveal, opened]
+        !plainOpen?.value &&
+            !plainReveal?.value &&
+            opened.length === openedBefore &&
+            externals.length === externalsBefore,
+        [plainOpen, plainReveal, opened, externals]
     );
 
     // One whose mod's page is gone as it ends is still the mod's.

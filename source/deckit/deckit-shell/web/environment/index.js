@@ -3,8 +3,8 @@
 // deckit's tables say (deckit/environment).
 // MARK: - Property
 // What an environment gives the web engine in main: the web pages a mod's page shows, what it tells of a page, and what
-// is opened outside the app. `pages.watch` and `pages.watchInput` are as `MAIN.pages` says, and `open.url`,
-// `open.file` and `open.reveal` as `MAIN.open` says.
+// is opened outside the app. `pages.watch` and `pages.watchInput` are as `MAIN.pages` says, and `open.url` and
+// `open.reveal` as `MAIN.open` says.
 const WEB = Object.freeze({
     // The web pages a mod's page shows, each in one of the mod's web sessions, by name, which the environment keeps
     // apart from every other mod's. A web page is a page too, kept and handed back, and has an id, a number the mod's
@@ -53,7 +53,7 @@ const WEB = Object.freeze({
     pages: { watch: 'function', watchInput: 'function' },
     // `appFor(url) -> string`, the name of the app that opens an address of its scheme as a person reads it, or ''
     // where none does, as for the environment's own schemes
-    open: { url: 'function', file: 'function', reveal: 'function', appFor: 'function' },
+    open: { url: 'function', reveal: 'function', appFor: 'function' },
 });
 
 // What the web engine hands an environment's web (`WEB.web.listen`). Answered at once: `loading(embedder, page, to, {
