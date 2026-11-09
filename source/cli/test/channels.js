@@ -42,7 +42,6 @@ const MAIN_ENVIRONMENT = {
             page.on('destroyed', destroyed);
         },
         pin() {},
-        watchInput() {},
     },
 };
 

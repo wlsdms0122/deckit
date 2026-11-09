@@ -53,9 +53,6 @@ const MAIN = Object.freeze({
         // pin(page): the page stays on the address its first load commits; a navigation of its own elsewhere, or a
         // redirect, is refused, and only main loading or reloading it moves it
         pin: 'function',
-        // watchInput(page, listener({ type })): `keydown` before anything watching after it may take the key, and
-        // `mousedown`, `mouseup`, as UI Events name them
-        watchInput: 'function',
         // clearStorage(modId) -> Promise: what the mod's pages stored, the web's storage, taken
         clearStorage: 'function',
         // countStorage(modId) -> Promise of an integer: how many items the mod's pages keep in the web's local storage

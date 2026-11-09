@@ -34,8 +34,8 @@ const SHELL = Object.freeze({
     keys: {
         // capture(page, handler(pressed) -> boolean): each key pressed in the page, `{ type, code, meta, control, alt,
         // shift }` with `type` as UI Events names it (`keydown`, `keyup`), told before the page has it and taken from
-        // the page when `handler` answers true, at once. Told after what `pages.watchInput` (MAIN, WEB) told of it,
-        // when that watch began first
+        // the page when `handler` answers true, at once. Told after what `WEB.pages.watchInput` told of it, when that
+        // watch began first
         capture: 'function',
         // unhandled(page, handler(keystroke) -> boolean): each key down pressed in the page that the page did not
         // handle, by cancelling it or acting on it, `{ code, meta, control, alt, shift }`, told after the page had it

@@ -127,8 +127,6 @@ export function createApi({
                 add: (page, name) => IDENTITY.add(page, { page: name }),
                 nameOf: IDENTITY.pageNameOf,
                 whenEnds: IDENTITY.whenPageEnds,
-                isPressing: IDENTITY.isPressing,
-                isPointing: IDENTITY.isPointing,
                 // onSandbox(listener(page, id)) -> off: each mod's sandbox page as it is made, known as the page of
                 // the mod `id` and before it loads, so what its owner sets up is in place before the mod's code runs.
                 onSandbox: (listener) => RUNNER.onSandbox((page, mod) => listener(page, mod.id)),
