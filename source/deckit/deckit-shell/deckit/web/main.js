@@ -11,7 +11,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // `web` is the environment's: the web pages a mod's page shows, their sessions, and what a site was allowed. `pages`
 // and `open` are the environment's too: what it tells of a page, and what opens an address outside the app.
-export function createWeb({ LOG, IDENTITY, RUNNER, KEYMAP, STORAGE, web: WEB, pages: PAGES, open: SYSTEM }) {
+export function createWeb({ LOG, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web: WEB, pages: PAGES, open: SYSTEM }) {
     // MARK: - Property
     const SESSIONS = 'web-sessions'; // the state's key: mod id -> the names of the web sessions it used
     const TITLE_LIMIT = 200;
@@ -76,6 +76,7 @@ export function createWeb({ LOG, IDENTITY, RUNNER, KEYMAP, STORAGE, web: WEB, pa
         listen();
         DOWNLOAD.start();
         RUNNER.onSandbox(prepare);
+        MODS.onErase(erase);
     }
 
     // The page of deckit's a page answers to: a mod's or one that runs no mod, or the mod's page that shows it as a
@@ -89,6 +90,7 @@ export function createWeb({ LOG, IDENTITY, RUNNER, KEYMAP, STORAGE, web: WEB, pa
         return WEB.holdsKeyboard(modPage);
     }
 
+    // MARK: - Private
     // What a mod kept of the web: its downloads, and what the sessions it used stored. The record of its sessions is
     // read again once they are cleared, so what another mod used meanwhile stays.
     async function erase(modId) {
@@ -100,7 +102,6 @@ export function createWeb({ LOG, IDENTITY, RUNNER, KEYMAP, STORAGE, web: WEB, pa
         LOG.info(`forgot the web sessions of ${modId}`);
     }
 
-    // MARK: - Private
     // A mod's page that shows web pages: only that mod's sessions attach there, and only the web, or a file for a mod
     // with system.files, loads in them. A window it asked for answers to the document that asked for it, and a new
     // document has no delegate for it, so it closes.
@@ -377,5 +378,5 @@ export function createWeb({ LOG, IDENTITY, RUNNER, KEYMAP, STORAGE, web: WEB, pa
         for (const resolve of question.waiting) resolve(!!allowed);
     }
 
-    return { start, pageFor, holdsKeyboard, erase };
+    return { start, pageFor, holdsKeyboard };
 }

@@ -118,7 +118,17 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
     const KEYMAP = createKeymap({ LOG, IDENTITY, RUNNER, keys: ENV.keys });
-    const WEB = createWeb({ LOG, IDENTITY, RUNNER, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
+    const WEB = createWeb({
+        LOG,
+        IDENTITY,
+        RUNNER,
+        MODS,
+        KEYMAP,
+        STORAGE,
+        web: ENV.web,
+        pages: ENV.pages,
+        open: ENV.open,
+    });
     const OPEN = createOpen({ LOG, IDENTITY, RUNNER, open: ENV.open, pages: ENV.pages });
     const NOTIFICATION = createNotification({
         LOG,
@@ -131,6 +141,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         CORE,
         IDENTITY,
         RUNNER,
+        MODS,
         mainProcess: ENV.mainProcess,
         app: ENV.app,
         files: ENV.files,
@@ -225,9 +236,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         MODS.start({
             facts: (mod) => ({ mainProcess: MAIN_PROCESS.stateOf(mod.id) }),
             onFactsChange: MAIN_PROCESS.onChange,
-            installed: MAIN_PROCESS.installed,
-            removed: MAIN_PROCESS.removed,
-            erase: WEB.erase,
         });
         await RUNNER.start();
     }

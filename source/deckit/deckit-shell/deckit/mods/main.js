@@ -3,6 +3,7 @@ import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as MOD_PERMISSION from '../permission/index.js';
 import * as LIFECYCLE from '../runner/model/lifecycle.js';
+import * as LISTENER from '../listener/index.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -15,18 +16,39 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
     const watching = new Set(); // the pages told when what `mods` answers may have changed
+    const installedListeners = new Set(); // told of a mod installed
+    const removedListeners = new Set(); // told of a mod removed
+    const erasers = new Set(); // asked to erase what they keep of a mod removed with its data
 
     // MARK: - Initializer
     // MARK: - Public
-    // What `start` is handed is told of a mod installed, once the one it replaced, if that ran, has launched again,
-    // and answers what it adds to what install answers (`installed(id)`, which may answer a promise), and of one
-    // removed (`removed(id)`). It is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed
-    // (`onFactsChange(tell)`), and to erase what it keeps outside the core of a mod removed with its data
-    // (`erase(id)`, a promise).
+    // What `start` is handed is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed
+    // (`onFactsChange(tell)`).
     function start(given) {
         layer = given;
         eraseUncleared();
         listen();
+    }
+
+    // `listener(id)` is told of a mod installed, once the one it replaced, if that ran, has launched again. Answers its
+    // off.
+    function onInstalled(listener) {
+        installedListeners.add(listener);
+        return () => installedListeners.delete(listener);
+    }
+
+    // `listener(id)` is told of a mod removed, before what runs in its place launches, while its run, if any, has not
+    // ended. Answers its off.
+    function onRemoved(listener) {
+        removedListeners.add(listener);
+        return () => removedListeners.delete(listener);
+    }
+
+    // `eraser(id)` is asked to erase what it keeps outside the core of a mod removed with its data, answering a promise
+    // that rejects where it could not: the erasure is tried again at the next start. Answers its off.
+    function onErase(eraser) {
+        erasers.add(eraser);
+        return () => erasers.delete(eraser);
     }
 
     // What a folder would install, asked before the person is: its manifest, and whether it replaces an installed
@@ -147,14 +169,15 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
         const manifest = await CATALOG.install(from);
         await CATALOG.refresh();
         await RUNNER.whenReconciled();
-        return { ...(await layer.installed(manifest.id)), ...manifest };
+        for (const listener of installedListeners) LISTENER.wrap(listener, 'what hears a mod installed')(manifest.id);
+        return manifest;
     }
 
     // What runs in its place is told before its run ends. Its run has ended, stop() and all, and its page closed,
     // before what it stored is taken, so nothing writes it back. Answers whether what it stored was erased.
     async function remove(id, erasing) {
         const keeps = await CATALOG.remove(id);
-        layer.removed(id);
+        for (const listener of removedListeners) LISTENER.wrap(listener, 'what hears a mod removed')(id);
         await CATALOG.refresh();
         await RUNNER.whenReconciled();
         if (!erasing || !keeps) return { erased: false };
@@ -162,7 +185,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
         return { erased: true };
     }
 
-    // A mod removed with its data, whose pages' storage or what the layer keeps of it was not cleared then, or what the
+    // A mod removed with its data, whose pages' storage or what an eraser keeps of it was not cleared then, or what the
     // core keeps of it not erased: erased here.
     async function eraseUncleared() {
         const uncleared = await CORE.request('erasure/uncleared').catch((error) => {
@@ -175,19 +198,19 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
     }
 
     // What a mod removed with its data kept outside its own folder: the core erases its data folder, its records and
-    // what is kept for it in the core, and notes it until its pages' storage and what the layer keeps of it outside
+    // what is kept for it in the core, and notes it until its pages' storage and what each eraser keeps of it outside
     // the core are cleared here. Each is cleared whether or not another fails; the note goes only once all are, so
     // a failure is tried again at the next start.
     async function erase(id) {
         const outcomes = await Promise.allSettled([
             CORE.request('erasure/erase', { mod: id }),
             pages.clearStorage(id),
-            layer.erase(id),
+            ...[...erasers].map((eraser) => Promise.resolve().then(() => eraser(id))),
         ]);
         const failed = outcomes.find(({ status }) => status === 'rejected');
         if (failed) throw failed.reason;
         await CORE.request('erasure/cleared', { mod: id });
     }
 
-    return { start, plan };
+    return { start, plan, onInstalled, onRemoved, onErase };
 }

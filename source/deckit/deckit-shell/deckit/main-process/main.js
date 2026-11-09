@@ -9,7 +9,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // A mod's main process modules, which the environment runs (`mainProcess`): a mod with system.main-process starts
 // and calls its own, they start anew with each run and end with it, and what they emit goes to the mod's page. The
 // app quits once the modules of the runs that ended have ended too. `files` is the environment's.
-export function createMainProcess({ CORE, IDENTITY, RUNNER, mainProcess: MODULES, app: APP, files: FILES }) {
+export function createMainProcess({ CORE, IDENTITY, RUNNER, MODS, mainProcess: MODULES, app: APP, files: FILES }) {
     // MARK: - Property
     const endings = new Set(); // the ends of modules still to come, each settled in its limit
 
@@ -17,6 +17,8 @@ export function createMainProcess({ CORE, IDENTITY, RUNNER, mainProcess: MODULES
     // MARK: - Public
     function start() {
         RUNNER.observe('willLaunch', ({ mod }) => MODULES.launching(modOf(mod)));
+        MODS.onInstalled((modId) => MODULES.installed(modId));
+        MODS.onRemoved(removed);
         for (const name of ['didFailToLaunch', 'didTerminate'])
             RUNNER.observe(name, ({ mod }) => {
                 const ending = MODULES.ended(modOf(mod), { within: CORE.timeout().end }).catch(() => {});
@@ -41,13 +43,13 @@ export function createMainProcess({ CORE, IDENTITY, RUNNER, mainProcess: MODULES
         });
     }
 
+    // MARK: - Private
     // A mod taken away: its modules end with its run if it has not ended yet.
     function removed(modId) {
         const run = RUNNER.runOf(modId);
         MODULES.removed(modId, { running: !!run && run.state !== 'notRunning' });
     }
 
-    // MARK: - Private
     // A mod as the environment runs its modules: its folder, its data folder, and the page it runs in now.
     function modOf(mod) {
         return Object.freeze({
@@ -96,8 +98,6 @@ export function createMainProcess({ CORE, IDENTITY, RUNNER, mainProcess: MODULES
 
     return {
         start,
-        removed,
-        installed: MODULES.installed,
         stateOf: MODULES.stateOf,
         onChange: MODULES.onChange,
         restartPending: MODULES.restartPending,

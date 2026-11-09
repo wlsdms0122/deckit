@@ -146,7 +146,7 @@ async function main() {
         REQUEST,
         pages: { clearStorage: async () => {} },
     });
-    MODS.start({ facts: () => ({}), installed: async () => ({}), removed: () => {}, erase: async () => {} });
+    MODS.start({ facts: () => ({}) });
     await tick();
     const listed = await heard.asked(PAGE, { channel: 'deckit-shell:mods', payload: {} });
     const entries = listed?.value?.found ?? [];

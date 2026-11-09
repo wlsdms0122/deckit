@@ -115,7 +115,9 @@ async function main() {
     };
     let sandboxed = null; // what the web sets a mod's page up with
     const RUNNER = { onSandbox: (listener) => (sandboxed = listener) };
-    const WEB = createWeb({ LOG: { info: () => {} }, IDENTITY, RUNNER, KEYMAP, STORAGE, web, pages, open });
+    let eraser = null; // what the web erases a mod removed with its data with
+    const MODS = { onErase: (given) => (eraser = given) };
+    const WEB = createWeb({ LOG: { info: () => {} }, IDENTITY, RUNNER, MODS, KEYMAP, STORAGE, web, pages, open });
     WEB.start();
     check(
         'deckit hands the web all it declares',
@@ -165,7 +167,7 @@ async function main() {
     check("a mod never attaches another's session", !listened.attaching(plainPage, { mod: 'files', name: 'web' }), '');
     check("a session that is no mod's never attaches", !listened.attaching(plainPage, null), '');
     clearing = () => listened.attaching(plainPage, { mod: 'plain', name: 'web' });
-    await WEB.erase('files');
+    await eraser('files');
     check(
         "a mod's sessions are cleared and forgotten, and another's used meanwhile kept",
         JSON.stringify(done.at(-1)) === '["clear","files","web"]' &&
@@ -473,7 +475,7 @@ async function main() {
         [done.at(-1), state['web-downloads']]
     );
     listened.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip' });
-    await WEB.erase('files');
+    await eraser('files');
     listened.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip', state: 'cancelled' });
     check(
         "a mod's downloads go with its data, one under way stopped",
