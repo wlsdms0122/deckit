@@ -11,7 +11,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // `web` is the environment's: the web pages a mod's page shows, their sessions, and what a site was allowed. `pages`
 // and `open` are the environment's too: what it tells of a page, and what opens an address outside the app.
-export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAGES, open: SYSTEM }) {
+export function createWeb({ LOG, IDENTITY, RUNNER, KEYMAP, STORAGE, web: WEB, pages: PAGES, open: SYSTEM }) {
     // MARK: - Property
     const SESSIONS = 'web-sessions'; // the state's key: mod id -> the names of the web sessions it used
     const TITLE_LIMIT = 200;
@@ -75,20 +75,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         });
         listen();
         DOWNLOAD.start();
-    }
-
-    // A mod's page that shows web pages: only that mod's sessions attach there, and only the web, or a file for a mod
-    // with system.files, loads in them. A window it asked for answers to the document that asked for it, and a new
-    // document has no delegate for it, so it closes.
-    function prepare(modPage) {
-        WEB.embed(modPage);
-        const closeWindows = () => {
-            for (const [id, embedder] of windows) {
-                const page = embedder === modPage && WEB.pageOf(id);
-                if (page) WEB.close(page);
-            }
-        };
-        PAGES.watch(modPage, { ended: closeWindows, destroyed: closeWindows });
+        RUNNER.onSandbox(prepare);
     }
 
     // The page of deckit's a page answers to: a mod's or one that runs no mod, or the mod's page that shows it as a
@@ -114,6 +101,20 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     }
 
     // MARK: - Private
+    // A mod's page that shows web pages: only that mod's sessions attach there, and only the web, or a file for a mod
+    // with system.files, loads in them. A window it asked for answers to the document that asked for it, and a new
+    // document has no delegate for it, so it closes.
+    function prepare(modPage) {
+        WEB.embed(modPage);
+        const closeWindows = () => {
+            for (const [id, embedder] of windows) {
+                const page = embedder === modPage && WEB.pageOf(id);
+                if (page) WEB.close(page);
+            }
+        };
+        PAGES.watch(modPage, { ended: closeWindows, destroyed: closeWindows });
+    }
+
     function listen() {
         PROTOCOL.window.handle(({ name, url, title }, sender) =>
             openWindow(sender, IDENTITY.modFrom(sender), name, url, title)
@@ -376,5 +377,5 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         for (const resolve of question.waiting) resolve(!!allowed);
     }
 
-    return { start, prepare, pageFor, holdsKeyboard, erase };
+    return { start, pageFor, holdsKeyboard, erase };
 }

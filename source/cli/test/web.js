@@ -113,7 +113,9 @@ async function main() {
         reveal: (file) => opened.push(['reveal', file]) > 0,
         file: async (file) => opened.push(['file', file]) > 0,
     };
-    const WEB = createWeb({ LOG: { info: () => {} }, IDENTITY, KEYMAP, STORAGE, web, pages, open });
+    let sandboxed = null; // what the web sets a mod's page up with
+    const RUNNER = { onSandbox: (listener) => (sandboxed = listener) };
+    const WEB = createWeb({ LOG: { info: () => {} }, IDENTITY, RUNNER, KEYMAP, STORAGE, web, pages, open });
     WEB.start();
     check(
         'deckit hands the web all it declares',
@@ -172,7 +174,7 @@ async function main() {
     );
 
     // A window a mod asked for closes with the document that asked.
-    WEB.prepare(filesPage);
+    sandboxed(filesPage);
     heard.asked(filesPage, {
         channel: 'deckit-shell:web-window',
         payload: { name: 'web', url: 'https://a.com', title: '' },

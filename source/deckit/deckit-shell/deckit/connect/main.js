@@ -117,9 +117,9 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
-    const KEYMAP = createKeymap({ LOG, IDENTITY, keys: ENV.keys });
-    const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
-    const OPEN = createOpen({ LOG, IDENTITY, open: ENV.open });
+    const KEYMAP = createKeymap({ LOG, IDENTITY, RUNNER, keys: ENV.keys });
+    const WEB = createWeb({ LOG, IDENTITY, RUNNER, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
+    const OPEN = createOpen({ LOG, IDENTITY, RUNNER, open: ENV.open, pages: ENV.pages });
     const NOTIFICATION = createNotification({
         LOG,
         IDENTITY,
@@ -229,18 +229,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             removed: MAIN_PROCESS.removed,
             erase: WEB.erase,
         });
-        await RUNNER.start({ preparePage });
-    }
-
-    // A mod's page shows the web, is where the chords mods take work, and opens with the system what it opens: a
-    // window it asks for, and a link that leaves its origin, which deckit holds it to.
-    function preparePage(page) {
-        WEB.prepare(page);
-        KEYMAP.listen(page);
-        ENV.pages.watch(page, {
-            opens: (url, options) => OPEN.openFrom(page, url, options),
-            leaves: (url) => OPEN.openFrom(page, url),
-        });
+        await RUNNER.start();
     }
 }
 

@@ -101,7 +101,8 @@ async function main() {
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages, app });
     createEvent({ CORE, LOG, IDENTITY, RUNNER }).start();
     let launchedAtStart = false;
-    RUNNER.start({ preparePage: (page) => done.push(['prepare', page.modId]) }).then(() => (launchedAtStart = true));
+    RUNNER.onSandbox((page) => done.push(['prepare', page.modId]));
+    RUNNER.start().then(() => (launchedAtStart = true));
     await tick();
     const order = done.map(([what]) => what).join(' ');
     check(

@@ -7,8 +7,8 @@ import * as REQUEST from '../request/index.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Opening outside the app, with the system: the web in the browser, and a file in its app for a caller that may open
-// files. `open` is the environment's.
-export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
+// files, and what a mod's page opens by itself. `open` and `pages` are the environment's.
+export function createOpen({ LOG, IDENTITY, RUNNER, open: SYSTEM, pages: PAGES }) {
     // MARK: - Property
     const WEB = Object.freeze(['http:', 'https:']);
 
@@ -20,6 +20,12 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
             IDENTITY.modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS);
             return SYSTEM.reveal(file);
         });
+        RUNNER.onSandbox((page) =>
+            PAGES.watch(page, {
+                opens: (url, options) => openFrom(page, url, options),
+                leaves: (url) => openFrom(page, url),
+            })
+        );
     }
 
     // `url` read as a URL and handed the environment as it serializes, the web's to open in the browser and a file's
@@ -44,6 +50,7 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
         await SYSTEM.file(path, { activate: activates });
     }
 
+    // MARK: - Private
     // What a page asks to open outside itself, a window or an address its document leaves for, opened as `open`
     // does for the mod the page runs. `options` are what `open` takes.
     function openFrom(page, url, options = {}) {
@@ -52,7 +59,6 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
         );
     }
 
-    // MARK: - Private
     // A path percent-decoded, its bytes read as UTF-8, or null where a `%` is not two hexadecimal digits or the bytes
     // are not UTF-8.
     function decoded(path) {
@@ -67,5 +73,5 @@ export function createOpen({ LOG, IDENTITY, open: SYSTEM }) {
         return IDENTITY.modFrom(page).granted.includes(OPEN_PERMISSION.FILE_HANDLERS);
     }
 
-    return { start, open, openFrom };
+    return { start, open };
 }

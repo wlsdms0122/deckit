@@ -13,7 +13,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // page did not handle it. A page that records is handed each key pressed in it, before anything else looks at it; then
 // a layer over deckit monitors the keys pressed in those pages, before any chord a mod took, and hears each chord told
 // to a mod. `keys` is the environment's.
-export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
+export function createKeymap({ LOG, IDENTITY, RUNNER, keys: KEYS }) {
     // MARK: - Property
     // A chord, by its name -> { page, id, off, drop } for one a mod took, `off` the system's hold or null, or
     // { holder, handler } for one a layer holds, `holder` its name as a person reads it.
@@ -27,6 +27,7 @@ export function createKeymap({ LOG, IDENTITY, keys: KEYS }) {
     function start() {
         PROTOCOL.take.handle(({ id, keystroke, scope }, sender) => take(sender, { id, keystroke, scope }));
         PROTOCOL.release.on(({ id }, sender) => release(sender, id));
+        RUNNER.onSandbox(listen);
     }
 
     // Keystrokes in `target`, a page of the app, go by the chords taken: one a mod took pressed there is taken from the

@@ -76,7 +76,7 @@ async function main() {
     const warned = [];
     const errors = [];
     const LOG = { warn: (line) => warned.push(line), error: (line) => errors.push(line) };
-    const KEYMAP = createKeymap({ LOG, IDENTITY, keys });
+    const KEYMAP = createKeymap({ LOG, IDENTITY, RUNNER: { onSandbox: () => () => {} }, keys });
     KEYMAP.start();
     for (const page of [shell, a, g, n]) KEYMAP.listen(page);
     const chords = []; // the mods each chord told was heard for

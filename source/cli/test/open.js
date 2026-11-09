@@ -46,7 +46,11 @@ async function main() {
         file: async (file, options) => opened.push(['file', file, options]) > 0,
         reveal: async (file) => opened.push(['reveal', file]) > 0,
     };
-    const OPEN = createOpen({ LOG: { warn: () => {} }, IDENTITY, open: SYSTEM });
+    let sandboxed = null; // what opening sets a mod's page up with
+    const RUNNER = { onSandbox: (listener) => (sandboxed = listener) };
+    const watching = new Map(); // page -> what watches it
+    const pages = { watch: (page, watchers) => watching.set(page, watchers) };
+    const OPEN = createOpen({ LOG: { warn: () => {} }, IDENTITY, RUNNER, open: SYSTEM, pages });
     OPEN.start();
 
     const ask = async (page, channel, payload) => {
@@ -146,8 +150,9 @@ async function main() {
     );
 
     // What a page opens by itself, a window or a link that leaves, goes the same way.
-    OPEN.openFrom(plain, 'https://example.org', { activates: true, target: 'x' });
-    OPEN.openFrom(plain, 'file:///Users/me/a.txt');
+    sandboxed(plain);
+    watching.get(plain).opens('https://example.org', { activates: true, target: 'x' });
+    watching.get(plain).leaves('file:///Users/me/a.txt');
     await new Promise((resolve) => setImmediate(resolve));
     check(
         'what a page opens by itself opens as an address it asks to open',

@@ -25,17 +25,15 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
     let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
     let reconciled = Promise.resolve(); // settled once what the catalog's last change comes to has loaded
-    let preparePage = null;
+    const sandboxListeners = new Set(); // told of each sandbox's page as it is made
     let quitHold = null; // 'held' while the runs terminate as the app quits, 'free' once nothing holds it
 
     // MARK: - Initializer
     // MARK: - Public
     // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show. The core launches the
-    // background mods now. `preparePage(page, mod)` sets the page up, once deckit knows it as the mod's. Resolves once
-    // each background mod has launched, or failed to; rejects with why the core did not launch them, which is what
-    // started the runner to report.
-    function start({ preparePage: prepare }) {
-        preparePage = prepare;
+    // background mods now. Resolves once each background mod has launched, or failed to; rejects with why the core did
+    // not launch them, which is what started the runner to report.
+    function start() {
         listen();
         CATALOG.onChange(reconcile);
         const launched = ask('runner/start', {}).then((effects) => {
@@ -95,6 +93,13 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // A problem recorded against the run: the first one while it launches or runs is kept.
     function reportProblem(run, problem) {
         send('runner/problem', { mod: run.mod.id, run: run.number, problem });
+    }
+
+    // `listener(page, mod)` is told of each sandbox's page as it is made, once deckit knows it as the mod's and before
+    // it loads, so what sets the page up is in place before the mod's code runs. Answers its off.
+    function onSandbox(listener) {
+        sandboxListeners.add(listener);
+        return () => sandboxListeners.delete(listener);
     }
 
     // Told when a problem is kept against a run. Answers its off.
@@ -356,7 +361,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             consoleError: (message) => LOG.error(`${mod.id}: ${message}`),
         });
         IDENTITY.add(page, { mod });
-        preparePage(page, mod);
+        for (const listener of sandboxListeners) listener(page, mod);
     }
 
     // The sandbox's page closes at once, asked nothing, and a new one takes its place for the mod's next launch.
@@ -491,6 +496,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         observe,
         reportProblem,
         ask,
+        onSandbox,
         onProblem,
         handleEffect,
         whenReconciled,
