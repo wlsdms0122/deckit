@@ -68,7 +68,7 @@ const MOD_DETAILS_STYLE = `
 // out.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the slow
 // duration, as content entering the row.
-function modDetails({ ui, mods, pins, util, onPinnedChange }) {
+function modDetails({ ui, mods, pins, tildify, onPinnedChange }) {
     let mod = null;
     let open = false;
     let usageRead = false;
@@ -104,7 +104,7 @@ function modDetails({ ui, mods, pins, util, onPinnedChange }) {
         if (mod.schemes.length) addPart('Opens', chipRow(openingChips(mod.schemes)));
         if (mod.keys.length) addPart('Keys', keyGrid());
         const location = ui.element('div', { className: 'settings-details-location' });
-        if (mod.folder) location.append(detailsLine(util.tildify(mod.folder)));
+        if (mod.folder) location.append(detailsLine(tildify(mod.folder)));
         location.append(statusLine);
         addPart('Location', location);
         if (open) readUsage();

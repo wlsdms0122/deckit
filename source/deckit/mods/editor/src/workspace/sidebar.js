@@ -36,7 +36,7 @@ const SIDEBAR_STYLE = `
 function sidebar({
     ui,
     chordOf,
-    util,
+    tildify,
     workspaces,
     isUnsaved,
     recentFolders,
@@ -206,7 +206,7 @@ function sidebar({
                               icon: 'clock',
                               items: recent.map((path) => ({
                                   label: nameOf(path),
-                                  hint: util.tildify(path),
+                                  hint: tildify(path),
                                   run: () => onOpenFolder(path),
                               })),
                           },

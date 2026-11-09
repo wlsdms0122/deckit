@@ -324,7 +324,6 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `provider(id)` | with `deckit.command-registry`: who declares commands as `id`, `{ id, name, host }`: a host by the name it gives, or a mod deck loads; null for neither |
 | `about()` | `{ name, app, version, source, engines, home, mods, data, log }`: the host app's name and version, deckit's version and the hash of its sources, the engines deckit runs on, outermost first, each `{ key, name, version }` with `key` its name in lower case (`electron` and `chrome` on Electron), the person's home folder, and the folders of deckit's mods, data and log |
-| `util` | below |
 | `clipboard.writeText(text)` | with `system.clipboard-write` |
 | `clipboard.readText()` | with `system.clipboard-read` |
 | `notifications.show({ title, body, silent })` | with `system.notifications`: shows a notification of the system's, and resolves to `{ shown, onPress(listener) }`, `shown` false where the system has none, and `onPress` hearing the person press it, which answers its off. That is all deckit does: which notifications a mod sends and how they are shown is the owner's of `deckit/notifications` (Standard interfaces), and a mod that tells the person something posts there |
@@ -353,20 +352,36 @@ With `deckit.mods`: `list`, `planInstall`, `install`, `remove`, `relaunch`, `loa
 - `arrange(ids)` gives the mods named the places they held among themselves in the mods' order, in the order given, the rest staying put, and resolves once `list()` has it; it rejects an order that puts a mod before one it requires, and while `deck.json` does not read.
 - `usage(id)` resolves to what the mod has stored in each place it is kept, `{ data, records, values, kept }`: `data` the files of its data folder (`{ count, capped, hidden }`, `capped` when it holds more than were counted, `hidden` when it holds names that start with a dot), `records` the files of its records (`{ count, hidden }`), `values` what its pages keep (`{ count }`), and `kept` the names of what the layers keep for the mod, such as `configuration`. An id no mod is listed under is refused `NOT_INSTALLED`. `remove(id, true)` erases all of it.
 
-### util
+### events
+
+A mod says what happened to it, for whoever cares, as events. `deckit.events.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. The owner of an interface also sends the interface's signals, named after it: `emit('deckit/notifications:posted', id)` from the owner is `deckit/notifications:posted`, and from any other mod is named after that mod. The names deck sends of an interface, `<interface>:owner-changed` and `<interface>:contributions-changed`, are deck's own: the owner's `emit` of one throws its refusal, `NOT_PERMITTED`, and is not sent. `deckit.events.on('<mod id>:<name>', listener)` hears one and returns its off. A mod hears only the names it may hear: its own id, any mod's id when it is granted `deckit.reach-mods`, and an interface it uses or provides, whose signals (`<interface>:owner-changed`) are named after it; `on` with any other name is refused. Values are copied, and only values cross (strings, numbers, booleans, arrays and plain tables of them): `emit` of an event that holds anything else, a function or a null among it, throws its refusal, `INVALID_ARGUMENT`, and sends nothing. Listening to a dependency, optional or not, waits for nothing: a mod's events go out while it launches and runs, from when its code starts until it terminates, and nothing arrives from one that does neither.
+
+## The SDK
+
+What a mod's code works out by itself, asking nothing of deck or deckit, is in the SDK: `deckit-sdk`, a package of ES modules. A mod requires each part by its entry, and the bundler that makes the mod's entry carries what it requires into it, as it carries the mod's own files:
+
+```js
+const { match, matchFields, TIER, ranker } = require('deckit-sdk/match');
+const { tildify, movePath } = require('deckit-sdk/path');
+```
+
+The SDK runs as it is written, on the engine the pages run on, and is bundled as it is, not lowered to older JavaScript: a bundler that lowers it rewrites the code `ranker`'s worker runs from its own source, and the worker fails. deckit's own mods reach it through `mods/node_modules/deckit-sdk`, a link to the package, and their build bundles it into each entry with the mod's own files.
+
+### deckit-sdk/match
 
 | Member | What it does |
 |---|---|
 | `match(text, query)` | the switcher's matching: `{ tier, score, at }` or null |
 | `matchFields(fields, query)` | the same over several fields, `[{ text, name, weight, cap }]`: `{ tier, raw, score, at }` or null |
 | `TIER` | the tiers a match is in, best first: `EXACT` 5, `PREFIX` 4, `WORD` 3, `INSIDE` 2, `SPREAD` 1 |
-| `ranker({ paths })` | the same off the page, for a list too long to rank on every key (`paths`: the names are paths, matched by their last part first): `{ rank(names, query, { limit }), close() }`, closed as the lifecycle whose handle made it ends |
+| `ranker({ paths })` | the same in a worker, for a list too long to rank on every key (`paths`: the names are paths, matched by their last part first): `{ rank(names, query, { limit }), close() }`; `rank` resolves to the names found, best first, or null once a newer `rank` of the same ranker is asked. The worker keeps a ranker's list until its `close()`: what makes a ranker closes it as it ends, as `detach()` does for one `attach` made |
+
+### deckit-sdk/path
+
+| Member | What it does |
+|---|---|
+| `tildify(path, home)` | a path as it is shown: under `home`, from `~`; `about().home` is the person's home folder |
 | `movePath(path, from, to)` | a path after `from` moved to `to`, or null when it went with it |
-| `tildify(path)` | a path as it is shown, from `~` under the home folder |
-
-### events
-
-A mod says what happened to it, for whoever cares, as events. `deckit.events.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. The owner of an interface also sends the interface's signals, named after it: `emit('deckit/notifications:posted', id)` from the owner is `deckit/notifications:posted`, and from any other mod is named after that mod. The names deck sends of an interface, `<interface>:owner-changed` and `<interface>:contributions-changed`, are deck's own: the owner's `emit` of one throws its refusal, `NOT_PERMITTED`, and is not sent. `deckit.events.on('<mod id>:<name>', listener)` hears one and returns its off. A mod hears only the names it may hear: its own id, any mod's id when it is granted `deckit.reach-mods`, and an interface it uses or provides, whose signals (`<interface>:owner-changed`) are named after it; `on` with any other name is refused. Values are copied, and only values cross (strings, numbers, booleans, arrays and plain tables of them): `emit` of an event that holds anything else, a function or a null among it, throws its refusal, `INVALID_ARGUMENT`, and sends nothing. Listening to a dependency, optional or not, waits for nothing: a mod's events go out while it launches and runs, from when its code starts until it terminates, and nothing arrives from one that does neither.
 
 ## web
 

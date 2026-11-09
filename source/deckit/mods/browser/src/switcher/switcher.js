@@ -6,7 +6,7 @@ const { tabLabel } = require('../tabs/tab-list.js');
 // Closed Tab would bring back, a search of the tabs and of the bookmarks, and an address typed there. Each action's
 // value is `{ action, ...args }`, run by `does[action](args, { ready })`; one that opens a search is the value its
 // results add an arg to.
-function switcher({ ui, util, tabs, bookmarks, show, does }) {
+function switcher({ ui, tabs, bookmarks, show, does }) {
     return { list, search, run };
 
     function list() {
@@ -52,9 +52,9 @@ function switcher({ ui, util, tabs, bookmarks, show, does }) {
     // note of that name comes first.
     function search(query, within) {
         if (within?.action === 'switch-to-tab')
-            return candidatesOf(tabs.tree(), tabLabel, query, util).map((found) => actionOf(found, within, 'tab'));
+            return candidatesOf(tabs.tree(), tabLabel, query).map((found) => actionOf(found, within, 'tab'));
         if (within?.action === 'open-bookmark')
-            return candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), query, util).map((found) =>
+            return candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), query).map((found) =>
                 actionOf(found, within, 'bookmark')
             );
         const url = parseAddress(query);

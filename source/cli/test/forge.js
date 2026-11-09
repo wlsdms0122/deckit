@@ -3,11 +3,10 @@
 // characters however the pipe splits them, one whose stream ends first ends failed, and one forge took no run for, or
 // none in time, rejects with what forge said.
 // The mod (mods/forge/src/main.js) completes the session of its commands from the sessions there are, ranked by
-// deckit's matcher (deckit-shell/deckit/match). Exits 1 with a line for each check that failed.
+// the SDK's matching (deckit-sdk/match). Exits 1 with a line for each check that failed.
 const { EventEmitter } = require('events');
 const { PassThrough } = require('stream');
 const path = require('path');
-const { pathToFileURL } = require('url');
 
 const DECKIT = path.join(__dirname, '..', '..', 'deckit');
 const makeRuns = require(path.join(DECKIT, 'mods', 'forge', 'main-process', 'runs.js'));
@@ -101,7 +100,6 @@ async function main() {
     check('a run forge takes not in time rejects', /took no run/.test(waited?.message), waited?.message);
 
     // The commands' session, completed on the exports for its id.
-    const MATCH = await import(pathToFileURL(path.join(DECKIT, 'deckit-shell', 'deckit', 'match', 'match.js')).href);
     const registered = new Map(); // interface, or '' for its id -> what was registered
     const sessions = [
         { name: 'default', up: true, authority: true },
@@ -114,7 +112,6 @@ async function main() {
             exports: {
                 register: (...args) => registered.set(args.length > 1 ? args[0] : '', args[args.length - 1]),
             },
-            util: { matchFields: MATCH.matchFields, TIER: MATCH.TIER },
         },
         {
             mainProcess: {

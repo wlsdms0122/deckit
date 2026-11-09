@@ -1,8 +1,10 @@
+const { match } = require('deckit-sdk/match');
+
 // What Deckit adds to the switcher through its `setActions(actions)`: what its commands do that needs the run, those
 // with an arg searched inside the action; the others are declared in its manifest. Each action's value is
 // `{ action, ...args }`, run by `does[action](args)`; one that opens a search is the value its results add an arg to.
 // `address`, `modsFor(query)` and `versions()` answer what is searched, and `appName` is the app's.
-function switcher({ util, appName, address, modsFor, versions, does }) {
+function switcher({ appName, address, modsFor, versions, does }) {
     return { list, search, run };
 
     function list() {
@@ -44,7 +46,7 @@ function switcher({ util, appName, address, modsFor, versions, does }) {
             }));
         if (within?.action === 'copy-version')
             return versions()
-                .filter((version) => !query || util.match(version, query))
+                .filter((version) => !query || match(version, query))
                 .map((version) => ({ label: version, hint: 'Copy', value: { ...within, version } }));
         return [];
     }

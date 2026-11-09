@@ -1,3 +1,4 @@
+const { TIER, matchFields } = require('deckit-sdk/match');
 const { openAddress } = require('./address/open-address.js');
 const { switcher } = require('./switcher/switcher.js');
 
@@ -6,7 +7,6 @@ const { switcher } = require('./switcher/switcher.js');
 class Deckit {
     // The commands its manifest declares to `deckit/commands`, run from the exports for its id.
     start(deckit) {
-        const { util } = deckit;
         const APP_NAME = deckit.about().name;
         // An address opens through `deckit/urls`; one asked while it is not connected is logged.
         let urls = null;
@@ -42,7 +42,7 @@ class Deckit {
         });
 
         // What the switcher's actions search and do, for attach().
-        this.actions = { util, appName: APP_NAME, address, modsFor, versions, does: commands };
+        this.actions = { appName: APP_NAME, address, modsFor, versions, does: commands };
 
         // One of deckit's places in `deckit.about()`, shown where it lies by the shell's reveal, which attach() keeps.
         const reveal = (place) => this.reveal(deckit.about()[place]);
@@ -78,10 +78,10 @@ class Deckit {
             return candidates
                 .map((candidate) => ({
                     candidate,
-                    found: util.matchFields(
+                    found: matchFields(
                         [
                             { text: candidate.title, name: true },
-                            { text: candidate.value, weight: 0.8, cap: util.TIER.INSIDE },
+                            { text: candidate.value, weight: 0.8, cap: TIER.INSIDE },
                         ],
                         partial
                     ),

@@ -1,10 +1,11 @@
+const { TIER, matchFields } = require('deckit-sdk/match');
 const { placeOf } = require('../address/address.js');
 const { folderLabel, isFolder } = require('../tree/tree.js');
 
 // The tabs or the bookmarks of `tree` as the switcher offers them, `{ value, title, hint, keywords }`: an item's id as
 // text, `labelOf(item)`, and the folders it is in with its file or site. Ranked for `partial` by the
 // title, then the address; every item, in the tree's order, for `''`.
-function candidatesOf(tree, labelOf, partial, { matchFields, TIER }) {
+function candidatesOf(tree, labelOf, partial) {
     const candidates = tree.items().map((item) => ({
         value: String(item.id),
         title: labelOf(item),

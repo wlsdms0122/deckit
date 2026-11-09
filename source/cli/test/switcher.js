@@ -35,7 +35,6 @@ async function main() {
     ];
     const commands = { run: async (mod, id, args) => (ran.push([mod, id, args]), null) };
     const deckit = {
-        util: {},
         storage: { records: { get: (_key, fallback) => fallback, set: () => {} } },
         mods: { list: async () => ({ found: [{ id: 'a', name: 'A' }], running: [], interfaces: {} }) },
         exports: {

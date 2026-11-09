@@ -1,3 +1,4 @@
+const { matchFields } = require('deckit-sdk/match');
 const { runs } = require('./runs/runs.js');
 
 // The settings that say where forge is, handed to the main process together.
@@ -70,7 +71,6 @@ class Forge {
 
         // The sessions there are, each with its state, ranked for `partial` by name.
         async function sessionsFor(partial) {
-            const { util } = deckit;
             const { sessions } = await forge.sessions();
             const candidates = sessions.map((entry) => ({
                 value: entry.name,
@@ -81,7 +81,7 @@ class Forge {
             return candidates
                 .map((candidate) => ({
                     candidate,
-                    found: util.matchFields([{ text: candidate.title, name: true }], partial),
+                    found: matchFields([{ text: candidate.title, name: true }], partial),
                 }))
                 .filter(({ found }) => found)
                 .sort((left, right) => right.found.tier - left.found.tier || right.found.score - left.found.score)

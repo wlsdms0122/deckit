@@ -1,3 +1,5 @@
+const { TIER, matchFields } = require('deckit-sdk/match');
+const PATH = require('deckit-sdk/path');
 const { columnView } = require('./view/column-view.js');
 const { favoriteList } = require('./sidebar/favorite-list.js');
 const { fileArea } = require('./file-area/file-area.js');
@@ -53,8 +55,10 @@ class Finder {
 
     async attach(shell, deckit, { mainProcess }) {
         const { theme, ui } = shell;
-        const { storage, util } = deckit;
+        const { storage } = deckit;
         const { values, records } = storage;
+        const about = deckit.about();
+        const tildify = (path) => PATH.tildify(path, about.home);
         const settings = settingsOf();
         // A file opens through `deckit/urls`, logged while it is not connected; with the default app, outside the app.
         let urls = null;
@@ -136,7 +140,7 @@ class Finder {
             chordOf: (name) => keys.chordOf(name),
             reveal: shell.reveal,
             records,
-            tildify: util.tildify,
+            tildify,
             folds,
             homeLocation: () => home,
             folderInFront: (location, opened) => area.folderInFront(location, opened),
@@ -190,7 +194,7 @@ class Finder {
             ui,
             theme,
             chordOf: (name) => keys.chordOf(name),
-            tildify: util.tildify,
+            tildify,
             homeLocation: () => home,
             onBack: () => tabs.back(),
             onForward: () => tabs.forward(),
@@ -206,7 +210,7 @@ class Finder {
             ui,
             reveal: shell.reveal,
             records,
-            tildify: util.tildify,
+            tildify,
             folds,
             currentLocation: tabs.location,
             onGo: (path) => tabs.go(path),
@@ -265,7 +269,7 @@ class Finder {
         const goTo = goToFolder({
             ui,
             disk,
-            tildify: util.tildify,
+            tildify,
             homeLocation: () => home,
             folderInFront: area.workingFolder,
             onGo: goToPath,
@@ -337,7 +341,7 @@ class Finder {
         const trash = () => operator.trash(selectedEntries());
         const actions = switcher({
             ui,
-            util,
+            tildify,
             atHand,
             favorites,
             foldersAtHand,
@@ -372,7 +376,7 @@ class Finder {
             const full = path.startsWith('~') && home ? home + path.slice(1) : path;
             if (!full.startsWith('/')) throw new Error(`${path} is not a path from / or ~`);
             const kind = await disk.exists(full);
-            if (!kind) throw new Error(`${util.tildify(full)} is not there`);
+            if (!kind) throw new Error(`${tildify(full)} is not there`);
             if (!tabs.front()) throw new Error('Finder has no tab open');
             ready();
             if (kind === 'folder') tabs.go(full);
@@ -398,11 +402,10 @@ class Finder {
             const candidates = atHand().map((path) => ({
                 value: path,
                 title: favorites.labelOf(path),
-                hint: util.tildify(path),
+                hint: tildify(path),
                 keywords: [],
             }));
             if (!partial.trim()) return candidates;
-            const { TIER, matchFields } = util;
             return candidates
                 .map((candidate) => ({
                     candidate,
@@ -555,7 +558,7 @@ class Finder {
 
         // The listings first: a tab is named by what they say of its lead.
         function relocate(from, to) {
-            const follow = (path) => util.movePath(path, from, to);
+            const follow = (path) => PATH.movePath(path, from, to);
             listings.relocate(follow);
             tabs.relocate(follow, parentOf(from) || '/');
             favorites.relocate(follow);

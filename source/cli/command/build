@@ -13,13 +13,13 @@ WORK="$(mktemp -d "$OUT/.building.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 LIB="$WORK/lib"
 mkdir -p "$LIB/document" "$LIB/mods"
-SOURCE_HASH="$({ find source/deckit/deckit source/deckit/deckit-web source/deckit/deckit-electron source/deckit/deckit-shell source/deckit/mods source/cli/library.js source/cli/bundle.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -not -path '*/.build/*' -not -path '*/.swiftpm/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+SOURCE_HASH="$({ find source/deckit/deckit source/deckit/deckit-web source/deckit/deckit-electron source/deckit/deckit-shell source/deckit/deckit-sdk source/deckit/mods source/cli/library.js source/cli/bundle.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -not -path '*/.build/*' -not -path '*/.swiftpm/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 cp document/EMBEDDING.md document/GUIDELINES.md document/MOD.md document/UI.md "$LIB/document/"
 
 # deckit's own mods keep their sandbox code as CommonJS files under src/, with src/main.js the entry; what the
-# manifest's main names is that, bundled from src/ alone, with the licences it carries. The rest of the folder ships as
-# it is.
+# manifest's main names is that, bundled from src/ and the SDK it requires alone, with the licences it carries. The
+# rest of the folder ships as it is.
 ESBUILD=esbuild@0.28.2
 for dir in source/deckit/mods/*/; do
   dir="${dir%/}"
@@ -31,11 +31,17 @@ for dir in source/deckit/mods/*/; do
       --legal-comments=eof --log-level=warning --metafile="$OLDPWD/$WORK/meta.json" --outfile="$OUTFILE" ) \
     || { echo "$dir could not be bundled: stopping" >&2; exit 1; }
   node -e "
+    const path = require('path');
+    const within = [path.resolve('$dir/src'), path.resolve('source/deckit/deckit-sdk')].map((folder) => folder + '/');
+    const inside = (file) => within.some((folder) => path.resolve('$dir/src', file).startsWith(folder));
     const outside = Object.keys(require('./$WORK/meta.json').inputs)
-      .filter((file) => file.startsWith('..') || file.includes('node_modules'));
-    if (outside.length) { console.error('$dir bundles files from outside its src/: ' + outside.join(', ')); process.exit(1); }
+      .filter((file) => file.includes('node_modules') || !inside(file));
+    if (outside.length) {
+      console.error('$dir bundles files from outside its src/ and the SDK: ' + outside.join(', '));
+      process.exit(1);
+    }
     new Function('module', 'exports', require('fs').readFileSync('$OUTFILE', 'utf8'));
-  " || { echo "$dir does not bundle from its src/ alone into an entry: stopping" >&2; exit 1; }
+  " || { echo "$dir does not bundle from its src/ and the SDK alone into an entry: stopping" >&2; exit 1; }
 done
 
 # The core, for both kinds of Mac, beside main.js. Its build is kept between runs, and it names no folder of the

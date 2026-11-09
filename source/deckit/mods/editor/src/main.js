@@ -1,3 +1,5 @@
+const { ranker } = require('deckit-sdk/match');
+const PATH = require('deckit-sdk/path');
 const { codeMinimap, MINIMAP_STYLE } = require('./code/code-minimap.js');
 const { codeTheme } = require('./code/code-theme.js');
 const { codeView } = require('./code/code-view.js');
@@ -65,10 +67,11 @@ class Editor {
 
     async attach(shell, deckit, { mainProcess }) {
         const { theme, ui } = shell;
-        const { storage, util } = deckit;
+        const { storage } = deckit;
         const { values: store, records } = storage;
         const settings = settingsOf();
-        const { ranker } = util;
+        const about = deckit.about();
+        const tildify = (path) => PATH.tildify(path, about.home);
         const engine = EditorEngine;
         // A file that is not text opens through `deckit/urls`; one asked while it is not connected is logged.
         let urls = null;
@@ -188,7 +191,7 @@ class Editor {
             },
             menuOf: tabMenu,
         });
-        const pathBar = filePathBar({ ui, util, onReveal: revealInTree });
+        const pathBar = filePathBar({ ui, tildify, onReveal: revealInTree });
         const notice = diskNotice({
             ui,
             onSaveAs: saveElsewhere,
@@ -225,7 +228,7 @@ class Editor {
         this.endKeys = () => keys.listen(false);
         const emptyEditor = emptyState({
             ui,
-            util,
+            tildify,
             chordOf: (name) => keys.chordOf(name),
             onQuickOpen: () => quickOpener.show(),
             onPickFolder: pickFolder,
@@ -253,7 +256,7 @@ class Editor {
         const sidePanel = sidebar({
             ui,
             chordOf: (name) => keys.chordOf(name),
-            util,
+            tildify,
             workspaces,
             isUnsaved: (workspace) => workspace.files.some(disk.isDirty),
             recentFolders: recent.unopened,
@@ -273,7 +276,6 @@ class Editor {
         const goTo = goToLine({ ui, scrollEffect: code.scrollEffect });
         const quickOpener = quickOpen({
             ui,
-            ranker,
             root: () => workspaces.front()?.root || null,
             list: () => workspaces.listFiles(workspaces.front()),
             onOpen: (path) => open(path),
@@ -342,6 +344,13 @@ class Editor {
         openWindow();
         // Its own, so a search of the switcher and one in Open Quickly do not cancel each other.
         const actionRanker = ranker({ paths: true });
+        // What detach() closes: the rankers of Open Quickly, the switcher and each workspace's search, whose lists the
+        // worker holds.
+        this.endRankers = () => {
+            quickOpener.close();
+            actionRanker.close();
+            for (const workspace of workspaces.all()) workspace.search?.close();
+        };
         const noFolder = () => (workspaces.front()?.root ? '' : 'Open a folder first');
         const noFile = () => (workspaces.current() ? '' : 'No file is open');
         const openQuickly = () => quickOpener.show();
@@ -374,7 +383,7 @@ class Editor {
         const wrapLines = () => settings.set('wrap', !settings.get('wrap'));
         const actions = switcher({
             ui,
-            util,
+            tildify,
             workspaces,
             recentFolders: recent.unopened,
             filesOf: (workspace, query) =>
@@ -568,7 +577,7 @@ class Editor {
 
         // `to` null is the Trash; drafts then stay, since unsaved text outlives its file.
         function relocate(from, to) {
-            const move = (path) => util.movePath(path, from, to);
+            const move = (path) => PATH.movePath(path, from, to);
             if (to != null) {
                 for (const file of workspaces.filesUnder(from)) {
                     const next = move(file.path);
@@ -637,7 +646,6 @@ class Editor {
                 fileSystem,
                 root: () => workspace.root,
                 folders: async () => workspaces.foldersOf(await workspaces.listFiles(workspace)),
-                ranker,
                 onOpen: (path, match) => openAt(path, match),
                 onReplaceAll: replaceAll,
             });
@@ -736,6 +744,8 @@ class Editor {
         this.screen = null;
         this.endKeys?.();
         this.endKeys = null;
+        this.endRankers?.();
+        this.endRankers = null;
         return this.end?.();
     }
 }

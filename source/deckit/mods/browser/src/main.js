@@ -209,7 +209,6 @@ class Browser {
 
         const actions = switcher({
             ui,
-            util: deckit.util,
             tabs,
             bookmarks,
             show: openWindow,

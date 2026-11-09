@@ -1,10 +1,11 @@
+const { movePath } = require('deckit-sdk/path');
 const { longDate } = require('../date/format.js');
 const { noteNameOf, isWithin } = require('../notes-folder/path.js');
 
 // The open note: on screen is the disk version, plus typing not yet saved, unless a question about the disk is up;
 // then nothing is written or typed until it is answered. Every write, rename and move of the open note goes through
 // `enqueue`, so a rename or a move never lands between a save's write and its answer.
-function session({ theme, ui, notesFolder, editor, movePath, onLeave, onRelocate, onRenamed, onMenu }) {
+function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRenamed, onMenu }) {
     const SAVE_DELAY_MS = 500;
     const CLOSE = {
         label: 'Close',

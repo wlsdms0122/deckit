@@ -1,0 +1,9 @@
+{
+    "name": "deckit-sdk",
+    "private": true,
+    "exports": {
+        "./match": "./match/index.js",
+        "./path": "./path/index.js"
+    },
+    "dependencies": {}
+}

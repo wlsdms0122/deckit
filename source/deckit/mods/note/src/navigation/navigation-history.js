@@ -1,7 +1,9 @@
+const { movePath } = require('deckit-sdk/path');
+
 // Where the person has been, as places ({ kind: 'folder' | 'note', path }). `enter(place)` answers "ok", "blocked" (a
 // question or unsaved typing holds the open note: nothing moves and the history stays) or "gone"; `land(place)` makes
 // it the current one. `onChange()` hears that what is left to go back or forward to changed with no place landed on.
-function navigationHistory({ movePath, current, enter, land, onChange }) {
+function navigationHistory({ current, enter, land, onChange }) {
     const LIMIT = 50;
     const back = [];
     const forward = [];

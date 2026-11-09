@@ -11,11 +11,14 @@ if (process.argv.length > 2) {
 }
 
 // The packages each may depend on. An environment stands on the shell, which declares what it provides, and the shell
-// knows no environment.
+// knows no environment. The SDK, the library a mod's code requires, stands on nothing.
 const MAY_DEPEND = {
     'deckit-electron': ['deckit-shell'],
+    'deckit-sdk': [],
     'deckit-shell': [],
 };
+// Each mod's bundle carries what the SDK's entries reach, and runs in the mod's page.
+const SDK = 'deckit-sdk';
 // The shell reaches an environment only through what it is handed, so nothing of Electron's is in it: no module,
 // nothing its bundles carry, and no Electron object it would hold or call.
 const SHELL = 'deckit-shell';
@@ -38,6 +41,8 @@ const DECLARES = '\\b\\w+\\.(?:pageToMain|mainToPage)\\(';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];
+// What the SDK's root holds beside its concept folders: its package.json, which says its entries.
+const SDK_ROOT_FILES = ['package.json'];
 // The entry a mod's manifest names.
 const TOML_MAIN = /^main\s*=\s*"([^"]+)"/m;
 // The files the shell's main bundle carries.
@@ -272,8 +277,11 @@ function checkSiblings(imports, scopeOf) {
 // renderer.js never in main, and nothing a renderer carries requires Node. Every file is in a bundle.
 function checkPlaces() {
     const carried = new Set();
-    for (const [name, { entry }] of Object.entries(LIBRARY.BUNDLES)) {
-        const place = PLACES[name];
+    const bundles = [
+        ...Object.entries(LIBRARY.BUNDLES).map(([name, { entry }]) => ({ name, place: PLACES[name], entry })),
+        ...[...SURFACES.get(SDK).entries].map((entry) => ({ name: 'mod', place: 'renderer', entry })),
+    ];
+    for (const { name, place, entry } of bundles) {
         for (const file of LIBRARY.reach(entry)) {
             carried.add(file);
             const plain = LIBRARY.code(fs.readFileSync(path.join(LIBRARY.DECKIT, file), 'utf8'));
@@ -294,7 +302,8 @@ function checkPlaces() {
 // A folder is a module (its files, and model/ for what supports them) or a group (folders only). A package's root
 // is a group that also holds its package.json and what puts the package together on each side: main.js and renderer.js.
 function checkFolders() {
-    for (const name of LIBRARY.PACKAGES) checkFolder(name, ROOT_FILES, { scripts: true });
+    for (const name of LIBRARY.PACKAGES)
+        checkFolder(name, name === SDK ? SDK_ROOT_FILES : ROOT_FILES, { scripts: true });
 }
 
 // `folder` and every folder in it, where `rootFiles` are what `folder` holds beside its concepts' folders, or null when

@@ -162,12 +162,11 @@ const BREATH_MS = 2700;
 // MARK: - Initializer
 // MARK: - Public
 // The switcher on screen: the kit's quick pick, filling the window, drawn from its view model. `ui` and `theme` are the
-// shell's and `util` deckit's; `items` are what the list holds and `now` the rows of the Now strip, `onQuery(raw,
-// submenuId)` asks for answers and `onClose()` hears it start to go.
-function open({ ui, theme, util }, { placeholder, items, now, onQuery, onClose }) {
+// shell's; `items` are what the list holds and `now` the rows of the Now strip, `onQuery(raw, submenuId)` asks for
+// answers and `onClose()` hears it start to go.
+function open({ ui, theme }, { placeholder, items, now, onQuery, onClose }) {
     ui.addStyle(STYLE);
     const model = VIEW_MODEL.make({
-        util,
         placeholder,
         items,
         now,

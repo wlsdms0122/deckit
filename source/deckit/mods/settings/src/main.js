@@ -1,3 +1,5 @@
+const { TIER, matchFields } = require('deckit-sdk/match');
+const PATH = require('deckit-sdk/path');
 const { activitySection } = require('./sections/activity/activity-section.js');
 const { CHIP_STYLE } = require('./chip/chip.js');
 const { generalSection } = require('./sections/general/general-section.js');
@@ -43,8 +45,8 @@ class Settings {
 
     attach(shell, deckit, { mainProcess }) {
         const { ui } = shell;
-        const { util } = deckit;
-        const APP_NAME = deckit.about().name;
+        const { name: APP_NAME, home } = deckit.about();
+        const tildify = (path) => PATH.tildify(path, home);
 
         // name in SERVICES -> its exports while it is connected
         const services = { keys: null, urls: null, configuration: null, commands: null, packages: null };
@@ -84,7 +86,7 @@ class Settings {
             dropDestination: shell.dropDestination,
             dialogs: shell.dialogs,
             reveal: shell.reveal,
-            util,
+            tildify,
             appName: APP_NAME,
             onChange: redraw,
         });
@@ -268,7 +270,6 @@ class Settings {
                 keywords: [group.id, ...group.items.map((item) => item.label).filter(Boolean)],
             }));
             if (!partial.trim()) return candidates;
-            const { TIER, matchFields } = util;
             return candidates
                 .map((candidate) => ({
                     candidate,

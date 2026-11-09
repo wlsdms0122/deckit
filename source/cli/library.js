@@ -1,12 +1,12 @@
-// The packages as the build reads them: deckit-electron, the environment deckit runs on in Electron, and deckit-shell,
-// deck and deckit with the shell on them, each a package of ES modules under source/deckit, and the bundles they are
-// carried in. A file is named by its path under source/deckit.
+// The packages as the build reads them: deckit-electron, the environment deckit runs on in Electron, deckit-shell, deck
+// and deckit with the shell on them, and deckit-sdk, the library a mod's code requires, each a package of ES modules
+// under source/deckit, and the bundles deckit is carried in. A file is named by its path under source/deckit.
 const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
 // Which may depend on which is the check's (source/cli/command/check).
-const PACKAGES = ['deckit-electron', 'deckit-shell'];
+const PACKAGES = ['deckit-electron', 'deckit-sdk', 'deckit-shell'];
 const MODS = path.join(DECKIT, 'mods');
 const APP = path.join(DECKIT, 'deckit-app');
 const ESBUILD = 'esbuild@0.28.2';

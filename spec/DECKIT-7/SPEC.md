@@ -57,7 +57,6 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `exports.register(interface, exports)`, `exports.contributions(interface)`, `dependencies.onConnect(interface, listener)`, `dependencies.onRefuse(interface, listener)` | what the mod provides of an interface, and what it is connected to by one | | [the interfaces](../DECKIT-10/SPEC.md) |
 | `clipboard.readText()`, `clipboard.writeText(text)` | what the person copied, read and replaced | `system.clipboard-read`, `system.clipboard-write` | the clipboard's DECKIT |
 | `notifications.show(notification)` | a notification of the machine's | `system.notifications` | the notifications' DECKIT |
-| `util` | matching text and moving paths | | the utilities' DECKIT |
 
 **Note.** `keys.take(keystroke, run, options)`, a chord the mod takes, `active()`, whether the app is in front, `dialogs.chooseFolders(options)`, the folders a person chooses, and `reveal(path)`, a file shown outside the app, are members of the handle `shell`, not of this one: the shell's DECKITs, and for the keys a mod declares, which the owner of `deckit/keys` takes, [the key bindings](../DECKIT-16/SPEC.md).
 

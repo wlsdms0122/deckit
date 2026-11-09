@@ -11,7 +11,7 @@ const { section } = require('../section/section.js');
 // in a toast. `mods` is deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a
 // host that runs none; `packages()`, deckit/packages while it is connected, which plans and installs; `pins`, the
 // Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination`, `dialogs` and `reveal` the
-// shell's.
+// shell's; `tildify(path)` a path as it is shown.
 function modsSection({
     ui,
     mods,
@@ -21,7 +21,7 @@ function modsSection({
     dropDestination,
     dialogs,
     reveal,
-    util,
+    tildify,
     appName,
     onChange,
 }) {
@@ -213,7 +213,7 @@ function modsSection({
         const failure = ui.element('div', { className: 'settings-mod-failure' });
         // An interface it uses that reaches no one stops nothing, so it is said quietly, not as a fault.
         const note = ui.element('div', { className: 'settings-mod-note' });
-        const details = modDetails({ ui, mods, pins, util, onPinnedChange: onChange });
+        const details = modDetails({ ui, mods, pins, tildify, onPinnedChange: onChange });
 
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });

@@ -126,7 +126,7 @@ class Mods {
 
         // The mods `query` finds, best first.
         function shown() {
-            return search(dock.list(), query, deckit.util);
+            return search(dock.list(), query);
         }
 
         function draw() {

@@ -19,7 +19,7 @@ const NOW_WAIT_MS = 150;
 // and `deckit.mods.list()`.
 function switcher(shell, deckit, given, { notifications = () => null, commands = () => null } = {}) {
     const records = deckit.storage.records;
-    const drawing = { ui: shell.ui, theme: shell.theme, util: deckit.util }; // what the list is drawn and ranked with
+    const drawing = { ui: shell.ui, theme: shell.theme }; // what the list is drawn with
     let open = null; // the list on screen, or on its way: { list, window, about, submenus }
 
     return { show, toggle, putAway, end };

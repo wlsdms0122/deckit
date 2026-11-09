@@ -1,3 +1,4 @@
+const { match } = require('deckit-sdk/match');
 const NoteEngine = require('../engine/engine.js');
 const { localDate } = require('../date/format.js');
 const {
@@ -16,7 +17,7 @@ const { isAddress, linkTargetOf, linkDestinationOf } = require('./link.js');
 const { PARAGRAPH_STYLES } = require('./paragraph-style.js');
 
 // The document is the file's text exactly; formatting is only decorations drawn over it.
-function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, onFollowLink }) {
+function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollowLink }) {
     // Only for replacing the mark at a line start. What style a line is in comes from the syntax tree (lineStyleAt).
     const LEADING_MARK = /^(\s*)(#{1,6}\s+|(?:[-*+]|\d+[.)])\s+\[[ xX]\]\s+|[-*+]\s+|\d+[.)]\s+)?/;
     const QUOTE_MARKS = /^(\s*>\s?)+/;

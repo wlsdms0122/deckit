@@ -1,3 +1,4 @@
+const { movePath } = require('deckit-sdk/path');
 const { dragAndDrop } = require('./browsing/drag-and-drop.js');
 const { folderAt } = require('./notes-folder/folder.js');
 const { notesFound } = require('./candidates/candidates.js');
@@ -55,7 +56,7 @@ class Note {
 
     async attach(shell, deckit, { mainProcess }) {
         const { theme, ui } = shell;
-        const { storage, util } = deckit;
+        const { storage } = deckit;
         const settings = settingsOf();
         // An address in a note opens through `deckit/urls`; one asked while it is not connected is logged.
         let urls = null;
@@ -91,7 +92,7 @@ class Note {
 
         ui.addStyle(STYLE);
         const content = ui.element('div', { className: 'note' });
-        const relocations = relocationLog({ movePath: util.movePath, idle: () => noteSession.idle() });
+        const relocations = relocationLog({ idle: () => noteSession.idle() });
         // The window's own keys, while it is key, made before what draws their chords.
         const keys = viewKeys(
             {
@@ -119,7 +120,6 @@ class Note {
         const editor = liveEditor({
             theme,
             ui,
-            match: util.match,
             typeface: currentTypeface(),
             chordOf: (name) => keys.chordOf(name),
             clipboard: deckit.clipboard,
@@ -131,7 +131,6 @@ class Note {
             ui,
             notesFolder,
             editor,
-            movePath: util.movePath,
             onLeave: leaveNote,
             onRelocate: relocate,
             onRenamed: changed,
@@ -143,7 +142,6 @@ class Note {
             return Promise.all([noteSession.settle(), notesFolder.watch(false).catch(() => {})]);
         };
         const placeHistory = navigationHistory({
-            movePath: util.movePath,
             current: () => place,
             enter,
             land,
@@ -213,7 +211,6 @@ class Note {
             ui,
             chordOf: (name) => keys.chordOf(name),
             store,
-            movePath: util.movePath,
             renameNote: noteMenus.renameNote,
             renameFolder: noteMenus.renameFolder,
             onShowAll: () => showFolder(''),
@@ -285,7 +282,6 @@ class Note {
         const newFolder = () => fileOperations.newFolder(currentFolder());
         const actions = switcher({
             ui,
-            util,
             allNotes: () => allNotes,
             notesOf: (query, { signal }) => notesFound(query, { searchNotes, allNotes, signal }),
             styles: STYLES,
@@ -489,7 +485,7 @@ class Note {
             placeHistory.relocate(from, to);
             if (to != null) {
                 noteSession.relocate(from, to);
-                place.path = util.movePath(place.path, from, to);
+                place.path = movePath(place.path, from, to);
             }
             store.set('at', place);
             sidebarTree.relocate(from, to);

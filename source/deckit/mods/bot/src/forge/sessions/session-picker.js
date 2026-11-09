@@ -1,3 +1,5 @@
+const { matchFields } = require('deckit-sdk/match');
+
 // The forge session the Forge views show, one for all of them: each session is a daemon of its own, and there may be
 // many. It is chosen from a pop-up button in the title bar, each session marked with its state, or by a command.
 // The chosen session is asked about as often as the views ask about it; the list less often.
@@ -6,7 +8,6 @@ const LIST_MS = 15000;
 
 const sessionPicker = ({ shell, deckit, forge, onChange }) => {
     const { theme, ui } = shell;
-    const { util } = deckit;
     const store = deckit.storage.values;
     let session = store.get('session', null) || 'default';
     let sessions = [{ name: session, checking: true }]; // until the first answer
@@ -86,7 +87,7 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
             return listed
                 .map((candidate) => ({
                     candidate,
-                    found: util.matchFields([{ text: candidate.title, name: true }], partial),
+                    found: matchFields([{ text: candidate.title, name: true }], partial),
                 }))
                 .filter(({ found }) => found)
                 .sort((left, right) => right.found.tier - left.found.tier || right.found.score - left.found.score)

@@ -1,5 +1,3 @@
-import * as MATCH from '../match/match.js';
-import * as RANKER from '../match/ranker.js';
 import * as CLIPBOARD from '../clipboard/renderer.js';
 import * as RUNTIME from '../runtime/renderer.js';
 import * as OPEN from '../open/renderer.js';
@@ -83,17 +81,6 @@ export function createMod({ NOTIFICATION }) {
             return REQUEST.requestOf(name, { denied, signature }, send);
         };
         return {
-            util: Object.freeze({
-                match: MATCH.match,
-                matchFields: MATCH.matchFields,
-                TIER: MATCH.TIER,
-                ranker: (options) => {
-                    const made = RANKER.ranker(options);
-                    return Object.freeze({ rank: made.rank, close: scope.add(made.close) });
-                },
-                movePath,
-                tildify: tildifyOf(),
-            }),
             exports: Object.freeze({ ...runner.exports, contributions: CONTRIBUTION.contributions }),
             openExternal: OPEN.openExternalOf(mod, granted),
             fileURL: OPEN.fileURL,
@@ -113,18 +100,6 @@ export function createMod({ NOTIFICATION }) {
             }),
             notifications: NOTIFICATION.notificationsOf(scope, request),
         };
-    }
-
-    // A path as it is shown: under the home folder, from `~`.
-    function tildifyOf() {
-        const { home } = RUNTIME.about();
-        return (path) => (path === home || path.startsWith(home + '/') ? '~' + path.slice(home.length) : path);
-    }
-
-    // `to` null means gone: a path at or inside `from` becomes null. Paths are "/" separated.
-    function movePath(path, from, to) {
-        if (typeof path !== 'string' || (path !== from && !path.startsWith(from + '/'))) return path;
-        return to == null ? null : to + path.slice(from.length);
     }
 
     return { layer };

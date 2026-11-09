@@ -1,3 +1,4 @@
+const { movePath } = require('deckit-sdk/path');
 const { entryAt, labelIn, markEntry, entryOf } = require('./entry.js');
 const { COMPOSE_SHAPES, NOTEBOOK_SHAPES } = require('../icons/icons.js');
 const { parentOf } = require('../notes-folder/path.js');
@@ -8,7 +9,6 @@ function tree({
     ui,
     chordOf,
     store,
-    movePath,
     noteMenu,
     folderMenu,
     describeDrag,

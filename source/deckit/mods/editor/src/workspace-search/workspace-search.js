@@ -1,3 +1,4 @@
+const { ranker } = require('deckit-sdk/match');
 const { fileIconOf } = require('../file-type/file-type.js');
 const { iconElement } = require('../icon-element/icon-element.js');
 const { nameOf, isInside, relativePath, folderOf } = require('../path/path.js');
@@ -61,7 +62,7 @@ const WORKSPACE_SEARCH_STYLE = `
 // Find and replace in the files of a workspace, asked of the main process module. `head` stays put and `element`
 // scrolls under it, so the field never scrolls away with its results. Folders are kept out of the include field: there
 // a top-level name would match every folder of that name, and a comma or a bracket in a path would be read as syntax.
-function workspaceSearch({ ui, fileSystem, root, folders, ranker, onOpen, onReplaceAll }) {
+function workspaceSearch({ ui, fileSystem, root, folders, onOpen, onReplaceAll }) {
     const SEARCH_DELAY_MS = 250;
     const SUGGESTED = 12;
     // Lines the scope fields up under the find field's text.
