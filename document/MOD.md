@@ -405,19 +405,19 @@ What the mod's web pages download goes to the Downloads folder, under the name t
 
 ## mainProcess
 
-What every lifecycle receives as `mainProcess` in its `frameworks`, where the host app runs mods' main process modules (A main process module, below): `start(path)`, and `restartPending()`, `stateOf(id)` and `onChange(listener)`, below. A host app that runs none hands no `mainProcess`.
+What every lifecycle receives as `mainProcess` in its `frameworks`, where the host app runs mods' main process modules (A main process module, below): `start(path)`, and `restartPending()`, `statusOf(id)` and `onChange(listener)`, below. A host app that runs none hands no `mainProcess`.
 
 ### mainProcess.start(path)
 
 With `system.main-process`: starts a main process module of the mod's and resolves to its methods, each called through the main process and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe, and a listener is heard until the lifecycle whose `mainProcess` made it ends. A module starts once on the mod's page, however many lifecycles ask for it. A path outside the mod's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for. A method of a module not started in the mod's run rejects `NOT_STARTED`.
 
-### mainProcess.restartPending(), stateOf(id), onChange(listener)
+### mainProcess.restartPending(), statusOf(id), onChange(listener)
 
 With `deckit.mods`, what the main process modules of every mod come to:
 
 - `restartPending()` resolves to `[{ id, why }]`, the mods whose main process modules only a restart finishes; `why` is `updated`, `removed`, `reinstalled` or `leftover` (a `dispose` that failed).
-- `stateOf(id)` resolves to `{ running, failure }`: whether a main process module of the mod's runs, and why those that did not start did not, or null.
-- `onChange(listener)` hears that what `restartPending` or `stateOf` answers may have changed (a module that started, failed or ended, a mod that came to need a restart or no longer does), and answers its off.
+- `statusOf(id)` resolves to `{ running, failure }`: whether a main process module of the mod's runs, and why those that did not start did not, or null.
+- `onChange(listener)` hears that what `restartPending` or `statusOf` answers may have changed (a module that started, failed or ended, a mod that came to need a restart or no longer does), and answers its off.
 
 ## shell
 

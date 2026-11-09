@@ -41,7 +41,7 @@ final class Runner {
     // as it is, and one whose run terminates launches once that run has ended. One of another revision than its
     // principal's sandbox launches in a new sandbox.
     func load(_ jobs: [Job]) throws -> [Effect] {
-        try decide {
+        try transition {
             for job in jobs {
                 switch sandbox(of: job.principal)?.state ?? .notRunning {
                 case .notRunning:
@@ -60,7 +60,7 @@ final class Runner {
     // Each principal named whose run has not ended terminates, and the sandbox of one whose run has ended closes. A
     // job kept to launch once a run ends is dropped.
     func unload(_ ids: [String]) throws -> [Effect] {
-        try decide {
+        try transition {
             for sandbox in sandboxes where ids.contains(sandbox.job.principal) {
                 sandbox.next = nil
                 if sandbox.state == .notRunning {
@@ -74,14 +74,14 @@ final class Runner {
 
     // It started, with what it contributes.
     func started(_ id: String, run number: Int, contributions: Contribution) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didLaunch(contributions) }
         }
     }
 
     func report(_ id: String, run number: Int, problem: String) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number) else { return }
             var run = sandbox.run
             guard run.record(problem) else { return }
@@ -92,7 +92,7 @@ final class Runner {
 
     // It did not start, and why: its sandbox ends at once.
     func notStarted(_ id: String, run number: Int, problem: String) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didFailToLaunch(problem) }
             effects.append(.kill(principal: id))
@@ -100,7 +100,7 @@ final class Runner {
     }
 
     func crashed(_ id: String, run number: Int, problem: String) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state != .notRunning else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.crash(problem) }
         }
@@ -108,7 +108,7 @@ final class Runner {
 
     // Its page ended it, its time ran out or its page is gone: its sandbox ends at once.
     func stopped(_ id: String, run number: Int) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .terminating else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didTerminate() }
             effects.append(.kill(principal: id))
@@ -116,11 +116,11 @@ final class Runner {
     }
 
     // MARK: - Private
-    // What one fact comes to. A job kept while a run terminated launches once that run has ended, and a terminating
-    // run's end is asked once.
-    private func decide(_ fact: () throws -> Void) throws -> [Effect] {
+    // What one transition comes to. A job kept while a run terminated launches once that run has ended, and a
+    // terminating run's end is asked once.
+    private func transition(_ change: () throws -> Void) throws -> [Effect] {
         effects = []
-        try fact()
+        try change()
         for sandbox in sandboxes where sandbox.state == .notRunning {
             guard let job = sandbox.next else { continue }
             sandbox.next = nil

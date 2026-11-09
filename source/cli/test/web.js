@@ -105,7 +105,7 @@ async function main() {
     const externals = []; // [mod id, address, options]: what was opened outside the app for a mod
     let refuseExternal = null; // why opening outside the app is refused, while it is
     const warned = [];
-    // What connect answers, as the web engine reaches it: a run's facts by mod id, its page the mod's page.
+    // What connect answers, as the web engine reaches it: a run by mod id, its page the mod's page.
     const runs = () => [...mods].map(([page, mod]) => ({ run: { mod: { id: mod.id }, granted: mod.granted }, page }));
     const deckit = {
         channels: IPC.layerChannels,

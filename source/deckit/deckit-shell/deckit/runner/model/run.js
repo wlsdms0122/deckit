@@ -13,7 +13,7 @@
 // `launchedAt`, when it came to run, in ms since the epoch as this process tells it, or null before;
 // `relaunches`, whether the runner loads the mod again once it has ended.
 function makeRun({ mod, number, relaunches = false }) {
-    const facts = {
+    const properties = {
         state: 'launching',
         summary: null,
         contributions: null,
@@ -27,33 +27,33 @@ function makeRun({ mod, number, relaunches = false }) {
         mod,
         number,
         get state() {
-            return facts.state;
+            return properties.state;
         },
         get summary() {
-            return facts.summary;
+            return properties.summary;
         },
         get contributions() {
-            return facts.contributions;
+            return properties.contributions;
         },
         get problem() {
-            return facts.problem;
+            return properties.problem;
         },
         get failed() {
-            return facts.failed;
+            return properties.failed;
         },
         get refusal() {
-            return facts.refusal;
+            return properties.refusal;
         },
         get launchedAt() {
-            return facts.launchedAt;
+            return properties.launchedAt;
         },
         get relaunches() {
-            return facts.relaunches;
+            return properties.relaunches;
         },
     });
     const update = (told) => {
-        if (told.state === 'running' && facts.state !== 'running') facts.launchedAt = Date.now();
-        Object.assign(facts, told);
+        if (told.state === 'running' && properties.state !== 'running') properties.launchedAt = Date.now();
+        Object.assign(properties, told);
     };
     return { run, update };
 }

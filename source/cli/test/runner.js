@@ -85,14 +85,14 @@ async function main() {
     };
     const methods = (method) => asked.filter((request) => request.method === method);
     const found = (id) => ({ id, revision: '1', manifest: { id, name: id.toUpperCase() } });
-    const told = (notification, state, mod = 'a', facts = {}) => ({
+    const told = (notification, state, mod = 'a', params = {}) => ({
         effect: 'tell',
         mod,
         run: 1,
         notification,
         state,
         failed: false,
-        ...facts,
+        ...params,
     });
     answers.set('runner/start', [
         [{ effect: 'open', found: found('a') }, told('willLaunch', 'launching', 'a'), { effect: 'loadPage', mod: 'a' }],

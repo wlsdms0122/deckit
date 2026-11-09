@@ -325,9 +325,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     // What the page of the mod reports of its `number`th run, kept on it while it is the mod's latest.
-    function reported(modId, number, facts) {
+    function report(modId, number, properties) {
         const sandbox = sandboxes.get(modId);
-        if (sandbox?.run?.number === number) sandbox.update(facts);
+        if (sandbox?.run?.number === number) sandbox.update(properties);
     }
 
     // What the core keeps of what a run contributes: `exportedIn` and `awaits` alone.
@@ -468,7 +468,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         });
         PROTOCOL.started.on(({ run: number, contributions, summary }, sender) => {
             const { id } = IDENTITY.modFrom(sender);
-            reported(id, number, { summary, contributions });
+            report(id, number, { summary, contributions });
             send('runner/started', { mod: id, run: number, contributions: keptOf(contributions) });
         });
         PROTOCOL.problem.on(({ run: number, problem }, sender) =>

@@ -40,10 +40,10 @@ for (const [name, options] of Object.entries(LIBRARY.BUNDLES)) {
 }
 
 // The contract it speaks, read from deckit-electron's entry for it.
-const facts = path.join(folder, '.facts.cjs');
-esbuild('deckit-electron/contract/index.js', facts, { format: 'cjs', platform: 'node', target: 'node22' });
-const { API: api } = require(facts);
-fs.rmSync(facts);
+const contract = path.join(folder, '.contract.cjs');
+esbuild('deckit-electron/contract/index.js', contract, { format: 'cjs', platform: 'node', target: 'node22' });
+const { API: api } = require(contract);
+fs.rmSync(contract);
 
 const mods = fs
     .readdirSync(path.join(folder, 'mods'))

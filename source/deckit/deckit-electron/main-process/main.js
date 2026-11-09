@@ -18,7 +18,7 @@ export function attach(deckit, environment) {
     const APP = environment.app;
     const FILES = environment.files;
     const endings = new Set(); // the ends of modules still to come, each settled in its limit
-    const watching = new Set(); // the pages told when what `restartPending` or `stateOf` answer may have changed
+    const watching = new Set(); // the pages told when what `restartPending` or `statusOf` answer may have changed
 
     // MARK: - Initializer
     for (const permission of MAIN_PROCESS_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
@@ -53,9 +53,9 @@ export function attach(deckit, environment) {
             deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
             return LOADER.restartPending();
         });
-        PROTOCOL.stateOf.handle(({ id }, sender) => {
+        PROTOCOL.statusOf.handle(({ id }, sender) => {
             deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);
-            return LOADER.stateOf(id);
+            return LOADER.statusOf(id);
         });
         PROTOCOL.watch.on((_payload, sender) => {
             deckit.mods.modFrom(sender, MOD_PERMISSION.MODS);

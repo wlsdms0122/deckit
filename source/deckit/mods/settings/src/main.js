@@ -244,7 +244,7 @@ class Settings {
         // host runs no main process modules.
         async function failuresOf(found) {
             if (!mainProcess) return new Map();
-            const states = await Promise.all(found.map((mod) => mainProcess.stateOf(mod.id)));
+            const states = await Promise.all(found.map((mod) => mainProcess.statusOf(mod.id)));
             return new Map(found.map((mod, index) => [mod.id, states[index]?.failure || null]));
         }
 

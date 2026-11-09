@@ -3,7 +3,7 @@
 // on a page however many handles ask for it, what it emits reaching the page and heard by `on` until its lifecycle's
 // scope is cut, an answer that cannot be copied refused, a call of a module not started refused NOT_STARTED, a start
 // refused NOT_PERMITTED for a mod without system.main-process and an argument of another type INVALID_ARGUMENT, and
-// `restartPending`, `stateOf` and `onChange` held to deckit.mods on both sides. A run launching, ending and its mod
+// `restartPending`, `statusOf` and `onChange` held to deckit.mods on both sides. A run launching, ending and its mod
 // installed or removed reach the loader with the run's folder and data folder and the run's limit, and the app waits
 // for the modules of a run that ended. Exits 1 with a line for each check that failed. The packages are ES modules, so
 // they are imported as such.
@@ -98,7 +98,7 @@ async function main() {
         },
         removed: (modId, { running }) => done.push(['removed', modId, running]),
         installed: async (modId) => done.push(['installed', modId]),
-        stateOf: (modId) => ({ running: modId === 'a', failure: null }),
+        statusOf: (modId) => ({ running: modId === 'a', failure: null }),
         onChange: (listener) => (changed = listener),
         restartPending: () => [{ id: 'a', why: 'updated' }],
     };
@@ -232,7 +232,7 @@ async function main() {
     const handle = layer.frameworks.mainProcess(makeScope());
     check(
         'a mod with deckit.mods reads which mods only a restart finishes and how their modules are',
-        JSON.stringify([await handle.restartPending(), await handle.stateOf('a')]) ===
+        JSON.stringify([await handle.restartPending(), await handle.statusOf('a')]) ===
             '[[{"id":"a","why":"updated"}],{"running":true,"failure":null}]',
         ''
     );
@@ -255,10 +255,10 @@ async function main() {
     const asked = loaded.length;
     const plain = layerOf([]).frameworks.mainProcess(makeScope());
     check(
-        'start, restartPending and stateOf refuse a mod granted nothing at call with NOT_PERMITTED',
+        'start, restartPending and statusOf refuse a mod granted nothing at call with NOT_PERMITTED',
         (
             await Promise.all(
-                [plain.start('main-process/a.js'), plain.restartPending(), plain.stateOf('a')].map(refusalOf)
+                [plain.start('main-process/a.js'), plain.restartPending(), plain.statusOf('a')].map(refusalOf)
             )
         ).join() === 'call NOT_PERMITTED,call NOT_PERMITTED,call NOT_PERMITTED',
         ''
@@ -270,7 +270,7 @@ async function main() {
     );
     check(
         'an argument of another type is refused at call with INVALID_ARGUMENT',
-        (await Promise.all([handle.start(5), handle.stateOf(5)].map(refusalOf))).join() ===
+        (await Promise.all([handle.start(5), handle.statusOf(5)].map(refusalOf))).join() ===
             'call INVALID_ARGUMENT,call INVALID_ARGUMENT' &&
             thrownOf(() => handle.onChange('a')) === 'call INVALID_ARGUMENT',
         ''
@@ -287,7 +287,7 @@ async function main() {
                     args: [],
                 }),
                 askAsPlain('deckit-electron:main-process-restart-pending', {}),
-                askAsPlain('deckit-electron:main-process-state-of', { id: 'a' }),
+                askAsPlain('deckit-electron:main-process-status-of', { id: 'a' }),
             ])
         ).join() === 'call NOT_PERMITTED,call NOT_PERMITTED,call NOT_PERMITTED,call NOT_PERMITTED',
         ''

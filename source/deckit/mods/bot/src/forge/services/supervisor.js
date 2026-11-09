@@ -301,7 +301,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         });
 
         let actionSignature = '';
-        let factSignature = '';
+        let lastSnapshot = '';
         const update = ({
             tone,
             name,
@@ -313,9 +313,9 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             signature = '',
             last = false,
         }) => {
-            const facts = [tone, stateText || '', pid || ''].join('|');
-            if (factSignature && facts !== factSignature) flash(element, tone);
-            factSignature = facts;
+            const snapshot = [tone, stateText || '', pid || ''].join('|');
+            if (lastSnapshot && snapshot !== lastSnapshot) flash(element, tone);
+            lastSnapshot = snapshot;
 
             stem.style.bottom = last ? '50%' : '0';
             marker.style.background = TONE[tone];

@@ -87,10 +87,10 @@ function modDetails({ ui, mods, pins, tildify, onPinnedChange }) {
 
     // Drawn again only when what it shows changed, and then its usage read again when it is open.
     function set(next) {
-        const facts = JSON.stringify(next);
+        const snapshot = JSON.stringify(next);
         mod = next;
-        if (facts === drawn) return;
-        drawn = facts;
+        if (snapshot === drawn) return;
+        drawn = snapshot;
         usageRead = false;
         // A main process module starts when the mod asks for it, so none running is no fault: only a start that
         // failed is told.

@@ -188,7 +188,7 @@ function createEnvironment({ core, preload, openWindow }) {
             ended: LOADER.ended,
             removed: LOADER.removed,
             installed: LOADER.installed,
-            stateOf: LOADER.stateOf,
+            statusOf: LOADER.statusOf,
             onChange: LOADER.onChange,
             restartPending: LOADER.restartPending,
         }),

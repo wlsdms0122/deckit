@@ -14,7 +14,7 @@ export const event = CHANNEL.mainToPage('deckit-electron:main-process-event');
 // deckit.mods: the mods whose main process modules only a restart of the app brings up to date, [{ id, why }].
 export const restartPending = CHANNEL.pageToMain('deckit-electron:main-process-restart-pending', {}, { reply: true });
 // deckit.mods: whether a module of the mod's runs, and why those that did not start did not, { running, failure }.
-export const stateOf = CHANNEL.pageToMain('deckit-electron:main-process-state-of', { id: 'string' }, { reply: true });
-// deckit.mods: the page is told from now on when what `restartPending` or `stateOf` answer may have changed.
+export const statusOf = CHANNEL.pageToMain('deckit-electron:main-process-status-of', { id: 'string' }, { reply: true });
+// deckit.mods: the page is told from now on when what `restartPending` or `statusOf` answer may have changed.
 export const watch = CHANNEL.pageToMain('deckit-electron:main-process-watch', {});
 export const changed = CHANNEL.mainToPage('deckit-electron:main-process-changed');

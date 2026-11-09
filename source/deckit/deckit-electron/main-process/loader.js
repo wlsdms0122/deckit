@@ -24,7 +24,7 @@ export function createLoader({ LOG, FOLDER, windowShowing }) {
     const endings = new Map(); // mod id -> promise of its modules' end, after its run ended
     const windows = new Map(); // mod id -> the keys of the windows its modules opened
     const removing = new Set(); // mod ids taken away whose run has not ended yet
-    const listeners = new Set(); // told when what a mod's facts say may have changed
+    const listeners = new Set(); // told when what a mod's status says may have changed
 
     // MARK: - Initializer
     // MARK: - Public
@@ -36,14 +36,14 @@ export function createLoader({ LOG, FOLDER, windowShowing }) {
         else whenEnded(modId).then(() => loaded.has(modId) && setPending(modId, 'removed'));
     }
 
-    // `listener()` is told when what `stateOf` or `restartPending` answer may have changed. Answers its off.
+    // `listener()` is told when what `statusOf` or `restartPending` answer may have changed. Answers its off.
     function onChange(listener) {
         listeners.add(listener);
         return () => listeners.delete(listener);
     }
 
     // Whether a module of the mod's runs, and why those that did not start did not, or null.
-    function stateOf(modId) {
+    function statusOf(modId) {
         const failed = [...(failures.get(modId)?.values() || [])];
         return { running: live.has(modId), failure: failed.length ? failed.join('; ') : null };
     }
@@ -337,7 +337,7 @@ export function createLoader({ LOG, FOLDER, windowShowing }) {
         ended,
         removed,
         installed,
-        stateOf,
+        statusOf,
         onChange,
         restartPending,
     };

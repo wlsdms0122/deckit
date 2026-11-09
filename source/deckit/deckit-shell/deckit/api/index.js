@@ -20,7 +20,7 @@ export function createApi({
 }) {
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
-    const facts = new WeakMap(); // a run -> what the host app reads of it
+    const readOnly = new WeakMap(); // a run -> what the host app reads of it
     const copies = new WeakMap(); // what a run reported, as the runner keeps it -> its frozen copy
 
     // MARK: - Initializer
@@ -28,7 +28,7 @@ export function createApi({
     // MARK: - Public
     // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages,
     // permissions for what the UI adds and the manifest fields it reads, their own state, opening outside the app for a
-    // mod, the log, and the layers stacked over deckit on a mod's page. No more of deckit is theirs. Every fact it
+    // mod, the log, and the layers stacked over deckit on a mod's page. No more of deckit is theirs. Every value it
     // hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it, `whenStarted()` when
     // it has started, and `restart()` the host app's.
     function make({ onStart, whenStarted, restart }) {
@@ -71,8 +71,8 @@ export function createApi({
                     return use?.owner === owner && !use.problem ? owner : null;
                 },
                 runs: () =>
-                    Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: factsOf(run), page }))),
-                runOf: (id) => factsOf(RUNNER.runOf(id)),
+                    Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: readOnlyOf(run), page }))),
+                runOf: (id) => readOnlyOf(RUNNER.runOf(id)),
                 // The manifest fields the UI named (`fields.define`) that the mod's manifest writes, by key, each as
                 // written, or null for no mod that loads.
                 fieldsOf: (id) => {
@@ -86,7 +86,7 @@ export function createApi({
                 },
                 // The text of a file inside the mod's folder, by its path there, or null for none.
                 readFile: CATALOG.readFile,
-                observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
+                observe: (name, observer) => RUNNER.observe(name, (run) => observer(readOnlyOf(run))),
                 // `listener(id)` is told of a mod installed, once the one it replaced, if that ran, has launched again,
                 // and of a mod removed, before what runs in its place launches, while its run, if any, has not ended.
                 // Each answers its off.
@@ -155,10 +155,10 @@ export function createApi({
     }
 
     // What a run is, read only: its transitions are the runner's. What it reported is copied each time it changes.
-    function factsOf(run) {
+    function readOnlyOf(run) {
         if (!run) return null;
-        if (!facts.has(run)) {
-            facts.set(
+        if (!readOnly.has(run)) {
+            readOnly.set(
                 run,
                 Object.freeze({
                     mod: manifestOf(run.mod),
@@ -190,7 +190,7 @@ export function createApi({
                 })
             );
         }
-        return facts.get(run);
+        return readOnly.get(run);
     }
 
     function copyOf(reported) {

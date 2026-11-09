@@ -13,7 +13,7 @@ import * as MAIN_PROCESS_LAYER from './model/layer.js';
 // deckit-shell's start (deckit-shell/deckit/connect/renderer.js: layers). The layer has no lifecycle of its own. It
 // hands every lifecycle of the run the handle `mainProcess`, made with that lifecycle's scope: `start(path)`, the
 // mod's module at `path` in its folder, for a mod with system.main-process; and, for a mod with deckit.mods,
-// `restartPending()`, `stateOf(id)` and `onChange(listener)`. `channels` binds the layer's channels.
+// `restartPending()`, `statusOf(id)` and `onChange(listener)`. `channels` binds the layer's channels.
 const LAYERS = Object.freeze({
     [MAIN_PROCESS_LAYER.LAYER]:
         ({ channels }) =>
@@ -31,7 +31,7 @@ function createMainProcess({ mod, granted, deliver, channels }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const buses = new Map(); // a module's path -> what listens to what it emits
     const started = new Map(); // the path asked for -> promise of what the module answers it has
-    const changeListeners = new Set(); // told when what `restartPending` or `stateOf` answer may have changed
+    const changeListeners = new Set(); // told when what `restartPending` or `statusOf` answer may have changed
     let listening = false;
     let watched = false;
 
@@ -52,7 +52,7 @@ function createMainProcess({ mod, granted, deliver, channels }) {
                 (path) => moduleOf(path, scope)
             ),
             restartPending: manager('restartPending', [], () => PROTOCOL.restartPending.invoke()),
-            stateOf: manager('stateOf', [['id', 'string']], (id) => PROTOCOL.stateOf.invoke({ id })),
+            statusOf: manager('statusOf', [['id', 'string']], (id) => PROTOCOL.statusOf.invoke({ id })),
             onChange: (listener) => {
                 if (managerDenied) throw REQUEST.refusal('call', 'NOT_PERMITTED', managerDenied);
                 if (typeof listener !== 'function')
