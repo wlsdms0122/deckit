@@ -5,11 +5,11 @@ Area: system
 
 ## Summary
 
-An interface is a contract one mod defines and any mod may provide: a mod that uses it is connected to whichever mod owns it, and never names that mod. This DECKIT fixes who owns an interface among the mods that provide it and how a request pins one, which majors a provider and a client must share to connect, the connection to the owner each lifecycle of a client's run has from before its start is called, the exports a provider opens for an interface, what a client's listeners are handed of each connection and each refusal, and the entries mods declare to an interface, which only its owner is handed. What a connection is and what crosses it are [the connections](../DECKIT-9/SPEC.md)'s; this DECKIT names who is at the other end.
+An interface is a contract one mod defines and any mod may provide: a mod that uses it is connected to whichever mod owns it, and never names that mod. This DECKIT fixes who owns an interface among the mods that provide it, how a request pins one and what a request reads of each interface, which majors a provider and a client must share to connect, the connection to the owner each lifecycle of a client's run has from before its start is called, the exports a provider opens for an interface, what a client's listeners are handed of each connection and each refusal, and the entries mods declare to an interface, which only its owner is handed. What a connection is and what crosses it are [the connections](../DECKIT-9/SPEC.md)'s; this DECKIT names who is at the other end.
 
 ## Motivation
 
-[The bundle](../DECKIT-2/SPEC.md) reads `provides`, `uses` and `contributes` and leaves what they come to here, and [the handle](../DECKIT-7/SPEC.md) lists `exports.register(interface, exports)`, `exports.contributions(interface)`, `dependencies.onConnect`, `dependencies.onRefuse` and `mods.pin` and leaves them here. A mod author writes one entry for every implementation, so each of these is a call two implementations could answer differently without a rule.
+[The bundle](../DECKIT-2/SPEC.md) reads `provides`, `uses` and `contributes` and leaves what they come to here, and [the handle](../DECKIT-7/SPEC.md) lists `exports.register(interface, exports)`, `exports.contributions(interface)`, `dependencies.onConnect`, `dependencies.onRefuse` `mods.pin` and `mods.interfaces()` and leaves them here. A mod author writes one entry for every implementation, so each of these is a call two implementations could answer differently without a rule.
 
 `mod-b` and `mod-c` both provide `mod-b/pages`, and `mod-a` uses it:
 
@@ -61,6 +61,17 @@ It answers nothing, and from then on `mod` owns `interface`. `deckit.mods`, as [
 1. as [the permissions](../DECKIT-3/SPEC.md) refuse a request a permission guards, at `call` with kind `NOT_PERMITTED`;
 2. as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, at `call` with kind `INVALID_ARGUMENT`;
 3. at `call` with kind `NOT_PROVIDER`, where `mod` is written and does not provide `interface`.
+
+`mods.interfaces()`, a member of [the handle](../DECKIT-7/SPEC.md), is a request that takes nothing. `deckit.mods`, as [the permissions](../DECKIT-3/SPEC.md) define it, guards it, and it is refused only as they refuse a request a permission guards, at `call` with kind `NOT_PERMITTED`. It answers an array of entries, one for each interface a mod provides or uses, each a table:
+
+| key | value |
+|---|---|
+| `interface` | string: the interface |
+| `name` | string: the `name` of the bundle listed under the mod id the interface is named by; absent where the system took none under it |
+| `owner` | string: the id of its owner; absent where it has none |
+| `pinned` | boolean: whether its owner is the mod pinned for it |
+| `providers` | array of tables `{ id, name, majors, pinnable }`, its queue, the first first: `id` the mod's id, `name` its bundle's `name`, absent where the system took no bundle under `id`, `majors` the majors it provides, an array of integers, and `pinnable` whether `mods.pin` pins it rather than refuse it |
+| `clients` | array of tables `{ id, major, problem }`, each mod that uses it, in [the catalog's](../DECKIT-4/SPEC.md) order: `id` the mod's id, `major` the major it uses, and `problem` a string, where the interface has an owner other than the mod and its lifecycles reach no one by it, why, as the implementation says it; absent otherwise |
 
 ### Connecting to the owner
 
@@ -128,7 +139,7 @@ No permission guards it. It is refused with the first of these that is so:
 
 - The interface's name, `provides`, `uses`, `contributes` and what the system answers of a bundle: [the bundle](../DECKIT-2/SPEC.md).
 - `deckit.mods`, what a mod is granted, and the refusal `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md).
-- The catalog's order: [the catalog](../DECKIT-4/SPEC.md).
+- The catalog's order, and the other requests `deckit.mods` guards: [the catalog](../DECKIT-4/SPEC.md).
 - What launches a mod and the refusals at `launch`: [the lifecycle](../DECKIT-5/SPEC.md).
 - A run's lifecycles and when a lifecycle's start is called: [the entry](../DECKIT-6/SPEC.md).
 - The handle, requests, refusals and `INVALID_ARGUMENT`: [the handle](../DECKIT-7/SPEC.md).
@@ -151,6 +162,6 @@ No permission guards it. It is refused with the first of these that is so:
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a mod leaves a queue and a pin goes with it, and that the connection ends as the owner changes while both lifecycles stand: a mod leaves a queue only as its bundle is installed, removed or changed, which no input of the case format does while a client is connected. A refusal at `launch` of kind `RELAUNCH_LIMIT` or `TIMED_OUT`: [the connections](../DECKIT-9/SPEC.md) hold the same refusals of a reach, and a launch out of time takes longer than a step may take to settle. That a lifecycle has its connections as its start is called: a case's request is made after the lifecycle has started. That `onConnect` and `onRefuse` answer a function that removes the listener: a case reads no function. That a listener is not called once its lifecycle has ended: a case's lifecycle runs while its steps are taken.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a mod leaves a queue and a pin goes with it, and that the connection ends as the owner changes while both lifecycles stand: a mod leaves a queue only as its bundle is installed, removed or changed, which no input of the case format does while a client is connected. A refusal at `launch` of kind `RELAUNCH_LIMIT` or `TIMED_OUT`: [the connections](../DECKIT-9/SPEC.md) hold the same refusals of a reach, and a launch out of time takes longer than a step may take to settle. That a lifecycle has its connections as its start is called: a case's request is made after the lifecycle has started. That `onConnect` and `onRefuse` answer a function that removes the listener: a case reads no function. That a listener is not called once its lifecycle has ended: a case's lifecycle runs while its steps are taken. What `mods.interfaces()` answers: the owners and queues it reads are held by the cases of `mods.pin` and of connecting to the owner, and a client's `problem` is a message no rule states.
 
 **Note.** What this costs an implementation: the system keeps a queue and a pin for each interface across starts, connects every lifecycle of a client to the owner as it begins and again as the owner changes, reads the majors the owner provides from its bundle before it launches it, and keeps for each interface the last refusal a lifecycle was told while no connection was made since, to hand a listener added after it.

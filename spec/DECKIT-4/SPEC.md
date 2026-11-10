@@ -101,7 +101,7 @@ Each entry is a table:
 |---|---|
 | `id` | string: the name the bundle is listed under |
 | `mod` | table: the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it; absent where it is refused |
-| `refusal` | table `{ stage, kind }`: `stage` the string `"read"`, `kind` the refusal's kind; absent where the bundle is taken |
+| `refusal` | table `{ stage, kind, message }`: `stage` the string `"read"`, `kind` the refusal's kind, `message` why, as [the handle](../DECKIT-7/SPEC.md)'s errors carry it; absent where the bundle is taken |
 | `folder` | string: the path of the folder the bundle is read from |
 | `installed` | boolean: whether the bundle is installed |
 | `shipped` | boolean: whether the bundle is one the host ships |
@@ -134,6 +134,7 @@ A name shipped and removed stays out at each later start, under *What a host shi
 - What runs of a mod installed, replaced or removed while it runs, and which background mods launch in the catalog's order: the lifecycle's DECKIT.
 - What a mod stores, and what erasing it takes away: [the storage](../DECKIT-13/SPEC.md).
 - The handle a mod makes these requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
+- Each mod's latest run, which `runs` answers: [the lifecycle](../DECKIT-5/SPEC.md). Each interface with its providers, owner and clients, which `mods.interfaces()` answers: [the interfaces](../DECKIT-10/SPEC.md).
 - Being told that what `list` answers may have changed: [the events](../DECKIT-12/SPEC.md).
 - What a host hands as the folder read in place and the bundles it ships, and what it marks system: the embedding DECKIT.
 
@@ -144,10 +145,9 @@ A name shipped and removed stays out at each later start, under *What a host shi
 - A host that ships nothing leaving installed what it shipped before. That would be a second rule for one list of shipped names, and an empty list would mean what no other list means.
 - Installing what a host ships only when its version is newer than the copy installed. Versions say what a mod's author released, and the system compares them only against `api`: a host that ships an older version means that version.
 - A request of its own for what an install would come to. It would take the same folder, be read and refused the same way and answer the same bundle, a second name for one act; a dry run is that act changing nothing.
+- `list` answering a table that holds the entries beside each running mod's summary and each interface's providers and owner, each entry the bundle's keys beside the catalog's and its run's. A bundle's keys would share one table with the catalog's, so a field a layer adds could take a catalog key's name, and a mod that reads only the bundles would be handed every run and interface. Each is its own request: `list` here, `runs` in [the lifecycle](../DECKIT-5/SPEC.md), `mods.interfaces()` in [the interfaces](../DECKIT-10/SPEC.md).
 - `install` answering beside the bundle the folder it was handed, or whether a restart of the app is left to finish the install. The folder is the asking mod's own, and what only a restart finishes is the host app's, not the catalog's.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. What `list` answers, that `install` answers the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it, and that a bundle installed in the place of a system mod is not one, which only `list` shows: they wait on the question below. That an installed bundle is read from its copy and not from the folder it was installed from, and that a change to a folder read in place is seen from the next read on, wait on an input that changes a folder. `NESTED`: a case cannot write a folder inside the system's own folder, whose layout is not the specification's, nor a bundle that holds it. The sentences of *What a host ships* that need a host that changes between starts wait on a case format that changes the host between starts. That a refused start takes nothing waits on a look at the system's own folder, which no format has.
-
-**Open.** What `list` answers: the array of entries above, or a table that holds them beside each running mod's summary and each interface's providers and owner, each entry the bundle's keys beside the catalog's and its run's.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. Of what `list` answers, `folder` and `hides`: they are paths of folders the runner lays out where it keeps its run, which no case writes. `refusal`: a table is matched whole, and its `message` is one no rule states. `mod`, and that `install` answers the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it: [the bundle](../DECKIT-2/SPEC.md)'s cases hold what a bundle is answered. That a bundle installed in the place of a system mod is not one, which only `list` shows: no case here installs in the place of a system mod. That an installed bundle is read from its copy and not from the folder it was installed from, and that a change to a folder read in place is seen from the next read on, wait on an input that changes a folder. `NESTED`: a case cannot write a folder inside the system's own folder, whose layout is not the specification's, nor a bundle that holds it. The sentences of *What a host ships* that need a host that changes between starts wait on a case format that changes the host between starts. That a refused start takes nothing waits on a look at the system's own folder, which no format has.

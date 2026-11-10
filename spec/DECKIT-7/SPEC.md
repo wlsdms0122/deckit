@@ -42,9 +42,9 @@ A mod written for a mod manager prints why a request failed: a dry run of `insta
 | `name` | string: the `name` of the bundle the run is of, as [the bundle](../DECKIT-2/SPEC.md) answers it | | here |
 | `quit()` | the request that ends the mod's own run | | [the lifecycle](../DECKIT-5/SPEC.md) |
 | `mods.list()`, `mods.install(folder, options)`, `mods.remove(id, erase)` | the requests `list`, `install` and `remove` | `deckit.mods` | [the catalog](../DECKIT-4/SPEC.md) |
-| `mods.launch(id)`, `mods.quit(id)`, `mods.relaunch(id)` | the requests `launch`, `quit` and `relaunch` | `deckit.mods` | [the lifecycle](../DECKIT-5/SPEC.md) |
-| `mods.onChange(listener)` | being told that what `mods.list()` answers may have changed | `deckit.mods` | [the events](../DECKIT-12/SPEC.md) |
-| `mods.pin(interface, mod)` | the owner of an interface, as a person pins it | `deckit.mods` | [the interfaces](../DECKIT-10/SPEC.md) |
+| `mods.runs()`, `mods.launch(id)`, `mods.quit(id)`, `mods.relaunch(id)` | the requests `runs`, `launch`, `quit` and `relaunch` | `deckit.mods` | [the lifecycle](../DECKIT-5/SPEC.md) |
+| `mods.onChange(listener)` | being told that what `mods.list()`, `mods.runs()` or `mods.interfaces()` answer may have changed | `deckit.mods` | [the events](../DECKIT-12/SPEC.md) |
+| `mods.pin(interface, mod)`, `mods.interfaces()` | the owner of an interface, as a person pins it, and each interface with its providers, owner and clients | `deckit.mods` | [the interfaces](../DECKIT-10/SPEC.md) |
 | `mods.usage(id)` | what a mod has stored, in each place it is kept | `deckit.mods` | [the storage](../DECKIT-13/SPEC.md) |
 | `mods.restart()` | the request that restarts the app | `deckit.mods` | here |
 | `openExternal(url, options)` | the request that hands the host an address to open outside the app | `system.file-handlers`, for the address of a file; none for any other | [opening outside the app](../DECKIT-8/SPEC.md) |

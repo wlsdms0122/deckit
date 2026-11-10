@@ -117,22 +117,22 @@ The system tells two signals of an interface, `<interface>:<signal>`, with no va
 
 | takes | type | required | what it is |
 |---|---|---|---|
-| `listener` | function | yes | what is called once what `mods.list()` answers may have changed |
+| `listener` | function | yes | what is called once what `mods.list()`, `mods.runs()` or `mods.interfaces()` answer may have changed |
 
 `deckit.mods`, as [the permissions](../DECKIT-3/SPEC.md) define it, guards it. It is refused with the first of these that is so, and adds nothing:
 
 1. as [the permissions](../DECKIT-3/SPEC.md) refuse a request a permission guards, at `call` with kind `NOT_PERMITTED`;
 2. at `call` with kind `INVALID_ARGUMENT`, where `listener` is not a function.
 
-`listener` is called with no values, at least once after what `mods.list()` answers, as [the catalog](../DECKIT-4/SPEC.md) and [the lifecycle](../DECKIT-5/SPEC.md) fix it, may have changed: a bundle found or gone, or a run that moved. Changes that come together may be told by one call. It is removed as `events.on`'s listener is.
+`listener` is called with no values, at least once after what `mods.list()`, `mods.runs()` or `mods.interfaces()` answer, as [the catalog](../DECKIT-4/SPEC.md), [the lifecycle](../DECKIT-5/SPEC.md) and [the interfaces](../DECKIT-10/SPEC.md) fix them, may have changed: a bundle found or gone, a run that moved, or an owner or a queue that changed. Changes that come together may be told by one call. It is removed as `events.on`'s listener is.
 
-**Note.** `mods.onChange` says only that the list may have changed: a listener reads `mods.list()` again for what did. How many calls a launch comes to is not fixed, so a mod that counts them counts what no rule states.
+**Note.** `mods.onChange` says only that one of the three may have changed: a listener reads again what it needs of `mods.list()`, `mods.runs()` and `mods.interfaces()` for what did. How many calls a launch comes to is not fixed, so a mod that counts them counts what no rule states.
 
 ## Interactions
 
 - The `id` and `interface` names, and the values of the manifest text: [the bundle](../DECKIT-2/SPEC.md).
 - `deckit.mods`, `deckit.reach-mods`, what a mod is granted and the refusal `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md).
-- What `mods.list()` answers: [the catalog](../DECKIT-4/SPEC.md). A run's states, and a run that is `running`: [the lifecycle](../DECKIT-5/SPEC.md).
+- What `mods.list()` answers: [the catalog](../DECKIT-4/SPEC.md). What `mods.runs()` answers, a run's states, and a run that is `running`: [the lifecycle](../DECKIT-5/SPEC.md). What `mods.interfaces()` answers: [the interfaces](../DECKIT-10/SPEC.md).
 - A run's lifecycles, and when one ends: [the entry](../DECKIT-6/SPEC.md).
 - The handle, values, and an error with its stage, kind and message: [the handle](../DECKIT-7/SPEC.md).
 - How a value crosses as a copy, and reaching a mod by its id: [the connections](../DECKIT-9/SPEC.md). Asking one mod something and being answered: [the connections](../DECKIT-9/SPEC.md) and [calls across a connection](../DECKIT-11/SPEC.md).
@@ -150,7 +150,8 @@ The system tells two signals of an interface, `<interface>:<signal>`, with no va
 - A name a mod may not hear taken, and its listener never called. A mod could not tell a name it may not hear from an event that never came; a refusal says which it is at once.
 - `on` and `mods.onChange` as requests that answer a promise. What they answer, the function that removes the listener, is no value, and a listener added later than the call would miss what happened between.
 - A listener handed twice called twice. Removing it would take two calls of two functions, and adding a listener that is there already would change what it hears.
-- `mods.onChange` told once for each change, with what changed. Every implementation would have to tell the same steps of a launch alike; telling that the list may have changed, and reading it again, is the same on all.
+- `mods.onChange` told once for each change, with what changed. Every implementation would have to tell the same steps of a launch alike; telling that the mods may have changed, and reading them again, is the same on all.
+- A listener for each of `mods.list()`, `mods.runs()` and `mods.interfaces()`. An install changes all three at once, so a mod manager that reads them together would be told one change three times.
 
 ## Notes
 

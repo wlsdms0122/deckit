@@ -60,7 +60,7 @@ The system's other DECKITs define permissions of their own, each in a table of t
 ## Interactions
 
 - How a permission is defined, asked for, refused when privileged, answered usable or not, and ordered in the answer: [the bundle](../DECKIT-2/SPEC.md).
-- The requests `deckit.mods` guards: listing, installing and removing mods, in the catalog's DECKIT, and launching and quitting another mod, in the lifecycle's DECKIT.
+- The requests `deckit.mods` guards: listing, installing and removing mods, in [the catalog](../DECKIT-4/SPEC.md); reading each mod's latest run, and launching and quitting another mod, in [the lifecycle](../DECKIT-5/SPEC.md); and reading each interface and pinning its owner, in [the interfaces](../DECKIT-10/SPEC.md).
 - The request `deckit.reach-mods` guards, reaching a mod by its id, and what a service is told of the permissions its client is granted: [the connections](../DECKIT-9/SPEC.md).
 - Hearing the events of any mod, which `deckit.reach-mods` lets a mod do: [the events](../DECKIT-12/SPEC.md).
 - The requests `deckit.system-services` guards: the DECKITs of the standard interfaces, `deckit/*`, such as [the addresses](../DECKIT-14/SPEC.md), [the commands](../DECKIT-15/SPEC.md), [the key bindings](../DECKIT-16/SPEC.md) and [the configuration](../DECKIT-17/SPEC.md).
