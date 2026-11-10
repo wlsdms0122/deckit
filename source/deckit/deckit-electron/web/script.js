@@ -30,7 +30,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         const session = sessionOf(page);
         // A name of the page's own, so a page cannot easily tell deckit is listening.
         const channel = `deckit-${require('crypto').randomUUID()}`;
-        const entry = { icon: '', audible: false, muted: false, notifications: new Map(), install };
+        const entry = { icon: '', audible: false, muted: false, notifications: new Map(), channel, install };
         pages.set(page.id, entry);
         page.once('destroyed', () => pages.delete(page.id));
         // Also run in the document already there: the page may be under way before its scripts are. The scripts do
@@ -135,6 +135,22 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             const asked = request(embedder, page.id, { origin, permissions: ['notifications'] });
             answer(asked, "a site's notifications were not asked", false);
             return true;
+        } else if (message.op === 'display') {
+            // A yes is answered by a script, whose user gesture WebKit's own needs to take the screen; it is run in
+            // deckit's world, which the page's code cannot reach, under the name only the page script knows.
+            const yes = JSON.stringify(JSON.stringify({ id, answer: true }));
+            const name = JSON.stringify(`${entry.channel}:answer`);
+            request(embedder, page.id, { origin, permissions: ['display-capture'] })
+                .catch((error) => {
+                    LOG.error("a site's screen was not asked", error);
+                    return false;
+                })
+                .then((ok) => {
+                    if (!ok) return frame.answer(JSON.stringify({ id, answer: false }));
+                    frame.evaluate(`document.dispatchEvent(new CustomEvent(${name}, { detail: ${yes} }))`, 'deckit');
+                    return frame.answer();
+                });
+            return true;
         } else if (message.op === 'read') {
             answer(readClipboard(embedder, page.id, { origin }), "a site's clipboard was not reached", null);
             return true;
@@ -150,25 +166,30 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     // event under `channel`, and what deckit answers comes back as one under `${channel}:answer`.
     function inPage(channel, table, commands) {
         if (window.__deckitNotification) return;
-        const say = (msg) => document.dispatchEvent(new CustomEvent(channel, { detail: JSON.stringify(msg) }));
+        // What it calls of the engine's own, and what it says and answers through, are held as the document started,
+        // so the page's own code learns neither name nor gets a hold of them by replacing what they are called through.
+        const apply = Reflect.apply;
+        const dispatch = EventTarget.prototype.dispatchEvent;
+        const Custom = CustomEvent;
+        const say = (msg) => apply(dispatch, document, [new Custom(channel, { detail: JSON.stringify(msg) })]);
         // The document's origin, which a frame the page made without an address has from the page.
         const origin = self.origin;
         let permission = table[origin] || 'default';
         let seq = 0;
         const ids = new WeakMap(),
             live = new Map(),
-            waiting = new Map(); // id -> what takes deckit's answer
+            waiting = Object.create(null); // id -> what takes deckit's answer
         // `take(answer)` once deckit answers `msg`.
         const ask = (msg, take) => {
             const id = ++seq;
-            waiting.set(id, take);
+            waiting[id] = take;
             say({ ...msg, id });
         };
         document.addEventListener(`${channel}:answer`, (event) => {
             const { id, answer } = JSON.parse(event.detail);
-            const take = waiting.get(id);
+            const take = waiting[id];
             if (!take) return;
-            waiting.delete(id);
+            delete waiting[id];
             take(answer);
         });
         const fire = (n, type) => {
@@ -294,10 +315,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         // The page's copy, cut and paste by execCommand, the engine's own, answer false and do nothing where the site
         // may not have the clipboard: `commands.writes`, and `commands.reads`, the sites that may read it, as the
         // document starts, since a command answers at once.
-        // Called through `apply` as the document started, so the page's own code gets no hold of it by replacing what
-        // it is called through.
         const execCommand = Document.prototype.execCommand;
-        const apply = Reflect.apply;
         const reaches = new Map([
             ['copy', () => commands.writes],
             ['cut', () => commands.writes],
@@ -312,6 +330,31 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             writable: true,
             configurable: true,
         });
+        // The page's taking of the screen, the engine's own, asked of deckit first, as the web platform's name
+        // `display-capture`, and refused as NotAllowedError where the site may not have it. Without the page's user
+        // activation it is refused as the web platform refuses it, unasked; deckit's yes calls the engine's own.
+        const media = window.MediaDevices?.prototype;
+        const getDisplayMedia = media?.getDisplayMedia;
+        const activation = navigator.userActivation;
+        const isActive = activation && Object.getOwnPropertyDescriptor(Object.getPrototypeOf(activation), 'isActive');
+        const active = () => !!isActive?.get && apply(isActive.get, activation, []);
+        if (getDisplayMedia)
+            Object.defineProperty(media, 'getDisplayMedia', {
+                value: function (...rest) {
+                    if (!active()) {
+                        const message = 'getDisplayMedia must be called from a user gesture handler.';
+                        return Promise.reject(new DOMException(message, 'InvalidStateError'));
+                    }
+                    return new Promise((resolve, reject) =>
+                        ask({ op: 'display' }, (answer) => {
+                            if (answer === true) resolve(apply(getDisplayMedia, this, rest));
+                            else reject(new DOMException('The site may not take the screen', 'NotAllowedError'));
+                        })
+                    );
+                },
+                writable: true,
+                configurable: true,
+            });
         Object.defineProperty(window, '__deckitNotification', {
             value: {
                 click(id) {
