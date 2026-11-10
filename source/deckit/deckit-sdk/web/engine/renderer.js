@@ -69,14 +69,14 @@ export function createWeb({ sessions, web: WEB, channels }) {
     function forMod({ request, scope }) {
         const id = [['id', 'string']];
         const made = new Map(); // a session's name -> its handle, for this lifecycle
-        // The request `name` of a session, whose arguments `problemOf` reads after the signature, and which is refused
-        // ENDED once `scope` is cut.
+        // The request `name` of a session: refused as `request` refuses it, then ENDED once `scope` is cut, and then
+        // for what `problemOf` reads of its arguments.
         const live = (name, { guard, signature, problemOf = () => '' }, send) =>
             request(name, { guard, signature }, (...args) => {
-                const problem = problemOf(...args);
-                if (problem) throw invalid(`${name}: ${problem}`);
                 if (scope.isCut)
                     throw REQUEST.refusal('call', 'ENDED', `${name}: the lifecycle it was made for has ended`);
+                const problem = problemOf(...args);
+                if (problem) throw invalid(`${name}: ${problem}`);
                 return send(...args);
             });
         const session = (name) => {

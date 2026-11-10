@@ -9,7 +9,7 @@
 // INVALID_ARGUMENT, a name that names no session thrown that refusal; a request is asked of main with its values; a web
 // page that leaves, with no delegate to keep it, opens its address with the `open` the layer over it hands; each
 // lifecycle has session handles of its own; and what the handle adds is cut with its lifecycle's scope, its sessions'
-// requests refused ENDED after it. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and layers over
+// requests refused ENDED after it, once their signature fits and before their own arguments are read. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and layers over
 // it: each layer is offered what those under it offer, by name; deckit's start is handed a frozen table of the
 // frameworks of the layers that run, each made with its lifecycle's scope; the run is told started once, after the
 // lifecycle over deckit's has ended as its start threw, none over it started, and a layer whose read threw left out
@@ -333,6 +333,16 @@ async function main() {
             thrownOf(() => surfaces.page({ session: web.session('main') })) === 'call ENDED' &&
             !sent.length,
         downloads
+    );
+    const cutScope = makeScope();
+    const cutSession = webLayerOf(['system.network']).frameworks.web(cutScope).session('a');
+    cutScope.cut();
+    check(
+        "a cut session's request is refused for its signature, then ENDED before what its own arguments refuse",
+        (await refusalOf(cutSession.fetch(5))) === 'call INVALID_ARGUMENT' &&
+            (await refusalOf(cutSession.fetch('ftp://a.com/'))) === 'call ENDED' &&
+            !sent.length,
+        sent
     );
 
     // The runner with deckit, a layer whose lifecycle throws as it starts, one over that, a layer whose read throws,
