@@ -222,9 +222,9 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         STATE.write(SESSIONS, sessions);
     }
 
-    // A window at no address, or at about:blank, is a blank page.
+    // A window at no address, or at about:blank, is a blank page, and one at an address it may not show stays one, as
+    // its load is refused as any is.
     function openWindow(modPage, modId, name, url, title) {
-        if (!SITE.isBlank(url) && !mayShow(modPage, url, { inPage: false })) return 0;
         use(modId, name);
         const id = WEB.openWindow(modPage, { mod: modId, session: name, url, title });
         windows.set(id, modPage);

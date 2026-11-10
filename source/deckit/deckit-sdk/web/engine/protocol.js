@@ -4,7 +4,7 @@ import * as CHANNEL from '../../deckit/channel/index.js';
 import * as WEB_PERMISSION from './model/permission.js';
 import * as OPEN_PERMISSION from '../../deckit/open/model/permission.js';
 
-// Answers the new window page's id, or 0 when it may not be shown.
+// Answers the new window page's id.
 export const window = CHANNEL.pageToMain(
     'deckit-shell:web-window',
     { name: 'string', url: 'string', title: 'string' },
