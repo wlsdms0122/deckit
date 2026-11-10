@@ -250,7 +250,8 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                     : query(desc);
         }
         // The page's clipboard is text the web engine reads and writes, refused as NotAllowedError where the site may
-        // not have it: an item is written as its text, and one with no text is refused.
+        // not have it: an item is written as its text, and one with no text is refused. Replaced on its class, so the
+        // page reaches the engine's own through no other way.
         const clipboard = navigator.clipboard;
         const asked = new Map();
         const reach = (op, text) =>
@@ -271,7 +272,11 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 write: async (items) => reach('write', await text([...items][0])),
             };
             for (const [name, value] of Object.entries(own))
-                Object.defineProperty(clipboard, name, { value, writable: true, configurable: true });
+                Object.defineProperty(Object.getPrototypeOf(clipboard), name, {
+                    value,
+                    writable: true,
+                    configurable: true,
+                });
         }
         // The page's copy, cut and paste by execCommand, the engine's own, answer false and do nothing where the site
         // may not have the clipboard: `commands.writes`, and `commands.reads`, the sites that may read it, as the
