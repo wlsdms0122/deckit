@@ -152,7 +152,7 @@ A run whose end `quit()` asked has not failed, as *A run* says, whether it was `
 - A lifecycle that reaches a mod, and what a run that ends does to its connections: [the connections](../DECKIT-9/SPEC.md).
 - What a run's summary holds: the DECKITs of the layers on the system.
 - Being told that a run may have moved: [the events](../DECKIT-12/SPEC.md).
-- When the app has quit, as a host is told it: the embedding DECKIT. What a host is given of the runs: [the case format](../DECKIT-1/SPEC.md).
+- The quit a host hands the system, which the system holds until each run is `notRunning` and then asks of the host again: [the embedding](../DECKIT-22/SPEC.md). What a host is given of the runs: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered
 

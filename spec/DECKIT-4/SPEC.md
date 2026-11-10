@@ -136,7 +136,7 @@ A name shipped and removed stays out at each later start, under *What a host shi
 - The handle a mod makes these requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
 - Each mod's latest run, which `runs` answers: [the lifecycle](../DECKIT-5/SPEC.md). Each interface with its providers, owner and clients, which `mods.interfaces()` answers: [the interfaces](../DECKIT-10/SPEC.md).
 - Being told that what `list` answers may have changed: [the events](../DECKIT-12/SPEC.md).
-- What a host hands as the folder read in place and the bundles it ships, and what it marks system: the embedding DECKIT.
+- What a host hands as the folder read in place and the bundles it ships, and what it marks system: [the embedding](../DECKIT-22/SPEC.md).
 
 ## Alternatives considered
 

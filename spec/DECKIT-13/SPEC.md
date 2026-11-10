@@ -115,7 +115,7 @@ What a mod stored is its records, its values, its data folder and what each laye
 - A problem of a run: [the lifecycle](../DECKIT-5/SPEC.md).
 - The handle, requests, values, an argument left out, an error and `INVALID_ARGUMENT`: [the handle](../DECKIT-7/SPEC.md). `QUOTA_EXCEEDED`: here.
 - The mod's data folder, which a module of the mod's started in the host's own process writes: a framework a host stacks, outside this spec.
-- A layer a host stacks, and what it keeps of a mod: the embedding DECKIT.
+- A layer a host stacks, and what it keeps of a mod: [the embedding](../DECKIT-22/SPEC.md).
 
 ## Alternatives considered
 

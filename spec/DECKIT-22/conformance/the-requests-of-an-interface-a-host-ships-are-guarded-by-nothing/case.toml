@@ -1,0 +1,28 @@
+case = 5
+name = "the-requests-of-an-interface-a-host-ships-are-guarded-by-nothing"
+note = "An interface of a mod a host ships is an interface like any other, and the system guards none of its requests. mod-o, shipped marked system, provides mod-o/accounts; mod-a, granted nothing, uses it, is handed its exports and calls count, answered 2."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-o"]
+system = ["mod-o"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["mod-o/accounts"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "count"
+handed = true
+
+[step.expect]
+answers = 2

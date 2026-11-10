@@ -68,7 +68,7 @@ As a person presses a notification, or one of its actions, the owner takes it aw
 - Where the owner keeps what is posted: [the storage](../DECKIT-13/SPEC.md).
 - A command of a mod's, and `run`, which launches its mod: [the commands](../DECKIT-15/SPEC.md).
 - How a case matches values, and the owner a case's host ships: [the case format](../DECKIT-1/SPEC.md).
-- Which mod a host ships as the owner: the embedding DECKIT.
+- Which mod a host ships as the owner, and that nothing holds its place: [the embedding](../DECKIT-22/SPEC.md).
 
 ## Alternatives considered
 

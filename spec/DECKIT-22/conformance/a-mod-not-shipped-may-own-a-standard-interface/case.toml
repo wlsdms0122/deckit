@@ -1,0 +1,22 @@
+case = 3
+name = "a-mod-not-shipped-may-own-a-standard-interface"
+note = "Any mod may provide a standard interface, shipped or not and a system mod or not: mod-p, read in place and not a system mod, provides deckit/urls and owns it. mod-a reads the owner of each interface."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+sources = ["mod-p"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.interfaces"
+part = "owner"
+
+[step.expect]
+answers = ["mod-p"]

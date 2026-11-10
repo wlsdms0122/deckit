@@ -12,7 +12,7 @@ Everything the system does follows from that one fact, that a mod **arrives afte
 
 - **A mod comes from elsewhere**, so nothing about it is known until its bundle is read, and the system reads the bundle before any of its code runs and refuses there what it cannot take.
 - **A mod reaches only what it is given.** Each mod runs in a sandbox of its own and reaches the system, other mods and the machine only through the handle its code is handed, and only as far as its permissions say.
-- **A mod is written once for every host**, so what a bundle and a handle are cannot depend on the host. A host adds to them only by the means the system gives it: manifest fields, permissions and interfaces of its own.
+- **A mod is written once for every host**, so what a bundle and a handle are cannot depend on the host. A host adds to them only by the means the system gives it: manifest fields and permissions of its own, and layers it stacks, each naming the permission that guards each request it handles. An interface a mod a host ships provides is an interface like any other.
 - **Two implementations run the same mods** (another host language, the web), so agreement cannot mean the same code. It means these DECKITs and their cases.
 - **It is an operating system**, so where operating systems settle a question alike, such as how often a failed service starts again or how long a launch may take, Deckit takes their answer, stated in its own terms.
 

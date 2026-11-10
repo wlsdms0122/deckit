@@ -99,7 +99,7 @@ The time a run's end is given, as the lifecycle names it, is 5 seconds for each 
 - A run's states and the steps between them, what fails to launch, the 20 seconds a launch is given, what asks a run's end, the requests `launch` and `quit`, and what the system answers of a run: [the lifecycle](../DECKIT-5/SPEC.md).
 - The handle `start` is handed, and what a request through it answers: [the handle](../DECKIT-7/SPEC.md).
 - What a lifecycle that ends does to its connections, and the exports a lifecycle opens for the mod's id: [the connections](../DECKIT-9/SPEC.md). What each lifecycle is connected to as it starts: [the interfaces](../DECKIT-10/SPEC.md).
-- Which layers a host stacks over the system: the embedding DECKIT. The lifecycles the shell stacks, and the members of the instance they call: the shell's DECKITs.
+- Which layers a host stacks over the system, and what a layer keeps of a mod: [the embedding](../DECKIT-22/SPEC.md). The lifecycles the shell stacks, and the members of the instance they call: the shell's DECKITs.
 - The inputs and looks a case reads these rules with: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered

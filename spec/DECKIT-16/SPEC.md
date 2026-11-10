@@ -128,7 +128,7 @@ The owner keeps what a person set in its own storage, as [the storage](../DECKIT
 - Where the owner keeps what is set: [the storage](../DECKIT-13/SPEC.md).
 - The commands a key runs, their titles and `params`, and the request that runs one: [the commands](../DECKIT-15/SPEC.md).
 - The owner a case's host ships, the base `shell`, and the call of what a listener was handed: [the case format](../DECKIT-1/SPEC.md).
-- Which mod a host ships as the owner: the embedding DECKIT.
+- Which mod a host ships as the owner, and that nothing holds its place: [the embedding](../DECKIT-22/SPEC.md).
 
 ## Alternatives considered
 

@@ -75,7 +75,7 @@ A request is refused with the first of these that is so, at `call`:
 - `INVALID_ARGUMENT`, and what a value is: [the handle](../DECKIT-7/SPEC.md).
 - The owner of an interface and the connection to it: [the interfaces](../DECKIT-10/SPEC.md). A call of a member of the exports and a refusal across a connection: [calls across a connection](../DECKIT-11/SPEC.md).
 - The bundle a step hands as a folder, and the owner a case's host ships: [the case format](../DECKIT-1/SPEC.md).
-- Which mod a host ships as the owner: the embedding DECKIT.
+- Which mod a host ships as the owner, and that nothing holds its place: [the embedding](../DECKIT-22/SPEC.md).
 
 ## Alternatives considered
 

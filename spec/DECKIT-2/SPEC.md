@@ -278,7 +278,7 @@ A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`,
 - When a background mod launches, what launching evaluates of `main`, and what an entry that does not evaluate refuses at `launch`: the lifecycle's DECKIT.
 - What `provides`, `uses` and `contributes` come to: [the interfaces](../DECKIT-10/SPEC.md). What a connection is: [the connections](../DECKIT-9/SPEC.md).
 - The permissions the system defines and what each one grants: the permissions' DECKIT.
-- What a host ships and marks system, and when it adds fields and defines permissions: the embedding DECKIT.
+- What a host ships and marks system, and when it adds fields and defines permissions: [the embedding](../DECKIT-22/SPEC.md).
 - Two bundles of one id, which one is read, installing and removing: the catalog's DECKIT.
 - The fields the shell adds and what it reads of them: the shell's DECKITs.
 

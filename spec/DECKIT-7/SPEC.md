@@ -47,10 +47,10 @@ A mod written for a mod manager prints why a request failed: a dry run of `insta
 | `mods.pin(interface, mod)`, `mods.interfaces()` | the owner of an interface, as a person pins it, and each interface with its providers, owner and clients | `deckit.mods` | [the interfaces](../DECKIT-10/SPEC.md) |
 | `mods.usage(id)` | what a mod has stored, in each place it is kept | `deckit.mods` | [the storage](../DECKIT-13/SPEC.md) |
 | `mods.restart()` | the request that restarts the app | `deckit.mods` | here |
-| `mods.folders()` | the system's own folders: the one it installs mods in, the one that holds each mod's data folder, and its log | `deckit.mods` | the embedding DECKIT |
+| `mods.folders()` | the system's own folders: the one it installs mods in, the one that holds each mod's data folder, and its log | `deckit.mods` | [the embedding](../DECKIT-22/SPEC.md) |
 | `openExternal(url, options)` | the request that hands the host an address to open outside the app | `system.file-handlers`, for the address of a file; none for any other | [opening outside the app](../DECKIT-8/SPEC.md) |
 | `fileURL(path)`, `filePath(url)` | the address of a file, and the file of an address | | [opening outside the app](../DECKIT-8/SPEC.md) |
-| `about()` | what the host tells a mod of itself | | the embedding DECKIT |
+| `about()` | what the host tells a mod of itself | | [the embedding](../DECKIT-22/SPEC.md) |
 | `storage` | what the mod stores | | [the storage](../DECKIT-13/SPEC.md) |
 | `events` | the events the mod sends and hears | | [the events](../DECKIT-12/SPEC.md) |
 | `exports.register(exports)` | the exports the mod opens for its id | | [the connections](../DECKIT-9/SPEC.md) |
