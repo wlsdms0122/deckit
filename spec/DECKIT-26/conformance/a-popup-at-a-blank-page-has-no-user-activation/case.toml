@@ -1,0 +1,42 @@
+case = 11
+name = "a-popup-at-a-blank-page-has-no-user-activation"
+note = "What the web engine does in the blank page of a popup a site opens, which the site writes in, gives it no user activation, as the web platform gives a new window none. A press on site-a's page calls window.open(\"\"), in a page whose delegate takes every popup, and the page reads the popup's user activation once the popup's Notification.requestPermission() is answered."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { openWindow = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+part = "method"
+
+[step.expect]
+answers = ["openWindow"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "popup false false"

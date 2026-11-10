@@ -70,7 +70,7 @@ The mod is asked through the delegate of the page that asked, as [web pages](../
 
 The site is let have what it asked for where `decidePermission` answers `true`, or a promise of `true`; anything else it answers, a member the delegate does not hold, and one that throws or whose promise rejects refuse it. The question has no time limit. An ask the page makes while a question for the same page, site and names is unanswered joins it, and is answered as it is. A page that closes while it is asked is refused.
 
-What the mod answers is not kept: the site is asked again as it asks again. What the web engine answers a site, let through or refused, gives it no user activation, as the web platform's answers give none; nor does anything else the web engine tells a site or does in its page, such as that `allow` let it have a name, and what `mute(on)`, `find` and `stopFind` of [web pages](../DECKIT-25/SPEC.md) do there, as the web platform gives none for them.
+What the mod answers is not kept: the site is asked again as it asks again. What the web engine answers a site, let through or refused, gives it no user activation, as the web platform's answers give none; nor does anything else the web engine tells a site or does in its page, such as that `allow` let it have a name, what `mute(on)`, `find` and `stopFind` of [web pages](../DECKIT-25/SPEC.md) do there, and what it does in the blank page of a popup the site opens, which the site writes in, as the web platform gives none for them.
 
 ### allow and revoke
 
