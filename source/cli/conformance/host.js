@@ -31,6 +31,8 @@ let deckit = null;
 let settled = false;
 let call = null; // the channels to the conformance layer on a mod's page
 let heard = null;
+let show = null; // the channel to the conformance layer that shows a web page
+let delegated = null;
 const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
 const shown = []; // { notification: { title, body, silent }, onClick }: each notification handed to show, in order
 // What the host app answers the shell: nothing it is asked to show is shown.
@@ -109,18 +111,24 @@ try {
         },
         folders: { home: setup.home, ship: setup.ship, sources: setup.sources },
     });
-    deckit.stack('conformance');
+    // On the base web, the host's layer is over the web engine, the layer over it that it offers web pages to.
+    if (setup.base !== 'web') deckit.stack('conformance');
     // Main process modules run, as a host app runs them, where an owner the case ships asks for them.
     if (setup.mainProcess) ELECTRON.attachMainProcess(deckit, given);
     // On the base web, the web engine is attached as a host app attaches it, and on the base shell the shell over it,
     // shown nowhere, before the case's fields and permissions, which come after the base's.
-    if (setup.base === 'web') DECKIT.attachWeb(deckit, given);
+    if (setup.base === 'web') {
+        DECKIT.attachWeb(deckit, given);
+        deckit.stack('conformance');
+    }
     if (setup.base === 'shell')
         DECKIT.attach(deckit, given, { host: SHOWS_NOTHING, web: DECKIT.attachWeb(deckit, given) });
     for (const field of setup.fields) deckit.fields.define(field);
     for (const permission of setup.permissions) deckit.permissions.define(permission);
     call = deckit.channels.bind({ channel: 'conformance/call', to: 'page', reply: true });
     heard = deckit.channels.bind({ channel: 'conformance/heard', to: 'page', reply: true });
+    show = deckit.channels.bind({ channel: 'conformance/show', to: 'page', reply: true });
+    delegated = deckit.channels.bind({ channel: 'conformance/delegated', to: 'page', reply: true });
     // The start is complete, the launches at start included, or refused with its kind.
     deckit.whenStarted().then(() => runsSettled().then(() => settle({})), refused);
 } catch (error) {
@@ -136,7 +144,11 @@ socket.on('data', (chunk) => {
         if (asked.quit) app.quit();
         else
             Promise.resolve(
-                asked.input === 'call' ? request(asked) : asked.input === 'press' ? press(asked) : look(asked)
+                asked.input === 'call' || asked.input === 'show'
+                    ? request(asked)
+                    : asked.input === 'press'
+                      ? press(asked)
+                      : look(asked)
             ).then(async (came) => {
                 if (asked.input) await runsSettled();
                 say({ id: asked.id, came });
@@ -150,10 +162,11 @@ socket.on('close', () => app.exit(0));
 // then the values the step writes; `step` its place, `handle` the name of the handle `member` starts at, `of` the
 // place of the call whose answer it starts at instead, or whose listener's, where `handed`, and `listener` whether the
 // request is handed one after its args.
-async function request({ mod, member, args, step, handle, of, listener, handed }) {
+async function request({ input, mod, member, args, step, handle, of, listener, handed, ...shows }) {
     const running = runningOf(mod);
     if (!running.page) return running;
     try {
+        if (input === 'show') return await show.invoke(running.page, { step, ...shows });
         return await call.invoke(running.page, { member, args, step, handle, of, listener, handed });
     } catch (error) {
         return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
@@ -188,9 +201,9 @@ function look({ look: what, mod }) {
     if (!deckit) return { none: 'deckit was not connected' };
     if (what === 'opened') return { answers: opened };
     if (what === 'shown') return { answers: shown.map(({ notification }) => notification) };
-    if (what === 'heard') {
+    if (what === 'heard' || what === 'delegated') {
         const running = runningOf(mod);
-        return running.page ? heard.invoke(running.page) : running;
+        return running.page ? (what === 'heard' ? heard : delegated).invoke(running.page) : running;
     }
     const found = deckit.mods.list();
     if (what === 'mods') return { answers: found.map(({ id }) => id) };

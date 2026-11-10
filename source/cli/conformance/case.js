@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 9;
+const FORMAT = 10;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -73,6 +73,13 @@ const INPUTS = {
         ],
     },
     press: { notification: [(value) => is.integer(value) && value >= 1, true] },
+    show: {
+        mod: [is.string, true],
+        session: [is.string, true],
+        site: [(value) => is.string(value) && SITE_ADDRESS.test(value), false],
+        url: [(value) => is.string(value) && !/^https?:/i.test(value), false],
+        apart: [is.boolean, false],
+    },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -81,6 +88,7 @@ const LOOKS = {
     opened: {},
     heard: { mod: [is.string, true] },
     shown: {},
+    delegated: { mod: [is.string, true], part: [is.string, false] },
     requested: {
         headers: [
             (value) =>
@@ -92,13 +100,13 @@ const LOOKS = {
     },
 };
 // The format that added an input or a look, where it is not 1.
-const ADDED = { run: 2, call: 3, opened: 3, heard: 4, press: 7, shown: 7, requested: 9 };
+const ADDED = { run: 2, call: 3, opened: 3, heard: 4, press: 7, shown: 7, requested: 9, show: 10, delegated: 10 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8, sites: 9, headers: 9 };
 // The format that added a key of the host, where it is not 1.
-const HOST_KEYS_ADDED = { owners: 5, sites: 9 };
+const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10 };
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit', 'press'];
+const ANSWERLESS = ['start', 'quit', 'press', 'show'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
 // and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
@@ -139,7 +147,7 @@ function read(folder) {
     for (const name of Object.keys(bundles)) if (!named.has(name)) refuse(`mods/${name} is named by no key`);
 
     for (const step of steps)
-        for (const address of step.sites ?? []) {
+        for (const address of [...(step.sites ?? []), ...(step.site ? [step.site] : [])]) {
             const [, site] = SITE_ADDRESS.exec(address);
             if (!host.sites.includes(site))
                 refuse(`step ${step.number}: sites names ${site}, which host.sites does not`);
@@ -215,6 +223,8 @@ function hostOf(host, format, refuse) {
             sources: is.bundles,
             owners: is.standards,
             sites: (value) => Array.isArray(value) && value.every(is.name),
+            delegate: (value) =>
+                is.table(value) && Object.keys(value).every((one) => /^[A-Za-z][A-Za-z0-9]*$/.test(one)),
         },
         'host.',
         refuse
@@ -248,6 +258,7 @@ function hostOf(host, format, refuse) {
         sources: host.sources ?? [],
         owners: host.owners ?? [],
         sites: host.sites ?? [],
+        delegate: host.delegate ?? {},
     };
 }
 
@@ -296,12 +307,13 @@ function order(steps, refuse) {
     for (const [index, step] of steps.entries()) {
         if (index === 0 && step.what !== 'start') refuse('step 1 is no start');
         const of = step.of && steps[step.of - 1];
-        if (step.of && !(step.of < step.number && of.what === 'call' && of.mod === step.mod))
-            refuse(`step ${step.number}: of names no earlier call of ${step.mod}`);
+        if (step.of && !(step.of < step.number && ['call', 'show'].includes(of.what) && of.mod === step.mod))
+            refuse(`step ${step.number}: of names no earlier call or show of ${step.mod}`);
+        if ('site' in step && 'url' in step) refuse(`step ${step.number}: site is written beside url`);
         if (step.handed && step.of) refuse(`step ${step.number}: handed is written with no of`);
         if ('handle' in step && (step.of || step.handed))
             refuse(`step ${step.number}: handle is written with neither of nor handed`);
-        if (step.kind !== 'input' || step.what === 'call' || step.what === 'press') {
+        if (step.kind !== 'input' || ['call', 'press', 'show'].includes(step.what)) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
         }

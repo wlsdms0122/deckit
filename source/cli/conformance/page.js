@@ -6,6 +6,9 @@
 // first value the listener was last called with, which a call that writes handed is made through.
 function conformanceLayer({ channels }) {
     let handles = null; // the handles of its lifecycle, `deckit` and each framework's by its name, while it runs
+    let surfaces = null; // what the web engine offers the layer over it, while its lifecycle runs, on the base web
+    const shown = new Set(); // the state of each page the layer shows, while it is open: { loading }
+    const told = []; // each call of a method of the delegate the host gives, { method, args }, in the order called
     // A request through the system after a call, so that what the call sent it, an event among it, is told before the
     // call is answered: the system answers a page's requests in the order they are sent.
     const settle = () => {
@@ -22,7 +25,59 @@ function conformanceLayer({ channels }) {
         called = true;
         handed = args[0];
     };
+    let changed = 0; // when a page the layer shows last told a change
+    // Resolves once no page the layer shows is loading, nor has told a change for QUIET ms since `asked`, when what it
+    // waits on was asked: a page asked to load tells that it is loading only after it was asked.
+    const quiet = async (asked) => {
+        if (!shown.size) return;
+        while ([...shown].some((page) => page.loading) || Date.now() - Math.max(changed, asked) < QUIET)
+            await new Promise((resolve) => setTimeout(resolve, 10));
+    };
+    // The delegate the host gives a page it shows, and a page handed to it: each method `answers` names, answering
+    // the value it names, each call of it kept, with its arguments read as values, for the look delegated.
+    const delegateOf = (page, answers) => {
+        const state = { loading: page.state.loading };
+        shown.add(state);
+        const delegate = {};
+        for (const [method, value] of Object.entries(answers))
+            delegate[method] = (...args) => {
+                told.push({ method, args: args.map((one) => (valueOf(one) === FUNCTION ? null : valueOf(one))) });
+                if (method === 'openWindow' && value === true) args[0].delegate = delegateOf(args[0], answers);
+                return value;
+            };
+        const { didChange, didClose } = delegate;
+        delegate.didChange = (next) => {
+            changed = Date.now();
+            state.loading = next.loading;
+            didChange?.(next);
+        };
+        delegate.didClose = () => {
+            shown.delete(state);
+            didClose?.();
+        };
+        return delegate;
+    };
     channels.bind({ channel: 'conformance/heard', to: 'page', reply: true }).handle(() => ({ answers: heard }));
+    channels.bind({ channel: 'conformance/delegated', to: 'page', reply: true }).handle(() => ({ answers: told }));
+    // A page shown in the session `session` of the lifecycle's handle `web`, at `url`, in the mod's page or apart,
+    // with the delegate the host gives, kept by the step's place: once it is not loading.
+    channels
+        .bind({ channel: 'conformance/show', to: 'page', reply: true })
+        .handle(async ({ step, session, url, apart, delegate }) => {
+            if (!surfaces) return { none: "the host's layer is offered no web pages" };
+            let page;
+            try {
+                const taken = handles.web.session(session);
+                page = apart ? surfaces.window({ session: taken, url }) : surfaces.page({ session: taken, url });
+            } catch (error) {
+                return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
+            }
+            if (!apart) document.body.append(page.element);
+            page.delegate = delegateOf(page, delegate);
+            answered.set(step, page);
+            await quiet(Date.now());
+            return {};
+        });
     channels
         .bind({ channel: 'conformance/call', to: 'page', reply: true })
         .handle(async ({ member, args, step, of, listener: hands, handed: from, handle: named = 'deckit' }) => {
@@ -43,23 +98,37 @@ function conformanceLayer({ channels }) {
                 holder = value;
                 value = value[name];
             }
+            const asked = Date.now();
             let came = value;
             if (typeof value === 'function') came = await value.apply(holder, hands ? [...args, listener] : args);
             else if (args.length || hands) return { none: `${member} holds a value, and is called` };
             settle();
+            await quiet(asked);
             answered.set(step, came);
             if (typeof came === 'function') return {};
             const read = valueOf(came);
             return read === FUNCTION ? { none: 'what it answered holds a function' } : { answers: read };
         });
-    return ({ under }) => ({
+    return ({ under, deliver }) => ({
         lifecycles: [
             under.deckit.lifecycle({
                 method: 'conformance',
                 registrations: {},
                 start: (_instance, given, scope, frameworks) => {
                     handles = { ...frameworks, deckit: given.deckit };
-                    scope.add(() => (handles = null));
+                    // The layer over the web engine, on the base web: it opens outside the app what a page passes on
+                    // as the mod's openExternal does.
+                    if (under.web)
+                        surfaces = under.web.surfaces({
+                            owner: { deliver, recordFailure: (why) => console.warn(why) },
+                            open: given.deckit.openExternal,
+                            scope,
+                        });
+                    scope.add(() => {
+                        handles = null;
+                        surfaces = null;
+                        shown.clear();
+                    });
                 },
                 end: () => {},
                 join: () => {},
@@ -68,6 +137,8 @@ function conformanceLayer({ channels }) {
     });
 }
 
+// How long a page the layer shows tells no change before what it was asked is taken as done.
+const QUIET = 300;
 // What stands for a value that holds a function where a step cannot leave it out.
 const FUNCTION = Symbol('function');
 

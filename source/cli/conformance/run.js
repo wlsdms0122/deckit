@@ -100,7 +100,7 @@ async function run(theCase, { folder, hostApp, electron }) {
     const served = await serve(sites);
     try {
         for (const step of theCase.steps) {
-            const came = served.named(await take(step, app, paths, served));
+            const came = served.named(await take(step, app, paths, served, host.delegate));
             if (!matches(step.expect, came))
                 return { outcome: 'failed', step, came: describe(came), expected: describe(step.expect) };
         }
@@ -159,7 +159,7 @@ function ownerOf(name, mods) {
 // for an input answered with nothing. A call is handed the path of each bundle its folders name, then its args, then a
 // listener where it writes one, names the handle its member is read from, `deckit` where it names none, and names its
 // place so that a later call can reach what it answered.
-async function take(step, app, paths, served) {
+async function take(step, app, paths, served, delegate) {
     if (step.what === 'start') {
         served.requests.length = 0;
         return app.start();
@@ -178,6 +178,11 @@ async function take(step, app, paths, served) {
         return partOf(await app.ask(asked), part);
     }
     if (what === 'press') return app.ask({ input: what, notification: step.notification });
+    if (what === 'show') {
+        const url = step.site ? served.address(step.site) : (step.url ?? '');
+        const asked = { input: what, mod, step: step.number, session: step.session, url, apart: !!step.apart };
+        return app.ask({ ...asked, delegate: delegate ?? {} });
+    }
     return partOf(await app.ask({ look: what, mod }), part);
 }
 
