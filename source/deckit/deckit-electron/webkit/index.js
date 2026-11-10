@@ -91,8 +91,9 @@ export function createWebKit({ path, LOG, containerOf }) {
     // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height })`, the
     // listener of the page given for the window, or nothing; `download({ url })`, the listener of the download
     // (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise of a
-    // boolean`; `certificate(info) -> boolean`, whether it is trusted; `external(url)`; `message(body)`; and, for a
-    // page with a scheme of its own, `request({ url, method, body, reply })`.
+    // boolean`; `certificate(info) -> boolean`, whether it is trusted; `external(url)`; `message(body, frame)`, what
+    // deckit's scripts post in any frame, `frame` `{ origin, main, evaluate(source, world) }`, which runs `source` in
+    // that frame, its value dropped; and, for a page with a scheme of its own, `request({ url, method, body, reply })`.
     function pageOf({ delegate, fields, opened = null }) {
         const WEBKIT = loaded();
         const { EventEmitter } = require('events');
@@ -132,8 +133,10 @@ export function createWebKit({ path, LOG, containerOf }) {
                     const { reply, ...pressed } = payload;
                     return void passOn(page, pressed, reply);
                 }
-                case 'message':
-                    return void delegate.message?.(payload.body);
+                case 'message': {
+                    const { body, ...frame } = payload;
+                    return void delegate.message?.(body, frame);
+                }
                 case 'request':
                     // A request the delegate throws on at once is answered as failed, so nothing waits on it; a
                     // second reply is dropped.

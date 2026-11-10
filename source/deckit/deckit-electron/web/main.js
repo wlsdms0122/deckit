@@ -249,7 +249,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
                 page = made;
                 hear = heard;
             },
-            message: (body) => hear(body),
+            message: (body, frame) => hear(body, frame),
             navigate: (url) => {
                 const inPage = !!REGISTRY.get(page.id)?.inPage;
                 return client.loading(modPage, page, String(url), { inPage, from: page.getURL(), followed: true });
@@ -260,8 +260,11 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
                 if (!client.windowOpen(modPage, page, { url, from: page.getURL(), activates })) return null;
                 return openHanded(modPage, page, { url, activates });
             },
+            // `origin` is the asking frame's; an opaque one is no site's.
             permission: ({ origin, permissions }) =>
-                shown() ? client.request(modPage, page.id, { origin, permissions }) : Promise.resolve(false),
+                shown()
+                    ? client.request(modPage, page.id, { origin: SITE.originOf(origin), permissions })
+                    : Promise.resolve(false),
             certificate: (info) => CERTIFICATE.decide(page, shown() && modPage, page.partition, info),
             download: ({ url }) => {
                 if (!shown()) return null;

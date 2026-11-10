@@ -1,8 +1,9 @@
 import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 
-// What deckit runs in a web page: in the page's own world, the page's Notification, which deckit shows, and its
-// clipboard, which the web engine reads and writes, and in deckit's, which the page does not see, what tells deckit the
-// page's icon and whether it plays sound, mutes it, and counts what find finds. What the page's Notification shows, and
+// What deckit runs in a web page: in the page's own world, in every frame, the page's Notification, which deckit shows,
+// and its clipboard, which the web engine reads and writes, and in deckit's, which the page does not see, what carries
+// each frame's word to deckit, and in the main frame what tells deckit the page's icon and whether it plays sound,
+// mutes it, and counts what find finds. A frame's word is its own origin's, and is answered in that frame. What the page's Notification shows, and
 // what it asks, are told to the web engine: `notified(embedder, id, { origin, notification, title, body, silent })`,
 // and `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed; what it reads and writes of
 // the clipboard, `readClipboard(embedder, id, { origin })`, a promise of the text or null, and
@@ -12,7 +13,10 @@ import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 // `sessionOf(page)` the session a page is in.
 export function createScript({ LOG, sessionOf, permits, permitted, notified, request, readClipboard, writeClipboard }) {
     // MARK: - Property
-    const pages = new Map(); // page id -> { install, icon, audible, muted }
+    // page id -> { install, icon, audible, muted, notifications }, `notifications` each shown, by the number deckit
+    // gave it, as `{ frame, id }`, the frame that shows it and the number it has there
+    const pages = new Map();
+    let shownSequence = 0;
 
     // MARK: - Initializer
     // MARK: - Public
@@ -26,7 +30,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         const session = sessionOf(page);
         // A name of the page's own, so a page cannot easily tell deckit is listening.
         const channel = `deckit-${require('crypto').randomUUID()}`;
-        const entry = { icon: '', audible: false, muted: false, install };
+        const entry = { icon: '', audible: false, muted: false, notifications: new Map(), install };
         pages.set(page.id, entry);
         page.once('destroyed', () => pages.delete(page.id));
         // Also run in the document already there: the page may be under way before its scripts are. The scripts do
@@ -40,12 +44,15 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 reads: permitted(session, 'clipboard-read'),
             };
             const site = `(${inPage})(${JSON.stringify(channel)}, ${JSON.stringify(granted)}, ${JSON.stringify(commands)})`;
-            const own = `(${inDeckit})(${JSON.stringify(channel)}, ${entry.muted})`;
+            const relay = `(${inRelay})(${JSON.stringify(channel)})`;
+            const own = `(${inDeckit})(${entry.muted})`;
             page.run([
-                { source: site, world: 'page', mainFrameOnly: true },
+                { source: site, world: 'page', mainFrameOnly: false },
+                { source: relay, world: 'deckit', mainFrameOnly: false },
                 { source: own, world: 'deckit', mainFrameOnly: true },
             ]);
             page.evaluate(site, 'page').catch(() => {});
+            page.evaluate(relay, 'deckit').catch(() => {});
             page.evaluate(own, 'deckit').catch(() => {});
             if (permits(session, SITE.originOf(page.getURL()), 'notifications'))
                 page.evaluate('window.__deckitNotification?.permission(0, "granted")', 'page').catch(() => {});
@@ -55,12 +62,14 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         page.on('committed', () => {
             entry.icon = '';
             entry.audible = false;
+            entry.notifications.clear();
         });
-        return (body) => heard(embedder, page, entry, body, changed);
+        return (body, frame) => heard(embedder, page, entry, body, frame, changed);
     }
 
-    function clickNotification(page, id) {
-        page.evaluate(`window.__deckitNotification?.click(${Number(id) || 0})`, 'page').catch(() => {});
+    function clickNotification(page, notification) {
+        const shown = pages.get(page.id)?.notifications.get(Number(notification));
+        if (shown) shown.frame.evaluate(`window.__deckitNotification?.click(${shown.id})`, 'page');
     }
 
     // Muted stays with the page, its next documents included.
@@ -88,7 +97,8 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     }
 
     // MARK: - Private
-    function heard(embedder, page, entry, body, changed) {
+    // `frame` is the frame that said it (deckit-web WebPage `message`).
+    function heard(embedder, page, entry, body, frame, changed) {
         let message;
         try {
             message = JSON.parse(body);
@@ -96,7 +106,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             return;
         }
         const id = Number(message.id) || 0;
-        const origin = SITE.originOf(page.getURL());
+        const origin = SITE.originOf(frame.origin);
         if (message.op === 'icon') {
             entry.icon = String(message.url || '');
             changed();
@@ -104,9 +114,11 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             entry.audible = !!message.on;
             changed();
         } else if (message.op === 'show') {
+            const notification = ++shownSequence;
+            entry.notifications.set(notification, { frame, id });
             notified(embedder, page.id, {
                 origin,
-                notification: id,
+                notification,
                 title: message.title,
                 body: message.body,
                 silent: message.silent,
@@ -114,12 +126,10 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         } else if (message.op === 'request') {
             request(embedder, page.id, { origin, permissions: ['notifications'] }).then(
                 (ok) =>
-                    page
-                        .evaluate(
-                            `window.__deckitNotification?.permission(${id}, "${ok ? 'granted' : 'denied'}")`,
-                            'page'
-                        )
-                        .catch(() => {}),
+                    frame.evaluate(
+                        `window.__deckitNotification?.permission(${id}, "${ok ? 'granted' : 'denied'}")`,
+                        'page'
+                    ),
                 (error) => LOG.error("a site's notifications were not asked", error)
             );
         } else if (message.op === 'read' || message.op === 'write') {
@@ -133,9 +143,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                     return message.op === 'read' ? null : false;
                 })
                 .then((answer) =>
-                    page
-                        .evaluate(`window.__deckitClipboard?.answer(${id}, ${JSON.stringify(answer)})`, 'page')
-                        .catch(() => {})
+                    frame.evaluate(`window.__deckitClipboard?.answer(${id}, ${JSON.stringify(answer)})`, 'page')
                 );
         }
     }
@@ -145,7 +153,9 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     function inPage(channel, table, commands) {
         if (window.__deckitNotification) return;
         const say = (msg) => document.dispatchEvent(new CustomEvent(channel, { detail: JSON.stringify(msg) }));
-        let permission = table[location.origin] || 'default';
+        // The document's origin, which a frame the page made without an address has from the page.
+        const origin = self.origin;
+        let permission = table[origin] || 'default';
         let seq = 0;
         const ids = new WeakMap(),
             live = new Map(),
@@ -270,7 +280,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         const reaches = new Map([
             ['copy', () => commands.writes],
             ['cut', () => commands.writes],
-            ['paste', () => commands.reads.includes(location.origin)],
+            ['paste', () => commands.reads.includes(origin)],
         ]);
         Object.defineProperty(Document.prototype, 'execCommand', {
             value: function (command, ...rest) {
@@ -313,16 +323,23 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         });
     }
 
-    // Runs in deckit's world, as source, with only its arguments: what the page's world says under `channel` goes on
-    // to deckit, with the page's icon, whether it plays sound, and its media muted while `muted`. Only what deckit
-    // muted is let speak again.
-    function inDeckit(channel, muted) {
-        if (window.__deckit) return;
-        const post = (msg) => window.webkit.messageHandlers.deckit.postMessage(JSON.stringify(msg));
+    // Runs in deckit's world, in every frame, as source, with only its arguments: what the page's world says under
+    // `channel` goes on to deckit, from the frame it is said in.
+    function inRelay(channel) {
+        if (window.__deckitRelay) return;
+        Object.defineProperty(window, '__deckitRelay', { value: true });
         document.addEventListener(
             channel,
-            (event) => typeof event.detail === 'string' && post(JSON.parse(event.detail))
+            (event) =>
+                typeof event.detail === 'string' && window.webkit.messageHandlers.deckit.postMessage(event.detail)
         );
+    }
+
+    // Runs in deckit's world, in the main frame, as source, with only its arguments: the page's icon, whether it plays
+    // sound, and its media muted while `muted`, to deckit. Only what deckit muted is let speak again.
+    function inDeckit(muted) {
+        if (window.__deckit) return;
+        const post = (msg) => window.webkit.messageHandlers.deckit.postMessage(JSON.stringify(msg));
         let mute = muted;
         let audible = false;
         let icon = null;
