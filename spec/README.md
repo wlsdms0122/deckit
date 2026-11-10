@@ -48,7 +48,7 @@ Every `SPEC.md` holds every section of the template, in order, and a section wit
 
 **Supplement or supersede.** An accepted DECKIT is supplemented in place while what it decides stays as it was: its prose made clearer, its cases added to or corrected, every case keeping its answer. A change to what it decides is not a supplement. It is a new DECKIT that replaces the old one whole and says so on the line after its area, `Supersedes: DECKIT-a, DECKIT-b`. Nothing replaces part of a DECKIT. A DECKIT is superseded when an accepted DECKIT names it under `Supersedes`, and when that DECKIT is accepted, the superseded one says so on its own head, `Superseded-By: DECKIT-c`, so whoever opens it sees at once that it no longer holds. Its text is not touched. The tool that accepts a draft writes that line, and the tool that checks the specification sees that the two agree. Until Deckit's first release, an accepted DECKIT is changed in place even when what it decides moves.
 
-A draft that changes accepted DECKITs lists the changes in `IMPACT.md`, beside its `SPEC.md`: each accepted DECKIT, the sentence, the change, and whether it is a supplement or a supersession. The list is what a review checks the draft's reach against. It is removed when the draft is accepted, since by then each change it lists is made.
+A draft makes the changes it needs in accepted DECKITs beside it, before it is reviewed: a supplement in place, and a DECKIT whose decision moves named under its `Supersedes`. The review reads the draft with those changes.
 
 Deckit as it stands is every accepted DECKIT that no accepted DECKIT supersedes, the live set. Which DECKITs those are is worked out by a tool and never written down.
 

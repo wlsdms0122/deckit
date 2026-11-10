@@ -6,7 +6,7 @@ The same criteria judge a change to accepted DECKITs (`change` mode) and the liv
 
 ## A. It is its area's to do
 
-A no here rejects the DECKIT, whatever else holds: the work belongs to a mod, a host, or another layer.
+A no that shows the work is not this area's rejects the DECKIT, whatever else holds: the work belongs to a mod, a host, or another layer. A no the text answers in place, a Motivation not yet written or a general rule not yet stated where the DECKIT already does the work, is revised like any other.
 
 - **A1. A mod or a host could not do it with the live set.** For each rule the DECKIT adds, its Motivation names what a mod or a host could not do with the live set alone, or what two implementations would answer differently without it, with a concrete bundle, input or call. A rule for what a mod can already build from what exists (a list it keeps in its own storage, a check it makes before it calls) fails.
 - **A2. It lands in its layer.** A rule that holds without knowing what anything means is mechanism, and is the system's. What a permission grants, or what a standard interface means, is policy, and is written as such, in the DECKIT of the layer that defines it. A choice one mod can make for itself is that mod's, and is in no DECKIT but that mod's. For a shipped mod's DECKIT, every behaviour it states is that mod's own: one that a layer under it does for every mod (the shell's list rows, the system's refusal of a call) is stated by that layer and linked to, and one that every mod of its kind would need belongs to a layer, not to the mod.
@@ -35,7 +35,7 @@ A no here rejects the DECKIT, whatever else holds: the work belongs to a mod, a 
 
 ## D. The series stays straight
 
-- **D1. What it changes is listed and classed.** Every accepted DECKIT whose text must change is named in the draft's `IMPACT.md`, or for `change` mode in the review's scope, with the sentence and the change: each place `spec-series impact` prints that restates or relies on what changes, and each link `spec-series lint --as` prints. Each is a supplement or a supersession. A supplement is shown by running the whole suite with the change and seeing no existing answer move.
+- **D1. What it changes is made and classed.** Every accepted DECKIT whose text must change is changed in the diff under review: each place `spec-series impact` prints that restates or relies on what changes, and each link `spec-series lint --as` prints. A change made in place is a supplement, and a DECKIT whose decision moves is superseded. A supplement is shown by running the whole suite with the change and seeing no existing answer move.
 - **D2. Supersession is whole.** A superseding DECKIT restates everything it keeps. `Supersedes` names exactly the DECKITs it replaces, and no live DECKIT links to a superseded one.
 
 ## E. Nothing is left open
@@ -47,5 +47,5 @@ A no here rejects the DECKIT, whatever else holds: the work belongs to a mod, a 
 ## Verdict
 
 - **accept**: every criterion holds.
-- **revise**: A holds and something in B to E does not. The review lists each no with what would turn it into a yes.
-- **reject**: something in A does not hold. The review says where the work belongs instead.
+- **revise**: A holds, or each no in A is one the text answers in place, and something else does not. The review lists each no with what would turn it into a yes.
+- **reject**: a no in A shows the work is not this area's. The review says where the work belongs instead.

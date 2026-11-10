@@ -6,7 +6,7 @@ How a draft is reviewed before it is accepted, and how what is accepted is audit
 
 | mode | what is reviewed | when |
 |---|---|---|
-| `draft` | one draft, with the places in the live set it reaches | before it is accepted |
+| `draft` | one draft, with the changes it makes in accepted DECKITs and the places in the live set it reaches | before it is accepted |
 | `change` | a diff to accepted DECKITs | before a supplement or a superseding DECKIT is merged |
 | `series` | the live set, or one area of it, split into scopes | after a release, or when the owner asks |
 
@@ -21,7 +21,7 @@ What a reviewer pays for is its reading. The brief, the criteria and how the spe
 ## The coordinator
 
 1. Run `spec-series lint` on the repository. A run starts from a specification it passes, since what it checks needs no reviewer.
-2. Run beforehand what a tool decides, so that no reviewer spends its reading on it. For `draft`, `spec-series lint --as <KEY>` prints each link the acceptance would leave pointing at a superseded DECKIT, and `spec-series impact <KEY>` prints the places in the live set the draft reaches, which the pack also holds. Run every case of the scope with `deckit conformance <KEY>...` on the implementation at the commit. For `change`, run the whole suite before and after the diff and compare the two: an answer that moved makes the change a supersession, not a supplement.
+2. Run beforehand what a tool decides, so that no reviewer spends its reading on it. For `draft`, the diff of `spec/` from where the draft branched gives the changes it makes in accepted DECKITs, `spec-series lint --as <KEY>` prints each link the acceptance would leave pointing at a superseded DECKIT, and `spec-series impact <KEY>` prints the places in the live set the draft reaches, which the pack also holds. Run every case of the scope with `deckit conformance <KEY>...` on the implementation at the commit. For `change`, run the whole suite before and after the diff and compare the two: an answer that moved makes the change a supersession, not a supplement.
 3. Start the record with `spec-series record <mode> <KEY>...`. It names the commit and refuses while `spec/` has changes not committed, since then no commit is what the run reads.
 4. Write one pack per reviewer with `spec-series pack <mode> <KEY>... --criteria <groups> --report <file> --probes <folder> --attach <output of step 2>`, and start each reviewer with its pack and nothing else. Every reviewer of every run is briefed in the same words, from this repository.
 5. Run the probes the reviewers wrote, each a case in [the case format](../DECKIT-1/SPEC.md), with `deckit conformance --spec <folder>`, the way step 2 ran the cases. Then verify every critical and major finding before it reaches the ledger: re-derive the reasoning from the DECKIT text and the cases, not from the reviewer's words, and confirm a finding about behaviour by the line a run printed. A minor finding is verified by reading.
@@ -31,5 +31,7 @@ What a reviewer pays for is its reading. The brief, the criteria and how the spe
 9. Give the run's verdict, accept, revise or reject, as CRITERIA.md defines them. For `draft`, the verdict is what the owner reads to decide, and accepting also needs the implementation built against the DECKIT and its cases passing (criterion C5).
 10. Fixes run after the owner has read the ledger, one layer at a time: the DECKIT and its cases first, then each implementation. A draft the owner accepts is accepted with `spec-series accept <KEY>`, which refuses while `spec-series lint --as <KEY>` finds anything.
 11. Fill in the record: the verdict, the criteria table, and under it one line for each finding judged defer, reject or owner, with its id, criterion, DECKIT, claim, verdict and reason. An adopted finding is not recorded, since its fix is in the text and the history. A deferred line is deleted when its fix lands, and an owner line when the answer is in the text. A rejected line stays, so the same finding is not raised again unless its reason fails. The ledger is not kept.
+
+Where a run has many scopes, the coordinator may hand steps 5 to 8 of each scope to a verifier, briefed by [the verifier's brief](VERIFIER.md) with that scope's reports, the lines its cases and probes printed, and where its ledger goes. The coordinator then judges every reject and owner row itself, merges the scopes' ledgers into the run's, and keeps its own notes where no reviewer reads.
 
 A round ends when what is left is wording and maintainability. Critical and major findings start another round on the fixes alone, and only where a fix could reach further than its own lines.

@@ -1,6 +1,6 @@
 # Reviewer's brief
 
-You review part of the Deckit specification. This brief opens your pack, and the pack holds everything you read: where you write, the criteria you answer, how the specification works, the record lines on your scope, the scope whole with its cases, the sections it links to outside the scope, and what the coordinator ran beforehand. Read the scope whole, judge it against the criteria, and report. Change nothing in any repository.
+You review part of the Deckit specification. This brief opens your pack, and the pack holds everything you read: where you write, the criteria you answer, how the specification works, the record lines on your scope, the scope whole with its cases, the sections it links to outside the scope, and what the coordinator ran beforehand. Read the scope whole, judge it against the criteria, and report. Beyond the pack, search only the specification at the commit it names, for a sentence or a case outside your scope; read nothing else, the coordinator's notes and other reviewers' reports included. Change nothing in any repository.
 
 ## What Deckit is, for judging
 
