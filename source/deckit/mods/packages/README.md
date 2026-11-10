@@ -28,14 +28,13 @@ A folder with no package file depends on nothing. The file is read as TOML by a 
 
 Packages provides `deckit/packages` major 1. A client calls it when it holds `deckit.mods`, which installing takes anyway; any other call rejects with kind `NOT_PERMITTED`.
 
-| Call                       | What it does                                                                                                                                                                                                                                                                                                                                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Call                       | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `install(folder, options)` | installs through `deckit.mods.install(folder, options)` and answers what it answers, once every dependency is satisfied. With `options.dryRun` true nothing changes, and the answer has `dependencies` `[{ id, requirement, installed, satisfied }]` in the order written, met or not, `installed` the version of the mod of that id now, as `deckit.mods.list()` answers its manifest, left out for none and for one that does not load, and `satisfied` whether the requirement takes it |
 
-Besides what `deckit.mods` rejects with, it rejects with why, the `kind` saying which:
+A call is refused first `NOT_PERMITTED`, then `INVALID_ARGUMENT` where `folder` is not a string, `options` is not a table or `options.dryRun` not a boolean, each that may be left out, then with why, the `kind` saying which, and then as `deckit.mods.install` refuses it:
 
-| Kind               | Why                                                                                                |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| `PACKAGE`          | `package.toml` is no TOML, or its `dependencies` is no table                                       |
-| `REQUIREMENT`      | a requirement is not written as the comparators above                                              |
-| `UNMET_DEPENDENCY` | `install` only, not a dry run: a dependency is not installed at a version it takes, each one named |
+| Kind               | Why                                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `NOT_LOADABLE`     | `package.toml` does not read or is no TOML, its `dependencies` is no table, or a requirement is not written as the comparators above |
+| `UNMET_DEPENDENCY` | `install` only, not a dry run: a dependency is not installed at a version it takes, each one named                                   |

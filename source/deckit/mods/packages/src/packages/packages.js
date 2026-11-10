@@ -25,7 +25,8 @@ function packages(deckit, file) {
     // met or not. Otherwise it is refused of kind UNMET_DEPENDENCY while one of them is not installed at a version its
     // requirement takes. No dependency is fetched or installed here.
     async function install(folder, options) {
-        if (typeof folder !== 'string') throw refusal('INVALID_ARGUMENT', 'install takes (folder, options), a string');
+        if (typeof folder !== 'string' || !isOptions(options))
+            throw refusal('INVALID_ARGUMENT', 'install takes (folder, options), a string and { dryRun }, a boolean');
         const dependencies = await dependenciesIn(folder);
         if (options?.dryRun) return { ...(await deckit.mods.install(folder, options)), dependencies };
         const unmet = unmetOf(dependencies);
@@ -34,6 +35,13 @@ function packages(deckit, file) {
     }
 
     // MARK: - Private
+    // Whether `options` is what install takes: left out, or a table whose dryRun is left out or a boolean.
+    function isOptions(options) {
+        if (options === undefined || options === null) return true;
+        if (typeof options !== 'object' || Array.isArray(options)) return false;
+        return options.dryRun === undefined || options.dryRun === null || typeof options.dryRun === 'boolean';
+    }
+
     async function dependenciesIn(folder) {
         const [read, list] = await Promise.all([file.read(folder), deckit.mods.list()]);
         return dependenciesOf(read, list);

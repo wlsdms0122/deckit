@@ -92,17 +92,17 @@ async function main() {
     check('no table, no dependencies', json(dependenciesOf({}, found)) === '[]');
     check(
         'a dependencies that is no table is refused',
-        thrown(() => dependenciesOf({ dependencies: ['forge'] }, found))?.kind === 'PACKAGE'
+        thrown(() => dependenciesOf({ dependencies: ['forge'] }, found))?.kind === 'NOT_LOADABLE'
     );
     check(
         'a requirement not written so is refused',
         json(thrown(() => dependenciesOf({ dependencies: { forge: '>1' } }, found))) ===
-            json({ message: 'forge = ">1" is no version requirement', kind: 'REQUIREMENT' }),
+            json({ message: 'package.toml: forge = ">1" is no version requirement', kind: 'NOT_LOADABLE' }),
         thrown(() => dependenciesOf({ dependencies: { forge: '>1' } }, found))
     );
     check(
         'a requirement of no text is refused',
-        thrown(() => dependenciesOf({ dependencies: { forge: { version: '1' } } }, found))?.kind === 'REQUIREMENT'
+        thrown(() => dependenciesOf({ dependencies: { forge: { version: '1' } } }, found))?.kind === 'NOT_LOADABLE'
     );
     const unmet = unmetOf(read);
     check(
@@ -138,9 +138,16 @@ async function main() {
     const broken = await rejection(file.read(folderOf('broken', '[dependencies]\nforge = 1.0\n')));
     check(
         'text that is no TOML is refused with its line',
-        broken?.kind === 'PACKAGE' && /line 2/.test(broken.message),
+        broken?.kind === 'NOT_LOADABLE' && /line 2/.test(broken.message),
         broken
     );
+
+    fs.writeFileSync(path.join(folders, 'file'), '');
+    const named = await file.read(path.join(folders, 'file'));
+    check('a folder that names a file holds nothing', json(named) === '{}', named);
+    fs.mkdirSync(path.join(folderOf('folder', null), 'package.toml'));
+    const unread = await rejection(file.read(path.join(folders, 'folder')));
+    check('a package file that does not read is refused', unread?.kind === 'NOT_LOADABLE', unread);
 
     // deckit/packages over a stand-in for deckit.mods, with the folders' package files as the module reads them.
     const files = {
@@ -194,6 +201,19 @@ async function main() {
         { installed, asked }
     );
     check('a folder that depends on nothing installs', (await settings.install('/m/plain')).id === 'plain');
+    asked.length = 0;
+    for (const [folder, options] of [
+        [1, undefined],
+        ['/m/plain', 'dry'],
+        ['/m/plain', ['dryRun']],
+        ['/m/plain', { dryRun: 'yes' }],
+    ])
+        check(
+            `install(${json(folder)}, ${json(options)}) is refused for its argument, and nothing is asked`,
+            (await rejection(settings.install(folder, options)))?.kind === 'INVALID_ARGUMENT' && asked.length === 0,
+            asked
+        );
+    check('options left out as null', (await settings.install('/m/plain', null)).id === 'plain');
     const stranger = client([]);
     for (const options of [undefined, { dryRun: true }])
         check(
