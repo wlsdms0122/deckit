@@ -384,13 +384,19 @@ async function main() {
     listened.notified(filesPage, 7, notice);
     check('a site not allowed notifications shows none', shown() === 0, shown());
     await allowSite('https://a.com', 'notifications');
-    listened.notified(filesPage, 7, { ...notice, title: 'x'.repeat(300) });
+    listened.notified(filesPage, 7, { ...notice, title: 'x'.repeat(300), body: '\u{1F600}'.repeat(300) });
     const shownNotice = toldOn('deckit-shell:web-notified').at(-1)?.[1].payload;
     check(
-        'a site allowed notifications shows them, cut to length',
-        shown() === 1 && shownNotice.title.length === 200,
+        'a site allowed notifications shows them, the title and the body whole',
+        shown() === 1 &&
+            shownNotice.title === 'x'.repeat(300) &&
+            shownNotice.body === '\u{1F600}'.repeat(300) &&
+            shownNotice.silent === false,
         shownNotice
     );
+    for (const misfit of [{ title: 5 }, { body: null }, { silent: 'yes' }, { title: undefined }])
+        listened.notified(filesPage, 7, { ...notice, ...misfit });
+    check('a notification whose title or body is no string, or silent no boolean, is dropped', shown() === 1, shown());
 
     // What a site may have, as the environment checks it.
     const session = { mod: 'files', name: 'main' };

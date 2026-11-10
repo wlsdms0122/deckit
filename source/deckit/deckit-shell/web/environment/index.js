@@ -77,7 +77,7 @@ const WEB = Object.freeze({
 // url, activates })`, the window of id `id` the tab of id `tab` opened, handed to `embedder`, which shows it with
 // `view`; `changed(embedder, id, state)`; `found(embedder, id, { matches, active, final })`; `closed(embedder, id)`, a
 // window gone; `refused(embedder, id, certificate)`; `notified(embedder, id, { origin, notification, title, body,
-// silent })`, what a site's notification shows; and `downloaded(embedder, { id, url, name, path, state, received,
+// silent })`, what a site's notification shows, as the page told it; and `downloaded(embedder, { id, url, name, path, state, received,
 // expected, error })`, a download a web page it shows started, as it changes, written to the Downloads folder: `state`
 // is `downloading`, `finished`, `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise
 // of whether it is allowed: `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download a web

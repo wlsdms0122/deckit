@@ -99,9 +99,9 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             notified(embedder, page.id, {
                 origin,
                 notification: id,
-                title: String(message.title),
-                body: String(message.body),
-                silent: !!message.silent,
+                title: message.title,
+                body: message.body,
+                silent: message.silent,
             });
         } else if (message.op === 'request') {
             request(embedder, page.id, { origin, permissions: ['notifications'] }).then(

@@ -16,8 +16,6 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const SESSIONS = 'web-sessions'; // the state's key: mod id -> the names of the web sessions it used
-    const TITLE_LIMIT = 200;
-    const BODY_LIMIT = 400;
     // A cookie with no expiry would sign the person out of every site at each launch; a browser restoring its session
     // keeps them, so here it is given a lifetime.
     const COOKIE_LIFETIME = 60 * 60 * 24 * 14;
@@ -334,17 +332,13 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return !inPage || ownWindow ? 'window' : 'page';
     }
 
-    // What a site shows only once it was allowed notifications.
+    // What a site shows only once it was allowed notifications, its title and body whole. A site tells whatever it
+    // tells, so one whose title or body is no string, or whose `silent` is no boolean, is dropped.
     function notified(embedder, id, { origin, notification, title, body, silent }) {
+        if (typeof title !== 'string' || typeof body !== 'string' || typeof silent !== 'boolean') return;
         const page = WEB.pageOf(id);
         if (!page || !permits(WEB.sessionOf(page), origin, 'notifications')) return;
-        PROTOCOL.notified.send(embedder, {
-            id,
-            notification,
-            title: String(title).slice(0, TITLE_LIMIT),
-            body: String(body).slice(0, BODY_LIMIT),
-            silent: !!silent,
-        });
+        PROTOCOL.notified.send(embedder, { id, notification, title, body, silent });
     }
 
     // Whether a site may have `name` in a session, `{ mod, name }` or null for one that is no mod's: what it is let
