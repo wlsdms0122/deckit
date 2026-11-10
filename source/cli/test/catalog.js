@@ -3,8 +3,8 @@
 // one does not load, with its kind; what a mod with deckit.mods (deckit/mods/main.js) is answered of them, a launch it
 // asks made in its name and a refusal of a request answered with its stage and kind; and what the host app
 // (deckit/api/index.js) is answered of them, and what it hears through it: each mod's sandbox page by the mod's id,
-// each erase of a mod's data, and its own state in a folder by name. Exits 1 with a line for each check that failed.
-// The packages are ES modules, so they are imported as such.
+// and its own state in a folder by name; and what each layer keeps of a mod, answered and erased. Exits 1 with a line
+// for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -90,7 +90,12 @@ async function main() {
                 providers: [{ id: 's', name: 'S', majors: [1], pinnable: false }],
             },
         ],
-        'erasure/uncleared': [],
+        'erasure/uncleared': ['gone'],
+        'storage/usage': {
+            data: { count: 0, capped: false, hidden: false },
+            records: { count: 0, hidden: false },
+            kept: [],
+        },
     };
     const CORE = { request: async (method) => structuredClone(answers[method]) };
     const warned = [];
@@ -151,6 +156,19 @@ async function main() {
     };
     const requests = []; // `from>to`, each request told
     const REQUEST = { tell: (from, to) => requests.push(`${from}>${to}`), onRequest: () => () => {} };
+    // Layers stacked, as SETUP keeps them: `web` keeps something of p, and each is asked to erase a mod.
+    const erased = [];
+    const keeper = (name, keeps) => ({
+        kept: (id) => keeps.includes(id),
+        erase: async (id) => erased.push(`${name}:${id}`),
+    });
+    const SETUP = {
+        stacked: () => [
+            { name: 'main', keeps: null },
+            { name: 'web', keeps: keeper('web', ['p']) },
+            { name: 'shell', keeps: keeper('shell', []) },
+        ],
+    };
     const MODS = createMods({
         CORE,
         LOG,
@@ -158,10 +176,22 @@ async function main() {
         CATALOG,
         RUNNER,
         REQUEST,
-        pages: { clearStorage: async () => {} },
+        SETUP,
+        pages: { clearStorage: async () => {}, countStorage: async () => 0 },
     });
     MODS.start();
     await tick();
+    check(
+        'a mod removed with its data and left to erase is erased at the start by each layer that keeps something',
+        erased.join() === 'web:gone,shell:gone',
+        erased
+    );
+    const usage = await heard.asked(PAGE, { channel: 'deckit-shell:mods-usage', payload: { id: 'p' } });
+    check(
+        'what a mod has stored names each layer that keeps something of it, in the order stacked',
+        JSON.stringify(usage?.value?.kept) === '["web"]',
+        usage
+    );
     const listed = await heard.asked(PAGE, { channel: 'deckit-shell:mods-list', payload: {} });
     const entries = listed?.value ?? [];
     check(
@@ -228,7 +258,6 @@ async function main() {
 
     // The host app reads a mod's fields.
     const sandboxListeners = []; // what hears each sandbox page through the runner
-    const erasers = []; // what MODS asks to erase
     const api = createApi({
         CONFIG: { id: 'deckit', name: 'Deckit' },
         CORE: { onDown: () => () => {} },
@@ -240,7 +269,7 @@ async function main() {
             ...RUNNER,
             onSandbox: (listener) => sandboxListeners.push(listener) && (() => sandboxListeners.pop()),
         },
-        MODS: { onErase: (eraser) => erasers.push(eraser) && (() => erasers.pop()) },
+        MODS: {},
         OPEN: {},
         REQUEST,
         PERMISSION: { define: () => {} },
@@ -293,11 +322,6 @@ async function main() {
         JSON.stringify(sandboxed) === '[[{"mod":"s"},"s"]]' && !sandboxListeners.length,
         sandboxed
     );
-    const eraser = async () => {};
-    const offErase = api.mods.onErase(eraser);
-    const asked = erasers[0] === eraser;
-    offErase();
-    check('the host app erases what it keeps of a mod as deckit erases its data', asked && !erasers.length, '');
     check(
         "the host app keeps its state in a folder by name, and its own in the host's",
         api.stateIn('web').folder === 'web' && api.state.folder === 'host',

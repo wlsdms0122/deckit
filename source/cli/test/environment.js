@@ -30,7 +30,6 @@ const USED = {
         onRemoved: 'function',
         timeout: 'function',
         modOf: 'function',
-        onErase: 'function',
         openExternal: 'function',
     },
     pages: { add: 'function', whenEnds: 'function', nameOf: 'function', onSandbox: 'function' },

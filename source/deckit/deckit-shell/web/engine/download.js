@@ -96,6 +96,11 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
         save();
     }
 
+    // Whether the mod keeps a download.
+    function holds(modId) {
+        return listOf(modId).length > 0;
+    }
+
     // MARK: - Private
     function listOf(modId) {
         return kept[modId] ?? [];
@@ -144,5 +149,5 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
         return { ...download };
     }
 
-    return { start, shouldDownload, downloaded, forget };
+    return { start, shouldDownload, downloaded, forget, holds };
 }

@@ -105,7 +105,6 @@ async function main() {
         url: (address) => opened.push(address),
     };
     let sandboxed = null; // what the web engine sets a mod's page up with
-    let eraser = null; // what the web engine erases a mod removed with its data with
     const externals = []; // [mod id, address, options]: what was opened outside the app for a mod
     let refuseExternal = null; // why opening outside the app is refused, while it is
     const warned = [];
@@ -118,7 +117,6 @@ async function main() {
             modOf: (page) => mods.get(page)?.id ?? null,
             grantedOf: (id) => [...mods.values()].find((mod) => mod.id === id)?.granted ?? null,
             runs,
-            onErase: (given) => (eraser = given),
             openExternal: async (id, address, options) => {
                 if (refuseExternal) throw refuseExternal;
                 externals.push([id, address, options]);
@@ -128,6 +126,7 @@ async function main() {
     };
     const WEB = createWeb({ deckit, state: STATE, web, pages, open });
     WEB.start();
+    const eraser = WEB.keeps.erase; // what the web engine erases a mod removed with its data with
     check(
         'the web engine hands the web all it declares',
         ENVIRONMENT.missingIn(listened, ENVIRONMENT.WEB_DECK).length === 0,
@@ -175,6 +174,11 @@ async function main() {
     check('the session it used is kept', JSON.stringify(state['web-sessions']) === '{"files":["web"]}', state);
     check("a mod never attaches another's session", !listened.attaching(plainPage, { mod: 'files', name: 'web' }), '');
     check("a session that is no mod's never attaches", !listened.attaching(plainPage, null), '');
+    check(
+        'the web engine keeps something of a mod whose session it kept, and nothing of another',
+        WEB.keeps.kept('files') && !WEB.keeps.kept('none'),
+        state
+    );
     clearing = () => listened.attaching(plainPage, { mod: 'plain', name: 'web' });
     await eraser('files');
     check(

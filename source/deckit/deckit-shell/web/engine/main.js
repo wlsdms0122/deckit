@@ -82,7 +82,6 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         listen();
         DOWNLOAD.start();
         deckit.pages.onSandbox(prepare);
-        deckit.mods.onErase(erase);
     }
 
     // The page of deckit's a page answers to: a mod's or one that runs no mod, or the mod's page that shows it as a
@@ -103,7 +102,11 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return () => adopting.delete(told);
     }
 
-    // MARK: - Private
+    // Whether the web engine keeps anything of the mod `modId`: a web session it used, or a download.
+    function kept(modId) {
+        return Boolean(STATE.read(SESSIONS, {})[modId]?.length) || DOWNLOAD.holds(modId);
+    }
+
     // What a mod kept of the web: its downloads, and what the sessions it used stored. The record of its sessions is
     // read again once they are cleared, so what another mod used meanwhile stays.
     async function erase(modId) {
@@ -115,6 +118,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         deckit.log.info(`forgot the web sessions of ${modId}`);
     }
 
+    // MARK: - Private
     // A mod's page that shows web pages: only that mod's sessions attach there, and only the web, or a file for a mod
     // with system.files, loads in them. A window it asked for answers to the document that asked for it, and a new
     // document has no delegate for it, so it closes. What the page asks to open outside itself, a window or an address
@@ -408,5 +412,5 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         for (const resolve of question.waiting) resolve(!!allowed);
     }
 
-    return { start, pageFor, holdsKeyboard, onPage };
+    return { start, pageFor, holdsKeyboard, onPage, keeps: Object.freeze({ kept, erase }) };
 }

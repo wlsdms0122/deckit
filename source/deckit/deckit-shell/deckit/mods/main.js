@@ -8,15 +8,15 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, installing and removing them, launching
 // them, launching them again and quitting them, pinning the owner of each interface, and what one has stored where
-// the core keeps it and in its pages' storage. A launch and a relaunch it asks for are told to `REQUEST` as its
-// requests of that mod. `pages` is the environment's, which keeps what a mod's pages stored.
-export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages }) {
+// the core keeps it, in its pages' storage and in each layer `SETUP` stacked that keeps something of it. A launch and
+// a relaunch it asks for are told to `REQUEST` as its requests of that mod. `pages` is the environment's, which keeps
+// what a mod's pages stored.
+export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, SETUP, pages }) {
     // MARK: - Property
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
     const watching = new Set(); // the pages told when what `list`, `runs` or `interfaces` answer may have changed
     const installedListeners = new Set(); // told of a mod installed
     const removedListeners = new Set(); // told of a mod removed
-    const erasers = new Set(); // asked to erase what they keep of a mod removed with its data
 
     // MARK: - Initializer
     // MARK: - Public
@@ -37,13 +37,6 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
     function onRemoved(listener) {
         removedListeners.add(listener);
         return () => removedListeners.delete(listener);
-    }
-
-    // `eraser(id)` is asked to erase what it keeps outside the core of a mod removed with its data, answering a promise
-    // that rejects where it could not: the erasure is tried again at the next start. Answers its off.
-    function onErase(eraser) {
-        erasers.add(eraser);
-        return () => erasers.delete(eraser);
     }
 
     // MARK: - Private
@@ -70,7 +63,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
         PROTOCOL.pin.handle(({ interface: named, mod }) => CATALOG.pin(named, mod));
         PROTOCOL.usage.handle(async ({ id }) => {
             const usage = await CORE.request('storage/usage', { mod: id });
-            return { ...usage, values: { count: await pages.countStorage(id) } };
+            return { ...usage, values: { count: await pages.countStorage(id) }, kept: await keptOf(id, usage.kept) };
         });
         PROTOCOL.watchMods.on((_payload, sender) => {
             if (watching.has(sender)) return;
@@ -176,7 +169,17 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
         return { erased: true };
     }
 
-    // A mod removed with its data, whose pages' storage or what an eraser keeps of it was not cleared then, or what the
+    // The name of each layer that keeps something of the mod `id`, in the order they were stacked: one the core keeps
+    // something for, among `core`, or one that keeps something outside the core. A name in `core` of no layer stacked
+    // goes last.
+    async function keptOf(id, core) {
+        const kept = [];
+        for (const { name, keeps } of SETUP.stacked())
+            if (core.includes(name) || (keeps && (await keeps.kept(id)))) kept.push(name);
+        return [...kept, ...core.filter((name) => !kept.includes(name))];
+    }
+
+    // A mod removed with its data, whose pages' storage or what a layer keeps of it was not cleared then, or what the
     // core keeps of it not erased: erased here.
     async function eraseUncleared() {
         const uncleared = await CORE.request('erasure/uncleared').catch((error) => {
@@ -189,19 +192,21 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
     }
 
     // What a mod removed with its data kept outside its own folder: the core erases its data folder, its records and
-    // what is kept for it in the core, and notes it until its pages' storage and what each eraser keeps of it outside
+    // what is kept for it in the core, and notes it until its pages' storage and what each layer keeps of it outside
     // the core are cleared here. Each is cleared whether or not another fails; the note goes only once all are, so
     // a failure is tried again at the next start.
     async function erase(id) {
         const outcomes = await Promise.allSettled([
             CORE.request('erasure/erase', { mod: id }),
             pages.clearStorage(id),
-            ...[...erasers].map((eraser) => Promise.resolve().then(() => eraser(id))),
+            ...SETUP.stacked()
+                .filter(({ keeps }) => keeps)
+                .map(({ keeps }) => Promise.resolve().then(() => keeps.erase(id))),
         ]);
         const failed = outcomes.find(({ status }) => status === 'rejected');
         if (failed) throw failed.reason;
         await CORE.request('erasure/cleared', { mod: id });
     }
 
-    return { start, onInstalled, onRemoved, onErase };
+    return { start, onInstalled, onRemoved };
 }

@@ -39,8 +39,11 @@ export function createApi({
             // Resolves once deckit has started, the background mods launched or failed to. Rejects with what refused
             // the start, its `kind` on it: what the core refused initialize with (FIELD, PERMISSION), or ENDED.
             whenStarted,
-            // stack(name, { setup }): a layer, by its name, stacks over deckit on each mod's page that starts from
-            // now on, once for a name; `setup(id)`, where given, answers what the layer is handed on the mod's page.
+            // stack(name, { setup, keeps }): a layer, by its name, stacks over deckit on each mod's page that starts
+            // from now on, once for a name; `setup(id)`, where given, answers what the layer is handed on the mod's
+            // page. `keeps`, where given, is what the layer keeps of a mod outside deckit: `kept(id)`, whether it keeps
+            // anything of the mod `id`, which `usage` answers under the layer's name, and `erase(id) -> Promise`, that
+            // erased as the mod is removed with its data; a rejection leaves it to be erased again at the next start.
             stack: SETUP.stack,
             // The core that answers nothing more, told once with why, so a person can be asked to restart the app.
             core: Object.freeze({ onDown: CORE.onDown }),
@@ -106,9 +109,6 @@ export function createApi({
                 quit: (id) => RUNNER.quit(id),
                 relaunch: (id) => RUNNER.relaunch([id]),
                 relaunchAll: RUNNER.relaunchAll,
-                // onErase(eraser(id) -> Promise) -> off: what an owner keeps of a mod removed with its data, erased as
-                // the eraser asks; a rejection leaves the erasure to be tried again at the next start.
-                onErase: (eraser) => MODS.onErase(eraser),
                 // openExternal(id, url, { activates }): `url` opened outside the app for the mod `id`, as the mod's
                 // own openExternal opens it: the web, and a file only where the mod's run holds the permission the
                 // address picks, system.file-handlers, refused NOT_PERMITTED otherwise, and what is no such address

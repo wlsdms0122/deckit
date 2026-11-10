@@ -107,7 +107,7 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | what a layer above deck keeps for a mod | the core, `Deck/Storage/PrincipalState`, by the name the layer reserves |
 | a mod's data | whatever of the mod writes it, under deckit's folder (below) |
 | what a mod has in each place deck keeps it: its data folder, records and what the layers keep for it | the core, `Deck/PrincipalStorage` |
-| erasing what a mod removed with its data kept | the core, `Deck/Erasure`: what `Deck/PrincipalStorage` holds of it, noted until main has cleared its pages' storage and its web sessions (`deckit-shell/deckit/mods/main.js`, the web sessions it used from `deckit-shell/web/engine/main.js`, the environment clearing what they stored) |
+| erasing what a mod removed with its data kept | the core, `Deck/Erasure`: what `Deck/PrincipalStorage` holds of it, noted until main has cleared its pages' storage and what each layer keeps of it (`deckit-shell/deckit/mods/main.js`, the layers as `stack` names what they keep: the web sessions it used and its downloads from `deckit-shell/web/engine/main.js`, the environment clearing what they stored) |
 | what loads in the web pages a mod shows, which sessions attach there, the web sessions a mod used, and what a site asks of it | `deckit-shell/web/engine/main.js`; showing them, their sessions and what a site was allowed, the environment's (`web`, `deckit-electron/web`) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
 | what the layers keep between runs | the core, `Deckit/State`, in `state/`, an owner of its own in a folder of its own: the web engine's (the web sessions each mod used, its downloads) in `state/web/`, the host app's and its shell's in `state/host/` |

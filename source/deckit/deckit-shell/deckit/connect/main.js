@@ -101,7 +101,8 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const REQUEST = createRequest();
     const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST });
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
-    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, pages: ENV.pages });
+    const SETUP = createSetup({ IDENTITY });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, SETUP, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
     const OPEN = createOpen({ open: ENV.open });
     const NOTIFICATION = createNotification({
@@ -118,7 +119,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         about: ENV.about,
         user: ENV.folders.user,
     });
-    const SETUP = createSetup({ IDENTITY });
     const API = createApi({
         CONFIG,
         CORE,
