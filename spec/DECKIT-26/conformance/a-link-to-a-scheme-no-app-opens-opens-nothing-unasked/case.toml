@@ -1,0 +1,37 @@
+case = 11
+name = "a-link-to-a-scheme-no-app-opens-opens-nothing-unasked"
+note = "An address of a scheme the host has no app for opens nothing, and the mod is not asked. The host has no app for mailto, and site-a's link to mailto:a@example.com is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

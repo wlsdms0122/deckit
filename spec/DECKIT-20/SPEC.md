@@ -57,7 +57,7 @@ The system defines these permissions, in a table of the shape [the permissions](
 - The handle `clipboard` is a member of, what a request answers, the error it is rejected with and `INVALID_ARGUMENT`: [the handle](../DECKIT-7/SPEC.md).
 - What a mod is granted, `NOT_PERMITTED`, the shape of a table of the system's permissions and their order: [the permissions](../DECKIT-3/SPEC.md). How a permission is asked for and answered usable: [the bundle](../DECKIT-2/SPEC.md).
 - The input `call`, which has a case's mod make the requests, and the clipboard the base `system` keeps in place of the machine's: [the case format](../DECKIT-1/SPEC.md).
-- What a mod's web page reads of the clipboard and writes to it: the web engine's DECKITs.
+- What a site a mod's web page shows reads of the clipboard and writes to it, only while the mod is granted these permissions: [what a site is let have](../DECKIT-26/SPEC.md).
 
 ## Alternatives considered
 

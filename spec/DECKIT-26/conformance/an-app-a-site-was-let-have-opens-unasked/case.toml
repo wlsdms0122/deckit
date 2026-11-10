@@ -1,0 +1,53 @@
+case = 12
+name = "an-app-a-site-was-let-have-opens-unasked"
+note = "An app allow let a site have opens unasked. mod-a lets site-a have open:mailto in its session main, and site-a's link to mailto:a@example.com is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = false }
+apps = { mailto = "Mail" }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "open:mailto" }]]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 4
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "mailto:a@example.com", activates = true }]

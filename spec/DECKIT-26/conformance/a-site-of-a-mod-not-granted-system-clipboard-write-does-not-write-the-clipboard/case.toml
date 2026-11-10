@@ -1,0 +1,37 @@
+case = 10
+name = "a-site-of-a-mod-not-granted-system-clipboard-write-does-not-write-the-clipboard"
+note = "A site reaches what the system guards with a permission only while its mod is granted that permission. site-a, shown by mod-a granted system.clipboard-read and not system.clipboard-write, writes from site-a, and mod-a reads the clipboard."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "NotAllowedError"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = ""

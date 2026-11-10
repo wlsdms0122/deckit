@@ -81,7 +81,7 @@ A page that has closed does nothing it is asked, and is not refused.
 | `canGoBack`, `canGoForward` | boolean: whether `back()`, or `forward()`, has a page to go to |
 | `blank` | boolean: `true` while it has shown nothing but a blank page |
 | `audible`, `muted` | boolean: whether it plays sound; whether it is muted |
-| `capture` | table `{ microphone, camera, screen }` of booleans: whether it takes each, as the DECKIT of what a site is let have lets it |
+| `capture` | table `{ microphone, camera, screen }` of booleans: whether it takes each, as [what a site is let have](../DECKIT-26/SPEC.md) lets it |
 
 A page made is not loading where it is a blank page, and loading where it is not, until it is told otherwise.
 
@@ -97,13 +97,13 @@ A load is a page's own navigation, by a link or its script, or one the layer ask
 
 A load refused leaves the page as it was: a page made at an address it does not load is a blank page. `system.files` guards what this table says of a file and nothing else, as [the web engine](../DECKIT-23/SPEC.md) defines it.
 
-A page's own navigation loads where it leads, but that a page that shows a file never goes to an address of the web: the page stays, and the address is **left for**, under *The delegate*. A page's own navigation to an address of a scheme an app opens is the DECKIT of what a site is let have's.
+A page's own navigation loads where it leads, but that a page that shows a file never goes to an address of the web: the page stays, and the address is **left for**, under *The delegate*. A page's own navigation to an address of a scheme an app opens is [what a site is let have](../DECKIT-26/SPEC.md)'s.
 
 **Note.** A file is read in a page of the mod's own and not apart from it, so that a page that reads the files a person keeps is one the mod lays where it shows it. A file page sends its address of the web elsewhere since its session would keep what the web's sites set beside the files it read.
 
 ### Popups
 
-A page's `window.open(url)` opens a **popup** only where a key or the mouse was pressed in that page within the 5 seconds before it, and each press opens at most one: without one it opens nothing and answers `null`, as a browser blocks a popup with no press. A popup at a blank page or an address of the web is opened in the page's session; at an address of another scheme, it is the DECKIT of what a site is let have's, and opens no page.
+A page's `window.open(url)` opens a **popup** only where a key or the mouse was pressed in that page within the 5 seconds before it, and each press opens at most one: without one it opens nothing and answers `null`, as a browser blocks a popup with no press. A popup at a blank page or an address of the web is opened in the page's session; at an address of another scheme, it is [what a site is let have](../DECKIT-26/SPEC.md)'s, and opens no page.
 
 | the page that opens it | the popup |
 |---|---|
@@ -125,7 +125,7 @@ The **delegate** is the table a page's `delegate` holds, through which the web e
 | `didClose()` | told as a page shown apart has closed | |
 | `openWindow(page, { url, activates })` | asked whether it takes a popup, under *Popups* | `false` |
 | `shouldLeave(url)` | asked as a page that shows a file leaves for an address of the web | `true`: the address is opened outside the app; `false` keeps it in |
-| `didRefuseCertificate`, `decidePermission` | the DECKIT of what a site is let have | |
+| `didRefuseCertificate`, `decidePermission` | [what a site is let have](../DECKIT-26/SPEC.md) | |
 | `didReceiveNotification` | the DECKIT of notifications of a site | |
 | `shouldDownload` | the DECKIT of downloads | |
 
@@ -146,7 +146,7 @@ A blank page is never opened outside the app.
 - What opens outside the app, its guard `system.file-handlers` and `UNSUPPORTED_URL`: [opening outside the app](../DECKIT-8/SPEC.md).
 - A lifecycle and its end: [the entry](../DECKIT-6/SPEC.md).
 - The inputs `show` and `activate`, a page shown at a file of a bundle, the host's delegate and the look `delegated`: [the case format](../DECKIT-1/SPEC.md).
-- What a site is let have, an app for an address, a certificate refused, a site's notification and a download a page starts: the web engine's other DECKITs.
+- What a site is let have, an app for an address and a certificate refused: [what a site is let have](../DECKIT-26/SPEC.md). A site's notification and a download a page starts: the web engine's later DECKITs.
 
 ## Alternatives considered
 

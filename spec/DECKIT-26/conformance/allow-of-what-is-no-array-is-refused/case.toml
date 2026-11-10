@@ -1,0 +1,29 @@
+case = 8
+name = "allow-of-what-is-no-array-is-refused"
+note = "entries is an array. mod-a hands allow a table."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+args = [{ origin = "https://example.com", permission = "notifications" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

@@ -1,0 +1,29 @@
+case = 8
+name = "allow-of-a-name-of-the-rule-allow-is-refused"
+note = "Each entry is { origin, permission }: origin an origin of the web as the URL Standard serializes it, permission a site-permission. mod-a hands allow fullscreen, a name a site is let have unasked."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+args = [[{ origin = "https://example.com", permission = "fullscreen" }]]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

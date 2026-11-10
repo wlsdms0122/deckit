@@ -1,0 +1,57 @@
+case = 12
+name = "what-a-site-was-let-have-lasts-until-the-host-app-quits"
+note = "What allow let a site have lasts until the host app quits. mod-a lets site-a have notifications in its session main, the host app quits and starts again, and mod-a shows site-a there."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "decidePermission", args = [{ origin = "site-a", permissions = ["notifications"], app = "", url = "" }] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 6
+part = "title"
+
+[step.expect]
+answers = "default denied"

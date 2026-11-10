@@ -1,0 +1,36 @@
+case = 10
+name = "a-site-of-a-mod-not-granted-system-site-permissions-is-refused-unasked"
+note = "Only a mod granted system.site-permissions is asked: for any other the site is refused, unasked. site-a asks mod-a, granted nothing, for notifications."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "default denied"

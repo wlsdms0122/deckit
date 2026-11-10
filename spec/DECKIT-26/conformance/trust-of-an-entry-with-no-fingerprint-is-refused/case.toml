@@ -1,0 +1,29 @@
+case = 8
+name = "trust-of-an-entry-with-no-fingerprint-is-refused"
+note = "Each entry is { host, fingerprint }, both strings. mod-a hands trust an entry with no fingerprint."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "trust"
+of = 2
+args = [[{ host = "127.0.0.1" }]]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

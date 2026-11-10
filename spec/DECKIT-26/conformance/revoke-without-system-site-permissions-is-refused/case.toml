@@ -1,0 +1,31 @@
+case = 12
+name = "revoke-without-system-site-permissions-is-refused"
+note = "revoke is a request system.site-permissions guards. mod-a, granted nothing, takes back notifications of site-a."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "revoke"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
