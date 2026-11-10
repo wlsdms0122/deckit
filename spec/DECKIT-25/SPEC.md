@@ -126,7 +126,7 @@ The **delegate** is the table a page's `delegate` holds, through which the web e
 | `openWindow(page, { url, activates })` | asked whether it takes a popup, under *Popups* | `false` |
 | `shouldLeave(url)` | asked as a page that shows a file leaves for an address of the web | `true`: the address is opened outside the app; `false` keeps it in |
 | `didRefuseCertificate`, `decidePermission` | [what a site is let have](../DECKIT-26/SPEC.md) | |
-| `didReceiveNotification` | the DECKIT of notifications of a site | |
+| `didReceiveNotification` | [notifications of a site](../DECKIT-27/SPEC.md) | |
 | `shouldDownload` | the DECKIT of downloads | |
 
 ### What a page opens outside the app
@@ -146,7 +146,7 @@ A blank page is never opened outside the app.
 - What opens outside the app, its guard `system.file-handlers` and `UNSUPPORTED_URL`: [opening outside the app](../DECKIT-8/SPEC.md).
 - A lifecycle and its end: [the entry](../DECKIT-6/SPEC.md).
 - The inputs `show` and `activate`, a page shown at a file of a bundle, the host's delegate and the look `delegated`: [the case format](../DECKIT-1/SPEC.md).
-- What a site is let have, an app for an address and a certificate refused: [what a site is let have](../DECKIT-26/SPEC.md). A site's notification and a download a page starts: the web engine's later DECKITs.
+- What a site is let have, an app for an address and a certificate refused: [what a site is let have](../DECKIT-26/SPEC.md). A site's notification: [notifications of a site](../DECKIT-27/SPEC.md). A download a page starts: the web engine's later DECKIT.
 
 ## Alternatives considered
 

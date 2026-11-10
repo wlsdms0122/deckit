@@ -98,7 +98,7 @@ It guards `notifications.show(notification)`.
 - A listener added by a member that is not a request, added once, and removed as its lifecycle ends, as `events.on` adds one: [the events](../DECKIT-12/SPEC.md).
 - The input `call`, which has a case's mod make the request and call `onPress`, the listener a case hands and the look `heard`, the look `shown`, whose answer this DECKIT fixes, and the input `press`: [the case format](../DECKIT-1/SPEC.md).
 - The interface a mod posts a notification to, whose owner shows it, through this request among others: [the notifications](../DECKIT-19/SPEC.md).
-- A notification a mod's web page shows: the web engine's DECKITs.
+- A notification a site a mod's web page shows makes, of which the web engine hands the machine nothing but what the mod shows through this request: [notifications of a site](../DECKIT-27/SPEC.md).
 
 ## Alternatives considered
 

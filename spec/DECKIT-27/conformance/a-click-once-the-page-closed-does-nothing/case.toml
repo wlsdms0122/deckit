@@ -1,0 +1,85 @@
+case = 13
+name = "a-click-once-the-page-closed-does-nothing"
+note = "click() once the page that showed the notification has closed answers nothing and does nothing. site-a, let have notifications, makes a notification, the page is closed, and the host's layer calls click."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { didReceiveNotification = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+apart = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "title"
+
+[step.expect]
+answers = "granted show"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "close"
+of = 4
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "click"
+delegated = 1
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "didReceiveNotification", args = [{ title = "Hi", body = "There", silent = false }] }]
