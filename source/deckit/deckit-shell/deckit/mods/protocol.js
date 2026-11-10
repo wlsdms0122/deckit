@@ -2,7 +2,13 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 
-export const mods = CHANNEL.pageToMain('deckit-shell:mods', {}, { reply: true, guard: MOD_PERMISSION.MODS });
+export const list = CHANNEL.pageToMain('deckit-shell:mods-list', {}, { reply: true, guard: MOD_PERMISSION.MODS });
+export const runs = CHANNEL.pageToMain('deckit-shell:mods-runs', {}, { reply: true, guard: MOD_PERMISSION.MODS });
+export const interfaces = CHANNEL.pageToMain(
+    'deckit-shell:mods-interfaces',
+    {},
+    { reply: true, guard: MOD_PERMISSION.MODS }
+);
 // `dryRun` true changes nothing.
 export const install = CHANNEL.pageToMain(
     'deckit-shell:mods-install',
@@ -42,5 +48,5 @@ export const usage = CHANNEL.pageToMain(
 );
 // The sending page hears modsChanged from then on, while it lasts.
 export const watchMods = CHANNEL.pageToMain('deckit-shell:mods-watch', {}, { guard: MOD_PERMISSION.MODS });
-// What `mods` answers may have changed: a mod found or gone, a run that moved.
+// What `list`, `runs` or `interfaces` answer may have changed: a mod found or gone, a run that moved.
 export const modsChanged = CHANNEL.mainToPage('deckit-shell:mods-changed');

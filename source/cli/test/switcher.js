@@ -36,7 +36,7 @@ async function main() {
     const commands = { run: async (mod, id, args) => (ran.push([mod, id, args]), null) };
     const deckit = {
         storage: { records: { get: (_key, fallback) => fallback, set: () => {} } },
-        mods: { list: async () => ({ found: [{ id: 'a', name: 'A' }], running: [], interfaces: {} }) },
+        mods: { list: async () => [{ id: 'a', mod: { id: 'a', name: 'A' } }] },
         exports: {
             contributions: async (name) => {
                 if (!owns) throw Object.assign(new Error(`does not own ${name}`), { kind: 'NOT_OWNER' });

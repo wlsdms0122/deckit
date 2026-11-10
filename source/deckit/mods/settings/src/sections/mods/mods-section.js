@@ -170,7 +170,7 @@ function modsSection({
 
     function draw(state) {
         listed = state;
-        restart.draw(state.found);
+        restart.draw(state.list);
         render();
     }
 
@@ -408,7 +408,7 @@ function modsSection({
 
     // The name of the mod of the id `id` as deckit last listed it, or the id for one not found.
     function nameOf(id) {
-        return listed?.found.find((mod) => mod.id === id)?.name || id;
+        return listed?.list.find((entry) => entry.id === id)?.mod?.name || id;
     }
 
     async function askRemove(mod) {
@@ -465,38 +465,41 @@ function modsSection({
         onChange();
     }
 
-    // One row per mod, in the mods' order whether it loads or not, each in its place whatever its run is doing: one
-    // starting or stopping is in `running` as it last ran, and says so by its spinner. `notLoaded` is why one is not
-    // running, `problem` what went wrong with one that is. What it declares and the permissions it asks for are read
-    // from its manifest, so one that did not load still shows them. `shortcuts` are the keys as the Keyboard section
-    // read them, `schemes` the schemes as the URL Schemes section did, `refused` what the services of the
-    // interfaces left out of what the mods declare, `[{ interface, mod, entry, problem }]`, and `failures` why the
-    // main process modules of a mod that did not start did not, by its id.
-    function modRowsOf({ found, running, shortcuts, schemes, refused, failures, pinned }) {
-        return found.map((mod) => {
-            const live = running.find((entry) => entry.id === mod.id) ?? null;
-            const mainProcessFailure = failures.get(mod.id) ?? null;
+    // One row per mod of `list`, in the mods' order whether it loads or not, each in its place whatever its run, as
+    // `runs` answers it, is doing: one starting or stopping shows what its run that launched contributed, and says so
+    // by its spinner. `notLoaded` is why one is not running, `problem` what went wrong with one that is. What it
+    // declares and the permissions it asks for are read from its manifest. Each interface it uses is read from
+    // `interfaces`. `shortcuts` are the keys as the Keyboard section read them, `schemes` the schemes as the URL
+    // Schemes section did, `refused` what the services of the interfaces left out of what the mods declare,
+    // `[{ interface, mod, entry, problem }]`, and `failures` why the main process modules of a mod that did not start
+    // did not, by its id.
+    function modRowsOf({ list, runs, interfaces, shortcuts, schemes, refused, failures, pinned }) {
+        return list.map((entry) => {
+            const manifest = entry.mod ?? {};
+            const run = runs.find((each) => each.id === entry.id) ?? null;
+            const live = run && (run.state === 'running' || run.summary) ? run : null;
+            const mainProcessFailure = failures.get(entry.id) ?? null;
             const row = {
-                id: mod.id,
-                name: live?.name ?? mod.name,
-                version: mod.version,
-                installed: mod.installed,
-                shipped: mod.shipped,
-                state: mod.run?.state,
-                folder: mod.folder,
-                permissions: mod.permissions,
+                id: entry.id,
+                name: manifest.name ?? entry.id,
+                version: manifest.version,
+                installed: entry.installed,
+                shipped: entry.shipped,
+                state: run?.state,
+                folder: entry.folder,
+                permissions: manifest.permissions,
                 mainProcessFailure,
-                uses: mod.uses,
-                hides: mod.hides,
-                view: mod.fields?.view ?? null,
-                contributions: contributionsOf(mod, live),
-                keys: shortcuts.filter((shortcut) => shortcut.mod?.id === mod.id),
-                schemes: schemes.filter((scheme) => scheme.mods.some((entry) => entry.mod.id === mod.id)),
+                uses: usesOf(entry.id, interfaces),
+                hides: entry.hides,
+                view: manifest.fields?.view ?? null,
+                contributions: contributionsOf(manifest, live?.summary),
+                keys: shortcuts.filter((shortcut) => shortcut.mod?.id === entry.id),
+                schemes: schemes.filter((scheme) => scheme.mods.some((one) => one.mod.id === entry.id)),
                 refused: refused
-                    .filter((one) => one.mod.id === mod.id)
+                    .filter((one) => one.mod.id === entry.id)
                     .map((one) => `${one.interface}: ${one.problem}`),
-                pinned: pinned.has(mod.id),
-                restarting: restarting.has(mod.id),
+                pinned: pinned.has(entry.id),
+                restarting: restarting.has(entry.id),
             };
             if (live)
                 return {
@@ -507,11 +510,25 @@ function modsSection({
                 };
             // One starting for the first time, or restarting here, is not yet anything but that: its spinner says so.
             const stopped =
-                mod.run?.problem ||
-                mod.run?.refusal?.message ||
-                (mod.run?.state === 'launching' ? null : STATE_WORDS[mod.run?.state ?? 'notRunning']);
-            return { ...row, notLoaded: mod.problem?.message || (restarting.has(mod.id) ? null : stopped) };
+                run?.problem ||
+                run?.refusal?.message ||
+                (run?.state === 'launching' ? null : STATE_WORDS[run?.state ?? 'notRunning']);
+            return { ...row, notLoaded: entry.refusal?.message || (restarting.has(entry.id) ? null : stopped) };
         });
+    }
+
+    // Each interface the mod `id` uses, `{ interface, major, owner, name, problem }`: the interface's owner, and its
+    // name among the providers, absent where the mod itself owns it or none does.
+    function usesOf(id, interfaces) {
+        return interfaces.flatMap((queue) =>
+            queue.clients
+                .filter((client) => client.id === id)
+                .map(({ major, problem }) => {
+                    const owner = queue.owner && queue.owner !== id ? queue.owner : null;
+                    const name = owner ? (queue.providers.find((one) => one.id === owner)?.name ?? null) : null;
+                    return { interface: queue.interface, major, owner, name, problem };
+                })
+        );
     }
 }
 

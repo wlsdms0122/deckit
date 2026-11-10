@@ -138,8 +138,8 @@ function interfacesSection({ ui, mods }) {
         refusals.delete(named);
         mods.pin(named, id)
             .catch((error) => refusals.set(named, error.message || String(error)))
-            .then(() => mods.list())
-            .then(({ interfaces }) => draw(interfaces));
+            .then(() => mods.interfaces())
+            .then(draw);
     }
 }
 

@@ -16,9 +16,9 @@ export function createMods({ RUN }) {
     // MARK: - Initializer
     // MARK: - Public
     // `added` is what the layers add, each a request `{ guard, signature, send }`, `guard` its channel's.
-    // `onChange(listener)` hears that what `list()` answers may have changed, once for each change main tells in one
-    // go, until its off or until `scope` is cut. It is no request, and throws its refusal: NOT_PERMITTED for a mod not
-    // granted deckit.mods, then INVALID_ARGUMENT for a listener that is no function.
+    // `onChange(listener)` hears that what `list()`, `runs()` or `interfaces()` answer may have changed, once for each
+    // change main tells in one go, until its off or until `scope` is cut. It is no request, and throws its refusal:
+    // NOT_PERMITTED for a mod not granted deckit.mods, then INVALID_ARGUMENT for a listener that is no function.
     function tool(added, scope) {
         const held = { mod: RUN.mod.id, granted: RUN.granted };
         const request = (name, guard, signature, send) =>
@@ -37,7 +37,9 @@ export function createMods({ RUN }) {
                     throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'mods.onChange() takes a listener function');
                 return scope.add(onChange(listener));
             },
-            list: request('list', PROTOCOL.mods.guard, [], () => PROTOCOL.mods.invoke()),
+            list: request('list', PROTOCOL.list.guard, [], () => PROTOCOL.list.invoke()),
+            runs: request('runs', PROTOCOL.runs.guard, [], () => PROTOCOL.runs.invoke()),
+            interfaces: request('interfaces', PROTOCOL.interfaces.guard, [], () => PROTOCOL.interfaces.invoke()),
             install: request(
                 'install',
                 PROTOCOL.install.guard,

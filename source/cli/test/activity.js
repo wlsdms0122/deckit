@@ -24,17 +24,22 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    const found = [
-        { id: 'a', name: 'A', run: { state: 'running' } },
-        { id: 'b', name: 'B', run: { state: 'notRunning' } },
-        { id: 'c', name: 'C', run: null },
-        { id: 'd', name: 'D', run: { state: 'launching' } },
-        { id: 'e', name: 'E', run: { state: 'terminating' } },
+    const list = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, mod: { name: id.toUpperCase() } }));
+    const runs = [
+        { id: 'e', state: 'terminating' },
+        { id: 'a', state: 'running' },
+        { id: 'b', state: 'notRunning' },
+        { id: 'd', state: 'launching' },
+        { id: 'f', state: 'running' },
     ];
-    const running = ACTIVITY.runningOf(found)
-        .map(({ id }) => id)
+    const running = ACTIVITY.runningOf(list, runs)
+        .map(({ id, name }) => id + name)
         .join();
-    check('a mod launching, running or terminating is listed, in the mods order', running === 'a,d,e', running);
+    check(
+        'a mod launching, running or terminating is listed with its name, in the mods order',
+        running === 'aA,dD,eE,fF',
+        running
+    );
 
     const elapsed = [20000, 5 * 60000, 125 * 60000, (50 * 60 + 3) * 60000].map(ACTIVITY.elapsedText);
     const told = ['less than a minute', '5 min', '2 h 5 min', '2 d 2 h'];

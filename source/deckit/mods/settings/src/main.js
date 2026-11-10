@@ -52,7 +52,8 @@ class Settings {
         const services = { keys: null, urls: null, configuration: null, commands: null, packages: null };
         let shown = false;
         let drawing = 0;
-        let listed = { found: [], running: [], interfaces: [] }; // what deckit.mods.list() last answered
+        // what deckit.mods.list(), runs() and interfaces() last answered
+        let listed = { list: [], runs: [], interfaces: [] };
 
         // In every rule of this mod, `line-height` comes after `font`: the shorthand resets it.
         ui.addStyle(`
@@ -96,7 +97,7 @@ class Settings {
             theme: shell.theme,
             configuration: () => services.configuration,
             sources,
-            nameOf: (id) => listed.found.find((mod) => mod.id === id)?.name || id,
+            nameOf: (id) => listed.list.find((entry) => entry.id === id)?.mod?.name || id,
         });
         const urlSchemes = urlSchemesSection({ ui, urls: () => services.urls, appName: APP_NAME, onChange: redraw });
         const interfaces = interfacesSection({ ui, mods: deckit.mods });
@@ -204,22 +205,24 @@ class Settings {
         this.screen = { openWindow, showSettingsOf: (args) => showSettingsOf(args, { ready: openWindow }) };
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
-        // A mod starting or stopping keeps what its run that launched showed (deckit.mods.list()'s `launched`), so a
-        // restart reads as one, not as a mod gone and back. A later drawing that starts while this one reads the
+        // A mod starting or stopping shows what its run that launched contributed, as deckit.mods.runs() answers it, so
+        // a restart reads as one, not as a mod gone and back. A later drawing that starts while this one reads the
         // services, or how the mods' main process modules are, draws instead.
         async function redraw() {
             const turn = ++drawing;
-            const [keys, urls, configured, commands, answered] = await Promise.all([
+            const [keys, urls, configured, commands, list, runs, interfaceQueues] = await Promise.all([
                 keyboard.read(),
                 urlSchemes.read(),
                 refusedBy('configuration'),
                 refusedBy('commands'),
                 deckit.mods.list(),
+                deckit.mods.runs(),
+                deckit.mods.interfaces(),
             ]);
             if (turn !== drawing) return;
-            const failures = await failuresOf(answered.found);
+            const failures = await failuresOf(list);
             if (turn !== drawing) return;
-            listed = answered;
+            listed = { list, runs, interfaces: interfaceQueues };
             const { shortcuts } = keys;
             const { schemes } = urls;
             const refused = [
@@ -228,10 +231,7 @@ class Settings {
                 ...keys.refused.map((one) => ({ ...one, interface: SERVICES.keys })),
                 ...urls.refused.map((one) => ({ ...one, interface: SERVICES.urls })),
             ];
-            const { found, running: now, interfaces: interfaceQueues } = listed;
-            const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
-            const running = [...now, ...restarting];
-            mods.draw({ found, running, shortcuts, schemes, refused, failures });
+            mods.draw({ ...listed, shortcuts, schemes, refused, failures });
             activity.draw(listed);
             modSettings.draw();
             urlSchemes.draw(schemes);
@@ -240,12 +240,12 @@ class Settings {
             keyboard.draw(shortcuts);
         }
 
-        // Why the main process modules of each mod of `found` that did not start did not, by its id; none where the
+        // Why the main process modules of each mod of `list` that did not start did not, by its id; none where the
         // host runs no main process modules.
-        async function failuresOf(found) {
+        async function failuresOf(list) {
             if (!mainProcess) return new Map();
-            const states = await Promise.all(found.map((mod) => mainProcess.statusOf(mod.id)));
-            return new Map(found.map((mod, index) => [mod.id, states[index]?.failure || null]));
+            const states = await Promise.all(list.map((entry) => mainProcess.statusOf(entry.id)));
+            return new Map(list.map((entry, index) => [entry.id, states[index]?.failure || null]));
         }
 
         // What the service held as `name` left out of what the mods declare to it, as its `list` answers them, each

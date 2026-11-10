@@ -56,24 +56,26 @@ class Deckit {
         // One not running is launched. One that does not restart says why: one that did not load, or one stopping. A
         // refusal is told in a notice.
         async function restartMod(id) {
-            const mod = (await deckit.mods.list()).found.find((each) => each.id === id);
-            if (!mod) throw new Error(`There is no mod ${id}`);
-            if (!mod.run) throw new Error(`${mod.name} did not load: ${mod.problem?.message || 'it cannot start'}`);
-            if (mod.run.state === 'terminating') throw new Error(`${mod.name} is stopping`);
-            return deckit.mods.relaunch(mod.id);
+            const [list, runs] = await Promise.all([deckit.mods.list(), deckit.mods.runs()]);
+            const entry = list.find((each) => each.id === id);
+            if (!entry) throw new Error(`There is no mod ${id}`);
+            if (entry.refusal) throw new Error(`${id} did not load: ${entry.refusal.message}`);
+            const run = runs.find((each) => each.id === id);
+            if (run?.state === 'terminating') throw new Error(`${entry.mod.name} is stopping`);
+            return deckit.mods.relaunch(id);
         }
 
         // Every mod found, each with its state, ranked for `partial` by its name and id.
         async function modsFor(partial) {
-            const candidates = (await deckit.mods.list()).found.map((mod) => ({
-                value: mod.id,
-                title: mod.name,
-                hint: !mod.run
-                    ? mod.problem?.message || 'Did not load'
-                    : mod.run.state === 'terminating'
-                      ? 'Stopping'
-                      : STATES[mod.run.state],
-            }));
+            const [list, runs] = await Promise.all([deckit.mods.list(), deckit.mods.runs()]);
+            const candidates = list.map((entry) => {
+                const state = runs.find((run) => run.id === entry.id)?.state ?? 'notRunning';
+                return {
+                    value: entry.id,
+                    title: entry.mod?.name ?? entry.id,
+                    hint: entry.refusal ? entry.refusal.message : state === 'terminating' ? 'Stopping' : STATES[state],
+                };
+            });
             if (!partial.trim()) return candidates;
             return candidates
                 .map((candidate) => ({

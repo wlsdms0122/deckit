@@ -26,12 +26,12 @@ function restartNotice({ ui, mods, mainProcess, appName }) {
     element.append(text, restart.element);
     return { element, draw };
 
-    async function draw(found) {
+    async function draw(list) {
         if (!mainProcess) return;
         const pending = await mainProcess.restartPending();
         element.hidden = !pending.length;
         if (!pending.length) return;
-        const nameOf = (id) => found.find((mod) => mod.id === id)?.name || id;
+        const nameOf = (id) => list.find((entry) => entry.id === id)?.mod?.name || id;
         const named = (why) => pending.filter((entry) => entry.why === why).map((entry) => nameOf(entry.id));
         const updated = named('updated');
         const removed = named('removed');

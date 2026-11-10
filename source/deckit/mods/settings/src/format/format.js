@@ -39,9 +39,9 @@ function ordinal(index) {
     return ['1st', '2nd', '3rd'][index] || `${index + 1}th`;
 }
 
-// The chips of the Contributes column: what a mod as `deckit.mods.list()` finds it declares, and while it runs,
-// `live` as it lists it running, the styles it lays on pages.
-function contributionsOf({ contributes = {}, fields = {}, provides = {}, background }, live) {
+// The chips of the Contributes column: what a mod's manifest declares, as `deckit.mods.list()` answers it, and, while
+// it runs, the styles it lays on pages, as `summary`, its run's in `deckit.mods.runs()`, holds them.
+function contributionsOf({ contributes = {}, fields = {}, provides = {}, background }, summary) {
     const labels = [];
     const count = (named, one, many) => {
         const entries = contributes[named]?.length ?? 0;
@@ -56,7 +56,7 @@ function contributionsOf({ contributes = {}, fields = {}, provides = {}, backgro
         for (const pattern of patterns ?? [scheme === '*' ? '*' : `${scheme}:*`])
             labels.push('opens: ' + patternText(pattern));
     for (const named of Object.keys(provides)) labels.push('provides: ' + named);
-    for (const target of live?.styles ?? []) labels.push('styles: ' + (target === '*' ? 'every page' : target));
+    for (const target of summary?.styles ?? []) labels.push('styles: ' + (target === '*' ? 'every page' : target));
     return labels;
 }
 

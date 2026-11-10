@@ -35,8 +35,8 @@ function packages(deckit, file) {
 
     // MARK: - Private
     async function dependenciesIn(folder) {
-        const [read, listed] = await Promise.all([file.read(folder), deckit.mods.list()]);
-        return dependenciesOf(read, listed.found);
+        const [read, list] = await Promise.all([file.read(folder), deckit.mods.list()]);
+        return dependenciesOf(read, list);
     }
 
     function refusal(kind, message) {

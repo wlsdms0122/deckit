@@ -74,8 +74,9 @@ async function main() {
 
     // Dependencies against the mods installed.
     const found = [
-        { id: 'forge', version: '1.4.0' },
-        { id: 'notes', version: '0.9.0' },
+        { id: 'forge', mod: { id: 'forge', version: '1.4.0' } },
+        { id: 'notes', mod: { id: 'notes', version: '0.9.0' } },
+        { id: 'calendar', refusal: { stage: 'read', kind: 'NOT_LOADABLE', message: 'no main.js' } },
     ];
     const read = dependenciesOf({ dependencies: { forge: '1.0', notes: '^1', calendar: '2' } }, found);
     check(
@@ -156,7 +157,7 @@ async function main() {
                     throw Object.assign(new Error(`${folder} has no manifest.toml`), { kind: 'MANIFEST' });
                 return { id: folder.split('/').pop(), name: 'Mod', version: '1.0.0', permissions: [], replaces: false };
             },
-            list: async () => ({ found, running: [], interfaces: [] }),
+            list: async () => found,
         },
     };
     const service = packages(deckit, { read: async (folder) => files[folder] ?? {} });

@@ -19,7 +19,8 @@ function activitySection({ ui, mods, onInterfaces }) {
     const runFills = new WeakMap(); // run row -> its fill(mod)
     const backgroundFills = new WeakMap(); // background row -> its fill(mod)
     const refusals = new Map(); // mod id -> why deckit refused what was last asked of it here
-    let listed = { found: [], interfaces: [] }; // what deckit.mods.list() last answered
+    // what deckit.mods.list(), runs() and interfaces() last answered
+    let listed = { list: [], runs: [], interfaces: [] };
 
     ui.addStyle(`
         .settings-activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 12px; }
@@ -54,12 +55,13 @@ function activitySection({ ui, mods, onInterfaces }) {
     setInterval(() => element.isConnected && draw(listed), TICK_MS);
     return { element, title: TITLE, keywords: KEYWORDS, draw };
 
-    // `answered` is what deckit.mods.list() answered.
+    // `answered` is what deckit.mods.list(), runs() and interfaces() answered, as `{ list, runs, interfaces }`.
     function draw(answered) {
         listed = answered;
-        const { found } = listed;
-        const running = runningOf(found);
-        const asking = found.filter((mod) => mod.background && !mod.problem);
+        const running = runningOf(listed.list, listed.runs);
+        const asking = listed.list
+            .filter((entry) => entry.mod?.background)
+            .map((entry) => ({ id: entry.id, name: entry.mod.name, background: entry.mod.background }));
         runs.set(running);
         backgrounds.set(asking);
         runCard.none.hidden = running.length > 0;
@@ -144,8 +146,8 @@ function activitySection({ ui, mods, onInterfaces }) {
         refusals.delete(id);
         asked
             .catch((error) => refusals.set(id, error.message || String(error)))
-            .then(() => mods.list())
-            .then(draw);
+            .then(() => Promise.all([mods.list(), mods.runs(), mods.interfaces()]))
+            .then(([list, runs, interfaces]) => draw({ list, runs, interfaces }));
     }
 
     // Whether the mod owns an interface.
@@ -154,9 +156,15 @@ function activitySection({ ui, mods, onInterfaces }) {
     }
 }
 
-// The mods whose latest run launches, runs or terminates, in the mods' order.
-function runningOf(found) {
-    return found.filter((mod) => mod.run && mod.run.state !== 'notRunning');
+// The mods of `list` whose latest run, as `runs` answers it, launches, runs or terminates, in the mods' order, each
+// `{ id, name, background, run }`.
+function runningOf(list, runs) {
+    return list.flatMap(({ id, mod }) => {
+        const run = runs.find((each) => each.id === id);
+        return run && run.state !== 'notRunning'
+            ? [{ id, name: mod?.name ?? id, background: mod?.background, run }]
+            : [];
+    });
 }
 
 // How long, in the largest unit that fits: `less than a minute`, `5 min`, `2 h 5 min`, `3 d 2 h`.

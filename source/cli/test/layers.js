@@ -392,7 +392,10 @@ async function main() {
 
     check(
         'mods is on the handle of a mod granted nothing, and refuses at call with NOT_PERMITTED',
-        typeof given?.mods?.list === 'function' && (await refusalOf(given.mods.list())) === 'call NOT_PERMITTED',
+        typeof given?.mods?.list === 'function' &&
+            (await refusalOf(given.mods.list())) === 'call NOT_PERMITTED' &&
+            (await refusalOf(given.mods.runs())) === 'call NOT_PERMITTED' &&
+            (await refusalOf(given.mods.interfaces())) === 'call NOT_PERMITTED',
         Object.keys(given?.mods ?? {})
     );
     check(

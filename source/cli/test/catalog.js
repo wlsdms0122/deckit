@@ -58,7 +58,8 @@ async function main() {
         // The router holds each channel to its guard by the mod a page runs, as IDENTITY below answers it.
         { report: () => {}, identify: (page) => IDENTITY.modOf(page) }
     );
-    // Mod s is a system mod granted a privileged permission and writes two fields; mod p is not, and writes none. Mod r
+    // Mod s is a system mod granted a privileged permission and writes two fields; mod p is not, writes none and uses
+    // an interface s provides at another major. Mod r
     // is refused as it is read, and mod d, shipped, did not install, with no refusal.
     const REACH = { id: 'deckit.reach-mods', name: 'Reach Mods', description: 'It reaches.', privileged: true };
     const answers = {
@@ -69,7 +70,10 @@ async function main() {
                 fields: { icon: '<svg/>', view: { sidebar: true } },
                 permissions: [{ ...REACH, reason: 'It runs commands.', usable: true }],
             }),
-            found('p', { system: false, fields: {} }),
+            {
+                ...found('p', { system: false, fields: {} }),
+                uses: [{ interface: 's/notes', major: 2, owner: 's', name: 'S', problem: 'p reaches no one by it' }],
+            },
             { ...found('r', { system: false, fields: {} }), problem: { kind: 'NOT_LOADABLE', message: 'no main.js' } },
             {
                 ...found('d', { system: false, fields: {} }),
@@ -77,7 +81,15 @@ async function main() {
                 problem: { message: 'the disk is full' },
             },
         ],
-        'catalog/interfaces': [],
+        'catalog/interfaces': [
+            {
+                interface: 's/notes',
+                name: 'notes',
+                owner: 's',
+                pinned: false,
+                providers: [{ id: 's', name: 'S', majors: [1], pinnable: false }],
+            },
+        ],
         'erasure/uncleared': [],
     };
     const CORE = { request: async (method) => structuredClone(answers[method]) };
@@ -150,8 +162,8 @@ async function main() {
     });
     MODS.start();
     await tick();
-    const listed = await heard.asked(PAGE, { channel: 'deckit-shell:mods', payload: {} });
-    const entries = listed?.value?.found ?? [];
+    const listed = await heard.asked(PAGE, { channel: 'deckit-shell:mods-list', payload: {} });
+    const entries = listed?.value ?? [];
     check(
         'deckit.mods lists each mod with whether it is a system mod',
         JSON.stringify(entries.map(({ id, system }) => [id, system])) ===
@@ -159,17 +171,45 @@ async function main() {
         listed
     );
     check(
-        'deckit.mods lists each mod with its manifest fields, by key, as written',
-        entries[0]?.fields?.icon === '<svg/>' && entries[0]?.fields?.view?.sidebar === true,
-        entries[0]?.fields
+        'deckit.mods lists each mod that loads with its manifest fields, by key, as written',
+        entries[0]?.mod?.fields?.icon === '<svg/>' && entries[0]?.mod?.fields?.view?.sidebar === true,
+        entries[0]?.mod
     );
     check(
-        'deckit.mods lists why a mod does not load, with its kind',
-        entries[0]?.problem === null &&
-            entries[2]?.problem?.kind === 'NOT_LOADABLE' &&
-            entries[2]?.problem?.message === 'no main.js' &&
-            entries[3]?.problem?.kind === null,
-        entries.map(({ problem }) => problem)
+        'deckit.mods lists a mod that does not load with its refusal at read, its kind null for no refusal, and no mod',
+        !('refusal' in entries[0]) &&
+            JSON.stringify(entries[2]?.refusal) === '{"stage":"read","kind":"NOT_LOADABLE","message":"no main.js"}' &&
+            entries[3]?.refusal?.kind === null &&
+            !('mod' in entries[2]),
+        entries.map(({ refusal }) => refusal)
+    );
+    const runs = await heard.asked(PAGE, { channel: 'deckit-shell:mods-runs', payload: {} });
+    check(
+        'deckit.mods answers a run of each mod that loads, one with no run since the start not running',
+        JSON.stringify(runs?.value) ===
+            JSON.stringify(
+                ['s', 'p'].map((id) => ({
+                    id,
+                    state: 'notRunning',
+                    problem: null,
+                    failed: false,
+                    launchedAt: null,
+                    summary: null,
+                }))
+            ),
+        runs
+    );
+    const interfaces = await heard.asked(PAGE, { channel: 'deckit-shell:mods-interfaces', payload: {} });
+    check(
+        'deckit.mods answers each interface as the catalog read it, with each mod that uses it',
+        JSON.stringify(interfaces?.value) ===
+            JSON.stringify([
+                {
+                    ...answers['catalog/interfaces'][0],
+                    clients: [{ id: 'p', major: 2, problem: 'p reaches no one by it' }],
+                },
+            ]),
+        interfaces
     );
 
     const launched = await heard.asked(PAGE, { channel: 'deckit-shell:mods-launch', payload: { id: 'p' } });
