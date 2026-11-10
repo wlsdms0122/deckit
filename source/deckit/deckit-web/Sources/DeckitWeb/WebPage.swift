@@ -13,12 +13,12 @@ import CNodeAPI
 // A page on WebKit, laid on a stage, which tells JavaScript what becomes of it and asks it what to do: `emit(event,
 // payload)`. Told: `adopted` ({ id }) first, then `changed` (its state), `started`, `committed` ({ url }), `stopped`,
 // `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body, origin, main,
-// evaluate }), what deckit's own scripts post in a frame (received), and `external` ({ url }), an address of an app's
-// the page asked to go to. Asked, answered at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow,
-// background }), a function to hear the page given for the window, or nothing for none; `download` ({ url }), a
-// function to hear the download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt,
-// shift }), true for a key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a
-// certificate trusted though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin,
+// evaluate, answer }), what deckit's own scripts post in a frame (received), and `external` ({ url }), an address of an
+// app's the page asked to go to. Asked, answered at once: `navigate` ({ url }), "load" to let it; `open` ({ url,
+// ownWindow, background }), a function to hear the page given for the window, or nothing for none; `download` ({ url
+// }), a function to hear the download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control,
+// alt, shift }), true for a key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for
+// a certificate trusted though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin,
 // permissions, reply }), `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did
 // not handle, true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
 // (SchemeHandler).
@@ -64,7 +64,7 @@ final class WebPage: NSObject {
         self.adopt = adopt
         self.keep = keep
         super.init()
-        configuration.userContentController.add(
+        configuration.userContentController.addScriptMessageHandler(
             MessageRelay(to: self),
             contentWorld: Self.deckitWorld,
             name: Self.messages
@@ -253,22 +253,40 @@ final class WebPage: NSObject {
         emitter.release()
     }
 
-    // What deckit's scripts post, as text, from any frame of the page: told with the frame's origin, whether it is
-    // the main frame, and `evaluate(source, world)`, which runs `source` in that frame as `evaluate` does, its value
-    // dropped.
-    func received(_ body: Any, from frame: WKFrameInfo) {
-        guard let text = body as? String else { return }
+    // What deckit's scripts post, as text, from any frame of the page, and the reply its post's promise takes: told
+    // with the frame's origin, whether it is the main frame, `evaluate(source, world)`, which runs `source` in that
+    // frame as `evaluate` does, its value dropped, and `answer(text)`, the reply, nothing for null. JavaScript answers
+    // true for one it answers later; any other is replied null at once. A reply runs no script, so it gives the page
+    // no user gesture, as `evaluate` gives it one (WebKit's own).
+    func received(
+        _ body: Any,
+        from frame: WKFrameInfo,
+        reply: @escaping @MainActor @Sendable (Any?, String?) -> Void
+    ) {
+        guard let text = body as? String else { return reply(nil, nil) }
+        var replied = false
+        let answer = Reply { node, arguments in
+            guard !replied else { return }
+            let value = try arguments.first.flatMap { node.isNothing($0) ? nil : try node.string($0) }
+            replied = true
+            reply(value, nil)
+        }
         let evaluate = Reply { [weak self] node, arguments in
             guard let source = try arguments.first.map({ try node.string($0) }) else { return }
             let world = try arguments.dropFirst().first.flatMap { node.isNothing($0) ? nil : try node.string($0) }
             self?.evaluate(source, in: world.flatMap(UserScript.World.init) ?? .page, frame: frame) { _ in }
         }
-        emitter.emit("message", [
+        let later = emitter.emit("message", [
             "body": text,
             "origin": Self.serialized(frame.securityOrigin),
             "main": frame.isMainFrame,
-            "evaluate": evaluate
-        ])
+            "evaluate": evaluate,
+            "answer": answer
+        ]) { node, value in try node.bool(value) } ?? false
+        if !later && !replied {
+            replied = true
+            reply(nil, nil)
+        }
     }
 
     // MARK: - Private
