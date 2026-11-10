@@ -13,15 +13,15 @@ import CNodeAPI
 // A page on WebKit, laid on a stage, which tells JavaScript what becomes of it and asks it what to do: `emit(event,
 // payload)`. Told: `adopted` ({ id }) first, then `changed` (its state), `started`, `committed` ({ url }), `stopped`,
 // `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body, origin, main,
-// evaluate, answer }), what deckit's own scripts post in a frame (received), and `external` ({ url }), an address of an
-// app's the page asked to go to. Asked, answered at once: `navigate` ({ url }), "load" to let it; `open` ({ url,
-// ownWindow, background }), a function to hear the page given for the window, or nothing for none; `download` ({ url
-// }), a function to hear the download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control,
-// alt, shift }), true for a key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for
-// a certificate trusted though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin,
-// permissions, reply }), `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did
-// not handle, true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
-// (SchemeHandler).
+// evaluate, answer }), what deckit's own scripts post in a frame (received), and `external` ({ url, origin }), an
+// address of an app's the page asked to go to. Asked, answered at once: `navigate` ({ url }), "load" to let it; `open`
+// ({ url, ownWindow, background, width, height, origin }), a function to hear the page given for the window, or
+// nothing for none, each `origin` the frame's that asks (origin(of:)); `download` ({ url }), a function to hear the
+// download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a
+// key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
+// though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
+// `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle, true for
+// one taken from the rest of the app, and, for a page made with a scheme of its own, `request` (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -290,6 +290,12 @@ final class WebPage: NSObject {
     }
 
     // MARK: - Private
+    // The origin of the frame whose document starts `action`, serialized, or nothing for one no frame starts, such as
+    // a load JavaScript asks for: WebKit then gives no `sourceFrame`, though it declares one, so it is read by its key.
+    private static func origin(of action: WKNavigationAction) -> String? {
+        (action.value(forKey: "sourceFrame") as? WKFrameInfo).map { serialized($0.securityOrigin) }
+    }
+
     // An origin as the URL Standard serializes it: `null` for an opaque one, which has no scheme.
     private static func serialized(_ origin: WKSecurityOrigin) -> String {
         guard !origin.protocol.isEmpty else { return "null" }
@@ -409,7 +415,7 @@ extension WebPage: WKNavigationDelegate {
             webView.configuration.urlSchemeHandler(forURLScheme: scheme) == nil
         {
             decisionHandler(.cancel)
-            emitter.emit("external", ["url": url.absoluteString])
+            emitter.emit("external", ["url": url.absoluteString, "origin": Self.origin(of: navigationAction)])
             return
         }
         if navigationAction.shouldPerformDownload {
@@ -533,7 +539,8 @@ extension WebPage: WKUIDelegate {
             "ownWindow": windowFeatures.width != nil || windowFeatures.height != nil,
             "background": navigationAction.modifierFlags.contains(.command),
             "width": windowFeatures.width?.doubleValue,
-            "height": windowFeatures.height?.doubleValue
+            "height": windowFeatures.height?.doubleValue,
+            "origin": Self.origin(of: navigationAction)
         ]
         let heard: Emitter? = emitter.emit("open", payload, read: Self.listener)
         guard let heard else { return nil }
