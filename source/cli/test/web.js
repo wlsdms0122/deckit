@@ -274,7 +274,13 @@ async function main() {
     );
 
     // A web page's window.open.
-    const asked = (fields) => ({ url: 'https://a.com', from: 'https://a.com', activates: true, ...fields });
+    const asked = (fields) => ({
+        url: 'https://a.com',
+        from: 'https://a.com',
+        origin: 'https://a.com',
+        activates: true,
+        ...fields,
+    });
     const adoptedTold = []; // [page, whether its input was watched as it was told]
     WEB.onPage((page) => adoptedTold.push([page, inputs.has(page)]));
     listened.adopted(filesPage, tab);
@@ -349,6 +355,20 @@ async function main() {
     heard.told(filesPage, { channel: 'deckit-shell:web-permit', payload: { ask: app.ask, allow: true } });
     await tick();
     check('an app allowed opens', opened.at(-1) === 'zoommtg://join', opened);
+    press(tab, 'keydown');
+    listened.windowOpen(filesPage, tab, asked({ url: 'zoommtg://frame', origin: 'https://b.com' }));
+    await tick();
+    const framed = toldOn('deckit-shell:web-asking').at(-1)?.[1].payload;
+    heard.told(filesPage, { channel: 'deckit-shell:web-permit', payload: { ask: framed.ask, allow: false } });
+    const framesBefore = toldOn('deckit-shell:web-asking').length;
+    press(tab, 'keydown');
+    listened.windowOpen(filesPage, tab, asked({ url: 'zoommtg://opaque', origin: 'null' }));
+    await tick();
+    check(
+        "a popup's app is asked as the opening frame's origin, and one of no site's is not asked",
+        framed?.origin === 'https://b.com' && toldOn('deckit-shell:web-asking').length === framesBefore,
+        framed
+    );
     const linked = listened.requestApp(filesPage, 7, { url: 'zoommtg://link', origin: 'https://a.com' });
     await tick();
     const linkQuestion = toldOn('deckit-shell:web-asking').at(-1)?.[1].payload;

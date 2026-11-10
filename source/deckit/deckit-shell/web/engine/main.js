@@ -320,14 +320,14 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     // A file page's popup would share its session, so it is none, and its address is passed on to be opened. A popup at
     // no address, or at about:blank, is a blank page given as one to the web is, and a file page's is nothing, as a
     // blank page is never opened outside the app.
-    function windowOpen(modPage, page, { url, from, activates }) {
+    function windowOpen(modPage, page, { url, from, origin, activates }) {
         // A page opens what it opens just after a key or mouse press in it, as a browser blocks a popup otherwise.
         if (!consumeActivation(page)) return false;
         const id = WEB.holderOf(page).id;
         const blank = SITE.isBlank(url);
-        // An app's address opened as a window is the same question as one navigated to.
+        // An app's address opened as a window is the same question as one navigated to, asked as the opening frame's.
         if (!blank && !/^https?:\/\//i.test(url)) {
-            openApp(modPage, id, url, SITE.originOf(from));
+            openApp(modPage, id, url, SITE.originOf(origin));
             return false;
         }
         if (/^file:/i.test(String(from))) {
@@ -480,7 +480,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
             });
     }
 
-    // Asked of the top document's site whichever frame wants the app: that is the site the person sees.
+    // Asked as `origin`, the site of the frame that goes to the app, as every ask of a site is.
     function mayOpenApp(embedder, pageId, url, origin) {
         const scheme = SITE.schemeOf(url);
         if (!SITE_PERMISSION.opensOut(scheme)) return Promise.resolve(false);

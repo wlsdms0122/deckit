@@ -73,8 +73,9 @@ const WEB = Object.freeze({
 // a link of its own: `load`, `refuse`, or `leave`, the document staying where it is while the web engine tells who
 // shows it, and the environment does as it answers whatever it answers; `attaching(embedder, session)`, whether a web
 // page in `session`, `{ mod, name }` or null for one that is no mod's, is shown in `embedder`'s page;
-// `windowOpen(embedder, page, { url, from, activates })`, whether a web page's window.open, in `embedder`'s page or
-// in a window, is given a page, one handed to `embedder` to show (told with `opened`), `from` the address it is at;
+// `windowOpen(embedder, page, { url, from, origin, activates })`, whether a web page's window.open, in `embedder`'s
+// page or in a window, is given a page, one handed to `embedder` to show (told with `opened`), `from` the address it
+// is at and `origin` that of the frame that opens it;
 // `permits(session, origin, name)`, whether a site may have `name` in `session`, as the environment checks it, and
 // `permitted(session, name)`, the origins that may. Told: `adopted(embedder, page)`, a web
 // page now shown, in its page or in a window; `opened(embedder, opener, id, { url, activates })`, the page of id `id`
