@@ -1,0 +1,22 @@
+case = 1
+name = "the-clipboard-permissions-are-answered-as-the-system-defines-them"
+note = "The system defines system.clipboard-read and system.clipboard-write, in that order, with their names and descriptions, and neither privileged, so a bundle read in place, which is not a system mod, that asks for both is taken and both are usable."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "system.clipboard-read", reason = "Reads what is copied.", usable = true, name = "Clipboard Read", description = "It can read what you copied, from any app.", privileged = false },
+    { id = "system.clipboard-write", reason = "Copies text.", usable = true, name = "Clipboard Write", description = "It can replace what you copied with text of its own, which you then paste in any app.", privileged = false },
+]

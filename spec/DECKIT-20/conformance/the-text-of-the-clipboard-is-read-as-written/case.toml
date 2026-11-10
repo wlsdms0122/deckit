@@ -1,0 +1,25 @@
+case = 7
+name = "the-text-of-the-clipboard-is-read-as-written"
+note = "The clipboard's text is read as it was written, every code point of it, lines and tabs among them. mod-a writes a text of two lines with a tab and a code point outside ASCII."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["one\u0009two\u000Adréi"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = "one\u0009two\u000Adréi"

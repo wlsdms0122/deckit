@@ -1,0 +1,25 @@
+case = 7
+name = "text-written-to-the-clipboard-is-read"
+note = "writeText(text) replaces the clipboard's text with text, and readText() answers it. mod-a, granted both, writes Standup notes and reads it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["Standup notes"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = "Standup notes"
