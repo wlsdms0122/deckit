@@ -37,6 +37,30 @@ const VALUE = /^[^\0\r\n]*$/;
 const NORMALIZED = new Set(['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']);
 const REDIRECTS = new Set(['follow', 'error', 'manual']);
 const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+// What a page's members take, by member.
+const PAGE_TAKES = Object.freeze({
+    load: [['url', 'string']],
+    back: [],
+    forward: [],
+    reload: [],
+    stop: [],
+    mute: [['on', 'boolean']],
+    find: [
+        ['text', 'string'],
+        [
+            'options',
+            'object?',
+            [
+                ['start', 'boolean?'],
+                ['back', 'boolean?'],
+                ['matchCase', 'boolean?'],
+            ],
+        ],
+    ],
+    stopFind: [['options', 'object?', [['keepSelection', 'boolean?']]]],
+    focus: [],
+    close: [],
+});
 // A blank page's address: none, or about:blank.
 const BLANK = /^(?:about:blank(?:[?#].*)?)?$/i;
 
@@ -170,25 +194,28 @@ export function createWeb({ sessions, web: WEB, channels }) {
             if (made.scope.isCut) throw REQUEST.refusal('call', 'ENDED', "the session's lifecycle has ended");
             return made.name;
         };
-        // One the mod closes is closed as it asked, its delegate still told.
-        const kept = (made) => {
-            const { close } = made;
-            let asked = false;
-            const end = scope.add(() => {
-                if (!asked) made.delegate = null;
-                close();
-            });
-            made.close = () => {
-                asked = true;
-                end();
-            };
-            return made;
-        };
         return Object.freeze({
-            page: ({ session: handle, url = '' } = {}) => kept(page(named(handle), url, owner, open, handle)),
+            page: ({ session: handle, url = '' } = {}) =>
+                keptIn(scope, page(named(handle), url, owner, open, handle, scope)),
             window: ({ session: handle, url = '', title = '' } = {}) =>
-                kept(windowPage(named(handle), url, title, owner, open, handle)),
+                keptIn(scope, windowPage(named(handle), url, title, owner, open, handle, scope)),
         });
+    }
+
+    // A page made for `scope`, closed once it is cut, its delegate no longer told; one the mod closes is closed as it
+    // asked, its delegate still told.
+    function keptIn(scope, made) {
+        const { close } = made;
+        let asked = false;
+        const end = scope.add(() => {
+            if (!asked) made.delegate = null;
+            close();
+        });
+        made.close = memberOf('close', scope, () => {
+            asked = true;
+            end();
+        });
+        return made;
     }
 
     // MARK: - Private
@@ -335,8 +362,10 @@ export function createWeb({ sessions, web: WEB, channels }) {
         early.get(id).push([event, payload]);
     }
 
-    // The handle a mod holds for a page, and the delegate it answers through.
-    function handleOf(owner, open, session, url) {
+    // The handle a mod holds for a page, and the delegate it answers through. Each member answers at once, and throws
+    // its refusal: INVALID_ARGUMENT for what it does not take, then ENDED once `scope` is cut. A page that has closed
+    // does nothing it is asked.
+    function handleOf(owner, open, session, url, scope) {
         let delegate = null;
         let id = null;
         const waiting = [];
@@ -380,9 +409,11 @@ export function createWeb({ sessions, web: WEB, channels }) {
         const takeWindow = async ({ page: given, url: to, activates }) => {
             const elsewhere = () => !BLANK.test(String(to)) && openElsewhere(to, { activates });
             if (given === undefined || given === null) return void elsewhere();
-            const opened = page(names.get(session).name, to, owner, open, session, given);
+            const made = page(names.get(session).name, to, owner, open, session, scope, given);
+            const { close } = made;
+            const opened = keptIn(scope, made);
             if ((await ask('openWindow', false, opened, { url: to, activates })) !== false) return;
-            opened.close();
+            close();
             elsewhere();
         };
         const receive = (event, payload) => {
@@ -436,16 +467,24 @@ export function createWeb({ sessions, web: WEB, channels }) {
             get state() {
                 return { ...state };
             },
-            load: (to) => whenKnown((page) => PROTOCOL.load.send({ id: page, url: String(to) })),
-            back: () => whenKnown((page) => PROTOCOL.navigate.send({ id: page, to: 'back' })),
-            forward: () => whenKnown((page) => PROTOCOL.navigate.send({ id: page, to: 'forward' })),
-            reload: () => whenKnown((page) => PROTOCOL.navigate.send({ id: page, to: 'reload' })),
-            stop: () => whenKnown((page) => PROTOCOL.navigate.send({ id: page, to: 'stop' })),
-            mute: (on) => whenKnown((page) => PROTOCOL.mute.send({ id: page, on: !!on })),
-            find: (text, { start = false, back = false, matchCase = false } = {}) =>
-                whenKnown((page) => PROTOCOL.find.send({ id: page, text: String(text), start, back, matchCase })),
-            stopFind: ({ keepSelection = false } = {}) =>
-                whenKnown((page) => PROTOCOL.stopFind.send({ id: page, keepSelection })),
+            load: memberOf('load', scope, (to) => whenKnown((page) => PROTOCOL.load.send({ id: page, url: to }))),
+            back: memberOf('back', scope, () => whenKnown((page) => PROTOCOL.navigate.send({ id: page, to: 'back' }))),
+            forward: memberOf('forward', scope, () =>
+                whenKnown((page) => PROTOCOL.navigate.send({ id: page, to: 'forward' }))
+            ),
+            reload: memberOf('reload', scope, () =>
+                whenKnown((page) => PROTOCOL.navigate.send({ id: page, to: 'reload' }))
+            ),
+            stop: memberOf('stop', scope, () => whenKnown((page) => PROTOCOL.navigate.send({ id: page, to: 'stop' }))),
+            mute: memberOf('mute', scope, (on) => whenKnown((page) => PROTOCOL.mute.send({ id: page, on }))),
+            find: memberOf('find', scope, (text, options) => {
+                const { start = false, back = false, matchCase = false } = keysOf(options);
+                whenKnown((page) => PROTOCOL.find.send({ id: page, text, start, back, matchCase }));
+            }),
+            stopFind: memberOf('stopFind', scope, (options) => {
+                const { keepSelection = false } = keysOf(options);
+                whenKnown((page) => PROTOCOL.stopFind.send({ id: page, keepSelection }));
+            }),
             get delegate() {
                 return delegate;
             },
@@ -462,10 +501,21 @@ export function createWeb({ sessions, web: WEB, channels }) {
         };
     }
 
+    // The member `name` of a page: it answers nothing at once, and throws its refusal, INVALID_ARGUMENT where what it
+    // is handed does not fit PAGE_TAKES, then ENDED once `scope` is cut.
+    function memberOf(name, scope, act) {
+        return (...args) => {
+            const problem = REQUEST.argumentProblem(PAGE_TAKES[name], args);
+            if (problem) throw invalid(`page.${name}: ${problem}`);
+            if (scope.isCut) throw REQUEST.refusal('call', 'ENDED', `page.${name}: the lifecycle it was for has ended`);
+            act(...args);
+        };
+    }
+
     // A web page shown in this page, as an element of it: a new one at `url`, or the window of id `given` a web page
     // opened.
-    function page(name, url, owner, open, session, given) {
-        const { handle, know, receive, isKnown } = handleOf(owner, open, session, url);
+    function page(name, url, owner, open, session, scope, given) {
+        const { handle, know, receive, isKnown } = handleOf(owner, open, session, url, scope);
         let closed = false;
         const { element, id, close } = WEB.view(
             { sessions, session: name, url, ...(given === undefined ? {} : { page: given }) },
@@ -476,10 +526,10 @@ export function createWeb({ sessions, web: WEB, channels }) {
             element,
             // Focused anew even while it has the focus, as the keyboard may have gone to the overlay since: focusing
             // the element is what hands the web page the keyboard.
-            focus: () => {
+            focus: memberOf('focus', scope, () => {
                 if (document.activeElement === element) element.blur();
                 element.focus();
-            },
+            }),
             close: () => {
                 closed = true;
                 close();
@@ -487,10 +537,10 @@ export function createWeb({ sessions, web: WEB, channels }) {
         });
     }
 
-    function windowPage(name, url, title, owner, open, session) {
-        const { handle, know, receive, close } = handleOf(owner, open, session, url);
+    function windowPage(name, url, title, owner, open, session, scope) {
+        const { handle, know, receive, close } = handleOf(owner, open, session, url, scope);
         PROTOCOL.window.invoke({ name, url: String(url), title: String(title) }).then(
-            (id) => (id ? know(id) : receive('closed')),
+            (id) => know(id),
             () => receive('closed')
         );
         return Object.assign(handle, { close });
