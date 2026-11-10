@@ -61,7 +61,7 @@ A declared action has the fields of one set over a connection but `value`, `open
 
 ## The mods to show
 
-The Show items are the mods the shell's Dock lists, every app mod (`shell.mods.list()`), and picking one puts it on screen as the person opens it (`shell.mods.open(id)`), which launches it if it does not run. Each section is named by its mod's name, read with `deckit.mods.list()`. All three are under `deckit.mods`.
+The Show items are the mods the shell's Dock lists, every app mod (`shell.mods.list()`), and picking one puts it on screen as the person opens it (`shell.mods.open(id)`), which launches it if it does not run. Each section is named by its mod's name, its manifest's as `deckit.mods.list()` answers it, or by its id for one that does not load. All three are under `deckit.mods`.
 
 ## Commands and keys
 
