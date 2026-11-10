@@ -396,12 +396,13 @@ export function createWeb({ sessions, web: WEB, channels }) {
                 return fallback;
             }
         };
-        // Only false keeps the default back, so a delegate that forgot to answer does not lose the request.
         const openElsewhere = (to, options) =>
             open(to, options).catch((error) => owner.recordFailure(`${to} did not open: ${error.message || error}`));
-        const otherwiseOpen = async (method, to, options) => {
-            if ((await ask(method, true, to, options)) === false) return;
-            openElsewhere(to, options);
+        // The address a file page leaves for, asked of shouldLeave(url) alone: only false keeps it in, so a delegate
+        // that forgot to answer does not lose it.
+        const leave = async (to) => {
+            if ((await ask('shouldLeave', true, to)) === false) return;
+            openElsewhere(to);
         };
         // The window a page opened, as a page of the mod's to show. One the delegate does not take goes, and its
         // address opens elsewhere, as one of a page with no window to hand over does, but for a blank page's, which
@@ -445,7 +446,7 @@ export function createWeb({ sessions, web: WEB, channels }) {
                     return ask('shouldDownload', true, download).then((save) => answer(save !== false));
                 }
                 case 'leave':
-                    return otherwiseOpen('shouldLeave', payload.url);
+                    return leave(payload.url);
                 case 'window':
                     return takeWindow(payload);
             }
