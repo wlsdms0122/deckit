@@ -80,7 +80,7 @@ async function main() {
         listen: (given) => (listened = given),
         embed: () => {},
         pageOf: (id) => webPages.get(id) || null,
-        holderOf: (page) => ({ embedder: page.embedder, id: page.id, tab: page.id, inPage: true }),
+        holderOf: (page) => ({ embedder: page.embedder, id: page.id, inPage: true }),
         sessionOf: (page) => ({ mod: mods.get(page.embedder)?.id, name: 'main' }),
         permissionsChanged: () => changes++,
         openWindow: () => {
@@ -272,15 +272,7 @@ async function main() {
     );
 
     // A web page's window.open.
-    const asked = (fields) => ({
-        url: 'https://a.com',
-        tab: 7,
-        from: 'https://a.com',
-        inPage: true,
-        ownWindow: false,
-        activates: true,
-        ...fields,
-    });
+    const asked = (fields) => ({ url: 'https://a.com', from: 'https://a.com', activates: true, ...fields });
     const adoptedTold = []; // [page, whether its input was watched as it was told]
     WEB.onPage((page) => adoptedTold.push([page, inputs.has(page)]));
     listened.adopted(filesPage, tab);
@@ -289,41 +281,33 @@ async function main() {
         adoptedTold.length === 1 && adoptedTold[0][0] === tab && adoptedTold[0][1] === false && inputs.has(tab),
         adoptedTold
     );
-    check('without a press nothing opens', listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');
+    check('without a press nothing opens', listened.windowOpen(filesPage, tab, asked({})) === false, '');
     press(tab, 'keyup');
-    check('a key let go is no press', listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');
+    check('a key let go is no press', listened.windowOpen(filesPage, tab, asked({})) === false, '');
     press(tab);
+    check('a press opens a popup', listened.windowOpen(filesPage, tab, asked({})) === true, '');
+    check('a press opens one popup, used up by it', listened.windowOpen(filesPage, tab, asked({})) === false, '');
+    // A popup of a page apart is handed to its mod's page as one of a page in it is.
+    listened.adopted(filesPage, windowPage);
+    press(windowPage, 'keydown');
     check(
-        'a window page opens a window',
-        listened.windowOpen(filesPage, tab, asked({ inPage: false })) === 'window',
+        "a page apart's popup is handed to its mod's page",
+        listened.windowOpen(filesPage, windowPage, asked({})) === true,
         ''
     );
-    check(
-        'a press opens one window, used up by it',
-        listened.windowOpen(filesPage, tab, asked({ inPage: false })) === '',
-        ''
-    );
-    press(tab, 'keydown');
-    check(
-        'a tab asking for a window with features gets one',
-        listened.windowOpen(filesPage, tab, asked({ ownWindow: true })) === 'window',
-        ''
-    );
-    press(tab, 'keydown');
-    check("a tab's window is handed to its mod's page", listened.windowOpen(filesPage, tab, asked({})) === 'page', '');
-    listened.opened(filesPage, 7, 9, { url: 'https://a.com', activates: true });
+    listened.opened(filesPage, 9, 10, { url: 'https://a.com', activates: true });
     const handed = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
     check(
-        "a tab's window is told to the delegate as its page",
-        handed?.id === 7 && handed.page === 9 && handed.url === 'https://a.com',
+        'a popup is told to the delegate of the page that opened it, as a page',
+        handed?.id === 9 && handed.page === 10 && handed.url === 'https://a.com',
         handed
     );
     press(tab, 'keydown');
-    const fileOpens = listened.windowOpen(filesPage, tab, asked({ from: 'file:///a.html', inPage: false }));
+    const fileOpens = listened.windowOpen(filesPage, tab, asked({ from: 'file:///a.html' }));
     const fileOpening = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
     check(
         "a file page's window is no window, its address opened",
-        fileOpens === '' && fileOpening?.page === undefined && fileOpening?.url === 'https://a.com',
+        fileOpens === false && fileOpening?.page === undefined && fileOpening?.url === 'https://a.com',
         fileOpening
     );
 
@@ -331,16 +315,16 @@ async function main() {
     const openingsBefore = toldOn('deckit-shell:web-opening').length;
     const askingsBefore = toldOn('deckit-shell:web-asking').length;
     const blankWhere = [];
-    for (const fields of [{ url: '' }, { url: 'about:blank' }, { url: 'about:blank', inPage: false }]) {
+    for (const fields of [{ url: '' }, { url: 'about:blank' }]) {
         press(tab, 'keydown');
         blankWhere.push(listened.windowOpen(filesPage, tab, asked(fields)));
     }
     press(tab, 'keydown');
-    blankWhere.push(listened.windowOpen(filesPage, tab, asked({ url: '', from: 'file:///a.html', inPage: false })));
+    blankWhere.push(listened.windowOpen(filesPage, tab, asked({ url: '', from: 'file:///a.html' })));
     await tick();
     check(
-        "a blank window.open is a tab's page or a window as the web's is, and a file page's none, never asked",
-        JSON.stringify(blankWhere) === '["page","page","window",""]' &&
+        "a blank window.open is a page as the web's is, and a file page's none, never asked",
+        JSON.stringify(blankWhere) === '[true,true,false]' &&
             toldOn('deckit-shell:web-opening').length === openingsBefore &&
             toldOn('deckit-shell:web-asking').length === askingsBefore &&
             !opened.length,

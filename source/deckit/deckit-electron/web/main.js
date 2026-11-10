@@ -72,7 +72,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
 
     function holderOf(page) {
         const entry = REGISTRY.get(page.id);
-        return entry ? { embedder: entry.embedder, id: page.id, tab: entry.tab, inPage: entry.inPage } : null;
+        return entry ? { embedder: entry.embedder, id: page.id, inPage: entry.inPage } : null;
     }
 
     // The page the element of web page `page` is in, or null for one shown in no element.
@@ -89,7 +89,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     function openWindow(modPage, { mod, session, url, title }) {
         const page = makePage(PARTITION.spell(mod, session), modPage);
         pages.set(page.id, page);
-        adopt(modPage, page, { inPage: false, tab: page.id });
+        adopt(modPage, page, { inPage: false });
         showInWindow(modPage, page, { title, size: client.windowSize });
         if (!SITE.isBlank(url)) page.loadURL(url);
         return page.id;
@@ -225,7 +225,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
             if (!session || !client.attaching(modPage, session)) throw new Error("its session is not the mod's");
             const page = makePage(PARTITION.spell(session.mod, session.name), modPage);
             pages.set(page.id, page);
-            adopt(modPage, page, { inPage: true, tab: page.id });
+            adopt(modPage, page, { inPage: true });
             if (url && !SITE.isBlank(url)) page.loadURL(url);
             return page.id;
         } catch (error) {
@@ -237,11 +237,11 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     // What a page asks, put to the web engine: a link it follows, a window it opens, what it asks to have, a
     // certificate that is not trusted, and an app's address, which the web engine opens. A download it starts is
     // written to the Downloads folder, and the web engine is told of it for the mod showing the page. `page` is the
-    // page asking, known once it is adopted.
+    // page asking, known once it is adopted, which answers for itself while it is shown.
     function delegateOf(modPage) {
         let page = null;
         let hear = () => {};
-        const tabOf = () => REGISTRY.get(page.id)?.tab ?? page.id;
+        const shown = () => (REGISTRY.get(page.id) ? page : null);
         return {
             adopted: (made, heard) => {
                 page = made;
@@ -252,50 +252,36 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
                 const inPage = !!REGISTRY.get(page.id)?.inPage;
                 return client.loading(modPage, page, String(url), { inPage, from: page.getURL(), followed: true });
             },
-            open: ({ url, ownWindow, background, width, height }) => {
-                const inPage = !!REGISTRY.get(page.id)?.inPage;
-                const asked = {
-                    url,
-                    tab: tabOf(),
-                    from: page.getURL(),
-                    inPage,
-                    ownWindow,
-                    activates: !background,
-                };
-                const where = client.windowOpen(modPage, page, asked);
-                if (where === 'window') return openPopup(modPage, page, { width, height });
-                if (where === 'page') return openHanded(modPage, page, { url, activates: asked.activates });
-                return null;
+            // Whatever the page, in the mod's page or apart, a popup it is given is a page handed to its mod's page.
+            open: ({ url, background }) => {
+                const activates = !background;
+                if (!client.windowOpen(modPage, page, { url, from: page.getURL(), activates })) return null;
+                return openHanded(modPage, page, { url, activates });
             },
-            permission: ({ origin, permissions }) => {
-                const at = REGISTRY.tabOf(page);
-                return at ? client.request(at.embedder, at.tab.id, { origin, permissions }) : Promise.resolve(false);
-            },
-            certificate: (info) => CERTIFICATE.decide(page, REGISTRY.tabOf(page), page.partition, info),
+            permission: ({ origin, permissions }) =>
+                shown() ? client.request(modPage, page.id, { origin, permissions }) : Promise.resolve(false),
+            certificate: (info) => CERTIFICATE.decide(page, shown() && modPage, page.partition, info),
             download: ({ url }) => {
-                const at = REGISTRY.tabOf(page);
-                if (!at) return null;
+                if (!shown()) return null;
                 return DOWNLOAD.listenerFor(
                     url,
-                    (download) => client.downloaded(at.embedder, download),
-                    (asked) => client.shouldDownload(at.embedder, at.tab.id, asked)
+                    (download) => client.downloaded(modPage, download),
+                    (asked) => client.shouldDownload(modPage, page.id, asked)
                 );
             },
             external: (url) => {
-                const at = REGISTRY.tabOf(page);
-                if (!at) return;
+                if (!shown()) return;
                 client
-                    .requestApp(at.embedder, at.tab.id, { url, origin: SITE.originOf(page.getURL()) })
+                    .requestApp(modPage, page.id, { url, origin: SITE.originOf(page.getURL()) })
                     .catch((error) => LOG.error("an app's address was not opened", error));
             },
         };
     }
 
-    // A page asks the web engine before its own loads, and tells it of each change. `tab` is the page whose delegate
-    // answers for it, itself or the page that opened it.
-    function adopt(modPage, page, { inPage, tab }) {
+    // A page asks the web engine before its own loads, and tells it of each change.
+    function adopt(modPage, page, { inPage }) {
         const id = page.id;
-        REGISTRY.add(page, { embedder: modPage, tab, inPage });
+        REGISTRY.add(page, { embedder: modPage, inPage });
         const changed = () => {
             const state = stateOf(page);
             if (state) client.changed(modPage, id, state);
@@ -321,29 +307,9 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         client.adopted(modPage, page);
     }
 
-    // The listener of the page WebKit makes for a window `opener` opened, in its session, answering to its tab.
-    function openPopup(modPage, opener, { width, height }) {
-        const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
-        const delegate = delegateOf(modPage);
-        return WEBKIT.listenerFor({
-            fields: { partition: opener.partition },
-            delegate,
-            opened: (page) => {
-                pages.set(page.id, page);
-                adopt(modPage, page, { inPage: false, tab });
-                const size = width && height ? { width, height } : client.windowSize;
-                const window = showInWindow(modPage, page, { size });
-                const closeWithOpener = () => window.close();
-                opener.once('destroyed', closeWithOpener);
-                page.once('destroyed', () => opener.removeListener('destroyed', closeWithOpener));
-            },
-        });
-    }
-
     // The listener of the page WebKit makes for a window `opener` opened, handed to `modPage` to show as an element,
     // and closed with `modPage` if it never shows it.
     function openHanded(modPage, opener, { url, activates }) {
-        const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
         return WEBKIT.listenerFor({
             fields: { partition: opener.partition },
             delegate: delegateOf(modPage),
@@ -351,8 +317,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
                 pages.set(page.id, page);
                 handed.set(page.id, modPage);
                 page.once('destroyed', () => handed.delete(page.id));
-                adopt(modPage, page, { inPage: true, tab: page.id });
-                client.opened(modPage, tab, page.id, { url, activates });
+                adopt(modPage, page, { inPage: true });
+                client.opened(modPage, opener.id, page.id, { url, activates });
             },
         });
     }

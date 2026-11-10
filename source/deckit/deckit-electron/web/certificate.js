@@ -8,13 +8,13 @@ export function createCertificate({ refused: tell }) {
     // MARK: - Initializer
     // MARK: - Public
     // A certificate the system cannot verify: let through where the mod handed it back as trusted, or else refused, and
-    // the page's tab told, `at` being `{ embedder, tab }`. `info` is `{ url, host, error, fingerprint, subject,
-    // issuer }`.
-    function decide(page, at, partition, info) {
+    // the mod's page `embedder` that shows the page told, where it is shown. `info` is `{ url, host, error,
+    // fingerprint, subject, issuer }`.
+    function decide(page, embedder, partition, info) {
         const key = keyOf(partition, info.host, info.fingerprint);
         if (TRUSTED.has(key)) return true;
         remember(key, page, info.url);
-        if (at) tell(at.embedder, at.tab.id, info);
+        if (embedder) tell(embedder, page.id, info);
         return false;
     }
 

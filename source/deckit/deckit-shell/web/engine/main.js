@@ -45,8 +45,8 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
             attaching,
             windowOpen,
             adopted,
-            opened: (embedder, tab, page, { url, activates }) =>
-                PROTOCOL.opening.send(embedder, { id: tab, page, url, activates }),
+            opened: (embedder, opener, page, { url, activates }) =>
+                PROTOCOL.opening.send(embedder, { id: opener, page, url, activates }),
             changed: (embedder, id, state) => PROTOCOL.changed.send(embedder, { id, state }),
             found: (embedder, id, { matches, active, final }) =>
                 PROTOCOL.found.send(embedder, { id, matches, active, final }),
@@ -201,11 +201,11 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         });
     }
 
-    // A page the sender holds: one of its tabs, never another mod's.
+    // A web page the sender shows, never another mod's.
     function guestOf(sender, id) {
         const page = WEB.pageOf(id);
         const held = page && WEB.holderOf(page);
-        return held && held.embedder === sender && held.tab === id ? page : null;
+        return held && held.embedder === sender ? page : null;
     }
 
     function report(embedder, id, page) {
@@ -313,27 +313,26 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return fresh;
     }
 
-    // What a web page's window.open gets: a window of its own only in a window, or when it asks for one with features,
-    // as a consent step's popup posts its answer back to its opener, which a tab could not do. A file page's window
-    // would share its session, so it is asked of the delegate instead. Answers whether it is given the window.
-    // A window a page asked for is a window of the app's when it asked for one or is in one; a tab's is handed to its
-    // mod's page, which shows it. A file page's window to the web is no window of its session: its address is opened.
-    // A window at no address, or at about:blank, is a blank page given as a window to the web is, and a file page's is
-    // none, as a blank page is never opened outside the app.
-    function windowOpen(modPage, page, { url, tab, from, inPage, ownWindow, activates }) {
+    // Whether a web page's window.open is given a page, one handed to its mod's page (told with `opened`), whichever
+    // page opens it, in the mod's page or apart: the web engine names no window, and the layer over it shows the page.
+    // A file page's popup would share its session, so it is none, and its address is passed on to be opened. A popup at
+    // no address, or at about:blank, is a blank page given as one to the web is, and a file page's is nothing, as a
+    // blank page is never opened outside the app.
+    function windowOpen(modPage, page, { url, from, activates }) {
         // A page opens what it opens just after a key or mouse press in it, as a browser blocks a popup otherwise.
-        if (!consumeActivation(page)) return '';
+        if (!consumeActivation(page)) return false;
+        const id = WEB.holderOf(page).id;
         const blank = SITE.isBlank(url);
         // An app's address opened as a window is the same question as one navigated to.
         if (!blank && !/^https?:\/\//i.test(url)) {
-            openApp(modPage, tab, url, SITE.originOf(from));
-            return '';
+            openApp(modPage, id, url, SITE.originOf(from));
+            return false;
         }
         if (/^file:/i.test(String(from))) {
-            if (!blank) PROTOCOL.opening.send(modPage, { id: tab, url, activates });
-            return '';
+            if (!blank) PROTOCOL.opening.send(modPage, { id, url, activates });
+            return false;
         }
-        return !inPage || ownWindow ? 'window' : 'page';
+        return true;
     }
 
     // What a site shows only once it was allowed notifications, its title and body whole. A site tells whatever it
@@ -426,15 +425,15 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
 
     // One question per web page, site and set of permissions: a page asking again before it is answered joins the
     // question already up. Only a mod holding system.site-permissions is asked; for any other the site is refused.
-    function ask(embedder, tabId, origin, permissions, about = {}) {
+    function ask(embedder, pageId, origin, permissions, about = {}) {
         return new Promise((resolve) => {
             if (!origin || !permissions.length || !decides(embedder)) return resolve(false);
-            const tab = WEB.pageOf(tabId);
+            const tab = WEB.pageOf(pageId);
             if (!tab) return resolve(false);
             const session = WEB.sessionOf(tab);
             if (session && permissions.every((permission) => granted.has(keyOf(session, origin, permission))))
                 return resolve(true);
-            const key = [tabId, origin, ...[...permissions].sort()].join('|');
+            const key = [pageId, origin, ...[...permissions].sort()].join('|');
             const up = questions.get(questionFor.get(key));
             if (up) {
                 up.waiting.push(resolve);
@@ -445,14 +444,14 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
             questions.set(id, question);
             questionFor.set(key, id);
             question.off = PAGES.watch(tab, { destroyed: () => settle(id, false) });
-            PROTOCOL.asking.send(embedder, { id: tabId, ask: id, origin, permissions, ...about });
+            PROTOCOL.asking.send(embedder, { id: pageId, ask: id, origin, permissions, ...about });
         });
     }
 
-    // An app's address a site in the tab `tabId` goes to, by a link or window.open, opened outside the app by `open`
-    // once the mod lets the site have that app. Answers whether it was opened; one that did not open is logged.
-    function openApp(embedder, tabId, url, origin) {
-        return mayOpenApp(embedder, tabId, url, origin)
+    // An app's address a site in the web page `pageId` goes to, by a link or window.open, opened outside the app by
+    // `open` once the mod lets the site have that app. Answers whether it was opened; one that did not open is logged.
+    function openApp(embedder, pageId, url, origin) {
+        return mayOpenApp(embedder, pageId, url, origin)
             .then(async (ok) => {
                 if (!ok) return false;
                 await OPEN.url(String(url));
@@ -465,12 +464,12 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     }
 
     // Asked of the top document's site whichever frame wants the app: that is the site the person sees.
-    function mayOpenApp(embedder, tabId, url, origin) {
+    function mayOpenApp(embedder, pageId, url, origin) {
         const scheme = SITE.schemeOf(url);
         if (!SITE_PERMISSION.opensOut(scheme)) return Promise.resolve(false);
         const name = OPEN.appFor(String(url));
         if (!name) return Promise.resolve(false);
-        return ask(embedder, tabId, origin, ['open:' + scheme], { app: name, url: String(url) });
+        return ask(embedder, pageId, origin, ['open:' + scheme], { app: name, url: String(url) });
     }
 
     function decides(embedder) {
