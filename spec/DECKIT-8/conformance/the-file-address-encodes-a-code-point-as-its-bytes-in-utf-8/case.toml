@@ -1,0 +1,20 @@
+case = 3
+name = "the-file-address-encodes-a-code-point-as-its-bytes-in-utf-8"
+note = "fileURL encodes a code point outside ASCII as its bytes in UTF-8, each byte % and two upper-case hexadecimal digits. mod-a asks for /data/日記.txt."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fileURL"
+args = ["/data/日記.txt"]
+
+[step.expect]
+answers = "file:///data/%E6%97%A5%E8%A8%98.txt"

@@ -1,0 +1,20 @@
+case = 3
+name = "the-file-of-a-file-address-whose-path-decodes-to-no-utf-8-is-empty"
+note = "filePath answers the empty string where the bytes the path percent-decodes to are not UTF-8. mod-a asks for file:///data/%FF.pdf."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "filePath"
+args = ["file:///data/%FF.pdf"]
+
+[step.expect]
+answers = ""
