@@ -38,8 +38,8 @@ const CONFIG = { id: 'deckit', name: 'Deckit', api: API };
 const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process and its windows are its own.
 const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
-// The permissions deckit's passages define, in the order a person reads them.
-const DECKIT_PERMISSIONS = [CLIPBOARD_PERMISSION, NOTIFICATION_PERMISSION, OPEN_PERMISSION];
+// The permissions deckit's passages define, after its own, in the order of the DECKITs that define them.
+const DECKIT_PERMISSIONS = [OPEN_PERMISSION, CLIPBOARD_PERMISSION, NOTIFICATION_PERMISSION];
 // Main's channels are the process's: deckit connects once.
 let connected = null;
 
