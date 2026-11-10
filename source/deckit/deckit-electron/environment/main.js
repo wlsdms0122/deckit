@@ -178,6 +178,8 @@ function createEnvironment({ core, preload, openWindow }) {
             clear: WEB.clear,
             cancelDownload: WEB.cancelDownload,
             trust: WEB.trust,
+            trusts: WEB.trusts,
+            distrust: WEB.distrust,
             sessionsOf: WEB.sessionsOf,
         }),
         // Read by attachMainProcess alone (main-process/main.js).

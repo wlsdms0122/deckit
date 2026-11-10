@@ -89,11 +89,11 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
         if (page) PROTOCOL.downloaded.send(page, copy(entry));
     }
 
-    // A mod's downloads, gone with it; one under way is stopped.
+    // A mod's downloads, gone with it; one under way is stopped. Answers once the state is written.
     function forget(modId) {
         for (const { id } of listOf(modId)) stop(modId, id);
         delete kept[modId];
-        save();
+        return save();
     }
 
     // Whether the mod keeps a download.
@@ -116,12 +116,12 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
         return null;
     }
 
-    // Forgotten, and stopped first while it is under way. Answers whether there was one.
-    function remove(modId, id) {
+    // Forgotten, and stopped first while it is under way. Answers whether there was one, once the state is written.
+    async function remove(modId, id) {
         if (!find(modId, id)) return false;
         stop(modId, id);
         kept[modId] = listOf(modId).filter((download) => download.id !== String(id));
-        save();
+        await save();
         return true;
     }
 
@@ -141,8 +141,9 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
         question.resolve(save === true);
     }
 
+    // The list written, answering once the state is. A write that fails is logged where it is kept.
     function save() {
-        STATE.write(KEY, kept);
+        return STATE.write(KEY, kept);
     }
 
     function copy(download) {

@@ -51,10 +51,16 @@ async function main() {
             plain: [{ id: 'quit', url: 'https://a.com/q.zip', name: 'q.zip', path: '/D/q.zip', state: 'downloading' }],
         },
     };
-    // Kept as text, as the core keeps it: each read is a copy of its own.
+    // Kept as text, as the core keeps it: each read is a copy of its own, and a write answers a turn later, once
+    // kept.
+    let unwritten = 0; // writes asked and not yet answered
     const STATE = {
         read: (key, fallback) => (key in state ? JSON.parse(JSON.stringify(state[key])) : fallback),
-        write: (key, value) => (state[key] = JSON.parse(JSON.stringify(value))),
+        write: (key, value) => {
+            state[key] = JSON.parse(JSON.stringify(value));
+            unwritten++;
+            return tick().then(() => unwritten--);
+        },
     };
     // Web pages by id: 7 is a tab of files' page, 8 one of plain's.
     const tab = { id: 7, embedder: filesPage };
@@ -94,8 +100,14 @@ async function main() {
             if (fetchRefusal) throw fetchRefusal;
             return { url: request.url, status: 200, headers: [], body: '', redirected: false };
         },
-        trust: (mod, session, entries) => done.push(['trust', mod, session, entries]),
+        trust: (mod, session, entries) => {
+            done.push(['trust', mod, session, entries]);
+            trusted.add(mod);
+        },
+        trusts: (mod) => trusted.has(mod),
+        distrust: (mod) => trusted.delete(mod),
     };
+    const trusted = new Set(); // the mods that trust a certificate
     let fetchRefusal = null; // what the environment's fetch is refused with, while it is
     const inputs = new Map(); // page -> what hears the input to it
     const pages = {
@@ -196,13 +208,25 @@ async function main() {
         WEB.keeps.kept('files') && !WEB.keeps.kept('none'),
         state
     );
+    const clearOf = (page, name) =>
+        heard.asked(page, { channel: 'deckit-shell:web-clear', payload: { name } }).then((answer) => answer.value);
+    const clearsBefore = done.length;
+    await clearOf(plainPage, 'never');
+    check(
+        'a session never used is not recorded by a clear, and holds nothing to clear',
+        JSON.stringify(state['web-sessions']) === '{"files":["web"]}' && done.length === clearsBefore,
+        [state['web-sessions'], done.slice(clearsBefore)]
+    );
+    await clearOf(filesPage, 'web');
+    check('a session used is cleared', JSON.stringify(done.at(-1)) === '["clear","files","web"]', done.at(-1));
     clearing = () => listened.attaching(plainPage, { mod: 'plain', name: 'web' });
     await eraser('files');
     check(
-        "a mod's sessions are cleared and forgotten, and another's used meanwhile kept",
+        "a mod's sessions are cleared and forgotten, and another's used meanwhile kept, once written",
         JSON.stringify(done.at(-1)) === '["clear","files","web"]' &&
-            JSON.stringify(state['web-sessions']) === '{"plain":["web"]}',
-        [done.at(-1), state]
+            JSON.stringify(state['web-sessions']) === '{"plain":["web"]}' &&
+            unwritten === 0,
+        [done.at(-1), state, unwritten]
     );
 
     // A window a mod asked for closes with the document that asked.
@@ -619,10 +643,12 @@ async function main() {
     const removed = (
         await heard.asked(filesPage, { channel: 'deckit-shell:web-download-remove', payload: { id: forgotten } })
     ).value;
+    const removedWritten = unwritten === 0;
     listened.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip', state: 'cancelled' });
     check(
         'one forgotten under way is stopped, and not kept again as it ends',
         removed === true &&
+            removedWritten &&
             done.at(-1)[0] === 'cancelDownload' &&
             done.at(-1)[1] === 51 &&
             state['web-downloads'].files.length === 2,
@@ -635,6 +661,35 @@ async function main() {
         "a mod's downloads go with its data, one under way stopped",
         !('files' in state['web-downloads']) && done.some(([what, under]) => what === 'cancelDownload' && under === 70),
         [state['web-downloads'], done]
+    );
+    check(
+        'what a mod let sites have and the certificates it trusted go with its data',
+        !WEB.keeps.kept('files') &&
+            !listened.permits(session, 'https://b.com', 'open:zoommtg') &&
+            !trusted.has('files'),
+        [state, [...trusted]]
+    );
+    const changesBeforeErase = changes;
+    await allowSite('https://a.com', 'camera');
+    const keptAllowed = WEB.keeps.kept('files');
+    await eraser('files');
+    check(
+        'what a mod let a site have alone is kept of it, and erased, the environment told',
+        keptAllowed &&
+            !WEB.keeps.kept('files') &&
+            !listened.permits(session, 'https://a.com', 'camera') &&
+            changes === changesBeforeErase + 2,
+        [keptAllowed, changes - changesBeforeErase]
+    );
+    mods.set(filesPage, { ...files, granted: [...files.granted, 'system.certificates'] });
+    await trusting([{ host: 'a.com', fingerprint: 'f' }]);
+    mods.set(filesPage, files);
+    const keptTrusted = WEB.keeps.kept('files');
+    await eraser('files');
+    check(
+        'a certificate a mod trusted alone is kept of it, and erased',
+        keptTrusted && !WEB.keeps.kept('files') && !trusted.has('files'),
+        keptTrusted
     );
 
     // The last 100 records are kept, and an older one still under way stays until it ends.

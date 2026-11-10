@@ -30,8 +30,9 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     const windows = new Map(); // id of a web page in a window a mod asked for -> the mod's page that asked
     const questions = new Map(); // ask id -> { embedder, key, off, waiting: [resolve] }
     const questionFor = new Map(); // web page id|origin|permissions -> ask id
-    // mod|session|origin|permission: what a mod let a site have in one of its sessions, until the app quits. The mod
-    // hands it back through allow(); a refusal is not kept, so a page refused by mistake can ask again once reloaded.
+    // mod|session|origin|permission: what a mod let a site have in one of its sessions, until the app quits or the mod
+    // is erased. The mod hands it back through allow(); a refusal is not kept, so a page refused by mistake can ask
+    // again once reloaded.
     const granted = new Set();
     const activated = new WeakMap(); // a web page -> when a key or the mouse was last pressed in it
     const adopting = new Set(); // what is told of each web page as it is adopted
@@ -90,19 +91,30 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return () => adopting.delete(told);
     }
 
-    // Whether the web engine keeps anything of the mod `modId`: a web session it used, or a download.
+    // Whether the web engine keeps anything of the mod `modId`: a web session it used, a download, what it let a site
+    // have, or a certificate it trusted.
     function kept(modId) {
-        return Boolean(STATE.read(SESSIONS, {})[modId]?.length) || DOWNLOAD.holds(modId);
+        return (
+            Boolean(STATE.read(SESSIONS, {})[modId]?.length) ||
+            DOWNLOAD.holds(modId) ||
+            allowedOf(modId).length > 0 ||
+            WEB.trusts(modId)
+        );
     }
 
-    // What a mod kept of the web: its downloads, and what the sessions it used stored. The record of its sessions is
-    // read again once they are cleared, so what another mod used meanwhile stays.
+    // What a mod kept of the web: its downloads, what it let sites have, the certificates it trusted, and what the
+    // sessions it used stored. The record of its sessions is read again once they are cleared, so what another mod used
+    // meanwhile stays. Answers once the state is written.
     async function erase(modId) {
-        DOWNLOAD.forget(modId);
+        const forgotten = DOWNLOAD.forget(modId);
+        const allowed = allowedOf(modId);
+        for (const key of allowed) granted.delete(key);
+        if (allowed.length) WEB.permissionsChanged();
+        WEB.distrust(modId);
         for (const name of STATE.read(SESSIONS, {})[modId] || []) await WEB.clear(modId, name);
         const sessions = STATE.read(SESSIONS, {});
         delete sessions[modId];
-        STATE.write(SESSIONS, sessions);
+        await Promise.all([forgotten, STATE.write(SESSIONS, sessions)]);
         deckit.log.info(`forgot the web sessions of ${modId}`);
     }
 
@@ -364,6 +376,11 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
 
     function keyOf(session, origin, permission) {
         return `${session.mod}|${session.name}|${origin}|${permission}`;
+    }
+
+    // What the mod `modId` let sites have, in any of its sessions, by key. A mod's id holds no `|`.
+    function allowedOf(modId) {
+        return [...granted].filter((key) => key.startsWith(`${modId}|`));
     }
 
     // What a mod lets sites have in one of its sessions, changed by `member`, each entry `{ origin, permission }`:

@@ -1,7 +1,7 @@
 // `refused(embedder, id, certificate)` tells deck what was refused in a web page it shows.
 export function createCertificate({ refused: tell }) {
     // MARK: - Property
-    // partition|host|fingerprint
+    // partition|host|fingerprint, until the app quits or the mod is erased
     const TRUSTED = new Set();
     const refused = new Map(); // the same key -> Map(page -> the address it was loading)
 
@@ -35,6 +35,17 @@ export function createCertificate({ refused: tell }) {
         }
     }
 
+    // Whether a certificate is trusted in a session whose partition starts with `prefix`.
+    function trusts(prefix) {
+        return [...TRUSTED].some((key) => key.startsWith(prefix));
+    }
+
+    // Every certificate trusted in a session whose partition starts with `prefix`, trusted no more. A page already
+    // loaded under one stays as it is.
+    function distrust(prefix) {
+        for (const key of [...TRUSTED]) if (key.startsWith(prefix)) TRUSTED.delete(key);
+    }
+
     // MARK: - Private
     function keyOf(partition, host, fingerprint) {
         return `${partition}|${host}|${fingerprint}`;
@@ -50,5 +61,5 @@ export function createCertificate({ refused: tell }) {
         });
     }
 
-    return { decide, trust };
+    return { decide, trust, trusts, distrust };
 }

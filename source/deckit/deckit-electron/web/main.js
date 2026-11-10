@@ -423,6 +423,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         clear,
         cancelDownload: (id) => WEBKIT.cancelDownload(id),
         trust: (mod, session, entries) => CERTIFICATE.trust(PARTITION.spell(mod, session), entries),
+        trusts: (mod) => CERTIFICATE.trusts(PARTITION.prefixOf(mod)),
+        distrust: (mod) => CERTIFICATE.distrust(PARTITION.prefixOf(mod)),
         sessionsOf: (mod) => PARTITION.prefixOf(mod),
         webPagesIn,
     };

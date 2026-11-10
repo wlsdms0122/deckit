@@ -46,6 +46,8 @@ const WEB = Object.freeze({
         cancelDownload: 'function', // cancelDownload(id): a download under way, stopped
         // trust(mod, session, entries): `[{ host, fingerprint }]`, certificates trusted in that session, each a string
         trust: 'function',
+        trusts: 'function', // trusts(mod) -> whether a certificate is trusted in a session of the mod's
+        distrust: 'function', // distrust(mod): every certificate trusted in a session of the mod's, trusted no more
         // sessionsOf(mod) -> what a mod's page is told its mod's sessions are named by, a string it hands `view`
         // (WEB_PAGE) as `sessions`, unread
         sessionsOf: 'function',

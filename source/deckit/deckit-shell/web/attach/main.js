@@ -10,7 +10,8 @@ import { createWeb } from '../engine/main.js';
 // How a host app puts the web engine on deckit, once, before it is ready: `deckit` is what connect answered, and
 // `environment` what the environment gives the web engine (environment: WEB). It defines the permissions the web
 // engine checks, keeps its state in a folder of its own, and stacks its layer on each mod's page, handed the names
-// of the mod's web sessions there, with what it keeps of each mod: its sessions and its downloads. The web engine starts with deckit, before any mod launches. Answers what a UI on
+// of the mod's web sessions there, with what it keeps of each mod: its sessions, its downloads, what it let sites have
+// and the certificates it trusted. The web engine starts with deckit, before any mod launches. Answers what a UI on
 // deckit reads of the web pages mods show: `pageFor(page)`, the page of deckit's a page answers to,
 // `holdsKeyboard(page)`, whether the keyboard is in that page or a web page in it, and `onPage(listener(page)) -> off`,
 // each web page told as the web engine adopts it, before it watches the page's input.
