@@ -88,14 +88,15 @@ export function createWebKit({ path, LOG, containerOf }) {
 
     // MARK: - Private
     // A page and the listener the module tells it through, before the module has given it its id. `delegate`:
-    // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height })`, the
-    // listener of the page given for the window, or nothing; `download({ url })`, the listener of the download
+    // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height, origin })`,
+    // the listener of the page given for the window, or nothing; `download({ url })`, the listener of the download
     // (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise of a boolean`;
-    // `certificate(info) -> boolean`, whether it is trusted; `external(url)`; `message(body, frame) -> boolean`, what
-    // deckit's scripts post in any frame, `frame` `{ origin, main, evaluate(source, world), answer(text) }`: `evaluate`
-    // runs `source` in that frame, its value dropped, and `answer` is the value of the post's promise, which runs no
-    // script in the page; true for a message answered later, any other answered null at once; and, for a page with a
-    // scheme of its own, `request({ url, method, body, reply })`.
+    // `certificate(info) -> boolean`, whether it is trusted; `external({ url, origin })`, `origin`, as of `open`, the
+    // frame's that goes there, or nothing where no frame does; `message(body, frame) -> boolean`, what deckit's scripts
+    // post in any frame, `frame` `{ origin, main, evaluate(source, world), answer(text) }`: `evaluate` runs `source` in
+    // that frame, its value dropped, and `answer` is the value of the post's promise, which runs no script in the page;
+    // true for a message answered later, any other answered null at once; and, for a page with a scheme of its own,
+    // `request({ url, method, body, reply })`.
     function pageOf({ delegate, fields, opened = null }) {
         const WEBKIT = loaded();
         const { EventEmitter } = require('events');
@@ -149,7 +150,7 @@ export function createWebKit({ path, LOG, containerOf }) {
                         throw error;
                     }
                 case 'external':
-                    return void delegate.external?.(payload.url);
+                    return void delegate.external?.(payload);
                 case 'navigate':
                     return delegate.navigate?.(payload.url) ?? 'load';
                 case 'open':

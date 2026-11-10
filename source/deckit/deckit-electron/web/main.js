@@ -255,9 +255,11 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
                 return client.loading(modPage, page, String(url), { inPage, from: page.getURL(), followed: true });
             },
             // Whatever the page, in the mod's page or apart, a popup it is given is a page handed to its mod's page.
-            open: ({ url, background }) => {
+            // `origin` is the opening frame's, as `external`'s.
+            open: ({ url, background, origin }) => {
                 const activates = !background;
-                if (!client.windowOpen(modPage, page, { url, from: page.getURL(), activates })) return null;
+                const from = page.getURL();
+                if (!client.windowOpen(modPage, page, { url, from, origin: origin ?? from, activates })) return null;
                 return openHanded(modPage, page, { url, activates });
             },
             // `origin` is the asking frame's; an opaque one is no site's.
@@ -274,10 +276,11 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
                     (asked) => client.shouldDownload(modPage, page.id, asked)
                 );
             },
-            external: (url) => {
+            // An app's address is asked as the origin of the frame that goes there, or the page's where no frame does.
+            external: ({ url, origin }) => {
                 if (!shown()) return;
                 client
-                    .requestApp(modPage, page.id, { url, origin: SITE.originOf(page.getURL()) })
+                    .requestApp(modPage, page.id, { url, origin: SITE.originOf(origin ?? page.getURL()) })
                     .catch((error) => LOG.error("an app's address was not opened", error));
             },
         };
