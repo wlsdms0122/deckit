@@ -4,26 +4,33 @@ import * as DECLARED from './protocol.js';
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// The Dock in a mod's page, its channels bound with `channels`: `iconOf(mod)`, the icon a mod is listed with by its
-// id, or '', and `mods`, what a mod with deckit.mods reads and changes of it: `list()`, every app mod as the Dock marks
-// it, `pinned()`, the mods the person keeps in it, `setPinned(id, pinned)`, and `open(id)`, a mod as the person opens
-// it.
-function createDock({ channels }) {
+// The Dock in a mod's page, its channels bound with `channels`, `request` making each of its requests as the shell's
+// handle guards them: `mods`, what a mod with deckit.mods reads and changes of it, each a request: `list()`, every
+// app mod as the Dock marks it, `pinned()`, the mods the person keeps in it, `setPinned(id, pinned)`, and `open(id)`, a
+// mod as the person opens it.
+function createDock({ channels, request }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const mods = Object.freeze({
-        list: () => PROTOCOL.list.invoke(),
-        pinned: () => PROTOCOL.pinned.invoke(),
-        setPinned: (id, pinned) => PROTOCOL.setPinned.invoke({ id: String(id), pinned: !!pinned }),
-        open: (id) => PROTOCOL.open.invoke({ id: String(id) }),
+        list: request('mods.list', { guard: PROTOCOL.list.guard }, () => PROTOCOL.list.invoke()),
+        pinned: request('mods.pinned', { guard: PROTOCOL.pinned.guard }, () => PROTOCOL.pinned.invoke()),
+        setPinned: request(
+            'mods.setPinned',
+            {
+                guard: PROTOCOL.setPinned.guard,
+                signature: [
+                    ['id', 'string'],
+                    ['pinned', 'boolean'],
+                ],
+            },
+            (id, pinned) => PROTOCOL.setPinned.invoke({ id, pinned })
+        ),
+        open: request('mods.open', { guard: PROTOCOL.open.guard, signature: [['id', 'string']] }, (id) =>
+            PROTOCOL.open.invoke({ id })
+        ),
     });
 
-    // MARK: - Public
-    function iconOf(mod) {
-        return PROTOCOL.icon.invoke({ mod: String(mod) });
-    }
-
-    return Object.freeze({ iconOf, mods });
+    return Object.freeze({ mods });
 }
 
 // MARK: - Private

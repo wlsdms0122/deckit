@@ -227,17 +227,16 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     // What a lifecycle's handles register, each once and only while its start runs, by the handle each is on: each as
     // `<handle>.<name>.register()`, the runner's own `exports` on the handle named `handle`, `register(interface,
     // exports)` once for the run for each interface the manifest provides, and `register(exports)` once for the run for
-    // the mods that depend on it by id, under its own id, beside the lifecycle's.
+    // the mods that depend on it by id, under its own id, beside the lifecycle's. A lifecycle's own registration
+    // answers nothing and is never refused: one called after its start, called again, or handed what its check refuses
+    // registers nothing.
     function registryOf(lifecycle, { handle, joined }) {
         const registered = {};
         const exported = {}; // name, an interface or the mod's own id -> the exports registered for it
         let open = true;
         const closed = (name) => `${name} is called in ${lifecycle.method}(), and ${lifecycle.method}() has ended`;
-        const once = (name, label, problemOf) => (value) => {
-            if (!open) return RUN.fail(closed(label));
-            if (Object.hasOwn(registered, name)) return RUN.fail(`${label} is called once`);
-            const problem = problemOf(value);
-            if (problem) return RUN.fail(`${label} ${problem}`);
+        const once = (name, problemOf) => (value) => {
+            if (!open || Object.hasOwn(registered, name) || problemOf(value)) return;
             registered[name] = value;
         };
         const exportsProblem = (named, value) => {
@@ -256,7 +255,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         const handles = {};
         const registers = (on, name, problemOf) =>
             ((handles[on] ??= {})[name] = Object.freeze({
-                register: once(name, `${on}.${name}.register()`, problemOf),
+                register: once(name, problemOf),
             }));
         for (const [name, { handle: on, check }] of Object.entries(lifecycle.registrations || {}))
             registers(on, name, check);

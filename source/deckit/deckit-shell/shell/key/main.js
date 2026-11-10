@@ -57,7 +57,7 @@ export function createKey({ deckit, keys: KEYS }) {
         PROTOCOL.list.handle(() => listed());
         PROTOCOL.set.handle(({ id, keystroke }) => {
             const read = keystroke == null ? null : KEY.keystrokeOf(keystroke);
-            if (!read && keystroke != null) throw new Error('keys.set() takes a keystroke with a code, or null');
+            if (!read && keystroke != null) throw invalid('keys.set takes a keystroke with a code, or null');
             return change(id, read);
         });
         PROTOCOL.reset.handle(({ id }) => change(id, undefined));
@@ -246,7 +246,7 @@ export function createKey({ deckit, keys: KEYS }) {
     // change the core refuses leaves the keys as they were. A chord is one key's at a time, and none a mod holds.
     function change(id, keystroke) {
         const key = KEY.KEYS.find((one) => one.id === id);
-        if (!key) throw new Error(`${id} is none of the shell's keys`);
+        if (!key) throw invalid(`${id} is none of the shell's keys`);
         const kept = keeping.then(async () => {
             const chord = keystroke === undefined ? key.keystroke : keystroke;
             const holder = chord && KEY.KEYS.find((one) => one.id !== id && KEY.same(keystrokeOf(one.id), chord));
@@ -276,7 +276,7 @@ export function createKey({ deckit, keys: KEYS }) {
     }
 
     function refuse(why) {
-        throw Object.assign(new Error(why), { kind: 'REFUSED' });
+        throw Object.assign(new Error(why), { stage: 'call', kind: 'REFUSED' });
     }
 
     return { start, listen, monitor, onChord, chordOf };

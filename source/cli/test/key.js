@@ -2,7 +2,9 @@
 // holding its chord in the key map by the key's name and held again as it changes, a chord a mod took refused, the
 // permissions of the keys, the guard each channel of the keys declares, and a page's recording of its keys, for any
 // page, as `shell.keys.record` asks it. Then `shell.keys` in a mod's page
-// (shell/key/renderer): a chord taken for a mod with deckit.app-keys, a press of it running what took it and the chord
+// (shell/key/renderer): every member for every mod, `list`, `set` and `reset` refused NOT_PERMITTED without
+// deckit.shell-keys and INVALID_ARGUMENT for an argument of another type, `record` throwing INVALID_ARGUMENT for no
+// function; a chord taken for a mod with deckit.app-keys, a press of it running what took it and the chord
 // let go once the lifecycle that took it ends; `take` refuses a mod without the permission of its scope at call with
 // NOT_PERMITTED, before its arguments, and an argument of another type with INVALID_ARGUMENT. Then the person's files
 // shown to them (shell/files): `shell.dialogs.chooseFolders` and `shell.reveal` for a mod granted nothing, an argument
@@ -244,7 +246,7 @@ async function main() {
         ''
     );
 
-    // shell.keys in a mod's page: take and record for every mod, the shell's keys changed with deckit.shell-keys alone,
+    // shell.keys in a mod's page: every member for every mod, the shell's keys changed with deckit.shell-keys alone,
     // each request refused as the shell's handle refuses one for a mod granted `granted`.
     const pageSent = []; // [channel, payload]
     const pageHeard = {};
@@ -260,13 +262,58 @@ async function main() {
     const requestFor = (granted) => (name, asked, send) =>
         REQUEST.requestOf(name, { ...asked, mod: 'a', granted }, send);
     const keysScope = makeScope();
-    const plainKeys = KEYS.forScope(keysScope, { changes: false, request: requestFor([]) });
-    const keeperKeys = KEYS.forScope(keysScope, { changes: true, request: requestFor([]) });
+    const refusalOf = (promise) =>
+        promise.then(
+            () => 'fulfilled',
+            (error) => `${error.stage} ${error.kind}`
+        );
+    const thrownBy = (call) => {
+        try {
+            call();
+            return 'answered';
+        } catch (error) {
+            return `${error.stage} ${error.kind}`;
+        }
+    };
+    const plainKeys = KEYS.forScope(keysScope, { request: requestFor([]) });
+    const keeperKeys = KEYS.forScope(keysScope, { request: requestFor(['deckit.shell-keys']) });
     check(
-        'shell.keys takes and records for every mod, and lists, sets and resets the shell keys with deckit.shell-keys',
-        Object.keys(plainKeys).join() === 'take,record' &&
+        'shell.keys has every member for every mod',
+        Object.keys(plainKeys).join() === 'take,record,list,set,reset' &&
             Object.keys(keeperKeys).join() === 'take,record,list,set,reset',
         [Object.keys(plainKeys), Object.keys(keeperKeys)]
+    );
+    check(
+        'list, set and reset refuse a mod without deckit.shell-keys at call with NOT_PERMITTED, before its arguments',
+        (await refusalOf(plainKeys.list())) === 'call NOT_PERMITTED' &&
+            (await refusalOf(plainKeys.set(5))) === 'call NOT_PERMITTED' &&
+            (await refusalOf(plainKeys.reset())) === 'call NOT_PERMITTED' &&
+            !pageSent.length,
+        pageSent
+    );
+    check(
+        'set and reset refuse an argument of another type at call with INVALID_ARGUMENT',
+        (await refusalOf(keeperKeys.set(5))) === 'call INVALID_ARGUMENT' &&
+            (await refusalOf(keeperKeys.set('closeWindow', { meta: true }))) === 'call INVALID_ARGUMENT' &&
+            (await refusalOf(keeperKeys.reset())) === 'call INVALID_ARGUMENT' &&
+            !pageSent.length,
+        pageSent
+    );
+    await keeperKeys.set('closeWindow', { code: 'KeyW', meta: true });
+    await keeperKeys.set('closeWindow');
+    check(
+        'set asks main for the keystroke, each modifier left out not held, and for none where it is left out',
+        JSON.stringify(pageSent) ===
+            '[["deckit-shell:key-set",{"id":"closeWindow","keystroke":' +
+                '{"code":"KeyW","meta":true,"control":false,"alt":false,"shift":false}}],' +
+                '["deckit-shell:key-set",{"id":"closeWindow","keystroke":null}]]',
+        pageSent
+    );
+    pageSent.length = 0;
+    check(
+        'record throws its refusal at call with INVALID_ARGUMENT for no function, and asks nothing of main',
+        thrownBy(() => plainKeys.record('no')) === 'call INVALID_ARGUMENT' && !pageSent.length,
+        pageSent
     );
     const pageRecorded = [];
     const stopRecording = plainKeys.record((keystroke) => pageRecorded.push(keystroke));
@@ -293,7 +340,7 @@ async function main() {
     // A chord taken for a mod with deckit.app-keys: a press runs what took it, and it is let go with its lifecycle.
     const tick = () => new Promise((resolve) => setImmediate(resolve));
     const takeScope = makeScope();
-    const appKeys = KEYS.forScope(takeScope, { changes: false, request: requestFor(['deckit.app-keys']) });
+    const appKeys = KEYS.forScope(takeScope, { request: requestFor(['deckit.app-keys']) });
     let ran = 0;
     pageSent.length = 0;
     const chord = await appKeys.take({ code: 'KeyK', alt: true }, () => ran++);
@@ -318,13 +365,8 @@ async function main() {
     check('a chord let go runs nothing', ran === 1, ran);
 
     // What take refuses: a mod without the permission of its scope, then an argument of another type.
-    const refusalOf = (promise) =>
-        promise.then(
-            () => 'fulfilled',
-            (error) => `${error.stage} ${error.kind}`
-        );
     pageSent.length = 0;
-    const plainTakes = KEYS.forScope(makeScope(), { changes: false, request: requestFor([]) });
+    const plainTakes = KEYS.forScope(makeScope(), { request: requestFor([]) });
     check(
         'take refuses a mod granted nothing at call with NOT_PERMITTED, in the app and in every app',
         (await refusalOf(plainTakes.take({ code: 'KeyK' }, () => {}))) === 'call NOT_PERMITTED' &&

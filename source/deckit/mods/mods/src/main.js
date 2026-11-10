@@ -29,6 +29,8 @@ class Mods {
         const { ui } = shell;
         const dock = shell.mods;
         let query = '';
+        let listed = []; // the app mods as the Dock last answered them
+        let asked = 0; // the last time the Dock was asked, so an answer that came late is not drawn
 
         ui.addStyle(`
             .mods-page {
@@ -89,7 +91,7 @@ class Mods {
             clearable: true,
             onInput: (value) => {
                 query = value;
-                draw();
+                show();
             },
             onSubmit: () => {
                 const first = shown()[0];
@@ -107,7 +109,7 @@ class Mods {
         ui.contextMenu(grid, {
             rowAt: (target) => target?.closest?.('.mods-item'),
             items: (item) => {
-                const mod = item && dock.list().find(({ id }) => id === item.dataset.modId);
+                const mod = item && listed.find(({ id }) => id === item.dataset.modId);
                 return mod && menuOf(mod);
             },
         });
@@ -126,10 +128,24 @@ class Mods {
 
         // The mods `query` finds, best first.
         function shown() {
-            return search(dock.list(), query);
+            return search(listed, query);
         }
 
-        function draw() {
+        // The Dock asked again, then shown.
+        async function draw() {
+            const now = ++asked;
+            let answered;
+            try {
+                answered = await dock.list();
+            } catch (error) {
+                return ui.toast(`Could not list the mods: ${error.message}`);
+            }
+            if (now !== asked) return;
+            listed = answered;
+            show();
+        }
+
+        function show() {
             const mods = shown();
             grid.replaceChildren(...mods.map(itemOf));
             none.hidden = mods.length > 0;

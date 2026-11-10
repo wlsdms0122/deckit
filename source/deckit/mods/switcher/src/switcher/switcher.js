@@ -15,8 +15,8 @@ const NOW_WAIT_MS = 150;
 // `toggle()` opens it or puts it away when it is open. Each open reads the mods and their actions anew. It stays until
 // the keyboard goes elsewhere: Escape, a mod coming on screen, another app. `end()` drops the list.
 // `notifications()` and `commands()` are the owners of deckit/notifications and deckit/commands while one is
-// connected, or null. The mods to show and their names are read with deckit.mods: `shell.mods.list()` and `open(id)`,
-// and `deckit.mods.list()`.
+// connected, or null. The mods to show, their names and icons are read with deckit.mods: `shell.mods.list()` and
+// `open(id)`, and `deckit.mods.list()`, whose bundles' fields give each mod's icon.
 function switcher(shell, deckit, given, { notifications = () => null, commands = () => null } = {}) {
     const records = deckit.storage.records;
     const drawing = { ui: shell.ui, theme: shell.theme }; // what the list is drawn with
@@ -84,11 +84,12 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
         const listing = Promise.all(
             sources.map(async ([mod, source]) => [mod, (await actionsOf(mod, source, 'list')) || []])
         );
-        const shown = shell.mods.list();
+        const [shown, bundles] = await Promise.all([shell.mods.list(), deckit.mods.list()]);
         const actions = [...(await listing), ...(await declared())];
+        const icons = new Map(bundles.map(({ id, mod }) => [id, mod?.fields?.icon]));
         current.about = {
-            names: new Map((await deckit.mods.list()).map(({ id, mod }) => [id, mod?.name])),
-            iconOf: shell.iconOf,
+            names: new Map(bundles.map(({ id, mod }) => [id, mod?.name])),
+            iconOf: (id) => (typeof icons.get(id) === 'string' ? icons.get(id) : ''),
         };
         const used = records.get(USE, {});
         const listed = ITEMS.listed({ actions, shown, about: current.about });

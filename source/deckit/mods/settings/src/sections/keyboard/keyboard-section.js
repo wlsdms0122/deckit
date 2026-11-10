@@ -35,7 +35,7 @@ const WRITTEN = {
 // The codes of the modifiers themselves: a press of one alone is no chord yet.
 const MODIFIER_CODES = /^(Meta|Control|Alt|Shift)(Left|Right)$|^(CapsLock|Fn|OS)/;
 
-// The Keyboard section: the app's own keys (shell.keys, under `appName`, listed where it has `list`) and every mod's
+// The Keyboard section: the app's own keys (shell.keys, under `appName`, none where `list` is refused) and every mod's
 // (`deckit/keys`, `keys()` while it is connected), recorded anew by a click through `shell.keys.record`, with what
 // keeps one from working. `onChange` hears that a key was set here.
 function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
@@ -126,7 +126,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
         };
         const none = { keys: [], refused: [] };
         const [own, declared] = await Promise.all([
-            shellKeys.list ? Promise.resolve(shellKeys.list()).catch(unread("the app's keys", [])) : [],
+            shellKeys.list().catch(unread("the app's keys", [])),
             keys() ? keys().list().catch(unread("the mods' keys", none)) : none,
         ]);
         return { shortcuts: [...own.map(shellShortcut), ...declared.keys.map(modShortcut)], refused: declared.refused };

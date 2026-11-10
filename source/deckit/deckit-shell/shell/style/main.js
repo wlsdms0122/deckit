@@ -25,7 +25,7 @@ export function createStyle({ deckit }) {
         PROTOCOL.current.handle((_payload, sender) => {
             const modId = deckit.mods.modOf(sender);
             if (!modId && !deckit.pages.nameOf(sender))
-                throw Object.assign(new Error('only a deckit page wears styles'), { kind: 'REFUSED' });
+                throw Object.assign(new Error('only a deckit page wears styles'), { stage: 'call', kind: 'REFUSED' });
             if (!pages.has(sender)) deckit.pages.whenEnds(sender, () => pages.delete(sender));
             pages.set(sender, modId);
             return stylesFor(modId);

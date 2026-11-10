@@ -11,8 +11,12 @@ const TOML = require('./toml.js');
 const SETTLE = 10000;
 // The keys of a manifest the system reads itself (spec/DECKIT-2).
 const MANIFEST = ['id', 'name', 'version', 'api', 'main', 'background', 'interfaces', 'permissions', 'contributes'];
-// The manifest fields each base defines itself, by the base: the shell's are those it reads of a mod.
-const BASE_FIELDS = { system: [], shell: require('../../deckit/deckit-sdk/shell/mods/field.js').KEYS };
+// The manifest fields each base defines itself, by the base: the shell's are those it reads of a mod, and `styles`,
+// the styles a mod granted deckit.styles declares (deckit-shell/shell/style).
+const BASE_FIELDS = {
+    system: [],
+    shell: [...require('../../deckit/deckit-sdk/shell/mods/field.js').KEYS, 'styles'],
+};
 // The permission whose mods the host app runs main process modules for, with the framework that defines it.
 const MAIN_PROCESS = 'system.main-process';
 

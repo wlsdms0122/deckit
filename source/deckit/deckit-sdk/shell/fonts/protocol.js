@@ -1,13 +1,8 @@
-// Between main and a mod's page with deckit.fonts, about the person's fonts.
+// Between main and a mod's page, about the person's fonts, which a page with deckit.fonts changes, and the fonts
+// installed.
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as FONTS_PERMISSION from './model/permission.js';
 
-// Answers the fonts at once: { text, size }, each null for the default.
-export const current = CHANNEL.pageToMain(
-    'deckit-shell:fonts-current',
-    {},
-    { reply: true, sync: true, guard: FONTS_PERMISSION.FONTS }
-);
 // Any of { text, size }, null for the default: answers the fonts as kept.
 export const set = CHANNEL.pageToMain(
     'deckit-shell:fonts-set',

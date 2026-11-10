@@ -1,4 +1,5 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
+import * as REQUEST from '../../deckit/request/index.js';
 import * as DECLARED from './protocol.js';
 import * as LAYER from '../ui/layer/index.js';
 import * as POINTER from '../ui/pointer/index.js';
@@ -23,9 +24,9 @@ const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'd
 // nothing more. Each window's content
 // is a document the page opens beside itself, which wears the page's rules, where the pointer and what is presented
 // are heard as in the page, and whose drag regions move the window (`drags`, environment: SHELL_PAGE.drags).
-// `granted` is the ids of the permissions the mod is granted, `deliver` calls what the mod handed, and `channels` binds
-// the windows' channels in the page.
-function createWindows({ granted, deliver, channels, drags }) {
+// `mod` is the id of the mod, `granted` the ids of the permissions it is granted, `deliver` calls what the mod handed,
+// and `channels` binds the windows' channels in the page.
+function createWindows({ mod, granted, deliver, channels, drags }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const open = new Map(); // id -> { handle, options, document, state, off }, while it is open
@@ -50,7 +51,8 @@ function createWindows({ granted, deliver, channels, drags }) {
     // MARK: - Public
     // `open(options)` opens a window, or orders front the one of its name open, and answers it: the key window, as
     // `makeKeyAndOrderFront()` puts it, or with `activates` false in front as `orderFront()` puts it, the keyboard left
-    // where it is. `list()` answers the windows open, in the order they opened.
+    // where it is. It throws its refusal: NOT_PERMITTED for the level `overlay` without system.overlay-windows, then
+    // INVALID_ARGUMENT for options that are no window's. `list()` answers the windows open, in the order they opened.
     function forScope(scope) {
         scope.add(() => {
             for (const id of open.keys()) PROTOCOL.close.send({ id });
@@ -77,13 +79,12 @@ function createWindows({ granted, deliver, channels, drags }) {
 
     // MARK: - Private
     function opened(options) {
+        const denied = REQUEST.deniedOf({ mod, granted, guard: PROTOCOL.open.guard }, options);
+        if (denied) throw REQUEST.refusal('call', 'NOT_PERMITTED', denied);
         const problem = problemOf(options);
-        if (problem) throw new TypeError(`shell.windows.open() ${problem}`);
+        if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `windows.open: ${problem}`);
         const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
         const payload = { name, level, width, height, minWidth, minHeight, activates };
-        const permission = CHANNEL.permissionOf(PROTOCOL.open.guard, payload);
-        if (permission !== null && !granted.includes(permission))
-            throw new TypeError(`shell.windows.open() opens an overlay window with ${permission}`);
         const { id, surface } = PROTOCOL.open.invoke(payload);
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
@@ -127,7 +128,7 @@ function createWindows({ granted, deliver, channels, drags }) {
             makeKeyAndOrderFront: () => PROTOCOL.makeKeyAndOrderFront.send({ id }),
             resize(width, height) {
                 if (!positive(width) || !positive(height))
-                    throw new TypeError('resize takes a width and a height above 0');
+                    throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'resize takes a width and a height above 0');
                 PROTOCOL.resize.send({ id, width, height });
             },
         });
@@ -196,6 +197,7 @@ function createWindows({ granted, deliver, channels, drags }) {
 // MARK: - Private
 // Why what `shell.windows.open` was handed is not a window, or ''.
 function problemOf(options) {
+    if (CHANNEL.kindOf(options) !== 'object') return 'options is no table';
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
         return `takes { name, content, level, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;

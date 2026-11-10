@@ -70,7 +70,7 @@ function blank(section) {
 }
 
 // The section of mod `id`, `{ id, name, icon }`. `about` is `{ names, iconOf }`: `names` each mod's name by id, and
-// `iconOf(mod)` the icon the shell lists a mod with.
+// `iconOf(mod)` the icon its manifest fields give it, or ''.
 function sectionOf(id, { names, iconOf }) {
     return { id, name: names.get(id) || id, icon: iconOf(id) };
 }

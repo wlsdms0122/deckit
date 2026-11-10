@@ -174,10 +174,10 @@ function modsSection({
         render();
     }
 
-    function render() {
-        // Under a shell that has no Dock, no mod is kept in one.
-        const pinned = new Set(pins ? pins.pinned() : []);
-        rows.set(modRowsOf({ ...listed, pinned }));
+    // Under a shell that has no Dock, or one that does not answer, no mod is kept in one.
+    async function render() {
+        const kept = pins ? await pins.pinned().catch(() => []) : [];
+        rows.set(modRowsOf({ ...listed, pinned: new Set(kept) }));
     }
 
     // A row opens and closes by a press, and stays as it is when the list is drawn again.

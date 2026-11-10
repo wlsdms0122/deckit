@@ -294,7 +294,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, KEY, makeStage, actionOn
             });
         PROTOCOL.setup.handle((_payload, sender) => {
             if (sender !== desktop.page)
-                throw Object.assign(new Error("only the desktop's page asks this"), { kind: 'REFUSED' });
+                throw Object.assign(new Error("only the desktop's page asks this"), { stage: 'call', kind: 'REFUSED' });
             deckit.pages.whenEnds(sender, pageEnded);
             const state = stateOfPage();
             desktop.sent = JSON.stringify(state);

@@ -9,9 +9,9 @@ class RegionParent {
         this.open = () => shell.windows.open({ name: 'main', content, width: 480, height: 320 });
         this.open();
         const region = shell.region(slot, 'region-parent/boards');
-        const placeFirst = () => {
-            const [first] = shell.children.list('region-parent/boards');
-            if (first) region.place(first.id);
+        const placeFirst = async () => {
+            const [first] = await shell.children.list('region-parent/boards');
+            if (first) await region.place(first.id);
         };
         shell.children.onChange(placeFirst);
         placeFirst();

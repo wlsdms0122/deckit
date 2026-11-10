@@ -2,16 +2,29 @@ import * as CHANNEL from '../../deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+// What `fonts.set` takes: any of the fonts, each a face's name or a size, null putting one back to its default.
+const SETS = Object.freeze([
+    [
+        'change',
+        'object',
+        [
+            ['text', 'string?'],
+            ['size', 'number?'],
+        ],
+    ],
+]);
+
 // MARK: - Initializer
 // MARK: - Public
-// `shell.fonts` for a mod with deckit.fonts, its channels bound with `channels`: `get()` answers the person's fonts,
-// `{ text, size }`, each null for the default, at once, and `set(change)` takes any of them, null putting one
-// back to its default, and resolves to the fonts as kept. Every page's theme wears them.
-function tool({ channels }) {
+// `shell.fonts`, its channels bound with `channels`, `request` making its request as the shell's handle guards it:
+// `set(change)`, guarded by deckit.fonts, takes any of `{ text, size }`, null putting one back to its default, and
+// resolves to the fonts as kept. Every page's theme wears them (`theme.textFont`, `theme.textSize`).
+function tool({ channels, request }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     return Object.freeze({
-        get: () => PROTOCOL.current.invoke(),
-        set: (change) => PROTOCOL.set.invoke(defined(change)),
+        set: request('fonts.set', { guard: PROTOCOL.set.guard, signature: SETS }, (change) =>
+            PROTOCOL.set.invoke(named(change))
+        ),
     });
 }
 
@@ -23,10 +36,10 @@ function installed({ channels }) {
 }
 
 // MARK: - Private
-// A member left undefined is not named: the fonts keep it.
-function defined(change) {
-    if (!change || typeof change !== 'object' || Array.isArray(change)) return change;
-    return Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined));
+// The fonts `change` names: a key it leaves undefined, and one `fonts.set` does not take, are not named, and the fonts
+// keep them.
+function named(change) {
+    return Object.fromEntries(SETS[0][2].map(([key]) => [key, change[key]]).filter(([, value]) => value !== undefined));
 }
 
 export { tool, installed };

@@ -12,16 +12,16 @@ export function createFonts({ deckit, installed }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The person's fonts, kept in the shell's state, which a mod with deckit.fonts reads and changes.
-    // `onChange(fonts)` hears them at once and at each change.
+    // The person's fonts, kept in the shell's state, which a mod with deckit.fonts changes: a change that is not one is
+    // refused at call, INVALID_ARGUMENT. `onChange(fonts)` hears them at once and at each change.
     function start({ onChange }) {
         fonts = FONTS.keptOf(deckit.state.read(KEPT, {}));
         onChange(fonts);
-        PROTOCOL.current.handle(() => fonts);
         PROTOCOL.installed.handle(() => installed());
         PROTOCOL.set.handle((change) => {
             const problem = FONTS.problemOf(change);
-            if (problem) throw new Error(`fonts.set() ${problem}`);
+            if (problem)
+                throw Object.assign(new Error(`fonts.set: ${problem}`), { stage: 'call', kind: 'INVALID_ARGUMENT' });
             const kept = keeping.then(() => keep(change, onChange));
             keeping = kept.catch(() => {});
             return kept;

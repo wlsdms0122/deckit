@@ -101,17 +101,22 @@ export function createRegion({ deckit }) {
     // children of its own interface. A child that does not run launches as the person's screen shows it.
     function place(page, number, named, id) {
         const parent = deckit.mods.modOf(page);
-        if (!providesOf(parent).has(named)) throw new Error(`${parent} does not provide ${named}`);
+        if (!providesOf(parent).has(named)) throw invalid(`${parent} does not provide ${named}`);
         if (id !== null && (interfaceOf(id) !== named || parentOf(id) !== parent))
-            throw new Error(`${id} is not a child of ${named} here`);
+            throw invalid(`${id} is not a child of ${named} here`);
         if (!regions.get(page)?.has(number)) setRect(page, number, named, null, { x: 0, y: 0, width: 0, height: 0 });
         const region = regions.get(page).get(number);
-        if (region.interface !== named) throw new Error(`the region is for ${region.interface}, not ${named}`);
+        if (region.interface !== named) throw invalid(`the region is for ${region.interface}, not ${named}`);
         if (id !== null) leave(id);
         region.child = id;
         if (id !== null && !runs(id))
             deckit.mods.launch(id).catch((error) => deckit.log.error(`${id} did not launch`, error));
         tell();
+    }
+
+    // What a place is refused with, at call: INVALID_ARGUMENT.
+    function invalid(message) {
+        return Object.assign(new Error(message), { stage: 'call', kind: 'INVALID_ARGUMENT' });
     }
 
     function end(page, number) {

@@ -3,12 +3,13 @@
 // those kept, then those running, in the order they launched; and the Dock (dock/main) over a stand-in for what connect
 // answers: the app mods it keeps at the first start, as the host app names them or as it ships them, then as the person
 // left them, the list a mod with deckit.mods reads, which holds the app mods that load and no bundle that does not and
-// no accessory, and a mod opened from it, launched when it does not run, its windows in front when it does, or its
-// reopen() with none open, as the local seat, asked by the mod that opens it, the host window coming up only as the
-// mod may activate; and what the person does to it in the desktop's page, done by the seat
-// whose screen that is: an item clicked, a mod quit, kept or taken out, the kept ones reordered, each drawn again, and
-// nothing a mod's page sends there. Exits 1 with a line for each check that failed. The packages are ES modules, so
-// they are imported as such.
+// no accessory, an app it keeps there, any other mod refused INVALID_ARGUMENT, and an app opened from it, launched
+// when it does not run, its windows in front when it does, or its reopen() with none open, as the local seat, asked by
+// the mod that opens it, the host window coming up only as the mod may activate, any other mod refused; what the
+// person does to it in the desktop's page, done by the seat whose screen that is: an item clicked, a mod quit, kept or
+// taken out, the kept ones reordered, each drawn again, and nothing a mod's page sends there; and `shell.mods` in a
+// mod's page (dock/renderer), each member a request refused as the shell's handle refuses one. Exits 1 with a line for
+// each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -114,10 +115,10 @@ async function main() {
     );
     const guarded = (name) => listing.guards[`deckit-shell:dock-${kebab(name)}`];
     check(
-        "a mod with deckit.mods reads and changes the Dock, any page asks a mod's icon, and the desktop's page sends " +
-            'what the person does',
+        "a mod with deckit.mods reads and changes the Dock, and the desktop's page sends what the person does",
         ['list', 'pinned', 'setPinned', 'open'].every((name) => guarded(name) === 'deckit.mods') &&
-            ['icon', 'click', 'quit', 'keep', 'reorder'].every((name) => guarded(name) === CHANNEL.GUARD.ANY),
+            ['click', 'quit', 'keep', 'reorder'].every((name) => guarded(name) === CHANNEL.GUARD.ANY) &&
+            !('deckit-shell:dock-icon' in listing.guards),
         listing.guards
     );
     await listing.ask('setPinned', { id: 'b', pinned: false }, 'switcher');
@@ -126,6 +127,20 @@ async function main() {
         'a mod taken out of the Dock is no longer kept there, as kept',
         keptNow.join() === 'a' && JSON.stringify(listing.state['panel-pinned']) === '["a"]',
         keptNow
+    );
+    const refusedPins = [];
+    for (const id of ['switcher', 'broken', 'gone'])
+        refusedPins.push(
+            await listing.ask('setPinned', { id, pinned: true }, 'switcher').then(
+                () => 'kept',
+                (error) => `${error.stage} ${error.kind}`
+            )
+        );
+    check(
+        'a mod that is no app of the catalog is refused a place in the Dock at call, INVALID_ARGUMENT, and not kept',
+        refusedPins.every((one) => one === 'call INVALID_ARGUMENT') &&
+            JSON.stringify(listing.state['panel-pinned']) === '["a"]',
+        refusedPins
     );
 
     // `a` does not run, `b` runs with a window open, `c` runs with none.
@@ -164,9 +179,13 @@ async function main() {
     );
     const accessory = await opening.ask('open', { id: 'switcher' }, 'switcher').then(
         () => '',
-        (error) => error.message
+        (error) => `${error.stage} ${error.kind}`
     );
-    check('a mod that is no app is refused', /is no app/.test(accessory), accessory);
+    check(
+        'a mod that is no app is refused at call, INVALID_ARGUMENT',
+        accessory === 'call INVALID_ARGUMENT',
+        accessory
+    );
 
     // The person at the desktop's page, the local seat's screen.
     const clicking = dockOver(createDock, {
@@ -260,6 +279,56 @@ async function main() {
         .map(({ id }) => id)
         .join();
     check('the Dock goes on with what deckit refuses to keep, as state it did not read', held === 'a,b', held);
+
+    // `shell.mods` in a mod's page: each member a request, refused NOT_PERMITTED without deckit.mods before its
+    // arguments are read, then INVALID_ARGUMENT for an argument of another type.
+    const { createDock: createPageDock } = await import(url('deckit-sdk', 'shell', 'dock', 'renderer.js'));
+    const REQUEST = await import(url('deckit-sdk', 'deckit', 'request', 'index.js'));
+    const asked = [];
+    const pageChannels = {
+        bind: (declared) => ({
+            guard: declared.guard,
+            invoke: async (payload) => asked.push([declared.channel, payload]) && [],
+        }),
+    };
+    const pageDock = (granted) =>
+        createPageDock({
+            channels: pageChannels,
+            request: (name, given, send) => REQUEST.requestOf(name, { ...given, mod: 'a', granted }, send),
+        }).mods;
+    const refusalOf = (promise) =>
+        promise.then(
+            () => 'fulfilled',
+            (error) => `${error.stage} ${error.kind}`
+        );
+    const ungranted = pageDock([]);
+    const granted = pageDock(['deckit.mods']);
+    check(
+        'shell.mods refuses a mod without deckit.mods at call with NOT_PERMITTED, before its arguments',
+        (await refusalOf(ungranted.list())) === 'call NOT_PERMITTED' &&
+            (await refusalOf(ungranted.pinned())) === 'call NOT_PERMITTED' &&
+            (await refusalOf(ungranted.setPinned(5))) === 'call NOT_PERMITTED' &&
+            (await refusalOf(ungranted.open())) === 'call NOT_PERMITTED' &&
+            !asked.length,
+        asked
+    );
+    check(
+        'shell.mods refuses an argument of another type at call with INVALID_ARGUMENT',
+        (await refusalOf(granted.setPinned('b', 'yes'))) === 'call INVALID_ARGUMENT' &&
+            (await refusalOf(granted.setPinned('b'))) === 'call INVALID_ARGUMENT' &&
+            (await refusalOf(granted.open(5))) === 'call INVALID_ARGUMENT' &&
+            !asked.length,
+        asked
+    );
+    const answers = [granted.list(), granted.pinned(), granted.setPinned('b', true), granted.open('b')];
+    check(
+        'shell.mods answers each request with a promise and asks main',
+        answers.every((one) => one instanceof Promise) &&
+            (await Promise.all(answers)) &&
+            asked.map(([channel]) => channel.replace('deckit-shell:dock-', '')).join() ===
+                'list,pinned,set-pinned,open',
+        asked
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);

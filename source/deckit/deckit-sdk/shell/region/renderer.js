@@ -1,4 +1,5 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
+import * as REQUEST from '../../deckit/request/index.js';
 import * as DECLARED from './protocol.js';
 import * as FIELD from '../mods/field.js';
 
@@ -10,9 +11,9 @@ const STYLE = `
 `;
 
 // `running` is the mod the page runs; `deliver(label, listener, ...args)` calls a listener of the mod's and records on
-// its row what it throws; `channels` binds the regions' channels in the page; `windowOf(element)` is the id of the
-// window of the page's an element is in, or null.
-export function createRegion({ running, deliver, channels, windowOf }) {
+// its row what it throws; `channels` binds the regions' channels in the page; `request` makes each of its requests as
+// the shell's handle guards them; `windowOf(element)` is the id of the window of the page's an element is in, or null.
+export function createRegion({ running, deliver, channels, request, windowOf }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const listeners = new Set();
@@ -23,26 +24,31 @@ export function createRegion({ running, deliver, channels, windowOf }) {
     // MARK: - Public
     // What a handle holds of regions, what it makes ending as `scope` is cut. `region(element, interface)` makes a
     // place in one of the mod's windows where the shell shows the views of that interface's children, for an interface
-    // the manifest provides. A child runs in its own page, laid over what of `element` is seen as it moves, so what the
-    // parent draws there is covered and nothing of the parent's floats over it. `place(id)` puts a child in this
-    // region, out of any other it was in, and `clear()` leaves the region empty. The region ends when its element, once
-    // in the page, leaves it. `children` are the mod's children: the mods whose view names an interface it provides as
-    // their parent, while it owns it. `list(interface)` answers those of one interface in the mods' order, and
-    // `onChange(listener)` hears `listener(interface, children)` each time an interface's children change, answering
-    // its off.
+    // the manifest provides, and throws its refusal, INVALID_ARGUMENT, for anything else. A child runs in its own page,
+    // laid over what of `element` is seen as it moves, so what the parent draws there is covered and nothing of the
+    // parent's floats over it. `place(id)`, a request, puts a child in this region, out of any other it was in, and
+    // `clear()`, a request, leaves the region empty; each is refused at call, ENDED, once the region has ended. The
+    // region ends when its element, once in the page, leaves it. `children` are the mod's children: the mods whose view
+    // names an interface it provides as their parent, while it owns it. `list(interface)`, a request, resolves to those
+    // of one interface in the mods' order, and `onChange(listener)` hears `listener(interface, children)` each time an
+    // interface's children change, answering its off, and throws its refusal for a listener that is no function.
     function forScope(scope) {
         return {
             region(element, named) {
                 return make(element, named, scope);
             },
             children: Object.freeze({
-                list: (named) => {
-                    const problem = interfaceProblem(named);
-                    if (problem) throw new Error(`children.list() ${problem}`);
-                    return (childrenNow()[named] || []).slice();
-                },
+                list: request(
+                    'children.list',
+                    { guard: PROTOCOL.children.guard, signature: [['interface', 'string']] },
+                    (named) => {
+                        const problem = interfaceProblem(named);
+                        if (problem) throw invalid(`children.list: ${problem}`);
+                        return (childrenNow()[named] || []).slice();
+                    }
+                ),
                 onChange(listener) {
-                    if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
+                    if (typeof listener !== 'function') throw invalid('children.onChange: listener is no function');
                     childrenNow();
                     listeners.add(listener);
                     return scope.add(() => listeners.delete(listener));
@@ -54,9 +60,9 @@ export function createRegion({ running, deliver, channels, windowOf }) {
     // MARK: - Private
     // A region ends once its element, after it was in the page, leaves it, or as `scope` is cut.
     function make(element, named, scope) {
-        if (element?.nodeType !== Node.ELEMENT_NODE) throw new Error('shell.region() takes an element');
+        if (element?.nodeType !== Node.ELEMENT_NODE) throw invalid('region: element is no element');
         const problem = interfaceProblem(named);
-        if (problem) throw new Error(`shell.region() ${problem}`);
+        if (problem) throw invalid(`region: ${problem}`);
         const region = ++count;
         let sent = '';
         let entered = false; // a region made in attach() has its element in the page only once the view is up
@@ -94,9 +100,10 @@ export function createRegion({ running, deliver, channels, windowOf }) {
             view.addEventListener('pagehide', away, { once: true });
         };
         follow();
+        const show = (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, interface: named, id }));
         return Object.freeze({
-            place: (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, interface: named, id: String(id) })),
-            clear: () => (ended ? refused() : PROTOCOL.place.invoke({ region, interface: named, id: null })),
+            place: request('place', { guard: PROTOCOL.place.guard, signature: [['id', 'string']] }, show),
+            clear: request('clear', { guard: PROTOCOL.place.guard }, () => show(null)),
         });
     }
 
@@ -109,7 +116,11 @@ export function createRegion({ running, deliver, channels, windowOf }) {
     }
 
     function refused() {
-        return Promise.reject(new Error('the region has ended: its element left the page'));
+        return Promise.reject(REQUEST.refusal('call', 'ENDED', 'the region has ended'));
+    }
+
+    function invalid(message) {
+        return REQUEST.refusal('call', 'INVALID_ARGUMENT', message);
     }
 
     // Each listener hears the interfaces whose children changed, one by one.

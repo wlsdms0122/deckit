@@ -20,8 +20,8 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
     // MARK: - Public
     // The Dock: the app mods the person keeps there, running or not, then those running now. The desktop's page draws
     // it, and what the person does there is done by the seat whose screen it is, a click its input reaching the mod
-    // clicked. A mod with deckit.mods reads and changes it, and opens a mod as the person does from it, as the local
-    // seat, asking that mod.
+    // clicked. A mod with deckit.mods reads it, keeps an app there or takes one out, and opens an app as the person
+    // does from it, as the local seat, asking that mod.
     function start() {
         // At the first start the Dock's mods take their places in the order they are kept there.
         const kept = deckit.state.read(PINNED, null);
@@ -30,13 +30,15 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         order = arranged ?? (kept ? [] : [...pinned]);
         if (!kept) keep(PINNED, [...pinned]);
         if (!kept && !arranged) keep(ORDER, order);
-        PROTOCOL.icon.handle(({ mod }) => FIELD.iconOf(deckit.mods.fieldsOf(mod)));
         PROTOCOL.list.handle(() => listed());
         PROTOCOL.pinned.handle(() => [...pinned]);
-        PROTOCOL.setPinned.handle(({ id, pinned: on }) => setPinned(id, on));
+        PROTOCOL.setPinned.handle(({ id, pinned: on }) => {
+            refuseNoApp(id);
+            setPinned(id, on);
+        });
         PROTOCOL.open.handle(({ id }, sender) => {
             const from = deckit.mods.modOf(sender);
-            if (!isApp(id)) throw new Error(`${id} is no app`);
+            refuseNoApp(id);
             DESKTOP.activation.request(from, id);
             open(id, DESKTOP.localSeat);
         });
@@ -137,6 +139,11 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         return MODS.loaded(deckit.mods)
             .map(({ id }) => id)
             .filter((id) => shipped.has(id) && isApp(id));
+    }
+
+    // A mod asked for by a mod's page is an app: refused at call, INVALID_ARGUMENT, for any other.
+    function refuseNoApp(id) {
+        if (!isApp(id)) throw Object.assign(new Error(`${id} is no app`), { stage: 'call', kind: 'INVALID_ARGUMENT' });
     }
 
     // A mod that loads and whose activation policy is regular.

@@ -1,4 +1,5 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
+import * as REQUEST from '../../deckit/request/index.js';
 import * as DECLARED from './protocol.js';
 
 // `deliver(label, listener, ...args)` calls a listener of the mod's and records on its row what it throws; `channels`
@@ -12,18 +13,23 @@ export function createDrop({ deliver, channels }) {
     // What a handle holds of drops, what it makes ending as `scope` is cut. `dropDestination(element, { onDrop,
     // onTargeted })` takes the files the person drags from outside the app onto `element`: `onTargeted(on)` hears a
     // drag of files come over it and leave, and `onDrop(paths, { x, y })` the files dropped, by their paths, at a point
-    // from its top left. Of destinations one inside another, the innermost takes the drop. Answers its off.
+    // from its top left. Of destinations one inside another, the innermost takes the drop. Answers its off, and throws
+    // its refusal, INVALID_ARGUMENT, for an element that is none or options whose onDrop or onTargeted is no function.
     function forScope(scope) {
         return {
-            dropDestination(element, { onDrop, onTargeted = null } = {}) {
-                if (element?.nodeType !== Node.ELEMENT_NODE)
-                    throw new Error('shell.dropDestination() takes an element');
-                if (typeof onDrop !== 'function') throw new Error('shell.dropDestination() takes onDrop, a function');
+            dropDestination(element, options) {
+                const { onDrop, onTargeted = null } = options && typeof options === 'object' ? options : {};
+                if (element?.nodeType !== Node.ELEMENT_NODE) throw invalid('element is no element');
+                if (typeof onDrop !== 'function') throw invalid('options.onDrop is no function');
                 if (onTargeted !== null && typeof onTargeted !== 'function')
-                    throw new Error("shell.dropDestination()'s onTargeted is a function");
+                    throw invalid('options.onTargeted is no function');
                 return make(element, { onDrop, onTargeted }, scope);
             },
         };
+    }
+
+    function invalid(problem) {
+        return REQUEST.refusal('call', 'INVALID_ARGUMENT', `dropDestination: ${problem}`);
     }
 
     // MARK: - Private
