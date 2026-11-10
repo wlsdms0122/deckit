@@ -1,6 +1,6 @@
 case = 9
 name = "a-redirect-is-the-answer-where-redirect-is-manual"
-note = "With redirect manual, a redirect is not followed and is the answer, with redirected false. site-a answers moved 302 to hello.txt."
+note = "With redirect manual, a redirect is not followed and is the answer, with redirected false. site-a answers moved 301 to hello.txt, and the answer holds the headers it sent and no other."
 
 [host]
 base = "web"
@@ -27,4 +27,4 @@ sites = ["site-a/moved"]
 args = [{ redirect = "manual" }]
 
 [step.expect]
-answers = { url = "site-a/moved", status = 302, headers = [["connection", "close"], ["content-length", "0"], ["location", "/hello.txt"]], body = "", redirected = false }
+answers = { url = "site-a/moved", status = 301, headers = [["connection", "close"], ["content-length", "0"], ["location", "/hello.txt"]], body = "", redirected = false }
