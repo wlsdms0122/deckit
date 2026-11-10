@@ -24,17 +24,20 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The exports for a connection: what a sender posts is its own.
+    // The exports for a connection: what a sender posts is its own, and it reads and takes away its own alone.
     function exportsFor(connection) {
         const mod = { id: connection.credential.mod, name: connection.mod.name };
         return Object.freeze({
-            post: (notification) => post(mod, notification),
-            remove: async (id) => remove(id, { of: mod.id }),
-            list: async () => list(),
+            post: async (notification) => post(mod, notification),
+            remove: async (id) => {
+                if (typeof id !== 'string') throw invalid('remove takes (id), a string');
+                return remove(id, { of: mod.id });
+            },
+            list: async () => list().flatMap(({ mod: sender, ...each }) => (sender.id === mod.id ? [each] : [])),
         });
     }
 
-    // The record, newest first, without the commands a press runs.
+    // The record, newest first, each with its sender and without the commands a press runs.
     function list() {
         return kept.map(({ id, mod, title, body, posted, actions }) => ({
             id,
@@ -97,28 +100,29 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
     }
 
     // MARK: - Private
-    async function post(
-        mod,
-        { title = '', body = '', silent = false, command = null, args = null, actions = [] } = {}
-    ) {
+    // A post of `mod`'s, refused of kind INVALID_ARGUMENT where `given` is not a table of the keys and types it takes.
+    async function post(mod, given) {
+        if (!isTable(given)) throw invalid('post takes (notification), a table');
+        const { title = '', body = '', silent = false, command = null, args = null, actions = [] } = given;
         if (typeof title !== 'string' || typeof body !== 'string' || !(title || body))
-            throw new TypeError('post takes { title, body }, text, one of them not empty');
-        if (!runs({ command, args })) throw new TypeError("a command is the id of one of the sender's, args a table");
-        if (!Array.isArray(actions) || actions.some((action) => !action?.title || !runs(action) || !action.command))
-            throw new TypeError('actions are [{ title, command, args }]');
+            throw invalid('post takes { title, body }, text, one of them not empty');
+        if (typeof silent !== 'boolean') throw invalid('silent is a boolean');
+        if (!runs({ command, args })) throw invalid("a command is the id of one of the sender's, args a table");
+        if (!Array.isArray(actions) || !actions.every(isAction))
+            throw invalid('actions are [{ title, command, args }], a title and a command not empty');
         const notification = {
             id: newId(),
             mod,
             title,
             body,
-            silent: !!silent,
+            silent,
             ...ran({ command, args }),
-            actions: actions.map((action) => ({ title: String(action.title), ...ran(action) })),
+            actions: actions.map((action) => ({ title: action.title, ...ran(action) })),
             posted: now(),
         };
         kept.unshift(notification);
         kept.splice(KEEP);
-        changed('posted', notification.id);
+        changed();
         if (allowed(mod.id)) {
             queue.push(notification);
             drain();
@@ -129,7 +133,21 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
     // Whether `command` is none or a command's id, and `args` none or a table.
     function runs({ command = null, args = null }) {
         if (command !== null && (typeof command !== 'string' || !command)) return false;
-        return args === null || (typeof args === 'object' && !Array.isArray(args));
+        return args === null || isTable(args);
+    }
+
+    function isAction(action) {
+        return (
+            isTable(action) && typeof action.title === 'string' && !!action.title && !!action.command && runs(action)
+        );
+    }
+
+    function isTable(value) {
+        return typeof value === 'object' && value !== null && !Array.isArray(value);
+    }
+
+    function invalid(message) {
+        return Object.assign(new Error(message), { kind: 'INVALID_ARGUMENT' });
     }
 
     // What a press runs, as it is kept: a command with its args, `{}` for none, or neither for no command.
@@ -195,13 +213,12 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
         if (place < 0) return;
         kept.splice(place, 1);
         if (toasts.delete(notification.id)) drawer?.hide(notification.id);
-        changed('removed', notification.id);
+        changed();
         drain();
     }
 
-    function changed(signal, id) {
+    function changed() {
         deckit.storage.records.set(KEY, kept);
-        deckit.events.emit(`${INTERFACE}:${signal}`, id);
         for (const listener of listeners) listener();
     }
 

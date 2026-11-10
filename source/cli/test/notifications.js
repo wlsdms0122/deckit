@@ -1,5 +1,6 @@
 // The Notifications mod's center (mods/notifications/src/center/center.js) over a stand-in for deckit: what a sender
-// posts through its connection is listed, signalled and kept, removed only by its sender, let through at the rate and
+// posts through its connection is kept and listed to its sender alone, removed only by its sender, refused for what it
+// does not take, let through at the rate and
 // queued behind the toasts on screen, shown as the system's while the app is not in front, and a press runs the
 // sender's command through deckit/commands. Then a sender, Calendar's notices, with an owner to post to and with none.
 // Exits 1 with a line for each check that failed.
@@ -28,7 +29,6 @@ async function main() {
     let active = false;
     const records = new Map();
     const refused = []; // what storage refused to keep, as it refuses what is no value
-    const emitted = [];
     const ran = []; // [mod, command, args]
     const system = []; // { title, press }
     const deckit = {
@@ -42,7 +42,6 @@ async function main() {
                 },
             },
         },
-        events: { emit: (name, ...args) => emitted.push([name, ...args]) },
         notifications: {
             show: async ({ title }) => {
                 const shown = { title, press: null };
@@ -65,17 +64,14 @@ async function main() {
         args: { date: '2026-11-06' },
     });
     await ticks();
-    const listed = await browser.list();
+    const listed = await calendar.list();
     check(
-        'a post is listed for any sender, with its sender, and without its command',
-        listed.length === 1 && listed[0].id === first && listed[0].mod.name === 'Calendar' && !('command' in listed[0]),
+        'a post is listed to its sender, without its sender and its command',
+        listed.length === 1 && listed[0].id === first && !('mod' in listed[0]) && !('command' in listed[0]),
         listed
     );
-    check(
-        'a post is signalled as posted',
-        emitted.some(([name, id]) => name === 'deckit/notifications:posted' && id === first),
-        emitted
-    );
+    check('a post is not listed to another sender', (await browser.list()).length === 0, await browser.list());
+    check('the owner lists it with its sender', sut.list()[0]?.mod.name === 'Calendar', sut.list());
     check('a post is kept', records.get('notifications')?.[0]?.id === first, records.get('notifications'));
     check('while the app is not in front a post is shown as the system’s', system[0]?.title === 'Standup', system);
 
@@ -98,27 +94,29 @@ async function main() {
     check('another sender does not remove it', (await browser.remove(second)) === false, null);
     check('its sender removes it', (await calendar.remove(second)) === true, null);
     check('a removal runs nothing', ran.length === 1, ran);
-    check(
-        'a removal is signalled as removed',
-        emitted.some(([name, id]) => name === 'deckit/notifications:removed' && id === second),
-        emitted
-    );
-    check(
-        'an action that names no command is refused',
-        await browser.post({ title: 'x', actions: [{ title: 'Open' }] }).then(
-            () => false,
-            () => true
-        ),
-        null
-    );
-    check(
-        'a post with neither title nor body is refused',
-        await browser.post({}).then(
-            () => false,
-            () => true
-        ),
-        null
-    );
+    const kindOf = (promise) =>
+        promise.then(
+            () => null,
+            (error) => error.kind ?? null
+        );
+    for (const [what, notification] of [
+        ['no notification', undefined],
+        ['a notification of another type', 'x'],
+        ['neither title nor body', {}],
+        ['a title of another type', { title: 5 }],
+        ['silent of another type', { title: 'x', silent: 'yes' }],
+        ['an empty command', { title: 'x', command: '' }],
+        ['args of another type', { title: 'x', command: 'show', args: [1] }],
+        ['actions of another type', { title: 'x', actions: {} }],
+        ['an action that names no command', { title: 'x', actions: [{ title: 'Open' }] }],
+        ['an action title of another type', { title: 'x', actions: [{ title: 5, command: 'open' }] }],
+    ])
+        check(
+            `a post with ${what} is refused for its argument`,
+            (await kindOf(browser.post(notification))) === 'INVALID_ARGUMENT'
+        );
+    check('a remove of an id of another type is refused', (await kindOf(browser.remove(1))) === 'INVALID_ARGUMENT');
+    check('a post refused keeps nothing', (await browser.list()).length === 0, await browser.list());
 
     // The rate: a sender's posts beyond it within its window are kept, not shown.
     system.length = 0;

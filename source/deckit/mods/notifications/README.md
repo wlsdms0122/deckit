@@ -4,7 +4,7 @@ What mods tell you, in one place: the notifications they post, shown over the ap
 
 ## Providing `deckit/notifications`
 
-Notifications provides `deckit/notifications` major 1, an interface of the mod contract's own (MOD.md, Standard interfaces): a mod posts with `post({ title, body, silent, command, args, actions })`, takes its own away with `remove(id)`, and reads the record with `list()`. The exports open in `start`, so a mod posts with no screen too. Notifications sends `deckit/notifications:posted` and `deckit/notifications:removed`, each with the notification's id.
+Notifications provides `deckit/notifications` major 1, an interface of the mod contract's own (MOD.md, Standard interfaces): a mod posts with `post({ title, body, silent, command, args, actions })`, takes its own away with `remove(id)`, and reads its own with `list()`: a mod's notifications are its own. The exports open in `start`, so a mod posts with no screen too.
 
 ```toml
 [interfaces]
@@ -27,9 +27,9 @@ const id = await this.notifications.post({
 
 | Export | What it is |
 |---|---|
-| `post({ title, body, silent, command, args, actions })` | posts a notification of the sender's, and resolves to its id, a string. `title` and `body` are text, one of them not empty; `silent` asks for no sound. `command` is the id of a command the sender declares to `deckit/commands` (see the Commands mod), which a press on the notification runs with `args`, a table that fits its `params` (`{}` left out); `actions`, `[{ title, command, args }]`, are buttons beside it, each running its own command of the sender's. A notification with no `command` is pressed to put it away, and brings nothing forward. A post of another shape rejects with a `TypeError` |
-| `remove(id)` | takes away a notification of the sender's own, and resolves to whether it was there |
-| `list()` | the record, newest first, whoever posted, `[{ id, mod, title, body, posted, actions }]`, `mod` the sender's `{ id, name }`, `posted` when, in milliseconds, and `actions` `[{ title }]` |
+| `post({ title, body, silent, command, args, actions })` | posts a notification of the sender's, and resolves to its id, a string. `title` and `body` are text, one of them not empty; `silent`, a boolean, asks for no sound. `command` is the id of a command the sender declares to `deckit/commands` (see the Commands mod), which a press on the notification runs with `args`, a table that fits its `params` (`{}` left out); `actions`, `[{ title, command, args }]`, are buttons beside it, each running its own command of the sender's. A notification with no `command` is pressed to put it away, and brings nothing forward. A post of another shape, a value of another type among it, rejects with kind `INVALID_ARGUMENT` |
+| `remove(id)` | takes away a notification of the sender's own, and resolves to whether it was there; an `id` that is not a string rejects with kind `INVALID_ARGUMENT` |
+| `list()` | the sender's own notifications in the record, newest first, `[{ id, title, body, posted, actions }]`, `posted` when, in milliseconds, and `actions` `[{ title }]` |
 
 A command a notification names is always the sender's own: Notifications runs it on the mod that posted it.
 
@@ -37,7 +37,7 @@ A command a notification names is always the sender's own: Notifications runs it
 
 | | |
 |---|---|
-| The record | each post is kept, newest first, up to 100: the oldest goes as a new one comes. It is kept across runs, in Notifications' storage, and `list()` reads it whoever posted |
+| The record | each post is kept, newest first, up to 100: the oldest goes as a new one comes. It is kept across runs, in Notifications' storage, and `list()` reads a sender's own of it |
 | The rate | a sender is shown at most 3 notifications within 10 seconds; one past that is kept and listed, and not shown |
 | The queue | what is let through is shown in the order posted. While the app is in front, as a toast; otherwise, and while Notifications has no screen, as the system's (`deckit.notifications.show`) |
 | Toasts | at most 3 at once, stacked in Notifications' window over the app, which leaves the keyboard where it is; one more waits in the queue until one goes. Each goes after 6 seconds or as you close it, and stays in the record |
