@@ -77,7 +77,7 @@ A fetch sends one HTTP request to the URL `url` names, as the URL standard write
 
 It carries besides the headers the session writes itself, which this DECKIT does not fix: under *Notes*.
 
-The cookies each answer sets, by its `set-cookie` headers, are kept in the session as HTTP's state management keeps them, the answers of the redirects it follows among them: a later fetch through the session sends them, as a web page shown in it does, and no fetch through another session does, of the same mod or another's. A cookie an answer sets with no time it expires is kept as one that expires 1209600 seconds, 14 days, after it is kept. What the session keeps stays as the host app quits and starts again, until the mod clears it or is erased, as [the web engine](../DECKIT-23/SPEC.md) fixes them.
+The cookies each answer sets, by its `set-cookie` headers, are kept in the session as HTTP's state management keeps them, the answers of the redirects it follows among them: a later fetch through the session sends them, and no fetch through another session does, of the same mod or another's. A cookie an answer sets with no time it expires is kept as one that expires 1209600 seconds, 14 days, after it is kept. What the session keeps stays as the host app quits and starts again, until the mod clears it or is erased, as [the web engine](../DECKIT-23/SPEC.md) fixes them.
 
 **Note.** A cookie that expires as the session ends would end as the host app quits, since a session lasts as long as the app does, and a person signed in to a site in a mod would be signed out at each start; 14 days is a time a person stays signed in.
 
@@ -105,7 +105,7 @@ A fetch answers a table:
 | `body` | string, a `base64`: the bytes the answer holds, with a content coding of `gzip` or `deflate` undone, the empty string where it holds none; left out for a status that has no body: 101, 103, 204, 205 and 304 |
 | `redirected` | boolean: `true` where a redirect was followed |
 
-The **limit** is 4194304 bytes, 4 MiB. An answer whose bytes, its content coding undone, are more than the limit, or that says by its `content-length` that they will be, is over it: the fetch stops reading it, and is refused at `call` with kind `QUOTA_EXCEEDED`.
+The **limit** is 4194304 bytes, 4 MiB. An answer whose bytes, its content coding undone, are more than the limit, or whose `content-length` is more than the limit, is over it: the fetch stops reading it, and is refused at `call` with kind `QUOTA_EXCEEDED`.
 
 A fetch answers the bytes it is answered and does nothing more with them: it runs no script of them, and loads nothing they name.
 
@@ -132,7 +132,7 @@ A fetch answers the bytes it is answered and does nothing more with them: it run
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The refusal `ENDED`: no base of [the case format](../DECKIT-1/SPEC.md) ends one lifecycle of a run while another runs, as [the web engine](../DECKIT-23/SPEC.md) says. A method that is none of the six, sent as it is handed: the sites of the case format answer a method HTTP does not register, or one not in upper case, with 400. An answer that says by its `content-length` that it is over the limit: a case's site writes the length of what it holds. A cookie kept 14 days: a case reads no cookie's time, and takes no 14 days. A content coding of `deflate`, and the statuses 101 and 103: no case's site answers them, a site answering 101 and 103 only on the way to another answer. A connection that fails: the case format's sites answer every request; the cases hold `REFUSED` by redirects. Which cookies HTTP's state management sends with a request, past one of the path `/` on one host: that is HTTP's, held by a case of each sent and not sent.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The refusal `ENDED`: no base of [the case format](../DECKIT-1/SPEC.md) ends one lifecycle of a run while another runs, as [the web engine](../DECKIT-23/SPEC.md) says. A method that is none of the six, sent as it is handed: the sites of the case format answer a method HTTP does not register, or one not in upper case, with 400. An answer whose `content-length` is more than the limit: a case's site writes the length of what it holds. A cookie kept 14 days: a case reads no cookie's time, and takes no 14 days. A content coding of `deflate`, and the statuses 101 and 103: no case's site answers them, a site answering 101 and 103 only on the way to another answer. A connection that fails: the case format's sites answer every request; the cases hold `REFUSED` by redirects. Which cookies HTTP's state management sends with a request, past one of the path `/` on one host: that is HTTP's, held by a case of each sent and not sent.
 
 **Note.** What a request carries besides what is handed is not fixed: the headers the session writes itself, such as its host, the length of its body, its cookies, the user agent of its pages, what it accepts, the languages it asks for, and the content type of a body that names none. A site reads them as it reads those of a page shown in the session, and they differ from one implementation's HTTP to another's; a header handed of one of those names may be sent as handed or replaced by the session's.
 
