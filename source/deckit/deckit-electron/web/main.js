@@ -137,7 +137,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     function stopFind(page, { keepSelection }) {
         const entry = REGISTRY.get(page.id);
         if (entry) entry.found = 0;
-        if (!keepSelection) page.evaluate('getSelection()?.removeAllRanges()', 'deckit').catch(() => {});
+        if (!keepSelection) SCRIPT.unselect(page);
     }
 
     function close(page) {

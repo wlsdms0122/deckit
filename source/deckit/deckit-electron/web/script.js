@@ -3,26 +3,38 @@ import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 // What deckit runs in a web page: in the page's own world, in every frame, the page's Notification, which deckit shows,
 // and its clipboard, which the web engine reads and writes, and in deckit's, which the page does not see, what carries
 // each frame's word to deckit, and in the main frame what tells deckit the page's icon and whether it plays sound,
-// mutes it, and counts what find finds. A frame's word is its own origin's, and what it asks is answered in that frame
-// by the reply to its word, which gives the page no user activation. What the page's Notification shows, and what it
-// asks, are told to the web engine: `notified(embedder, id, { origin, notification, title, body, silent })`, and
-// `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed; what it reads and writes of the
-// clipboard, `readClipboard(embedder, id, { origin })`, a promise of the text or null, and `writeClipboard(embedder,
-// id, { origin, text })`, a promise of whether it was written; its copy, cut and paste by execCommand are refused where
-// the site may not have the clipboard. `permits(session, origin, name)` and `permitted(session, name)` are what the web
-// engine says a site in a session may have, and `sessionOf(page)` the session a page is in.
+// mutes it, counts what find finds and clears the selection. A frame's word is its own origin's, and what it asks is
+// answered in that frame by the reply to its word. What deckit tells a document, the news that its site may have
+// notifications, a click on a notification it shows, and what the main frame is asked, is the reply to a word the
+// document said that waits for it: a reply runs no script, so what deckit tells gives the page no user activation, as
+// the web platform gives none for any of it; a yes to take the screen alone is run as a script (`display`). The scripts
+// are run once in the document the page has as deckit takes it, which starts before them. What the page's Notification
+// shows, and what it asks, are told to the web engine: `notified(embedder, id, { origin, notification, title, body,
+// silent })`, and `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed; what it reads
+// and writes of the clipboard, `readClipboard(embedder, id, { origin })`, a promise of the text or null, and
+// `writeClipboard(embedder, id, { origin, text })`, a promise of whether it was written; its copy, cut and paste by
+// execCommand are refused where the site may not have the clipboard. `permits(session, origin, name)` and
+// `permitted(session, name)` are what the web engine says a site in a session may have, and `sessionOf(page)` the
+// session a page is in.
 export function createScript({ LOG, sessionOf, permits, permitted, notified, request, readClipboard, writeClipboard }) {
     // MARK: - Property
-    // page id -> { install, icon, audible, muted, notifications }, `notifications` each shown, by the number deckit
-    // gave it, as `{ frame, id }`, the frame that shows it and the number it has there
+    // page id -> { session, install, icon, audible, muted, notifications, news, own }: `notifications` each shown, by
+    // the number deckit gave it, as `{ frame, id }`, the frame that shows it and its word, answered as it is clicked;
+    // `news` the words `{ frame, id, origin }` of each document that waits to hear its site may have notifications;
+    // `own` what the main frame is asked, `{ frame, awaiting, queue, sent, counts, sequence }`, `frame` the one whose
+    // word waits for it, `awaiting` true while its document acts on what it was told, and each count by its number
     const pages = new Map();
     let shownSequence = 0;
 
     // MARK: - Initializer
     // MARK: - Public
-    // What the web engine lets sites have changed: each page's scripts are installed again with what they have now.
+    // What the web engine lets sites have changed: each page's scripts are installed again with what they have now,
+    // and each document that waits for it hears its site may have notifications.
     function permissionsChanged() {
-        for (const { install } of pages.values()) install();
+        for (const entry of pages.values()) {
+            entry.install();
+            tellNews(entry);
+        }
     }
 
     // `changed()` when the page's icon or sound changes.
@@ -30,12 +42,24 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         const session = sessionOf(page);
         // A name of the page's own, so a page cannot easily tell deckit is listening.
         const channel = `deckit-${require('crypto').randomUUID()}`;
-        const entry = { icon: '', audible: false, muted: false, notifications: new Map(), channel, install };
+        const entry = {
+            session,
+            icon: '',
+            audible: false,
+            muted: false,
+            notifications: new Map(),
+            news: [],
+            own: freshOwn(),
+            channel,
+            install: () => page.run(scripts()),
+        };
         pages.set(page.id, entry);
-        page.once('destroyed', () => pages.delete(page.id));
-        // Also run in the document already there: the page may be under way before its scripts are. The scripts do
-        // nothing the second time.
-        function install() {
+        page.once('destroyed', () => {
+            pages.delete(page.id);
+            for (const resolve of entry.own.counts.values()) resolve(0);
+        });
+        // The scripts every document of the page starts with.
+        function scripts() {
             const granted = Object.fromEntries(
                 permitted(session, 'notifications').map((origin) => [origin, 'granted'])
             );
@@ -46,30 +70,37 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             const site = `(${inPage})(${JSON.stringify(channel)}, ${JSON.stringify(granted)}, ${JSON.stringify(commands)})`;
             const relay = `(${inRelay})(${JSON.stringify(channel)})`;
             const own = `(${inDeckit})(${entry.muted})`;
-            page.run([
+            return [
                 { source: site, world: 'page', mainFrameOnly: false },
                 { source: relay, world: 'deckit', mainFrameOnly: false },
                 { source: own, world: 'deckit', mainFrameOnly: true },
-            ]);
-            page.evaluate(site, 'page').catch(() => {});
-            page.evaluate(relay, 'deckit').catch(() => {});
-            page.evaluate(own, 'deckit').catch(() => {});
-            if (permits(session, SITE.originOf(page.getURL()), 'notifications'))
-                page.evaluate('window.__deckitNotification?.permission("granted")', 'page').catch(() => {});
+            ];
         }
-        install();
-        // A new document starts without the last one's icon or sound; it tells its own.
+        // Also run in the document already there, which may be under way before its scripts are: the one script
+        // deckit runs in a page. The scripts do nothing a second time.
+        const first = scripts();
+        page.run(first);
+        for (const { source, world } of first) page.evaluate(source, world).catch(() => {});
+        // A new document starts without the last one's icon or sound; it tells its own. The words of the last one's
+        // documents are let go, as they are gone, and what its main frame was asked to count is none.
         page.on('committed', () => {
             entry.icon = '';
             entry.audible = false;
             entry.notifications.clear();
+            entry.news = [];
+            for (const resolve of entry.own.counts.values()) resolve(0);
+            entry.own = freshOwn();
         });
         return (body, frame) => heard(embedder, page, entry, body, frame, changed);
     }
 
+    // A notification is clicked once, in the frame that shows it.
     function clickNotification(page, notification) {
-        const shown = pages.get(page.id)?.notifications.get(Number(notification));
-        if (shown) shown.frame.evaluate(`window.__deckitNotification?.click(${shown.id})`, 'page');
+        const entry = pages.get(page.id);
+        const shown = entry?.notifications.get(Number(notification));
+        if (!shown) return;
+        entry.notifications.delete(Number(notification));
+        shown.frame.answer(JSON.stringify({ id: shown.id, answer: true }));
     }
 
     // Muted stays with the page, its next documents included.
@@ -78,17 +109,23 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         if (!entry || entry.muted === !!on) return;
         entry.muted = !!on;
         entry.install();
-        page.evaluate(`window.__deckit?.mute(${entry.muted})`, 'deckit').catch(() => {});
+        askMain(entry, { op: 'mute', on: entry.muted });
     }
 
-    // How many times `text` is in the page's text.
+    // How many times `text` is in the page's text: none in a document that runs none of deckit's scripts.
     function count(page, text, matchCase) {
-        return page
-            .evaluate(`return window.__deckit?.count(${JSON.stringify(String(text))}, ${!!matchCase}) ?? 0`, 'deckit')
-            .then(
-                (found) => Number(found) || 0,
-                () => 0
-            );
+        const entry = pages.get(page.id);
+        if (!entry) return Promise.resolve(0);
+        const n = ++entry.own.sequence;
+        return new Promise((resolve) => {
+            if (!askMain(entry, { op: 'count', n, text: String(text), matchCase: !!matchCase })) return resolve(0);
+            entry.own.counts.set(n, resolve);
+        });
+    }
+
+    function unselect(page) {
+        const entry = pages.get(page.id);
+        if (entry) askMain(entry, { op: 'unselect' });
     }
 
     function stateOf(page) {
@@ -97,6 +134,39 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     }
 
     // MARK: - Private
+    function freshOwn() {
+        return { frame: null, awaiting: false, queue: [], sent: [], counts: new Map(), sequence: 0 };
+    }
+
+    // `asked` of the main frame's document, told with the next reply to its word: whether one waits for it, as none
+    // does in a document that runs none of deckit's scripts.
+    function askMain(entry, asked) {
+        const own = entry.own;
+        if (!own.frame && !own.awaiting) return false;
+        own.queue.push(asked);
+        tellMain(own);
+        return true;
+    }
+
+    function tellMain(own) {
+        if (!own.frame || !own.queue.length) return;
+        const told = own.queue;
+        own.queue = [];
+        own.sent = told.flatMap((asked) => (asked.op === 'count' ? [asked.n] : []));
+        own.frame.answer(JSON.stringify(told));
+        own.frame = null;
+        own.awaiting = true;
+    }
+
+    // Each document that waits for the news and whose site may now have notifications hears it.
+    function tellNews(entry) {
+        entry.news = entry.news.filter(({ frame, id, origin }) => {
+            if (!permits(entry.session, origin, 'notifications')) return true;
+            frame.answer(JSON.stringify({ id, answer: 'granted' }));
+            return false;
+        });
+    }
+
     // `frame` is the frame that said it (deckit-web WebPage `message`): what it asks is answered by `frame.answer`,
     // which runs no script in the page and so gives it no user activation. Whether it is answered later.
     function heard(embedder, page, entry, body, frame, changed) {
@@ -131,6 +201,24 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 body: message.body,
                 silent: message.silent,
             });
+            return true;
+        } else if (message.op === 'news') {
+            entry.news.push({ frame, id, origin });
+            tellNews(entry);
+            return true;
+        } else if (message.op === 'listen' && frame.main) {
+            // The main frame's document did what it was told, and waits for more: each count sent comes to what it
+            // says, or none where it does not say it, as a new document does not; one muted otherwise than the page
+            // is muted again first.
+            const own = entry.own;
+            for (const n of own.sent) own.counts.get(n)?.(Number(message.counted?.[n]) || 0);
+            for (const n of own.sent) own.counts.delete(n);
+            own.sent = [];
+            own.frame = frame;
+            own.awaiting = false;
+            if (message.muted !== entry.muted) own.queue.unshift({ op: 'mute', on: entry.muted });
+            tellMain(own);
+            return true;
         } else if (message.op === 'request') {
             const asked = request(embedder, page.id, { origin, permissions: ['notifications'] });
             answer(asked, "a site's notifications were not asked", false);
@@ -235,10 +323,12 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 });
                 const id = ++seq;
                 ids.set(this, id);
+                // Shown, it waits for its click, which deckit answers.
                 setTimeout(() => {
                     if (permission !== 'granted') return fire(this, 'error');
                     live.set(id, this);
-                    say({ op: 'show', id, title: this.title, body: this.body, silent: this.silent });
+                    const shown = { op: 'show', title: this.title, body: this.body, silent: this.silent };
+                    ask(shown, () => live.has(id) && fire(this, 'click'));
                     fire(this, 'show');
                 });
             }
@@ -268,6 +358,15 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             }
         }
         Object.defineProperty(window, 'Notification', { value: Notification, writable: true, configurable: true });
+        // The news that the site may have notifications, which deckit answers once allow lets it: a grant made in
+        // another tab, not an answer. A document come back from the back-forward cache asks again.
+        const news = () =>
+            permission === 'default' &&
+            ask({ op: 'news' }, (state) => {
+                if (permission === 'default' && state === 'granted') permission = state;
+            });
+        news();
+        addEventListener('pageshow', (event) => event.persisted && news());
         const perms = navigator.permissions;
         if (perms && typeof perms.query === 'function') {
             const query = perms.query.bind(perms);
@@ -355,18 +454,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 writable: true,
                 configurable: true,
             });
-        Object.defineProperty(window, '__deckitNotification', {
-            value: {
-                click(id) {
-                    const n = live.get(id);
-                    if (n) fire(n, 'click');
-                },
-                // News for the page as a whole (a grant made in another tab), not an answer.
-                permission(state) {
-                    if (permission === 'default') permission = state;
-                },
-            },
-        });
+        Object.defineProperty(window, '__deckitNotification', { value: true });
     }
 
     // Runs in deckit's world, in every frame, as source, with only its arguments: what the page's world says under
@@ -385,7 +473,9 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     }
 
     // Runs in deckit's world, in the main frame, as source, with only its arguments: the page's icon, whether it plays
-    // sound, and its media muted while `muted`, to deckit. Only what deckit muted is let speak again.
+    // sound, and its media muted while `muted`, to deckit. Only what deckit muted is let speak again. What deckit asks
+    // of it, to mute, to count what find finds and to clear the selection, is the reply to its word `listen`, which
+    // it says again, with each count and whether it is muted, once it did what it was asked.
     function inDeckit(muted) {
         if (window.__deckit) return;
         const post = (msg) => window.webkit.messageHandlers.deckit.postMessage(JSON.stringify(msg));
@@ -435,30 +525,45 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         };
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchIcon);
         else watchIcon();
-        Object.defineProperty(window, '__deckit', {
-            value: {
-                mute(on) {
-                    mute = on;
-                    for (const el of media()) {
-                        if (on) quiet(el);
-                        else if (silenced.delete(el)) el.muted = false;
-                    }
-                    report();
-                },
-                count(text, matchCase) {
-                    if (!text) return 0;
-                    const haystack = matchCase
-                        ? document.body?.innerText || ''
-                        : (document.body?.innerText || '').toLowerCase();
-                    const needle = matchCase ? text : text.toLowerCase();
-                    let found = 0;
-                    for (let at = haystack.indexOf(needle); at >= 0; at = haystack.indexOf(needle, at + needle.length))
-                        found++;
-                    return found;
-                },
-            },
-        });
+        const setMute = (on) => {
+            mute = on;
+            for (const el of media()) {
+                if (on) quiet(el);
+                else if (silenced.delete(el)) el.muted = false;
+            }
+            report();
+        };
+        const count = (text, matchCase) => {
+            if (!text) return 0;
+            const haystack = matchCase
+                ? document.body?.innerText || ''
+                : (document.body?.innerText || '').toLowerCase();
+            const needle = matchCase ? text : text.toLowerCase();
+            let found = 0;
+            for (let at = haystack.indexOf(needle); at >= 0; at = haystack.indexOf(needle, at + needle.length)) found++;
+            return found;
+        };
+        const listen = (counted) =>
+            window.webkit.messageHandlers.deckit
+                .postMessage(JSON.stringify({ op: 'listen', counted, muted: mute }))
+                .then(
+                    (asked) => {
+                        if (typeof asked !== 'string') return;
+                        const done = {};
+                        for (const each of JSON.parse(asked)) {
+                            if (each.op === 'mute') setMute(each.on);
+                            else if (each.op === 'count') done[each.n] = count(each.text, each.matchCase);
+                            else if (each.op === 'unselect') getSelection()?.removeAllRanges();
+                        }
+                        listen(done);
+                    },
+                    () => {}
+                );
+        listen({});
+        // A document come back from the back-forward cache, whose word deckit let go, says it again.
+        addEventListener('pageshow', (event) => event.persisted && listen({}));
+        Object.defineProperty(window, '__deckit', { value: true });
     }
 
-    return { permissionsChanged, attach, clickNotification, setMuted, count, stateOf };
+    return { permissionsChanged, attach, clickNotification, setMuted, count, unselect, stateOf };
 }
