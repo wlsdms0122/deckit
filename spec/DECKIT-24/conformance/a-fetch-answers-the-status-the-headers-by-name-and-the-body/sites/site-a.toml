@@ -1,0 +1,2 @@
+["/hello.txt"]
+headers = [["X-Type", "greeting"], ["Content-Type", "text/plain"]]

@@ -1,0 +1,30 @@
+case = 9
+name = "a-status-that-is-no-success-is-answered"
+note = "fetch answers whatever status the request is answered with. site-a has no file missing.txt, and answers it 404."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/missing.txt"]
+part = "status"
+
+[step.expect]
+answers = 404

@@ -1,0 +1,30 @@
+case = 9
+name = "an-answer-over-the-limit-is-refused"
+note = "An answer whose body, its content coding undone, holds more than 4194304 bytes is refused at call with kind QUOTA_EXCEEDED. site-a answers zeros, 4194305 bytes of them, in the content coding gzip."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/zeros"]
+
+[step.expect]
+refuses = "call"
+kind = "QUOTA_EXCEEDED"

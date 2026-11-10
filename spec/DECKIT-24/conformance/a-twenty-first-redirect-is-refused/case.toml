@@ -1,0 +1,30 @@
+case = 9
+name = "a-twenty-first-redirect-is-refused"
+note = "A request redirected a 21st time is not answered, and is refused at call with kind REFUSED. site-a redirects r1 to r21 each to the next, and r21 to hello.txt."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/r1"]
+
+[step.expect]
+refuses = "call"
+kind = "REFUSED"

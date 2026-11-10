@@ -1,0 +1,33 @@
+case = 9
+name = "a-method-of-the-six-is-sent-in-upper-case"
+note = "A method that is DELETE, GET, HEAD, OPTIONS, POST or PUT in any case is sent in upper case. mod-a posts to site-a with the method \"post\"."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/post"]
+args = [{ method = "post", body = "aGk=" }]
+
+[[step]]
+look = "requested"
+
+[step.expect]
+answers = [{ site = "site-a", method = "POST", path = "/post", headers = [], body = "aGk=" }]

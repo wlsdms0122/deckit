@@ -1,0 +1,30 @@
+case = 9
+name = "fetching-without-system-network-is-refused"
+note = "fetch(url, init) is guarded by system.network, and a mod not granted it is refused at call with kind NOT_PERMITTED. mod-a asks for no permission and fetches hello.txt of site-a."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/hello.txt"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

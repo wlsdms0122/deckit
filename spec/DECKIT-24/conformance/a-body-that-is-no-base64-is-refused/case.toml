@@ -1,0 +1,31 @@
+case = 9
+name = "a-body-that-is-no-base64-is-refused"
+note = "fetch is refused at call with kind INVALID_ARGUMENT where init does not fit what it takes. mod-a fetches hello.txt of site-a with the body \"aGk\", which is no base64."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/hello.txt"]
+args = [{ method = "POST", body = "aGk" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

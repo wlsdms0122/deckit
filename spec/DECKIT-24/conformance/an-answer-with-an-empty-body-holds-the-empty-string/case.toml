@@ -1,0 +1,31 @@
+case = 9
+name = "an-answer-with-an-empty-body-holds-the-empty-string"
+note = "body is the bytes of the answer in base64, the empty string where it holds none and its status may have one. mod-a fetches hello.txt of site-a with the method HEAD."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/hello.txt"]
+args = [{ method = "HEAD" }]
+part = "body"
+
+[step.expect]
+answers = ""
