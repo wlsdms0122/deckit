@@ -129,8 +129,8 @@ class Editor {
             );
             minimap.setHighlighter(next.colorHighlighter);
         });
-        // Its own stacking context: the engine lifts its panels (the find bar) to z-index 300, which would otherwise put
-        // them over anything laid over the editor (the minimap).
+        // Its own stacking context: the engine lifts its panels (the find bar) to z-index 300, which would otherwise
+        // put them over anything laid over the editor (the minimap).
         const stage = ui.element('div', {
             style: { flex: '1 1 auto', minHeight: '0', position: 'relative', isolation: 'isolate' },
         });
@@ -498,8 +498,8 @@ class Editor {
             await open(path, { background });
         }
 
-        // A file an address names, opened in a tab, brought to the front unless `activates` is false; answers whether it
-        // opened.
+        // A file an address names, opened in a tab, brought to the front unless `activates` is false; answers whether
+        // it opened.
         async function openFile(path, { activates }) {
             const background = activates === false;
             const opened = !!(await tryOpen(path, { background })).file;

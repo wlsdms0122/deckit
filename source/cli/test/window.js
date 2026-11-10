@@ -234,12 +234,12 @@ async function main() {
 }
 
 // `createWindows` over stand-ins. Mods `a` and `b` run in `pages.a` and `pages.b`. `guards` is the guard each
-// channel's declaration names, by its name. `fromPage(name, page, payload)` sends a window channel as `page` and answers what it answers;
-// `openSurface(name, surface)` has a page open a window's content; `focus(page)` and `end(page)` are a page taking the
-// keyboard and its document ending; `webOf` maps a web page to the mod's page that shows it. `desktop` records what the
-// desktop was asked, `key` the id of its key window, `may` the mods that may activate for the local seat; `host` what
-// the host app was asked; `stages` the stages made, each with what it laid last; `sent` what the pages were told, by
-// the channel's last word.
+// channel's declaration names, by its name. `fromPage(name, page, payload)` sends a window channel as `page` and
+// answers what it answers; `openSurface(name, surface)` has a page open a window's content; `focus(page)` and
+// `end(page)` are a page taking the keyboard and its document ending; `webOf` maps a web page to the mod's page that
+// shows it. `desktop` records what the desktop was asked, `key` the id of its key window, `may` the mods that may
+// activate for the local seat; `host` what the host app was asked; `stages` the stages made, each with what it laid
+// last; `sent` what the pages were told, by the channel's last word.
 function windowsOver(createWindows) {
     const handlers = {};
     const guards = {};

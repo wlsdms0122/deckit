@@ -52,9 +52,9 @@ function keysOf(contributions, commands) {
 // The bindings of `keys`, each bound to its default or to what a person set in `changes`, `[{ mod, command,
 // keystroke }]` in the order made, `keystroke` a spec or '' for none. In the order a chord tries them, `app` before
 // `global`. Each is `{ mod, command, title, scope, defaultKeystroke, keystroke, chord, changed, active, issues }`:
-// `keystroke` left out for none, `chord` it as a person reads it, `changed` whether it is not its default, `active` whether
-// a press of its chord runs it, and `issues` `[{ kind, message, other }]` why it does not, or how it is held back,
-// `other` left out where no key holds the chord.
+// `keystroke` left out for none, `chord` it as a person reads it, `changed` whether it is not its default, `active`
+// whether a press of its chord runs it, and `issues` `[{ kind, message, other }]` why it does not, or how it is held
+// back, `other` left out where no key holds the chord.
 //
 // Of the bindings of one scope on one chord, defaults are applied first and then changes in the order made: a change
 // onto a chord one applied already has is held back (`held`), and of defaults on one chord the first listed runs, the

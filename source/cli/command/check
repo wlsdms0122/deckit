@@ -356,12 +356,14 @@ function checkFolder(folder, rootFiles, { scripts }) {
     if (root && held.length) {
         say(
             folder,
-            `holds ${held.map(({ name }) => name).join(', ')}: it holds only ${rootFiles.join(', ')}, and its concepts are folders`
+            `holds ${held.map(({ name }) => name).join(', ')}: ` +
+                `it holds only ${rootFiles.join(', ')}, and its concepts are folders`
         );
     } else if (held.length && below.length) {
         say(
             folder,
-            `holds files and the folders ${below.join(', ')}: a folder is a module (files, and model/) or a group (folders only)`
+            `holds files and the folders ${below.join(', ')}: ` +
+                'a folder is a module (files, and model/) or a group (folders only)'
         );
     } else if ((root || !held.length) && folders.includes('model')) {
         say(folder, 'holds model/ and no files of its own: a group holds folders only');

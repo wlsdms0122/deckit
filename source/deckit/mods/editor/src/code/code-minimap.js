@@ -41,7 +41,8 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
     let drawQueuedIn = null; // the window whose next frame draws, the one of the document the minimap is in then
     let pointerOver = false;
     let lingering = null;
-    // Where the frame was taken hold of, as a share of its height, so a frame resizing under the pointer stays held there.
+    // Where the frame was taken hold of, as a share of its height, so a frame resizing under the pointer stays held
+    // there.
     let grabbedAt = null;
     // To tell a vertical scroll from a sideways one.
     let lastScrollTop = 0;

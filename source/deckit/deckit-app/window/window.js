@@ -58,8 +58,8 @@ function createWindow({ CONFIG, THEME, windows }) {
     // Deckit.app forward. It blurs what is behind it, macOS draws its edge, and it has no bar, so what is laid in it,
     // as glass, is all it draws, and it moves by what that marks to drag. `size` is its own; where it was moved to is
     // kept by `key`. `place(window)` puts a view in it, which fills it; `focus` hands the view the keyboard as the
-    // window takes it, and `blur` hears it lose it. It opens hidden: `float(window, { activates })` shows it, taking the
-    // keyboard unless `activates` is false.
+    // window takes it, and `blur` hears it lose it. It opens hidden: `float(window, { activates })` shows it, taking
+    // the keyboard unless `activates` is false.
     function openFloating({ size, key, place, focus, blur }) {
         const window = windows().open({ kind: 'floating', size, material: 'hud' });
         place(window);

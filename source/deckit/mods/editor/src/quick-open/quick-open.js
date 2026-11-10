@@ -17,8 +17,8 @@ const QUICK_OPEN_STYLE = `
     }
 `;
 
-// Open Quickly: a file of the front workspace found by part of its name. Ranked in a worker: forty thousand paths take a
-// few hundred milliseconds. `close()` lets go of what the worker holds for it.
+// Open Quickly: a file of the front workspace found by part of its name. Ranked in a worker: forty thousand paths take
+// a few hundred milliseconds. `close()` lets go of what the worker holds for it.
 function quickOpen({ ui, list, root, onOpen }) {
     const SHOWN = 50;
     const TYPING_DELAY_MS = 60;

@@ -7,8 +7,8 @@ import * as MODS from '../mods/index.js';
 export function createRegion({ deckit }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    // a mod's page -> number -> { parent, interface, window, rect, child }: a place in one of the page's windows, by the
-    // window's id, that shows a child's view
+    // a mod's page -> number -> { parent, interface, window, rect, child }: a place in one of the page's windows, by
+    // the window's id, that shows a child's view
     const regions = new Map();
     const shown = new Set(); // the children's pages last told they are on screen
     const sentChildren = new Map(); // parent mod id -> its children as its page was last told them, written

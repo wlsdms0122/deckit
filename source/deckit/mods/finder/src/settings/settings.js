@@ -1,6 +1,6 @@
 // The mod's settings as `deckit/configuration` last told them, read at once: `get(key)`, null for one not read yet,
-// `set(key, value)` while it is connected, and `on(listener)`, `listener(key, value)` hearing each key as it changes and
-// every key as they are first read. `connect(configuration)` hands the interface over, and answers what lets it go;
+// `set(key, value)` while it is connected, and `on(listener)`, `listener(key, value)` hearing each key as it changes
+// and every key as they are first read. `connect(configuration)` hands the interface over, and answers what lets it go;
 // what was read stays.
 function settingsOf() {
     let configuration = null;

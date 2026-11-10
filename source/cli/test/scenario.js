@@ -220,8 +220,8 @@ async function run({
         return null;
     };
     // The windows on the desktop, back to front, as the local seat sees them: `{ id, mod, url, rect, key, content }`
-    // each, `mod` the mod whose page opened its content, `rect` its content's on the desktop, `key` whether its frame is
-    // drawn as the key window's, and `content` the page its content is.
+    // each, `mod` the mod whose page opened its content, `rect` its content's on the desktop, `key` whether its frame
+    // is drawn as the key window's, and `content` the page its content is.
     const windowsNow = async () => {
         const laid = (await desktopLaid())?.pages || [];
         const windows = [];
@@ -899,7 +899,7 @@ async function run({
             4000
         );
         check(
-            'a folder dropped on the Mods section is planned as a picked one, and one install refuses is told',
+            'a folder dropped on the Mods section is installed as a dry run, as a picked one is, and one install refuses is told',
             refusedDrop,
             await settingsOverlay?.evaluate(toastText)
         );
@@ -1755,8 +1755,8 @@ async function run({
             `${await mark(services, 'bound')} ${await mark(keys, 'chord')} ${await mark(keys, 'pressed')}`
         );
 
-        // Addresses and queries, as URLs routes them: an address of a scheme a mod declares reaches it, one under a path
-        // another mod declares reaches that one first, and what a mod resolves is in the switcher and runs.
+        // Addresses and queries, as URLs routes them: an address of a scheme a mod declares reaches it, one under a
+        // path another mod declares reaches that one first, and what a mod resolves is in the switcher and runs.
         const opener = await page('deckit://open-user.mod');
         const openFrom = (url) =>
             opener?.evaluate(
@@ -1936,8 +1936,8 @@ async function run({
                 !!restored,
                 JSON.stringify(await userWindows())
             );
-            // The zoom button fills the desktop but the Dock's sliver, and the page's ResizeObserver sees the content so;
-            // pressed again it gives the window its frame back.
+            // The zoom button fills the desktop but the Dock's sliver, and the page's ResizeObserver sees the content
+            // so; pressed again it gives the window its frame back.
             const front = (await userWindows()).at(-1);
             const buttons = await pageById((await stackNow()).find(({ name }) => name === `buttons-${front?.id}`)?.id);
             const area = await desktopLaid();

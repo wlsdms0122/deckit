@@ -1,8 +1,8 @@
 // The Notifications mod's center (mods/notifications/src/center/center.js) over a stand-in for deckit: what a sender
 // posts through its connection is listed, signalled and kept, removed only by its sender, let through at the rate and
 // queued behind the toasts on screen, shown as the system's while the app is not in front, and a press runs the
-// sender's command through deckit/commands. Then a sender, Calendar's notices, with an owner to post to and with none. Exits 1
-// with a line for each check that failed.
+// sender's command through deckit/commands. Then a sender, Calendar's notices, with an owner to post to and with none.
+// Exits 1 with a line for each check that failed.
 const path = require('path');
 const { pathToFileURL } = require('url');
 

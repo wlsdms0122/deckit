@@ -1,5 +1,5 @@
-// The manifest text, the language based on TOML the bundle's DECKIT fixes (spec/DECKIT-2), read into values: a string, a
-// number, a boolean, an array, or a table, an object with no prototype. What the text does not hold throws, with the
+// The manifest text, the language based on TOML the bundle's DECKIT fixes (spec/DECKIT-2), read into values: a string,
+// a number, a boolean, an array, or a table, an object with no prototype. What the text does not hold throws, with the
 // line it is on.
 const WS = /\p{White_Space}/u;
 const BARE = /[A-Za-z0-9_-]/;

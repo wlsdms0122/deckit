@@ -39,7 +39,8 @@ function registry(deckit) {
     }
 
     // The command `id` of the mod `mod`, run with `args` on the exports the mod opens for its id, reached for the run,
-    // which launches it if it does not run: answers its result, a value or nothing, and rejects with why it did not run.
+    // which launches it if it does not run: answers its result, a value or nothing, and rejects with why it did not
+    // run.
     async function run(mod, id, args) {
         if (typeof mod !== 'string' || typeof id !== 'string' || !isArgs(args))
             throw refusal('INVALID_ARGUMENT', 'run takes (mod, id, args), mod and id strings and args a table');
@@ -59,10 +60,10 @@ function registry(deckit) {
         return result ?? undefined;
     }
 
-    // What the mod `mod` offers for the arg `param` of its command `id`, typed so far as `partial`, with `args` the args
-    // filled so far: `[{ value, title, hint, keywords }]` as `completeCommand` on the exports the mod opens for its id
-    // answers it, reached for the asking, which is refused as the run's is. A mod whose exports have no completeCommand
-    // offers none.
+    // What the mod `mod` offers for the arg `param` of its command `id`, typed so far as `partial`, with `args` the
+    // args filled so far: `[{ value, title, hint, keywords }]` as `completeCommand` on the exports the mod opens for
+    // its id answers it, reached for the asking, which is refused as the run's is. A mod whose exports have no
+    // completeCommand offers none.
     async function complete(mod, id, param, partial = '', args) {
         const strings = [mod, id, param, partial].every((one) => typeof one === 'string');
         if (!strings || !isArgs(args))

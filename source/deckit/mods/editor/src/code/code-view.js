@@ -141,10 +141,10 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
         );
     }
 
-    // Lines scrolled sideways are clipped where the gutter begins, so the gutter can stay transparent. The selection and
-    // cursor layers start at the gutter's left edge, so theirs are clipped a gutter's width further in. The layers are
-    // zero-size boxes with their marks outside, so an inset clips them whole; a polygon reaching far past the box clips
-    // only what is left of the gutter's edge.
+    // Lines scrolled sideways are clipped where the gutter begins, so the gutter can stay transparent. The selection
+    // and cursor layers start at the gutter's left edge, so theirs are clipped a gutter's width further in. The layers
+    // are zero-size boxes with their marks outside, so an inset clips them whole; a polygon reaching far past the box
+    // clips only what is left of the gutter's edge.
     function clipGutter(view) {
         const left = view.scrollDOM.scrollLeft;
         const gutter = view.dom.querySelector('.cm-gutters')?.offsetWidth || 0;

@@ -1,6 +1,6 @@
-// What the mods post to deckit/notifications: kept in a record, let through at a rate for each sender, queued, and shown
-// as a toast while the app is in front and a drawer for toasts is there, or else as a notification of the system's. A
-// press runs the command of the sender's it names, and takes the notification away.
+// What the mods post to deckit/notifications: kept in a record, let through at a rate for each sender, queued, and
+// shown as a toast while the app is in front and a drawer for toasts is there, or else as a notification of the
+// system's. A press runs the command of the sender's it names, and takes the notification away.
 const KEY = 'notifications';
 // How many the record keeps: the oldest goes.
 const KEEP = 100;

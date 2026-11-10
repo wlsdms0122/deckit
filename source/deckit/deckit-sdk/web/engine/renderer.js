@@ -337,8 +337,8 @@ export function createWeb({ sessions, web: WEB, channels }) {
         id.then((known) => !isKnown() && !closed && know(known));
         return Object.assign(handle, {
             element,
-            // Focused anew even while it has the focus, as the keyboard may have gone to the overlay since: focusing the
-            // element is what hands the web page the keyboard.
+            // Focused anew even while it has the focus, as the keyboard may have gone to the overlay since: focusing
+            // the element is what hands the web page the keyboard.
             focus: () => {
                 if (document.activeElement === element) element.blur();
                 element.focus();

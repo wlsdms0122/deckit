@@ -22,14 +22,14 @@ export function createRegion({ running, deliver, channels, windowOf }) {
     // MARK: - Initializer
     // MARK: - Public
     // What a handle holds of regions, what it makes ending as `scope` is cut. `region(element, interface)` makes a
-    // place in one of the mod's windows where the shell shows the views of that interface's children, for an interface the
-    // manifest provides. A child runs in its own page, laid over what of `element` is seen as it moves, so what the
+    // place in one of the mod's windows where the shell shows the views of that interface's children, for an interface
+    // the manifest provides. A child runs in its own page, laid over what of `element` is seen as it moves, so what the
     // parent draws there is covered and nothing of the parent's floats over it. `place(id)` puts a child in this
     // region, out of any other it was in, and `clear()` leaves the region empty. The region ends when its element, once
-    // in the page, leaves it. `children` are the mod's children: the mods whose view names an interface it provides
-    // as their parent, while it owns it. `list(interface)` answers those of one interface
-    // in the mods' order, and `onChange(listener)` hears `listener(interface, children)` each time an interface's
-    // children change, answering its off.
+    // in the page, leaves it. `children` are the mod's children: the mods whose view names an interface it provides as
+    // their parent, while it owns it. `list(interface)` answers those of one interface in the mods' order, and
+    // `onChange(listener)` hears `listener(interface, children)` each time an interface's children change, answering
+    // its off.
     function forScope(scope) {
         return {
             region(element, named) {

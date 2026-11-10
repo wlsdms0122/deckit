@@ -125,7 +125,8 @@ function screen(shell, center) {
         return made;
     }
 
-    // A press on the card runs what it names; its close button takes a toast off the screen, and a row out of the record.
+    // A press on the card runs what it names; its close button takes a toast off the screen, and a row out of the
+    // record.
     function card(notification, { meta }) {
         const made = element('div', 'notifications-card');
         if (notification.title) made.append(element('div', 'notifications-title', notification.title));

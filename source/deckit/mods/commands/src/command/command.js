@@ -8,8 +8,8 @@ const ID = /^[A-Za-z0-9_-]+$/;
 // MARK: - Public
 // The commands in what mods declare to deckit/commands, as `contributions` answers it, `[{ mod, credential, entry }]`:
 // `{ commands, refused }`, `commands` each `{ mod: { id, name }, id, title, keywords, params }`, in the mods' order and
-// then the order declared, `params` left out for one that takes no args. An entry that cannot be used, or a second of one
-// id from one mod, is left out, in `refused` as `{ mod, entry, problem }`.
+// then the order declared, `params` left out for one that takes no args. An entry that cannot be used, or a second of
+// one id from one mod, is left out, in `refused` as `{ mod, entry, problem }`.
 function commandsOf(contributions) {
     const commands = [];
     const refused = [];

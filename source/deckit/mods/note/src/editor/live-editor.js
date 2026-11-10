@@ -238,8 +238,9 @@ function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollo
             {
                 '&': { height: '100%', color: theme.color.text, backgroundColor: 'transparent' },
                 '&.cm-focused': { outline: 'none' },
-                // The font face is set only by typefaceTheme, so two rules never race. The side margin is on the scroller:
-                // the engine paints a selected line from the content's outer edge, so a margin inside it would be painted.
+                // The font face is set only by typefaceTheme, so two rules never race. The side margin is on the
+                // scroller: the engine paints a selected line from the content's outer edge, so a margin inside it
+                // would be painted.
                 '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 28px' },
                 '.cm-content': {
                     padding: '4px 0 40vh',

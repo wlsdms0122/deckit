@@ -6,7 +6,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createNotification() {
     // MARK: - Property
-    // macOS keeps a notification in Notification Centre well past the banner, so a press can come late.
+    // How long after it is shown a notification's press is heard: a press can come long after the banner has gone.
     const TTL = 10 * 60 * 1000;
     const listeners = new Map(); // id -> Set of what hears its press
     let sequence = 0;
