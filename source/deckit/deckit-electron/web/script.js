@@ -261,7 +261,9 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     }
 
     // Runs in the page's world, as source, with only its arguments: what it says crosses to deckit's world as an
-    // event under `channel`, and what deckit answers comes back as one under `${channel}:answer`.
+    // event under `channel`, and what deckit answers comes back as one under `${channel}:answer`. The two worlds start
+    // in either order: what is said before deckit's world listens, which takes no event, is said again as it says
+    // `${channel}:relay`.
     function inPage(channel, table, commands) {
         if (window.__deckitNotification) return;
         // What it calls of the engine's own, and what it says and answers through, are held as the document started,
@@ -269,7 +271,10 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         const apply = Reflect.apply;
         const dispatch = EventTarget.prototype.dispatchEvent;
         const Custom = CustomEvent;
-        const say = (msg) => apply(dispatch, document, [new Custom(channel, { detail: JSON.stringify(msg) })]);
+        const unheard = [];
+        const tell = (detail) => apply(dispatch, document, [new Custom(channel, { detail, cancelable: true })]);
+        const say = (msg) => tell(JSON.stringify(msg)) && unheard.push(JSON.stringify(msg));
+        document.addEventListener(`${channel}:relay`, () => unheard.splice(0).forEach(tell));
         // The document's origin, which a frame the page made without an address has from the page.
         const origin = self.origin;
         let permission = table[origin] || 'default';
@@ -474,7 +479,8 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
 
     // Runs in deckit's world, in every frame, as source, with only its arguments: what the page's world says under
     // `channel` goes on to deckit, from the frame it is said in, and what deckit answers, the post's reply, back to
-    // the page's world under `${channel}:answer`.
+    // the page's world under `${channel}:answer`. Each event it takes it cancels, so the page's world knows it was taken;
+    // as it starts it says `${channel}:relay`, for what was said before.
     function inRelay(channel) {
         if (window.__deckitRelay) return;
         Object.defineProperty(window, '__deckitRelay', { value: true });
@@ -483,8 +489,10 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             document.dispatchEvent(new CustomEvent(`${channel}:answer`, { detail: answer }));
         document.addEventListener(channel, (event) => {
             if (typeof event.detail !== 'string') return;
+            event.preventDefault();
             window.webkit.messageHandlers.deckit.postMessage(event.detail).then(back, () => {});
         });
+        document.dispatchEvent(new CustomEvent(`${channel}:relay`));
     }
 
     // Runs in deckit's world, in the main frame, as source, with only its arguments: the page's icon, whether it plays
