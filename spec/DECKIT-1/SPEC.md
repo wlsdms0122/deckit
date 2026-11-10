@@ -34,9 +34,12 @@ spec/DECKIT-N/conformance/
       <bundle>/        one bundle, named by its folder
         manifest.toml
         …
+    sites/             format 9: the case's sites, if any
+      <site>/          the files a site serves, named by its folder
+      <site>.toml      what a site answers besides
 ```
 
-Each entry of `mods/`, a folder, a file or a link, is one of the case's bundles: an entry the runner lays out for the system to read, which [the bundle](../DECKIT-2/SPEC.md) takes, refuses or passes over. What else `mods/` holds, and what else the case's folder holds, is not the case's. A case is named, and a bundle in `mods/` is named, by this grammar:
+Each entry of `mods/`, a folder, a file or a link, is one of the case's bundles: an entry the runner lays out for the system to read, which [the bundle](../DECKIT-2/SPEC.md) takes, refuses or passes over. What else `mods/` holds, and what else the case's folder holds but, format 9, `sites/`, is not the case's. A case is named, and a bundle in `mods/` is named, by this grammar:
 
 ```
 case-name   = lower *( lower / DIGIT / "-" )
@@ -54,7 +57,7 @@ lower       = %x61-7A                      ; a to z
 | `host` | table, under *The host* | yes | what the host app is made of |
 | `step` | array of tables, `[[step]]`, under *Steps* | yes, at least one | the steps, in the order they are taken |
 
-A case **refuses as a case** when it breaks any rule under *What a case is*, *The host*, *Steps*, *What a step must come to* and *Formats*, the grammars and bounds among them, or when its name is another case's in the specification. Among them: a key the tables do not give, a key under the wrong table, a value of another type than the table gives, a `name` that is not its folder's name, a bundle in `mods/` that no key of the case names, a name of a bundle that is not in `mods/`, and a `bundle-name` written twice in `ship` and `sources` together.
+A case **refuses as a case** when it breaks any rule under *What a case is*, *The host*, *Sites*, *Steps*, *What a step must come to* and *Formats*, the grammars and bounds among them, or when its name is another case's in the specification. Among them: a key the tables do not give, a key under the wrong table, a value of another type than the table gives, a `name` that is not its folder's name, a bundle in `mods/` that no key of the case names, a name of a bundle that is not in `mods/`, a `bundle-name` written twice in `ship` and `sources` together, an entry of `sites/` that is no site's that `sites` names, and a name in `sites` of a site that is not in `sites/`.
 
 ### The host
 
@@ -70,6 +73,7 @@ A case **refuses as a case** when it breaks any rule under *What a case is*, *Th
 | `system` | array of `bundle-name`, each one in `ship` | no | the bundles it ships that it marks system |
 | `sources` | array of `bundle-name` | no | the bundles it reads in place |
 | `owners` | array of strings, each the name of a standard interface, `deckit/` and a name, none written twice | no | format 5: the standard interfaces whose owner the host ships, in order |
+| `sites` | array of `site-name`, none written twice | no | format 9: the sites the runner serves, under *Sites* |
 
 | base | the host |
 |---|---|
@@ -77,9 +81,39 @@ A case **refuses as a case** when it breaks any rule under *What a case is*, *Th
 | `web` | format 8: the system as the base `system` is, with [the web engine](../DECKIT-23/SPEC.md) stacked over it, and no shell |
 | `shell` | format 6: the system as the base `system` is, with the web engine stacked over it and the shell attached over the web engine, which shows nothing on screen |
 
+Format 9: on every base, the host app sends a request fetched through a session only to the loopback address, `127.0.0.1`: one to another address is not answered.
+
 What the case writes under `[host]` adds to the base. Format 5: for each interface `owners` names, the host ships, before each bundle `ship` names, the bundle the implementation ships as the owner of that interface, marked system, as it ships it, with each framework the implementation's host app stacks for a permission that bundle asks for, and adds, before the fields the case writes, each field that bundle's manifest writes that neither [the bundle](../DECKIT-2/SPEC.md) nor the base reads. The case names that bundle by nothing else. An implementation that ships no owner of an interface `owners` names cannot lay the case out. Its fields and permissions come after the base's, as [the bundle](../DECKIT-2/SPEC.md) says, and a refusal of one is the answer to the `start` step.
 
 Each run of a case starts from nothing kept: the system's own folder is new and empty, and every bundle is laid out afresh where the runner keeps its run, never in the case's folder. A bundle is laid out as written: each file and folder as the case holds it, and each link as a link holding the target it is written with, so that a link to a place inside the bundle points inside the bundle laid out. Each bundle is laid out under its `bundle-name`, and a bundle that is a link is laid out as that link, so that a target naming a bundle beside it names that bundle laid out. Those in `sources` lie side by side in one folder that holds nothing else, which the host hands the system as a folder of bundles read in place. Each one in `ship` is handed as itself, laid out under that name, a bundle the host ships, marked system where `system` names it. Each one that a step's `folders` names and no key of `[host]` names is laid out on its own, apart from those in `sources`, and the host hands the system nothing of it. A bundle's **path** is the absolute path of the folder, file or link it is laid out as.
+
+### Sites
+
+Format 9. A **site** is a server the runner keeps for the case's run, which the host app reaches through the web: each site `sites` names is served over HTTP on the loopback address, `127.0.0.1`, at a port of its own that the runner chooses as the run begins. A site is named by this grammar, and is in `sites/` as a folder `<site-name>/`, a file `<site-name>.toml`, or both, and nothing else of `sites/` is:
+
+```
+site-name = lower *( lower / DIGIT / "-" )
+```
+
+A site's **address** is `http://127.0.0.1:` and its port, and is written in a case as its `site-name`.
+
+A site answers each request it gets. Its folder holds the files it serves: a request whose path, its segments percent-decoded, names a file under the folder is answered that file's bytes, as the case holds them. Its file, `<site-name>.toml`, written in the manifest text, holds a table for each request target it answers besides, its key the target as a request writes it, its path and query, and its keys these and no others:
+
+| key | takes | required | what it says |
+|---|---|---|---|
+| `status` | integer, from 200 to 599 | no | the answer's status; left out, 200 where a file of the folder is at the path, and 404 where none is |
+| `location` | string, a `site-path` | no | the header `location` the answer carries |
+| `headers` | array of arrays `[name, value]`: `name` a `token` and none of `location`, `content-length`, `connection` and `transfer-encoding`, compared ignoring case; `value` a `field-value` | no | the headers the answer carries besides, in order |
+
+```
+site-path = "/" [ ( %x21-2E / %x30-7E ) *VCHAR ]   ; a path on the same site, no "//" first
+```
+
+`token` and `field-value` are the grammars [fetching through a session](../DECKIT-24/SPEC.md) gives, and a target the file holds a key for is a `site-path`.
+
+A request whose target the file holds is answered as that table writes it, and every other as a table with no keys. The answer carries its status; then the header `location`, where it is written; each header of `headers`, in order; `content-length`, the number of bytes of the body, but for the statuses 204 and 304; and `connection`, `close`. Its body is the bytes of the file at the path, none where there is no file, and none for the method `HEAD` and the statuses 204 and 304. A request whose method is not one HTTP registers, written in upper case, is answered 400 with no body.
+
+A site keeps each request it gets, with its method, its target, each header it carries and its body, for the look `requested`.
 
 ### What the system gives a host
 
@@ -99,6 +133,7 @@ A runner sets up a host, and reads what the system answers, through what the sys
 | the addresses to open outside the app | while the host app is started | format 3: each address a mod hands the host to open, with whether the app that opens it comes to the front, as [opening outside the app](../DECKIT-8/SPEC.md) fixes them |
 | the notifications of the machine | while the host app is started | format 7: each notification a mod hands the host to show on the machine, which the host answers whether the machine took, and a press on one, which the host hands the system, as [notifications of the machine](../DECKIT-21/SPEC.md) fix them |
 | the clipboard | while the host app is started | format 7: the text the system reads of the clipboard and the text it replaces it with, as [the clipboard](../DECKIT-20/SPEC.md) fixes them |
+| the web | while the host app is started | format 9: each request the system fetches through a session, which the host sends, and what it is answered, as [fetching through a session](../DECKIT-24/SPEC.md) fixes them |
 | the quit | as the host app quits | answered once the host app has quit |
 
 ### Steps
@@ -111,7 +146,7 @@ Inputs:
 |---|---|---|---|
 | `start` | none | the host app starts, on the host `[host]` gives | nothing, or a refusal at `call` of what the host hands as the host app starts |
 | `quit` | none | the host app quits | nothing |
-| `call` | `mod` and `member`, and `args`, `folders`, `part`, `handle`, `of`, `listener` and `handed` if written | format 3: the run of the mod listed under the name `mod` makes a request through its handle: the member `member`, called with the path of each bundle `folders` names, in order, then each value of `args`, in order, and then, format 4, a listener where `listener` is `true`. Format 4: where `of` is written, `member` names a member of what the call at that place answered, as the run holds it, and not of the handle. Format 5: where `handed` is `true`, `member` names a member of the first value the listener was last called with, as the run holds it, and not of the handle. Format 8: where `handle` is written, `member` names a member of the handle it names, below, and not of `deckit`. A member that holds a value is read, and is written with no `args`, no `folders` and no `listener` | what the request answers, or the value under the key `part` of it, or its refusal at its stage with its kind, as [the handle](../DECKIT-7/SPEC.md) fixes them |
+| `call` | `mod` and `member`, and `args`, `folders`, `sites`, `part`, `handle`, `of`, `listener` and `handed` if written | format 3: the run of the mod listed under the name `mod` makes a request through its handle: the member `member`, called with the path of each bundle `folders` names, in order, then, format 9, the address each `site-address` of `sites` names, in order, then each value of `args`, in order, and then, format 4, a listener where `listener` is `true`. Format 4: where `of` is written, `member` names a member of what the call at that place answered, as the run holds it, and not of the handle. Format 5: where `handed` is `true`, `member` names a member of the first value the listener was last called with, as the run holds it, and not of the handle. Format 8: where `handle` is written, `member` names a member of the handle it names, below, and not of `deckit`. A member that holds a value is read, and is written with no `args`, no `folders` and no `listener` | what the request answers, or the value under the key `part` of it, or its refusal at its stage with its kind, as [the handle](../DECKIT-7/SPEC.md) fixes them |
 | `press` | `notification` | format 7: the notification of the machine at the place `notification` in what `shown` answers is pressed, as [notifications of the machine](../DECKIT-21/SPEC.md) fix a press | nothing |
 
 Looks:
@@ -124,6 +159,7 @@ Looks:
 | `opened` | none | format 3: an array of each address the system handed the host to open outside the app since the host app last started, in the order handed, each a table `{ url, activates }`, `url` a string and `activates` a boolean, as [opening outside the app](../DECKIT-8/SPEC.md) fixes them |
 | `heard` | `mod` | format 4: an array, for each call of a listener a `call` handed a request of the run of the mod listed under the name `mod` that is `running`, in the order called, of the values it was called with, in order |
 | `shown` | none | format 7: an array of each notification of the machine the system handed the host to show since the host app last started, in the order handed, each a table `{ title, body, silent }`, `title` and `body` strings and `silent` a boolean, as [notifications of the machine](../DECKIT-21/SPEC.md) fix them |
+| `requested` | `headers` if written | format 9: an array of each request the case's sites got since the host app last started, in the order got, each a table `{ site, method, path, headers, body }`: `site` the `site-name` of the site that got it, `method` and `path` its method and its target, its path and query, as the request writes them, `headers` an array of `[name, value]` of each header it carries whose name, in lower case, `headers` holds, the name in lower case, in the order of `headers` and then in the order carried, and `body` its bytes in base64, as [fetching through a session](../DECKIT-24/SPEC.md) writes bytes, left out where it carries none |
 
 Their keys take:
 
@@ -135,6 +171,8 @@ Their keys take:
 | `handle` | string, a handle's name, below; never beside `of` or `handed`: format 8 |
 | `args` | array of values: format 3 |
 | `folders` | array of `bundle-name`: format 3 |
+| `sites` | array of `site-address`, below, each of a site `[host] sites` names: format 9 |
+| `headers` | array of strings, each a `token` in lower case, none written twice: format 9 |
 | `of` | integer: the place, from 1, of an earlier `call` of the same `mod`: format 4 |
 | `listener` | boolean: format 4 |
 | `handed` | boolean: written `true`, and never beside `of`: format 5 |
@@ -147,6 +185,12 @@ name   = ALPHA *( ALPHA / DIGIT )
 
 A `member` names a member of the handle: each `name` a member of the one before it, the first a member of the handle itself.
 
+```
+site-address = site-name [ site-path ]
+```
+
+A `site-address` names the site's address followed by its `site-path`, or by `/` where it writes none.
+
 A `call` that writes neither `of` nor `handed` reads `member` from a handle of one lifecycle of the run, the same lifecycle for every `call` of that run, the handle `handle` names:
 
 | `handle` | the handle |
@@ -157,6 +201,8 @@ A `call` that writes neither `of` nor `handed` reads `member` from a handle of o
 A step that writes `part` answers the value under that key of what it reads: of the answer, where the answer is a table, and, format 3, of each element of the answer that holds the key, in order, where the answer is an array of tables.
 
 A **listener**, format 4, is a function the host gives, one for each run, handed to every `call` of that run that writes `listener`: each call of it is kept, with the values it is called with, and it answers nothing. What a step answers, and each value a listener is called with, is read as a value: a function is no value, so a key of a table bound to one is a key not answered, a request that answers one answers nothing, and an answer that holds one anywhere else comes to nothing, as does such a value a listener is called with; a refusal, as [the handle](../DECKIT-7/SPEC.md) fixes one, is read as the table `{ stage, kind }`.
+
+Format 9: a string a step answers, anywhere in what it answers, that starts with a site's address followed by `/` or by nothing more, is read with that address written as the site's `site-name`, as a `site-address` writes it.
 
 A look at a name no bundle is listed under, and a step whose `part` a table answer does not hold, or whose answer with a `part` is no table and no array of tables, come to nothing, which no `[step.expect]` matches. A key's absence from an answer is read by a look at the whole bundle. A `call` comes to nothing where no run of the mod listed under `mod` is `running` as the step is taken, where `member` names no member of the handle or of what the call at `of` answered, or, format 4, where the run that answered the call at `of` is not the one `running`, or, format 5, where `handed` is written and the run's listener has not been called, or, format 8, where the lifecycle is handed no handle of the name `handle` writes. A `heard` look at a mod with no run `running` comes to nothing. A `press` comes to nothing where `shown` answers no notification at the place `notification`.
 
@@ -178,7 +224,7 @@ A look writes `[step.expect]`, always. An input without it must not be refused a
 
 ### Formats
 
-A case format is the keys, values, bases, inputs and looks a case may write. The rows of this DECKIT's tables are format **1**, but those that say a later format. Format **2** adds the rows that say so, for [the lifecycle](../DECKIT-5/SPEC.md). Format **3** adds the rows that say so, for the requests a mod makes through its handle. Format **4** adds the rows that say so, for what a mod is handed by a connection and calls across it. Format **5** adds the rows that say so, for the standard interfaces: the owner a host ships, and a call of what a connection handed a listener. Format **6** adds the rows that say so, for [the key bindings](../DECKIT-16/SPEC.md): the base `shell`, whose handle the owner of `deckit/keys` takes chords through. Format **7** adds the rows that say so, for what of the machine the base stands for: the notifications of the machine, shown and pressed, and the clipboard. Format **8** adds the rows that say so, for [the web engine](../DECKIT-23/SPEC.md): the base `web`, and the handle a `call` reads its member from. A DECKIT that needs a base, an input, a look or a key that the format does not have adds it to this format as a supplement to this DECKIT, and gives the format the next number. That format holds every row of the one before it and the rows the DECKIT adds, and each row it adds says the format that added it. A case writes only the rows of its format.
+A case format is the keys, values, bases, inputs and looks a case may write. The rows of this DECKIT's tables are format **1**, but those that say a later format. Format **2** adds the rows that say so, for [the lifecycle](../DECKIT-5/SPEC.md). Format **3** adds the rows that say so, for the requests a mod makes through its handle. Format **4** adds the rows that say so, for what a mod is handed by a connection and calls across it. Format **5** adds the rows that say so, for the standard interfaces: the owner a host ships, and a call of what a connection handed a listener. Format **6** adds the rows that say so, for [the key bindings](../DECKIT-16/SPEC.md): the base `shell`, whose handle the owner of `deckit/keys` takes chords through. Format **7** adds the rows that say so, for what of the machine the base stands for: the notifications of the machine, shown and pressed, and the clipboard. Format **8** adds the rows that say so, for [the web engine](../DECKIT-23/SPEC.md): the base `web`, and the handle a `call` reads its member from. Format **9** adds the rows that say so, for [fetching through a session](../DECKIT-24/SPEC.md): the sites a case serves, the key of a `call` that hands their addresses, and the look `requested`. A DECKIT that needs a base, an input, a look or a key that the format does not have adds it to this format as a supplement to this DECKIT, and gives the format the next number. That format holds every row of the one before it and the rows the DECKIT adds, and each row it adds says the format that added it. A case writes only the rows of its format.
 
 ### What a runner does
 
@@ -218,6 +264,7 @@ A case is written by hand, in the manifest text, and is judged by its value. A c
 - The handle a `call` makes its request through, what a request answers and how it is refused: [the handle](../DECKIT-7/SPEC.md). What a connection hands a listener, and a call of a function it hands: [the interfaces](../DECKIT-10/SPEC.md) and [calls across a connection](../DECKIT-11/SPEC.md). The addresses a mod hands the host to open, and what `opened` answers of each: [opening outside the app](../DECKIT-8/SPEC.md). The notifications a mod hands the host to show, what `shown` answers of each, and a press: [notifications of the machine](../DECKIT-21/SPEC.md). The clipboard a mod reads and replaces: [the clipboard](../DECKIT-20/SPEC.md).
 - The standard interfaces whose owner a host ships: their DECKITs, such as [the addresses](../DECKIT-14/SPEC.md).
 - The web engine the bases `web` and `shell` stack, and the handle `web` it hands every lifecycle: [the web engine](../DECKIT-23/SPEC.md).
+- The requests fetched through a session, which the sites a case serves answer, and the grammars of a header and of base64: [fetching through a session](../DECKIT-24/SPEC.md).
 - The shell the base `shell` attaches, and the handle `shell` it hands a mod: the shell's DECKITs.
 - What a host hands the system before the start, and what the system asks of a host after it: [the embedding](../DECKIT-22/SPEC.md).
 - The live set, and what an implementation conforms to: [the specification](../README.md).
@@ -232,7 +279,10 @@ A case is written by hand, in the manifest text, and is judged by its value. A c
 - A case's mod that keeps what a connection hands it and answers it to a request. The runner would read what the mod's code chose to keep, as for a mod that reports what its requests answered; a listener the host gives is a function no case writes.
 - A case that holds the owner of a standard interface among its bundles, a copy or a link. A case would hold one implementation's owner, and pass on that one alone; the owner a case's host ships is the implementation's own, named by the interface it owns.
 - A path written in a case as a string. Where the runner lays a bundle out is its own, and a case that wrote one would pass on one runner only.
+- Sites on the web as it is. A case would pass only while the site answered as it did the day it was written, and a run would reach out of the machine; a site the case holds, served on the loopback address, answers the same in every run. Its port is chosen as the run begins, so a case writes a site's name where its address goes, both ways.
+- A look `requested` that answers every header a request carries. A request carries headers the session writes itself, such as the user agent, which differ from one implementation to another, and its host names the port of the run; a look answers the headers it names.
+- A site that redirects to any address. A redirect it answered off the loopback address would reach out of the machine; a `location` of the site's is a path on it.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case, each for its reason. What refuses as a case, and every outcome but passed: a case in the specification measures the implementation and passes on a conforming one, and a case that refused as a case would stop the suite. A `call` or a look that comes to nothing fails its case, for the same reason. The 10-second bound: a case that passes settles inside it. That a runner reaches inside nothing, waits until the host app has settled, matches strictly, reads `case` before any other key and reads a null as a key not answered: each is a property of the runner, checked by reading the runner. That each run starts from nothing kept: no input or look of these formats reads the system's own folder. The order `mods` answers in, and with it the order of `ship`: [the catalog](../DECKIT-4/SPEC.md)'s cases hold it.
+**Note.** Some sentences above are held by no case, each for its reason. What refuses as a case, and every outcome but passed: a case in the specification measures the implementation and passes on a conforming one, and a case that refused as a case would stop the suite. A `call` or a look that comes to nothing fails its case, for the same reason. The 10-second bound: a case that passes settles inside it. That a runner reaches inside nothing, waits until the host app has settled, matches strictly, reads `case` before any other key and reads a null as a key not answered: each is a property of the runner, checked by reading the runner. That each run starts from nothing kept: no input or look of these formats reads the system's own folder. The order `mods` answers in, and with it the order of `ship`: [the catalog](../DECKIT-4/SPEC.md)'s cases hold it. That the host app sends a request only to the loopback address: a property of the host, checked by reading it, since a case that fetched another address would read the host and not the system. What a site answers, and what `requested` answers of a request: the cases of [fetching through a session](../DECKIT-24/SPEC.md) read them, but a method HTTP does not register, which none sends.
