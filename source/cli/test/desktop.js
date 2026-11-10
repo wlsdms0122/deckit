@@ -570,6 +570,16 @@ async function main() {
             desk.state['window-frames'].b.web.y === before.y + 5 - LAYOUT.TITLE_BAR.height,
         { frame: desk.frameOf(4), kept: desk.state['window-frames'].b }
     );
+    const framesKept = desk.desktop.keepsFramesOf('b') && !desk.desktop.keepsFramesOf('c');
+    await desk.desktop.forgetFramesOf('b');
+    check(
+        'the desktop answers whether it keeps frames of a mod, and erasing them leaves those of the others',
+        framesKept &&
+            !desk.desktop.keepsFramesOf('b') &&
+            !('b' in desk.state['window-frames']) &&
+            'a' in desk.state['window-frames'],
+        desk.state['window-frames']
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);

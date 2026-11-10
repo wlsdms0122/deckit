@@ -107,6 +107,23 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         DESKTOP.update();
     }
 
+    // Whether the Dock keeps the mod `id`, kept there or in the order the person arranged.
+    function keeps(id) {
+        return pinned.has(id) || order.includes(id);
+    }
+
+    // The mod `id` taken out of what the Dock keeps, once deckit has kept that. Answers a promise that rejects where
+    // deckit refused a write.
+    async function forget(id) {
+        if (!keeps(id)) return;
+        const nextPinned = [...pinned].filter((one) => one !== id);
+        const nextOrder = order.filter((one) => one !== id);
+        await Promise.all([deckit.state.write(PINNED, nextPinned), deckit.state.write(ORDER, nextOrder)]);
+        pinned = new Set(nextPinned);
+        order = nextOrder;
+        DESKTOP.update();
+    }
+
     // The person quits a mod from its Dock item's menu.
     function quit(id) {
         deckit.mods.quit(id).catch((error) => deckit.log.error(`${id} did not quit`, error));
@@ -173,5 +190,5 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         );
     }
 
-    return { start, items, open };
+    return { start, items, open, keeps, forget };
 }

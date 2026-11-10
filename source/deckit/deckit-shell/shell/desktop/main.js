@@ -245,6 +245,20 @@ export function createDesktop({ REGION, PAGES, OVERLAY, KEY, makeStage, actionOn
         for (const listener of [...listeners]) listener();
     }
 
+    // Whether the desktop keeps a frame a window of the mod `mod` was left at.
+    function keepsFramesOf(mod) {
+        return Object.hasOwn(frames, mod);
+    }
+
+    // The frames the windows of the mod `mod` were left at, forgotten once deckit has kept that. Answers a promise that
+    // rejects where deckit refused the write.
+    async function forgetFramesOf(mod) {
+        if (!keepsFramesOf(mod)) return;
+        const { [mod]: _forgotten, ...next } = frames;
+        await deckit.state.write(FRAMES, next);
+        frames = next;
+    }
+
     // MARK: - Private
     // What the shell keeps between runs, as the person left it. The desktop goes on with it whether deckit keeps it or
     // refuses the write, as it does state it did not read; deckit logs why it refused.
@@ -581,6 +595,8 @@ export function createDesktop({ REGION, PAGES, OVERLAY, KEY, makeStage, actionOn
 
     return {
         start,
+        keepsFramesOf,
+        forgetFramesOf,
         open,
         close,
         orderFront,

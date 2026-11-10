@@ -61,6 +61,18 @@ async function main() {
         JSON.stringify(first.state['panel-order']) === '["c","a"]' && firstDock === 'c,a',
         { state: first.state, firstDock }
     );
+    const keptBefore = first.DOCK.keeps('c') && !first.DOCK.keeps('b');
+    await first.DOCK.forget('c');
+    check(
+        'the Dock answers whether it keeps a mod, and erasing it takes the mod out of its pins and its order',
+        keptBefore &&
+            !first.DOCK.keeps('c') &&
+            Object.values(first.state).every((ids) => !ids.includes('c')) &&
+            first.DOCK.items()
+                .map(({ id }) => id)
+                .join() === 'a',
+        { keptBefore, state: first.state }
+    );
     const shipped = dockOver(createDock, {
         mods: named(ids3),
         fields: apps({ b: { activationPolicy: 'accessory' } }),

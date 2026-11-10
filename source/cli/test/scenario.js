@@ -858,14 +858,35 @@ async function run({
         const usage = await until(() => settings.evaluate(usageLine), 3000);
         await settings?.evaluate(`${editorRow}.querySelector('.settings-mod-row').click()`);
         const counted = (count, noun) => (count ? `${count} ${noun}${count === 1 ? '' : 's'}` : '');
+        // What a layer keeps of the mod in its own state: the web engine its sessions and downloads, the shell the
+        // frames of its windows and its place in the Dock.
+        const stateOf = (folder, key) => {
+            try {
+                return JSON.parse(fs.readFileSync(path.join(home, 'state', folder, `${key}.json`), 'utf8'));
+            } catch {
+                return null;
+            }
+        };
+        const layers = [
+            ['web', ['web-sessions', 'web-downloads'].some((key) => stateOf('web', key)?.editor?.length > 0)],
+            [
+                'shell',
+                ['panel-pinned', 'panel-order'].some((key) => stateOf('host', key)?.includes('editor')) ||
+                    Object.hasOwn(stateOf('host', 'window-frames') ?? {}, 'editor'),
+            ],
+        ]
+            .filter(([, keeps]) => keeps)
+            .map(([name]) => name);
         const told = [
             counted(filesIn(path.join(home, 'data', 'editor')), 'data file'),
             counted(filesIn(path.join(home, 'records', 'editor')), 'record'),
+            ...layers,
             ...(fs.existsSync(path.join(home, 'principal-state'))
                 ? fs.readdirSync(path.join(home, 'principal-state'))
                 : []
             )
                 .filter((name) => fs.existsSync(path.join(home, 'principal-state', name, 'editor.json')))
+                .filter((name) => !layers.includes(name))
                 .sort(),
         ].filter(Boolean);
         check(

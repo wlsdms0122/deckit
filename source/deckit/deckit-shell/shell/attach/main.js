@@ -46,7 +46,6 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
     refuseUnknown('config', config, Object.keys(SHELL_CONFIG));
     const { dock } = { ...SHELL_CONFIG, ...config };
     attached = true;
-    deckit.stack(SHELL_LAYER.LAYER);
     for (const key of FIELD.KEYS) deckit.fields.define(key);
     for (const model of SHELL_PERMISSIONS)
         for (const permission of model.PERMISSIONS) deckit.permissions.define(permission);
@@ -81,6 +80,13 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         closeWindow: (control) => host.closeWindow(control),
     });
     const DOCK = createDock({ deckit, DESKTOP, WINDOWS, host, dock });
+    // What the shell keeps of a mod: the frames its windows were left at, and its place in the Dock.
+    deckit.stack(SHELL_LAYER.LAYER, {
+        keeps: Object.freeze({
+            kept: (id) => DESKTOP.keepsFramesOf(id) || DOCK.keeps(id),
+            erase: (id) => Promise.all([DESKTOP.forgetFramesOf(id), DOCK.forget(id)]),
+        }),
+    });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
     const FONTS = createFonts({ deckit, installed: ENV.fonts });
