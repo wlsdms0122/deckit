@@ -37,7 +37,7 @@ In every document a web page shows, its main frame's and each frame's, the web p
 | member | what it is |
 |---|---|
 | `Notification.permission` | a string: `granted` where the site has `notifications` in the page's session as the document starts, as `allow` of [what a site is let have](../DECKIT-26/SPEC.md) lets it have it, or once `allow` lets it while the document is shown, or once the mod answers the document's ask yes; `denied` once the document's ask is refused; `default` otherwise. Once `granted` or `denied`, it stays so for the document |
-| `Notification.requestPermission(callback)` | a promise of the string `permission` comes to: where `permission` is `default`, the site asks for the name `notifications`, as [what a site is let have](../DECKIT-26/SPEC.md) puts an ask, and it comes to `granted` where the site is let have it and `denied` otherwise; where it is not, it answers `permission`, unasked. A `callback` that is a function is called with the same string |
+| `Notification.requestPermission(callback)` | a promise of the string that `permission` comes to: where it is `default`, the site asks for the name `notifications`, as [what a site is let have](../DECKIT-26/SPEC.md) puts an ask, and it comes to `granted` where the site is let have it and `denied` otherwise; where it is not `default`, the promise answers it, unasked. A `callback` that is a function is called with the same string |
 | `new Notification(title, options)` | a notification, under *A notification*. Called with no argument, it throws the web platform's `TypeError` |
 | `close()` | of a notification shown and not closed, fires its `close` event; of any other, does nothing. It answers nothing |
 
