@@ -45,6 +45,9 @@ function launch({ app: folder, data, port, log, limit }) {
         '--args',
         `--inspect=${port}`,
         folder,
+        // A run the runner ended leaves no window state for the next launch to restore.
+        '-ApplePersistenceIgnoreState',
+        'YES',
     ]);
     for (let tries = 0; tries < 50 && !pid; tries++) {
         pid = pidOf(pattern);

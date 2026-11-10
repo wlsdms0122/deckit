@@ -362,7 +362,8 @@ function createApp({ server, electron, hostApp, setupFile, log }) {
     function start() {
         const env = { ...process.env, DECKIT_CONFORMANCE_SETUP: setupFile };
         delete env.ELECTRON_RUN_AS_NODE;
-        child = spawn(electron, [hostApp], { env, stdio: ['ignore', log, log] });
+        // A run the runner ended leaves no window state for the next launch to restore.
+        child = spawn(electron, [hostApp, '-ApplePersistenceIgnoreState', 'YES'], { env, stdio: ['ignore', log, log] });
         child.once('exit', () => {
             child = null;
             socket = null;
