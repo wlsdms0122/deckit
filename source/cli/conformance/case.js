@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 13;
+const FORMAT = 14;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -72,6 +72,7 @@ const INPUTS = {
         listener: [is.boolean, false],
         handed: [is.boolean, false],
         delegated: [(value) => is.integer(value) && value >= 1, false],
+        answered: [(value) => is.integer(value) && value >= 1, false],
         sites: [
             (value) => Array.isArray(value) && value.every((one) => is.string(one) && SITE_ADDRESS.test(one)),
             false,
@@ -109,6 +110,7 @@ const LOOKS = {
     heard: { mod: [is.string, true] },
     shown: {},
     delegated: { mod: [is.string, true], part: [is.string, false] },
+    downloaded: {},
     requested: {
         headers: [
             (value) =>
@@ -131,6 +133,7 @@ const ADDED = {
     show: 10,
     delegated: 10,
     activate: 11,
+    downloaded: 14,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -143,6 +146,7 @@ const KEYS_ADDED = {
     file: 11,
     origins: 12,
     delegated: 13,
+    answered: 14,
 };
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12 };
@@ -350,7 +354,8 @@ function stepOf(step, number, format, refuse) {
 }
 
 // `start` first, again only after a `quit`, calls, presses and looks only while the app is started, nothing after a
-// start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of it, no `of`
+// start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of it, a
+// call's `answered` an earlier call, no `of`
 // beside `handed`, nor `handle` beside either, `delegated` beside none of the three, and at most one of `site`, `url`
 // and `file`.
 function order(steps, refuse) {
@@ -361,6 +366,8 @@ function order(steps, refuse) {
         const ofs = step.what === 'activate' ? ['show'] : ['call', 'show'];
         if (step.of && !(step.of < step.number && ofs.includes(of.what) && of.mod === step.mod))
             refuse(`step ${step.number}: of names no earlier ${ofs.join(' or ')} of ${step.mod}`);
+        if (step.answered && !(step.answered < step.number && steps[step.answered - 1].what === 'call'))
+            refuse(`step ${step.number}: answered names no earlier call`);
         if (['site', 'url', 'file'].filter((key) => key in step).length > 1)
             refuse(`step ${step.number}: site, url and file are written beside one another`);
         if (step.handed && step.of) refuse(`step ${step.number}: handed is written with no of`);

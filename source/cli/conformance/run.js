@@ -100,9 +100,13 @@ async function run(theCase, { folder, hostApp, electron }) {
     const log = fs.openSync(path.join(folder, 'host.log'), 'a');
     const app = createApp({ server, electron, hostApp, setupFile, log });
     const served = await serve(sites);
+    const downloads = folderOf(path.join(folder, 'downloads'));
+    const answers = new Map(); // a call's place -> what it came to, before what it holds is read as a case writes it
     try {
         for (const step of theCase.steps) {
-            const came = served.named(await take(step, app, paths, served, host.delegate));
+            const taken = await take(step, app, paths, served, host.delegate, answers, downloads);
+            if (step.what === 'call') answers.set(step.number, taken);
+            const came = downloads.named(served.named(taken));
             if (!matches(step.expect, came))
                 return { outcome: 'failed', step, came: describe(came), expected: describe(step.expect) };
         }
@@ -158,10 +162,11 @@ function ownerOf(name, mods) {
 }
 
 // What a step comes to: `{ answers }`, `{ refuses, kind, message }`, `{ none }` with why there is no answer, or `{}`
-// for an input answered with nothing. A call is handed the path of each bundle its folders name, then its args, then a
-// listener where it writes one, names the handle its member is read from, `deckit` where it names none, and names its
-// place so that a later call can reach what it answered.
-async function take(step, app, paths, served, delegate) {
+// for an input answered with nothing. A call is handed the path of each bundle its folders name, the address of each
+// site its sites name, what the call its `answered` names answered, each element of it where it is an array, then its
+// args, then a listener where it writes one, names the handle its member is read from, `deckit` where it names none,
+// and names its place so that a later call can reach what it answered.
+async function take(step, app, paths, served, delegate, answers, downloads) {
     if (step.what === 'start') {
         served.requests.length = 0;
         return app.start();
@@ -169,10 +174,14 @@ async function take(step, app, paths, served, delegate) {
     if (step.what === 'quit') return app.quit();
     const { what, mod, part } = step;
     if (what === 'requested') return { answers: served.read(step.headers ?? []) };
+    if (what === 'downloaded') return { answers: downloads.read() };
     if (what === 'call') {
+        const given = step.answered ? answers.get(step.answered) : { answers: [] };
+        if (!('answers' in given)) return { none: `step ${step.answered} answered nothing` };
         const args = [
             ...(step.folders ?? []).map((name) => paths[name]),
             ...(step.sites ?? []).map((address) => served.address(address)),
+            ...(Array.isArray(given.answers) ? given.answers : [given.answers]),
             ...served.origins(step.args ?? [], step.origins ?? []),
         ];
         const { member, handle = 'deckit', of = null, listener = false, handed = false, delegated = null } = step;
@@ -191,6 +200,40 @@ async function take(step, app, paths, served, delegate) {
         return app.ask({ ...asked, delegate: delegate ?? {} });
     }
     return partOf(await app.ask({ look: what, mod }), part);
+}
+
+// The folder the host app writes downloads in: `read()`, each file in it, `{ name, body }`, by its name's code points,
+// `body` its bytes in base64, left out for none; and `named(came)`, what a step came to, each string in it that starts
+// with the folder's path, or its file URL, then `/`, read as `downloads` or `file:downloads` and the rest.
+function folderOf(folder) {
+    const url = require('url').pathToFileURL(folder).href;
+    const read = (value) => {
+        if (typeof value === 'string') {
+            if (value.startsWith(folder + '/')) return 'downloads' + value.slice(folder.length);
+            if (value.startsWith(url + '/')) return 'file:downloads' + value.slice(url.length);
+            return value;
+        }
+        if (Array.isArray(value)) return value.map(read);
+        if (TOML.isTable(value)) return Object.fromEntries(Object.entries(value).map(([key, one]) => [key, read(one)]));
+        return value;
+    };
+    return {
+        read: () =>
+            fs
+                .readdirSync(folder, { withFileTypes: true })
+                .filter((entry) => entry.isFile())
+                .map(({ name }) => name)
+                .sort((a, b) => {
+                    const [one, other] = [[...a], [...b]].map((chars) => chars.map((char) => char.codePointAt(0)));
+                    const at = one.findIndex((point, index) => point !== other[index]);
+                    return at === -1 ? one.length - other.length : (one[at] ?? -1) - (other[at] ?? -1);
+                })
+                .map((name) => {
+                    const body = fs.readFileSync(path.join(folder, name));
+                    return { name, ...(body.length ? { body: body.toString('base64') } : {}) };
+                }),
+        named: (came) => ('answers' in came ? { ...came, answers: read(came.answers) } : came),
+    };
 }
 
 // The file address of a file of a bundle, a bundle's name and a path in it, as the bundle is laid out.

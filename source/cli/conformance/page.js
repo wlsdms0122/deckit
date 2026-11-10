@@ -28,12 +28,17 @@ function conformanceLayer({ channels }) {
         handed = args[0];
     };
     let changed = 0; // when a page the layer shows last told a change
+    const downloading = new Set(); // the id of each download of the run under way, on the base web
     // Resolves once no page the layer shows is loading, nor has told a change for QUIET ms since `asked`, when what it
-    // waits on was asked: a page asked to load tells that it is loading only after it was asked.
+    // waits on was asked: a page asked to load tells that it is loading only after it was asked; and once no download
+    // a page started is under way.
     const quiet = async (asked) => {
-        if (!shown.size) return;
-        while ([...shown].some((page) => page.loading) || Date.now() - Math.max(changed, asked) < QUIET)
-            await new Promise((resolve) => setTimeout(resolve, 10));
+        if (!shown.size && !downloading.size) return;
+        const busy = () =>
+            [...shown].some((page) => page.loading) ||
+            Date.now() - Math.max(changed, asked) < QUIET ||
+            downloading.size > 0;
+        while (busy()) await new Promise((resolve) => setTimeout(resolve, 10));
     };
     // The delegate the host gives a page it shows, and a page handed to it: each method `answers` names, answering
     // the value it names, each call of it kept, with its arguments read as values, for the look delegated.
@@ -138,10 +143,15 @@ function conformanceLayer({ channels }) {
                             open: given.deckit.openExternal,
                             scope,
                         });
+                    frameworks.web?.downloads.onChange(({ id, state }) => {
+                        if (state === 'downloading') downloading.add(id);
+                        else downloading.delete(id);
+                    });
                     scope.add(() => {
                         handles = null;
                         surfaces = null;
                         shown.clear();
+                        downloading.clear();
                     });
                 },
                 end: () => {},
