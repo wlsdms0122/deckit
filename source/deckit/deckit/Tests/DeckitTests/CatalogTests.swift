@@ -169,19 +169,40 @@ struct CatalogTests {
         let before = try #require(sut.mods().first)
 
         // When
-        let plan = try sut.planInstall(from: source.appending(path: "a"))
-        let manifest = try sut.install(from: source.appending(path: "a"))
+        let installation = try sut.install(from: source.appending(path: "a"))
 
         // Then
         let after = try #require(sut.mods().first)
-        #expect(plan.replaces)
-        #expect(manifest.version == "2.0.0")
+        #expect(installation.replaces)
+        #expect(installation.manifest.version == "2.0.0")
         #expect(after.folder.lastPathComponent == "a")
         #expect(after.manifest.version == "2.0.0")
         #expect(after.revision != before.revision)
         #expect(!FileManager.default.fileExists(atPath: home.appending(path: "mods/old-a").path(percentEncoded: false)))
         let staging = home.appending(path: ".mods-installing")
         #expect(!FileManager.default.fileExists(atPath: staging.path(percentEncoded: false)))
+    }
+
+    @Test("a dry run changes nothing and answers what the install it is a run of does")
+    func dryRunChangesNothing() throws {
+        // Given
+        try write("a", in: home.appending(path: "mods"))
+        try write("a", in: source, version: "2.0.0")
+        try write("b", in: source)
+        let sut = try catalog()
+        let before = sut.mods().map { mod in [mod.manifest.id, mod.revision] }
+
+        // When
+        let replacing = try sut.install(from: source.appending(path: "a"), dryRun: true)
+        let adding = try sut.install(from: source.appending(path: "b"), dryRun: true)
+        let after = sut.mods().map { mod in [mod.manifest.id, mod.revision] }
+        let installed = try sut.install(from: source.appending(path: "a"))
+
+        // Then
+        #expect(after == before)
+        #expect(replacing.manifest.version == "2.0.0" && replacing.replaces)
+        #expect(adding.manifest.id == "b" && !adding.replaces)
+        #expect(installed.manifest.version == replacing.manifest.version && installed.replaces == replacing.replaces)
     }
 
     @Test("what the app ships is installed in the order it ships it, after what was installed before")
@@ -214,10 +235,11 @@ struct CatalogTests {
         let sut = try catalog(sources: [source])
 
         // When
-        let installed = Result { try sut.planInstall(from: home.appending(path: "mods/a")) }
-        let linked = Result { try sut.planInstall(from: root.appending(path: "link")) }
-        let unloadable = Result { try sut.planInstall(from: root.appending(path: "b")) }
-        let hidden = Result { try sut.planInstall(from: root.appending(path: "other/c")) }
+        let installed = Result { try sut.install(from: home.appending(path: "mods/a")) }
+        let linked = Result { try sut.install(from: root.appending(path: "link")) }
+        let unloadable = Result { try sut.install(from: root.appending(path: "b")) }
+        let hidden = Result { try sut.install(from: root.appending(path: "other/c")) }
+        let hiddenDryRun = Result { try sut.install(from: root.appending(path: "other/c"), dryRun: true) }
 
         // Then
         #expect(throws: InstallError.nested) { try installed.get() }
@@ -227,6 +249,8 @@ struct CatalogTests {
         }
         let readInPlace = InstallError.readInPlace(id: "c", folder: source.appending(path: "c").path(percentEncoded: false))
         #expect(throws: readInPlace) { try hidden.get() }
+        #expect(throws: readInPlace) { try hiddenDryRun.get() }
+        #expect(sut.mods().count == 2)
     }
 
     @Test("a mod installed from a folder in the place of a shipped one stays at each later start")
@@ -346,7 +370,7 @@ struct CatalogTests {
 
         // When
         let outcomes = try sut.installShipped()
-        let installing = Result { try sut.planInstall(from: root.appending(path: "f")) }
+        let installing = Result { try sut.install(from: root.appending(path: "f")) }
         let mods = Dictionary(uniqueKeysWithValues: sut.read().map { mod in (mod.manifest.id, mod) })
 
         // Then
@@ -358,7 +382,7 @@ struct CatalogTests {
         #expect(mods["r"]?.problem as? ModFolderError == .notLoadable(problem))
     }
 
-    @Test("the plan answers the permissions and background installing consents to, and a job has those defined here")
+    @Test("a dry run answers the permissions and background installing consents to, and a job has those defined here")
     func installIsConsent() throws {
         // Given
         let mods = Permission(id: "deckit.mods", name: "Mods", description: "Every mod.")
@@ -366,7 +390,7 @@ struct CatalogTests {
         let sut = try catalog(permissions: [mods])
 
         // When
-        let plan = try sut.planInstall(from: source.appending(path: "a"))
+        let plan = try sut.install(from: source.appending(path: "a"), dryRun: true)
         _ = try sut.install(from: source.appending(path: "a"))
         let job = try #require(sut.read().first.flatMap(Job.init))
 
@@ -387,7 +411,7 @@ struct CatalogTests {
         // When
         _ = try sut.installShipped()
         let mods = sut.mods()
-        let installing = try sut.planInstall(from: source.appending(path: "b"))
+        let installing = try sut.install(from: source.appending(path: "b"), dryRun: true)
         let removed = Result { try sut.remove("b") }
 
         // Then

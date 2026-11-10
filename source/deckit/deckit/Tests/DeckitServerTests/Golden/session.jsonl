@@ -38,9 +38,9 @@
 {"id":24,"jsonrpc":"2.0","method":"state/write","params":{"folder":"b","key":"k","text":"\"dark\""}}
 {"id":25,"jsonrpc":"2.0","method":"state/all"}
 {"id":33,"jsonrpc":"2.0","method":"storage/usage","params":{"mod":"a"}}
-{"id":46,"jsonrpc":"2.0","method":"catalog/plan-install","params":{"from":"@SPARE@/d"}}
-{"id":47,"jsonrpc":"2.0","method":"catalog/install","params":{"from":"@SPARE@/d"}}
-{"id":96,"jsonrpc":"2.0","method":"catalog/plan-install","params":{"from":"@SPARE@/e"}}
+{"id":46,"jsonrpc":"2.0","method":"catalog/install","params":{"dryRun":true,"from":"@SPARE@/d"}}
+{"id":47,"jsonrpc":"2.0","method":"catalog/install","params":{"dryRun":false,"from":"@SPARE@/d"}}
+{"id":96,"jsonrpc":"2.0","method":"catalog/install","params":{"dryRun":true,"from":"@SPARE@/e"}}
 {"id":49,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":87,"jsonrpc":"2.0","method":"catalog/pin","params":{"interface":"a/api","mod":"a"}}
 {"id":88,"jsonrpc":"2.0","method":"catalog/pin","params":{"interface":"x/none","mod":"a"}}

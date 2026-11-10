@@ -44,27 +44,23 @@ final class Installer {
     }
 
     // MARK: - Public
-    // What installing a folder would do, the mod read as no system mod's, or a throw that says why not: the refusal the
-    // folder is read with, or a folder that, every link followed, lies inside deck's folder or holds it, as copying
-    // would take the source with it.
-    func planInstall(from source: URL) throws -> InstallPlan {
-        let manifest = try manifest(of: source, system: false)
-        let place = modFolder.realPath(of: source) ?? source.standardizedFileURL.path(percentEncoded: false)
-        let own = modFolder.realPath(of: home) ?? home.standardizedFileURL.path(percentEncoded: false)
-        guard !isInside(place, own) && !isInside(own, place) else {
-            throw InstallError.nested
+    // The mod in `source` installed as no system mod, or with `dryRun` nothing changed, answering what installing it
+    // does, or a throw that says why not, before anything changes: the refusal the folder is read with, a folder that,
+    // every link followed, lies inside deck's folder or holds it, as copying would take the source with it, or what
+    // `refuse` throws for the mod read. Once installed, its id is no more among those shipped, so it stays at each
+    // later start.
+    func install(from source: URL, dryRun: Bool, refusing refuse: (Manifest) throws -> Void) throws -> Installation {
+        let installation = try installation(of: source)
+        try refuse(installation.manifest)
+        guard !dryRun else { return installation }
+
+        let id = installation.manifest.id
+        try place(installation.manifest, from: source, system: false)
+        if let shipped = read(shippedList), shipped.contains(id) {
+            try write(shipped.filter { shipped in shipped != id }, to: shippedList)
         }
 
-        return InstallPlan(manifest: manifest, replaces: installed()[manifest.id] != nil)
-    }
-
-    // The mod `plan` was made for, installed from `source` as no system mod, and its id no more among those shipped,
-    // so it stays at each later start.
-    func install(_ plan: InstallPlan, from source: URL) throws {
-        try place(plan.manifest, from: source, system: false)
-        if let shipped = read(shippedList), shipped.contains(plan.manifest.id) {
-            try write(shipped.filter { id in id != plan.manifest.id }, to: shippedList)
-        }
+        return installation
     }
 
     // The installed mod with this id, every copy of it. What it stored stays.
@@ -159,6 +155,19 @@ final class Installer {
     }
 
     // MARK: - Private
+    // What installing the folder `source` does, the mod read as no system mod's, or the refusal `install` throws for
+    // the folder.
+    private func installation(of source: URL) throws -> Installation {
+        let manifest = try manifest(of: source, system: false)
+        let place = modFolder.realPath(of: source) ?? source.standardizedFileURL.path(percentEncoded: false)
+        let own = modFolder.realPath(of: home) ?? home.standardizedFileURL.path(percentEncoded: false)
+        guard !isInside(place, own) && !isInside(own, place) else {
+            throw InstallError.nested
+        }
+
+        return Installation(manifest: manifest, replaces: installed()[manifest.id] != nil)
+    }
+
     // What the manifest in `source` says, as a `system` mod or not, or the refusal the folder is read with.
     private func manifest(of source: URL, system: Bool) throws -> Manifest {
         if let problem = modFolder.problem(of: source, system: system) {

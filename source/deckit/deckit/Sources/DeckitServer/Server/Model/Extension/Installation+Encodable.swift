@@ -1,5 +1,5 @@
 //
-//  InstallPlan+Encodable.swift
+//  Installation+Encodable.swift
 //  DeckitServer
 //
 //  Created by JSilver on 10/21/26.
@@ -9,7 +9,7 @@ import Foundation
 import Deck
 import Deckit
 
-extension InstallPlan: Encodable {
+extension Installation: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case manifest

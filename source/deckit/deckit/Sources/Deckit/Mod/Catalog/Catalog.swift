@@ -105,24 +105,19 @@ public final class Catalog {
         try ownerTable.pin(interface, to: id)
     }
 
-    // What installing a folder would do, refused too where a mod read in place has its id, which would hide the copy
-    // installed.
-    public func planInstall(from source: URL) throws -> InstallPlan {
-        let plan = try installer.planInstall(from: source)
-        if let mod = list().first(where: { mod in mod.manifest.id == plan.manifest.id }), isReadInPlace(mod) {
-            throw InstallError.readInPlace(id: mod.manifest.id, folder: mod.folder.path(percentEncoded: false))
+    // The mod in `source` installed, or with `dryRun` nothing changed, answering what installing it does. Refused too
+    // where a mod read in place has its id, which would hide the copy installed.
+    public func install(from source: URL, dryRun: Bool = false) throws -> Installation {
+        let installation = try installer.install(from: source, dryRun: dryRun) { manifest in
+            if let mod = list().first(where: { mod in mod.manifest.id == manifest.id }), isReadInPlace(mod) {
+                throw InstallError.readInPlace(id: mod.manifest.id, folder: mod.folder.path(percentEncoded: false))
+            }
         }
+        guard !dryRun else { return installation }
 
-        return plan
-    }
-
-    public func install(from source: URL) throws -> Manifest {
-        let plan = try planInstall(from: source)
-        try installer.install(plan, from: source)
-        installs[plan.manifest.id, default: 0] += 1
+        installs[installation.manifest.id, default: 0] += 1
         keptOwnership(of: ranked())
-
-        return plan.manifest
+        return installation
     }
 
     // A mod read in place is removed where it is read. Answers whether deck keeps anything under its id: one that is

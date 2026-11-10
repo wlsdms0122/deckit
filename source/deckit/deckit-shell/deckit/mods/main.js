@@ -49,7 +49,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
     // What a folder would install, asked before the person is: its manifest, and whether it replaces an installed
     // mod. Refused with why for a folder install refuses.
     async function plan(from) {
-        const { manifest, replaces } = await CATALOG.planInstall(from);
+        const { manifest, replaces } = await CATALOG.install(from, { dryRun: true });
         return { ...manifest, from, replaces };
     }
 
@@ -140,9 +140,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
     // nothing. What a removal of the same id left to erase is erased first, so erasing it never reaches this one.
     async function install(from) {
-        const { id } = (await CATALOG.planInstall(from)).manifest;
+        const { id } = (await CATALOG.install(from, { dryRun: true })).manifest;
         if ((await CORE.request('erasure/uncleared')).includes(id)) await erase(id);
-        const manifest = await CATALOG.install(from);
+        const { manifest } = await CATALOG.install(from);
         await CATALOG.refresh();
         await RUNNER.whenReconciled();
         for (const listener of installedListeners) LISTENER.wrap(listener, 'what hears a mod installed')(manifest.id);

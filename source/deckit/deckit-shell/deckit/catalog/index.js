@@ -51,15 +51,11 @@ export function createCatalog({ CORE, LOG, files }) {
         await refresh();
     }
 
-    // What a folder would install, `{ manifest, replaces }`: whether it takes the place of an installed copy. Refused
-    // with why for a folder install refuses.
-    function planInstall(from) {
-        return CORE.request('catalog/plan-install', { from });
-    }
-
-    // Answers the manifest of what it installed. What is read here changes at the next refresh.
-    function install(from) {
-        return CORE.request('catalog/install', { from });
+    // The mod in the folder `from` installed, or with `dryRun` nothing changed. Answers what installing it does,
+    // `{ manifest, replaces }`: whether it takes the place of an installed copy. Refused with why, before anything
+    // changes. What is read here changes at the next refresh.
+    function install(from, { dryRun = false } = {}) {
+        return CORE.request('catalog/install', { from, dryRun });
     }
 
     // The installed copies of the mod taken away. Answers whether the core keeps anything under its id, which one that
@@ -102,7 +98,6 @@ export function createCatalog({ CORE, LOG, files }) {
         mods,
         interfaces,
         pin,
-        planInstall,
         install,
         remove,
         refresh,

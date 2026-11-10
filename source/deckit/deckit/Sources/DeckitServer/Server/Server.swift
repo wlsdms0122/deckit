@@ -145,11 +145,9 @@ final class Server {
         case "catalog/install-shipped":
             return try deckit.catalog.installShipped()
 
-        case "catalog/plan-install":
-            return try deckit.catalog.planInstall(from: folder(request.decodeParams(as: InstallModParams.self).from))
-
         case "catalog/install":
-            return try deckit.catalog.install(from: folder(request.decodeParams(as: InstallModParams.self).from))
+            let params = try request.decodeParams(as: InstallModParams.self)
+            return try deckit.catalog.install(from: folder(params.from), dryRun: params.dryRun)
 
         case "catalog/remove":
             return try deckit.catalog.remove(request.decodeParams(as: RemoveModParams.self).id)
