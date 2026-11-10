@@ -4,8 +4,8 @@
 // or was refused (deckit.whenStarted()), answers each call and look it is asked, a start and a call once no run is
 // between two states, and quits when asked. It stacks a layer of its own over deckit on each mod's page (page.js),
 // which makes the requests a call hands it and keeps what its listeners heard, attaches the web engine and the shell on
-// the base shell, and opens none of the addresses it is handed to open outside the app: it keeps each one, for the look
-// opened.
+// the base shell, runs main process modules where an owner it ships asks for them, and opens none of the addresses it
+// is handed to open outside the app: it keeps each one, for the look opened.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -79,6 +79,8 @@ try {
         folders: { home: setup.home, ship: setup.ship, sources: setup.sources },
     });
     deckit.stack('conformance');
+    // Main process modules run, as a host app runs them, where an owner the case ships asks for them.
+    if (setup.mainProcess) ELECTRON.attachMainProcess(deckit, given);
     // On the base shell, the web engine and the shell are attached as a host app attaches them, the shell shown
     // nowhere, before the case's fields and permissions, which come after the base's.
     if (setup.base === 'shell')

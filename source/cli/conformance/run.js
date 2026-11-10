@@ -13,6 +13,8 @@ const SETTLE = 10000;
 const MANIFEST = ['id', 'name', 'version', 'api', 'main', 'background', 'interfaces', 'permissions', 'contributes'];
 // The manifest fields each base defines itself, by the base: the shell's are those it reads of a mod.
 const BASE_FIELDS = { system: [], shell: require('../../deckit/deckit-sdk/shell/mods/field.js').KEYS };
+// The permission whose mods the host app runs main process modules for, with the framework that defines it.
+const MAIN_PROCESS = 'system.main-process';
 
 // Runs `theCase` in `folder`, made afresh, on the host app in `hostApp` that Electron at `electron` runs. Comes to
 // `{ outcome }`: 'passed'; 'failed', with `step`, `came` and `expected` for its first step that did not match; or
@@ -36,13 +38,15 @@ async function run(theCase, { folder, hostApp, electron }) {
     }
     // The owner of each standard interface `owners` names, as the implementation ships it, marked system, then the
     // case's own; the host adds each field an owner's manifest writes that the system does not read and the case does
-    // not write, before the case's.
+    // not write, before the case's, and runs main process modules where an owner asks for system.main-process.
     const owners = [];
     const read = [];
+    let mainProcess = false;
     for (const name of host.owners) {
         const owner = ownerOf(name, path.join(hostApp, 'deckit', 'mods'));
         if (!owner) return { outcome: 'not laid out', why: `the implementation ships no owner of ${name}` };
         owners.push({ folder: owner.folder, system: true });
+        if (Object.hasOwn(owner.manifest.permissions ?? {}, MAIN_PROCESS)) mainProcess = true;
         for (const field of Object.keys(owner.manifest))
             if (!MANIFEST.includes(field) && !BASE_FIELDS[host.base].includes(field) && !read.includes(field))
                 read.push(field);
@@ -72,6 +76,7 @@ async function run(theCase, { folder, hostApp, electron }) {
                 electron: path.join(folder, 'electron'),
                 downloads: path.join(folder, 'downloads'),
                 fields,
+                mainProcess,
                 permissions: host.permissions,
                 ship,
                 sources: host.sources.length ? [sources] : [],

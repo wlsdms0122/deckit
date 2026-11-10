@@ -32,7 +32,8 @@ function fail(message, code = 1) {
 
 // The host app's folder: the archive unpacked as deckit/, the runner's host entry beside it, and the preload every
 // deckit page loads with: deckit's renderer bundle and then the shell's, which carries the page side of the passage
-// every background start needs, started with the host's own layer (conformance/page.js).
+// every background start needs, started with the renderer's layers, stacked where the host attaches them, and the
+// host's own layer (conformance/page.js).
 function assemble(archive, to) {
     fs.rmSync(to, { recursive: true, force: true });
     const library = path.join(to, 'deckit');
@@ -48,7 +49,7 @@ function assemble(archive, to) {
             read('shell-renderer'),
             fs.readFileSync(path.join(root, 'source', 'cli', 'conformance', 'page.js'), 'utf8'),
             `const environment = ${built.bundles.renderer.global}.boot({ before });`,
-            `const layers = { conformance: conformanceLayer };`,
+            `const layers = { ...${built.bundles.renderer.global}.LAYERS, conformance: conformanceLayer };`,
             `if (environment) ${built.bundles['shell-renderer'].global}.start(environment, { layers });`,
             '})();',
         ].join('\n;\n') + '\n';
