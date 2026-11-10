@@ -4,7 +4,14 @@ import * as CLIPBOARD_PERMISSION from '../../../../deckit-sdk/deckit/clipboard/m
 // What a site may have, by the names the web platform gives each: asked of the mod showing it, as a browser asks the
 // person, let through without asking, as a browser lets a site have it, or, for what a browser only checks, said yes to
 // when checked and refused when asked for. Anything else is refused.
-const ASKED = Object.freeze(['notifications', 'clipboard-read', 'geolocation', 'microphone', 'camera']);
+const ASKED = Object.freeze([
+    'notifications',
+    'clipboard-read',
+    'geolocation',
+    'microphone',
+    'camera',
+    'display-capture',
+]);
 const UNASKED = Object.freeze(['fullscreen', 'clipboard-write', 'pointer-lock', 'keyboard-lock', 'encrypted-media']);
 const CHECKED = Object.freeze(['local-network-access']);
 // What a site reaches that the system guards with a permission of its own, by the name the web platform gives it, and
