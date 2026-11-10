@@ -1,0 +1,39 @@
+case = 10
+name = "a-page-shown-apart-does-not-load-an-address-of-another-scheme"
+note = "A load of an address that is no address of the web and no file is refused, and leaves the page as it was, a blank page where it was made at it. The host's layer shows apart a page at ftp://127.0.0.1/x, and reads its address."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+url = "ftp://127.0.0.1/x"
+apart = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "url"
+
+[step.expect]
+answers = ""
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "blank"
+
+[step.expect]
+answers = true

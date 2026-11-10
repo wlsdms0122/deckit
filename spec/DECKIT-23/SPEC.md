@@ -36,7 +36,7 @@ A host stacks the web engine over the system, as [the embedding](../DECKIT-22/SP
 
 Before the start, the web engine defines the permissions under *The web engine's permissions*, after the system's own, as [the permissions](../DECKIT-3/SPEC.md) order them. A host that does not stack it defines none of them, and a mod that asks for one there finds it not usable, as [the bundle](../DECKIT-2/SPEC.md) answers a permission no one defines.
 
-The web engine offers a layer the host stacks over it what shows web pages in a mod's sessions, as the DECKIT of web pages fixes it. A layer under it is offered nothing of it.
+The web engine offers a layer the host stacks over it what shows web pages in a mod's sessions, as [web pages](../DECKIT-25/SPEC.md) fix it. A layer under it is offered nothing of it.
 
 ### The handle web
 
@@ -80,7 +80,7 @@ It is refused at `call` with kind `INVALID_ARGUMENT`, where `name` is not a stri
 
 `name`, a member of a session handle, holds the `name` it was answered for, and is read as a value.
 
-A mod **uses** a session as it fetches through it, as [fetching through a session](../DECKIT-24/SPEC.md) fixes it, or as a web page is shown in it, as the DECKIT of web pages fixes it. A session it used stays one it used as the host app quits and starts again, until the mod is erased, under *What the web engine keeps of a mod*. No other member of a session handle uses it.
+A mod **uses** a session as it fetches through it, as [fetching through a session](../DECKIT-24/SPEC.md) fixes it, or as a web page is shown in it, as [web pages](../DECKIT-25/SPEC.md) fix it. A session it used stays one it used as the host app quits and starts again, until the mod is erased, under *What the web engine keeps of a mod*. No other member of a session handle uses it.
 
 ### clear()
 
@@ -130,7 +130,7 @@ Each guards what this table names and nothing else, as [the permissions](../DECK
 
 | id | guards |
 |---|---|
-| `system.files` | a file loaded in the mod's own web page, as the DECKIT of web pages fixes what loads |
+| `system.files` | a file loaded in the mod's own web page, as [web pages](../DECKIT-25/SPEC.md) fix what loads |
 | `system.network` | `fetch(url, init)`, as [fetching through a session](../DECKIT-24/SPEC.md) fixes it |
 | `system.certificates` | `trust(entries)`, as the DECKIT of what a site is let have fixes it |
 | `system.site-permissions` | `allow(entries)` and `revoke(entries)`, and whether the mod is asked what a site is let have, as the DECKIT of what a site is let have fixes them |
@@ -146,7 +146,8 @@ Each guards what this table names and nothing else, as [the permissions](../DECK
 - The layers a host hands the system before the start, each by its name: [the embedding](../DECKIT-22/SPEC.md).
 - The base `web`, the host that stacks the web engine, and the key `handle` of the input `call`, which reads `web`: [the case format](../DECKIT-1/SPEC.md).
 - `fetch`, the cookies it sends and keeps in a session, and the session it uses: [fetching through a session](../DECKIT-24/SPEC.md).
-- Web pages and what loads in them, what a site is let have with `allow`, `revoke` and `trust`, and downloads: the web engine's other DECKITs.
+- Web pages and what loads in them: [web pages](../DECKIT-25/SPEC.md).
+- What a site is let have with `allow`, `revoke` and `trust`, and downloads: the web engine's other DECKITs.
 
 ## Alternatives considered
 
@@ -161,6 +162,6 @@ Each guards what this table names and nothing else, as [the permissions](../DECK
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That the handle is made for each lifecycle and cut as it ends, a session handle cut, and the refusal `ENDED`: no base of [the case format](../DECKIT-1/SPEC.md) ends one lifecycle of a run while another runs, and a case's lifecycles last as long as its run. That a session holds the storage its sites keep and its cache, and that `clear()` takes them: no input of the case format shows a page, so no case reads them. A session's cookies are read through a fetch: a case here holds that `clear()` takes them, and the cases of [fetching through a session](../DECKIT-24/SPEC.md) hold that two sessions share none, of one mod or of two mods of one name; the cases here hold the sessions of two mods kept apart by what the web engine keeps of each, and what `clear()` leaves. That a session the mod used stays one it used across starts, and is erased: the cases of fetching through a session read a session used within one start, and no case reads one after a start or an erase. The downloads kept and erased, and the certificates trusted: the cases of the DECKITs of downloads and of what a site is let have hold them. What the web engine offers a layer over it: no case's host stacks a layer over it. What each permission guards: the DECKIT that fixes what it guards holds it, but for `system.site-permissions`, which a case of this DECKIT holds through `allow`.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That the handle is made for each lifecycle and cut as it ends, a session handle cut, and the refusal `ENDED`: no base of [the case format](../DECKIT-1/SPEC.md) ends one lifecycle of a run while another runs, and a case's lifecycles last as long as its run. That a session holds the storage its sites keep and its cache, and that `clear()` takes them: a page the case format shows is read by its state and by the requests its sites get, and no input reads what its sites keep or what its session cached. A session's cookies are read through a fetch: a case here holds that `clear()` takes them, and the cases of [fetching through a session](../DECKIT-24/SPEC.md) hold that two sessions share none, of one mod or of two mods of one name; the cases here hold the sessions of two mods kept apart by what the web engine keeps of each, and what `clear()` leaves. That a session the mod used stays one it used across starts, and is erased: the cases of fetching through a session read a session used within one start, and no case reads one after a start or an erase. The downloads kept and erased, and the certificates trusted: the cases of the DECKITs of downloads and of what a site is let have hold them. What the web engine offers a layer over it: the cases of [web pages](../DECKIT-25/SPEC.md) hold it, on the host's layer over the web engine. What each permission guards: the DECKIT that fixes what it guards holds it, but for `system.site-permissions`, which a case of this DECKIT holds through `allow`.
 
 **Note.** What this costs an implementation: one store for each mod and session name, never shared; a session handle remembered for each lifecycle, cut as the lifecycle ends; a record of the sessions each mod used, kept across starts, which `clear()` leaves and erasing takes; and, as a mod is erased, every place the web engine keeps anything of it emptied, its sites' allowances and the certificates it trusted among them, even where they are kept only until the app quits.

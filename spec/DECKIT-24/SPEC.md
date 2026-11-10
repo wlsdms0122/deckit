@@ -118,7 +118,7 @@ A fetch answers the bytes it is answered and does nothing more with them: it run
 - A request, values, the error a request is rejected with, `INVALID_ARGUMENT`, and an argument and a key left out: [the handle](../DECKIT-7/SPEC.md).
 - `QUOTA_EXCEEDED`, which [the storage](../DECKIT-13/SPEC.md) states of a place with no room: here, of an answer over the limit.
 - The sites a case serves, the key `sites` of the input `call`, and the look `requested`: [the case format](../DECKIT-1/SPEC.md).
-- A web page shown in a session, which sends the same cookies: the web engine's other DECKITs.
+- A web page shown in a session, which sends the same cookies: [web pages](../DECKIT-25/SPEC.md).
 
 ## Alternatives considered
 

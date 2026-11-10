@@ -1,0 +1,29 @@
+case = 10
+name = "a-page-shown-apart-loads-its-address"
+note = "window({ session, url, title }) answers the handle of a page the host shows apart from the mod's page, which loads url. The host's layer shows index.html of site-a apart, and reads its title."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+apart = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "Hello"

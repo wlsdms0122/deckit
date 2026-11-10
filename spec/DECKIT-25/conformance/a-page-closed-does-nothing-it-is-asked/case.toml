@@ -1,0 +1,38 @@
+case = 10
+name = "a-page-closed-does-nothing-it-is-asked"
+note = "A page that has closed does nothing it is asked, and is not refused. The host's layer shows index.html of site-a apart, closes it, and asks it to load next.html."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+apart = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "close"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "load"
+of = 2
+sites = ["site-a/next.html"]
+
+[[step]]
+look = "requested"
+
+[step.expect]
+answers = [{ site = "site-a", method = "GET", path = "/index.html", headers = [] }]

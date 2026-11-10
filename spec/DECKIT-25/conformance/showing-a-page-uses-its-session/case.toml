@@ -1,0 +1,29 @@
+case = 10
+name = "showing-a-page-uses-its-session"
+note = "A page shown in a session uses it, so the web engine keeps it. The host's layer shows index.html of site-a in mod-b's session main, and mod-a reads what mod-b keeps."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-b"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "kept"
+
+[step.expect]
+answers = ["web"]
