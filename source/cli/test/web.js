@@ -1,7 +1,8 @@
 // The web engine in main (deckit-shell/web/engine) on a stand-in for what connect answers and for the environment's
 // web: what loads in web pages, the mod's page a web page answers to, which sessions attach and are kept, a mod's
 // windows closing with its document, what a mod's page opens by itself opened for the mod, what a web page's
-// window.open gets, what a site may have and the question put to the mod showing it, what a mod lets sites have and the
+// window.open gets, what a site may have and the question put to the mod showing it, the clipboard a site reaches only
+// for a mod granted the clipboard permission, what a mod lets sites have and the
 // certificates it trusts, each refused whole for an entry that does not fit, a fetch's refusals, a site's
 // notifications, a mod's tabs held to the mod, its downloads told to its running run, and each web page told as it is
 // adopted. Exits 1 with a line for each check that failed. The
@@ -436,6 +437,57 @@ async function main() {
             })) === false,
         ''
     );
+
+    // What a site reaches that the system guards with a permission of its own: the clipboard.
+    const askedBefore = toldOn('deckit-shell:web-asking').length;
+    check(
+        'a site of a mod not granted the clipboard permissions is refused the clipboard, unasked',
+        listened.permits(session, 'https://a.com', 'clipboard-write') === false &&
+            listened.permits(null, 'https://a.com', 'clipboard-write') === false &&
+            (await listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['clipboard-write'] })) ===
+                false &&
+            (await listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['clipboard-read'] })) ===
+                false &&
+            toldOn('deckit-shell:web-asking').length === askedBefore,
+        ''
+    );
+    await allowSite('https://a.com', 'clipboard-read');
+    check(
+        'what a mod let a site have of the clipboard it reaches only while granted the clipboard permission',
+        listened.permits(session, 'https://a.com', 'clipboard-read') === false &&
+            listened.permitted(session, 'clipboard-read').length === 0,
+        listened.permitted(session, 'clipboard-read')
+    );
+    mods.set(filesPage, { ...files, granted: [...files.granted, 'system.clipboard-read', 'system.clipboard-write'] });
+    check(
+        'a site of a mod granted system.clipboard-write writes what is copied, unasked',
+        listened.permits(session, 'https://a.com', 'clipboard-write') === true &&
+            (await listened.request(filesPage, 7, { origin: 'https://a.com', permissions: ['clipboard-write'] })) ===
+                true,
+        ''
+    );
+    check(
+        'a site of a mod granted system.clipboard-read has what the mod let it have of it',
+        listened.permits(session, 'https://a.com', 'clipboard-read') === true &&
+            JSON.stringify(listened.permitted(session, 'clipboard-read')) === '["https://a.com"]',
+        listened.permitted(session, 'clipboard-read')
+    );
+    const reading = listened.request(filesPage, 7, { origin: 'https://b.com', permissions: ['clipboard-read'] });
+    await tick();
+    const readQuestion = toldOn('deckit-shell:web-asking').at(-1)?.[1].payload;
+    check(
+        'a site of a mod granted system.clipboard-read is asked of the mod to read what is copied',
+        toldOn('deckit-shell:web-asking').length === askedBefore + 1 &&
+            JSON.stringify(readQuestion?.permissions) === '["clipboard-read"]',
+        readQuestion
+    );
+    heard.told(filesPage, { channel: 'deckit-shell:web-permit', payload: { ask: readQuestion.ask, allow: true } });
+    check('the mod answers it', (await reading) === true, '');
+    mods.set(filesPage, files);
+    await heard.asked(filesPage, {
+        channel: 'deckit-shell:web-revoke',
+        payload: { name: 'main', entries: [{ origin: 'https://a.com', permission: 'clipboard-read' }] },
+    });
     await heard.asked(filesPage, {
         channel: 'deckit-shell:web-revoke',
         payload: { name: 'main', entries: [{ origin: 'https://a.com', permission: 'notifications' }] },

@@ -87,8 +87,8 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.main-process` | the app's main process, where the mod's modules run and can read and write files, reach the network and start programs | `mainProcess.start` |
 | `system.files` | files on this Mac, opened in its own pages | `file://` addresses in its web pages |
 | `system.network` | any address, past the rules that keep one site from reading another | `fetch(url, init)` on a web session |
-| `system.certificates` | trusting a certificate this Mac cannot verify, in one of its sessions | `trust` on a web session |
-| `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
+| `system.certificates` | trusting a certificate that cannot be verified, in one of its sessions | `trust` on a web session |
+| `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, the location, an app for a link, and what was copied as far as the clipboard permissions reach), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
 | `system.clipboard-read` | reading what was copied, from any app | `deckit.clipboard.readText` |
 | `system.clipboard-write` | replacing what was copied with text of its own, which the person then pastes in any app | `deckit.clipboard.writeText` |
 | `system.file-handlers` | handing files on this Mac to whatever opens them, which can start programs | `deckit.openExternal` of a `file://` address and `web.downloads.open` |
@@ -406,7 +406,7 @@ page.delegate = {
 
 A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers, and a download is saved. Answer `false` when the mod opened it itself, or for a download not to save. `openWindow` hands over the window the page opened with `window.open` or a link to a new one, a page as `shell.web.page` makes it, already the site's window: the mod shows its `element`, and the site and the window reach each other as they do in a browser. Left out or answered `false`, the window closes and its address goes to its scheme's handlers. A window that asked for its size, or one a window opened, is a window of the app's, and a file page's goes to the handlers. A page opens a window only during a person's click or key in it, as a browser blocks a popup otherwise; one it opens at any other time is refused before the delegate hears of it.
 
-A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notifications, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. Anything else a site asks for is refused.
+A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notifications, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. What is copied is the clipboard of the machine, which a site reaches only as its mod does: it writes there only for a mod with `system.clipboard-write`, and reading is asked only of a mod with `system.clipboard-read` as well, the site refused unasked otherwise. Anything else a site asks for is refused.
 
 ## The run
 

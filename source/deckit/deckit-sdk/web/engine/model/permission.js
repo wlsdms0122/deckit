@@ -20,13 +20,13 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: CERTIFICATES,
         name: 'Certificates',
-        description: "It can accept a certificate this Mac cannot verify, for one site, so that site's pages load.",
+        description: "It can accept a certificate that cannot be verified, for one site, so that site's pages load.",
     }),
     Object.freeze({
         id: SITE_PERMISSIONS,
         name: 'Site Permissions',
         description:
-            "It can let a site's pages use the camera, the microphone, notifications, what you copied, your location and the apps links open in, and take that back.",
+            "It can let a site's pages use the camera, the microphone, notifications, your location, the apps links open in and, as far as its clipboard permissions reach, what you copied, and take that back.",
     }),
 ]);
 

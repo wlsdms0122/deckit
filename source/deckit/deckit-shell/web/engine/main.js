@@ -348,30 +348,42 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     }
 
     // Whether a site may have `name` in a session, `{ mod, name }` or null for one that is no mod's: what it is let
-    // have without asking, or what the mod let it have when it is asked.
+    // have without asking, or what the mod let it have when it is asked, each only while the mod is granted the
+    // permission of the system's that guards it, where one does.
     function permits(session, origin, name) {
         const rule = SITE_PERMISSION.ruleOf(name);
-        if (rule !== 'ask') return rule === 'allow' || rule === 'checked';
+        if (rule === 'refuse' || !reaches(session?.mod ?? null, name)) return false;
+        if (rule !== 'ask') return true;
         return !!session && granted.has(keyOf(session, SITE.originOf(origin), name));
     }
 
     // The sites that may have `name` in a session.
     function permitted(session, name) {
-        if (!session) return [];
+        if (!session || !reaches(session.mod, name)) return [];
         const prefix = `${session.mod}|${session.name}|`;
         return [...granted]
             .filter((key) => key.startsWith(prefix) && key.endsWith('|' + name))
             .map((key) => key.slice(prefix.length, -name.length - 1));
     }
 
-    // What a site asks: refused when it asks for nothing the web engine names or for something it is never let have,
-    // let through when it is all it is let have without asking, and otherwise asked of the mod showing it.
+    // What a site asks: refused when it asks for nothing the web engine names, for something it is never let have, or
+    // for something the mod showing it is not granted the permission of the system's that guards it, let through when
+    // it is all it is let have without asking, and otherwise asked of the mod showing it.
     function request(embedder, id, { origin, permissions }) {
         const rules = permissions.map(SITE_PERMISSION.ruleOf);
         if (!permissions.length || rules.some((rule) => rule === 'refuse' || rule === 'checked'))
             return Promise.resolve(false);
+        const modId = deckit.mods.modOf(embedder);
+        if (!permissions.every((name) => reaches(modId, name))) return Promise.resolve(false);
         if (rules.every((rule) => rule === 'allow')) return Promise.resolve(true);
         return ask(embedder, id, origin, permissions);
+    }
+
+    // Whether a site of the mod `modId`, or of no mod's for null, may have `name` as the system guards it: always where
+    // no permission of the system's guards it, else only while the mod is granted that permission.
+    function reaches(modId, name) {
+        const guard = SITE_PERMISSION.guardOf(name);
+        return !guard || !!deckit.mods.grantedOf(modId)?.includes(guard);
     }
 
     function keyOf(session, origin, permission) {
