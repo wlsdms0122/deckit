@@ -2134,6 +2134,11 @@ async function run({
                         return response.end();
                     }
                     if (request.url === '/bytes') return response.end(Buffer.from([0, 255, 1, 254]));
+                    if (request.url === '/large') return response.end(Buffer.alloc(4 * 1024 * 1024 + 1));
+                    if (request.url === '/none') {
+                        response.writeHead(204);
+                        return response.end();
+                    }
                     if (request.url !== '/echo') {
                         response.writeHead(404);
                         return response.end('gone');
@@ -2162,13 +2167,18 @@ async function run({
             const followed = await fetched('followed', `${at}/set`);
             const posted = await fetched('posted', `${at}/echo`, {
                 method: 'POST',
-                headers: { 'X-Probe': 'sent', 'User-Agent': 'Probe/1' },
-                body: 'hello',
+                headers: [
+                    ['X-Probe', 'sent'],
+                    ['User-Agent', 'Probe/1'],
+                ],
+                body: Buffer.from('hello').toString('base64'),
             });
             const bytes = await fetched('bytes', `${at}/bytes`);
             const missing = await fetched('missing', `${at}/missing`);
             const manual = await fetched('manual', `${at}/set`, { redirect: 'manual' });
             const refused = await fetched('refused', `${at}/set`, { redirect: 'error' });
+            const none = await fetched('none', `${at}/none`);
+            const large = await fetched('large', `${at}/large`);
             site.close();
             const echoed = (answer) => JSON.parse(bodyOf(answer) || '{}');
             check(
@@ -2197,8 +2207,16 @@ async function run({
             );
             check(
                 "a session's fetch heeds the request's redirect",
-                manual?.status === 302 && manual.headers.location === '/echo' && !manual.redirected && !!refused?.error,
+                manual?.status === 302 &&
+                    manual.headers.location === '/echo' &&
+                    !manual.redirected &&
+                    refused?.kind === 'REFUSED',
                 JSON.stringify([manual, refused])
+            );
+            check(
+                "a session's fetch answers no body for a status with none, and refuses an answer past its limit",
+                none?.status === 204 && none.bytes === null && large?.kind === 'QUOTA_EXCEEDED',
+                JSON.stringify([none, large])
             );
         }
 

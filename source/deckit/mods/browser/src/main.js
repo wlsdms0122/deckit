@@ -156,8 +156,11 @@ class Browser {
 
         area.append(start.element);
         content.append(bar.element, area);
-        webSession.trust(certificates.all());
-        webSession.allow(sitePermissions.all());
+        // What was kept is handed back whole, and one entry the session does not take refuses all of it.
+        const restored = (what) => (error) =>
+            console.warn(`[browser] the ${what} kept were not restored: ${error.message}`);
+        webSession.trust(certificates.all()).catch(restored('certificates'));
+        webSession.allow(sitePermissions.all()).catch(restored('site permissions'));
         tabs.restore();
         showBookmarks();
 

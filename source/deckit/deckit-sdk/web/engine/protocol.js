@@ -10,8 +10,8 @@ export const window = CHANNEL.pageToMain(
     { name: 'string', url: 'string', title: 'string' },
     { reply: true, guard: CHANNEL.GUARD.MOD }
 );
-// headers: [[name, value]]; body: bytes in base64, or null; redirect: follow, error or manual. Answers `{ url,
-// status, headers, body, redirected }`.
+// headers: [[name, value]]; body: bytes in base64, left out for none; redirect: follow, error or manual. Answers
+// `{ url, status, headers, body, redirected }`.
 export const fetch = CHANNEL.pageToMain(
     'deckit-shell:web-fetch',
     { name: 'string', url: 'string', method: 'string', headers: 'array', body: 'string?', redirect: 'string' },
@@ -22,13 +22,13 @@ export const clear = CHANNEL.pageToMain(
     { name: 'string' },
     { reply: true, guard: CHANNEL.GUARD.MOD }
 );
-// entries: [{ host, fingerprint }]
+// entries: [{ host, fingerprint }]. Answers nothing.
 export const trust = CHANNEL.pageToMain(
     'deckit-shell:web-trust',
     { name: 'string', entries: 'array' },
     { reply: true, guard: WEB_PERMISSION.CERTIFICATES }
 );
-// entries: [{ origin, permission }]
+// entries: [{ origin, permission }]. Answers nothing, as revoke does.
 export const allow = CHANNEL.pageToMain(
     'deckit-shell:web-allow',
     { name: 'string', entries: 'array' },
@@ -102,10 +102,11 @@ export const downloads = CHANNEL.pageToMain(
     {},
     { reply: true, guard: CHANNEL.GUARD.MOD }
 );
+// Answers nothing, once a download of the mod's under way by that id is stopped.
 export const cancelDownload = CHANNEL.pageToMain(
     'deckit-shell:web-download-cancel',
     { id: 'string' },
-    { guard: CHANNEL.GUARD.MOD }
+    { reply: true, guard: CHANNEL.GUARD.MOD }
 );
 export const openDownload = CHANNEL.pageToMain(
     'deckit-shell:web-download-open',

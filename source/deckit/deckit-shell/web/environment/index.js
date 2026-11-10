@@ -39,11 +39,12 @@ const WEB = Object.freeze({
         permissionsChanged: 'function',
         // fetch(mod, session, { url, method, headers, body, redirect }) -> Promise of `{ url, status, headers, body,
         // redirected }`, the request sent as the session's pages send one: `headers` `[[name, value]]`, `body` bytes
-        // in base64 or null, `redirect` `follow`, `error` or `manual`, and `url` the address that answered
+        // in base64, left out of the request for none, `redirect` `follow`, `error` or `manual`, and `url` the address
+        // that answered; rejected with kind QUOTA_EXCEEDED for an answer past `fetchLimit` (WEB_DECK)
         fetch: 'function',
         clear: 'function', // clear(mod, session) -> Promise: what the session stored, taken
         cancelDownload: 'function', // cancelDownload(id): a download under way, stopped
-        // trust(mod, session, entries) -> how many are trusted: `[{ host, fingerprint }]`, certificates trusted
+        // trust(mod, session, entries): `[{ host, fingerprint }]`, certificates trusted in that session, each a string
         trust: 'function',
         // sessionsOf(mod) -> what a mod's page is told its mod's sessions are named by, a string it hands `view`
         // (WEB_PAGE) as `sessions`, unread

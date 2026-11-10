@@ -1,4 +1,5 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as REQUEST from '../../../deckit-sdk/deckit/request/index.js';
 import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
 import * as DECLARED from '../../../deckit-sdk/web/engine/protocol.js';
 import * as WEB_PERMISSION from '../../../deckit-sdk/web/engine/model/permission.js';
@@ -26,19 +27,6 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     // How long after a key or mouse press in a web page its window.open is taken as coming of that press, as a browser
     // keeps a page's transient user activation.
     const ACTIVATION_MS = 5000;
-    // Asked per scheme, so a site allowed one app is not allowed every app. These are the web's own, never an app's.
-    const NEVER_OUT = new Set([
-        'javascript',
-        'data',
-        'blob',
-        'file',
-        'filesystem',
-        'about',
-        'http',
-        'https',
-        'ws',
-        'wss',
-    ]);
     const windows = new Map(); // id of a web page in a window a mod asked for -> the mod's page that asked
     const questions = new Map(); // ask id -> { embedder, key, off, waiting: [resolve] }
     const questionFor = new Map(); // web page id|origin|permissions -> ask id
@@ -154,16 +142,14 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         );
         PROTOCOL.fetch.handle(({ name, ...request }, sender) => fetch(deckit.mods.modOf(sender), name, request));
         PROTOCOL.clear.handle(({ name }, sender) => clear(deckit.mods.modOf(sender), name));
-        PROTOCOL.trust.handle(({ name, entries }, sender) =>
-            WEB.trust(deckit.mods.modOf(sender), SESSION.nameOf(name), entries)
-        );
+        PROTOCOL.trust.handle(({ name, entries }, sender) => trust(deckit.mods.modOf(sender), name, entries));
         PROTOCOL.allow.handle(({ name, entries }, sender) =>
-            change(deckit.mods.modOf(sender), SESSION.nameOf(name), entries, (key) => granted.add(key))
+            change('allow', deckit.mods.modOf(sender), name, entries, (key) => granted.add(key))
         );
         // A page already holding a stream keeps it, and one told "granted" keeps believing it: the mod reloads its
         // pages of that origin.
         PROTOCOL.revoke.handle(({ name, entries }, sender) =>
-            change(deckit.mods.modOf(sender), SESSION.nameOf(name), entries, (key) => granted.delete(key))
+            change('revoke', deckit.mods.modOf(sender), name, entries, (key) => granted.delete(key))
         );
         PROTOCOL.permit.on(({ ask: id, allow }, sender) => {
             if (questions.get(id)?.embedder === sender) settle(id, allow);
@@ -234,15 +220,40 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return id;
     }
 
+    // A request that is not answered is refused with the kind the environment gave, or REFUSED where it gave none.
     async function fetch(modId, name, request) {
-        if (!/^https?:\/\//i.test(request.url)) throw new Error('not a web address: ' + request.url);
+        SESSION.nameOf(name);
+        if (!SITE.isWebAddress(request.url)) throw invalid(`web.session.fetch: ${request.url} is no web address`);
         use(modId, name);
-        return WEB.fetch(modId, name, request);
+        try {
+            return await WEB.fetch(modId, name, request);
+        } catch (error) {
+            throw REQUEST.refusal('call', error?.kind || 'REFUSED', String(error?.message ?? error));
+        }
     }
 
+    // A session the mod never used holds nothing, and is not recorded by being cleared.
     async function clear(modId, name) {
-        use(modId, name);
-        return WEB.clear(modId, name);
+        SESSION.nameOf(name);
+        if (!(STATE.read(SESSIONS, {})[modId] || []).includes(name)) return;
+        await WEB.clear(modId, name);
+    }
+
+    // Certificates the mod trusts in one of its sessions, each `{ host, fingerprint }`: none is trusted where one is
+    // not of that shape.
+    function trust(modId, name, entries) {
+        SESSION.nameOf(name);
+        const problem = entriesProblem(entries, (entry) =>
+            typeof entry.host !== 'string' || typeof entry.fingerprint !== 'string'
+                ? 'is { host, fingerprint }, each a string'
+                : ''
+        );
+        if (problem) throw invalid(`web.session.trust: ${problem}`);
+        WEB.trust(
+            modId,
+            name,
+            entries.map(({ host, fingerprint }) => ({ host, fingerprint }))
+        );
     }
 
     // The web anywhere. A file only in the mod's own page, and only for a mod with system.files, asked at each load so
@@ -355,14 +366,35 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return `${session.mod}|${session.name}|${origin}|${permission}`;
     }
 
-    // What a mod lets sites have in one of its sessions, changed: answers how many allowances are kept.
-    function change(modId, name, entries, apply) {
-        for (const entry of entries) {
-            const origin = SITE.originOf(entry?.origin);
-            if (origin && entry.permission) apply(keyOf({ mod: modId, name }, origin, String(entry.permission)));
-        }
+    // What a mod lets sites have in one of its sessions, changed by `member`, each entry `{ origin, permission }`:
+    // `origin` a web origin, and `permission` one a site is asked for (SITE_PERMISSION.isAsked). Nothing changes where
+    // one entry is not of that shape.
+    function change(member, modId, name, entries, apply) {
+        SESSION.nameOf(name);
+        const problem = entriesProblem(entries, ({ origin, permission }) => {
+            if (typeof origin !== 'string' || typeof permission !== 'string')
+                return 'is { origin, permission }, each a string';
+            if (SITE.originOf(origin) !== origin) return `has ${origin}, no web origin`;
+            return SITE_PERMISSION.isAsked(permission) ? '' : `has ${permission}, no permission a site is asked for`;
+        });
+        if (problem) throw invalid(`web.session.${member}: ${problem}`);
+        for (const { origin, permission } of entries) apply(keyOf({ mod: modId, name }, origin, permission));
         WEB.permissionsChanged();
-        return granted.size;
+    }
+
+    // Why `entries` is not an array of tables each of which `problemOf` answers '' of, or ''.
+    function entriesProblem(entries, problemOf) {
+        if (!Array.isArray(entries)) return 'entries is no array';
+        for (const [index, entry] of entries.entries()) {
+            if (CHANNEL.kindOf(entry) !== 'object') return `entries[${index}] is no table`;
+            const problem = problemOf(entry);
+            if (problem) return `entries[${index}] ${problem}`;
+        }
+        return '';
+    }
+
+    function invalid(message) {
+        return REQUEST.refusal('call', 'INVALID_ARGUMENT', message);
     }
 
     // One question per web page, site and set of permissions: a page asking again before it is answered joins the
@@ -393,7 +425,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     // Asked of the top document's site whichever frame wants the app: that is the site the person sees.
     function mayOpenApp(embedder, tabId, url, origin) {
         const scheme = SITE.schemeOf(url);
-        if (!scheme || NEVER_OUT.has(scheme)) return Promise.resolve(false);
+        if (!SITE_PERMISSION.opensOut(scheme)) return Promise.resolve(false);
         const name = SYSTEM.appFor(String(url));
         if (!name) return Promise.resolve(false);
         return ask(embedder, tabId, origin, ['open:' + scheme], { app: name, url: String(url) });

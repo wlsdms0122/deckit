@@ -7,7 +7,7 @@ export function createCertificate({ refused: tell }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A certificate the Mac cannot verify: let through where the mod handed it back as trusted, or else refused, and
+    // A certificate the system cannot verify: let through where the mod handed it back as trusted, or else refused, and
     // the page's tab told, `at` being `{ embedder, tab }`. `info` is `{ url, host, error, fingerprint, subject,
     // issuer }`.
     function decide(page, at, partition, info) {
@@ -18,10 +18,10 @@ export function createCertificate({ refused: tell }) {
         return false;
     }
 
-    // What was refused under a certificate now trusted is loaded again: the page, or a window it opened.
+    // Each of `entries`, `{ host, fingerprint }`, trusted in the session `partition` spells. What was refused under a
+    // certificate now trusted is loaded again: the page, or a window it opened.
     function trust(partition, entries) {
         for (const { host, fingerprint } of entries) {
-            if (!host || !fingerprint) continue;
             const key = keyOf(partition, host, fingerprint);
             TRUSTED.add(key);
             for (const [page, url] of refused.get(key) || []) {
@@ -33,7 +33,6 @@ export function createCertificate({ refused: tell }) {
             }
             refused.delete(key);
         }
-        return TRUSTED.size;
     }
 
     // MARK: - Private

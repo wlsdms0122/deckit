@@ -1,8 +1,10 @@
 // The web engine in main (deckit-shell/web/engine) on a stand-in for what connect answers and for the environment's
 // web: what loads in web pages, the mod's page a web page answers to, which sessions attach and are kept, a mod's
 // windows closing with its document, what a mod's page opens by itself opened for the mod, what a web page's
-// window.open gets, what a site may have and the question put to the mod showing it, a site's notifications, a mod's
-// tabs held to the mod, and each web page told as it is adopted. Exits 1 with a line for each check that failed. The
+// window.open gets, what a site may have and the question put to the mod showing it, what a mod lets sites have and the
+// certificates it trusts, each refused whole for an entry that does not fit, a fetch's refusals, a site's
+// notifications, a mod's tabs held to the mod, its downloads told to its running run, and each web page told as it is
+// adopted. Exits 1 with a line for each check that failed. The
 // packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -87,7 +89,14 @@ async function main() {
         },
         stateOf: () => null,
         cancelDownload: (id) => done.push(['cancelDownload', id]),
+        fetch: async (mod, session, request) => {
+            done.push(['fetch', mod, session, request.url]);
+            if (fetchRefusal) throw fetchRefusal;
+            return { url: request.url, status: 200, headers: [], body: '', redirected: false };
+        },
+        trust: (mod, session, entries) => done.push(['trust', mod, session, entries]),
     };
+    let fetchRefusal = null; // what the environment's fetch is refused with, while it is
     const inputs = new Map(); // page -> what hears the input to it
     const pages = {
         isGone: () => false,
@@ -108,8 +117,16 @@ async function main() {
     const externals = []; // [mod id, address, options]: what was opened outside the app for a mod
     let refuseExternal = null; // why opening outside the app is refused, while it is
     const warned = [];
-    // What connect answers, as the web engine reaches it: a run by mod id, its page the mod's page.
-    const runs = () => [...mods].map(([page, mod]) => ({ run: { mod: { id: mod.id }, granted: mod.granted }, page }));
+    // What connect answers, as the web engine reaches it: a run by mod id, its page the mod's page, after a run of
+    // files that has ended, in a page of its own.
+    const endedPage = { name: 'ended page' };
+    const runs = () => [
+        { run: { mod: { id: 'files' }, granted: files.granted, state: 'notRunning' }, page: endedPage },
+        ...[...mods].map(([page, mod]) => ({
+            run: { mod: { id: mod.id }, granted: mod.granted, state: 'running' },
+            page,
+        })),
+    ];
     const deckit = {
         channels: IPC.layerChannels,
         log: { info: () => {}, warn: (...args) => warned.push(args) },
@@ -404,6 +421,94 @@ async function main() {
         listened.permits(session, 'https://a.com', 'notifications') === false,
         ''
     );
+    const kindOf = (answer) => answer?.error?.kind ?? (answer && 'value' in answer ? 'answered' : null);
+    const changesBefore = changes;
+    const allowing = async (entries) =>
+        kindOf(await heard.asked(filesPage, { channel: 'deckit-shell:web-allow', payload: { name: 'main', entries } }));
+    const misfits = [
+        [
+            { origin: 'https://b.com', permission: 'camera' },
+            { origin: 'https://b.com', permission: 'fullscreen' },
+        ],
+        [{ origin: 'https://b.com/page', permission: 'camera' }],
+        [{ origin: 'https://b.com', permission: 'open:https' }],
+        [{ origin: 'https://b.com', permission: 'open:' }],
+        [{ origin: 'https://b.com' }],
+        ['https://b.com'],
+    ];
+    const refusedAll = [];
+    for (const entries of misfits) refusedAll.push(await allowing(entries));
+    check(
+        'an entry that does not fit refuses the whole allow INVALID_ARGUMENT, and nothing is let',
+        refusedAll.every((kind) => kind === 'INVALID_ARGUMENT') &&
+            changes === changesBefore &&
+            listened.permits(session, 'https://b.com', 'camera') === false,
+        refusedAll
+    );
+    const allowedApp = await allowing([{ origin: 'https://b.com', permission: 'open:zoommtg' }]);
+    check(
+        "a mod lets a site have the app of a scheme that is not the web's own, and allow answers nothing",
+        allowedApp === 'answered' &&
+            JSON.stringify(listened.permitted(session, 'open:zoommtg')) === '["https://b.com"]' &&
+            (
+                await heard.asked(filesPage, {
+                    channel: 'deckit-shell:web-allow',
+                    payload: { name: 'main', entries: [] },
+                })
+            ).value === undefined,
+        allowedApp
+    );
+    check(
+        'a session name that names no session is refused INVALID_ARGUMENT in main',
+        (await allowing([])) === 'answered' &&
+            kindOf(
+                await heard.asked(filesPage, {
+                    channel: 'deckit-shell:web-revoke',
+                    payload: { name: 'A', entries: [] },
+                })
+            ) === 'INVALID_ARGUMENT',
+        ''
+    );
+
+    // Certificates a mod trusts, each { host, fingerprint }.
+    mods.set(filesPage, { ...files, granted: [...files.granted, 'system.certificates', 'system.network'] });
+    const trusting = (entries) =>
+        heard.asked(filesPage, { channel: 'deckit-shell:web-trust', payload: { name: 'main', entries } });
+    const trustRefused = kindOf(await trusting([{ host: 'a.com', fingerprint: 'f' }, { host: 'b.com' }]));
+    const trustedNone = !done.some(([what]) => what === 'trust');
+    const trustAnswer = await trusting([{ host: 'a.com', fingerprint: 'f', more: 1 }]);
+    check(
+        'an entry that does not fit refuses the whole trust INVALID_ARGUMENT, and one that fits answers nothing',
+        trustRefused === 'INVALID_ARGUMENT' &&
+            trustedNone &&
+            trustAnswer.value === undefined &&
+            JSON.stringify(done.at(-1)) === '["trust","files","main",[{"host":"a.com","fingerprint":"f"}]]',
+        [trustRefused, trustAnswer, done.at(-1)]
+    );
+
+    // A session's fetch, sent as the session sends it.
+    const fetching = (url) =>
+        heard.asked(filesPage, {
+            channel: 'deckit-shell:web-fetch',
+            payload: { name: 'main', url, method: 'GET', headers: [], redirect: 'follow' },
+        });
+    const notWeb = kindOf(await fetching('file:///etc/hosts'));
+    const fetched = await fetching('https://a.com/');
+    fetchRefusal = Object.assign(new Error('response too large'), { kind: 'QUOTA_EXCEEDED' });
+    const tooLarge = kindOf(await fetching('https://a.com/large'));
+    fetchRefusal = new Error('the network is down');
+    const unanswered = await fetching('https://a.com/down');
+    fetchRefusal = null;
+    check(
+        'a fetch of no web address is refused INVALID_ARGUMENT, one not answered with its kind, or REFUSED',
+        notWeb === 'INVALID_ARGUMENT' &&
+            fetched.value?.status === 200 &&
+            tooLarge === 'QUOTA_EXCEEDED' &&
+            unanswered.error?.kind === 'REFUSED' &&
+            unanswered.error.stage === 'call',
+        [notWeb, fetched, tooLarge, unanswered]
+    );
+    mods.set(filesPage, files);
 
     // A link the page follows goes where the web takes it; what is loaded into it is held to what it shows.
     check(
@@ -462,11 +567,16 @@ async function main() {
         listed?.length === 1 && listed[0].id === id && plainListed?.length === 1 && plainListed[0].id === 'quit',
         [listed, plainListed]
     );
-    heard.told(plainPage, { channel: 'deckit-shell:web-download-cancel', payload: { id } });
-    heard.told(filesPage, { channel: 'deckit-shell:web-download-cancel', payload: { id } });
-    await tick();
+    const cancelled = [
+        await heard.asked(plainPage, { channel: 'deckit-shell:web-download-cancel', payload: { id } }),
+        await heard.asked(filesPage, { channel: 'deckit-shell:web-download-cancel', payload: { id } }),
+    ];
     const cancels = done.filter(([what]) => what === 'cancelDownload');
-    check("a mod stops its own download, never another's", cancels.length === 1 && cancels[0][1] === 50, cancels);
+    check(
+        "a mod stops its own download, never another's, each answered nothing once main acted",
+        cancels.length === 1 && cancels[0][1] === 50 && cancelled.every((answer) => answer.value === undefined),
+        [cancels, cancelled]
+    );
     const openIt = async () =>
         (await heard.asked(filesPage, { channel: 'deckit-shell:web-download-open', payload: { id } })).value;
     check('one under way does not open', (await openIt()) === false, '');

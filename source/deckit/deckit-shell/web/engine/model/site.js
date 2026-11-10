@@ -11,6 +11,11 @@ function originOf(url) {
     }
 }
 
+// Whether `url` is a web address, an address of the http or https scheme.
+function isWebAddress(url) {
+    return originOf(url) !== '';
+}
+
 // The scheme of an address, in lower case without its colon, or ''.
 function schemeOf(url) {
     try {
@@ -22,4 +27,4 @@ function schemeOf(url) {
 
 // MARK: - Private
 
-export { originOf, schemeOf };
+export { originOf, isWebAddress, schemeOf };

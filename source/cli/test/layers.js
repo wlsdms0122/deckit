@@ -1,21 +1,23 @@
-// Deckit as a layer on the runner in a mod's page (deckit-sdk/deckit/mod/renderer.js), with a layer over it stacking
-// a lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's handle
+// Deckit as a layer on the runner in a mod's page (deckit-sdk/deckit/mod/renderer.js), with a layer over it stacking a
+// lifecycle of its own on what deckit offers it: that lifecycle registers its own alone and is handed deckit's handle
 // and the frameworks as they came, and the handle opens an address outside the app with openExternal. Every member a
 // permission guards is on the handle of a mod granted nothing, and refuses at call with NOT_PERMITTED; for a mod
 // granted it, an argument of another type or left out is refused with INVALID_ARGUMENT, none turned into its type, and
 // fileURL and filePath throw that refusal. Then the web engine's layer (deckit-shell/web/attach/renderer.js), which
 // stacks no lifecycle: the members of the handle `web` a permission guards refuse a mod granted nothing at call with
-// NOT_PERMITTED, and an argument of another type is refused INVALID_ARGUMENT; a web page that leaves, with no delegate
-// to keep it, opens its address with the `open` the layer over it hands; and what the handle adds is cut with its
-// lifecycle's scope. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and layers over it: each
-// layer is offered what those under it offer, by name; deckit's start is handed a frozen table of the frameworks of the
-// layers that run, each made with its lifecycle's scope; the run is told started once, after the lifecycle over
-// deckit's has ended as its start threw, none over it started, and a layer whose read threw left out with the one over
-// it, with its frameworks; and the handle of a mod granted nothing: `mods` on it, each request refused at call with
-// NOT_PERMITTED before its arguments are read, `quit()` a promise, and `openExternal` refused NOT_PERMITTED for a file,
-// then INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request refused INVALID_ARGUMENT for an
-// argument of another type and asked of main otherwise. Exits 1 with a line for each check that failed. The packages
-// are ES modules, so they are imported as such.
+// NOT_PERMITTED, and an argument of another type, or a request's entry or address that does not fit, is refused
+// INVALID_ARGUMENT, a name that names no session thrown that refusal; a request is asked of main with its values; a web
+// page that leaves, with no delegate to keep it, opens its address with the `open` the layer over it hands; each
+// lifecycle has session handles of its own; and what the handle adds is cut with its lifecycle's scope, its sessions'
+// requests refused ENDED after it. Then the runner (deckit-shell/deckit/runner/renderer.js) with deckit and layers over
+// it: each layer is offered what those under it offer, by name; deckit's start is handed a frozen table of the
+// frameworks of the layers that run, each made with its lifecycle's scope; the run is told started once, after the
+// lifecycle over deckit's has ended as its start threw, none over it started, and a layer whose read threw left out
+// with the one over it, with its frameworks; and the handle of a mod granted nothing: `mods` on it, each request
+// refused at call with NOT_PERMITTED before its arguments are read, `quit()` a promise, and `openExternal` refused
+// NOT_PERMITTED for a file, then INVALID_ARGUMENT for an argument of another type; with deckit.mods, a request refused
+// INVALID_ARGUMENT for an argument of another type and asked of main otherwise. Exits 1 with a line for each check that
+// failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -215,6 +217,19 @@ async function main() {
     ]).frameworks.web(makeScope());
     const webMistyped = {
         'web.session.trust with one entry': () => allWeb.session('a').trust({ host: 'a', fingerprint: 'b' }),
+        'web.session.trust with an entry whose fingerprint is left out': () =>
+            allWeb.session('a').trust([{ host: 'a' }]),
+        'web.session.allow with an entry that is no table': () => allWeb.session('a').allow(['https://a.com']),
+        'web.session.revoke with a permission of another type': () =>
+            allWeb.session('a').revoke([{ origin: 'https://a.com', permission: 1 }]),
+        'web.session.fetch of an address that is no web address': () => allWeb.session('a').fetch('ftp://a.com/'),
+        'web.session.fetch with a header that is no pair': () =>
+            allWeb.session('a').fetch('https://a.com', { headers: [['a']] }),
+        'web.session.fetch with a body that is no base64': () =>
+            allWeb.session('a').fetch('https://a.com', { method: 'POST', body: 'hello' }),
+        'web.session.fetch of GET with a body': () => allWeb.session('a').fetch('https://a.com', { body: 'aGk=' }),
+        'web.session.fetch with a redirect it does not name': () =>
+            allWeb.session('a').fetch('https://a.com', { redirect: 'stay' }),
         'web.downloads.cancel with a number': () => allWeb.downloads.cancel(1),
         'web.downloads.remove with a number': () => allWeb.downloads.remove(1),
         'web.downloads.open with a number': () => allWeb.downloads.open(1),
@@ -226,6 +241,42 @@ async function main() {
             what
         );
     check('a request of web refused for its arguments asks nothing of main', !sent.length, sent);
+    check(
+        'web.session throws its refusal INVALID_ARGUMENT for what names no session, and answers one handle a name',
+        thrownOf(() => allWeb.session('A b')) === 'call INVALID_ARGUMENT' &&
+            thrownOf(() => allWeb.session(5)) === 'call INVALID_ARGUMENT' &&
+            allWeb.session('a') === allWeb.session('a'),
+        ''
+    );
+    check(
+        'web.downloads.onChange throws its refusal INVALID_ARGUMENT for a listener that is no function',
+        thrownOf(() => allWeb.downloads.onChange(5)) === 'call INVALID_ARGUMENT',
+        ''
+    );
+    const webAnswers = [
+        await allWeb.session('a').fetch('https://a.com/x', { method: 'post', headers: [['X-A', '1']], body: 'aGk=' }),
+        await allWeb.session('a').allow([{ origin: 'https://a.com', permission: 'camera', more: 1 }]),
+        await allWeb.downloads.cancel('1'),
+    ];
+    check(
+        'a request of web is asked of main with its values, what it takes alone, and allow and cancel answer nothing',
+        JSON.stringify(sent.map(({ payload }) => payload)) ===
+            JSON.stringify([
+                {
+                    name: 'a',
+                    url: 'https://a.com/x',
+                    method: 'POST',
+                    headers: [['X-A', '1']],
+                    redirect: 'follow',
+                    body: 'aGk=',
+                },
+                { name: 'a', entries: [{ origin: 'https://a.com', permission: 'camera' }] },
+                { id: '1' },
+            ]) &&
+            webAnswers[1] === undefined &&
+            webAnswers[2] === undefined,
+        { sent, webAnswers }
+    );
 
     const webLayer = webLayerOf([]);
     check(
@@ -254,11 +305,22 @@ async function main() {
         JSON.stringify(externals) === '[["https://example.com",null]]' && !failures.length,
         { externals, failures }
     );
+    const otherSession = webLayer.frameworks.web(makeScope()).session('main');
+    check(
+        "each lifecycle has session handles of its own, and a page takes one of the mod's alone",
+        otherSession !== web.session('main') &&
+            thrownOf(() => surfaces.page({ session: { name: 'main' } })) === 'call INVALID_ARGUMENT',
+        ''
+    );
     webScope.cut();
     tell({ channel: 'deckit-shell:web-downloaded', payload: { id: 'd2' } });
+    sent.length = 0;
     check(
-        "what the handle web adds is cut with its lifecycle's scope",
-        JSON.stringify(downloads) === '["d1"]',
+        "what the handle web adds is cut with its lifecycle's scope, its sessions' requests refused ENDED after it",
+        JSON.stringify(downloads) === '["d1"]' &&
+            (await refusalOf(web.session('main').clear())) === 'call ENDED' &&
+            thrownOf(() => surfaces.page({ session: web.session('main') })) === 'call ENDED' &&
+            !sent.length,
         downloads
     );
 

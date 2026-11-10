@@ -1,7 +1,42 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as LISTENER from '../../deckit/listener/index.js';
+import * as REQUEST from '../../deckit/request/index.js';
 import * as DECLARED from './protocol.js';
 import * as SESSION from './model/session.js';
+
+// MARK: - Property
+// What `fetch` takes: an address, and how it is asked, `headers` `[[name, value]]` and `body` its bytes in base64.
+const FETCHES = Object.freeze([
+    ['url', 'string'],
+    [
+        'init',
+        'object?',
+        [
+            ['method', 'string?'],
+            ['headers', 'array?'],
+            ['body', 'string?'],
+            ['redirect', 'string?'],
+        ],
+    ],
+]);
+// What `allow` and `revoke` take, and what `trust` takes: arrays of tables, each of these keys.
+const SITE_ENTRY = Object.freeze([
+    ['origin', 'string'],
+    ['permission', 'string'],
+]);
+const CERTIFICATE_ENTRY = Object.freeze([
+    ['host', 'string'],
+    ['fingerprint', 'string'],
+]);
+// The statuses an answer has no body with.
+const NO_BODY = new Set([101, 103, 204, 205, 304]);
+// A method and a header's name are tokens, and a header's value holds no line break and no NUL, as HTTP writes them.
+const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const VALUE = /^[^\0\r\n]*$/;
+// The methods written in upper case whatever case they are handed in, as a page's fetch writes them.
+const NORMALIZED = new Set(['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']);
+const REDIRECTS = new Set(['follow', 'error', 'manual']);
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 // A mod's web in its page: its sessions, and the pages that show what they load, in its page, as an element of it, and
 // in windows. `web` is the environment's (environment: WEB_PAGE): what shows a web page in this page. `sessions` is
@@ -13,59 +48,101 @@ export function createWeb({ sessions, web: WEB, channels }) {
     const pages = new Map(); // page id -> { receive }
     // What main said about a page before this side knew which element it was, in order.
     const early = new Map(); // page id -> [[event, payload]]
-    const made = new Map(); // a session's name -> its handle
     // A session is named only by a handle the mod was given, so it cannot name one it was not.
-    const names = new WeakMap(); // session handle -> its name
+    const names = new WeakMap(); // session handle -> { name, scope }, the scope of the lifecycle it was made for
     const downloadListeners = new Set();
     let listening = false;
     let hearingDownloads = false;
-    // The statuses a `Response` is made with no body for.
-    const NO_BODY = new Set([101, 103, 204, 205, 304]);
 
     // MARK: - Initializer
     // MARK: - Public
-    // The handle `web`: the mod's sessions by name, one handle for each, and the downloads its web pages started,
-    // written to the Downloads folder. `request` makes a member a request, refused as its channel's guard holds the
-    // mod; `scoped(subscribe)` cuts what a listener added with the handle's scope.
-    function forMod({ request, scoped }) {
+    // The handle `web` for a lifecycle whose scope is `scope`: the mod's sessions by name, and the downloads its web
+    // pages started, written to the Downloads folder. `session(name)` answers at once the handle of the session `name`,
+    // the same one at each call in the lifecycle, and throws its refusal, INVALID_ARGUMENT, for a name that names no
+    // session (SESSION.NAME). A session's members are requests, each refused at call, ENDED, once the lifecycle has
+    // ended: `clear()`, what the session stored taken, `fetch(url, init)`, `trust(entries)`, `allow(entries)` and
+    // `revoke(entries)`, each answering nothing. `downloads` are requests but `onChange(listener)`, which answers its
+    // off, cut with `scope`, and throws its refusal for a listener that is no function. `request` makes a member a
+    // request, refused as its channel's guard holds the mod, then for its arguments.
+    function forMod({ request, scope }) {
         const id = [['id', 'string']];
-        const entries = [['entries', 'array']];
+        const made = new Map(); // a session's name -> its handle, for this lifecycle
+        // The request `name` of a session, whose arguments `problemOf` reads after the signature, and which is refused
+        // ENDED once `scope` is cut.
+        const live = (name, { guard, signature, problemOf = () => '' }, send) =>
+            request(name, { guard, signature }, (...args) => {
+                const problem = problemOf(...args);
+                if (problem) throw invalid(`${name}: ${problem}`);
+                if (scope.isCut)
+                    throw REQUEST.refusal('call', 'ENDED', `${name}: the lifecycle it was made for has ended`);
+                return send(...args);
+            });
         const session = (name) => {
+            const problem = SESSION.nameProblem(name);
+            if (problem) throw invalid(`web.session: ${problem}`);
             if (made.has(name)) return made.get(name);
-            SESSION.nameOf(name);
             const handle = Object.freeze({
                 name,
-                clear: () => PROTOCOL.clear.invoke({ name }),
-                fetch: request(
+                clear: live('web.session.clear', { guard: PROTOCOL.clear.guard }, () =>
+                    PROTOCOL.clear.invoke({ name })
+                ),
+                fetch: live(
                     'web.session.fetch',
+                    { guard: PROTOCOL.fetch.guard, signature: FETCHES, problemOf: fetchProblem },
+                    (url, init) => fetchIn(name, url, init)
+                ),
+                trust: live(
+                    'web.session.trust',
                     {
-                        guard: PROTOCOL.fetch.guard,
-                        signature: [
-                            ['input', 'any'],
-                            ['init', 'object?'],
-                        ],
+                        guard: PROTOCOL.trust.guard,
+                        signature: [['entries', 'array']],
+                        problemOf: entriesOf(CERTIFICATE_ENTRY),
                     },
-                    (input, init) => fetchIn(name, input, init)
+                    async (entries) => {
+                        await PROTOCOL.trust.invoke({ name, entries: picked(entries, CERTIFICATE_ENTRY) });
+                    }
                 ),
-                trust: request('web.session.trust', { guard: PROTOCOL.trust.guard, signature: entries }, (given) =>
-                    PROTOCOL.trust.invoke({ name, entries: given })
+                allow: live(
+                    'web.session.allow',
+                    {
+                        guard: PROTOCOL.allow.guard,
+                        signature: [['entries', 'array']],
+                        problemOf: entriesOf(SITE_ENTRY),
+                    },
+                    async (entries) => {
+                        await PROTOCOL.allow.invoke({ name, entries: picked(entries, SITE_ENTRY) });
+                    }
                 ),
-                allow: request('web.session.allow', { guard: PROTOCOL.allow.guard, signature: entries }, (given) =>
-                    PROTOCOL.allow.invoke({ name, entries: given })
-                ),
-                revoke: request('web.session.revoke', { guard: PROTOCOL.revoke.guard, signature: entries }, (given) =>
-                    PROTOCOL.revoke.invoke({ name, entries: given })
+                revoke: live(
+                    'web.session.revoke',
+                    {
+                        guard: PROTOCOL.revoke.guard,
+                        signature: [['entries', 'array']],
+                        problemOf: entriesOf(SITE_ENTRY),
+                    },
+                    async (entries) => {
+                        await PROTOCOL.revoke.invoke({ name, entries: picked(entries, SITE_ENTRY) });
+                    }
                 ),
             });
-            names.set(handle, name);
+            names.set(handle, { name, scope });
             made.set(name, handle);
             return handle;
         };
         const downloads = Object.freeze({
-            list: () => PROTOCOL.downloads.invoke({}),
-            onChange: scoped(onDownload),
-            cancel: request('web.downloads.cancel', { guard: PROTOCOL.cancelDownload.guard, signature: id }, (given) =>
-                PROTOCOL.cancelDownload.send({ id: given })
+            list: request('web.downloads.list', { guard: PROTOCOL.downloads.guard }, () =>
+                PROTOCOL.downloads.invoke({})
+            ),
+            onChange: (listener) => {
+                if (typeof listener !== 'function') throw invalid('web.downloads.onChange: listener is no function');
+                return scope.add(onDownload(listener));
+            },
+            cancel: request(
+                'web.downloads.cancel',
+                { guard: PROTOCOL.cancelDownload.guard, signature: id },
+                async (given) => {
+                    await PROTOCOL.cancelDownload.invoke({ id: given });
+                }
             ),
             remove: request('web.downloads.remove', { guard: PROTOCOL.removeDownload.guard, signature: id }, (given) =>
                 PROTOCOL.removeDownload.invoke({ id: given })
@@ -83,9 +160,13 @@ export function createWeb({ sessions, web: WEB, channels }) {
     // is closed, and nothing more is heard about it, once `scope` is cut.
     function surfacesOf({ owner, open, scope }) {
         if (!listening) listen();
+        // The name of the session `handle` is, thrown its refusal for one that is no handle `web.session` answered in
+        // this page, INVALID_ARGUMENT, or one of a lifecycle that has ended, ENDED.
         const named = (handle) => {
-            if (!names.has(handle)) throw new Error('a web page needs a session from web.session(name)');
-            return names.get(handle);
+            const made = names.get(handle);
+            if (!made) throw invalid('a web page takes a session that web.session(name) answered');
+            if (made.scope.isCut) throw REQUEST.refusal('call', 'ENDED', "the session's lifecycle has ended");
+            return made.name;
         };
         // One the mod closes is closed as it asked, its delegate still told.
         const kept = (made) => {
@@ -109,27 +190,79 @@ export function createWeb({ sessions, web: WEB, channels }) {
     }
 
     // MARK: - Private
-    // What a page's `fetch(input, init)` takes and answers, sent as the session's pages send it: with its cookies
-    // whatever `credentials` says, `redirect` and `signal` heeded. An answer is a `Response` with its `url` and
-    // `redirected`.
-    async function fetchIn(name, input, init) {
-        const request = new Request(input, init);
-        request.signal.throwIfAborted();
-        const body = request.body ? new Uint8Array(await request.arrayBuffer()).toBase64() : null;
-        const { url, method, redirect } = request;
-        const asked = PROTOCOL.fetch.invoke({ name, url, method, headers: [...request.headers], body, redirect });
-        const answer = await new Promise((resolve, reject) => {
-            request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true });
-            asked.then(resolve, reject);
-        });
-        const response = new Response(NO_BODY.has(answer.status) ? null : Uint8Array.fromBase64(answer.body), {
+    // What `fetch(url, { method, headers, body, redirect })` asks, sent as the session's pages send a request, with
+    // its cookies: `method` GET where it is left out, `headers` `[[name, value]]`, `body` the bytes in base64, left out
+    // for none, and `redirect` `follow` where it is left out. Answers `{ url, status, headers, body, redirected }`:
+    // `url` the address that answered, `headers` `[[name, value]]` as the environment read them, and `body` the bytes
+    // in base64, left out where the status has none.
+    async function fetchIn(name, url, init) {
+        const { method = 'GET', headers = [], body, redirect = 'follow' } = keysOf(init);
+        const asked = {
+            name,
+            url: new URL(url).href,
+            method: NORMALIZED.has(method.toUpperCase()) ? method.toUpperCase() : method,
+            headers: headers.map(([key, value]) => [key, value]),
+            redirect,
+            ...(body === undefined ? {} : { body }),
+        };
+        const answer = await PROTOCOL.fetch.invoke(asked);
+        return {
+            url: answer.url,
             status: answer.status,
             headers: answer.headers,
-        });
-        return Object.defineProperties(response, {
-            url: { value: answer.url },
-            redirected: { value: answer.redirected },
-        });
+            ...(NO_BODY.has(answer.status) ? {} : { body: answer.body }),
+            redirected: answer.redirected,
+        };
+    }
+
+    // Why what `fetch` was handed, of the types its signature gives, is no request, or ''.
+    function fetchProblem(url, init) {
+        const { method = 'GET', headers = [], body, redirect = 'follow' } = keysOf(init);
+        let parsed = null;
+        try {
+            parsed = new URL(url);
+        } catch {}
+        if (parsed?.protocol !== 'http:' && parsed?.protocol !== 'https:') return `${url} is no web address`;
+        if (!TOKEN.test(method)) return `${method} is no method`;
+        for (const [index, header] of headers.entries()) {
+            if (!Array.isArray(header) || header.length !== 2 || header.some((part) => typeof part !== 'string'))
+                return `headers[${index}] is no [name, value] of strings`;
+            if (!TOKEN.test(header[0]) || !VALUE.test(header[1])) return `headers[${index}] is no header`;
+        }
+        if (body !== undefined) {
+            if (!BASE64.test(body)) return 'body is no base64';
+            if (/^(GET|HEAD)$/i.test(method)) return `a ${method.toUpperCase()} request has no body`;
+        }
+        if (!REDIRECTS.has(redirect)) return `redirect is follow, error or manual, not ${redirect}`;
+        return '';
+    }
+
+    // The keys of `init`, a table or left out, that are not left out: one that holds null is left out, as one that
+    // holds undefined is.
+    function keysOf(init) {
+        return Object.fromEntries(
+            Object.entries(init ?? {}).filter(([, value]) => value !== undefined && value !== null)
+        );
+    }
+
+    // Why `entries`, an array, holds what is not a table of the keys and types `keys` gives, or ''.
+    function entriesOf(keys) {
+        return (entries) => {
+            for (const [index, entry] of entries.entries()) {
+                const problem = REQUEST.argumentProblem([[`entries[${index}]`, 'object', keys]], [entry]);
+                if (problem) return problem;
+            }
+            return '';
+        };
+    }
+
+    // Each entry with the keys `keys` gives alone.
+    function picked(entries, keys) {
+        return entries.map((entry) => Object.fromEntries(keys.map(([key]) => [key, entry[key]])));
+    }
+
+    function invalid(message) {
+        return REQUEST.refusal('call', 'INVALID_ARGUMENT', message);
     }
 
     function onDownload(listener) {
@@ -243,7 +376,7 @@ export function createWeb({ sessions, web: WEB, channels }) {
         // address opens elsewhere, as one of a page with no window to hand over does.
         const takeWindow = async ({ page: given, url: to, activates }) => {
             if (given === undefined || given === null) return void openElsewhere(to, { activates });
-            const opened = page(names.get(session), to, owner, open, session, given);
+            const opened = page(names.get(session).name, to, owner, open, session, given);
             if ((await ask('openWindow', false, opened, { url: to, activates })) !== false) return;
             opened.close();
             openElsewhere(to, { activates });

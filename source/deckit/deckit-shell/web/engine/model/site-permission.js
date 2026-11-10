@@ -5,6 +5,13 @@
 const ASKED = Object.freeze(['notifications', 'clipboard-read', 'geolocation', 'microphone', 'camera']);
 const UNASKED = Object.freeze(['fullscreen', 'clipboard-write', 'pointer-lock', 'keyboard-lock', 'encrypted-media']);
 const CHECKED = Object.freeze(['local-network-access']);
+// The schemes the web uses itself, whose addresses no site opens in an app. The app for any other scheme is asked per
+// scheme, as `open:<scheme>`, so a site allowed one app is not allowed every app.
+const NEVER_OUT = Object.freeze(
+    new Set(['javascript', 'data', 'blob', 'file', 'filesystem', 'about', 'http', 'https', 'ws', 'wss'])
+);
+// A scheme as an address writes it, in lower case.
+const SCHEME = /^[a-z][a-z0-9+.-]*$/;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -15,6 +22,18 @@ function ruleOf(name) {
     return UNASKED.includes(name) ? 'allow' : 'refuse';
 }
 
+// Whether a site may be asked for the app that opens addresses of `scheme`, in lower case.
+function opensOut(scheme) {
+    return SCHEME.test(scheme) && !NEVER_OUT.has(scheme);
+}
+
+// Whether `permission` is one a mod lets a site have, or takes back: one the site is asked for, or `open:<scheme>`, the
+// app for addresses of a scheme a site may be asked for.
+function isAsked(permission) {
+    if (ruleOf(permission) === 'ask') return true;
+    return permission.startsWith('open:') && opensOut(permission.slice('open:'.length));
+}
+
 // MARK: - Private
 
-export { ASKED, UNASKED, CHECKED, ruleOf };
+export { ASKED, UNASKED, CHECKED, NEVER_OUT, ruleOf, opensOut, isAsked };

@@ -86,7 +86,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 |---|---|---|
 | `system.main-process` | the app's main process, where the mod's modules run and can read and write files, reach the network and start programs | `mainProcess.start` |
 | `system.files` | files on this Mac, opened in its own pages | `file://` addresses in its web pages |
-| `system.network` | any address, past the rules that keep one site from reading another | `fetch(input, init)` on a web session |
+| `system.network` | any address, past the rules that keep one site from reading another | `fetch(url, init)` on a web session |
 | `system.certificates` | trusting a certificate this Mac cannot verify, in one of its sessions | `trust` on a web session |
 | `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
 | `system.clipboard-read` | reading what was copied, from any app | `deckit.clipboard.readText` |
@@ -304,21 +304,27 @@ The SDK runs as it is written, on the engine the pages run on, and is bundled as
 
 ## web
 
-What every lifecycle receives as `web` in its `frameworks`, where the host app puts the web engine on deckit: `session(name)` and `downloads`, below. It runs with no UI, as `deckit` does; the pages of its sessions are shown by `shell.web`.
+What every lifecycle receives as `web` in its `frameworks`, where the host app puts the web engine on deckit: `session(name)` and `downloads`, below. It runs with no UI, as `deckit` does; the pages of its sessions are shown by `shell.web`. Each lifecycle's `web` is its own, and its session handles are its own: a session handle's requests are refused at `call` with kind `ENDED` once its lifecycle has ended. Every member but `session(name)` and `downloads.onChange(listener)` is a request, refused as `deckit`'s requests are, and takes and answers values.
 
 ### web.session(name)
 
-A web session of the mod's own, kept across restarts: `{ name, clear() }`, and with permissions `fetch(input, init)`, `trust([{ host, fingerprint }])`, `allow([{ origin, permission }])` and `revoke(entries)`. Its pages share its cookies and nobody else's. A session does its work with no UI; its pages are shown by `shell.web`.
+A web session of the mod's own, kept across restarts, by a name of up to 40 lowercase letters, digits and `-`, starting with a letter or a digit. `session(name)` answers at once, the same handle for a name each time in its lifecycle, and throws its refusal, kind `INVALID_ARGUMENT`, for a name that is none. Its pages share its cookies and nobody else's. A session does its work with no UI; its pages are shown by `shell.web`, which takes only a session handle `web.session(name)` answered, throwing its refusal, `INVALID_ARGUMENT`, for anything else, and `ENDED` for one whose lifecycle has ended.
 
-`fetch` takes what a page's `fetch` takes and resolves to a `Response`, with its `url` and `redirected`, sent as the session's pages send it: with the session's cookies, whatever `credentials` says, and its pages' user agent, the cookies the answers set kept in the session. It heeds `redirect` and `signal`, sends only to `http` and `https` addresses, and rejects an answer over 4 MB. It runs no script of what it is answered: a page that goes on only once its scripts run stops it there.
+- `name`, the name it was asked for.
+- `clear()` takes what the session stored, its cookies and the site data its pages kept, and answers nothing. A session never used holds nothing, and is left as it is.
+- `fetch(url, { method, headers, body, redirect })`, with `system.network`, sends a request as the session's pages send it: with the session's cookies and its pages' user agent, the cookies the answers set kept in the session. `url` is an `http` or `https` address. `method` is `GET` where it is left out; `headers` is an array of `[name, value]` pairs of strings; `body` is the bytes sent, in base64, left out for none and for a `GET` or `HEAD`; `redirect` is `follow` (left out), `error`, which refuses a request that is redirected, or `manual`, which answers the redirect itself. It answers `{ url, status, headers, body, redirected }`: `url` the address that answered, after the redirects followed, `headers` an array of `[name, value]` pairs, the names in lowercase, and `body` the bytes in base64, left out for a status that has none (101, 103, 204, 205, 304). An argument that does not fit is refused `INVALID_ARGUMENT`; an answer over 4 MB is refused `QUOTA_EXCEEDED`, and a request that is not answered (the network, a redirect refused) `REFUSED`. It runs no script of what it is answered: a page that goes on only once its scripts run stops it there.
+- `trust(entries)`, with `system.certificates`, trusts in the session the certificates `[{ host, fingerprint }]`, each a string, as a certificate a site's page was refused under names them (`didRefuseCertificate`), and loads again what was refused under one. It answers nothing.
+- `allow(entries)` and `revoke(entries)`, with `system.site-permissions`, let the sites of the session have, and take back, what each of `[{ origin, permission }]` names: `origin` a site's origin, as `URL`'s `origin` writes it (`https://example.com`), and `permission` one a site is asked for, `notifications`, `clipboard-read`, `geolocation`, `microphone` or `camera`, or `open:<scheme>`, the app for the addresses of a scheme that is not the web's own (not `http`, `https`, `ws`, `wss`, `file`, `data`, `blob`, `filesystem`, `about` or `javascript`). They answer nothing. A page already holding a stream keeps it, and one told it was granted keeps believing it: reload the site's pages after `revoke`.
+
+`trust`, `allow` and `revoke` take the whole array or nothing of it: an entry that does not fit refuses the call `INVALID_ARGUMENT`, and none of it is done.
 
 ### web.downloads
 
 What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on, once the page's delegate lets it (`shouldDownload`); one it does not is not listed, and one that fails before it can be asked is listed as `failed`, named for its address. The web engine keeps the mod's last 100 downloads, and any older one still under way, across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
 
 - `list()` resolves to the downloads.
-- `onChange(listener)` hears a download each time it changes, a new one first, and returns its off.
-- `cancel(id)` stops one under way.
+- `onChange(listener)` hears a download each time it changes, a new one first, while the mod's run is running, and returns its off. It throws its refusal, `INVALID_ARGUMENT`, for a listener that is no function.
+- `cancel(id)` stops one under way, and resolves to nothing once it is stopped, or once it is known there is none of that id under way.
 - `remove(id)` forgets one, stopping it first if it is under way, and resolves to whether there was one. The file stays.
 - `open(id)`, with `system.file-handlers`, opens a finished one's file in its app and resolves to whether it opened.
 

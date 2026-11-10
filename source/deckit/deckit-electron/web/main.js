@@ -160,10 +160,15 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         };
     }
 
+    // An answer past `fetchLimit` bytes is refused QUOTA_EXCEEDED. The module refuses it with its message alone,
+    // `response too large`.
     function fetch(mod, session, request) {
         return WEBKIT.fetch(storeOf(PARTITION.spell(mod, session)), request, {
             limit: deck.fetchLimit,
             cookieLifetime: deck.cookieLifetime,
+        }).catch((error) => {
+            if (!/^response too large\b/.test(error?.message)) throw error;
+            throw Object.assign(new Error(error.message), { kind: 'QUOTA_EXCEEDED' });
         });
     }
 

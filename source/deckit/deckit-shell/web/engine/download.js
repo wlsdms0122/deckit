@@ -3,10 +3,10 @@ import * as FILE_URL from '../../../deckit-sdk/deckit/open/model/file-url.js';
 // The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's and any
 // older one still under way. The mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id the
 // web engine gives it, for its list and for one to be stopped or forgotten, and, with system.file-handlers as for any
-// file, opened in its app. A download stays the mod's it started for, whatever becomes of its page. Before it is saved,
-// the mod's page is asked whether to save it (`saving`). `deckit` is what connect answered, and `state` the web
-// engine's own state. `web` is the environment's: what stops a download. A download is opened through deckit, as the
-// mod's own openExternal opens a file.
+// file, opened in its app. A download stays the mod's it started for, whatever becomes of its page, and is told to the
+// mod's run that is running. Before it is saved, the mod's page is asked whether to save it (`saving`). `deckit` is
+// what connect answered, and `state` the web engine's own state. `web` is the environment's: what stops a download. A
+// download is opened through deckit, as the mod's own openExternal opens a file.
 export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages: PAGES }) {
     // MARK: - Property
     const KEY = 'web-downloads'; // the state's key: mod id -> its downloads, newest first
@@ -31,7 +31,7 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
         }
         save();
         PROTOCOL.downloads.handle((_payload, sender) => listOf(deckit.mods.modOf(sender)).map(copy));
-        PROTOCOL.cancelDownload.on(({ id }, sender) => {
+        PROTOCOL.cancelDownload.handle(({ id }, sender) => {
             const under = underWay(deckit.mods.modOf(sender), id);
             if (under !== null) WEB.cancelDownload(under);
         });
@@ -85,7 +85,7 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
         const { url, name, path, state, received, expected, error } = download;
         Object.assign(entry, { url, name, path, state, received, expected, error });
         if (changed) save();
-        const page = deckit.mods.runs().find(({ run }) => run.mod.id === modId)?.page;
+        const page = deckit.mods.runs().find(({ run }) => run.mod.id === modId && run.state === 'running')?.page;
         if (page) PROTOCOL.downloaded.send(page, copy(entry));
     }
 
