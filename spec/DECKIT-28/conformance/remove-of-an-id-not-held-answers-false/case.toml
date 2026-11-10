@@ -1,0 +1,21 @@
+case = 8
+name = "remove-of-an-id-not-held-answers-false"
+note = "remove answers false for an id the mod holds no download of. mod-a removes nope."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.remove"
+handle = "web"
+args = ["nope"]
+
+[step.expect]
+answers = false

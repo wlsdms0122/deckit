@@ -5,7 +5,7 @@ Area: web
 
 ## Summary
 
-A site a mod's web page shows asks for what the web platform names by a permission name, such as `notifications` or `camera`, and goes to addresses an app on the machine opens, such as `mailto:`. The web engine decides each of them for the mod, alike on every host: this DECKIT fixes the rules a site's ask meets and the names under each, how the mod is asked with `system.site-permissions` and answers through the delegate's `decidePermission`, `allow(entries)` and `revoke(entries)` of a session handle and the names they take, the app for an address, what a site reaches of the clipboard beside `system.clipboard-read` and `system.clipboard-write`, what of a site's camera, microphone, location and screen is the machine's own consent, a certificate the system cannot verify and `trust(entries)` with `system.certificates`, and how long what a site was let have and a certificate trusted last. What a site's notification comes to is [notifications of a site](../DECKIT-27/SPEC.md)'s, and its downloads are the web engine's later DECKIT's.
+A site a mod's web page shows asks for what the web platform names by a permission name, such as `notifications` or `camera`, and goes to addresses an app on the machine opens, such as `mailto:`. The web engine decides each of them for the mod, alike on every host: this DECKIT fixes the rules a site's ask meets and the names under each, how the mod is asked with `system.site-permissions` and answers through the delegate's `decidePermission`, `allow(entries)` and `revoke(entries)` of a session handle and the names they take, the app for an address, what a site reaches of the clipboard beside `system.clipboard-read` and `system.clipboard-write`, what of a site's camera, microphone, location and screen is the machine's own consent, a certificate the system cannot verify and `trust(entries)` with `system.certificates`, and how long what a site was let have and a certificate trusted last. What a site's notification comes to is [notifications of a site](../DECKIT-27/SPEC.md)'s, and its downloads are fixed by [downloads](../DECKIT-28/SPEC.md).
 
 ## Motivation
 
@@ -160,7 +160,7 @@ What `allow` let a site have, and each certificate `trust` trusted, last until t
 - `openExternal` and the addresses it opens, and the look `opened`: [opening outside the app](../DECKIT-8/SPEC.md).
 - What a mod is granted, `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md). A request, `INVALID_ARGUMENT`: [the handle](../DECKIT-7/SPEC.md).
 - The apps the host has, the key `origins` of a call, the inputs `show` and `activate`, the host's delegate and the look `delegated`: [the case format](../DECKIT-1/SPEC.md).
-- A site's notifications, which a site has as the name `notifications`: [notifications of a site](../DECKIT-27/SPEC.md). Its downloads: the web engine's later DECKIT.
+- A site's notifications, which a site has as the name `notifications`: [notifications of a site](../DECKIT-27/SPEC.md). Its downloads: [downloads](../DECKIT-28/SPEC.md).
 
 ## Alternatives considered
 

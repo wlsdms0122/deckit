@@ -1,0 +1,41 @@
+case = 11
+name = "an-attachment-is-downloaded-under-its-filename"
+note = "An answer the site says is an attachment is downloaded, under the filename it gives. mod-a shows site-a, whose page is a link with no download to /f, answered with content-disposition attachment and filename c.txt, and it is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "name"
+
+[step.expect]
+answers = ["c.txt"]

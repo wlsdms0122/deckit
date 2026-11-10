@@ -1,0 +1,79 @@
+case = 14
+name = "erasing-a-mod-leaves-the-files-its-downloads-wrote"
+note = "The files a mod's downloads wrote stay where they were written as the mod is erased. mod-a installs mod-b, which shows site-a, whose page is a link to download /file.txt, and it is pressed; mod-a removes mod-b with erase true."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+part = "id"
+
+[step.expect]
+answers = "mod-b"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-b"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-b"
+of = 5
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.remove"
+args = ["mod-b", true]
+
+[step.expect]
+answers = { erased = true }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+part = "id"
+
+[step.expect]
+answers = "mod-b"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+look = "downloaded"
+
+[step.expect]
+answers = [{ name = "file.txt", body = "aGVsbG8=" }]

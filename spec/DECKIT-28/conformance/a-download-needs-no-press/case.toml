@@ -1,0 +1,36 @@
+case = 10
+name = "a-download-needs-no-press"
+note = "A download a page starts needs no user activation. mod-a shows site-a, whose script clicks a link with download to /file.txt as the page loads."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "name"
+
+[step.expect]
+answers = ["x.txt"]

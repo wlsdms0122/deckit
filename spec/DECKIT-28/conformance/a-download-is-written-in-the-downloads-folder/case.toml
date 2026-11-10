@@ -1,0 +1,47 @@
+case = 14
+name = "a-download-is-written-in-the-downloads-folder"
+note = "A download is written in the host's downloads folder, under its name, and its path is that file's. mod-a shows site-a, whose page is a link to download /file.txt, hello, and it is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "path"
+
+[step.expect]
+answers = ["downloads/file.txt"]
+
+[[step]]
+look = "downloaded"
+
+[step.expect]
+answers = [{ name = "file.txt", body = "aGVsbG8=" }]

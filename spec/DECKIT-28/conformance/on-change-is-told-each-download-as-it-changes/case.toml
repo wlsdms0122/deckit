@@ -1,0 +1,56 @@
+case = 11
+name = "on-change-is-told-each-download-as-it-changes"
+note = "A listener onChange adds is called with the download whole as it changes, its last call with it finished. mod-a listens with downloads.onChange, shows site-a, whose page is a link to download /file.txt, and it is pressed; mod-a reads the state and the name of what its listener was last handed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.onChange"
+handle = "web"
+listener = true
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 4
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+handed = true
+
+[step.expect]
+answers = "finished"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "name"
+handed = true
+
+[step.expect]
+answers = "file.txt"

@@ -1,0 +1,22 @@
+case = 8
+name = "open-of-what-is-no-string-is-refused"
+note = "open takes the id as a string: another type is refused at call with kind INVALID_ARGUMENT. mod-a, granted system.file-handlers, opens 1."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.open"
+handle = "web"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

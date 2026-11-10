@@ -1,0 +1,46 @@
+case = 11
+name = "a-popup-no-delegate-takes-downloads-nothing"
+note = "A popup no delegate takes downloads nothing: its address is opened outside the app. mod-a shows site-a, whose page opens a popup at /f, an attachment, on a press; the host's delegate does not take the popup, and it is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+
+[step.expect]
+answers = []
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "site-a/f", activates = true }]

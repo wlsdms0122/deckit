@@ -1,0 +1,22 @@
+case = 8
+name = "on-change-of-what-is-no-function-throws"
+note = "onChange throws its refusal, at call with kind INVALID_ARGUMENT, for a listener that is no function. mod-a hands it 1."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.onChange"
+handle = "web"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

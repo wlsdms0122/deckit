@@ -1,0 +1,18 @@
+case = 8
+name = "cancel-of-an-id-not-held-answers-nothing"
+note = "cancel of an id the mod holds no download of answers nothing and is not refused. mod-a cancels nope."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.cancel"
+handle = "web"
+args = ["nope"]

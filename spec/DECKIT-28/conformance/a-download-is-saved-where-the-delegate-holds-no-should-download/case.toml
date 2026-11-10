@@ -1,0 +1,41 @@
+case = 11
+name = "a-download-is-saved-where-the-delegate-holds-no-should-download"
+note = "A delegate that does not hold shouldDownload is answered its default, and the download is saved. mod-a shows site-a, whose page is a link to download /file.txt, the host's delegate holds no member, and it is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = {}
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "name"
+
+[step.expect]
+answers = ["file.txt"]

@@ -84,7 +84,7 @@ The web engine hands the machine nothing of a site's notification. A site's noti
 - A page, its session, its delegate, a member missing or throwing answered its default, a popup taken, a page loaded again and a page closed: [web pages](../DECKIT-25/SPEC.md). A session: [the web engine](../DECKIT-23/SPEC.md).
 - The notifications of the machine, `notifications.show`, `system.notifications` and the look `shown`: [notifications of the machine](../DECKIT-21/SPEC.md).
 - The inputs `show` and `activate`, the host's delegate, the look `delegated`, and the key `delegated` of a `call`, which calls `click` of what the host's delegate was told: [the case format](../DECKIT-1/SPEC.md).
-- A download a page starts: the web engine's later DECKIT.
+- A download a page starts: [downloads](../DECKIT-28/SPEC.md).
 
 ## Alternatives considered
 

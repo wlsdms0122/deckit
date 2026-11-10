@@ -1,0 +1,22 @@
+case = 8
+name = "open-is-refused-for-the-permission-before-its-id"
+note = "open is refused NOT_PERMITTED before INVALID_ARGUMENT. mod-a, granted nothing, opens 1."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.open"
+handle = "web"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

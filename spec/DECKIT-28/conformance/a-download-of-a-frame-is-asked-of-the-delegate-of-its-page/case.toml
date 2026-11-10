@@ -1,0 +1,33 @@
+case = 10
+name = "a-download-of-a-frame-is-asked-of-the-delegate-of-its-page"
+note = "A frame's download is asked of the delegate of the page the frame is in. mod-a shows site-a, whose page holds a frame at /f, an attachment."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "shouldDownload", args = [{ url = "site-a/f", name = "c.txt", mimeType = "text/plain", expected = 0 }] }]

@@ -1,0 +1,41 @@
+case = 11
+name = "a-download-of-a-popup-taken-is-the-mods"
+note = "A popup's download is a download of the mod whose page took the popup. mod-a shows site-a, whose page opens a popup at /f, an attachment, on a press; the host's delegate takes the popup, and it is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true, openWindow = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "name"
+
+[step.expect]
+answers = ["c.txt"]
