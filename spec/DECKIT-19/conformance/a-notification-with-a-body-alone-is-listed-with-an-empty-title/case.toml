@@ -1,0 +1,53 @@
+case = 5
+name = "a-notification-with-a-body-alone-is-listed-with-an-empty-title"
+note = "A notification posted with its title left out is listed with the title the empty string, and one with its body left out with the body the empty string. mod-a posts the body Ping, then the title Pong."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/notifications"]
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/notifications"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ body = "Ping" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "Pong" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "title"
+
+[step.expect]
+answers = ["Pong", ""]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "body"
+
+[step.expect]
+answers = ["", "Ping"]

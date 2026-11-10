@@ -1,0 +1,43 @@
+case = 5
+name = "a-notification-is-listed-with-the-titles-of-its-actions"
+note = "list() answers each notification's actions with their titles alone, and none where it has none. mod-a posts Review with the action Snooze, and Ping with none."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/notifications"]
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/notifications"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "Review", command = "review", actions = [{ title = "Snooze", command = "snooze", args = { minutes = 5 } }] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ body = "Ping" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "actions"
+
+[step.expect]
+answers = [[], [{ title = "Snooze" }]]

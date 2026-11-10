@@ -1,0 +1,30 @@
+case = 5
+name = "a-remove-of-an-id-of-another-type-is-refused"
+note = "remove is refused at call with kind INVALID_ARGUMENT where id is not a string. mod-a removes 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/notifications"]
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/notifications"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "remove"
+handed = true
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

@@ -1,0 +1,30 @@
+case = 5
+name = "a-post-with-an-action-with-no-title-is-refused"
+note = "post is refused at call with kind INVALID_ARGUMENT where an action's title is left out or empty. mod-a posts Standup with an action of the command snooze and the title empty."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/notifications"]
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/notifications"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "Standup", body = "in 5 min", actions = [{ title = "", command = "snooze" }] }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
