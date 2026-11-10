@@ -327,10 +327,15 @@ async function main() {
     tell({ channel: 'deckit-shell:web-downloaded', payload: { id: 'd2' } });
     sent.length = 0;
     check(
-        "what the handle web adds is cut with its lifecycle's scope, its sessions' requests refused ENDED after it",
+        "what the handle web adds is cut with its lifecycle's scope, its requests refused ENDED after it",
         JSON.stringify(downloads) === '["d1"]' &&
             (await refusalOf(web.session('main').clear())) === 'call ENDED' &&
             thrownOf(() => surfaces.page({ session: web.session('main') })) === 'call ENDED' &&
+            (await refusalOf(web.downloads.list())) === 'call ENDED' &&
+            (await refusalOf(web.downloads.remove('d1'))) === 'call ENDED' &&
+            (await refusalOf(web.downloads.remove(1))) === 'call INVALID_ARGUMENT' &&
+            thrownOf(() => web.downloads.onChange(() => {})) === 'call ENDED' &&
+            thrownOf(() => web.downloads.onChange(1)) === 'call INVALID_ARGUMENT' &&
             !sent.length,
         downloads
     );

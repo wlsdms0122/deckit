@@ -88,12 +88,13 @@ export function createWeb({ sessions, web: WEB, channels }) {
     // session (SESSION.NAME). A session's members are requests, each refused at call, ENDED, once the lifecycle has
     // ended: `clear()`, what the session stored taken, `fetch(url, init)`, `trust(entries)`, `allow(entries)` and
     // `revoke(entries)`, each answering nothing. `downloads` are requests but `onChange(listener)`, which answers its
-    // off, cut with `scope`, and throws its refusal for a listener that is no function. `request` makes a member a
-    // request, refused as its channel's guard holds the mod, then for its arguments.
+    // off, cut with `scope`, and throws its refusal for a listener that is no function, then ENDED once the lifecycle
+    // has ended; each request is refused ENDED then too. `request` makes a member a request, refused as its channel's
+    // guard holds the mod, then for its arguments.
     function forMod({ request, scope }) {
         const id = [['id', 'string']];
         const made = new Map(); // a session's name -> its handle, for this lifecycle
-        // The request `name` of a session: refused as `request` refuses it, then ENDED once `scope` is cut, and then
+        // The request `name` of the handle: refused as `request` refuses it, then ENDED once `scope` is cut, and then
         // for what `problemOf` reads of its arguments.
         const live = (name, { guard, signature, problemOf = () => '' }, send) =>
             request(name, { guard, signature }, (...args) => {
@@ -156,24 +157,28 @@ export function createWeb({ sessions, web: WEB, channels }) {
             return handle;
         };
         const downloads = Object.freeze({
-            list: request('web.downloads.list', { guard: PROTOCOL.downloads.guard }, () =>
-                PROTOCOL.downloads.invoke({})
-            ),
+            list: live('web.downloads.list', { guard: PROTOCOL.downloads.guard }, () => PROTOCOL.downloads.invoke({})),
             onChange: (listener) => {
                 if (typeof listener !== 'function') throw invalid('web.downloads.onChange: listener is no function');
+                if (scope.isCut)
+                    throw REQUEST.refusal(
+                        'call',
+                        'ENDED',
+                        'web.downloads.onChange: the lifecycle it was made for has ended'
+                    );
                 return scope.add(onDownload(listener));
             },
-            cancel: request(
+            cancel: live(
                 'web.downloads.cancel',
                 { guard: PROTOCOL.cancelDownload.guard, signature: id },
                 async (given) => {
                     await PROTOCOL.cancelDownload.invoke({ id: given });
                 }
             ),
-            remove: request('web.downloads.remove', { guard: PROTOCOL.removeDownload.guard, signature: id }, (given) =>
+            remove: live('web.downloads.remove', { guard: PROTOCOL.removeDownload.guard, signature: id }, (given) =>
                 PROTOCOL.removeDownload.invoke({ id: given })
             ),
-            open: request('web.downloads.open', { guard: PROTOCOL.openDownload.guard, signature: id }, (given) =>
+            open: live('web.downloads.open', { guard: PROTOCOL.openDownload.guard, signature: id }, (given) =>
                 PROTOCOL.openDownload.invoke({ id: given })
             ),
         });
