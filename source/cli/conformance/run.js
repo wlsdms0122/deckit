@@ -196,16 +196,17 @@ function createApp({ server, electron, hostApp, setupFile, log }) {
     // Resolves to what the app answers under `key`, or to `{ none }` once it ends or has not settled in time.
     const answer = (key) =>
         new Promise((resolve) => {
-            const timer = setTimeout(
-                () => resolve({ none: `the app did not settle within ${SETTLE / 1000} s` }),
-                SETTLE
-            );
-            const done = (came) => {
+            const running = child;
+            const ended = (code, signal) => done({ none: `the host app ended (${signal || code})` });
+            const timer = setTimeout(() => done({ none: `the app did not settle within ${SETTLE / 1000} s` }), SETTLE);
+            function done(came) {
                 clearTimeout(timer);
+                running?.off('exit', ended);
+                waiting.delete(key);
                 resolve(came);
-            };
+            }
             waiting.set(key, done);
-            child?.once('exit', (code, signal) => done({ none: `the host app ended (${signal || code})` }));
+            running?.once('exit', ended);
         });
 
     function start() {
