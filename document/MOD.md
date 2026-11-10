@@ -346,7 +346,7 @@ Every member is on the handle of every mod, whatever it is granted. A member is 
 
 | Member | What it is |
 |---|---|
-| `theme` | the look, derived from the host app's and the person's fonts: `dark`, `font`, `mono`, `textFont`, `textSize`, `type`, `border`, `color`, `radius`, `shadow`, `motion`, `syntax` and `glass` (the strength, 0.68, a surface drawn as glass lays its colour at over what is behind it), each read as it is now, and `onChange(listener)` for a new one, which new fonts are too, throwing `INVALID_ARGUMENT` for a listener that is no function ([UI.md](UI.md)) |
+| `theme` | the look, derived from the host app's and the person's fonts: `dark`, `font`, `mono`, `textFont`, `textSize`, `fonts` (the person's choice, `{ text, size }`, each null for the default), `type`, `border`, `color`, `radius`, `shadow`, `motion`, `syntax` and `glass` (the strength, 0.68, a surface drawn as glass lays its colour at over what is behind it), each read as it is now, and `onChange(listener)` for a new one, which new fonts are too, throwing `INVALID_ARGUMENT` for a listener that is no function ([UI.md](UI.md)) |
 | `ui` | the kit, drawn in `theme` ([UI.md](UI.md)) |
 | `region(element, interface)` | answers at once: a place in the mod's view where the children of an interface it provides are shown (below); it throws `INVALID_ARGUMENT` for an element that is none or an interface the mod does not provide |
 | `dropDestination(element, { onDrop, onTargeted })` | answers at once: takes the files the person drops on `element` from outside the app, by their paths (below); it throws `INVALID_ARGUMENT` for an element that is none or an `onDrop` or `onTargeted` that is no function |

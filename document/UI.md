@@ -23,6 +23,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 | `textFont` | the family a page's text is in where nothing chooses another, and text a person reads and writes: the person's face, falling back to `font` |
 | `mono` | the fixed-width family: the system's |
 | `textSize` | the size in px of that text: the person's, 14 by default |
+| `fonts` | what the person chose, `{ text, size }`: a face's name and a size in px, each null for the default |
 | `type` | font shorthands: `caption` 11, `small` 12, `body` 13, `medium` 14, `large` 15, `heading` 16, `title` 18 |
 | `border` | the border shorthand |
 | `color` | `text`, `muted`, `disabled`, `background`, `surface`, `lifted`, `divider`, `fill`, `hover`, `selected`, `pressed`, `accent`, `onAccent`, `ok`, `warn`, `alert`, `focus`, `target`, `scrim`, `folder` |

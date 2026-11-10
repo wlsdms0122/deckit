@@ -2,8 +2,8 @@ const { section } = require('../section/section.js');
 
 // The General section, what every mod follows: the face text is in and its size, which a page's text wears where
 // nothing chooses another and a mod's own font settings follow while they are Default. `theme` is shell.theme, whose
-// `textFont` and `textSize` are the fonts text is in now, and `fonts` shell.fonts, which changes them. A change that
-// did not apply is told in a toast.
+// `fonts` are the ones the person chose, and `fonts` shell.fonts, which changes them. A change that did not apply is
+// told in a toast.
 function generalSection({ ui, theme, fonts }) {
     const TITLE = 'General';
     const KEYWORDS = ['일반', '글꼴', '폰트', '글자 크기', 'general', 'fonts', 'font size', 'typeface'];
@@ -31,7 +31,7 @@ function generalSection({ ui, theme, fonts }) {
 
     // The faces installed are read again, so a face installed since is offered.
     function draw() {
-        show({ text: faceOf(theme), size: theme.textSize });
+        show(theme.fonts);
     }
 
     // The size shown is the one text is in now, the default's where none was chosen.
@@ -86,15 +86,6 @@ function generalSection({ ui, theme, fonts }) {
             ui.toast('Could not change the fonts: ' + error.message);
         }
     }
-}
-
-// The face the person chose, as the theme's text font names it before the app's own face, or null for the default:
-// a text font that is the app's own face alone.
-function faceOf({ textFont, font }) {
-    const after = `, ${font}`;
-    if (textFont === font || !textFont.endsWith(after)) return null;
-    const family = textFont.slice(0, -after.length).match(/^"((?:[^"\\]|\\.)*)"$/);
-    return family ? family[1].replace(/\\(.)/g, '$1') : null;
 }
 
 module.exports = { generalSection };
