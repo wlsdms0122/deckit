@@ -7,7 +7,7 @@
 // and shell and the shell over it on the base shell, runs main process modules where an owner it ships asks for them, and opens none of the addresses it
 // is handed to open outside the app: it keeps each one, for the look opened. It shows none of the system's
 // notifications: it keeps each one, for the look shown, and presses one when asked. Its clipboard is a file of the
-// run's, never the person's.
+// run's, never the person's. A request fetched through a web session reaches no address but on the loopback address.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -83,7 +83,19 @@ try {
         readText: () => (fs.existsSync(setup.clipboard) ? fs.readFileSync(setup.clipboard, 'utf8') : ''),
         writeText: (text) => fs.writeFileSync(setup.clipboard, text),
     });
+    // A request fetched through a session reaches no address but on the loopback address, where the runner serves the
+    // case's sites: one to another address is not answered.
+    const web = Object.create(environment.web, {
+        fetch: {
+            value: async (mod, session, request) => {
+                if (new URL(request.url).hostname !== '127.0.0.1')
+                    throw new Error(`${request.url} is not on the loopback address`);
+                return environment.web.fetch(mod, session, request);
+            },
+        },
+    });
     const given = Object.create(environment, {
+        web: { value: web },
         open: { value: open },
         notifications: { value: notifications },
         clipboard: { value: clipboard },

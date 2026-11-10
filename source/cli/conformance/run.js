@@ -2,6 +2,7 @@
 // steps say, each call and look asked of it, and what each step came to held to what it expects (spec/DECKIT-1).
 const crypto = require('crypto');
 const fs = require('fs');
+const http = require('http');
 const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -18,6 +19,8 @@ const BASE_FIELDS = {
     web: [],
     shell: [...require('../../deckit/deckit-sdk/shell/mods/field.js').KEYS, 'styles'],
 };
+// The statuses an answer has no body with, and no length.
+const BODILESS = new Set([204, 304]);
 // The permission whose mods the host app runs main process modules for, with the framework that defines it.
 const MAIN_PROCESS = 'system.main-process';
 
@@ -25,7 +28,7 @@ const MAIN_PROCESS = 'system.main-process';
 // `{ outcome }`: 'passed'; 'failed', with `step`, `came` and `expected` for its first step that did not match; or
 // 'not laid out', with `why`, and nothing of it runs.
 async function run(theCase, { folder, hostApp, electron }) {
-    const { host, bundles } = theCase;
+    const { host, bundles, sites } = theCase;
     fs.rmSync(folder, { recursive: true, force: true });
     const home = path.join(folder, 'home');
     const sources = path.join(folder, 'sources');
@@ -94,15 +97,17 @@ async function run(theCase, { folder, hostApp, electron }) {
     );
     const log = fs.openSync(path.join(folder, 'host.log'), 'a');
     const app = createApp({ server, electron, hostApp, setupFile, log });
+    const served = await serve(sites);
     try {
         for (const step of theCase.steps) {
-            const came = await take(step, app, paths);
+            const came = served.named(await take(step, app, paths, served));
             if (!matches(step.expect, came))
                 return { outcome: 'failed', step, came: describe(came), expected: describe(step.expect) };
         }
         return { outcome: 'passed' };
     } finally {
         await app.end();
+        served.close();
         server.close();
         fs.closeSync(log);
     }
@@ -154,18 +159,126 @@ function ownerOf(name, mods) {
 // for an input answered with nothing. A call is handed the path of each bundle its folders name, then its args, then a
 // listener where it writes one, names the handle its member is read from, `deckit` where it names none, and names its
 // place so that a later call can reach what it answered.
-async function take(step, app, paths) {
-    if (step.what === 'start') return app.start();
+async function take(step, app, paths, served) {
+    if (step.what === 'start') {
+        served.requests.length = 0;
+        return app.start();
+    }
     if (step.what === 'quit') return app.quit();
     const { what, mod, part } = step;
+    if (what === 'requested') return { answers: served.read(step.headers ?? []) };
     if (what === 'call') {
-        const args = [...(step.folders ?? []).map((name) => paths[name]), ...(step.args ?? [])];
+        const args = [
+            ...(step.folders ?? []).map((name) => paths[name]),
+            ...(step.sites ?? []).map((address) => served.address(address)),
+            ...(step.args ?? []),
+        ];
         const { member, handle = 'deckit', of = null, listener = false, handed = false, number } = step;
         const asked = { input: what, mod, member, args, step: number, handle, of, listener, handed };
         return partOf(await app.ask(asked), part);
     }
     if (what === 'press') return app.ask({ input: what, notification: step.notification });
     return partOf(await app.ask({ look: what, mod }), part);
+}
+
+// Each site of the case served on the loopback address, at a port of its own chosen as the run begins: each path
+// answered with what the site's file writes of it, its status (200 where it writes none and a file is at the path, 404
+// where neither), its location and headers in order, then the length of its body and `connection: close`, and the body
+// the file at the path holds, as it is. Keeps each request a site got, `{ site, method, path, headers, body }`.
+async function serve(sites) {
+    const requests = [];
+    const servers = [];
+    const ports = {};
+    for (const [site, { folder, answers }] of Object.entries(sites)) {
+        const server = http.createServer((request, response) => {
+            const chunks = [];
+            request.on('data', (chunk) => chunks.push(chunk));
+            request.on('end', () => {
+                const body = Buffer.concat(chunks);
+                const pairs = [];
+                for (let at = 0; at < request.rawHeaders.length; at += 2)
+                    pairs.push([request.rawHeaders[at].toLowerCase(), request.rawHeaders[at + 1]]);
+                requests.push({
+                    site,
+                    method: request.method,
+                    path: request.url,
+                    headers: pairs,
+                    ...(body.length ? { body: body.toString('base64') } : {}),
+                });
+                answer(request.url, folder, answers, response);
+            });
+        });
+        server.keepAliveTimeout = 0;
+        await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+        servers.push(server);
+        ports[site] = server.address().port;
+    }
+    return {
+        requests,
+        // A site's address: the address of `site-name`, then the path the call writes after it, or `/`.
+        address: (written) => {
+            const [, site, at = '/'] = /^([^/]+)(\/.*)?$/.exec(written);
+            return `http://127.0.0.1:${ports[site]}${at}`;
+        },
+        // What a step came to, each string in it that starts with a site's address, then `/` or nothing more, read as
+        // the site's name and the rest, as a call writes a site's address.
+        named: (came) => {
+            const origins = Object.entries(ports).map(([site, port]) => [site, `http://127.0.0.1:${port}`]);
+            const read = (value) => {
+                if (typeof value === 'string') {
+                    const found = origins.find(([, origin]) => value === origin || value.startsWith(origin + '/'));
+                    return found ? found[0] + value.slice(found[1].length) : value;
+                }
+                if (Array.isArray(value)) return value.map(read);
+                if (TOML.isTable(value))
+                    return Object.fromEntries(Object.entries(value).map(([key, one]) => [key, read(one)]));
+                return value;
+            };
+            return 'answers' in came ? { ...came, answers: read(came.answers) } : came;
+        },
+        // Each request since the app last started, its headers those of the names `names`, in that order.
+        read: (names) =>
+            requests.map((one) => ({
+                ...one,
+                headers: names.flatMap((name) => one.headers.filter(([held]) => held === name)),
+            })),
+        close: () => {
+            for (const server of servers) {
+                server.closeAllConnections();
+                server.close();
+            }
+        },
+    };
+}
+
+// What a site answers the request of `at`, its path and query.
+function answer(at, folder, answers, response) {
+    const written = Object.hasOwn(answers, at) ? answers[at] : null;
+    const file = folder && fileAt(folder, at);
+    const body = file ? fs.readFileSync(file) : Buffer.alloc(0);
+    const status = written?.status ?? (file ? 200 : 404);
+    response.sendDate = false;
+    const headers = [
+        ...(written?.location === undefined ? [] : [['location', written.location]]),
+        ...(written?.headers ?? []),
+        ...(BODILESS.has(status) ? [] : [['content-length', String(body.length)]]),
+        ['connection', 'close'],
+    ];
+    response.writeHead(status, headers.flat());
+    response.end(BODILESS.has(status) ? undefined : body);
+}
+
+// The file of `folder` at the path of `at`, its query left out and its segments decoded, or null.
+function fileAt(folder, at) {
+    let segments;
+    try {
+        segments = at.split('?')[0].split('/').slice(1).map(decodeURIComponent);
+    } catch {
+        return null;
+    }
+    if (segments.some((one) => one === '' || one === '.' || one === '..' || one.includes('/'))) return null;
+    const file = path.join(folder, ...segments);
+    return fs.statSync(file, { throwIfNoEntry: false })?.isFile() ? file : null;
 }
 
 // The value under the key `part` of an answer that is a table, or of each element that holds it of one that is an

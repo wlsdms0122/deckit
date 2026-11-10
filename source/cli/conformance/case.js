@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 8;
+const FORMAT = 9;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -13,6 +13,16 @@ const KIND = /^[A-Z][A-Z_]*$/;
 const MEMBER = /^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$/;
 // The name of a standard interface, as the bundle names an interface.
 const STANDARD = /^deckit\/[a-z][a-z0-9-]*$/;
+// A site's address, as a call writes it: a site's name, then a path on it, if any.
+const SITE_ADDRESS = /^([a-z][a-z0-9-]*)(\/(?!\/)[\x21-\x7e]*)?$/;
+// A path a site answers, as its file writes one, and the path a site redirects to: `/`, and no `//` to start it.
+const PATH = /^\/(?!\/)[\x21-\x7e]*$/;
+// A header's name, a token as HTTP writes it, and its value, which holds no line break and no NUL.
+const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const LOWER_TOKEN = /^[!#$%&'*+.^_`|~0-9a-z-]+$/;
+const VALUE = /^[^\0\r\n]*$/;
+// The headers a site's answer has that the runner writes itself, which a site's file does not.
+const WRITTEN = /^(location|content-length|connection|transfer-encoding)$/i;
 const STAGES = ['read', 'launch', 'call'];
 const BASES = ['system', 'web', 'shell'];
 // The format that added a base, where it is not 1.
@@ -57,6 +67,10 @@ const INPUTS = {
         of: [(value) => is.integer(value) && value >= 1, false],
         listener: [is.boolean, false],
         handed: [is.boolean, false],
+        sites: [
+            (value) => Array.isArray(value) && value.every((one) => is.string(one) && SITE_ADDRESS.test(one)),
+            false,
+        ],
     },
     press: { notification: [(value) => is.integer(value) && value >= 1, true] },
 };
@@ -67,17 +81,28 @@ const LOOKS = {
     opened: {},
     heard: { mod: [is.string, true] },
     shown: {},
+    requested: {
+        headers: [
+            (value) =>
+                Array.isArray(value) &&
+                value.every((one) => is.string(one) && LOWER_TOKEN.test(one)) &&
+                new Set(value).size === value.length,
+            false,
+        ],
+    },
 };
 // The format that added an input or a look, where it is not 1.
-const ADDED = { run: 2, call: 3, opened: 3, heard: 4, press: 7, shown: 7 };
+const ADDED = { run: 2, call: 3, opened: 3, heard: 4, press: 7, shown: 7, requested: 9 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
-const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8 };
+const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8, sites: 9, headers: 9 };
 // The format that added a key of the host, where it is not 1.
-const HOST_KEYS_ADDED = { owners: 5 };
+const HOST_KEYS_ADDED = { owners: 5, sites: 9 };
 // The inputs answered with nothing.
 const ANSWERLESS = ['start', 'quit', 'press'];
 
-// The case in `folder`: `{ name, note, host, steps, bundles }`, `bundles` each bundle's folder by its name.
+// The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
+// and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
+// of each path.
 function read(folder) {
     const refuse = (why) => {
         throw new NotACase(why);
@@ -113,7 +138,66 @@ function read(folder) {
     for (const name of named) if (!(name in bundles)) refuse(`${name} names no bundle in mods/`);
     for (const name of Object.keys(bundles)) if (!named.has(name)) refuse(`mods/${name} is named by no key`);
 
-    return { name: written.name, note: written.note, host, steps, bundles };
+    for (const step of steps)
+        for (const address of step.sites ?? []) {
+            const [, site] = SITE_ADDRESS.exec(address);
+            if (!host.sites.includes(site))
+                refuse(`step ${step.number}: sites names ${site}, which host.sites does not`);
+        }
+    const sites = sitesOf(path.join(folder, 'sites'), host.sites, refuse);
+
+    return { name: written.name, note: written.note, host, steps, bundles, sites };
+}
+
+// Each site `named` in `folder`: its folder `<name>/` and its file `<name>.toml`, either or both; nothing else is
+// there.
+function sitesOf(folder, named, refuse) {
+    const laid = fs.statSync(folder, { throwIfNoEntry: false })?.isDirectory()
+        ? fs.readdirSync(folder, { withFileTypes: true })
+        : [];
+    const sites = {};
+    for (const entry of laid) {
+        const name = entry.isDirectory() ? entry.name : entry.name.replace(/\.toml$/, '');
+        const what = entry.isDirectory() ? 'folder' : 'file';
+        if (!NAME.test(name) || (what === 'file' && (!entry.isFile() || !entry.name.endsWith('.toml'))))
+            refuse(`sites/${entry.name} is no site's folder or file`);
+        if (!named.includes(name)) refuse(`sites/${entry.name} is named by no key`);
+        sites[name] = sites[name] ?? { folder: null, answers: {} };
+        if (what === 'folder') sites[name].folder = path.join(folder, entry.name);
+        else sites[name].answers = answersOf(path.join(folder, entry.name), `sites/${entry.name}`, refuse);
+    }
+    for (const name of named) if (!(name in sites)) refuse(`${name} names no site in sites/`);
+    return sites;
+}
+
+// What a site's file writes of each path it answers: `{ status, location, headers }`, each a key it may leave out.
+function answersOf(file, where, refuse) {
+    let written;
+    try {
+        written = TOML.read(fs.readFileSync(file, 'utf8'));
+    } catch (error) {
+        refuse(`${where} does not read: ${error.message}`);
+    }
+    const header = (pair) =>
+        Array.isArray(pair) && pair.length === 2 && is.string(pair[0]) && is.string(pair[1]) && TOKEN.test(pair[0]);
+    for (const [at, answer] of Object.entries(written)) {
+        if (!PATH.test(at)) refuse(`${where}: ${JSON.stringify(at)} is no path`);
+        if (!is.table(answer)) refuse(`${where}: ${at} is no table`);
+        keys(
+            answer,
+            {
+                status: (value) => is.integer(value) && value >= 200 && value <= 599,
+                location: (value) => is.string(value) && PATH.test(value),
+                headers: (value) =>
+                    Array.isArray(value) &&
+                    value.every(header) &&
+                    value.every(([name, value]) => VALUE.test(value) && !WRITTEN.test(name)),
+            },
+            `${where}: ${at}.`,
+            refuse
+        );
+    }
+    return written;
 }
 
 function hostOf(host, format, refuse) {
@@ -130,6 +214,7 @@ function hostOf(host, format, refuse) {
             system: is.bundles,
             sources: is.bundles,
             owners: is.standards,
+            sites: (value) => Array.isArray(value) && value.every(is.name),
         },
         'host.',
         refuse
@@ -151,6 +236,8 @@ function hostOf(host, format, refuse) {
     const ship = host.ship ?? [];
     const system = host.system ?? [];
     for (const name of system) if (!ship.includes(name)) refuse(`host.system names ${name}, which host.ship does not`);
+    const sites = host.sites ?? [];
+    if (new Set(sites).size !== sites.length) refuse('host.sites names a site twice');
     return {
         base: host.base,
         api: host.api,
@@ -160,6 +247,7 @@ function hostOf(host, format, refuse) {
         system,
         sources: host.sources ?? [],
         owners: host.owners ?? [],
+        sites: host.sites ?? [],
     };
 }
 
