@@ -18,7 +18,7 @@ import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 // session a page is in.
 export function createScript({ LOG, sessionOf, permits, permitted, notified, request, readClipboard, writeClipboard }) {
     // MARK: - Property
-    // page id -> { session, install, icon, audible, muted, notifications, news, own }: `notifications` each shown, by
+    // page -> { session, install, icon, audible, muted, notifications, news, own }: `notifications` each shown, by
     // the number deckit gave it, as `{ frame, id }`, the frame that shows it and its word, answered as it is clicked;
     // `news` the words `{ frame, id, origin }` of each document that waits to hear its site may have notifications;
     // `own` what the main frame is asked, `{ frame, awaiting, queue, sent, counts, sequence }`, `frame` the one whose
@@ -37,7 +37,8 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         }
     }
 
-    // `changed()` when the page's icon or sound changes.
+    // `changed()` when the page's icon or sound changes. Attached before the module makes the page: `scripts` those its
+    // every document starts with, and `heard(body, frame)` what deckit's scripts post in it.
     function attach(embedder, page, changed) {
         const session = sessionOf(page);
         // A name of the page's own, so a page cannot easily tell deckit is listening.
@@ -53,9 +54,9 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             channel,
             install: () => page.run(scripts()),
         };
-        pages.set(page.id, entry);
+        pages.set(page, entry);
         page.once('destroyed', () => {
-            pages.delete(page.id);
+            pages.delete(page);
             for (const resolve of entry.own.counts.values()) resolve(0);
         });
         // The scripts every document of the page starts with.
@@ -76,11 +77,6 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 { source: own, world: 'deckit', mainFrameOnly: true },
             ];
         }
-        // Also run in the document already there, which may be under way before its scripts are: the one script
-        // deckit runs in a page. The scripts do nothing a second time.
-        const first = scripts();
-        page.run(first);
-        for (const { source, world } of first) page.evaluate(source, world).catch(() => {});
         // A new document starts without the last one's icon or sound; it tells its own. The words of the last one's
         // documents are let go, as they are gone, and what its main frame was asked to count is none.
         page.on('committed', () => {
@@ -91,12 +87,12 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             for (const resolve of entry.own.counts.values()) resolve(0);
             entry.own = freshOwn();
         });
-        return (body, frame) => heard(embedder, page, entry, body, frame, changed);
+        return { scripts: scripts(), heard: (body, frame) => heard(embedder, page, entry, body, frame, changed) };
     }
 
     // A notification is clicked once, in the frame that shows it.
     function clickNotification(page, notification) {
-        const entry = pages.get(page.id);
+        const entry = pages.get(page);
         const shown = entry?.notifications.get(Number(notification));
         if (!shown) return;
         entry.notifications.delete(Number(notification));
@@ -105,7 +101,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
 
     // Muted stays with the page, its next documents included.
     function setMuted(page, on) {
-        const entry = pages.get(page.id);
+        const entry = pages.get(page);
         if (!entry || entry.muted === !!on) return;
         entry.muted = !!on;
         entry.install();
@@ -114,7 +110,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
 
     // How many times `text` is in the page's text: none in a document that runs none of deckit's scripts.
     function count(page, text, matchCase) {
-        const entry = pages.get(page.id);
+        const entry = pages.get(page);
         if (!entry) return Promise.resolve(0);
         const n = ++entry.own.sequence;
         return new Promise((resolve) => {
@@ -124,12 +120,12 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     }
 
     function unselect(page) {
-        const entry = pages.get(page.id);
+        const entry = pages.get(page);
         if (entry) askMain(entry, { op: 'unselect' });
     }
 
     function stateOf(page) {
-        const entry = pages.get(page.id);
+        const entry = pages.get(page);
         return { icon: entry?.icon || '', audible: !!entry?.audible, muted: !!entry?.muted };
     }
 

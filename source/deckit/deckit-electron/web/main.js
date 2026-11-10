@@ -290,10 +290,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     function adopt(modPage, page, { inPage }) {
         const id = page.id;
         REGISTRY.add(page, { embedder: modPage, inPage });
-        const changed = () => {
-            const state = stateOf(page);
-            if (state) client.changed(modPage, id, state);
-        };
+        const changed = () => tellChanged(modPage, page);
         for (const event of ['changed', 'started', 'stopped', 'failed', 'committed']) LOG.guard(page, event, changed);
         if (inPage) {
             const tell = (event) => MESSAGES.tell(modPage, CHANNEL.webTold, { id, event });
@@ -311,16 +308,29 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
             const verdict = client.loading(modPage, page, String(url || ''), { inPage, from: page.getURL() });
             return verdict === 'load' ? loadURL(url) : Promise.resolve();
         };
-        page.delegate.adopted(page, SCRIPT.attach(modPage, page, changed));
         client.adopted(modPage, page);
     }
 
-    // The listener of the page WebKit makes for a window `opener` opened, handed to `modPage` to show as an element,
-    // and closed with `modPage` if it never shows it.
+    // The scripts every document of `page` starts with, asked before the module makes it, and what deckit's scripts
+    // post in it heard.
+    function scriptsOf(modPage, page) {
+        const { scripts, heard } = SCRIPT.attach(modPage, page, () => tellChanged(modPage, page));
+        page.delegate.adopted(page, heard);
+        return scripts;
+    }
+
+    function tellChanged(modPage, page) {
+        const state = stateOf(page);
+        if (state) client.changed(modPage, page.id, state);
+    }
+
+    // What the module is answered for the page WebKit makes for a window `opener` opened, handed to `modPage` to show
+    // as an element, and closed with `modPage` if it never shows it.
     function openHanded(modPage, opener, { url, activates }) {
         return WEBKIT.listenerFor({
             fields: { partition: opener.partition },
             delegate: delegateOf(modPage),
+            scripts: (page) => scriptsOf(modPage, page),
             opened: (page) => {
                 pages.set(page.id, page);
                 handed.set(page.id, modPage);
@@ -363,6 +373,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
             takesKeyboard: false,
             delegate: delegateOf(modPage),
             fields: { partition },
+            scripts: (page) => scriptsOf(modPage, page),
         });
     }
 
