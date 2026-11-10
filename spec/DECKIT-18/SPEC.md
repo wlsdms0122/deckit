@@ -39,7 +39,7 @@ White space may stand before and after the requirement too. A part is a whole nu
 
 | comparator | the versions it takes |
 |---|---|
-| `v`, `^v` | `v` and each above it, below the version after the leftmost part of `v` that is not 0 is one more and every part after it 0, or, where every part written before the last is 0, after the last part written is one more: `1.2` takes `1.2.0` to below `2.0.0`, `0.2.3` `0.2.3` to below `0.3.0`, `0.0` `0.0.0` to below `0.1.0` |
+| `v`, `^v` | `v` and each version above it, below the one past the leftmost part `v` writes that is not 0, or past its last part written where every part it writes is 0: that part one more and each part after it 0. `1.2` takes `1.2.0` to below `2.0.0`, `0.2.3` takes `0.2.3` to below `0.3.0`, `0.0` takes `0.0.0` to below `0.1.0` |
 | `~v` | `v` and each above it, below the next minor where `v` writes its minor, and the next major where not |
 | `=v` | each version whose parts `v` writes are those of `v`: `=1.2` takes `1.2.0` to below `1.3.0` |
 | `>=v` | `v` and each version above it |
@@ -62,7 +62,7 @@ A request is refused with the first of these that is so, at `call`:
 1. as [the permissions](../DECKIT-3/SPEC.md) refuse a request a permission guards, with kind `NOT_PERMITTED`;
 2. as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, with kind `INVALID_ARGUMENT`;
 3. with kind `NOT_LOADABLE`, where `folder` holds a package file that does not read as a manifest's text does, whose `dependencies` is not a table, or with a dependency whose value is not a `requirement`;
-4. with dryRun not true, with kind `UNMET_DEPENDENCY`, where a dependency is not met, and nothing is installed;
+4. where `dryRun` is not true, with kind `UNMET_DEPENDENCY`, where a dependency is not met, and nothing is installed;
 5. with the kind the install of [the catalog](../DECKIT-4/SPEC.md) refuses it with.
 
 **Note.** The refusal `NOT_LOADABLE` is the kind [the bundle](../DECKIT-2/SPEC.md) refuses a folder with whose manifest does not read: a package file that does not read is the same condition, of the same folder. It is refused at `call`, where the catalog's is at `read`, since it crosses a connection, as [calls across a connection](../DECKIT-11/SPEC.md) fix one.
