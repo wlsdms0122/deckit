@@ -245,7 +245,7 @@ What `start` and `attach` receive as `deckit`. deck's members and deckit's are o
 | `about()` | `{ name, app, version, source, engines, home }`: the host app's name and version, deckit's version and the hash of its sources, the engines deckit runs on, outermost first, each `{ key, name, version }` with `key` its name in lower case (`electron` and `chrome` on Electron), and the person's home folder; deckit's own folders are `mods.folders()` |
 | `clipboard.writeText(text)` | with `system.clipboard-write` |
 | `clipboard.readText()` | with `system.clipboard-read` |
-| `notifications.show({ title, body, silent })` | with `system.notifications`: shows a notification of the system's, and resolves to `{ shown, onPress(listener) }`, `shown` false where the system has none, and `onPress` hearing the person press it, which answers its off. Which notifications a mod sends and how they are shown is the owner's of `deckit/notifications` (Standard interfaces), and a mod that tells the person something posts there |
+| `notifications.show({ title, body, silent })` | with `system.notifications`: hands the host a notification to show on the machine, the title and the body whole, and resolves to `{ shown, onPress(listener) }`. `notification` is required, and `title` and `body` both empty is refused `INVALID_ARGUMENT`. `shown` is whether the machine took it. `onPress` is no request: it throws `INVALID_ARGUMENT` for a listener that is not a function, answers its off, and its listeners hear one press, while the lifecycle that showed it runs. Which notifications a mod sends and how they are shown is the owner's of `deckit/notifications` (Standard interfaces), and a mod that tells the person something posts there |
 | `mods` | below |
 
 ### storage
