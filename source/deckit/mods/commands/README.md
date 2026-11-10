@@ -71,7 +71,7 @@ A mod that `run` or `complete` does not reach rejects at `call` with the reach's
 
 ## What a mod answers
 
-A mod that declares commands runs them on the exports it opens for its id (`deckit.exports.register(exports)`, with no interface), in `start`, so Commands reaches them with no screen too. They hold a function for each:
+A mod that declares commands runs them on the exports it opens for its id (`deckit.exports.register({ connect })`, with no interface), in `start`, so Commands reaches them with no screen too. They hold a function for each:
 
 | Export | What it is |
 |---|---|

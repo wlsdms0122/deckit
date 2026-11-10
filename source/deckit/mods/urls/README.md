@@ -102,7 +102,7 @@ A call that does not hold `deckit.system-services` rejects with kind `NOT_PERMIT
 
 ## What a mod answers
 
-A mod that declares addresses opens them on the exports it opens for its id (`deckit.exports.register(exports)`, with no interface), in `start`, so URLs reaches them with no screen too. They hold one function for this:
+A mod that declares addresses opens them on the exports it opens for its id (`deckit.exports.register({ connect })`, with no interface), in `start`, so URLs reaches them with no screen too. They hold one function for this:
 
 | Export                  | What it is                                                                                                                                                                                               |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
