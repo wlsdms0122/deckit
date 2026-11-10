@@ -1,7 +1,7 @@
 import * as CHANNEL from '../channel/index.js';
 import * as NOTIFICATION_PERMISSION from './model/permission.js';
 
-// Answers whether it was shown. `id` comes back with pressed.
+// Answers whether the system took it. `id` comes back with pressed.
 export const show = CHANNEL.pageToMain(
     'deckit-shell:notification-show',
     { id: 'string', title: 'string', body: 'string', silent: 'boolean' },
