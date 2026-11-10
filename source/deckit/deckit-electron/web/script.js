@@ -10,16 +10,17 @@ import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 // the web platform gives none for any of it; a yes to take the screen alone is run as a script (`display`). The scripts
 // are run once in the document the page has as deckit takes it, which starts before them. What the page's Notification
 // shows, and what it asks, are told to the web engine: `notified(embedder, id, { origin, notification, title, body,
-// silent })`, and `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed; what it reads
-// and writes of the clipboard, `readClipboard(embedder, id, { origin })`, a promise of the text or null, and
-// `writeClipboard(embedder, id, { origin, text })`, a promise of whether it was written; its copy, cut and paste by
-// execCommand are refused where the site may not have the clipboard. `permits(session, origin, name)` and
+// silent })`, which answers whether it is shown, and `request(embedder, id, { origin, permissions })`, a promise of
+// whether it is allowed; what it reads and writes of the clipboard, `readClipboard(embedder, id, { origin })`, a
+// promise of the text or null, and `writeClipboard(embedder, id, { origin, text })`, a promise of whether it was
+// written; its copy, cut and paste by execCommand are refused where the site may not have the clipboard. `permits(session, origin, name)` and
 // `permitted(session, name)` are what the web engine says a site in a session may have, and `sessionOf(page)` the
 // session a page is in.
 export function createScript({ LOG, sessionOf, permits, permitted, notified, request, readClipboard, writeClipboard }) {
     // MARK: - Property
     // page -> { session, install, icon, audible, muted, notifications, news, own }: `notifications` each shown, by
-    // the number deckit gave it, as `{ frame, id }`, the frame that shows it and its word, answered as it is clicked;
+    // the number deckit gave it, as `{ origin, frame, id, clicked }`, the site that shows it, the frame and the word that
+    // wait for its click, answered as it is clicked, and whether it was clicked before its word came;
     // `news` the words `{ frame, id, origin }` of each document that waits to hear its site may have notifications;
     // `own` what the main frame is asked, `{ frame, awaiting, queue, sent, counts, sequence }`, `frame` the one whose
     // word waits for it, `awaiting` true while its document acts on what it was told, and each count by its number
@@ -90,13 +91,13 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         return { scripts: scripts(), heard: (body, frame) => heard(embedder, page, entry, body, frame, changed) };
     }
 
-    // A notification is clicked once, in the frame that shows it.
+    // A notification is clicked once, in the frame that shows it, as soon as its word waits for it.
     function clickNotification(page, notification) {
         const entry = pages.get(page);
         const shown = entry?.notifications.get(Number(notification));
         if (!shown) return;
-        entry.notifications.delete(Number(notification));
-        shown.frame.answer(JSON.stringify({ id: shown.id, answer: true }));
+        shown.clicked = true;
+        tellClick(entry, Number(notification));
     }
 
     // Muted stays with the page, its next documents included.
@@ -154,6 +155,14 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         own.awaiting = true;
     }
 
+    // A notification clicked whose word waits for its click hears it.
+    function tellClick(entry, notification) {
+        const shown = entry.notifications.get(notification);
+        if (!shown.clicked || !shown.frame) return;
+        entry.notifications.delete(notification);
+        shown.frame.answer(JSON.stringify({ id: shown.id, answer: true }));
+    }
+
     // Each document that waits for the news and whose site may now have notifications hears it.
     function tellNews(entry) {
         entry.news = entry.news.filter(({ frame, id, origin }) => {
@@ -188,15 +197,20 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             entry.audible = !!message.on;
             changed();
         } else if (message.op === 'show') {
+            // Answered the number deckit gave it where the web engine showed it, else false.
             const notification = ++shownSequence;
-            entry.notifications.set(notification, { frame, id });
-            notified(embedder, page.id, {
-                origin,
-                notification,
-                title: message.title,
-                body: message.body,
-                silent: message.silent,
-            });
+            const { title, body, silent } = message;
+            const shown = notified(embedder, page.id, { origin, notification, title, body, silent });
+            if (shown) entry.notifications.set(notification, { origin, frame: null, id: 0, clicked: false });
+            frame.answer(JSON.stringify({ id, answer: shown ? notification : false }));
+            return true;
+        } else if (message.op === 'click') {
+            // The word that waits for the click of a notification its site showed.
+            const notification = Number(message.notification);
+            const shown = entry.notifications.get(notification);
+            if (!shown || shown.frame || shown.origin !== origin) return false;
+            Object.assign(shown, { frame, id });
+            tellClick(entry, notification);
             return true;
         } else if (message.op === 'news') {
             entry.news.push({ frame, id, origin });
@@ -321,13 +335,16 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 });
                 const id = ++seq;
                 ids.set(this, id);
-                // Shown, it waits for its click, which deckit answers.
+                // Shown where the web engine shows it, it waits for its click, which deckit answers; else its error.
                 setTimeout(() => {
                     if (permission !== 'granted') return fire(this, 'error');
-                    live.set(id, this);
                     const shown = { op: 'show', title: this.title, body: this.body, silent: this.silent };
-                    ask(shown, () => live.has(id) && fire(this, 'click'));
-                    fire(this, 'show');
+                    ask(shown, (notification) => {
+                        if (notification === false) return fire(this, 'error');
+                        live.set(id, this);
+                        ask({ op: 'click', notification }, () => live.has(id) && fire(this, 'click'));
+                        fire(this, 'show');
+                    });
                 });
             }
             close() {
