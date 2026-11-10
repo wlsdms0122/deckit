@@ -132,7 +132,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
     // nothing. What a removal of the same id left to erase is erased first, so erasing it never reaches this one.
     // Answers the manifest of what it installs with `replaces`, whether it takes the place of an installed mod, and
-    // with `dryRun` changes nothing, asked before the person is.
+    // with `dryRun` changes nothing.
     async function install(from, { dryRun }) {
         if (dryRun) return answerOf(await CATALOG.install(from, { dryRun }));
         const { id } = (await CATALOG.install(from, { dryRun: true })).manifest;

@@ -97,9 +97,9 @@ public final class Catalog {
         return store.read(file)
     }
 
-    // A request `deckit.mods` guards, whoever asked: `id` owns `interface` from now on, whichever provider is first in
-    // its queue, until its pin is cleared, for nil, or the mod leaves the queue. Refused for a mod that does not provide
-    // the interface now, one kept in its queue with a problem too. Settled once the mods are read again.
+    // A request `deckit.mods` guards, whoever asked: `id` owns `interface` from now on, whichever provider is first
+    // in its queue, until its pin is cleared, for nil, or the mod leaves the queue. Refused for a mod that does not
+    // provide the interface now, one kept in its queue with a problem too. Settled once the mods are read again.
     public func pin(_ interface: String, to id: String?) throws {
         keptOwnership(of: ranked())
         try ownerTable.pin(interface, to: id)
@@ -108,15 +108,16 @@ public final class Catalog {
     // The mod in `source` installed, or with `dryRun` nothing changed, answering what installing it does. Refused too
     // where a mod read in place has its id, which would hide the copy installed.
     public func install(from source: URL, dryRun: Bool = false) throws -> Installation {
-        let installation = try installer.install(from: source, dryRun: dryRun) { manifest in
-            if let mod = list().first(where: { mod in mod.manifest.id == manifest.id }), isReadInPlace(mod) {
-                throw InstallError.readInPlace(id: mod.manifest.id, folder: mod.folder.path(percentEncoded: false))
-            }
+        let installation = try installer.installation(of: source)
+        if let mod = list().first(where: { mod in mod.manifest.id == installation.manifest.id }), isReadInPlace(mod) {
+            throw InstallError.readInPlace(id: mod.manifest.id, folder: mod.folder.path(percentEncoded: false))
         }
         guard !dryRun else { return installation }
 
+        try installer.install(installation, from: source)
         installs[installation.manifest.id, default: 0] += 1
         keptOwnership(of: ranked())
+
         return installation
     }
 
@@ -318,9 +319,9 @@ public final class Catalog {
         )
     }
 
-    // What `interface` comes to for `manifest`, which uses it, as `ownership` owns it, its owner read among `found`, the
-    // manifests of every mod found. An owner whose manifest is not read as providing it, one kept with a problem, is told by its own
-    // problem.
+    // What `interface` comes to for `manifest`, which uses it, as `ownership` owns it, its owner read among `found`,
+    // the manifests of every mod found. An owner whose manifest is not read as providing it, one kept with a problem,
+    // is told by its own problem.
     private func use(
         of interface: String,
         by manifest: Manifest,
