@@ -1,0 +1,43 @@
+case = 5
+name = "an-install-whose-dependencies-are-met-installs"
+note = "An install that is not a dry run installs through deckit.mods and answers what it answers, once each dependency is installed at a version its requirement takes. mod-c depends on mod-b >=1.2, installed as 1.4.2, and a dry run of mod-c after it replaces the bundle installed."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+part = "id"
+
+[step.expect]
+answers = "mod-c"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "replaces"
+
+[step.expect]
+answers = true

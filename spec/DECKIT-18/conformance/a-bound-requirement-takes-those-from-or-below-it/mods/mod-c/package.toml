@@ -1,0 +1,4 @@
+[dependencies]
+"mod-b" = ">=1.4.2"
+"mod-d" = "<0.2.5"
+"mod-e" = "<1"

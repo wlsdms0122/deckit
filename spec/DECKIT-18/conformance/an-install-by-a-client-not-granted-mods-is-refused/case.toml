@@ -1,0 +1,31 @@
+case = 5
+name = "an-install-by-a-client-not-granted-mods-is-refused"
+note = "install is refused at call with kind NOT_PERMITTED for a client whose own mod is not granted deckit.mods, before its arguments are read. mod-a, not granted it, installs 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

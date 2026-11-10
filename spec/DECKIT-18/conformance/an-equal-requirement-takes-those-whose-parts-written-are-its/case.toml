@@ -1,0 +1,32 @@
+case = 5
+name = "an-equal-requirement-takes-those-whose-parts-written-are-its"
+note = "A comparator of = takes the versions whose parts written are its own. mod-c depends on mod-b =1.4 and mod-d =0.2.4 and mod-e =0."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b", "mod-d", "mod-e"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "dependencies"
+
+[step.expect]
+answers = [{ id = "mod-b", requirement = "=1.4", installed = "1.4.2", satisfied = true }, { id = "mod-d", requirement = "=0.2.4", installed = "0.2.5", satisfied = false }, { id = "mod-e", requirement = "=0", installed = "0.0.3", satisfied = true }]

@@ -1,0 +1,32 @@
+case = 5
+name = "a-package-file-with-no-dependencies-depends-on-nothing"
+note = "A package file with no dependencies table depends on nothing. mod-c's package file holds a comment alone."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "dependencies"
+
+[step.expect]
+answers = []

@@ -1,0 +1,3 @@
+[dependencies]
+"mod-b" = "^1"
+"mod-f" = "1"

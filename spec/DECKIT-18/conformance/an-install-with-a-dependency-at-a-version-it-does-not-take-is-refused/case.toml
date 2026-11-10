@@ -1,0 +1,31 @@
+case = 5
+name = "an-install-with-a-dependency-at-a-version-it-does-not-take-is-refused"
+note = "An install that is not a dry run is refused at call with kind UNMET_DEPENDENCY where a dependency is installed at a version its requirement does not take. mod-c depends on mod-b 2, installed as 1.4.2."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+
+[step.expect]
+refuses = "call"
+kind = "UNMET_DEPENDENCY"

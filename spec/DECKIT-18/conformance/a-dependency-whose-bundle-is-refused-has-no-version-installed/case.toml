@@ -1,0 +1,32 @@
+case = 5
+name = "a-dependency-whose-bundle-is-refused-has-no-version-installed"
+note = "A dependency whose bundle the system did not take has no version installed and is not met. mod-c depends on mod-b 1, and the bundle of mod-b names no main."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "dependencies"
+
+[step.expect]
+answers = [{ id = "mod-b", requirement = "1", satisfied = false }]

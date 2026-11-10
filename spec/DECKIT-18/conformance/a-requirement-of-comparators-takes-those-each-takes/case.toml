@@ -1,0 +1,32 @@
+case = 5
+name = "a-requirement-of-comparators-takes-those-each-takes"
+note = "A requirement of comparators separated by commas takes the versions every one of them takes, with white space around each. mod-c depends on mod-b >= 1.2, <1.4 and mod-d 0.2,<0.3 and mod-e >=0.0.1, ~0.0."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b", "mod-d", "mod-e"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "dependencies"
+
+[step.expect]
+answers = [{ id = "mod-b", requirement = ">= 1.2, <1.4", installed = "1.4.2", satisfied = false }, { id = "mod-d", requirement = "0.2,<0.3", installed = "0.2.5", satisfied = true }, { id = "mod-e", requirement = ">=0.0.1, ~0.0", installed = "0.0.3", satisfied = true }]
