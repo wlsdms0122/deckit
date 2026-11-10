@@ -61,7 +61,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
             permits,
             permitted,
             request,
-            requestApp: (embedder, id, { url, origin }) => mayOpenApp(embedder, id, url, origin),
+            requestApp: (embedder, id, { url, origin }) => openApp(embedder, id, url, origin),
             cookieLifetime: COOKIE_LIFETIME,
             fetchLimit: FETCH_LIMIT,
             windowSize: WINDOW_SIZE,
@@ -322,7 +322,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         if (!consumeActivation(page)) return '';
         // An app's address opened as a window is the same question as one navigated to.
         if (!/^https?:\/\//i.test(url)) {
-            mayOpenApp(modPage, tab, url, SITE.originOf(from)).then((ok) => ok && SYSTEM.url(url));
+            openApp(modPage, tab, url, SITE.originOf(from));
             return '';
         }
         if (/^file:/i.test(String(from))) {
@@ -443,6 +443,21 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
             question.off = PAGES.watch(tab, { destroyed: () => settle(id, false) });
             PROTOCOL.asking.send(embedder, { id: tabId, ask: id, origin, permissions, ...about });
         });
+    }
+
+    // An app's address a site in the tab `tabId` goes to, by a link or window.open, opened outside the app by `open`
+    // once the mod lets the site have that app. Answers whether it was opened; one that did not open is logged.
+    function openApp(embedder, tabId, url, origin) {
+        return mayOpenApp(embedder, tabId, url, origin)
+            .then(async (ok) => {
+                if (!ok) return false;
+                await SYSTEM.url(String(url));
+                return true;
+            })
+            .catch((error) => {
+                deckit.log.warn(`${url} did not open in its app`, error);
+                return false;
+            });
     }
 
     // Asked of the top document's site whichever frame wants the app: that is the site the person sees.

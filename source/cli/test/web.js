@@ -338,6 +338,24 @@ async function main() {
     heard.told(filesPage, { channel: 'deckit-shell:web-permit', payload: { ask: app.ask, allow: true } });
     await tick();
     check('an app allowed opens', opened.at(-1) === 'zoommtg://join', opened);
+    const linked = listened.requestApp(filesPage, 7, { url: 'zoommtg://link', origin: 'https://a.com' });
+    await tick();
+    const linkQuestion = toldOn('deckit-shell:web-asking').at(-1)?.[1].payload;
+    heard.told(filesPage, { channel: 'deckit-shell:web-permit', payload: { ask: linkQuestion.ask, allow: true } });
+    check(
+        "an app's address a page goes to is asked of the mod, then opened by the host's open",
+        linkQuestion.permissions[0] === 'open:zoommtg' && (await linked) === true && opened.at(-1) === 'zoommtg://link',
+        [linkQuestion, opened]
+    );
+    const unlinked = listened.requestApp(filesPage, 7, { url: 'zoommtg://refused', origin: 'https://a.com' });
+    await tick();
+    const refusedQuestion = toldOn('deckit-shell:web-asking').at(-1)?.[1].payload;
+    heard.told(filesPage, { channel: 'deckit-shell:web-permit', payload: { ask: refusedQuestion.ask, allow: false } });
+    check(
+        'one the mod refuses is not opened',
+        (await unlinked) === false && opened.at(-1) === 'zoommtg://link',
+        opened
+    );
     const before = toldOn('deckit-shell:web-asking').length;
     press(tab, 'keydown');
     listened.windowOpen(filesPage, tab, asked({ url: 'javascript:alert(1)' }));

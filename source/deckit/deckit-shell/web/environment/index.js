@@ -82,9 +82,10 @@ const WEB = Object.freeze({
 // is `downloading`, `finished`, `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise
 // of whether it is allowed: `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download a web
 // page in the tab of that id started is saved, `name` the file's as the site gives it; `request(embedder, id, {
-// origin, permissions })` and `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks,
-// `permissions` as the web engine names them (web/engine/model/site-permission.js), none where the environment's name
-// for it is none of the web engine's. Kept as given: `cookieLifetime`, the seconds a cookie a site sets with no expiry
+// origin, permissions })`, what a site in the tab of that id asks, `permissions` as the web engine names them
+// (web/engine/model/site-permission.js), none where the environment's name for it is none of the web engine's; and
+// `requestApp(embedder, id, { url, origin })`, an app's address a site in the tab of that id goes to, which the web
+// engine opens with `open.url` (WEB) where the mod lets it, a promise of whether it opened. Kept as given: `cookieLifetime`, the seconds a cookie a site sets with no expiry
 // lasts in a mod's session; `fetchLimit`, the bytes past which `fetch` refuses an answer; and `windowSize`, `{ width,
 // height }`, a web page's window where it asks for no size.
 const WEB_DECK = Object.freeze({

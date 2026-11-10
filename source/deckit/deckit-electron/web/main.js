@@ -234,8 +234,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         }
     }
 
-    // What a page asks, put to deck: a link it follows, a window it opens, what it asks to have, a certificate the Mac
-    // does not trust, and an app's address. A download it starts is written to the Downloads folder, and deck is told
+    // What a page asks, put to deck: a link it follows, a window it opens, what it asks to have, a certificate that is
+    // not trusted, and an app's address, which deck opens. A download it starts is written to the Downloads folder, and deck is told
     // of it for the mod showing the page. `page` is the page asking, known once it is adopted.
     function delegateOf(modPage) {
         let page = null;
@@ -283,9 +283,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
             external: (url) => {
                 const at = REGISTRY.tabOf(page);
                 if (!at) return;
-                deck.requestApp(at.embedder, at.tab.id, { url, origin: SITE.originOf(page.getURL()) }).then(
-                    (ok) => ok && require('electron').shell.openExternal(url),
-                    (error) => LOG.error("an app's address was not opened", error)
+                deck.requestApp(at.embedder, at.tab.id, { url, origin: SITE.originOf(page.getURL()) }).catch((error) =>
+                    LOG.error("an app's address was not opened", error)
                 );
             },
         };
