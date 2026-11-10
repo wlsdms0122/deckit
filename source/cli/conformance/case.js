@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 11;
+const FORMAT = 12;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -35,6 +35,8 @@ const HANDLES = ['deckit', 'web'];
 class NotACase extends Error {}
 class TooOld extends Error {}
 
+// A scheme as an address writes it, in lower case: format 12, a key of host.apps.
+const SCHEME = /^[a-z][a-z0-9+.-]*$/;
 const is = {
     string: (value) => typeof value === 'string',
     integer: (value) => Number.isInteger(value),
@@ -71,6 +73,10 @@ const INPUTS = {
         handed: [is.boolean, false],
         sites: [
             (value) => Array.isArray(value) && value.every((one) => is.string(one) && SITE_ADDRESS.test(one)),
+            false,
+        ],
+        origins: [
+            (value) => Array.isArray(value) && value.every(is.name) && new Set(value).size === value.length,
             false,
         ],
     },
@@ -126,9 +132,9 @@ const ADDED = {
     activate: 11,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
-const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8, sites: 9, headers: 9, file: 11 };
+const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8, sites: 9, headers: 9, file: 11, origins: 12 };
 // The format that added a key of the host, where it is not 1.
-const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10 };
+const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12 };
 // The inputs answered with nothing.
 const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate'];
 
@@ -177,6 +183,10 @@ function read(folder) {
             if (!host.sites.includes(site))
                 refuse(`step ${step.number}: sites names ${site}, which host.sites does not`);
         }
+    for (const step of steps)
+        for (const site of step.origins ?? [])
+            if (!host.sites.includes(site))
+                refuse(`step ${step.number}: origins names ${site}, which host.sites does not`);
     const sites = sitesOf(path.join(folder, 'sites'), host.sites, refuse);
 
     return { name: written.name, note: written.note, host, steps, bundles, sites };
@@ -250,6 +260,9 @@ function hostOf(host, format, refuse) {
             sites: (value) => Array.isArray(value) && value.every(is.name),
             delegate: (value) =>
                 is.table(value) && Object.keys(value).every((one) => /^[A-Za-z][A-Za-z0-9]*$/.test(one)),
+            apps: (value) =>
+                is.table(value) &&
+                Object.entries(value).every(([scheme, app]) => SCHEME.test(scheme) && is.string(app) && app !== ''),
         },
         'host.',
         refuse
@@ -284,6 +297,7 @@ function hostOf(host, format, refuse) {
         owners: host.owners ?? [],
         sites: host.sites ?? [],
         delegate: host.delegate ?? {},
+        apps: host.apps ?? {},
     };
 }
 

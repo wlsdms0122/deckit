@@ -7,9 +7,10 @@
 // and shell and the shell over it on the base shell, runs main process modules where an owner it ships asks for them,
 // and opens none of the addresses it is handed to open outside the app: it keeps each one, for the look opened. On the
 // base web it shows a mod's page in a window of its own once its layer shows a web page there, and presses a web page
-// its layer showed with WebKit's input, as a person's press comes. It shows none of the system's
-// notifications: it keeps each one, for the look shown, and presses one when asked. Its clipboard is a file of the
-// run's, never the person's. A request fetched through a web session reaches no address but on the loopback address.
+// its layer showed with WebKit's input, as a person's press comes. It shows none of the system's notifications: it
+// keeps each one, for the look shown, and presses one when asked. It knows the app for an address of a scheme only
+// where the case names one. Its clipboard is a file of the run's, never the person's. A request fetched through a web
+// session reaches no address but on the loopback address.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -75,6 +76,8 @@ try {
         url: async (url, { activate = true } = {}) => {
             opened.push({ url, activates: activate });
         },
+        // The app for an address of a scheme the case names one for, and none for any other.
+        appFor: (url) => setup.apps[new URL(url).protocol.slice(0, -1).toLowerCase()] ?? '',
         // A file kept as the file URL of its path, each segment of it percent-encoded.
         file: async (file, { activate = true } = {}) => {
             opened.push({ url: 'file://' + file.split('/').map(encodeURIComponent).join('/'), activates: activate });

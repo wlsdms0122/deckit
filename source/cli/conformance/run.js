@@ -85,6 +85,8 @@ async function run(theCase, { folder, hostApp, electron }) {
                 downloads: path.join(folder, 'downloads'),
                 // The clipboard the host keeps, a file of the run's: none as the case begins, kept as the app quits.
                 clipboard: path.join(folder, 'clipboard.txt'),
+                // The app the machine has for each scheme, as the case names it: none for any other.
+                apps: host.apps,
                 fields,
                 mainProcess,
                 permissions: host.permissions,
@@ -171,7 +173,7 @@ async function take(step, app, paths, served, delegate) {
         const args = [
             ...(step.folders ?? []).map((name) => paths[name]),
             ...(step.sites ?? []).map((address) => served.address(address)),
-            ...(step.args ?? []),
+            ...served.origins(step.args ?? [], step.origins ?? []),
         ];
         const { member, handle = 'deckit', of = null, listener = false, handed = false, number } = step;
         const asked = { input: what, mod, member, args, step: number, handle, of, listener, handed };
@@ -235,6 +237,18 @@ async function serve(sites) {
         address: (written) => {
             const [, site, at = '/'] = /^([^/]+)(\/.*)?$/.exec(written);
             return `http://127.0.0.1:${ports[site]}${at}`;
+        },
+        // `args`, each string in it, at any depth, that is a site's name of `names` the origin of that site.
+        origins: (args, names) => {
+            const put = (value) => {
+                if (typeof value === 'string')
+                    return names.includes(value) ? `http://127.0.0.1:${ports[value]}` : value;
+                if (Array.isArray(value)) return value.map(put);
+                if (TOML.isTable(value))
+                    return Object.fromEntries(Object.entries(value).map(([key, one]) => [key, put(one)]));
+                return value;
+            };
+            return args.map(put);
         },
         // What a step came to, each string in it that starts with a site's address, then `/` or nothing more, read as
         // the site's name and the rest, as a call writes a site's address.
