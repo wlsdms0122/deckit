@@ -1,0 +1,36 @@
+case = 10
+name = "the-last-100-downloads-are-kept"
+note = "The web engine keeps the last 100 downloads of a mod to have started, and no older one that ended. mod-a shows site-a, whose script lays 101 frames at /f, an attachment c.txt, each a download, numbered as it is saved."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "name"
+
+[step.expect]
+answers = ["c (101).txt", "c (100).txt", "c (99).txt", "c (98).txt", "c (97).txt", "c (96).txt", "c (95).txt", "c (94).txt", "c (93).txt", "c (92).txt", "c (91).txt", "c (90).txt", "c (89).txt", "c (88).txt", "c (87).txt", "c (86).txt", "c (85).txt", "c (84).txt", "c (83).txt", "c (82).txt", "c (81).txt", "c (80).txt", "c (79).txt", "c (78).txt", "c (77).txt", "c (76).txt", "c (75).txt", "c (74).txt", "c (73).txt", "c (72).txt", "c (71).txt", "c (70).txt", "c (69).txt", "c (68).txt", "c (67).txt", "c (66).txt", "c (65).txt", "c (64).txt", "c (63).txt", "c (62).txt", "c (61).txt", "c (60).txt", "c (59).txt", "c (58).txt", "c (57).txt", "c (56).txt", "c (55).txt", "c (54).txt", "c (53).txt", "c (52).txt", "c (51).txt", "c (50).txt", "c (49).txt", "c (48).txt", "c (47).txt", "c (46).txt", "c (45).txt", "c (44).txt", "c (43).txt", "c (42).txt", "c (41).txt", "c (40).txt", "c (39).txt", "c (38).txt", "c (37).txt", "c (36).txt", "c (35).txt", "c (34).txt", "c (33).txt", "c (32).txt", "c (31).txt", "c (30).txt", "c (29).txt", "c (28).txt", "c (27).txt", "c (26).txt", "c (25).txt", "c (24).txt", "c (23).txt", "c (22).txt", "c (21).txt", "c (20).txt", "c (19).txt", "c (18).txt", "c (17).txt", "c (16).txt", "c (15).txt", "c (14).txt", "c (13).txt", "c (12).txt", "c (11).txt", "c (10).txt", "c (9).txt", "c (8).txt", "c (7).txt", "c (6).txt", "c (5).txt", "c (4).txt", "c (3).txt", "c (2).txt"]
