@@ -10,9 +10,9 @@ import { createDownload } from './download.js';
 
 // The web engine in main, on `deckit`, what connect answered, its channels bound with `deckit.channels`. `state` is its
 // own state. `web` is the environment's: the web pages a mod's page shows, their sessions, and what a site was allowed.
-// `pages` and `open` are the environment's too: what it tells of a page, and what opens an address outside the app
-// (environment: WEB).
-export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: OPEN }) {
+// `pages`, `open` and `clipboard` are the environment's too: what it tells of a page, what opens an address outside the
+// app, and the clipboard a site reads and writes as the mod's handle does (environment: WEB).
+export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: OPEN, clipboard: CLIPBOARD }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const SESSIONS = 'web-sessions'; // the state's key: mod id -> the names of the web sessions it used
@@ -61,6 +61,8 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
             permits,
             permitted,
             request,
+            readClipboard,
+            writeClipboard,
             requestApp: (embedder, id, { url, origin }) => openApp(embedder, id, url, origin),
             cookieLifetime: COOKIE_LIFETIME,
             fetchLimit: FETCH_LIMIT,
@@ -374,6 +376,21 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         if (!permissions.every((name) => reaches(modId, name))) return Promise.resolve(false);
         if (rules.every((rule) => rule === 'allow')) return Promise.resolve(true);
         return ask(embedder, id, origin, permissions);
+    }
+
+    // The clipboard's text a site in the web page `id` reads, once it may have `clipboard-read`, or null where not.
+    async function readClipboard(embedder, id, { origin }) {
+        if (!(await request(embedder, id, { origin, permissions: ['clipboard-read'] }))) return null;
+        return CLIPBOARD.readText();
+    }
+
+    // Whether a site in the web page `id` replaced the clipboard's text with `text`, as it may with `clipboard-write`.
+    // A site tells whatever it tells, so `text` that is no string writes nothing.
+    async function writeClipboard(embedder, id, { origin, text }) {
+        if (typeof text !== 'string') return false;
+        if (!(await request(embedder, id, { origin, permissions: ['clipboard-write'] }))) return false;
+        await CLIPBOARD.writeText(text);
+        return true;
     }
 
     // Whether a site of the mod `modId`, or of no mod's for null, may have `name` as the system guards it: always where

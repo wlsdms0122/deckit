@@ -1,12 +1,15 @@
 import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 
-// What deckit runs in a web page: in the page's own world, the page's Notification, which deckit shows, and in
-// deckit's, which the page does not see, what tells deckit the page's icon and whether it plays sound, mutes it, and
-// counts what find finds. What the page's Notification shows, and what it asks, are told to the web engine:
-// `notified(embedder, id, { origin, notification, title, body, silent })`, and `request(embedder, id, { origin,
-// permissions })`, a promise of whether it is allowed. `permits(session, origin, name)` and `permitted(session, name)`
-// are what the web engine says a site in a session may have, and `sessionOf(page)` the session a page is in.
-export function createScript({ LOG, sessionOf, permits, permitted, notified, request }) {
+// What deckit runs in a web page: in the page's own world, the page's Notification, which deckit shows, and its
+// clipboard, which the web engine reads and writes, and in deckit's, which the page does not see, what tells deckit the
+// page's icon and whether it plays sound, mutes it, and counts what find finds. What the page's Notification shows, and
+// what it asks, are told to the web engine: `notified(embedder, id, { origin, notification, title, body, silent })`,
+// and `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed; what it reads and writes of
+// the clipboard, `readClipboard(embedder, id, { origin })`, a promise of the text or null, and
+// `writeClipboard(embedder, id, { origin, text })`, a promise of whether it was written. `permits(session, origin,
+// name)` and `permitted(session, name)` are what the web engine says a site in a session may have, and
+// `sessionOf(page)` the session a page is in.
+export function createScript({ LOG, sessionOf, permits, permitted, notified, request, readClipboard, writeClipboard }) {
     // MARK: - Property
     const pages = new Map(); // page id -> { install, icon, audible, muted }
 
@@ -114,6 +117,21 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                         .catch(() => {}),
                 (error) => LOG.error("a site's notifications were not asked", error)
             );
+        } else if (message.op === 'read' || message.op === 'write') {
+            const asked =
+                message.op === 'read'
+                    ? readClipboard(embedder, page.id, { origin })
+                    : writeClipboard(embedder, page.id, { origin, text: message.text });
+            asked
+                .catch((error) => {
+                    LOG.error("a site's clipboard was not reached", error);
+                    return message.op === 'read' ? null : false;
+                })
+                .then((answer) =>
+                    page
+                        .evaluate(`window.__deckitClipboard?.answer(${id}, ${JSON.stringify(answer)})`, 'page')
+                        .catch(() => {})
+                );
         }
     }
 
@@ -216,6 +234,42 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                       )
                     : query(desc);
         }
+        // The page's clipboard is text the web engine reads and writes, refused as NotAllowedError where the site may
+        // not have it: an item is written as its text, and one with no text is refused.
+        const clipboard = navigator.clipboard;
+        const asked = new Map();
+        const reach = (op, text) =>
+            new Promise((resolve, reject) => {
+                const id = ++seq;
+                asked.set(id, { op, resolve, reject });
+                say({ op, id, text });
+            });
+        if (clipboard) {
+            const text = async (item) => {
+                if (!item || !item.types?.includes('text/plain')) throw new DOMException('No text', 'NotAllowedError');
+                return (await item.getType('text/plain')).text();
+            };
+            const own = {
+                readText: () => reach('read'),
+                writeText: (data) => reach('write', String(data)),
+                read: () => reach('read').then((data) => [new ClipboardItem({ 'text/plain': data })]),
+                write: async (items) => reach('write', await text([...items][0])),
+            };
+            for (const [name, value] of Object.entries(own))
+                Object.defineProperty(clipboard, name, { value, writable: true, configurable: true });
+        }
+        Object.defineProperty(window, '__deckitClipboard', {
+            value: {
+                answer(id, answer) {
+                    const one = asked.get(id);
+                    if (!one) return;
+                    asked.delete(id);
+                    if (answer === null || answer === false)
+                        one.reject(new DOMException('The site may not reach the clipboard', 'NotAllowedError'));
+                    else one.resolve(one.op === 'read' ? answer : undefined);
+                },
+            },
+        });
         Object.defineProperty(window, '__deckitNotification', {
             value: {
                 click(id) {

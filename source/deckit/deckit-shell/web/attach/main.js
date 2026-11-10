@@ -18,7 +18,14 @@ import { createWeb } from '../engine/main.js';
 function attach(deckit, environment) {
     const ENV = checked(environment, ENVIRONMENT.WEB, 'the environment');
     for (const permission of WEB_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
-    const WEB = createWeb({ deckit, state: deckit.stateIn('web'), web: ENV.web, pages: ENV.pages, open: ENV.open });
+    const WEB = createWeb({
+        deckit,
+        state: deckit.stateIn('web'),
+        web: ENV.web,
+        pages: ENV.pages,
+        open: ENV.open,
+        clipboard: ENV.clipboard,
+    });
     deckit.stack(WEB_LAYER.LAYER, { setup: (id) => ({ sessions: ENV.web.sessionsOf(id) }), keeps: WEB.keeps });
     deckit.onStart(WEB.start);
     return Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard, onPage: WEB.onPage });

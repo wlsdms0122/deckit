@@ -62,6 +62,9 @@ const WEB = Object.freeze({
     // `appFor(url) -> string`, the name of the app that opens an address of its scheme as a person reads it, or ''
     // where none does, as for the environment's own schemes
     open: { url: 'function', appFor: 'function' },
+    // The clipboard a site reaches, the one the mod's handle reads and writes: `readText() -> string` and
+    // `writeText(text)`
+    clipboard: { readText: 'function', writeText: 'function' },
 });
 
 // What the web engine hands an environment's web (`WEB.web.listen`), its client: what the web calls back as its pages
@@ -84,7 +87,9 @@ const WEB = Object.freeze({
 // allowed: `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download the web page of that id
 // started is saved, `name` the file's as the site gives it; `request(embedder, id, { origin, permissions
 // })`, what a site in the web page of that id asks, `permissions` as the web engine names them
-// (web/engine/model/site-permission.js), none where the environment's name for it is none of the web engine's; and
+// (web/engine/model/site-permission.js), none where the environment's name for it is none of the web engine's;
+// `readClipboard(embedder, id, { origin })`, the clipboard's text a site in that web page reads, null where it may not;
+// `writeClipboard(embedder, id, { origin, text })`, whether it replaced the clipboard's text with `text`; and
 // `requestApp(embedder, id, { url, origin })`, an app's address a site in the web page of that id goes to, which the web
 // engine opens with `open.url` (WEB) where the mod lets it, a promise of whether it opened. Kept as given:
 // `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
@@ -106,6 +111,8 @@ const WEB_CLIENT = Object.freeze({
     downloaded: 'function',
     shouldDownload: 'function',
     request: 'function',
+    readClipboard: 'function',
+    writeClipboard: 'function',
     requestApp: 'function',
     cookieLifetime: 'number',
     fetchLimit: 'number',

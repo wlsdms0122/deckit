@@ -41,6 +41,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         permitted: told('permitted'),
         notified: told('notified'),
         request: told('request'),
+        readClipboard: told('readClipboard'),
+        writeClipboard: told('writeClipboard'),
     });
 
     // MARK: - Initializer

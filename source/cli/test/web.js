@@ -2,7 +2,7 @@
 // web: what loads in web pages, the mod's page a web page answers to, which sessions attach and are kept, a mod's
 // windows closing with its document, what a mod's page opens by itself opened for the mod, what a web page's
 // window.open gets, what a site may have and the question put to the mod showing it, the clipboard a site reaches only
-// for a mod granted the clipboard permission, what a mod lets sites have and the
+// for a mod granted the clipboard permission, and only the environment's, what a mod lets sites have and the
 // certificates it trusts, each refused whole for an entry that does not fit, a fetch's refusals, a site's
 // notifications, a mod's tabs held to the mod, its downloads told to its running run, and each web page told as it is
 // adopted. Exits 1 with a line for each check that failed. The
@@ -154,7 +154,9 @@ async function main() {
         },
         pages: { nameOf: () => null, onSandbox: (listener) => (sandboxed = listener) },
     };
-    const WEB = createWeb({ deckit, state: STATE, web, pages, open });
+    let copied = ''; // the clipboard's text, as the environment keeps it
+    const clipboard = { readText: () => copied, writeText: (text) => (copied = text) };
+    const WEB = createWeb({ deckit, state: STATE, web, pages, open, clipboard });
     WEB.start();
     const eraser = WEB.keeps.erase; // what the web engine erases a mod removed with its data with
     check(
@@ -516,7 +518,20 @@ async function main() {
     );
     heard.told(filesPage, { channel: 'deckit-shell:web-permit', payload: { ask: readQuestion.ask, allow: true } });
     check('the mod answers it', (await reading) === true, '');
+    check(
+        "a site of a mod granted system.clipboard-write writes the environment's clipboard, and reads it once let",
+        (await listened.writeClipboard(filesPage, 7, { origin: 'https://a.com', text: 'from a.com' })) === true &&
+            (await listened.readClipboard(filesPage, 7, { origin: 'https://a.com' })) === 'from a.com',
+        copied
+    );
     mods.set(filesPage, files);
+    check(
+        "a site of a mod not granted the clipboard permissions neither writes nor reads the environment's clipboard",
+        (await listened.writeClipboard(filesPage, 7, { origin: 'https://a.com', text: 'again' })) === false &&
+            (await listened.readClipboard(filesPage, 7, { origin: 'https://a.com' })) === null &&
+            copied === 'from a.com',
+        copied
+    );
     await heard.asked(filesPage, {
         channel: 'deckit-shell:web-revoke',
         payload: { name: 'main', entries: [{ origin: 'https://a.com', permission: 'clipboard-read' }] },
