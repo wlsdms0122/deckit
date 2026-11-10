@@ -1,0 +1,48 @@
+case = 12
+name = "allow-of-clipboard-read-does-not-let-paste-past-system-clipboard-read"
+note = "What allow lets a site have of what the system guards it has only while the mod is granted that permission, by execCommand as well. mod-a, granted system.site-permissions and system.clipboard-write, lets site-a have clipboard-read in its session main, and site-a pastes into its field as it is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "clipboard-read" }]]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 4
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "title"
+
+[step.expect]
+answers = "false from site-a"

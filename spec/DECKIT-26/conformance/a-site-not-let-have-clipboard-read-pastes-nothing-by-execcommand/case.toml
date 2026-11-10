@@ -1,0 +1,41 @@
+case = 11
+name = "a-site-not-let-have-clipboard-read-pastes-nothing-by-execcommand"
+note = "execCommand(paste) answers false and changes nothing where the site does not have clipboard-read, and is not asked of the mod: a command answers at once. site-a, shown by mod-a granted system.clipboard-read, system.clipboard-write and system.site-permissions, pastes into its field as it is pressed, and the host's delegate would answer true."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "false from site-a"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []
