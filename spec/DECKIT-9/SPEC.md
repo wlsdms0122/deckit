@@ -84,7 +84,7 @@ The client's id is handed once, in `credential`.
 
 ### What crosses
 
-The exports `connect` answers are handed to the client as a value. A value, as [the handle](../DECKIT-7/SPEC.md) fixes values, crosses as itself: a string, an integer or a boolean as the same, an array as an array of what each of its elements crosses as, in order, and a table as a table of the same keys, each bound to what its value crosses as. The client is handed a copy, and what it does with it changes nothing of what the service holds. What else crosses, a function among them, and a call of a function across a connection: [calls across a connection](../DECKIT-11/SPEC.md).
+The exports `connect` answers are handed to the client as a value. A value, as [the handle](../DECKIT-7/SPEC.md) fixes values, crosses as itself: a string, a number or a boolean as the same, an array as an array of what each of its elements crosses as, in order, and a table as a table of the same keys, each bound to what its value crosses as. The client is handed a copy, and what it does with it changes nothing of what the service holds. What else crosses, a function among them, and a call of a function across a connection: [calls across a connection](../DECKIT-11/SPEC.md).
 
 ### Reaching a mod by its id
 
