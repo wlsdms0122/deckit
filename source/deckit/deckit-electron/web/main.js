@@ -91,7 +91,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         pages.set(page.id, page);
         adopt(modPage, page, { inPage: false, tab: page.id });
         showInWindow(modPage, page, { title, size: deck.windowSize });
-        page.loadURL(url);
+        if (!SITE.isBlank(url)) page.loadURL(url);
         return page.id;
     }
 
@@ -226,7 +226,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
             const page = makePage(PARTITION.spell(session.mod, session.name), modPage);
             pages.set(page.id, page);
             adopt(modPage, page, { inPage: true, tab: page.id });
-            if (url && url !== 'about:blank') page.loadURL(url);
+            if (url && !SITE.isBlank(url)) page.loadURL(url);
             return page.id;
         } catch (error) {
             LOG.warn('a web page was not shown', error?.message || '');

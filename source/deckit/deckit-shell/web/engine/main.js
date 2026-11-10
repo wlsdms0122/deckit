@@ -222,8 +222,9 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         STATE.write(SESSIONS, sessions);
     }
 
+    // A window at no address, or at about:blank, is a blank page.
     function openWindow(modPage, modId, name, url, title) {
-        if (!mayShow(modPage, url, { inPage: false })) return 0;
+        if (!SITE.isBlank(url) && !mayShow(modPage, url, { inPage: false })) return 0;
         use(modId, name);
         const id = WEB.openWindow(modPage, { mod: modId, session: name, url, title });
         windows.set(id, modPage);
@@ -317,16 +318,19 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     // would share its session, so it is asked of the delegate instead. Answers whether it is given the window.
     // A window a page asked for is a window of the app's when it asked for one or is in one; a tab's is handed to its
     // mod's page, which shows it. A file page's window to the web is no window of its session: its address is opened.
+    // A window at no address, or at about:blank, is a blank page given as a window to the web is, and a file page's is
+    // none, as a blank page is never opened outside the app.
     function windowOpen(modPage, page, { url, tab, from, inPage, ownWindow, activates }) {
         // A page opens what it opens just after a key or mouse press in it, as a browser blocks a popup otherwise.
         if (!consumeActivation(page)) return '';
+        const blank = SITE.isBlank(url);
         // An app's address opened as a window is the same question as one navigated to.
-        if (!/^https?:\/\//i.test(url)) {
+        if (!blank && !/^https?:\/\//i.test(url)) {
             openApp(modPage, tab, url, SITE.originOf(from));
             return '';
         }
         if (/^file:/i.test(String(from))) {
-            PROTOCOL.opening.send(modPage, { id: tab, url, activates });
+            if (!blank) PROTOCOL.opening.send(modPage, { id: tab, url, activates });
             return '';
         }
         return !inPage || ownWindow ? 'window' : 'page';

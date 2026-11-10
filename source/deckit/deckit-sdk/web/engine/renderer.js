@@ -37,6 +37,8 @@ const VALUE = /^[^\0\r\n]*$/;
 const NORMALIZED = new Set(['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']);
 const REDIRECTS = new Set(['follow', 'error', 'manual']);
 const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+// A blank page's address: none, or about:blank.
+const BLANK = /^(?:about:blank(?:[?#].*)?)?$/i;
 
 // A mod's web in its page: its sessions, and the pages that show what they load, in its page, as an element of it, and
 // in windows. `web` is the environment's (environment: WEB_PAGE): what shows a web page in this page. `sessions` is
@@ -342,7 +344,7 @@ export function createWeb({ sessions, web: WEB, channels }) {
             url,
             title: '',
             icon: '',
-            loading: !!url,
+            loading: !BLANK.test(String(url)),
             canGoBack: false,
             canGoForward: false,
             blank: true,
@@ -373,13 +375,15 @@ export function createWeb({ sessions, web: WEB, channels }) {
             openElsewhere(to, options);
         };
         // The window a page opened, as a page of the mod's to show. One the delegate does not take goes, and its
-        // address opens elsewhere, as one of a page with no window to hand over does.
+        // address opens elsewhere, as one of a page with no window to hand over does, but for a blank page's, which
+        // is never opened outside the app.
         const takeWindow = async ({ page: given, url: to, activates }) => {
-            if (given === undefined || given === null) return void openElsewhere(to, { activates });
+            const elsewhere = () => !BLANK.test(String(to)) && openElsewhere(to, { activates });
+            if (given === undefined || given === null) return void elsewhere();
             const opened = page(names.get(session).name, to, owner, open, session, given);
             if ((await ask('openWindow', false, opened, { url: to, activates })) !== false) return;
             opened.close();
-            openElsewhere(to, { activates });
+            elsewhere();
         };
         const receive = (event, payload) => {
             switch (event) {

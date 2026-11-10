@@ -189,8 +189,9 @@ async function main() {
     // that lifecycle's scope, and offers a layer over it what shows the pages of the mod's web sessions.
     const { layersOf } = await import(url('deckit-shell', 'web', 'attach', 'renderer.js'));
     let views = 0;
+    let viewsClosed = 0;
     const WEB_LAYERS = layersOf({
-        web: { view: () => ({ element: {}, id: Promise.resolve(70 + ++views), close: () => {} }) },
+        web: { view: () => ({ element: {}, id: Promise.resolve(70 + ++views), close: () => viewsClosed++ }) },
     });
     const webLayerOf = (granted) =>
         WEB_LAYERS.web({ setup: { sessions: 'sessions' }, channels: IPC.layerChannels })({ mod: { id: 'a' }, granted });
@@ -304,6 +305,16 @@ async function main() {
         'a web page that leaves, with no delegate to keep it, opens its address with what the layer over it hands',
         JSON.stringify(externals) === '[["https://example.com",null]]' && !failures.length,
         { externals, failures }
+    );
+    const tabId = 70 + views;
+    tell({ channel: 'deckit-shell:web-opening', payload: { id: tabId, page: 90, url: '', activates: true } });
+    tell({ channel: 'deckit-shell:web-opening', payload: { id: tabId, url: 'about:blank', activates: true } });
+    await tick();
+    await tick();
+    check(
+        'a blank window no delegate takes closes, and is never opened outside the app',
+        viewsClosed === 1 && externals.length === 1 && !failures.length,
+        { viewsClosed, externals, failures }
     );
     const otherSession = webLayer.frameworks.web(makeScope()).session('main');
     check(

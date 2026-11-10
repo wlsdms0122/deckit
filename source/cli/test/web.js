@@ -237,6 +237,11 @@ async function main() {
         payload: { name: 'web', url: 'https://a.com', title: '' },
     });
     await tick();
+    const blankWindow = await heard.asked(filesPage, {
+        channel: 'deckit-shell:web-window',
+        payload: { name: 'web', url: '', title: '' },
+    });
+    check('a window a mod asks for at no address is a blank page', blankWindow.value === 9, blankWindow);
     watching.get(filesPage).ended();
     check(
         "a mod's window closes as its document ends",
@@ -320,6 +325,26 @@ async function main() {
         "a file page's window is no window, its address opened",
         fileOpens === '' && fileOpening?.page === undefined && fileOpening?.url === 'https://a.com',
         fileOpening
+    );
+
+    // A window at no address, or at about:blank, is a blank page given as one to the web is.
+    const openingsBefore = toldOn('deckit-shell:web-opening').length;
+    const askingsBefore = toldOn('deckit-shell:web-asking').length;
+    const blankWhere = [];
+    for (const fields of [{ url: '' }, { url: 'about:blank' }, { url: 'about:blank', inPage: false }]) {
+        press(tab, 'keydown');
+        blankWhere.push(listened.windowOpen(filesPage, tab, asked(fields)));
+    }
+    press(tab, 'keydown');
+    blankWhere.push(listened.windowOpen(filesPage, tab, asked({ url: '', from: 'file:///a.html', inPage: false })));
+    await tick();
+    check(
+        "a blank window.open is a tab's page or a window as the web's is, and a file page's none, never asked",
+        JSON.stringify(blankWhere) === '["page","page","window",""]' &&
+            toldOn('deckit-shell:web-opening').length === openingsBefore &&
+            toldOn('deckit-shell:web-asking').length === askingsBefore &&
+            !opened.length,
+        blankWhere
     );
 
     // The question put to the mod showing a site.

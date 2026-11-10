@@ -21,7 +21,8 @@ const WEB = Object.freeze({
         holderOf: 'function',
         // holdsKeyboard(page) -> whether the page, or a web page shown in it, has the keyboard
         holdsKeyboard: 'function',
-        // openWindow(embedder, { mod, session, url, title }) -> the id of a web page in a window
+        // openWindow(embedder, { mod, session, url, title }) -> the id of a web page in a window, a blank page that
+        // loads nothing for `url` '' or about:blank
         openWindow: 'function',
         load: 'function', // load(page, url)
         navigate: 'function', // navigate(page, to): `back`, `forward`, `reload` or `stop`

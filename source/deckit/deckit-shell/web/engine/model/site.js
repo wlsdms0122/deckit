@@ -16,6 +16,11 @@ function isWebAddress(url) {
     return originOf(url) !== '';
 }
 
+// Whether `url` names a blank page: no address, or `about:blank`.
+function isBlank(url) {
+    return url === '' || /^about:blank(?:[?#]|$)/i.test(String(url));
+}
+
 // The scheme of an address, in lower case without its colon, or ''.
 function schemeOf(url) {
     try {
@@ -27,4 +32,4 @@ function schemeOf(url) {
 
 // MARK: - Private
 
-export { originOf, isWebAddress, schemeOf };
+export { originOf, isWebAddress, isBlank, schemeOf };
