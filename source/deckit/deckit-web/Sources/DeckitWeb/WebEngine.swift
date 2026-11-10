@@ -11,8 +11,9 @@ import CNodeAPI
 
 // The pages, windows and stages the module made, each by an id of its own, and what JavaScript does to them and to
 // the pages' data stores (Export).
-// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, clearWhileBlank, fullSpeed, takesKeyboard },
-//   emit) -> id` (WebPage), `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document
+// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, clearWhileBlank, fullSpeed, takesKeyboard,
+//   scripts }, emit) -> id` (WebPage), `scripts` those its documents start with, as `run` takes them, set before
+//   its view is made, `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document
 //   does not, as do the windows it opens, `clearWhileBlank` so until it commits its first page, `fullSpeed` running off
 //   screen or covered as on it, `takesKeyboard` false having the keyboard only as it is given it or pressed, as do the
 //   windows it opens; `load(id, url)`; `go(id, to)`; `focus(id)`;
@@ -127,18 +128,7 @@ final class WebEngine {
             return try node.make(try page().droppedFiles)
 
         case .run:
-            try page().run(try node.array(try argument(1)).map { script in
-                guard let source = try node.member(script, "source") else {
-                    throw NodeError(message: "a script needs its source")
-                }
-                let world = try node.member(script, "world").map { try node.string($0) }
-
-                return UserScript(
-                    source: try node.string(source),
-                    world: world.flatMap(UserScript.World.init) ?? .page,
-                    mainFrameOnly: try node.member(script, "mainFrameOnly").map { try node.bool($0) } ?? true
-                )
-            })
+            try page().run(try UserScript.read(node, try argument(1)))
 
         case .evaluate:
             let world = arguments.count > 2 && !node.isNothing(arguments[2]) ? try string(2) : "page"
@@ -442,9 +432,11 @@ final class WebEngine {
         let clear = try node.member(options, "clear").map { try node.bool($0) } ?? false
         let clearWhileBlank = try node.member(options, "clearWhileBlank").map { try node.bool($0) } ?? false
         let takesKeyboard = try node.member(options, "takesKeyboard").map { try node.bool($0) } ?? true
+        let scripts = try node.member(options, "scripts").map { try UserScript.read(node, $0) } ?? []
 
         return adopt(
             configuration,
+            scripts,
             emitter,
             clear: clear,
             clearWhileBlank: clearWhileBlank,
@@ -467,6 +459,7 @@ final class WebEngine {
     // the page that opened it is.
     private func adopt(
         _ configuration: WKWebViewConfiguration,
+        _ scripts: [UserScript],
         _ emitter: Emitter,
         clear: Bool,
         clearWhileBlank: Bool,
@@ -477,12 +470,14 @@ final class WebEngine {
         let page = WebPage(
             id: lastID,
             configuration: configuration,
+            scripts: scripts,
             emitter: emitter,
-            adopt: { [weak self] configuration, emitter in
+            adopt: { [weak self] configuration, scripts, emitter in
                 guard let self else { fatalError("a web page outlived the module") }
 
                 return adopt(
                     configuration,
+                    scripts,
                     emitter,
                     clear: clear,
                     clearWhileBlank: clearWhileBlank,

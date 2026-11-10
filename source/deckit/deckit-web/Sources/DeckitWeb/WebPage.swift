@@ -15,8 +15,9 @@ import CNodeAPI
 // `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body, origin, main,
 // evaluate, answer }), what deckit's own scripts post in a frame (received), and `external` ({ url, origin }), an
 // address of an app's the page asked to go to. Asked, answered at once: `navigate` ({ url }), "load" to let it; `open`
-// ({ url, ownWindow, background, width, height, origin }), a function to hear the page given for the window, or
-// nothing for none, each `origin` the frame's that asks (origin(of:)); `download` ({ url }), a function to hear the
+// ({ url, ownWindow, background, width, height, origin }), `{ listener, scripts }` for the page given for the window,
+// `listener` a function to hear it and `scripts` those its documents start with, as `run` takes them, or nothing for
+// none, each `origin` the frame's that asks (origin(of:)); `download` ({ url }), a function to hear the
 // download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a
 // key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
 // though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
@@ -36,24 +37,30 @@ final class WebPage: NSObject {
     let id: Int
     let view: WebPageView
     private let emitter: Emitter
-    private let adopt: @MainActor (WKWebViewConfiguration, Emitter) -> WebPage
+    private let adopt: @MainActor (WKWebViewConfiguration, [UserScript], Emitter) -> WebPage
     private let keep: @MainActor (WKDownload, Emitter) -> Void
     private var observations: [NSKeyValueObservation] = []
     // The address JavaScript asked to load, which asked deck before: its navigation is not asked again.
     private var requested: URL?
 
     // MARK: - Initializer
-    // `configuration` is the page's, WebKit's own for a window a page opened. `adopt` makes the page for such a window,
-    // and `keep` keeps a download the page started, heard by the emitter JavaScript gave for it.
+    // `configuration` is the page's, WebKit's own for a window a page opened, and `scripts` those every document of the
+    // page starts with, as `run` sets them. `adopt` makes the page for such a window, and `keep` keeps a download the
+    // page started, heard by the emitter JavaScript gave for it.
     init(
         id: Int,
         configuration: WKWebViewConfiguration,
+        scripts: [UserScript],
         emitter: Emitter,
-        adopt: @escaping @MainActor (WKWebViewConfiguration, Emitter) -> WebPage,
+        adopt: @escaping @MainActor (WKWebViewConfiguration, [UserScript], Emitter) -> WebPage,
         keep: @escaping @MainActor (WKDownload, Emitter) -> Void
     ) {
-        // A window's configuration is its opener's copy, whose scripts and handlers are the opener's.
+        // A window's configuration is its opener's copy, whose scripts and handlers are the opener's. The page's own
+        // are set before the view is made, so the blank document a window opened at a blank address shows, which its
+        // opener can script at once, starts with them; WebKit runs none in the empty one a window opened at another
+        // address has until that address commits.
         configuration.userContentController = WKUserContentController()
+        Self.add(scripts, to: configuration.userContentController)
         configuration.preferences.isElementFullscreenEnabled = true
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         let view = WebPageView(frame: .zero, configuration: configuration)
@@ -143,14 +150,7 @@ final class WebPage: NSObject {
     func run(_ scripts: [UserScript]) {
         let controller = view.configuration.userContentController
         controller.removeAllUserScripts()
-        for script in scripts {
-            controller.addUserScript(WKUserScript(
-                source: script.source,
-                injectionTime: .atDocumentStart,
-                forMainFrameOnly: script.mainFrameOnly,
-                in: script.world == .page ? .page : Self.deckitWorld
-            ))
-        }
+        Self.add(scripts, to: controller)
     }
 
     // What a key does, asked of JavaScript before the page has it.
@@ -358,6 +358,17 @@ final class WebPage: NSObject {
         emitter.emit("stopped")
     }
 
+    private static func add(_ scripts: [UserScript], to controller: WKUserContentController) {
+        for script in scripts {
+            controller.addUserScript(WKUserScript(
+                source: script.source,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: script.mainFrameOnly,
+                in: script.world == .page ? .page : deckitWorld
+            ))
+        }
+    }
+
     // A function JavaScript answered with, to hear what it was given, or nil for anything else.
     private static func listener(_ node: Node, _ value: napi_value) throws -> Emitter? {
         var type = napi_undefined
@@ -542,9 +553,14 @@ extension WebPage: WKUIDelegate {
             "height": windowFeatures.height?.doubleValue,
             "origin": Self.origin(of: navigationAction)
         ]
-        let heard: Emitter? = emitter.emit("open", payload, read: Self.listener)
-        guard let heard else { return nil }
-        let page = adopt(configuration, heard)
+        let given: (Emitter, [UserScript])? = emitter.emit("open", payload) { node, value in
+            guard !node.isNothing(value), let listener = try node.member(value, "listener") else { return nil }
+            guard let heard = try Self.listener(node, listener) else { return nil }
+
+            return (heard, try node.member(value, "scripts").map { try UserScript.read(node, $0) } ?? [])
+        }
+        guard let (heard, scripts) = given else { return nil }
+        let page = adopt(configuration, scripts, heard)
         // Its first load is the window deck was asked for.
         page.requested = navigationAction.request.url
         page.announce()

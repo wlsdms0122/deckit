@@ -20,7 +20,8 @@ export function createWebKit({ path, LOG, containerOf }) {
     // that is given. `scheme` is served by the page's delegate (`request`), `clear` draws nothing where the document
     // does not, `clearWhileBlank` so until it commits its first page, `fullSpeed` runs off screen as on it, and
     // `takesKeyboard` false has the keyboard only as it is given it or pressed. `delegate` answers what the page asks
-    // (pageOf); `fields` are kept on the token.
+    // (pageOf); `fields` are kept on the token; `scripts(page)` the scripts every document of the page starts with, as
+    // `run` takes them, asked with the token before the module makes the page.
     function make({
         store,
         cookieLifetime,
@@ -31,9 +32,11 @@ export function createWebKit({ path, LOG, containerOf }) {
         takesKeyboard,
         delegate,
         fields = {},
+        scripts,
     }) {
         const { page, listener } = pageOf({ delegate, fields });
         const options = {
+            scripts: scripts?.(page) ?? [],
             store,
             applicationName: agentName(),
             cookieLifetime,
@@ -47,11 +50,14 @@ export function createWebKit({ path, LOG, containerOf }) {
         return page;
     }
 
-    // The listener of a page WebKit makes for a window a page opened, in its opener's data store: `opened(page)`
-    // once the module has it.
-    function listenerFor({ delegate, fields = {}, opened }) {
+    // What the module is answered for a page WebKit makes for a window a page opened, in its opener's data store:
+    // `{ listener, scripts }`, its listener and `scripts(page)`, as of `make`; `opened(page)` once the module has it.
+    function listenerFor({ delegate, fields = {}, opened, scripts }) {
         const { page, listener } = pageOf({ delegate, fields, opened });
-        return (event, payload) => (event === 'adopted' ? page.adopted(payload.id) : listener(event, payload));
+        return {
+            listener: (event, payload) => (event === 'adopted' ? page.adopted(payload.id) : listener(event, payload)),
+            scripts: scripts?.(page) ?? [],
+        };
     }
 
     // The page of the module's id, while it is open.
@@ -89,8 +95,9 @@ export function createWebKit({ path, LOG, containerOf }) {
     // MARK: - Private
     // A page and the listener the module tells it through, before the module has given it its id. `delegate`:
     // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height, origin })`,
-    // the listener of the page given for the window, or nothing; `download({ url })`, the listener of the download
-    // (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise of a boolean`;
+    // what `listenerFor` answers for the page given for the window, or nothing; `download({ url })`, the listener of
+    // the download (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise
+    // of a boolean`;
     // `certificate(info) -> boolean`, whether it is trusted; `external({ url, origin })`, `origin`, as of `open`, the
     // frame's that goes there, or nothing where no frame does; `message(body, frame) -> boolean`, what deckit's scripts
     // post in any frame, `frame` `{ origin, main, evaluate(source, world), answer(text) }`: `evaluate` runs `source` in
