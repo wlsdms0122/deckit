@@ -296,15 +296,17 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 if (arguments.length === 0) {
                     throw new TypeError("Failed to construct 'Notification': 1 argument required, but only 0 present.");
                 }
+                // Each text as the web platform converts it, the empty string where it is not given.
                 const o = options || {};
+                const text = (value) => (value === undefined ? '' : String(value));
                 Object.assign(this, {
                     title: String(title),
-                    body: String(o.body || ''),
-                    tag: String(o.tag || ''),
-                    icon: String(o.icon || ''),
-                    badge: String(o.badge || ''),
-                    image: String(o.image || ''),
-                    lang: String(o.lang || ''),
+                    body: text(o.body),
+                    tag: text(o.tag),
+                    icon: text(o.icon),
+                    badge: text(o.badge),
+                    image: text(o.image),
+                    lang: text(o.lang),
                     dir: o.dir || 'auto',
                     data: o.data === undefined ? null : o.data,
                     silent: !!o.silent,
