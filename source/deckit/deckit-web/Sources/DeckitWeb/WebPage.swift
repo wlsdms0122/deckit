@@ -520,19 +520,17 @@ extension WebPage: WKUIDelegate {
         case .microphone: ["microphone"]
         default: ["camera", "microphone"]
         }
-        let port = origin.port == 0 ? "" : ":\(origin.port)"
-        var answered = false
-        let reply = Reply { node, arguments in
-            guard !answered else { return }
-            answered = true
-            let granted = try arguments.first.map { try node.bool($0) } ?? false
-            decisionHandler(granted ? .grant : .deny)
-        }
-        emitter.emit("permission", [
-            "origin": "\(origin.protocol)://\(origin.host)\(port)",
-            "permissions": permissions,
-            "reply": reply
-        ])
+        askPermission(origin, permissions, decisionHandler)
+    }
+
+    @available(macOS 27.0, *)
+    func webView(
+        _ webView: WKWebView,
+        requestGeolocationPermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
+    ) {
+        askPermission(origin, ["geolocation"], decisionHandler)
     }
 
     func webView(
@@ -574,6 +572,31 @@ extension WebPage: WKUIDelegate {
         field.stringValue = defaultText ?? ""
         alert.accessoryView = field
         dialog(alert) { response in completionHandler(response == .alertFirstButtonReturn ? field.stringValue : nil) }
+    }
+}
+
+extension WebPage {
+    // MARK: - Private
+    // What a site asks for, by the web platform's names, put to JavaScript as `permission`: given on true, else
+    // refused.
+    private func askPermission(
+        _ origin: WKSecurityOrigin,
+        _ permissions: [String],
+        _ decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
+    ) {
+        let port = origin.port == 0 ? "" : ":\(origin.port)"
+        var answered = false
+        let reply = Reply { node, arguments in
+            guard !answered else { return }
+            answered = true
+            let granted = try arguments.first.map { try node.bool($0) } ?? false
+            decisionHandler(granted ? .grant : .deny)
+        }
+        emitter.emit("permission", [
+            "origin": "\(origin.protocol)://\(origin.host)\(port)",
+            "permissions": permissions,
+            "reply": reply
+        ])
     }
 }
 
