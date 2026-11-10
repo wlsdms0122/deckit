@@ -44,8 +44,9 @@ class Deckit {
         // What the switcher's actions search and do, for attach().
         this.actions = { appName: APP_NAME, address, modsFor, versions, does: commands };
 
-        // One of deckit's places in `deckit.about()`, shown where it lies by the shell's reveal, which attach() keeps.
-        const reveal = (place) => this.reveal(deckit.about()[place]);
+        // One of deckit's places in `deckit.mods.folders()`, shown where it lies by the shell's reveal, which attach()
+        // keeps.
+        const reveal = async (place) => this.reveal((await deckit.mods.folders())[place]);
 
         // Only a version About lists is copied.
         async function copyVersion({ version }) {

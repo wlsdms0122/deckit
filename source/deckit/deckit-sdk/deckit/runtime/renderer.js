@@ -7,6 +7,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // What the runtime adds to `deckit.mods`, each a request `{ guard, signature, send }`, `guard` its channel's.
 const mods = Object.freeze({
     restart: Object.freeze({ guard: PROTOCOL.restart.guard, signature: [], send: () => PROTOCOL.restart.invoke() }),
+    folders: Object.freeze({ guard: PROTOCOL.folders.guard, signature: [], send: () => PROTOCOL.folders.invoke() }),
 });
 // MARK: - Initializer
 // MARK: - Public

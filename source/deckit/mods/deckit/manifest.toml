@@ -8,7 +8,7 @@ icon = "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill=
 keywords = ["deckit", "deck"]
 
 [permissions]
-"deckit.mods" = "Restarts a mod you pick, or the whole app."
+"deckit.mods" = "Restarts a mod you pick or the whole app, and shows deckit's folders."
 "system.file-handlers" = "Opens a file:// address you type."
 "system.clipboard-write" = "Copies a version you pick from About, for a report."
 

@@ -20,10 +20,11 @@ export function createRuntime({ CONFIG, CORE, LOG, restart, about: ABOUT, user }
                 home: user,
                 app: `${ABOUT.app.name} ${ABOUT.app.version}`,
                 engines: ABOUT.engines,
-                mods: CORE.folders().mods,
-                data: CORE.folders().data,
-                log: LOG.file(),
             };
+        });
+        // The system's own: where it installs mods, where it keeps their data, and the file it logs to.
+        PROTOCOL.folders.handle(() => {
+            return { mods: CORE.folders().mods, data: CORE.folders().data, log: LOG.file() };
         });
         PROTOCOL.restart.handle(() => {
             restart();

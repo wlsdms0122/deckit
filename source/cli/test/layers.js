@@ -395,7 +395,8 @@ async function main() {
         typeof given?.mods?.list === 'function' &&
             (await refusalOf(given.mods.list())) === 'call NOT_PERMITTED' &&
             (await refusalOf(given.mods.runs())) === 'call NOT_PERMITTED' &&
-            (await refusalOf(given.mods.interfaces())) === 'call NOT_PERMITTED',
+            (await refusalOf(given.mods.interfaces())) === 'call NOT_PERMITTED' &&
+            (await refusalOf(given.mods.folders())) === 'call NOT_PERMITTED',
         Object.keys(given?.mods ?? {})
     );
     check(
@@ -435,9 +436,12 @@ async function main() {
         sent
     );
     await granted.restart('past the signature');
+    await granted.folders('past the signature');
     check(
         'a request deckit adds to mods is asked of main, none past its signature',
-        JSON.stringify(sent.at(-1)) === '{"channel":"deckit-shell:runtime-restart","payload":{}}',
+        JSON.stringify(sent.slice(-2)) ===
+            '[{"channel":"deckit-shell:runtime-restart","payload":{}},' +
+                '{"channel":"deckit-shell:runtime-folders","payload":{}}]',
         sent
     );
     await granted.launch('x', 'past the signature');

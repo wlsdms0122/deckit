@@ -12,3 +12,8 @@ export const restart = CHANNEL.pageToMain(
     {},
     { reply: true, guard: MOD_PERMISSION.MODS }
 );
+export const folders = CHANNEL.pageToMain(
+    'deckit-shell:runtime-folders',
+    {},
+    { reply: true, guard: MOD_PERMISSION.MODS }
+);
