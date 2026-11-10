@@ -1,4 +1,4 @@
-// `refused(embedder, id, certificate)` tells deck what was refused in a web page it shows.
+// `refused(embedder, id, certificate)` tells the web engine what was refused in a web page it shows.
 export function createCertificate({ refused: tell }) {
     // MARK: - Property
     // partition|host|fingerprint, until the app quits or the mod is erased

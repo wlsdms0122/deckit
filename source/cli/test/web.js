@@ -159,7 +159,7 @@ async function main() {
     const eraser = WEB.keeps.erase; // what the web engine erases a mod removed with its data with
     check(
         'the web engine hands the web all it declares',
-        ENVIRONMENT.missingIn(listened, ENVIRONMENT.WEB_DECK).length === 0,
+        ENVIRONMENT.missingIn(listened, ENVIRONMENT.WEB_CLIENT).length === 0,
         ''
     );
     const holderOf = web.holderOf;

@@ -2,17 +2,17 @@ import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 
 // What deckit runs in a web page: in the page's own world, the page's Notification, which deckit shows, and in
 // deckit's, which the page does not see, what tells deckit the page's icon and whether it plays sound, mutes it, and
-// counts what find finds. What the page's Notification shows, and what it asks, are told to deck: `notified(embedder,
-// id, { origin, notification, title, body, silent })`, and `request(embedder, id, { origin, permissions })`, a promise
-// of whether it is allowed. `permits(session, origin, name)` and `permitted(session, name)` are what deck says a site
-// in a session may have, and `sessionOf(page)` the session a page is in.
+// counts what find finds. What the page's Notification shows, and what it asks, are told to the web engine:
+// `notified(embedder, id, { origin, notification, title, body, silent })`, and `request(embedder, id, { origin,
+// permissions })`, a promise of whether it is allowed. `permits(session, origin, name)` and `permitted(session, name)`
+// are what the web engine says a site in a session may have, and `sessionOf(page)` the session a page is in.
 export function createScript({ LOG, sessionOf, permits, permitted, notified, request }) {
     // MARK: - Property
     const pages = new Map(); // page id -> { install, icon, audible, muted }
 
     // MARK: - Initializer
     // MARK: - Public
-    // What deck lets sites have changed: each page's scripts are installed again with what they have now.
+    // What the web engine lets sites have changed: each page's scripts are installed again with what they have now.
     function permissionsChanged() {
         for (const { install } of pages.values()) install();
     }

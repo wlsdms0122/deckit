@@ -1,5 +1,5 @@
 // What an environment gives the web engine on deckit, as plain data, on main's side (`WEB`) and on a page's
-// (`WEB_PAGE`), and what the web engine hands the environment's web (`WEB_DECK`). Each leaf says what a member is, as
+// (`WEB_PAGE`), and what the web engine hands the environment's web (`WEB_CLIENT`). Each leaf says what a member is, as
 // deckit's tables say (deckit/environment).
 // MARK: - Property
 // What an environment gives the web engine in main: the web pages a mod's page shows, what it tells of a page, and what
@@ -11,8 +11,8 @@ const WEB = Object.freeze({
     // app's, as a mod's page or a web page asks for one; a web page in a window answers to the tab that opened it,
     // which is itself for a web page the mod asked for. `mod` is a mod's id and `session` a session's name.
     web: {
-        // listen(engine), once, before any web page is shown: the web engine as `WEB_DECK` declares it, what it answers
-        // and is told of the web pages a mod shows
+        // listen(client), once, before any web page is shown: the web engine as `WEB_CLIENT` declares it, what it
+        // answers and is told of the web pages a mod shows
         listen: 'function',
         embed: 'function', // embed(page): the page shows web pages, as elements of its own
         pageOf: 'function', // pageOf(id) -> the web page of that id, while it is there, or null
@@ -41,7 +41,7 @@ const WEB = Object.freeze({
         // fetch(mod, session, { url, method, headers, body, redirect }) -> Promise of `{ url, status, headers, body,
         // redirected }`, the request sent as the session's pages send one: `headers` `[[name, value]]`, `body` bytes
         // in base64, left out of the request for none, `redirect` `follow`, `error` or `manual`, and `url` the address
-        // that answered; rejected with kind QUOTA_EXCEEDED for an answer past `fetchLimit` (WEB_DECK)
+        // that answered; rejected with kind QUOTA_EXCEEDED for an answer past `fetchLimit` (WEB_CLIENT)
         fetch: 'function',
         clear: 'function', // clear(mod, session) -> Promise: what the session stored, taken
         cancelDownload: 'function', // cancelDownload(id): a download under way, stopped
@@ -64,32 +64,34 @@ const WEB = Object.freeze({
     open: { url: 'function', appFor: 'function' },
 });
 
-// What the web engine hands an environment's web (`WEB.web.listen`). Answered at once: `loading(embedder, page, to, {
-// inPage, from, followed })`, what becomes of a web page `embedder` shows asked to load `to` from `from`, `page` null
-// before it is made, `followed` when the page follows a link of its own: `load`, `refuse`, or `leave`, the document
-// staying where it is while the web engine tells who shows it, and the environment does as it answers whatever it
-// answers; `attaching(embedder, session)`, whether a web page in `session`, `{ mod, name }` or null for one that is no
-// mod's, is shown in `embedder`'s page; `windowOpen(embedder, page, { url, tab, from, inPage, ownWindow, activates })`,
-// where a web page's window.open is given its window: `window`, a window of the app's, `page`, a page handed to
-// `embedder` to show (told with `opened`), or `` for none, `tab` the id of the tab it answers to, `from` the address it
-// is at and `ownWindow` whether it asked for a window rather than a tab; `permits(session, origin, name)`, whether a
-// site may have `name` in `session`, as the environment checks it, and `permitted(session, name)`, the origins that
-// may. Told: `adopted(embedder, page)`, a web page now shown, in its page or in a window; `opened(embedder, tab, id, {
-// url, activates })`, the window of id `id` the tab of id `tab` opened, handed to `embedder`, which shows it with
-// `view`; `changed(embedder, id, state)`; `found(embedder, id, { matches, active, final })`; `closed(embedder, id)`, a
-// window gone; `refused(embedder, id, certificate)`; `notified(embedder, id, { origin, notification, title, body,
-// silent })`, what a site's notification shows, as the page told it; and `downloaded(embedder, { id, url, name, path, state, received,
-// expected, error })`, a download a web page it shows started, as it changes, written to the Downloads folder: `state`
-// is `downloading`, `finished`, `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise
-// of whether it is allowed: `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download a web
-// page in the tab of that id started is saved, `name` the file's as the site gives it; `request(embedder, id, {
-// origin, permissions })`, what a site in the tab of that id asks, `permissions` as the web engine names them
+// What the web engine hands an environment's web (`WEB.web.listen`), its client: what the web calls back as its pages
+// ask and change. Answered at once: `loading(embedder, page, to, { inPage, from, followed })`, what becomes of a web
+// page `embedder` shows asked to load `to` from `from`, `page` null before it is made, `followed` when the page follows
+// a link of its own: `load`, `refuse`, or `leave`, the document staying where it is while the web engine tells who
+// shows it, and the environment does as it answers whatever it answers; `attaching(embedder, session)`, whether a web
+// page in `session`, `{ mod, name }` or null for one that is no mod's, is shown in `embedder`'s page;
+// `windowOpen(embedder, page, { url, tab, from, inPage, ownWindow, activates })`, where a web page's window.open is
+// given its window: `window`, a window of the app's, `page`, a page handed to `embedder` to show (told with `opened`),
+// or `` for none, `tab` the id of the tab it answers to, `from` the address it is at and `ownWindow` whether it asked
+// for a window rather than a tab; `permits(session, origin, name)`, whether a site may have `name` in `session`, as the
+// environment checks it, and `permitted(session, name)`, the origins that may. Told: `adopted(embedder, page)`, a web
+// page now shown, in its page or in a window; `opened(embedder, tab, id, { url, activates })`, the window of id `id`
+// the tab of id `tab` opened, handed to `embedder`, which shows it with `view`; `changed(embedder, id, state)`;
+// `found(embedder, id, { matches, active, final })`; `closed(embedder, id)`, a window gone; `refused(embedder, id,
+// certificate)`; `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's notification
+// shows, as the page told it; and `downloaded(embedder, { id, url, name, path, state, received, expected, error })`, a
+// download a web page it shows started, as it changes, written to the Downloads folder: `state` is `downloading`,
+// `finished`, `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise of whether it is
+// allowed: `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download a web page in the tab
+// of that id started is saved, `name` the file's as the site gives it; `request(embedder, id, { origin, permissions
+// })`, what a site in the tab of that id asks, `permissions` as the web engine names them
 // (web/engine/model/site-permission.js), none where the environment's name for it is none of the web engine's; and
 // `requestApp(embedder, id, { url, origin })`, an app's address a site in the tab of that id goes to, which the web
-// engine opens with `open.url` (WEB) where the mod lets it, a promise of whether it opened. Kept as given: `cookieLifetime`, the seconds a cookie a site sets with no expiry
-// lasts in a mod's session; `fetchLimit`, the bytes past which `fetch` refuses an answer; and `windowSize`, `{ width,
-// height }`, a web page's window where it asks for no size.
-const WEB_DECK = Object.freeze({
+// engine opens with `open.url` (WEB) where the mod lets it, a promise of whether it opened. Kept as given:
+// `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
+// past which `fetch` refuses an answer; and `windowSize`, `{ width, height }`, a web page's window where it asks for no
+// size.
+const WEB_CLIENT = Object.freeze({
     loading: 'function',
     attaching: 'function',
     windowOpen: 'function',
@@ -116,7 +118,7 @@ const WEB_PAGE = Object.freeze({
     web: {
         // view({ sessions, session, url, page }, { closing, focused }) -> { element, id, close }: a web page shown in
         // this page, in the mod's session by that name, `sessions` what main told this page its mod's sessions are
-        // named by (`sessionsOf`, WEB), or with `page` the id of a window handed to this page (`opened`, WEB_DECK).
+        // named by (`sessionsOf`, WEB), or with `page` the id of a window handed to this page (`opened`, WEB_CLIENT).
         // `element` is put where it shows, `id` a promise of its id once it has one, and `close()` ends it, in the
         // document or never put there; the element leaving the document once in it ends it too. `closing()` when the
         // web page asks to close itself, `focused()` when it takes focus
@@ -128,4 +130,4 @@ const WEB_PAGE = Object.freeze({
 // MARK: - Public
 // MARK: - Private
 
-export { WEB, WEB_DECK, WEB_PAGE };
+export { WEB, WEB_CLIENT, WEB_PAGE };

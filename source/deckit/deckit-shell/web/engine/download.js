@@ -65,7 +65,7 @@ export function createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages
         });
     }
 
-    // A download a web page `embedder` shows started, as the environment tells it (WEB_DECK).
+    // A download a web page `embedder` shows started, as the environment tells it (WEB_CLIENT).
     function downloaded(embedder, download) {
         const known = live.get(download.id);
         if (download.state !== 'downloading') live.delete(download.id);

@@ -12,7 +12,7 @@ import { createDownload } from './download.js';
 // own state. `web` is the environment's: the web pages a mod's page shows, their sessions, and what a site was allowed.
 // `pages` and `open` are the environment's too: what it tells of a page, and what opens an address outside the app
 // (environment: WEB).
-export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: SYSTEM }) {
+export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: OPEN }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const SESSIONS = 'web-sessions'; // the state's key: mod id -> the names of the web sessions it used
@@ -455,7 +455,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return mayOpenApp(embedder, tabId, url, origin)
             .then(async (ok) => {
                 if (!ok) return false;
-                await SYSTEM.url(String(url));
+                await OPEN.url(String(url));
                 return true;
             })
             .catch((error) => {
@@ -468,7 +468,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     function mayOpenApp(embedder, tabId, url, origin) {
         const scheme = SITE.schemeOf(url);
         if (!SITE_PERMISSION.opensOut(scheme)) return Promise.resolve(false);
-        const name = SYSTEM.appFor(String(url));
+        const name = OPEN.appFor(String(url));
         if (!name) return Promise.resolve(false);
         return ask(embedder, tabId, origin, ['open:' + scheme], { app: name, url: String(url) });
     }
