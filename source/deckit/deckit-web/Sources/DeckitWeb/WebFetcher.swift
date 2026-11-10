@@ -64,17 +64,9 @@ struct WebFetcher {
 
     private func read(_ request: WebRequest, limit: Int, in session: URLSession) async throws -> WebAnswer {
         let gate = RedirectGate(request.redirect)
-        let (bytes, response) = try await session.bytes(for: request.urlRequest, delegate: gate)
+        let (data, response) = try await BodyReader(gate: gate, limit: limit).read(request.urlRequest, in: session)
         if gate.refused { throw NodeError(message: "redirected, and the request's redirect is error") }
         guard let response = response as? HTTPURLResponse else { throw NodeError(message: "not answered over HTTP") }
-        if response.expectedContentLength > limit {
-            throw tooLarge(limit, Int(response.expectedContentLength))
-        }
-        var data = Data()
-        for try await byte in bytes {
-            data.append(byte)
-            if data.count > limit { throw tooLarge(limit, data.count) }
-        }
 
         return try WebAnswer(response, body: data, redirected: gate.redirected)
     }
@@ -98,7 +90,92 @@ struct WebFetcher {
         "\(cookie.domain)\t\(cookie.path)\t\(cookie.name)"
     }
 
-    private func tooLarge(_ limit: Int, _ bytes: Int) -> NodeError {
+}
+
+// A request's answer read as it arrives, a block of bytes at a time, and stopped past `limit` bytes, its redirects
+// handed to `gate`.
+private final class BodyReader: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    typealias Read = (body: Data, response: URLResponse)
+
+    // MARK: - Property
+    private let gate: RedirectGate
+    private let limit: Int
+    private let lock = NSLock()
+    private var body = Data()
+    private var response: URLResponse?
+    private var failure: Error?
+    private var continuation: CheckedContinuation<Read, Error>?
+
+    // MARK: - Initializer
+    init(gate: RedirectGate, limit: Int) {
+        self.gate = gate
+        self.limit = limit
+    }
+
+    // MARK: - Lifecycle
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest
+    ) async -> URLRequest? {
+        await gate.urlSession(session, task: task, willPerformHTTPRedirection: response, newRequest: request)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse
+    ) async -> URLSession.ResponseDisposition {
+        lock.withLock { self.response = response }
+        guard response.expectedContentLength > limit else { return .allow }
+        lock.withLock { failure = tooLarge(Int(response.expectedContentLength)) }
+
+        return .cancel
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        let over = lock.withLock {
+            body.append(data)
+            guard body.count > limit else { return false }
+            failure = tooLarge(body.count)
+
+            return true
+        }
+        if over { dataTask.cancel() }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        let (continuation, outcome) = lock.withLock {
+            let continuation = self.continuation
+            self.continuation = nil
+
+            return (continuation, outcome(of: error))
+        }
+        continuation?.resume(with: outcome)
+    }
+
+    // MARK: - Public
+    func read(_ request: URLRequest, in session: URLSession) async throws -> Read {
+        try await withCheckedThrowingContinuation { continuation in
+            lock.withLock { self.continuation = continuation }
+            let task = session.dataTask(with: request)
+            task.delegate = self
+            task.resume()
+        }
+    }
+
+    // MARK: - Private
+    // What the task came to, read while the lock is held.
+    private func outcome(of error: Error?) -> Result<Read, Error> {
+        if let failure { return .failure(failure) }
+        if let error { return .failure(error) }
+        guard let response else { return .failure(NodeError(message: "not answered")) }
+
+        return .success((body, response))
+    }
+
+    private func tooLarge(_ bytes: Int) -> NodeError {
         NodeError(message: "response too large: more than \(limit) bytes (\(bytes))")
     }
 }
