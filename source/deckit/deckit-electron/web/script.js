@@ -294,7 +294,10 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         // The page's copy, cut and paste by execCommand, the engine's own, answer false and do nothing where the site
         // may not have the clipboard: `commands.writes`, and `commands.reads`, the sites that may read it, as the
         // document starts, since a command answers at once.
+        // Called through `apply` as the document started, so the page's own code gets no hold of it by replacing what
+        // it is called through.
         const execCommand = Document.prototype.execCommand;
+        const apply = Reflect.apply;
         const reaches = new Map([
             ['copy', () => commands.writes],
             ['cut', () => commands.writes],
@@ -304,7 +307,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             value: function (command, ...rest) {
                 const may = reaches.get(String(command).toLowerCase());
                 if (may && !may()) return false;
-                return execCommand.call(this, command, ...rest);
+                return apply(execCommand, this, [command, ...rest]);
             },
             writable: true,
             configurable: true,
