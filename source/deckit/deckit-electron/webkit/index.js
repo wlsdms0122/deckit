@@ -90,10 +90,12 @@ export function createWebKit({ path, LOG, containerOf }) {
     // A page and the listener the module tells it through, before the module has given it its id. `delegate`:
     // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height })`, the
     // listener of the page given for the window, or nothing; `download({ url })`, the listener of the download
-    // (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise of a
-    // boolean`; `certificate(info) -> boolean`, whether it is trusted; `external(url)`; `message(body, frame)`, what
-    // deckit's scripts post in any frame, `frame` `{ origin, main, evaluate(source, world) }`, which runs `source` in
-    // that frame, its value dropped; and, for a page with a scheme of its own, `request({ url, method, body, reply })`.
+    // (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise of a boolean`;
+    // `certificate(info) -> boolean`, whether it is trusted; `external(url)`; `message(body, frame) -> boolean`, what
+    // deckit's scripts post in any frame, `frame` `{ origin, main, evaluate(source, world), answer(text) }`: `evaluate`
+    // runs `source` in that frame, its value dropped, and `answer` is the value of the post's promise, which runs no
+    // script in the page; true for a message answered later, any other answered null at once; and, for a page with a
+    // scheme of its own, `request({ url, method, body, reply })`.
     function pageOf({ delegate, fields, opened = null }) {
         const WEBKIT = loaded();
         const { EventEmitter } = require('events');
@@ -135,7 +137,7 @@ export function createWebKit({ path, LOG, containerOf }) {
                 }
                 case 'message': {
                     const { body, ...frame } = payload;
-                    return void delegate.message?.(body, frame);
+                    return delegate.message?.(body, frame) === true;
                 }
                 case 'request':
                     // A request the delegate throws on at once is answered as failed, so nothing waits on it; a

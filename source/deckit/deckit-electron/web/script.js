@@ -3,14 +3,14 @@ import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 // What deckit runs in a web page: in the page's own world, in every frame, the page's Notification, which deckit shows,
 // and its clipboard, which the web engine reads and writes, and in deckit's, which the page does not see, what carries
 // each frame's word to deckit, and in the main frame what tells deckit the page's icon and whether it plays sound,
-// mutes it, and counts what find finds. A frame's word is its own origin's, and is answered in that frame. What the page's Notification shows, and
-// what it asks, are told to the web engine: `notified(embedder, id, { origin, notification, title, body, silent })`,
-// and `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed; what it reads and writes of
-// the clipboard, `readClipboard(embedder, id, { origin })`, a promise of the text or null, and
-// `writeClipboard(embedder, id, { origin, text })`, a promise of whether it was written; its copy, cut and paste by
-// execCommand are refused where the site may not have the clipboard. `permits(session, origin,
-// name)` and `permitted(session, name)` are what the web engine says a site in a session may have, and
-// `sessionOf(page)` the session a page is in.
+// mutes it, and counts what find finds. A frame's word is its own origin's, and what it asks is answered in that frame
+// by the reply to its word, which gives the page no user activation. What the page's Notification shows, and what it
+// asks, are told to the web engine: `notified(embedder, id, { origin, notification, title, body, silent })`, and
+// `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed; what it reads and writes of the
+// clipboard, `readClipboard(embedder, id, { origin })`, a promise of the text or null, and `writeClipboard(embedder,
+// id, { origin, text })`, a promise of whether it was written; its copy, cut and paste by execCommand are refused where
+// the site may not have the clipboard. `permits(session, origin, name)` and `permitted(session, name)` are what the web
+// engine says a site in a session may have, and `sessionOf(page)` the session a page is in.
 export function createScript({ LOG, sessionOf, permits, permitted, notified, request, readClipboard, writeClipboard }) {
     // MARK: - Property
     // page id -> { install, icon, audible, muted, notifications }, `notifications` each shown, by the number deckit
@@ -55,7 +55,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             page.evaluate(relay, 'deckit').catch(() => {});
             page.evaluate(own, 'deckit').catch(() => {});
             if (permits(session, SITE.originOf(page.getURL()), 'notifications'))
-                page.evaluate('window.__deckitNotification?.permission(0, "granted")', 'page').catch(() => {});
+                page.evaluate('window.__deckitNotification?.permission("granted")', 'page').catch(() => {});
         }
         install();
         // A new document starts without the last one's icon or sound; it tells its own.
@@ -97,16 +97,24 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     }
 
     // MARK: - Private
-    // `frame` is the frame that said it (deckit-web WebPage `message`).
+    // `frame` is the frame that said it (deckit-web WebPage `message`): what it asks is answered by `frame.answer`,
+    // which runs no script in the page and so gives it no user activation. Whether it is answered later.
     function heard(embedder, page, entry, body, frame, changed) {
         let message;
         try {
             message = JSON.parse(body);
         } catch {
-            return;
+            return false;
         }
         const id = Number(message.id) || 0;
         const origin = SITE.originOf(frame.origin);
+        const answer = (asked, failed, refusal) =>
+            asked
+                .catch((error) => {
+                    LOG.error(failed, error);
+                    return refusal;
+                })
+                .then((value) => frame.answer(JSON.stringify({ id, answer: value })));
         if (message.op === 'icon') {
             entry.icon = String(message.url || '');
             changed();
@@ -124,32 +132,22 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 silent: message.silent,
             });
         } else if (message.op === 'request') {
-            request(embedder, page.id, { origin, permissions: ['notifications'] }).then(
-                (ok) =>
-                    frame.evaluate(
-                        `window.__deckitNotification?.permission(${id}, "${ok ? 'granted' : 'denied'}")`,
-                        'page'
-                    ),
-                (error) => LOG.error("a site's notifications were not asked", error)
-            );
-        } else if (message.op === 'read' || message.op === 'write') {
-            const asked =
-                message.op === 'read'
-                    ? readClipboard(embedder, page.id, { origin })
-                    : writeClipboard(embedder, page.id, { origin, text: message.text });
-            asked
-                .catch((error) => {
-                    LOG.error("a site's clipboard was not reached", error);
-                    return message.op === 'read' ? null : false;
-                })
-                .then((answer) =>
-                    frame.evaluate(`window.__deckitClipboard?.answer(${id}, ${JSON.stringify(answer)})`, 'page')
-                );
+            const asked = request(embedder, page.id, { origin, permissions: ['notifications'] });
+            answer(asked, "a site's notifications were not asked", false);
+            return true;
+        } else if (message.op === 'read') {
+            answer(readClipboard(embedder, page.id, { origin }), "a site's clipboard was not reached", null);
+            return true;
+        } else if (message.op === 'write') {
+            const asked = writeClipboard(embedder, page.id, { origin, text: message.text });
+            answer(asked, "a site's clipboard was not reached", false);
+            return true;
         }
+        return false;
     }
 
     // Runs in the page's world, as source, with only its arguments: what it says crosses to deckit's world as an
-    // event under `channel`.
+    // event under `channel`, and what deckit answers comes back as one under `${channel}:answer`.
     function inPage(channel, table, commands) {
         if (window.__deckitNotification) return;
         const say = (msg) => document.dispatchEvent(new CustomEvent(channel, { detail: JSON.stringify(msg) }));
@@ -159,7 +157,20 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         let seq = 0;
         const ids = new WeakMap(),
             live = new Map(),
-            waiting = new Map();
+            waiting = new Map(); // id -> what takes deckit's answer
+        // `take(answer)` once deckit answers `msg`.
+        const ask = (msg, take) => {
+            const id = ++seq;
+            waiting.set(id, take);
+            say({ ...msg, id });
+        };
+        document.addEventListener(`${channel}:answer`, (event) => {
+            const { id, answer } = JSON.parse(event.detail);
+            const take = waiting.get(id);
+            if (!take) return;
+            waiting.delete(id);
+            take(answer);
+        });
         const fire = (n, type) => {
             const ev = new Event(type);
             n.dispatchEvent(ev);
@@ -225,11 +236,12 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
                 const answer =
                     permission !== 'default'
                         ? Promise.resolve(permission)
-                        : new Promise((resolve) => {
-                              const id = ++seq;
-                              waiting.set(id, resolve);
-                              say({ op: 'request', id });
-                          });
+                        : new Promise((resolve) =>
+                              ask({ op: 'request' }, (ok) => {
+                                  permission = ok ? 'granted' : 'denied';
+                                  resolve(permission);
+                              })
+                          );
                 if (typeof callback === 'function') answer.then(callback);
                 return answer;
             }
@@ -253,13 +265,14 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         // not have it: an item is written as its text, and one with no text is refused. Replaced on its class, so the
         // page reaches the engine's own through no other way.
         const clipboard = navigator.clipboard;
-        const asked = new Map();
         const reach = (op, text) =>
-            new Promise((resolve, reject) => {
-                const id = ++seq;
-                asked.set(id, { op, resolve, reject });
-                say({ op, id, text });
-            });
+            new Promise((resolve, reject) =>
+                ask({ op, text }, (answer) => {
+                    if (answer === null || answer === false)
+                        reject(new DOMException('The site may not reach the clipboard', 'NotAllowedError'));
+                    else resolve(op === 'read' ? answer : undefined);
+                })
+            );
         if (clipboard) {
             const text = async (item) => {
                 if (!item || !item.types?.includes('text/plain')) throw new DOMException('No text', 'NotAllowedError');
@@ -296,48 +309,33 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             writable: true,
             configurable: true,
         });
-        Object.defineProperty(window, '__deckitClipboard', {
-            value: {
-                answer(id, answer) {
-                    const one = asked.get(id);
-                    if (!one) return;
-                    asked.delete(id);
-                    if (answer === null || answer === false)
-                        one.reject(new DOMException('The site may not reach the clipboard', 'NotAllowedError'));
-                    else one.resolve(one.op === 'read' ? answer : undefined);
-                },
-            },
-        });
         Object.defineProperty(window, '__deckitNotification', {
             value: {
                 click(id) {
                     const n = live.get(id);
                     if (n) fire(n, 'click');
                 },
-                // id 0 is news for the page as a whole (a grant made in another tab), not an answer.
-                permission(id, state) {
-                    if (id === 0 && permission !== 'default') return;
-                    permission = state;
-                    const resolve = waiting.get(id);
-                    if (resolve) {
-                        waiting.delete(id);
-                        resolve(state);
-                    }
+                // News for the page as a whole (a grant made in another tab), not an answer.
+                permission(state) {
+                    if (permission === 'default') permission = state;
                 },
             },
         });
     }
 
     // Runs in deckit's world, in every frame, as source, with only its arguments: what the page's world says under
-    // `channel` goes on to deckit, from the frame it is said in.
+    // `channel` goes on to deckit, from the frame it is said in, and what deckit answers, the post's reply, back to
+    // the page's world under `${channel}:answer`.
     function inRelay(channel) {
         if (window.__deckitRelay) return;
         Object.defineProperty(window, '__deckitRelay', { value: true });
-        document.addEventListener(
-            channel,
-            (event) =>
-                typeof event.detail === 'string' && window.webkit.messageHandlers.deckit.postMessage(event.detail)
-        );
+        const back = (answer) =>
+            typeof answer === 'string' &&
+            document.dispatchEvent(new CustomEvent(`${channel}:answer`, { detail: answer }));
+        document.addEventListener(channel, (event) => {
+            if (typeof event.detail !== 'string') return;
+            window.webkit.messageHandlers.deckit.postMessage(event.detail).then(back, () => {});
+        });
     }
 
     // Runs in deckit's world, in the main frame, as source, with only its arguments: the page's icon, whether it plays
