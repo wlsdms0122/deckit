@@ -199,7 +199,7 @@ A table: a permission's id → a string, not blank, that says why the mod asks f
 "system.network" = "Syncs the pages."
 ```
 
-A permission's id is any string a `key` writes. Where a permission asked for is one that neither the system, a layer nor the host on this host defines, the bundle is still taken, and the permission is **not usable**: the mod runs without what it guards. A bundle that asks for a permission defined **privileged** is taken only when it is a system mod's, and any other refuses at `read` with kind `NOT_LOADABLE`. A **system mod** is one whose bundle the host ships and marks system, and no other: a bundle read in place, or installed from a folder, is not one.
+A permission's id is any string a `key` writes. Where a permission asked for is one that neither the system, a layer nor the host on this host defines, the bundle is still taken, and the permission is **not usable**: the mod runs without what it guards. A bundle that asks for a permission defined **privileged** is taken only when it is a system mod's, and any other refuses at `read` with kind `NOT_LOADABLE`. A **system mod** is one whose bundle the host ships and marks system, and no other: a bundle read in place, or installed from a folder as [the catalog](../DECKIT-4/SPEC.md) installs one, is not one.
 
 #### contributes
 
@@ -221,7 +221,7 @@ The host runs mods with one version of the mod contract. A bundle is taken only 
 
 ### What a layer or a host adds
 
-Before the host app starts, each layer on the system and the host may add manifest fields and define permissions. The system defines permissions of its own, which the permissions' DECKIT fixes.
+Before the host app starts, each layer on the system and the host may add manifest fields and define permissions. The system defines permissions of its own, which [the permissions](../DECKIT-3/SPEC.md) fix.
 
 A **field** is added by its name, any string a `key` writes. The field is then a top-level key a manifest may write, with any value, and the system judges nothing of its value: it hands it on as written, as a value, to whatever reads it, and the layer or host that added it judges it where it reads it.
 
@@ -271,15 +271,16 @@ Each permission asked for is answered as:
 
 The usable permissions come first, in the order they were defined, the system's own first. Then come the ones not usable, by their ids compared as Unicode scalar values: at the first place two ids differ, the one whose scalar value there is smaller comes first, and where one id is the other's beginning, the shorter comes first.
 
-A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`, and no run of it starts. Where it was found in a folder of bundles or shipped by the host, it is still listed, under the id its manifest writes where the manifest's text reads and its `id` is a non-empty string, and otherwise under its folder's name.
+A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`, and no run of it starts. Where it was found in a folder of bundles or shipped by the host, it is still listed, as [the catalog](../DECKIT-4/SPEC.md) lists the bundles found, under the id its manifest writes where the manifest's text reads and its `id` is a non-empty string, and otherwise under its folder's name.
 
 ## Interactions
 
-- When a background mod launches, what launching evaluates of `main`, and what an entry that does not evaluate refuses at `launch`: the lifecycle's DECKIT.
+- When a background mod launches, what launching evaluates of `main`, and what an entry that does not evaluate refuses at `launch`: [the lifecycle](../DECKIT-5/SPEC.md).
+- What the entry exports, and what a run needs of it: [the entry](../DECKIT-6/SPEC.md).
 - What `provides`, `uses` and `contributes` come to: [the interfaces](../DECKIT-10/SPEC.md). What a connection is: [the connections](../DECKIT-9/SPEC.md).
-- The permissions the system defines and what each one grants: the permissions' DECKIT.
+- The permissions the system defines and what each one grants: [the permissions](../DECKIT-3/SPEC.md).
 - What a host ships and marks system, and when it adds fields and defines permissions: [the embedding](../DECKIT-22/SPEC.md).
-- Two bundles of one id, which one is read, installing and removing: the catalog's DECKIT.
+- Two bundles of one id, which one is read, installing and removing: [the catalog](../DECKIT-4/SPEC.md).
 - The fields the shell adds and what it reads of them: the shell's DECKITs.
 
 ## Alternatives considered
@@ -293,4 +294,4 @@ A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`,
 
 **Note.** A refusal's message is not measured, and an implementation says it as it likes. The cases under `conformance/` measure that a bundle is taken or refused at `read` with kind `NOT_LOADABLE`, and what it is answered.
 
-**Note.** Two sentences above are held by no case under `conformance/`, and each waits on what will hold it. That no run of a refused bundle starts waits on the lifecycle's DECKIT, which fixes a run's states. That the system's own permissions come first waits on the permissions' DECKIT, which fixes them.
+**Note.** One sentence above is held by no case under `conformance/`. That no run of a refused bundle starts: [the lifecycle](../DECKIT-5/SPEC.md) answers the refusal at `read` of the run under the name of a bundle the system did not take, and no look of [the case format](../DECKIT-1/SPEC.md) reads more of it. That the system's own permissions come first is held by the case `the-system-permissions-come-before-those-a-host-defines` of [the permissions](../DECKIT-3/SPEC.md).
