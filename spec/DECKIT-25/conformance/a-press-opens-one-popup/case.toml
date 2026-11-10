@@ -1,0 +1,32 @@
+case = 11
+name = "a-press-opens-one-popup"
+note = "Each press opens at most one popup. A press on opener.html of site-a calls window.open(\"/child.html\") twice, in a page whose delegate takes every popup."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { openWindow = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/opener.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+part = "method"
+
+[step.expect]
+answers = ["openWindow"]

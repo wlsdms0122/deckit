@@ -1,0 +1,36 @@
+case = 11
+name = "a-popup-of-a-file-page-is-opened-outside-the-app"
+note = "A popup of a page that shows a file is no page: its address is opened outside the app, and the delegate is not asked. A press on popup.html of mod-a's bundle, shown for mod-a, granted system.files, calls window.open(\"http://127.0.0.1:9/away\"), in a page whose delegate takes every popup."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+delegate = { openWindow = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+file = "mod-a/popup.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "http://127.0.0.1:9/away", activates = true }]

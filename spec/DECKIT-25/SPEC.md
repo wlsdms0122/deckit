@@ -24,6 +24,7 @@ The page is the web engine's: what it loads, in which session's store, and what 
 - A site's popup at `about:blank`, which a sign-in flow writes into, is opened outside the app as an address on one implementation, which hands a person's browser an empty page, and handed to the layer as a page on another.
 - A page shows `file:///Users/a/notes.txt` for a mod granted nothing. One implementation shows the file; another refuses it, as only a mod granted `system.files` reads files in its pages.
 - A site's popup the layer does not take is dropped on one implementation, and its address opened in the browser on another.
+- A sign-in page shown apart opens its consent step as a popup. One implementation shows the popup apart itself, and the layer holds no handle of it and is told nothing of it; another hands it to the layer as it hands the popup of a page laid in the mod's page.
 
 ## Rules
 
@@ -107,8 +108,7 @@ A page's `window.open(url)` opens a **popup** only where a key or the mouse was 
 | the page that opens it | the popup |
 |---|---|
 | a page that shows a file | no page: its address, unless it is blank, is opened outside the app, under *What a page opens outside the app* |
-| a page shown apart, or one that asks for the popup with window features | a page the host shows apart, as `window` shows one |
-| a page laid in the mod's page | a page handed to the delegate's `openWindow(page, { url, activates })`, `activates` `true` but where the press asked for the popup behind: a page the delegate does not take, answering anything but `true`, is closed and its address, unless it is blank, opened outside the app |
+| any other, laid in the mod's page or shown apart, whatever window features it asks with | a page handed to the delegate of the page that opens it, its `openWindow(page, { url, activates })`, `activates` `true` but where the press asked for the popup behind: a page the delegate does not take, answering anything but `true`, is closed and its address, unless it is blank, opened outside the app |
 
 A popup handed to the delegate and taken is a page laid in the mod's page, made for the same lifecycle.
 
@@ -145,7 +145,7 @@ A blank page is never opened outside the app.
 - An error thrown with a stage and a kind, `INVALID_ARGUMENT`, and a value read: [the handle](../DECKIT-7/SPEC.md).
 - What opens outside the app, its guard `system.file-handlers` and `UNSUPPORTED_URL`: [opening outside the app](../DECKIT-8/SPEC.md).
 - A lifecycle and its end: [the entry](../DECKIT-6/SPEC.md).
-- The input `show`, the host's delegate and the look `delegated`: [the case format](../DECKIT-1/SPEC.md).
+- The inputs `show` and `activate`, a page shown at a file of a bundle, the host's delegate and the look `delegated`: [the case format](../DECKIT-1/SPEC.md).
 - What a site is let have, an app for an address, a certificate refused, a site's notification and a download a page starts: the web engine's other DECKITs.
 
 ## Alternatives considered
@@ -153,6 +153,7 @@ A blank page is never opened outside the app.
 - The pages on the handle `web`. A mod with no layer over the web engine has no place to lay a page and no window to show one in; what shows a page is the layer's, which hands its mods what it chooses.
 - A window as the web engine's. Where a page apart is shown, its frame and its title bar, is the GUI's, which a host may run without; the web engine hands a page and tells what it does.
 - The page's members as requests. Each sends what it is asked to the page and waits on nothing, so a promise would make the layer wait on nothing; what it comes to is told through `didChange`.
+- A popup of a page shown apart shown apart by the host on its own. The layer over the web engine would hold no handle of it and be told nothing of it, and the web engine would name a window; a popup handed on as a page, whichever page opens it, is one path, and the layer shows it where it chooses.
 - A page at an address it may not show closed at once. A page made at a refused address and a page later asked to load one would come to two answers; a load refused leaves the page as it was, whichever load it is.
 - A popup with no press. A site would open pages a person never asked for, as browsers block.
 - A blank popup opened outside the app as its address. It hands a person's browser an empty page, and the site that writes into it loses it.
@@ -160,6 +161,6 @@ A blank page is never opened outside the app.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. A popup opened, taken or not taken, a blank popup, and the 5 seconds: no input of [the case format](../DECKIT-1/SPEC.md) presses a page, so its cases hold only that a popup with no press opens nothing. A file loaded, `system.files`, a page that shows a file leaving for the web and `shouldLeave`: no input of the case format shows a file. The mod's own page opening an address outside the app: no input of the case format has the mod's page navigate. `ENDED`: no base ends one lifecycle of a run while another runs. `forward()`, `reload()`, `stop()`, `find`, `stopFind`, `focus()`, `element`, `didFocus`, `didFind`, `didRequestClose`, `capture` and `audible`: the case format shows no page on screen, plays no sound and takes no keyboard, and the cases read `back()` and `mute(on)` of the same kind. `title` of `window`: what the host shows a page apart with is the host's. What the delegate is told past `didChange`: the cases read `openWindow` not asked.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The 5 seconds a press lets a popup open: no input of [the case format](../DECKIT-1/SPEC.md) waits a set time, and the cases hold only that a press opens one popup and no press none. `activates` `false`, a press that asks for the popup behind: the case format's press asks for nothing behind. A popup taken being a page laid in the mod's page: no step reaches the page handed to the delegate. A file loaded by `load(url)`, and `system.files` read at each load while a mod runs: a case hands a call no file's address, and grants no permission while a mod runs; the cases show a file as the page is made, for a mod granted `system.files` and for one granted nothing. The mod's own page opening an address outside the app: no input of the case format has the mod's page navigate. `ENDED`: no base ends one lifecycle of a run while another runs. `forward()`, `reload()`, `stop()`, `find`, `stopFind`, `focus()`, `element`, `didFocus`, `didFind`, `didRequestClose`, `capture` and `audible`: the case format takes no keyboard, plays no sound and reads nothing a page draws, and the cases read `back()` and `mute(on)` of the same kind. `title` of `window`: what the host shows a page apart with is the host's. A member the delegate does not hold, or one that throws, answered its default: the host's delegate holds each member a case reads, and throws nothing.
 
-**Note.** What this costs an implementation: each load asked by the layer held to the table of *What a page loads*, read at each load; a press remembered for each page and used up by the popup it opens; a popup routed by the page that opens it; a delegate whose every member may be missing or may throw; and every page closed with the lifecycle it was offered for.
+**Note.** What this costs an implementation: each load asked by the layer held to the table of *What a page loads*, read at each load; a press remembered for each page and used up by the popup it opens; every popup handed on as a page, but a file page's; a delegate whose every member may be missing or may throw; and every page closed with the lifecycle it was offered for.

@@ -1,0 +1,37 @@
+case = 11
+name = "a-page-loads-a-file-where-the-mod-is-granted-system-files"
+note = "A page laid in the mod's page loads a file where the mod is granted system.files. The host's layer shows notes.html of mod-a's bundle, titled Notes, for mod-a, granted system.files."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+file = "mod-a/notes.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "Notes"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "blank"
+
+[step.expect]
+answers = false
