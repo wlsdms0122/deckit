@@ -16,11 +16,12 @@ Everything the system does follows from that one fact, that a mod **arrives afte
 - **Two implementations run the same mods** (another host language, the web), so agreement cannot mean the same code. It means these DECKITs and their cases.
 - **It is an operating system**, so where operating systems settle a question alike, such as how often a failed service starts again or how long a launch may take, Deckit takes their answer, stated in its own terms.
 
-Every function of Deckit is in one of four areas, and each DECKIT names the one it is in:
+Every function of Deckit is in one of five areas, and each DECKIT names the one it is in:
 
 | area | what it is | what its DECKITs fix |
 |---|---|---|
 | `system` | the operating system for mods | the bundle, the handle a mod's code is given, permissions, a mod's lifecycle (launch, background, stop, the relaunch limit), interfaces and connections, events, storage, the standard interfaces (`deckit/*`), and embedding: what a host ships, marks system and adds |
+| `web` | the web engine on the system | web sessions, fetching through them, web pages and what loads in them, what a site is let have, downloads, the permissions of the web, and the `web` handle |
 | `shell` | the GUI on the system | the panel, the Dock, the mod in front, a mod's windows, the surfaces over the app, the shell's keys, the manifest fields the shell adds, and the `shell` handle |
 | `app` | Deckit.app, the host app that embeds the system with the shell on | what it ships and marks system, its windows, and its own answers to what the system asks a host |
 | `mods` | the mods the app ships | what each one does, one or more DECKITs titled by the mod |
@@ -52,7 +53,7 @@ A draft makes the changes it needs in accepted DECKITs beside it, before it is r
 
 Deckit as it stands is every accepted DECKIT that no accepted DECKIT supersedes, the live set. Which DECKITs those are is worked out by a tool and never written down.
 
-The DECKITs can be read in any order and cannot be *built* in any order. Their numbers follow the order in which each one's questions can be decided, which is also the order in which an implementation can keep its cases passing as it grows. The case format comes first, since every other DECKIT's cases are written in it. Then the system, from the bundle up: permissions, the catalog, the lifecycle, the entry, the handle, connections and events, storage, the standard interfaces and embedding. Then the shell, then the app, then each shipped mod.
+The DECKITs can be read in any order and cannot be *built* in any order. Their numbers follow the order in which each one's questions can be decided, which is also the order in which an implementation can keep its cases passing as it grows. The case format comes first, since every other DECKIT's cases are written in it. Then the system, from the bundle up: permissions, the catalog, the lifecycle, the entry, the handle, connections and events, storage, the standard interfaces and embedding. Then the web engine, then the shell, then the app, then each shipped mod.
 
 **How the DECKITs write examples.** A block of TOML is manifest text as [the bundle](DECKIT-2/SPEC.md) reads it. An inline table, `{ id = "mod-a" }`, shows a value, and brackets, `[1, 2]`, a list.
 
