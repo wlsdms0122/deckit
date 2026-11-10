@@ -26,6 +26,8 @@ struct WebFetcher {
     func answer(to request: WebRequest, limit: Int) async throws -> WebAnswer {
         let cookies = store.httpCookieStore
         let configuration = URLSessionConfiguration.ephemeral
+        // An answer read through the cache holds headers the cache writes, as an `expires` on a redirect it may keep.
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.httpAdditionalHeaders = ["User-Agent": await Self.userAgent(applicationName)]
         guard let jar = configuration.httpCookieStorage else { throw NodeError(message: "no cookie storage to ask with") }
         for cookie in await cookies.allCookies() {
