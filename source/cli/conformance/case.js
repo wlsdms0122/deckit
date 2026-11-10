@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 7;
+const FORMAT = 8;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -14,9 +14,11 @@ const MEMBER = /^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$/;
 // The name of a standard interface, as the bundle names an interface.
 const STANDARD = /^deckit\/[a-z][a-z0-9-]*$/;
 const STAGES = ['read', 'launch', 'call'];
-const BASES = ['system', 'shell'];
+const BASES = ['system', 'web', 'shell'];
 // The format that added a base, where it is not 1.
-const BASES_ADDED = { shell: 6 };
+const BASES_ADDED = { shell: 6, web: 8 };
+// The handles a call's member is read from, by name: `deckit`, and each a framework hands.
+const HANDLES = ['deckit', 'web'];
 
 class NotACase extends Error {}
 class TooOld extends Error {}
@@ -48,6 +50,7 @@ const INPUTS = {
     call: {
         mod: [is.string, true],
         member: [is.member, true],
+        handle: [(value) => HANDLES.includes(value), false],
         args: [is.array, false],
         folders: [is.bundles, false],
         part: [is.string, false],
@@ -68,7 +71,7 @@ const LOOKS = {
 // The format that added an input or a look, where it is not 1.
 const ADDED = { run: 2, call: 3, opened: 3, heard: 4, press: 7, shown: 7 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
-const KEYS_ADDED = { of: 4, listener: 4, handed: 5 };
+const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8 };
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = { owners: 5 };
 // The inputs answered with nothing.
@@ -198,7 +201,8 @@ function stepOf(step, number, format, refuse) {
 }
 
 // `start` first, again only after a `quit`, calls, presses and looks only while the app is started, nothing after a
-// start that is refused, a call's `of` an earlier call of its mod, and no `of` beside `handed`.
+// start that is refused, a call's `of` an earlier call of its mod, and no `of` beside `handed`, nor `handle` beside
+// either.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
@@ -207,6 +211,8 @@ function order(steps, refuse) {
         if (step.of && !(step.of < step.number && of.what === 'call' && of.mod === step.mod))
             refuse(`step ${step.number}: of names no earlier call of ${step.mod}`);
         if (step.handed && step.of) refuse(`step ${step.number}: handed is written with no of`);
+        if ('handle' in step && (step.of || step.handed))
+            refuse(`step ${step.number}: handle is written with neither of nor handed`);
         if (step.kind !== 'input' || step.what === 'call' || step.what === 'press') {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;

@@ -3,8 +3,8 @@
 // connect answers, and talks to the runner over a socket, a JSON message a line: it says once whether the start settled
 // or was refused (deckit.whenStarted()), answers each call and look it is asked, a start and a call once no run is
 // between two states, and quits when asked. It stacks a layer of its own over deckit on each mod's page (page.js),
-// which makes the requests a call hands it and keeps what its listeners heard, attaches the web engine and the shell on
-// the base shell, runs main process modules where an owner it ships asks for them, and opens none of the addresses it
+// which makes the requests a call hands it and keeps what its listeners heard, attaches the web engine on the bases web
+// and shell and the shell over it on the base shell, runs main process modules where an owner it ships asks for them, and opens none of the addresses it
 // is handed to open outside the app: it keeps each one, for the look opened. It shows none of the system's
 // notifications: it keeps each one, for the look shown, and presses one when asked. Its clipboard is a file of the
 // run's, never the person's.
@@ -100,8 +100,9 @@ try {
     deckit.stack('conformance');
     // Main process modules run, as a host app runs them, where an owner the case ships asks for them.
     if (setup.mainProcess) ELECTRON.attachMainProcess(deckit, given);
-    // On the base shell, the web engine and the shell are attached as a host app attaches them, the shell shown
-    // nowhere, before the case's fields and permissions, which come after the base's.
+    // On the base web, the web engine is attached as a host app attaches it, and on the base shell the shell over it,
+    // shown nowhere, before the case's fields and permissions, which come after the base's.
+    if (setup.base === 'web') DECKIT.attachWeb(deckit, given);
     if (setup.base === 'shell')
         DECKIT.attach(deckit, given, { host: SHOWS_NOTHING, web: DECKIT.attachWeb(deckit, given) });
     for (const field of setup.fields) deckit.fields.define(field);
@@ -134,13 +135,14 @@ socket.on('close', () => app.exit(0));
 
 // What a call comes to: what the request the mod's run makes answers, `{ refuses, kind, message }` for its refusal, or
 // `{ none }` where no run of the mod is running or its handle has no such member. `args` are the folders' paths and
-// then the values the step writes; `step` its place, `of` the place of the call whose answer `member` starts at, or
-// whose listener's, where `handed`, and `listener` whether the request is handed one after its args.
-async function request({ mod, member, args, step, of, listener, handed }) {
+// then the values the step writes; `step` its place, `handle` the name of the handle `member` starts at, `of` the
+// place of the call whose answer it starts at instead, or whose listener's, where `handed`, and `listener` whether the
+// request is handed one after its args.
+async function request({ mod, member, args, step, handle, of, listener, handed }) {
     const running = runningOf(mod);
     if (!running.page) return running;
     try {
-        return await call.invoke(running.page, { member, args, step, of, listener, handed });
+        return await call.invoke(running.page, { member, args, step, handle, of, listener, handed });
     } catch (error) {
         return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
     }

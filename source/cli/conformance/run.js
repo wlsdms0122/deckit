@@ -15,6 +15,7 @@ const MANIFEST = ['id', 'name', 'version', 'api', 'main', 'background', 'interfa
 // the styles a mod granted deckit.styles declares (deckit-shell/shell/style).
 const BASE_FIELDS = {
     system: [],
+    web: [],
     shell: [...require('../../deckit/deckit-sdk/shell/mods/field.js').KEYS, 'styles'],
 };
 // The permission whose mods the host app runs main process modules for, with the framework that defines it.
@@ -151,15 +152,17 @@ function ownerOf(name, mods) {
 
 // What a step comes to: `{ answers }`, `{ refuses, kind, message }`, `{ none }` with why there is no answer, or `{}`
 // for an input answered with nothing. A call is handed the path of each bundle its folders name, then its args, then a
-// listener where it writes one, and names its place so that a later call can reach what it answered.
+// listener where it writes one, names the handle its member is read from, `deckit` where it names none, and names its
+// place so that a later call can reach what it answered.
 async function take(step, app, paths) {
     if (step.what === 'start') return app.start();
     if (step.what === 'quit') return app.quit();
     const { what, mod, part } = step;
     if (what === 'call') {
         const args = [...(step.folders ?? []).map((name) => paths[name]), ...(step.args ?? [])];
-        const { member, of = null, listener = false, handed = false, number } = step;
-        return partOf(await app.ask({ input: what, mod, member, args, step: number, of, listener, handed }), part);
+        const { member, handle = 'deckit', of = null, listener = false, handed = false, number } = step;
+        const asked = { input: what, mod, member, args, step: number, handle, of, listener, handed };
+        return partOf(await app.ask(asked), part);
     }
     if (what === 'press') return app.ask({ input: what, notification: step.notification });
     return partOf(await app.ask({ look: what, mod }), part);

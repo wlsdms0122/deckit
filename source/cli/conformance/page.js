@@ -1,15 +1,16 @@
 // The conformance host's layer over deckit on each mod's page, a script the preload runs as it is: its lifecycle keeps
-// the handle `deckit` it is handed while it has started, and each request main hands it is made through that handle,
-// or through what an earlier call answered, as the mod's code makes one (spec/DECKIT-1: the input call). It keeps what
+// the handle `deckit` and the frameworks' handles it is handed while it has started, and each request main hands it is
+// made through the handle the call names, `deckit` where it names none, or through what an earlier call answered, as
+// the mod's code makes one (spec/DECKIT-1: the input call). It keeps what
 // each call answered, by the call's place, each call of the listener it hands a request, for the look heard, and the
 // first value the listener was last called with, which a call that writes handed is made through.
 function conformanceLayer({ channels }) {
-    let handle = null;
+    let handles = null; // the handles of its lifecycle, `deckit` and each framework's by its name, while it runs
     // A request through the system after a call, so that what the call sent it, an event among it, is told before the
     // call is answered: the system answers a page's requests in the order they are sent.
     const settle = () => {
         try {
-            handle?.storage.records.keys();
+            handles?.deckit.storage.records.keys();
         } catch {}
     };
     const answered = new Map(); // a call's place -> what its request answered, as the run holds it
@@ -24,16 +25,18 @@ function conformanceLayer({ channels }) {
     channels.bind({ channel: 'conformance/heard', to: 'page', reply: true }).handle(() => ({ answers: heard }));
     channels
         .bind({ channel: 'conformance/call', to: 'page', reply: true })
-        .handle(async ({ member, args, step, of, listener: hands, handed: from }) => {
+        .handle(async ({ member, args, step, of, listener: hands, handed: from, handle: named = 'deckit' }) => {
             if (of !== null && !answered.has(of)) return { none: `step ${of} answered nothing this run holds` };
             if (from && !called) return { none: 'the listener has not been called' };
+            if (of === null && !from && !handles?.[named])
+                return { none: `the lifecycle is handed no handle ${named}` };
             const start = from
                 ? 'what the listener was last handed'
                 : of === null
-                  ? 'the handle'
+                  ? `the handle ${named}`
                   : `what step ${of} answered`;
             let holder = null;
-            let value = from ? handed : of === null ? handle : answered.get(of);
+            let value = from ? handed : of === null ? handles[named] : answered.get(of);
             for (const name of member.split('.')) {
                 if (value === null || (typeof value !== 'object' && typeof value !== 'function') || !(name in value))
                     return { none: `${start} has no member ${member}` };
@@ -54,9 +57,9 @@ function conformanceLayer({ channels }) {
             under.deckit.lifecycle({
                 method: 'conformance',
                 registrations: {},
-                start: (_instance, handles, scope) => {
-                    handle = handles.deckit;
-                    scope.add(() => (handle = null));
+                start: (_instance, given, scope, frameworks) => {
+                    handles = { ...frameworks, deckit: given.deckit };
+                    scope.add(() => (handles = null));
                 },
                 end: () => {},
                 join: () => {},
