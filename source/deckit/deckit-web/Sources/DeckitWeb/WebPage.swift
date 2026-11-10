@@ -12,15 +12,16 @@ import CNodeAPI
 
 // A page on WebKit, laid on a stage, which tells JavaScript what becomes of it and asks it what to do: `emit(event,
 // payload)`. Told: `adopted` ({ id }) first, then `changed` (its state), `started`, `committed` ({ url }), `stopped`,
-// `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body }), what
-// deckit's own scripts post, and `external` ({ url }), an address of an app's the page asked to go to. Asked, answered
-// at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow, background }), a function to hear the page
-// given for the window, or nothing for none; `download` ({ url }), a function to hear the download (WebDownload), or
-// nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a key taken; and
-// `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted though the Mac
-// does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }), `unhandled`
-// ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle, true for one taken
-// from the rest of the app, and, for a page made with a scheme of its own, `request` (SchemeHandler).
+// `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body, origin, main,
+// evaluate }), what deckit's own scripts post in a frame (received), and `external` ({ url }), an address of an app's
+// the page asked to go to. Asked, answered at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow,
+// background }), a function to hear the page given for the window, or nothing for none; `download` ({ url }), a
+// function to hear the download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt,
+// shift }), true for a key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a
+// certificate trusted though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin,
+// permissions, reply }), `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did
+// not handle, true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
+// (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -183,16 +184,18 @@ final class WebPage: NSObject {
         emitter.emit("mouse", ["type": event.type == .leftMouseDown ? "mouseDown" : "mouseUp"])
     }
 
-    // The value of `source`, a function body that may await, as JSON, run in the page's world or deckit's.
+    // The value of `source`, a function body that may await, as JSON, run in the page's world or deckit's, in the main
+    // frame or in `frame`.
     func evaluate(
         _ source: String,
         in world: UserScript.World,
+        frame: WKFrameInfo? = nil,
         done: @escaping @MainActor (Result<String, Error>) -> Void
     ) {
         view.callAsyncJavaScript(
             "return JSON.stringify(await (async () => { \(source) })()) ?? 'null'",
             arguments: [:],
-            in: nil,
+            in: frame,
             in: world == .page ? .page : Self.deckitWorld
         ) { result in
             MainActor.assumeIsolated {
@@ -250,13 +253,33 @@ final class WebPage: NSObject {
         emitter.release()
     }
 
-    // What deckit's scripts post, as text.
-    func received(_ body: Any) {
+    // What deckit's scripts post, as text, from any frame of the page: told with the frame's origin, whether it is
+    // the main frame, and `evaluate(source, world)`, which runs `source` in that frame as `evaluate` does, its value
+    // dropped.
+    func received(_ body: Any, from frame: WKFrameInfo) {
         guard let text = body as? String else { return }
-        emitter.emit("message", ["body": text])
+        let evaluate = Reply { [weak self] node, arguments in
+            guard let source = try arguments.first.map({ try node.string($0) }) else { return }
+            let world = try arguments.dropFirst().first.flatMap { node.isNothing($0) ? nil : try node.string($0) }
+            self?.evaluate(source, in: world.flatMap(UserScript.World.init) ?? .page, frame: frame) { _ in }
+        }
+        emitter.emit("message", [
+            "body": text,
+            "origin": Self.serialized(frame.securityOrigin),
+            "main": frame.isMainFrame,
+            "evaluate": evaluate
+        ])
     }
 
     // MARK: - Private
+    // An origin as the URL Standard serializes it: `null` for an opaque one, which has no scheme.
+    private static func serialized(_ origin: WKSecurityOrigin) -> String {
+        guard !origin.protocol.isEmpty else { return "null" }
+        let port = origin.port == 0 ? "" : ":\(origin.port)"
+
+        return "\(origin.protocol)://\(origin.host)\(port)"
+    }
+
     private static func keystroke(of event: NSEvent) -> [String: Any?] {
         let flags = event.modifierFlags
 
@@ -520,7 +543,7 @@ extension WebPage: WKUIDelegate {
         case .microphone: ["microphone"]
         default: ["camera", "microphone"]
         }
-        askPermission(origin, permissions, decisionHandler)
+        askPermission(frame.securityOrigin, permissions, decisionHandler)
     }
 
     @available(macOS 27.0, *)
@@ -530,7 +553,7 @@ extension WebPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
     ) {
-        askPermission(origin, ["geolocation"], decisionHandler)
+        askPermission(frame.securityOrigin, ["geolocation"], decisionHandler)
     }
 
     func webView(
@@ -578,13 +601,12 @@ extension WebPage: WKUIDelegate {
 extension WebPage {
     // MARK: - Private
     // What a site asks for, by the web platform's names, put to JavaScript as `permission`: given on true, else
-    // refused.
+    // refused. `origin` is the frame's that asks, as the web platform asks a frame's permission.
     private func askPermission(
         _ origin: WKSecurityOrigin,
         _ permissions: [String],
         _ decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
     ) {
-        let port = origin.port == 0 ? "" : ":\(origin.port)"
         var answered = false
         let reply = Reply { node, arguments in
             guard !answered else { return }
@@ -593,7 +615,7 @@ extension WebPage {
             decisionHandler(granted ? .grant : .deny)
         }
         emitter.emit("permission", [
-            "origin": "\(origin.protocol)://\(origin.host)\(port)",
+            "origin": Self.serialized(origin),
             "permissions": permissions,
             "reply": reply
         ])
