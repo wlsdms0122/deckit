@@ -920,7 +920,7 @@ async function run({
             stacked && stackSeen.right === 12 && stackSeen.top >= titleBottom,
             JSON.stringify({ stackSeen, titleBottom })
         );
-        // A folder whose package file names a mod not installed is planned through deckit/packages: the sheet shows
+        // A folder whose package file names a mod not installed is dry run through deckit/packages: the sheet shows
         // what it depends on and why it cannot install, and offers no install.
         const needsAbsent = path.join(home, '..', 'needs-absent');
         fs.mkdirSync(needsAbsent, { recursive: true });

@@ -17,7 +17,7 @@ const DEPENDENCY_LIST_STYLE = `
 `;
 
 // The mods a mod depends on: each one's name, its requirement, and the version installed, marked where the requirement
-// does not take it. `dependencies` as deckit/packages plans them; `nameOf(id)` the name of the mod of an id.
+// does not take it. `dependencies` as a deckit/packages dry run answers them; `nameOf(id)` names the mod of an id.
 function dependencyList({ ui, dependencies, nameOf }) {
     const element = ui.element('div', { className: 'settings-dependencies' });
 

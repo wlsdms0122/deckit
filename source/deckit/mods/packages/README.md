@@ -28,15 +28,14 @@ A folder with no package file depends on nothing. The file is read as TOML by a 
 
 Packages provides `deckit/packages` major 1. A client calls it when it holds `deckit.mods`, which installing takes anyway; any other call rejects with kind `NOT_PERMITTED`.
 
-| Call              | What it does                                                                                                                                                                                                                                           |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `plan(folder)`    | what `deckit.mods.plan(folder)` answers, with `dependencies` `[{ id, requirement, installed, satisfied }]` in the order written, `installed` the version of the mod of that id now, left out for none, and `satisfied` whether the requirement takes it |
-| `install(folder)` | installs through `deckit.mods.install(folder)` and answers what it answers, once every dependency is satisfied                                                                                                                                         |
+| Call                       | What it does                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `install(folder, options)` | installs through `deckit.mods.install(folder, options)` and answers what it answers, once every dependency is satisfied. With `options.dryRun` true nothing changes, and the answer has `dependencies` `[{ id, requirement, installed, satisfied }]` in the order written, met or not, `installed` the version of the mod of that id now, left out for none, and `satisfied` whether the requirement takes it |
 
-Besides what `deckit.mods` rejects with, each rejects with why, the `kind` saying which:
+Besides what `deckit.mods` rejects with, it rejects with why, the `kind` saying which:
 
-| Kind               | Why                                                                                 |
-| ------------------ | ----------------------------------------------------------------------------------- |
-| `PACKAGE`          | `package.toml` is no TOML, or its `dependencies` is no table                        |
-| `REQUIREMENT`      | a requirement is not written as the comparators above                               |
-| `UNMET_DEPENDENCY` | `install` only: a dependency is not installed at a version it takes, each one named |
+| Kind               | Why                                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `PACKAGE`          | `package.toml` is no TOML, or its `dependencies` is no table                                       |
+| `REQUIREMENT`      | a requirement is not written as the comparators above                                              |
+| `UNMET_DEPENDENCY` | `install` only, not a dry run: a dependency is not installed at a version it takes, each one named |

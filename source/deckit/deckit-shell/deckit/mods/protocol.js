@@ -3,14 +3,10 @@ import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js';
 
 export const mods = CHANNEL.pageToMain('deckit-shell:mods', {}, { reply: true, guard: MOD_PERMISSION.MODS });
-export const plan = CHANNEL.pageToMain(
-    'deckit-shell:mods-plan',
-    { folder: 'string' },
-    { reply: true, guard: MOD_PERMISSION.MODS }
-);
+// `dryRun` true changes nothing.
 export const install = CHANNEL.pageToMain(
     'deckit-shell:mods-install',
-    { folder: 'string' },
+    { folder: 'string', dryRun: 'boolean' },
     { reply: true, guard: MOD_PERMISSION.MODS }
 );
 export const remove = CHANNEL.pageToMain(

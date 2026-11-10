@@ -53,11 +53,10 @@ export function createLoader({ LOG, FOLDER, windowShowing }) {
     }
 
     // The mod installed again, once what ran in its place has ended, modules and all: what was removed this run and
-    // stayed is still a restart away, as reinstalled. Answers whether only a restart brings its modules up to date.
+    // stayed is still a restart away, as reinstalled.
     async function installed(modId) {
         await whenEnded(modId);
         if (pending.get(modId) === 'removed') setPending(modId, 'reinstalled');
-        return { restart: pending.has(modId) };
     }
 
     // Before a mod runs again: modules it started from code that has changed since, and that stayed, keep running

@@ -1,6 +1,6 @@
 case = 3
 name = "a-bundle-a-step-hands-as-a-folder-is-not-found-by-the-system"
-note = "A bundle that a step's folders names and no key of host names is laid out on its own, and the host hands the system nothing of it. mod-a plans the install of mod-b by its path, and the system lists mod-a alone."
+note = "A bundle that a step's folders names and no key of host names is laid out on its own, and the host hands the system nothing of it. mod-a asks a dry run of the install of mod-b by its path, and the system lists mod-a alone."
 
 [host]
 base = "system"
@@ -14,8 +14,9 @@ input = "start"
 [[step]]
 input = "call"
 mod = "mod-a"
-member = "mods.plan"
+member = "mods.install"
 folders = ["mod-b"]
+args = [{ dryRun = true }]
 part = "id"
 
 [step.expect]

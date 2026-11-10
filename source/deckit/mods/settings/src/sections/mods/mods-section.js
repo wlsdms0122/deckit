@@ -9,7 +9,7 @@ const { section } = require('../section/section.js');
 // The Mods section: every mod found in their order, what each contributes, and installing and removing them.
 // `onChange` hears that a mod was installed, removed, restarted or pinned here. Failures and what was done are told
 // in a toast. `mods` is deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a
-// host that runs none; `packages()`, deckit/packages while it is connected, which plans and installs; `pins`, the
+// host that runs none; `packages()`, deckit/packages while it is connected, which installs, dry run too; `pins`, the
 // Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination`, `dialogs` and `reveal` the
 // shell's; `tildify(path)` a path as it is shown.
 function modsSection({
@@ -297,11 +297,13 @@ function modsSection({
         askAndInstall(await Promise.all(folders.map(planOf)));
     }
 
-    // What the folder `from` would install, with what it depends on, or `{ from, problem }` for one refused.
-    function planOf(from) {
+    // What the folder would install, with what it depends on, beside the folder, or `{ folder, problem }` for one
+    // refused.
+    function planOf(folder) {
         return Promise.resolve()
-            .then(() => service().plan(from))
-            .catch((error) => ({ from, problem: error.message }));
+            .then(() => service().install(folder, { dryRun: true }))
+            .then((plan) => ({ ...plan, folder }))
+            .catch((error) => ({ folder, problem: error.message }));
     }
 
     // The folders picked install one after another once the person agrees to what they replace, ask for and depend
@@ -353,8 +355,8 @@ function modsSection({
         const failed = [];
         for (const plan of plans) {
             try {
-                const installed = await service().install(plan.from);
-                done.push(`${plan.replaces ? 'Replaced' : 'Installed'} ${nameAndVersion(installed)}.`);
+                const installed = await service().install(plan.folder);
+                done.push(`${installed.replaces ? 'Replaced' : 'Installed'} ${nameAndVersion(installed)}.`);
             } catch (error) {
                 failed.push(`Could not install ${plan.name}: ${error.message}`);
             }
@@ -370,7 +372,9 @@ function modsSection({
     }
 
     function refusalText(refused) {
-        return refused.map(({ from, problem }) => `Could not install ${from.split('/').pop()}: ${problem}`).join(' ');
+        return refused
+            .map(({ folder, problem }) => `Could not install ${folder.split('/').pop()}: ${problem}`)
+            .join(' ');
     }
 
     // What each mod planned depends on and asks for, each list headed by its name.

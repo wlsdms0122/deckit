@@ -46,18 +46,10 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
         return () => erasers.delete(eraser);
     }
 
-    // What a folder would install, asked before the person is: its manifest, and whether it replaces an installed
-    // mod. Refused with why for a folder install refuses.
-    async function plan(from) {
-        const { manifest, replaces } = await CATALOG.install(from, { dryRun: true });
-        return { ...manifest, from, replaces };
-    }
-
     // MARK: - Private
     function listen() {
         PROTOCOL.mods.handle(() => describe());
-        PROTOCOL.plan.handle(({ folder }) => plan(folder));
-        PROTOCOL.install.handle(({ folder }) => install(folder));
+        PROTOCOL.install.handle(({ folder, dryRun }) => install(folder, { dryRun }));
         PROTOCOL.remove.handle(({ id, erase }) => remove(id, erase));
         PROTOCOL.launch.handle(({ id }, sender) => {
             const by = IDENTITY.modFrom(sender).id;
@@ -139,14 +131,22 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
 
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
     // nothing. What a removal of the same id left to erase is erased first, so erasing it never reaches this one.
-    async function install(from) {
+    // Answers the manifest of what it installs with `replaces`, whether it takes the place of an installed mod, and
+    // with `dryRun` changes nothing, asked before the person is.
+    async function install(from, { dryRun }) {
+        if (dryRun) return answerOf(await CATALOG.install(from, { dryRun }));
         const { id } = (await CATALOG.install(from, { dryRun: true })).manifest;
         if ((await CORE.request('erasure/uncleared')).includes(id)) await erase(id);
-        const { manifest } = await CATALOG.install(from);
+        const installation = await CATALOG.install(from);
         await CATALOG.refresh();
         await RUNNER.whenReconciled();
-        for (const listener of installedListeners) LISTENER.wrap(listener, 'what hears a mod installed')(manifest.id);
-        return manifest;
+        for (const listener of installedListeners)
+            LISTENER.wrap(listener, 'what hears a mod installed')(installation.manifest.id);
+        return answerOf(installation);
+    }
+
+    function answerOf({ manifest, replaces }) {
+        return { ...manifest, replaces };
     }
 
     // What runs in its place is told before its run ends. Its run has ended, stop() and all, and its page closed,
@@ -188,5 +188,5 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, page
         await CORE.request('erasure/cleared', { mod: id });
     }
 
-    return { start, plan, onInstalled, onRemoved, onErase };
+    return { start, onInstalled, onRemoved, onErase };
 }

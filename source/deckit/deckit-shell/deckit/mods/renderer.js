@@ -38,11 +38,14 @@ export function createMods({ RUN }) {
                 return scope.add(onChange(listener));
             },
             list: request('list', PROTOCOL.mods.guard, [], () => PROTOCOL.mods.invoke()),
-            plan: request('plan', PROTOCOL.plan.guard, [['folder', 'string']], (folder) =>
-                PROTOCOL.plan.invoke({ folder })
-            ),
-            install: request('install', PROTOCOL.install.guard, [['folder', 'string']], (folder) =>
-                PROTOCOL.install.invoke({ folder })
+            install: request(
+                'install',
+                PROTOCOL.install.guard,
+                [
+                    ['folder', 'string'],
+                    ['options', 'object?', [['dryRun', 'boolean?']]],
+                ],
+                (folder, options) => PROTOCOL.install.invoke({ folder, dryRun: options?.dryRun ?? false })
             ),
             remove: request(
                 'remove',

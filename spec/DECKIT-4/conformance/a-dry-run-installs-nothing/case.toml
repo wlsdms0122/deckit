@@ -1,6 +1,6 @@
 case = 3
-name = "plan-installs-nothing"
-note = "plan changes nothing, so after mod-a plans the install of mod-b the catalog still lists mod-a alone."
+name = "a-dry-run-installs-nothing"
+note = "A dry run of install changes nothing, so after mod-a asks one of mod-b the catalog still lists mod-a alone."
 
 [host]
 base = "system"
@@ -14,8 +14,9 @@ input = "start"
 [[step]]
 input = "call"
 mod = "mod-a"
-member = "mods.plan"
+member = "mods.install"
 folders = ["mod-b"]
+args = [{ dryRun = true }]
 
 [[step]]
 look = "mods"

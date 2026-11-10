@@ -1,6 +1,6 @@
 // The packages mod (mods/packages) over a stand-in for deckit: the version requirements package.toml writes, the
 // versions each takes, the package file of a folder as its main process module reads it, the dependencies read against
-// the mods installed, and deckit/packages planning and installing through deckit.mods, refused while one is unmet.
+// the mods installed, and deckit/packages installing through deckit.mods, dry or refused while one is unmet.
 // Exits 1 with a line for each check that failed.
 const fs = require('fs');
 const os = require('os');
@@ -150,15 +150,11 @@ async function main() {
     const asked = [];
     const deckit = {
         mods: {
-            plan: async (folder) => {
-                asked.push(['plan', folder]);
+            install: async (folder, options) => {
+                asked.push([options?.dryRun ? 'dry run' : 'install', folder]);
                 if (!files[folder])
                     throw Object.assign(new Error(`${folder} has no manifest.toml`), { kind: 'MANIFEST' });
-                return { id: folder.split('/').pop(), name: 'Mod', permissions: [], from: folder, replaces: false };
-            },
-            install: async (folder) => {
-                asked.push(['install', folder]);
-                return { id: folder.split('/').pop(), version: '1.0.0' };
+                return { id: folder.split('/').pop(), name: 'Mod', version: '1.0.0', permissions: [], replaces: false };
             },
             list: async () => ({ found, running: [], interfaces: [] }),
         },
@@ -167,17 +163,18 @@ async function main() {
     const client = (permissions) =>
         service.exportsFor({ credential: { mod: 'settings', permissions }, mod: { name: 'Settings' } });
     const settings = client(['deckit.mods']);
-    const planned = await settings.plan('/m/early');
+    const planned = await settings.install('/m/early', { dryRun: true });
     check(
-        "a plan is deckit.mods' with the dependencies",
+        "a dry run is deckit.mods' with the dependencies, unmet ones too",
         planned.id === 'early' &&
-            planned.from === '/m/early' &&
-            json(planned.dependencies.map((each) => each.satisfied)) === '[false,false]',
-        planned
+            planned.replaces === false &&
+            json(planned.dependencies.map((each) => each.satisfied)) === '[false,false]' &&
+            json(asked) === json([['dry run', '/m/early']]),
+        { planned, asked }
     );
     check(
         'a folder deckit.mods refuses is refused as it is',
-        (await rejection(settings.plan('/m/none')))?.kind === 'MANIFEST'
+        (await rejection(settings.install('/m/none', { dryRun: true })))?.kind === 'MANIFEST'
     );
     asked.length = 0;
     const refusedInstall = await rejection(settings.install('/m/early'));
@@ -197,10 +194,10 @@ async function main() {
     );
     check('a folder that depends on nothing installs', (await settings.install('/m/plain')).id === 'plain');
     const stranger = client([]);
-    for (const call of ['plan', 'install'])
+    for (const options of [undefined, { dryRun: true }])
         check(
-            `a client that does not hold deckit.mods is refused ${call}`,
-            json(await rejection(stranger[call]('/m/ready'))) ===
+            `a client that does not hold deckit.mods is refused install with ${json(options)}`,
+            json(await rejection(stranger.install('/m/ready', options))) ===
                 json({ message: 'Settings does not hold deckit.mods', kind: 'NOT_PERMITTED' })
         );
     fs.rmSync(folders, { recursive: true, force: true });
