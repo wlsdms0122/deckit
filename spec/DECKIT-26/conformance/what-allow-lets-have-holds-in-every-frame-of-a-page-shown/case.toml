@@ -1,0 +1,48 @@
+case = 12
+name = "what-allow-lets-have-holds-in-every-frame-of-a-page-shown"
+note = "What allow changes holds for each check after it, of every page of the session, in every frame. mod-a shows site-a in its session main, lets site-a have notifications there, and site-a's page and a frame it made read Notification.permission once the clipboard, which site-a may not read, is refused it on a press."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 3
+part = "title"
+
+[step.expect]
+answers = "granted granted"

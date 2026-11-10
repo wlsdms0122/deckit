@@ -1,0 +1,38 @@
+case = 12
+name = "a-link-to-an-app-in-a-frame-is-asked-as-the-site-of-the-frame"
+note = "An app's address is asked as the site of the document that goes to it, a frame's among them; a frame the page makes with no address of its own has the page's origin. site-a shows a frame of its own whose link to mailto:a@example.com is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+apps = { mailto = "Mail" }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "decidePermission", args = [{ origin = "site-a", permissions = ["open:mailto"], app = "Mail", url = "mailto:a@example.com" }] }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "mailto:a@example.com", activates = true }]

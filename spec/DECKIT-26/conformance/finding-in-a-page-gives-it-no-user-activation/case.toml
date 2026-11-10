@@ -1,0 +1,43 @@
+case = 10
+name = "finding-in-a-page-gives-it-no-user-activation"
+note = "What the web engine does in a site's page gives it no user activation, as the web platform gives none for it. mod-a shows site-a, whose page and a frame it makes read their user activation, and finds find in it."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { didFind = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "find"
+of = 2
+args = ["find", { start = true }]
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "didFind", args = [{ matches = 2, active = 1, final = true }] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "page false false, frame false false"
