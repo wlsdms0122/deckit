@@ -21,7 +21,8 @@ What a site reaches is the web engine's to decide, under every layer over it and
 - A site asks for `camera`. One implementation asks the mod showing it, another lets it have the camera, a third refuses it; and on one a mod granted nothing is asked all the same.
 - `allow([{ origin: "https://example.com/", permission: "camera" }])` is taken on one implementation, which reads the origin of the address, and refused on another; `allow` with an entry `open:mailto` is refused on one, which knows only the names a site asks for, and the mod that hands back every answer it kept in one call loses them all.
 - A site's link to `mailto:a@example.com` starts the mail app at once on one implementation, asks the mod on another, and is dropped on a third.
-- A site of a mod granted nothing writes what a person then pastes in any app on one implementation, while the mod itself may not; on another it may not either. On a third `navigator.clipboard` is refused it, and `document.execCommand('copy')` writes it all the same.
+- A site of a mod granted nothing writes what a person then pastes in any app on one implementation, while the mod itself may not; on another it may not either. On a third `navigator.clipboard` is refused it, and `document.execCommand('copy')` writes it all the same, or a frame the site makes writes it.
+- A site takes the screen once a person chooses what to share on one implementation, and asks the mod first on another; a frame of another origin a site shows has the camera the page was let have on a third.
 - A site's certificate the machine cannot verify loads on one implementation once the mod trusts it, and on another only after the mod shows the page again; one reads a fingerprint as one text and another as another, and what a mod kept is trusted on neither.
 - A mod lets a site have notifications, and the host app quits and starts. On one implementation the site still has them, and on another it is asked again.
 
@@ -29,11 +30,11 @@ What a site reaches is the web engine's to decide, under every layer over it and
 
 ### What a site asks for
 
-A site asks for what it may have by the **names** the web platform gives each in the Permissions API. Each name meets one **rule**, and a name of no row meets the rule `refuse`, but `display-capture`, under *The machine's own consent*:
+A site asks for what it may have by the **names** the web platform gives each in the Permissions API. Each name meets one **rule**, and a name of no row meets the rule `refuse`:
 
 | rule | names | a site that asks for it | a site that checks it |
 |---|---|---|---|
-| `ask` | `notifications`, `clipboard-read`, `geolocation`, `microphone`, `camera` | is asked of the mod, under *Asking the mod* | has it where the mod let the site have it with `allow`, under *allow and revoke* |
+| `ask` | `notifications`, `clipboard-read`, `geolocation`, `microphone`, `camera`, `display-capture` | is asked of the mod, under *Asking the mod* | has it where the mod let the site have it with `allow`, under *allow and revoke* |
 | `allow` | `fullscreen`, `clipboard-write`, `pointer-lock`, `keyboard-lock`, `encrypted-media` | is let have it, unasked | has it |
 | `checked` | `local-network-access` | is refused it, unasked | has it |
 | `refuse` | any other | is refused it, unasked | does not have it |
@@ -49,7 +50,7 @@ A site's ask may hold more than one name. It is refused where it holds none, or 
 
 A page's `capture`, as [web pages](../DECKIT-25/SPEC.md) fix its state, tells whether it takes the microphone or the camera it was let have, or the screen.
 
-The **site** of an ask is the origin of the address of the page that shows it, as the URL Standard serializes the origin of an address of the web.
+The **site** of an ask is the origin of the document that asks, as the URL Standard serializes the origin of an address of the web: the page's, or that of a frame in it, as the web platform asks a frame's permission, a frame the page made with no address of its own having the page's origin. A document whose origin is opaque, such as a frame sandboxed without `allow-same-origin`, is no site, and its ask is refused, unasked. What a site is let have, and refused, holds alike in every frame of the page. An app's address, under *The app for an address*, is asked as the site of the page.
 
 **Note.** The names are the web platform's, so a site's own code and a person who read a browser's settings mean the same thing by each. A name the system guards is guarded for the site as for the mod: a site the mod shows reaches through the mod, and reaches no further than the mod may.
 
@@ -68,7 +69,7 @@ The mod is asked through the delegate of the page that asked, as [web pages](../
 
 The site is let have what it asked for where `decidePermission` answers `true`, or a promise of `true`; anything else it answers, a member the delegate does not hold, and one that throws or whose promise rejects refuse it. The question has no time limit. An ask the page makes while a question for the same page, site and names is unanswered joins it, and is answered as it is. A page that closes while it is asked is refused.
 
-What the mod answers is not kept: the site is asked again as it asks again.
+What the mod answers is not kept: the site is asked again as it asks again. What the web engine answers a site, let through or refused, gives it no user activation, as the web platform's answers give none.
 
 ### allow and revoke
 
@@ -83,6 +84,7 @@ What the mod answers is not kept: the site is asked again as it asks again.
 ```
 site-permission = ask-name / "open:" scheme
 ask-name        = "notifications" / "clipboard-read" / "geolocation" / "microphone" / "camera"
+                / "display-capture"
 scheme          = lower *( lower / DIGIT / "+" / "-" / "." )
 lower           = %x61-7A                      ; a to z
 ```
@@ -111,7 +113,7 @@ By the rules above, a site reads the clipboard only where its mod is granted `sy
 
 A site's `document.execCommand('copy')` and `document.execCommand('cut')` answer `false` and change nothing, neither the clipboard nor the page, where the site does not have `clipboard-write`, and `document.execCommand('paste')` where it does not have `clipboard-read`. A command answers at once, so it is never asked of the mod: the site has the name as its page loads, by the rules above and what `allow` let it have, and a page loaded before an `allow` takes it at its next load. Where the site has it, the command does what the web platform makes of it.
 
-**Note.** The camera, the microphone and the location have no permission of the system's, so `system.site-permissions` alone reaches them for a site.
+**Note.** The camera, the microphone, the location and the screen have no permission of the system's, so `system.site-permissions` alone reaches them for a site.
 
 ### The machine's own consent
 
@@ -119,9 +121,9 @@ The machine asks a person, for the host app, whether the app may have the camera
 
 - `geolocation`: asked of the mod as the rule `ask` is; the machine's consent is asked only once the mod let the site have it, and a site the mod refused reaches nothing of the machine.
 - `camera` and `microphone`: the machine's consent is asked as the site asks, before the mod is; where the machine refuses the host app the device, the site is refused, and the mod is not asked.
-- `display-capture`, a site taking the screen as the web platform's `getDisplayMedia()` does after a press: not asked of the mod. The machine's own chooser of what to share asks the person, and its consent to record the screen follows.
+- `display-capture`, a site taking the screen as the web platform's `getDisplayMedia()` does: asked of the mod as the rule `ask` is, where the site has the user activation the web platform needs for it, and refused otherwise with the web platform's `InvalidStateError`, unasked. A site refused it is refused with `NotAllowedError`. Once the mod let the site have it, the machine's own chooser of what to share asks the person, and its consent to record the screen follows.
 
-**Note.** The order the web engine holds to is the mod first and the machine after, as for the location: the camera, the microphone and the screen are asked of the machine first by the engine underneath, which gives the host app no way to put them to the mod first.
+**Note.** The order the web engine holds to is the mod first and the machine after, as for the location and the screen: the camera and the microphone are asked of the machine first by the engine underneath, which gives the host app no way to put them to the mod first.
 
 ### Certificates and trust
 
@@ -168,12 +170,14 @@ What `allow` let a site have, and each certificate `trust` trusted, last until t
 - `allow` taking only the names of the rule `ask`. A mod that keeps the apps a person let a site open could not hand them back, and one call holding one would lose every answer.
 - `allow` and `revoke` answering how many sites are let have something. A mod would read how much other mods let sites have.
 - An app's address opened as `openExternal` of the mod. `openExternal` refuses a scheme other than the web's and `file`; a site that asks for an app reaches it only through a question a person answers.
+- A frame's ask taken as the page's site. A frame of another origin, such as a player another site embeds, would have what the page was let have, which the web platform does not let it have; and a frame the page makes would reach what the page is refused.
+- Taking the screen left to the machine's chooser alone. A site of a mod granted nothing would take the screen once a person chose it, and the mod would not be asked what it is asked for the camera.
 - A site's clipboard left to the engine underneath. A site of a mod granted nothing would write what a person pastes in any app, which the mod itself may not, and two implementations would ask a person on screens of their own.
-- The camera, the microphone and the location under permissions of the system's. The system defines none for them, since no request of a mod's handle reaches them; `system.site-permissions` is the one a person reads for them.
+- The camera, the microphone, the location and the screen under permissions of the system's. The system defines none for them, since no request of a mod's handle reaches them; `system.site-permissions` is the one a person reads for them.
 - What a site was let have and the certificates trusted kept across starts by the web engine. The mod keeps them already, as it keeps what a person answered, and hands them back; two copies would disagree as a person changes one.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The camera, the microphone, the location and the screen, and *The machine's own consent*: the case format reads no device of the machine, a site let have one reaches the machine's own consent, and a site's ask for the location waits until its page is seen, which no page of the case format is. The names of the rules `allow` but `clipboard-write`, and `checked`: no input of the case format goes full screen, locks a key or the pointer, plays protected media or reaches a local network. `capture`: no case takes a device. A page that had a name before `revoke` going on having it: no case revokes while a page is shown. A question joined, and a page closed while it is asked: no input closes a page before the delegate answers. A delegate member missing or throwing: the host's delegate holds each member a case reads, and throws nothing. `read()` and `write(items)` of the clipboard: the cases read and write it by text. A command by `execCommand` of a site that has the name: it reaches the clipboard and the paste control of the engine underneath, not the clipboard the case format reads. A certificate refused, `didRefuseCertificate` and a page loaded again once `trust` trusts its certificate: the case format serves its sites over HTTP alone, and a site served with a certificate would need one the runner makes or a case carries, with its fingerprint written in the case; the cases hold the refusals of `trust` and that what it trusts is kept, and no case loads a page under a certificate. That `allow`, `revoke` and `trust` answer nothing: the case format compares no answer of a request that answers nothing.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The camera, the microphone and the location, a site let have the screen, and *The machine's own consent*: the case format reads no device of the machine, a site let have one reaches the machine's own consent, and a site's ask for the location waits until its page is seen, which no page of the case format is. A frame of another origin: a site's page in the case format knows no other site's address to show in a frame. The names of the rules `allow` but `clipboard-write`, and `checked`: no input of the case format goes full screen, locks a key or the pointer, plays protected media or reaches a local network. `capture`: no case takes a device. A page that had a name before `revoke` going on having it: no case revokes while a page is shown. A question joined, and a page closed while it is asked: no input closes a page before the delegate answers. A delegate member missing or throwing: the host's delegate holds each member a case reads, and throws nothing. `read()` and `write(items)` of the clipboard: the cases read and write it by text. A command by `execCommand` of a site that has the name: it reaches the clipboard and the paste control of the engine underneath, not the clipboard the case format reads. A certificate refused, `didRefuseCertificate` and a page loaded again once `trust` trusts its certificate: the case format serves its sites over HTTP alone, and a site served with a certificate would need one the runner makes or a case carries, with its fingerprint written in the case; the cases hold the refusals of `trust` and that what it trusts is kept, and no case loads a page under a certificate. That `allow`, `revoke` and `trust` answer nothing: the case format compares no answer of a request that answers nothing.
 
-**Note.** What this costs an implementation: each ask held to the table of rules and to the permissions of the system's at the moment it is asked; a question for each page, site and names, joined and refused as its page closes; the site's clipboard routed to the clipboard the mod's handle reaches, whatever the engine underneath does with the web platform's, and its commands by `execCommand` held to the names it has as its page loads; an app's address asked by its scheme and handed to the host; the fingerprint computed as this DECKIT writes it; and what a site was let have and the certificates trusted held for each mod and session, until the host app quits or the mod is erased.
+**Note.** What this costs an implementation: each ask held to the table of rules and to the permissions of the system's at the moment it is asked; a question for each page, site and names, joined and refused as its page closes; the site's clipboard routed to the clipboard the mod's handle reaches, whatever the engine underneath does with the web platform's, and its commands by `execCommand` held to the names it has as its page loads; each frame of a page held to the rules as the site of its own origin, and every way to the engine underneath's clipboard and screen held to them; a site's taking of the screen asked of the mod before the engine underneath has it, and the answers a site is given carrying no user activation; an app's address asked by its scheme and handed to the host; the fingerprint computed as this DECKIT writes it; and what a site was let have and the certificates trusted held for each mod and session, until the host app quits or the mod is erased.

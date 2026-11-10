@@ -1,0 +1,41 @@
+case = 11
+name = "a-site-the-mod-answers-false-is-refused-the-screen"
+note = "display-capture, of the rule ask, is asked of the mod as a site with a user activation takes the screen, and refused with NotAllowedError where the mod answers anything but true. site-a takes the screen as it is pressed, and the host's delegate answers false."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "decidePermission", args = [{ origin = "site-a", permissions = ["display-capture"], app = "", url = "" }] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "NotAllowedError"

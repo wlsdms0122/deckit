@@ -1,0 +1,36 @@
+case = 10
+name = "a-site-of-a-mod-not-granted-system-clipboard-write-does-not-write-the-clipboard-through-its-class"
+note = "A site reaches the clipboard only as this DECKIT lets it, through the web platform's clipboard by any of its ways. site-a, shown by mod-a granted system.clipboard-read and not system.clipboard-write, writes from site-a by the method of the clipboard's class, and mod-a reads the clipboard."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "NotAllowedError"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = ""

@@ -1,0 +1,41 @@
+case = 11
+name = "a-site-of-a-mod-not-granted-system-site-permissions-is-refused-the-screen-unasked"
+note = "An ask is put to the mod only where it is granted system.site-permissions. site-a, shown by mod-a granted nothing, takes the screen as it is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "NotAllowedError"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []

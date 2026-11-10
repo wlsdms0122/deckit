@@ -1,0 +1,36 @@
+case = 10
+name = "what-the-web-engine-answers-gives-a-site-no-user-activation"
+note = "What the web engine answers a site gives it no user activation. site-a, shown by mod-a granted system.site-permissions, reads the clipboard as its page loads, refused, and then takes the screen."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "InvalidStateError"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []
