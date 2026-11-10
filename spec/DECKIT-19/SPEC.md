@@ -56,13 +56,14 @@ The owner keeps each notification posted, in its own storage, as [the storage](.
 
 As a person presses a notification, or one of its actions, the owner takes it away and runs the command of what was pressed, with its args, on the notification's mod, as `run` of [the commands](../DECKIT-15/SPEC.md) runs one for a client granted `deckit.system-services`, which launches the mod where it does not run.
 
-**Note.** How a notification is shown, when, and how many at once, are the owner's: a toast over the app, a notification of the machine's through `notifications.show` of [the handle](../DECKIT-7/SPEC.md), or none at all on a host with no shell. A person's press reaches the owner through what it shows.
+**Note.** How a notification is shown, when, and how many at once, are the owner's: a toast over the app, a notification of the machine's through `notifications.show`, as [notifications of the machine](../DECKIT-21/SPEC.md) fix it, or none at all on a host with no shell. A person's press reaches the owner through what it shows.
 
 ## Interactions
 
 - A mod's id and name, and `background`: [the bundle](../DECKIT-2/SPEC.md).
 - `deckit.system-services`, which the owner is granted to run a notification's command: [the permissions](../DECKIT-3/SPEC.md).
-- `INVALID_ARGUMENT`, what a value is, and `notifications.show`: [the handle](../DECKIT-7/SPEC.md).
+- `INVALID_ARGUMENT` and what a value is: [the handle](../DECKIT-7/SPEC.md).
+- A notification shown on the machine, and a press of it heard: [notifications of the machine](../DECKIT-21/SPEC.md).
 - The owner of an interface and the connection to it: [the interfaces](../DECKIT-10/SPEC.md). A call of a member of the exports and a refusal: [calls across a connection](../DECKIT-11/SPEC.md).
 - Where the owner keeps what is posted: [the storage](../DECKIT-13/SPEC.md).
 - A command of a mod's, and `run`, which launches its mod: [the commands](../DECKIT-15/SPEC.md).
@@ -81,6 +82,6 @@ As a person presses a notification, or one of its actions, the owner takes it aw
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That `post` answers an id no other has had, `posted`, and a `remove` that answers `true`: an id and a time are not known before the case runs, and a step hands no value an earlier step answered. `silent`, `command`, `args`, and what a press runs: no input of the case format presses a notification, and how one is shown is the owner's. That a notification is taken away by a person: likewise. That the owner opens its exports in its start and for every client: every case reaches it so. A key the table does not name: each is a key a case reads the same way.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That `post` answers an id no other has had, `posted`, and a `remove` that answers `true`: an id and a time are not known before the case runs, and a step hands no value an earlier step answered. `silent`, `command`, `args`, and what a press runs: how a notification is shown is the owner's, so no case knows that one is shown on the machine where the input `press` of the case format presses it. That a notification is taken away by a person: likewise. That the owner opens its exports in its start and for every client: every case reaches it so. A key the table does not name: each is a key a case reads the same way.
 
 **Note.** What this costs an implementation's owner: it writes its record to its storage on each post and each notification taken away, and, writing `background`, runs from the host app's start, so that a notification posted before a person opens anything is kept.

@@ -1,0 +1,27 @@
+case = 7
+name = "showing-a-notification-with-a-title-of-another-type-is-refused"
+note = "show is refused at call with kind INVALID_ARGUMENT where title is not a string. mod-a shows the title 5."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = 5 }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+look = "shown"
+
+[step.expect]
+answers = []

@@ -1,0 +1,20 @@
+case = 7
+name = "show-answers-that-the-machine-took-the-notification"
+note = "show is fulfilled with shown true where the host answers that the machine took the notification, as the base answers of each, and onPress beside it, a member and no value. mod-a shows Standup."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = "Standup", body = "in 5 min" }]
+
+[step.expect]
+answers = { shown = true }

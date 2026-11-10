@@ -1,0 +1,27 @@
+case = 7
+name = "showing-a-notification-with-title-and-body-left-out-is-refused"
+note = "show is refused at call with kind INVALID_ARGUMENT where title and body are both left out, each then the empty string. mod-a shows an empty table."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{}]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+look = "shown"
+
+[step.expect]
+answers = []

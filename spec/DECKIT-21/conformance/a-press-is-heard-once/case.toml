@@ -1,0 +1,39 @@
+case = 7
+name = "a-press-is-heard-once"
+note = "A press of a notification is heard once: a listener is not called for a later one. mod-a shows Standup and adds a listener, and the notification is pressed twice."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = "Standup", body = "in 5 min" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "onPress"
+of = 2
+listener = true
+
+[[step]]
+input = "press"
+notification = 1
+
+[[step]]
+input = "press"
+notification = 1
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[]]
