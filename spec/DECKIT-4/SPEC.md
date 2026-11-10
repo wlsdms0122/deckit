@@ -131,7 +131,7 @@ A name shipped and removed stays out at each later start, under *What a host shi
 
 - What a bundle is, the name it is listed under, what it is answered and when it is refused, and which mod is a system mod: [the bundle](../DECKIT-2/SPEC.md).
 - `deckit.mods`, and the refusal of a request made by a mod not granted it: [the permissions](../DECKIT-3/SPEC.md).
-- What runs of a mod installed, replaced or removed while it runs, and which background mods launch in the catalog's order: the lifecycle's DECKIT.
+- What runs of a mod installed, replaced or removed while it runs, and which background mods launch in the catalog's order: [the lifecycle](../DECKIT-5/SPEC.md).
 - What a mod stores, and what erasing it takes away: [the storage](../DECKIT-13/SPEC.md).
 - The handle a mod makes these requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
 - Each mod's latest run, which `runs` answers: [the lifecycle](../DECKIT-5/SPEC.md). Each interface with its providers, owner and clients, which `mods.interfaces()` answers: [the interfaces](../DECKIT-10/SPEC.md).
