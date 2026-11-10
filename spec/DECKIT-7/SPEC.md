@@ -28,7 +28,7 @@ await deckit.mods.remove("mod-b");
 
 Where the number is read as the string `"5"`, the launch is refused with `NOT_INSTALLED`; where it is not, it is refused for its argument, with a kind or with none. The remove with `erase` left out removes `mod-b` and keeps what it stored on one implementation, and is refused on another. A mod that catches the error reads `kind` on one, and on another finds the refusal's stage written into its message, or not at all.
 
-A mod written for a mod manager prints why a request failed: `plan` of a folder that is no bundle is refused at `read`, and `install` of a folder whose name is read in place at `call`. Where the error carries the kind alone, the manager cannot say whether the folder or the request was refused.
+A mod written for a mod manager prints why a request failed: a dry run of `install` of a folder that is no bundle is refused at `read`, and `install` of a folder whose name is read in place at `call`. Where the error carries the kind alone, the manager cannot say whether the folder or the request was refused.
 
 ## Rules
 
@@ -41,7 +41,7 @@ A mod written for a mod manager prints why a request failed: `plan` of a folder 
 | `id` | string: the `id` of the bundle the run is of | | here |
 | `name` | string: the `name` of the bundle the run is of, as [the bundle](../DECKIT-2/SPEC.md) answers it | | here |
 | `quit()` | the request that ends the mod's own run | | [the lifecycle](../DECKIT-5/SPEC.md) |
-| `mods.list()`, `mods.plan(folder)`, `mods.install(folder)`, `mods.remove(id, erase)` | the requests `list`, `plan`, `install` and `remove` | `deckit.mods` | [the catalog](../DECKIT-4/SPEC.md) |
+| `mods.list()`, `mods.install(folder, options)`, `mods.remove(id, erase)` | the requests `list`, `install` and `remove` | `deckit.mods` | [the catalog](../DECKIT-4/SPEC.md) |
 | `mods.launch(id)`, `mods.quit(id)`, `mods.relaunch(id)` | the requests `launch`, `quit` and `relaunch` | `deckit.mods` | [the lifecycle](../DECKIT-5/SPEC.md) |
 | `mods.onChange(listener)` | being told that what `mods.list()` answers may have changed | `deckit.mods` | [the events](../DECKIT-12/SPEC.md) |
 | `mods.pin(interface, mod)` | the owner of an interface, as a person pins it | `deckit.mods` | [the interfaces](../DECKIT-10/SPEC.md) |
@@ -99,7 +99,7 @@ An argument the signature does not require may be left out. An argument past tho
 - `start`, which is handed the handle, and the layers a host stacks with their lifecycles: [the entry](../DECKIT-6/SPEC.md).
 - The `id` and `name` a bundle answers, and the values of the manifest text: [the bundle](../DECKIT-2/SPEC.md).
 - What a mod is granted, which request a permission guards, the refusal `NOT_PERMITTED` and that it is checked before anything else of a request: [the permissions](../DECKIT-3/SPEC.md).
-- The requests `list`, `plan`, `install` and `remove`, their signatures and refusals: [the catalog](../DECKIT-4/SPEC.md). The requests `launch`, `quit` and `relaunch`, theirs, and a mod quitting itself: [the lifecycle](../DECKIT-5/SPEC.md).
+- The requests `list`, `install` and `remove`, their signatures and refusals: [the catalog](../DECKIT-4/SPEC.md). The requests `launch`, `quit` and `relaunch`, theirs, and a mod quitting itself: [the lifecycle](../DECKIT-5/SPEC.md).
 - The input `call`, which has a case's mod make a request through its handle, and the look `opened`: [the case format](../DECKIT-1/SPEC.md).
 - Every other member of the table: the DECKIT the table names for it.
 - The handle `shell`, which the shell hands its own lifecycles: the shell's DECKITs.
@@ -116,7 +116,7 @@ An argument the signature does not require may be left out. An argument past tho
 - An argument past the signature refused. What a request does is fixed by the arguments it takes, and one past them changes nothing of it; refusing it would be a check of its own beside the call.
 - The arguments checked before the permission. A mod not granted a request would learn from its refusals what the request takes, and whether it is refused with `NOT_PERMITTED` would depend on whether it handed the arguments of their types.
 - A refusal thrown at the call rather than carried by the promise. Code would handle a refusal in two places, and a request refused at once would be told apart from one refused later.
-- An error that carries its kind alone. A request such as `plan` is refused at `read` for its folder and at `call` for the catalog, and a mod manager that tells a person why would read the stage out of the message.
+- An error that carries its kind alone. A request such as `install` is refused at `read` for its folder and at `call` for the catalog, and a mod manager that tells a person why would read the stage out of the message.
 
 ## Notes
 

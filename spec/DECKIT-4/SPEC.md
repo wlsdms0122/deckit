@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-The catalog is every bundle the system has found, one for each name, in one order. This DECKIT fixes where the system finds bundles, which one it reads where two are listed under one name, the order it lists them in, what it does with the bundles a host ships each time the host app starts, and the requests a mod granted `deckit.mods` makes of it: listing the mods, planning and making an install from a folder, and removing an installed mod, with what each answers and how each is refused.
+The catalog is every bundle the system has found, one for each name, in one order. This DECKIT fixes where the system finds bundles, which one it reads where two are listed under one name, the order it lists them in, what it does with the bundles a host ships each time the host app starts, and the requests a mod granted `deckit.mods` makes of it: listing the mods, installing from a folder or making a dry run of the install, and removing an installed mod, with what each answers and how each is refused.
 
 ## Motivation
 
@@ -26,7 +26,7 @@ A host ships a mod, the person removes it, and the app starts again. Whether the
 
 A mod granted `deckit.mods` installs a folder whose id is read in place. Where one implementation installs it and lists the copy, and another refuses, the same mod manager works on one and fails on the other. So does each other request such a mod makes, on an input like these:
 
-- `plan` of a folder holding `mod-a` 1.1.0, where `mod-a` 1.0.0 is installed: whether it says the install would take the place of 1.0.0, which a mod manager tells the person before it installs.
+- A dry run of `install` of a folder holding `mod-a` 1.1.0, where `mod-a` 1.0.0 is installed: whether it says the install would take the place of 1.0.0, which a mod manager tells the person before it installs.
 - `install` of a folder inside the system's own folder: copied into itself, or refused.
 - `remove` of `mod-a` read in place: its author's working folder deleted, or refused.
 - `remove` of an installed `mod-a` with `erase` true: what `mod-a` stored kept, or taken with it.
@@ -88,8 +88,7 @@ A bundle installed by *install* in the place of a system mod is not a system mod
 | request | takes | answers | refused with |
 |---|---|---|---|
 | `list` | nothing | an array of entries, one for each name in the catalog, in the catalog's order | |
-| `plan` | `folder`, a string: a folder's path | what installing `folder` would come to | at `read` `NOT_LOADABLE`; at `call` `NESTED`, `READ_IN_PLACE` |
-| `install` | `folder`, a string: a folder's path | the bundle installed | at `read` `NOT_LOADABLE`; at `call` `NESTED`, `READ_IN_PLACE` |
+| `install` | `folder`, a string: a folder's path; `options`, a table that may be left out, with `dryRun`, a boolean that may be left out, `false` where it is | the bundle installed, or with `dryRun` true the bundle it would install | at `read` `NOT_LOADABLE`; at `call` `NESTED`, `READ_IN_PLACE` |
 | `remove` | `id`, a string; `erase`, a boolean | whether what the mod stored was erased | at `call` `READ_IN_PLACE`, `NOT_INSTALLED` |
 
 A request is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse one, then as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, and then with the first refusal of its row that holds, in the row's order.
@@ -109,16 +108,18 @@ Each entry is a table:
 | `system` | boolean: whether the bundle is a system mod |
 | `hides` | array of strings: the paths of the folders of the bundles it hides, in the order found |
 
-#### plan and install
+#### install
 
 `folder` is an absolute path: `/` followed by the names of the folders on the way from the root, apart at `/`. A string that is not one names no folder. `folder` is read as a bundle that is not a system mod's, as [the bundle](../DECKIT-2/SPEC.md) reads one folder. A folder the bundle refuses, a folder that is not a bundle, and a string that names no folder refuse the request at `read` with kind `NOT_LOADABLE`. Then the request is refused at `call`:
 
 - with `NESTED` where the place `folder` leads to, every link followed, lies inside the system's own folder, or holds it;
 - with `READ_IN_PLACE` where a bundle read in place is listed under the same name, which would hide the bundle installed.
 
-`plan` changes nothing. It answers the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it, with one more key, `replaces`, a boolean: whether an installed bundle is listed under the same name.
+`install` installs a copy of the bundle as `folder` holds it. Where a bundle is installed under the same name, the copy takes its place whole, and nothing of the bundle before is read again. What the mod stored stays.
 
-`install` installs a copy of the bundle as `folder` holds it. Where a bundle is installed under the same name, the copy takes its place whole, and nothing of the bundle before is read again. What the mod stored stays. It answers the bundle installed, as [the bundle](../DECKIT-2/SPEC.md) answers it.
+With `dryRun` true, `install` changes nothing and answers what it would install, refused as the install would be.
+
+Either way it answers the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it, with one more key, `replaces`, a boolean: whether an installed bundle is listed under the same name before the install.
 
 #### remove
 
@@ -142,9 +143,11 @@ A name shipped and removed stays out at each later start, under *What a host shi
 - The catalog listed by name alone. A host orders what it ships, and a person's installs come after what the host shipped. Listed by name, what a host ships could not say which of its background mods launches first.
 - A host that ships nothing leaving installed what it shipped before. That would be a second rule for one list of shipped names, and an empty list would mean what no other list means.
 - Installing what a host ships only when its version is newer than the copy installed. Versions say what a mod's author released, and the system compares them only against `api`: a host that ships an older version means that version.
+- A request of its own for what an install would come to. It would take the same folder, be read and refused the same way and answer the same bundle, a second name for one act; a dry run is that act changing nothing.
+- `install` answering beside the bundle the folder it was handed, or whether a restart of the app is left to finish the install. The folder is the asking mod's own, and what only a restart finishes is the host app's, not the catalog's.
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. What `list` answers, that `plan` and `install` answer the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it, and that a bundle installed in the place of a system mod is not one, which only `list` shows: they wait on the question below. That an installed bundle is read from its copy and not from the folder it was installed from, and that a change to a folder read in place is seen from the next read on, wait on an input that changes a folder. `NESTED`: a case cannot write a folder inside the system's own folder, whose layout is not the specification's, nor a bundle that holds it. The sentences of *What a host ships* that need a host that changes between starts wait on a case format that changes the host between starts. That a refused start takes nothing waits on a look at the system's own folder, which no format has.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. What `list` answers, that `install` answers the bundle as [the bundle](../DECKIT-2/SPEC.md) answers it, and that a bundle installed in the place of a system mod is not one, which only `list` shows: they wait on the question below. That an installed bundle is read from its copy and not from the folder it was installed from, and that a change to a folder read in place is seen from the next read on, wait on an input that changes a folder. `NESTED`: a case cannot write a folder inside the system's own folder, whose layout is not the specification's, nor a bundle that holds it. The sentences of *What a host ships* that need a host that changes between starts wait on a case format that changes the host between starts. That a refused start takes nothing waits on a look at the system's own folder, which no format has.
 
-**Open.** What `list` answers: the array of entries above, or a table that holds them beside each running mod's summary and each interface's providers and owner, each entry the bundle's keys beside the catalog's and its run's. Whether `plan` answers beside the bundle `from`, the folder it was handed, and `install` beside the bundle whether a restart of the app is left to finish it.
+**Open.** What `list` answers: the array of entries above, or a table that holds them beside each running mod's summary and each interface's providers and owner, each entry the bundle's keys beside the catalog's and its run's.
