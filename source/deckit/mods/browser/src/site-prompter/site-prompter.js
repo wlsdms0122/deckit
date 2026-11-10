@@ -1,7 +1,7 @@
 const { hostOf, originOf, isWeb } = require('../address/address.js');
 const { sitePermissionKey } = require('../store/store.js');
 
-// The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open, a
+// The questions a site makes the Browser ask: a certificate this computer cannot verify, a permission, an app to open, a
 // file to download. And the site permissions the person reviews. A certificate is asked at once. The others wait while
 // the Browser is hidden, until its tab is next in front; a background tab that asks one while the Browser is on screen
 // is brought to the front.
@@ -190,7 +190,7 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
         let opened = false;
         ui.dialog({
             title: `Open ${app}?`,
-            message: `${site} wants to open ${app} on this Mac.`,
+            message: `${site} wants to open ${app} on this computer.`,
             fields: [{ key: 'always', type: 'switch', label: `Always allow ${site} to open ${app}`, value: false }],
             confirmLabel: `Open ${app}`,
             cancelLabel: 'Cancel',

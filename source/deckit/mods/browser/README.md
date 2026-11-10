@@ -1,6 +1,6 @@
 # Browser
 
-Web pages in tabs, in folders, with bookmarks, an address bar in its title bar, and find in page. What a site asks for (the camera, notifications, a certificate this Mac cannot verify) is asked of you. What a site hands over as a file goes to the Downloads folder once you say to download it, and the download button at the toolbar's end lists what was downloaded: press a finished one to open it.
+Web pages in tabs, in folders, with bookmarks, an address bar in its title bar, and find in page. What a site asks for (the camera, notifications, a certificate this computer cannot verify) is asked of you. What a site hands over as a file goes to the Downloads folder once you say to download it, and the download button at the toolbar's end lists what was downloaded: press a finished one to open it.
 
 ## Addresses
 
@@ -96,4 +96,4 @@ The top level of the tree of bookmarks: `[{ "id": 1, "url": "https://example.com
 
 ### certificates and site-permissions
 
-What you allowed, given back to the web session at each start: `certificates` is `[{ "host", "fingerprint" }]`, a certificate this Mac cannot verify that you trusted for its host; `site-permissions` is `[{ "origin", "permission" }]`, what a site may use.
+What you allowed, given back to the web session at each start: `certificates` is `[{ "host", "fingerprint" }]`, a certificate this computer cannot verify that you trusted for its host; `site-permissions` is `[{ "origin", "permission" }]`, what a site may use.
