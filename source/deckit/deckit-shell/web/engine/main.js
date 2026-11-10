@@ -337,13 +337,15 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         return true;
     }
 
-    // What a site shows only once it was allowed notifications, its title and body whole. A site tells whatever it
-    // tells, so one whose title or body is no string, or whose `silent` is no boolean, is dropped.
+    // What a site shows only once it was allowed notifications, its title and body whole: whether it was told the
+    // mod's page. A site tells whatever it tells, so one whose title or body is no string, or whose `silent` is no
+    // boolean, is dropped.
     function notified(embedder, id, { origin, notification, title, body, silent }) {
-        if (typeof title !== 'string' || typeof body !== 'string' || typeof silent !== 'boolean') return;
+        if (typeof title !== 'string' || typeof body !== 'string' || typeof silent !== 'boolean') return false;
         const page = WEB.pageOf(id);
-        if (!page || !permits(WEB.sessionOf(page), origin, 'notifications')) return;
+        if (!page || !permits(WEB.sessionOf(page), origin, 'notifications')) return false;
         PROTOCOL.notified.send(embedder, { id, notification, title, body, silent });
+        return true;
     }
 
     // Whether a site may have `name` in a session, `{ mod, name }` or null for one that is no mod's: what it is let

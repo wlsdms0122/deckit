@@ -82,9 +82,10 @@ const WEB = Object.freeze({
 // the web page of id `opener` opened, handed to `embedder`, which shows it with `view`; `changed(embedder, id, state)`;
 // `found(embedder, id, { matches, active, final })`; `closed(embedder, id)`, a window gone; `refused(embedder, id,
 // certificate)`; `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's notification
-// shows, as the page told it; and `downloaded(embedder, { id, url, name, path, state, received, expected, error })`, a
-// download a web page it shows started, as it changes, written to the Downloads folder: `state` is `downloading`,
-// `finished`, `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise of whether it is
+// shows, as the page told it, which answers whether it is shown; and `downloaded(embedder, { id, url, name, path,
+// state, received, expected, error })`, a download a web page it shows started, as it changes, written to the Downloads
+// folder: `state` is `downloading`, `finished`, `failed` or `cancelled`, and `expected` -1 while it is not known.
+// Asked, each a promise of whether it is
 // allowed: `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download the web page of that id
 // started is saved, `name` the file's as the site gives it; `request(embedder, id, { origin, permissions
 // })`, what a site in the web page of that id asks, `permissions` as the web engine names them

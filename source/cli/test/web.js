@@ -430,14 +430,15 @@ async function main() {
     // What a site's notification shows.
     const shown = () => toldOn('deckit-shell:web-notified').length;
     const notice = { origin: 'https://a.com', notification: 1, title: 'Hi', body: 'There', silent: false };
-    listened.notified(filesPage, 7, notice);
-    check('a site not allowed notifications shows none', shown() === 0, shown());
+    const refused = listened.notified(filesPage, 7, notice);
+    check('a site not allowed notifications shows none', shown() === 0 && refused === false, shown());
     await allowSite('https://a.com', 'notifications');
-    listened.notified(filesPage, 7, { ...notice, title: 'x'.repeat(300), body: '\u{1F600}'.repeat(300) });
+    const told = listened.notified(filesPage, 7, { ...notice, title: 'x'.repeat(300), body: '\u{1F600}'.repeat(300) });
     const shownNotice = toldOn('deckit-shell:web-notified').at(-1)?.[1].payload;
     check(
         'a site allowed notifications shows them, the title and the body whole',
         shown() === 1 &&
+            told === true &&
             shownNotice.title === 'x'.repeat(300) &&
             shownNotice.body === '\u{1F600}'.repeat(300) &&
             shownNotice.silent === false,
