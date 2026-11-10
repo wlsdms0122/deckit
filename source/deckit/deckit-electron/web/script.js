@@ -6,7 +6,8 @@ import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 // what it asks, are told to the web engine: `notified(embedder, id, { origin, notification, title, body, silent })`,
 // and `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed; what it reads and writes of
 // the clipboard, `readClipboard(embedder, id, { origin })`, a promise of the text or null, and
-// `writeClipboard(embedder, id, { origin, text })`, a promise of whether it was written. `permits(session, origin,
+// `writeClipboard(embedder, id, { origin, text })`, a promise of whether it was written; its copy, cut and paste by
+// execCommand are refused where the site may not have the clipboard. `permits(session, origin,
 // name)` and `permitted(session, name)` are what the web engine says a site in a session may have, and
 // `sessionOf(page)` the session a page is in.
 export function createScript({ LOG, sessionOf, permits, permitted, notified, request, readClipboard, writeClipboard }) {
@@ -34,13 +35,17 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             const granted = Object.fromEntries(
                 permitted(session, 'notifications').map((origin) => [origin, 'granted'])
             );
-            const notifications = `(${inPage})(${JSON.stringify(channel)}, ${JSON.stringify(granted)})`;
+            const commands = {
+                writes: permits(session, SITE.originOf(page.getURL()), 'clipboard-write'),
+                reads: permitted(session, 'clipboard-read'),
+            };
+            const site = `(${inPage})(${JSON.stringify(channel)}, ${JSON.stringify(granted)}, ${JSON.stringify(commands)})`;
             const own = `(${inDeckit})(${JSON.stringify(channel)}, ${entry.muted})`;
             page.run([
-                { source: notifications, world: 'page', mainFrameOnly: true },
+                { source: site, world: 'page', mainFrameOnly: true },
                 { source: own, world: 'deckit', mainFrameOnly: true },
             ]);
-            page.evaluate(notifications, 'page').catch(() => {});
+            page.evaluate(site, 'page').catch(() => {});
             page.evaluate(own, 'deckit').catch(() => {});
             if (permits(session, SITE.originOf(page.getURL()), 'notifications'))
                 page.evaluate('window.__deckitNotification?.permission(0, "granted")', 'page').catch(() => {});
@@ -137,7 +142,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
 
     // Runs in the page's world, as source, with only its arguments: what it says crosses to deckit's world as an
     // event under `channel`.
-    function inPage(channel, table) {
+    function inPage(channel, table, commands) {
         if (window.__deckitNotification) return;
         const say = (msg) => document.dispatchEvent(new CustomEvent(channel, { detail: JSON.stringify(msg) }));
         let permission = table[location.origin] || 'default';
@@ -258,6 +263,24 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             for (const [name, value] of Object.entries(own))
                 Object.defineProperty(clipboard, name, { value, writable: true, configurable: true });
         }
+        // The page's copy, cut and paste by execCommand, the engine's own, answer false and do nothing where the site
+        // may not have the clipboard: `commands.writes`, and `commands.reads`, the sites that may read it, as the
+        // document starts, since a command answers at once.
+        const execCommand = Document.prototype.execCommand;
+        const reaches = new Map([
+            ['copy', () => commands.writes],
+            ['cut', () => commands.writes],
+            ['paste', () => commands.reads.includes(location.origin)],
+        ]);
+        Object.defineProperty(Document.prototype, 'execCommand', {
+            value: function (command, ...rest) {
+                const may = reaches.get(String(command).toLowerCase());
+                if (may && !may()) return false;
+                return execCommand.call(this, command, ...rest);
+            },
+            writable: true,
+            configurable: true,
+        });
         Object.defineProperty(window, '__deckitClipboard', {
             value: {
                 answer(id, answer) {
