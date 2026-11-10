@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 6;
+const FORMAT = 7;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -55,6 +55,7 @@ const INPUTS = {
         listener: [is.boolean, false],
         handed: [is.boolean, false],
     },
+    press: { notification: [(value) => is.integer(value) && value >= 1, true] },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -62,15 +63,16 @@ const LOOKS = {
     run: { mod: [is.string, true] },
     opened: {},
     heard: { mod: [is.string, true] },
+    shown: {},
 };
 // The format that added an input or a look, where it is not 1.
-const ADDED = { run: 2, call: 3, opened: 3, heard: 4 };
+const ADDED = { run: 2, call: 3, opened: 3, heard: 4, press: 7, shown: 7 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = { of: 4, listener: 4, handed: 5 };
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = { owners: 5 };
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit'];
+const ANSWERLESS = ['start', 'quit', 'press'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles }`, `bundles` each bundle's folder by its name.
 function read(folder) {
@@ -195,8 +197,8 @@ function stepOf(step, number, format, refuse) {
     return { number, ...step, kind, what: step[kind], expect };
 }
 
-// `start` first, again only after a `quit`, calls and looks only while the app is started, nothing after a start that
-// is refused, a call's `of` an earlier call of its mod, and no `of` beside `handed`.
+// `start` first, again only after a `quit`, calls, presses and looks only while the app is started, nothing after a
+// start that is refused, a call's `of` an earlier call of its mod, and no `of` beside `handed`.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
@@ -205,8 +207,8 @@ function order(steps, refuse) {
         if (step.of && !(step.of < step.number && of.what === 'call' && of.mod === step.mod))
             refuse(`step ${step.number}: of names no earlier call of ${step.mod}`);
         if (step.handed && step.of) refuse(`step ${step.number}: handed is written with no of`);
-        if (step.kind !== 'input' || step.what === 'call') {
-            if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? 'calls' : 'looks'} after a quit`);
+        if (step.kind !== 'input' || step.what === 'call' || step.what === 'press') {
+            if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
         }
         if (step.what === 'start') {

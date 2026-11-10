@@ -1,0 +1,31 @@
+case = 7
+name = "the-clipboard-of-the-base-stands-as-the-app-starts-again"
+note = "What is written to the clipboard the base keeps stands as the host app quits and starts again, as the machine's does. mod-a writes copied, the app quits and starts, and mod-a reads copied."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["copied"]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = "copied"

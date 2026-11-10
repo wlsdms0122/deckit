@@ -75,6 +75,8 @@ async function run(theCase, { folder, hostApp, electron }) {
                 home,
                 electron: path.join(folder, 'electron'),
                 downloads: path.join(folder, 'downloads'),
+                // The clipboard the host keeps, a file of the run's: none as the case begins, kept as the app quits.
+                clipboard: path.join(folder, 'clipboard.txt'),
                 fields,
                 mainProcess,
                 permissions: host.permissions,
@@ -155,6 +157,7 @@ async function take(step, app, paths) {
         const { member, of = null, listener = false, handed = false, number } = step;
         return partOf(await app.ask({ input: what, mod, member, args, step: number, of, listener, handed }), part);
     }
+    if (what === 'press') return app.ask({ input: what, notification: step.notification });
     return partOf(await app.ask({ look: what, mod }), part);
 }
 

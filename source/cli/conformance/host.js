@@ -5,7 +5,9 @@
 // between two states, and quits when asked. It stacks a layer of its own over deckit on each mod's page (page.js),
 // which makes the requests a call hands it and keeps what its listeners heard, attaches the web engine and the shell on
 // the base shell, runs main process modules where an owner it ships asks for them, and opens none of the addresses it
-// is handed to open outside the app: it keeps each one, for the look opened.
+// is handed to open outside the app: it keeps each one, for the look opened. It shows none of the system's
+// notifications: it keeps each one, for the look shown, and presses one when asked. Its clipboard is a file of the
+// run's, never the person's.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -30,6 +32,7 @@ let settled = false;
 let call = null; // the channels to the conformance layer on a mod's page
 let heard = null;
 const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
+const shown = []; // { notification: { title, body, silent }, onClick }: each notification handed to show, in order
 // What the host app answers the shell: nothing it is asked to show is shown.
 const SHOWS_NOTHING = Object.freeze({
     start() {},
@@ -68,7 +71,23 @@ try {
             return true;
         },
     });
-    const given = Object.create(environment, { open: { value: open } });
+    // Each notification kept, and answered as one the system took; a press calls its onClick.
+    const notifications = Object.freeze({
+        show: async ({ title, body, silent }, { onClick }) => {
+            shown.push({ notification: { title, body, silent }, onClick });
+            return true;
+        },
+    });
+    // The clipboard's text in the run's file, '' while there is none: it stands as the host app quits and starts.
+    const clipboard = Object.freeze({
+        readText: () => (fs.existsSync(setup.clipboard) ? fs.readFileSync(setup.clipboard, 'utf8') : ''),
+        writeText: (text) => fs.writeFileSync(setup.clipboard, text),
+    });
+    const given = Object.create(environment, {
+        open: { value: open },
+        notifications: { value: notifications },
+        clipboard: { value: clipboard },
+    });
     deckit = DECKIT.connect(given, {
         host: { notificationClicked: () => {}, restart: () => {} },
         config: {
@@ -103,8 +122,10 @@ socket.on('data', (chunk) => {
         buffered = buffered.slice(end + 1);
         if (asked.quit) app.quit();
         else
-            Promise.resolve(asked.input === 'call' ? request(asked) : look(asked)).then(async (came) => {
-                if (asked.input === 'call') await runsSettled();
+            Promise.resolve(
+                asked.input === 'call' ? request(asked) : asked.input === 'press' ? press(asked) : look(asked)
+            ).then(async (came) => {
+                if (asked.input) await runsSettled();
                 say({ id: asked.id, came });
             });
     }
@@ -125,6 +146,15 @@ async function request({ mod, member, args, step, of, listener, handed }) {
     }
 }
 
+// What a press comes to: the notification at the place `notification` in what shown answers pressed, `{}`, or
+// `{ none }` where there is none there.
+function press({ notification }) {
+    const one = shown[notification - 1];
+    if (!one) return { none: `no notification was shown at ${notification}` };
+    one.onClick();
+    return {};
+}
+
 // The running run of the mod listed under `mod`, `{ page }`, or `{ none }`.
 function runningOf(mod) {
     if (!deckit) return { none: 'deckit was not connected' };
@@ -143,6 +173,7 @@ async function runsSettled() {
 function look({ look: what, mod }) {
     if (!deckit) return { none: 'deckit was not connected' };
     if (what === 'opened') return { answers: opened };
+    if (what === 'shown') return { answers: shown.map(({ notification }) => notification) };
     if (what === 'heard') {
         const running = runningOf(mod);
         return running.page ? heard.invoke(running.page) : running;

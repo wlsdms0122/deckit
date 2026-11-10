@@ -73,7 +73,7 @@ A case **refuses as a case** when it breaks any rule under *What a case is*, *Th
 
 | base | the host |
 |---|---|
-| `system` | the system alone, with nothing shipped, which opens none of the addresses it is handed to open outside the app |
+| `system` | the system alone, with nothing shipped, which opens none of the addresses it is handed to open outside the app, and, format 7, which shows none of the notifications of the machine it is handed to show and answers of each that the machine took it, and which keeps a clipboard of its own, never the machine's: it holds no text as the case begins, and what is written to it stands as the host app quits and starts again |
 | `shell` | format 6: the system as the base `system` is, with the shell attached, which shows nothing on screen |
 
 What the case writes under `[host]` adds to the base. Format 5: for each interface `owners` names, the host ships, before each bundle `ship` names, the bundle the implementation ships as the owner of that interface, marked system, as it ships it, with each framework the implementation's host app stacks for a permission that bundle asks for, and adds, before the fields the case writes, each field that bundle's manifest writes that neither [the bundle](../DECKIT-2/SPEC.md) nor the base reads. The case names that bundle by nothing else. An implementation that ships no owner of an interface `owners` names cannot lay the case out. Its fields and permissions come after the base's, as [the bundle](../DECKIT-2/SPEC.md) says, and a refusal of one is the answer to the `start` step.
@@ -96,6 +96,8 @@ A runner sets up a host, and reads what the system answers, through what the sys
 | the runs | once the host app has started | format 2: for each name a bundle is listed under, what the system answers of its mod's run, as [the lifecycle](../DECKIT-5/SPEC.md) fixes it |
 | a request through a mod's handle | while the mod's run is `running` | format 3: the run makes a request through the handle its code is handed, as the mod's code makes one, as [the handle](../DECKIT-7/SPEC.md) fixes it, and the host is answered what the request answers, or its refusal at its stage with its kind. Format 4: or through what a request the run made before answered, and handed a function the host gives, as the mod's code hands one of its own |
 | the addresses to open outside the app | while the host app is started | format 3: each address a mod hands the host to open, with whether the app that opens it comes to the front, as [opening outside the app](../DECKIT-8/SPEC.md) fixes them |
+| the notifications of the machine | while the host app is started | format 7: each notification a mod hands the host to show on the machine, which the host answers whether the machine took, and a press on one, which the host hands the system, as [notifications of the machine](../DECKIT-21/SPEC.md) fix them |
+| the clipboard | while the host app is started | format 7: the text the system reads of the clipboard and the text it replaces it with, as [the clipboard](../DECKIT-20/SPEC.md) fixes them |
 | the quit | as the host app quits | answered once the host app has quit |
 
 ### Steps
@@ -109,6 +111,7 @@ Inputs:
 | `start` | none | the host app starts, on the host `[host]` gives | nothing, or a refusal at `call` of what the host hands as the host app starts |
 | `quit` | none | the host app quits | nothing |
 | `call` | `mod` and `member`, and `args`, `folders`, `part`, `of`, `listener` and `handed` if written | format 3: the run of the mod listed under the name `mod` makes a request through its handle: the member `member`, called with the path of each bundle `folders` names, in order, then each value of `args`, in order, and then, format 4, a listener where `listener` is `true`. Format 4: where `of` is written, `member` names a member of what the call at that place answered, as the run holds it, and not of the handle. Format 5: where `handed` is `true`, `member` names a member of the first value the listener was last called with, as the run holds it, and not of the handle. A member that holds a value is read, and is written with no `args`, no `folders` and no `listener` | what the request answers, or the value under the key `part` of it, or its refusal at its stage with its kind, as [the handle](../DECKIT-7/SPEC.md) fixes them |
+| `press` | `notification` | format 7: the notification of the machine at the place `notification` in what `shown` answers is pressed, as [notifications of the machine](../DECKIT-21/SPEC.md) fix a press | nothing |
 
 Looks:
 
@@ -119,6 +122,7 @@ Looks:
 | `run` | `mod` | format 2: what the system answers of the run of the mod listed under the name `mod`, as [the lifecycle](../DECKIT-5/SPEC.md) fixes it: a string, or a refusal at `launch`. A bundle it did not take refuses at `read` |
 | `opened` | none | format 3: an array of each address the system handed the host to open outside the app since the host app last started, in the order handed, each a table `{ url, activates }`, `url` a string and `activates` a boolean, as [opening outside the app](../DECKIT-8/SPEC.md) fixes them |
 | `heard` | `mod` | format 4: an array, for each call of a listener a `call` handed a request of the run of the mod listed under the name `mod` that is `running`, in the order called, of the values it was called with, in order |
+| `shown` | none | format 7: an array of each notification of the machine the system handed the host to show since the host app last started, in the order handed, each a table `{ title, body, silent }`, `title` and `body` strings and `silent` a boolean, as [notifications of the machine](../DECKIT-21/SPEC.md) fix them |
 
 Their keys take:
 
@@ -132,6 +136,7 @@ Their keys take:
 | `of` | integer: the place, from 1, of an earlier `call` of the same `mod`: format 4 |
 | `listener` | boolean: format 4 |
 | `handed` | boolean: written `true`, and never beside `of`: format 5 |
+| `notification` | integer: the place, from 1, of a notification in what `shown` answers: format 7 |
 
 ```
 member = name *( "." name )
@@ -144,9 +149,9 @@ A step that writes `part` answers the value under that key of what it reads: of 
 
 A **listener**, format 4, is a function the host gives, one for each run, handed to every `call` of that run that writes `listener`: each call of it is kept, with the values it is called with, and it answers nothing. What a step answers, and each value a listener is called with, is read as a value: a function is no value, so a key of a table bound to one is a key not answered, a request that answers one answers nothing, and an answer that holds one anywhere else comes to nothing, as does such a value a listener is called with; a refusal, as [the handle](../DECKIT-7/SPEC.md) fixes one, is read as the table `{ stage, kind }`.
 
-A look at a name no bundle is listed under, and a step whose `part` a table answer does not hold, or whose answer with a `part` is no table and no array of tables, come to nothing, which no `[step.expect]` matches. A key's absence from an answer is read by a look at the whole bundle. A `call` comes to nothing where no run of the mod listed under `mod` is `running` as the step is taken, where `member` names no member of the handle or of what the call at `of` answered, or, format 4, where the run that answered the call at `of` is not the one `running`, or, format 5, where `handed` is written and the run's listener has not been called. A `heard` look at a mod with no run `running` comes to nothing.
+A look at a name no bundle is listed under, and a step whose `part` a table answer does not hold, or whose answer with a `part` is no table and no array of tables, come to nothing, which no `[step.expect]` matches. A key's absence from an answer is read by a look at the whole bundle. A `call` comes to nothing where no run of the mod listed under `mod` is `running` as the step is taken, where `member` names no member of the handle or of what the call at `of` answered, or, format 4, where the run that answered the call at `of` is not the one `running`, or, format 5, where `handed` is written and the run's listener has not been called. A `heard` look at a mod with no run `running` comes to nothing. A `press` comes to nothing where `shown` answers no notification at the place `notification`.
 
-`start` is the first step. A case starts the host app again only after a `quit`, and calls and looks only while the host app is started: after a `start` and before the next `quit`. A case whose `start` is refused writes no step after it.
+`start` is the first step. A case starts the host app again only after a `quit`, and calls, presses and looks only while the host app is started: after a `start` and before the next `quit`. A case whose `start` is refused writes no step after it.
 
 ### What a step must come to
 
@@ -164,7 +169,7 @@ A look writes `[step.expect]`, always. An input without it must not be refused a
 
 ### Formats
 
-A case format is the keys, values, bases, inputs and looks a case may write. The rows of this DECKIT's tables are format **1**, but those that say a later format. Format **2** adds the rows that say so, for [the lifecycle](../DECKIT-5/SPEC.md). Format **3** adds the rows that say so, for the requests a mod makes through its handle. Format **4** adds the rows that say so, for what a mod is handed by a connection and calls across it. Format **5** adds the rows that say so, for the standard interfaces: the owner a host ships, and a call of what a connection handed a listener. Format **6** adds the rows that say so, for [the key bindings](../DECKIT-16/SPEC.md): the base `shell`, whose handle the owner of `deckit/keys` takes chords through. A DECKIT that needs a base, an input, a look or a key that the format does not have adds it to this format as a supplement to this DECKIT, and gives the format the next number. That format holds every row of the one before it and the rows the DECKIT adds, and each row it adds says the format that added it. A case writes only the rows of its format.
+A case format is the keys, values, bases, inputs and looks a case may write. The rows of this DECKIT's tables are format **1**, but those that say a later format. Format **2** adds the rows that say so, for [the lifecycle](../DECKIT-5/SPEC.md). Format **3** adds the rows that say so, for the requests a mod makes through its handle. Format **4** adds the rows that say so, for what a mod is handed by a connection and calls across it. Format **5** adds the rows that say so, for the standard interfaces: the owner a host ships, and a call of what a connection handed a listener. Format **6** adds the rows that say so, for [the key bindings](../DECKIT-16/SPEC.md): the base `shell`, whose handle the owner of `deckit/keys` takes chords through. Format **7** adds the rows that say so, for what of the machine the base stands for: the notifications of the machine, shown and pressed, and the clipboard. A DECKIT that needs a base, an input, a look or a key that the format does not have adds it to this format as a supplement to this DECKIT, and gives the format the next number. That format holds every row of the one before it and the rows the DECKIT adds, and each row it adds says the format that added it. A case writes only the rows of its format.
 
 ### What a runner does
 
@@ -201,7 +206,7 @@ A case is written by hand, in the manifest text, and is judged by its value. A c
 - The manifest text, the versions, the fields and permissions a host adds, and the answer a `mod` look gives: [the bundle](../DECKIT-2/SPEC.md).
 - The order of the bundles found: [the catalog](../DECKIT-4/SPEC.md).
 - What the system answers of a run: [the lifecycle](../DECKIT-5/SPEC.md).
-- The handle a `call` makes its request through, what a request answers and how it is refused: [the handle](../DECKIT-7/SPEC.md). What a connection hands a listener, and a call of a function it hands: [the interfaces](../DECKIT-10/SPEC.md) and [calls across a connection](../DECKIT-11/SPEC.md). The addresses a mod hands the host to open, and what `opened` answers of each: [opening outside the app](../DECKIT-8/SPEC.md).
+- The handle a `call` makes its request through, what a request answers and how it is refused: [the handle](../DECKIT-7/SPEC.md). What a connection hands a listener, and a call of a function it hands: [the interfaces](../DECKIT-10/SPEC.md) and [calls across a connection](../DECKIT-11/SPEC.md). The addresses a mod hands the host to open, and what `opened` answers of each: [opening outside the app](../DECKIT-8/SPEC.md). The notifications a mod hands the host to show, what `shown` answers of each, and a press: [notifications of the machine](../DECKIT-21/SPEC.md). The clipboard a mod reads and replaces: [the clipboard](../DECKIT-20/SPEC.md).
 - The standard interfaces whose owner a host ships: their DECKITs, such as [the addresses](../DECKIT-14/SPEC.md).
 - The shell the base `shell` attaches, and the handle `shell` it hands a mod: the shell's DECKITs.
 - The live set, and what an implementation conforms to: [the specification](../README.md).
