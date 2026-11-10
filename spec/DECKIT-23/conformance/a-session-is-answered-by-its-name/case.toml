@@ -1,0 +1,30 @@
+case = 8
+name = "a-session-is-answered-by-its-name"
+note = "session(name) answers at once the session name, whose member name holds that name, to a mod granted nothing. mod-a asks for the session main, and is answered it, its members that are functions not read."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[step.expect]
+answers = { name = "main" }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "name"
+of = 2
+
+[step.expect]
+answers = "main"

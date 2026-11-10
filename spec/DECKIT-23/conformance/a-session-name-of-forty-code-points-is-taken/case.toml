@@ -1,0 +1,21 @@
+case = 8
+name = "a-session-name-of-forty-code-points-is-taken"
+note = "A session's name is a session-name, of at most 40 code points. mod-a asks for a session whose name is 40 code points, and is answered it."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["session-0123456789-0123456789-0123456789"]
+handle = "web"
+
+[step.expect]
+answers = { name = "session-0123456789-0123456789-0123456789" }

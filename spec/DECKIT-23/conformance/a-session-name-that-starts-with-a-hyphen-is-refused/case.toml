@@ -1,0 +1,22 @@
+case = 8
+name = "a-session-name-that-starts-with-a-hyphen-is-refused"
+note = "session(name) throws its refusal at call with kind INVALID_ARGUMENT where name is not a session-name, which starts with a letter or a digit. mod-a asks for the session -main."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["-main"]
+handle = "web"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

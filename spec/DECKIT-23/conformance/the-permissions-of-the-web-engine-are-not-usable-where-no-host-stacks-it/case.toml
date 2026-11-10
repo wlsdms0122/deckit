@@ -1,0 +1,19 @@
+case = 8
+name = "the-permissions-of-the-web-engine-are-not-usable-where-no-host-stacks-it"
+note = "The web engine defines its permissions on a host that stacks it, and on no other. On the base system, mod-a asks for system.network, which is not usable."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [{ id = "system.network", reason = "Syncs the pages.", usable = false }]

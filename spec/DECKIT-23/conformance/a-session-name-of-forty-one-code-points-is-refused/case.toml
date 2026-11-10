@@ -1,0 +1,22 @@
+case = 8
+name = "a-session-name-of-forty-one-code-points-is-refused"
+note = "session(name) throws its refusal at call with kind INVALID_ARGUMENT where name is not a session-name, of at most 40 code points. mod-a asks for a session whose name is 41 code points."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["session-0123456789-0123456789-01234567890"]
+handle = "web"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

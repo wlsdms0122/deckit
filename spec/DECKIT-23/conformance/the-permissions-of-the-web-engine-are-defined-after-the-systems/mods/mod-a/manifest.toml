@@ -1,0 +1,11 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"system.site-permissions" = "s"
+"system.certificates" = "c"
+"system.network" = "w"
+"system.files" = "f"
+"system.notifications" = "n"

@@ -1,0 +1,29 @@
+case = 8
+name = "a-member-of-web-a-mod-is-not-granted-is-on-its-handle"
+note = "Every member of the handle web is on the handle of every lifecycle, whatever the mod is granted: mod-a, granted nothing, lets a site have notifications in its session main, and is refused at call with kind NOT_PERMITTED, as system.site-permissions guards allow."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+args = [[{ origin = "https://example.com", permission = "notifications" }]]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

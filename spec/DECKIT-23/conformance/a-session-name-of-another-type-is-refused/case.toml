@@ -1,0 +1,22 @@
+case = 8
+name = "a-session-name-of-another-type-is-refused"
+note = "session(name) throws its refusal at call with kind INVALID_ARGUMENT where name is not a string. mod-a asks for the session 1."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = [1]
+handle = "web"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

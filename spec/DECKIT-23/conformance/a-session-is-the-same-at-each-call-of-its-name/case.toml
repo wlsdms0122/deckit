@@ -1,0 +1,20 @@
+case = 8
+name = "a-session-is-the-same-at-each-call-of-its-name"
+note = "session(name) answers the same session at each call of one name in a lifecycle, and another for another name. mod-a's start compares the sessions a and a, then a and b, and keeps what it found as the value same."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.get"
+args = ["same", "none"]
+
+[step.expect]
+answers = [true, false]

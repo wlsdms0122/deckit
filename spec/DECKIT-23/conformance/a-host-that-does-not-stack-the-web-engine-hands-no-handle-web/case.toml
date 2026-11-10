@@ -1,0 +1,20 @@
+case = 8
+name = "a-host-that-does-not-stack-the-web-engine-hands-no-handle-web"
+note = "A lifecycle is handed the handle web only where the host stacks the web engine, and frameworks is empty on a host that stacks no framework. On the base system, mod-a's start keeps the names in the frameworks it is handed as the value frameworks, which reads none."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.get"
+args = ["frameworks", "none"]
+
+[step.expect]
+answers = []

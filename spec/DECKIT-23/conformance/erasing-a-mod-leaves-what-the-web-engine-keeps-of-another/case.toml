@@ -1,0 +1,75 @@
+case = 8
+name = "erasing-a-mod-leaves-what-the-web-engine-keeps-of-another"
+note = "Sessions are kept apart by the mod and the name, and erasing one mod's leaves another's as it was. mod-b and mod-c each let https://example.com have notifications in a session main; mod-a removes mod-b with erase true, and reads web under what mod-c's usage names kept."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+part = "id"
+
+[step.expect]
+answers = "mod-b"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "allow"
+of = 4
+args = [[{ origin = "https://example.com", permission = "notifications" }]]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "allow"
+of = 6
+args = [[{ origin = "https://example.com", permission = "notifications" }]]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.remove"
+args = ["mod-b", true]
+
+[step.expect]
+answers = { erased = true }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-c"]
+part = "kept"
+
+[step.expect]
+answers = ["web"]

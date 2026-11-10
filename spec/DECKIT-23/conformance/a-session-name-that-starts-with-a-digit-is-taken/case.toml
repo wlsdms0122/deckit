@@ -1,0 +1,21 @@
+case = 8
+name = "a-session-name-that-starts-with-a-digit-is-taken"
+note = "A session-name starts with a letter or a digit. mod-a asks for the session 1main, and is answered it."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["1main"]
+handle = "web"
+
+[step.expect]
+answers = { name = "1main" }
