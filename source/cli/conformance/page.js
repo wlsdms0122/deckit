@@ -59,8 +59,13 @@ function conformanceLayer({ channels }) {
     };
     channels.bind({ channel: 'conformance/heard', to: 'page', reply: true }).handle(() => ({ answers: heard }));
     channels.bind({ channel: 'conformance/delegated', to: 'page', reply: true }).handle(() => ({ answers: told }));
-    // A page shown in the session `session` of the lifecycle's handle `web`, at `url`, in the mod's page or apart,
-    // with the delegate the host gives, kept by the step's place: once it is not loading.
+    // Once the pages the layer shows are quiet since main asked, as after a press main handed one.
+    channels.bind({ channel: 'conformance/quiet', to: 'page', reply: true }).handle(async () => {
+        await quiet(Date.now());
+        return {};
+    });
+    // A page shown in the session `session` of the lifecycle's handle `web`, at `url`, in the mod's page, which it
+    // fills, or apart, with the delegate the host gives, kept by the step's place: once it is not loading.
     channels
         .bind({ channel: 'conformance/show', to: 'page', reply: true })
         .handle(async ({ step, session, url, apart, delegate }) => {
@@ -72,7 +77,10 @@ function conformanceLayer({ channels }) {
             } catch (error) {
                 return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
             }
-            if (!apart) document.body.append(page.element);
+            if (!apart) {
+                Object.assign(page.element.style, { position: 'fixed', inset: '0' });
+                document.body.append(page.element);
+            }
             page.delegate = delegateOf(page, delegate);
             answered.set(step, page);
             await quiet(Date.now());

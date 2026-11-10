@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 10;
+const FORMAT = 11;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -15,6 +15,8 @@ const MEMBER = /^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$/;
 const STANDARD = /^deckit\/[a-z][a-z0-9-]*$/;
 // A site's address, as a call writes it: a site's name, then a path on it, if any.
 const SITE_ADDRESS = /^([a-z][a-z0-9-]*)(\/(?!\/)[\x21-\x7e]*)?$/;
+// A file of a bundle, as a show writes it: a bundle's name, then a path in it.
+const BUNDLE_FILE = /^(\.?[a-z][a-z0-9-]*)\/(?!\/)[\x21-\x7e]+$/;
 // A path a site answers, as its file writes one, and the path a site redirects to: `/`, and no `//` to start it.
 const PATH = /^\/(?!\/)[\x21-\x7e]*$/;
 // A header's name, a token as HTTP writes it, and its value, which holds no line break and no NUL.
@@ -78,8 +80,19 @@ const INPUTS = {
         session: [is.string, true],
         site: [(value) => is.string(value) && SITE_ADDRESS.test(value), false],
         url: [(value) => is.string(value) && !/^https?:/i.test(value), false],
+        file: [
+            (value) =>
+                is.string(value) &&
+                BUNDLE_FILE.test(value) &&
+                value
+                    .split('/')
+                    .slice(1)
+                    .every((one) => one && one !== '.' && one !== '..'),
+            false,
+        ],
         apart: [is.boolean, false],
     },
+    activate: { mod: [is.string, true], of: [(value) => is.integer(value) && value >= 1, true] },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -100,13 +113,24 @@ const LOOKS = {
     },
 };
 // The format that added an input or a look, where it is not 1.
-const ADDED = { run: 2, call: 3, opened: 3, heard: 4, press: 7, shown: 7, requested: 9, show: 10, delegated: 10 };
+const ADDED = {
+    run: 2,
+    call: 3,
+    opened: 3,
+    heard: 4,
+    press: 7,
+    shown: 7,
+    requested: 9,
+    show: 10,
+    delegated: 10,
+    activate: 11,
+};
 // The format that added a key of an input or a look, where it is a later one than the step's.
-const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8, sites: 9, headers: 9 };
+const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8, sites: 9, headers: 9, file: 11 };
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10 };
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit', 'press', 'show'];
+const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
 // and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
@@ -139,7 +163,8 @@ function read(folder) {
         : [];
     for (const entry of laid) if (!BUNDLE.test(entry.name)) refuse(`mods/${entry.name} is no bundle-name`);
     const bundles = Object.fromEntries(laid.map(({ name }) => [name, path.join(mods, name)]));
-    const named = new Set([...host.ship, ...host.sources, ...steps.flatMap(({ folders = [] }) => folders)]);
+    const filed = steps.flatMap(({ file }) => (file ? [BUNDLE_FILE.exec(file)[1]] : []));
+    const named = new Set([...host.ship, ...host.sources, ...steps.flatMap(({ folders = [] }) => folders), ...filed]);
     for (const name of named)
         if ([...host.ship, ...host.sources].filter((one) => one === name).length > 1)
             refuse(`${name} is written twice in host.ship and host.sources`);
@@ -300,20 +325,22 @@ function stepOf(step, number, format, refuse) {
 }
 
 // `start` first, again only after a `quit`, calls, presses and looks only while the app is started, nothing after a
-// start that is refused, a call's `of` an earlier call of its mod, and no `of` beside `handed`, nor `handle` beside
-// either.
+// start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of it, no `of`
+// beside `handed`, nor `handle` beside either, and at most one of `site`, `url` and `file`.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
         if (index === 0 && step.what !== 'start') refuse('step 1 is no start');
         const of = step.of && steps[step.of - 1];
-        if (step.of && !(step.of < step.number && ['call', 'show'].includes(of.what) && of.mod === step.mod))
-            refuse(`step ${step.number}: of names no earlier call or show of ${step.mod}`);
-        if ('site' in step && 'url' in step) refuse(`step ${step.number}: site is written beside url`);
+        const ofs = step.what === 'activate' ? ['show'] : ['call', 'show'];
+        if (step.of && !(step.of < step.number && ofs.includes(of.what) && of.mod === step.mod))
+            refuse(`step ${step.number}: of names no earlier ${ofs.join(' or ')} of ${step.mod}`);
+        if (['site', 'url', 'file'].filter((key) => key in step).length > 1)
+            refuse(`step ${step.number}: site, url and file are written beside one another`);
         if (step.handed && step.of) refuse(`step ${step.number}: handed is written with no of`);
         if ('handle' in step && (step.of || step.handed))
             refuse(`step ${step.number}: handle is written with neither of nor handed`);
-        if (step.kind !== 'input' || ['call', 'press', 'show'].includes(step.what)) {
+        if (step.kind !== 'input' || ['call', 'press', 'show', 'activate'].includes(step.what)) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
         }

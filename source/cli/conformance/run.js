@@ -178,12 +178,23 @@ async function take(step, app, paths, served, delegate) {
         return partOf(await app.ask(asked), part);
     }
     if (what === 'press') return app.ask({ input: what, notification: step.notification });
+    if (what === 'activate') return app.ask({ input: what, mod, of: step.of });
     if (what === 'show') {
-        const url = step.site ? served.address(step.site) : (step.url ?? '');
+        const url = step.site
+            ? served.address(step.site)
+            : step.file
+              ? fileAddress(paths, step.file)
+              : (step.url ?? '');
         const asked = { input: what, mod, step: step.number, session: step.session, url, apart: !!step.apart };
         return app.ask({ ...asked, delegate: delegate ?? {} });
     }
     return partOf(await app.ask({ look: what, mod }), part);
+}
+
+// The file address of a file of a bundle, a bundle's name and a path in it, as the bundle is laid out.
+function fileAddress(paths, written) {
+    const [, name, at] = /^([^/]+)\/(.*)$/.exec(written);
+    return require('url').pathToFileURL(path.join(paths[name], at)).href;
 }
 
 // Each site of the case served on the loopback address, at a port of its own chosen as the run begins: each path

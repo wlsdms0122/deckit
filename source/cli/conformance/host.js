@@ -4,8 +4,10 @@
 // or was refused (deckit.whenStarted()), answers each call and look it is asked, a start and a call once no run is
 // between two states, and quits when asked. It stacks a layer of its own over deckit on each mod's page (page.js),
 // which makes the requests a call hands it and keeps what its listeners heard, attaches the web engine on the bases web
-// and shell and the shell over it on the base shell, runs main process modules where an owner it ships asks for them, and opens none of the addresses it
-// is handed to open outside the app: it keeps each one, for the look opened. It shows none of the system's
+// and shell and the shell over it on the base shell, runs main process modules where an owner it ships asks for them,
+// and opens none of the addresses it is handed to open outside the app: it keeps each one, for the look opened. On the
+// base web it shows a mod's page in a window of its own once its layer shows a web page there, and presses a web page
+// its layer showed with WebKit's input, as a person's press comes. It shows none of the system's
 // notifications: it keeps each one, for the look shown, and presses one when asked. Its clipboard is a file of the
 // run's, never the person's. A request fetched through a web session reaches no address but on the loopback address.
 const fs = require('fs');
@@ -33,6 +35,12 @@ let call = null; // the channels to the conformance layer on a mod's page
 let heard = null;
 let show = null; // the channel to the conformance layer that shows a web page
 let delegated = null;
+let quiet = null; // the channel to the conformance layer that waits until the pages it shows are quiet
+let engine = null; // what attachWeb answered, on the base web
+let webkit = null; // WebKit's module, which presses a web page
+const adopted = []; // each web page, in the order adopted, on the base web
+const showed = new Map(); // a show's place -> the web page it showed
+const windowed = new WeakSet(); // the mods' pages shown in a window of the host's
 const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
 const shown = []; // { notification: { title, body, silent }, onClick }: each notification handed to show, in order
 // What the host app answers the shell: nothing it is asked to show is shown.
@@ -118,8 +126,13 @@ try {
     // On the base web, the web engine is attached as a host app attaches it, and on the base shell the shell over it,
     // shown nowhere, before the case's fields and permissions, which come after the base's.
     if (setup.base === 'web') {
-        DECKIT.attachWeb(deckit, given);
+        engine = DECKIT.attachWeb(deckit, given);
+        engine.onPage((page) => adopted.push(page));
         deckit.stack('conformance');
+        // WebKit's module is the core's neighbour in the archive.
+        webkit = { exports: {} };
+        process.dlopen(webkit, path.join(path.dirname(path.join(LIBRARY, described.core)), 'deckit-web.node'));
+        webkit = webkit.exports;
     }
     if (setup.base === 'shell')
         DECKIT.attach(deckit, given, { host: SHOWS_NOTHING, web: DECKIT.attachWeb(deckit, given) });
@@ -129,6 +142,7 @@ try {
     heard = deckit.channels.bind({ channel: 'conformance/heard', to: 'page', reply: true });
     show = deckit.channels.bind({ channel: 'conformance/show', to: 'page', reply: true });
     delegated = deckit.channels.bind({ channel: 'conformance/delegated', to: 'page', reply: true });
+    quiet = deckit.channels.bind({ channel: 'conformance/quiet', to: 'page', reply: true });
     // The start is complete, the launches at start included, or refused with its kind.
     deckit.whenStarted().then(() => runsSettled().then(() => settle({})), refused);
 } catch (error) {
@@ -148,7 +162,9 @@ socket.on('data', (chunk) => {
                     ? request(asked)
                     : asked.input === 'press'
                       ? press(asked)
-                      : look(asked)
+                      : asked.input === 'activate'
+                        ? activate(asked)
+                        : look(asked)
             ).then(async (came) => {
                 if (asked.input) await runsSettled();
                 say({ id: asked.id, came });
@@ -166,7 +182,14 @@ async function request({ input, mod, member, args, step, handle, of, listener, h
     const running = runningOf(mod);
     if (!running.page) return running;
     try {
-        if (input === 'show') return await show.invoke(running.page, { step, ...shows });
+        if (input === 'show') {
+            showInWindow(running.page);
+            const from = adopted.length;
+            const came = await show.invoke(running.page, { step, ...shows });
+            const page = adopted.slice(from).find((one) => engine.pageFor(one) === running.page);
+            if (page) showed.set(step, page);
+            return came;
+        }
         return await call.invoke(running.page, { member, args, step, handle, of, listener, handed });
     } catch (error) {
         return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
@@ -180,6 +203,35 @@ function press({ notification }) {
     if (!one) return { none: `no notification was shown at ${notification}` };
     one.onClick();
     return {};
+}
+
+// What an activate comes to: the web page the show at the place `of` showed pressed with the mouse's button, down and
+// up, inside it, `{}` once the pages the layer shows are quiet, or `{ none }` where it is not there.
+async function activate({ mod, of }) {
+    const running = runningOf(mod);
+    if (!running.page) return running;
+    const page = showed.get(of);
+    if (!page || page.isDestroyed()) return { none: `step ${of} showed no web page that is there` };
+    try {
+        for (const type of ['down', 'up']) webkit.sendMouse(page.id, { type, x: PRESSED.x, y: PRESSED.y });
+    } catch (error) {
+        return { none: `the page took no press: ${error.message}` };
+    }
+    return quiet.invoke(running.page, {});
+}
+
+// A mod's page, on the base web, shown in a window of the host's, filled by it, so that the web pages laid over it are
+// on screen and take input: once.
+function showInWindow(page) {
+    if (setup.base !== 'web' || windowed.has(page)) return;
+    windowed.add(page);
+    const window = environment.windows.open({ size: { width: 800, height: 600 } });
+    const stage = environment.stage();
+    stage.place(window);
+    const lay = () => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]);
+    stage.whenResized(lay);
+    lay();
+    window.show({ focus: false });
 }
 
 // The running run of the mod listed under `mod`, `{ page }`, or `{ none }`.
@@ -223,6 +275,9 @@ function runOf(id) {
     if (run.refusal) return { refuses: run.refusal.stage, kind: run.refusal.kind, message: run.refusal.message };
     return { answers: run.state };
 }
+
+// Where in a web page a press lands: from its top left.
+const PRESSED = Object.freeze({ x: 10, y: 10 });
 
 // A page deckit shows on its own, in a window of the environment's, shown without taking the keyboard.
 function openWindow({ title = '', size = null, place }) {
