@@ -3,12 +3,14 @@
 // made through the handle the call names, `deckit` where it names none, or through what an earlier call answered, as
 // the mod's code makes one (spec/DECKIT-1: the input call). It keeps what
 // each call answered, by the call's place, each call of the listener it hands a request, for the look heard, and the
-// first value the listener was last called with, which a call that writes handed is made through.
+// first value the listener was last called with, which a call that writes handed is made through, and the first value
+// each call of the host's delegate was called with, which a call that writes delegated is made through.
 function conformanceLayer({ channels }) {
     let handles = null; // the handles of its lifecycle, `deckit` and each framework's by its name, while it runs
     let surfaces = null; // what the web engine offers the layer over it, while its lifecycle runs, on the base web
     const shown = new Set(); // the state of each page the layer shows, while it is open: { loading }
     const told = []; // each call of a method of the delegate the host gives, { method, args }, in the order called
+    const firsts = []; // the first value each call of it was called with, as the layer holds it, in the same order
     // A request through the system after a call, so that what the call sent it, an event among it, is told before the
     // call is answered: the system answers a page's requests in the order they are sent.
     const settle = () => {
@@ -42,6 +44,7 @@ function conformanceLayer({ channels }) {
         for (const [method, value] of Object.entries(answers))
             delegate[method] = (...args) => {
                 told.push({ method, args: args.map((one) => (valueOf(one) === FUNCTION ? null : valueOf(one))) });
+                firsts.push(args[0]);
                 if (method === 'openWindow' && value === true) args[0].delegate = delegateOf(args[0], answers);
                 return value;
             };
@@ -86,37 +89,40 @@ function conformanceLayer({ channels }) {
             await quiet(Date.now());
             return {};
         });
-    channels
-        .bind({ channel: 'conformance/call', to: 'page', reply: true })
-        .handle(async ({ member, args, step, of, listener: hands, handed: from, handle: named = 'deckit' }) => {
-            if (of !== null && !answered.has(of)) return { none: `step ${of} answered nothing this run holds` };
-            if (from && !called) return { none: 'the listener has not been called' };
-            if (of === null && !from && !handles?.[named])
-                return { none: `the lifecycle is handed no handle ${named}` };
-            const start = from
-                ? 'what the listener was last handed'
-                : of === null
-                  ? `the handle ${named}`
-                  : `what step ${of} answered`;
-            let holder = null;
-            let value = from ? handed : of === null ? handles[named] : answered.get(of);
-            for (const name of member.split('.')) {
-                if (value === null || (typeof value !== 'object' && typeof value !== 'function') || !(name in value))
-                    return { none: `${start} has no member ${member}` };
-                holder = value;
-                value = value[name];
-            }
-            const asked = Date.now();
-            let came = value;
-            if (typeof value === 'function') came = await value.apply(holder, hands ? [...args, listener] : args);
-            else if (args.length || hands) return { none: `${member} holds a value, and is called` };
-            settle();
-            await quiet(asked);
-            answered.set(step, came);
-            if (typeof came === 'function') return {};
-            const read = valueOf(came);
-            return read === FUNCTION ? { none: 'what it answered holds a function' } : { answers: read };
-        });
+    channels.bind({ channel: 'conformance/call', to: 'page', reply: true }).handle(async (taken) => {
+        const { member, args, step, of, listener: hands, handed: from, handle: named = 'deckit' } = taken;
+        const at = taken.delegated ?? null;
+        if (of !== null && !answered.has(of)) return { none: `step ${of} answered nothing this run holds` };
+        if (from && !called) return { none: 'the listener has not been called' };
+        if (at !== null && at > firsts.length) return { none: `the host's delegate was called ${firsts.length} times` };
+        if (of === null && !from && at === null && !handles?.[named])
+            return { none: `the lifecycle is handed no handle ${named}` };
+        const start = from
+            ? 'what the listener was last handed'
+            : at !== null
+              ? `what call ${at} of the host's delegate was handed`
+              : of === null
+                ? `the handle ${named}`
+                : `what step ${of} answered`;
+        let holder = null;
+        let value = from ? handed : at !== null ? firsts[at - 1] : of === null ? handles[named] : answered.get(of);
+        for (const name of member.split('.')) {
+            if (value === null || (typeof value !== 'object' && typeof value !== 'function') || !(name in value))
+                return { none: `${start} has no member ${member}` };
+            holder = value;
+            value = value[name];
+        }
+        const asked = Date.now();
+        let came = value;
+        if (typeof value === 'function') came = await value.apply(holder, hands ? [...args, listener] : args);
+        else if (args.length || hands) return { none: `${member} holds a value, and is called` };
+        settle();
+        await quiet(asked);
+        answered.set(step, came);
+        if (typeof came === 'function') return {};
+        const read = valueOf(came);
+        return read === FUNCTION ? { none: 'what it answered holds a function' } : { answers: read };
+    });
     return ({ under, deliver }) => ({
         lifecycles: [
             under.deckit.lifecycle({

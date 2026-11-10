@@ -175,8 +175,8 @@ async function take(step, app, paths, served, delegate) {
             ...(step.sites ?? []).map((address) => served.address(address)),
             ...served.origins(step.args ?? [], step.origins ?? []),
         ];
-        const { member, handle = 'deckit', of = null, listener = false, handed = false, number } = step;
-        const asked = { input: what, mod, member, args, step: number, handle, of, listener, handed };
+        const { member, handle = 'deckit', of = null, listener = false, handed = false, delegated = null } = step;
+        const asked = { input: what, mod, member, args, step: step.number, handle, of, listener, handed, delegated };
         return partOf(await app.ask(asked), part);
     }
     if (what === 'press') return app.ask({ input: what, notification: step.notification });

@@ -179,9 +179,10 @@ socket.on('close', () => app.exit(0));
 // What a call comes to: what the request the mod's run makes answers, `{ refuses, kind, message }` for its refusal, or
 // `{ none }` where no run of the mod is running or its handle has no such member. `args` are the folders' paths and
 // then the values the step writes; `step` its place, `handle` the name of the handle `member` starts at, `of` the
-// place of the call whose answer it starts at instead, or whose listener's, where `handed`, and `listener` whether the
-// request is handed one after its args.
-async function request({ input, mod, member, args, step, handle, of, listener, handed, ...shows }) {
+// place of the call whose answer it starts at instead, or whose listener's, where `handed`, `delegated` the place of the
+// call of the host's delegate whose first value it starts at instead, and `listener` whether the request is handed one
+// after its args.
+async function request({ input, mod, member, args, step, handle, of, listener, handed, delegated, ...shows }) {
     const running = runningOf(mod);
     if (!running.page) return running;
     try {
@@ -193,7 +194,7 @@ async function request({ input, mod, member, args, step, handle, of, listener, h
             if (page) showed.set(step, page);
             return came;
         }
-        return await call.invoke(running.page, { member, args, step, handle, of, listener, handed });
+        return await call.invoke(running.page, { member, args, step, handle, of, listener, handed, delegated });
     } catch (error) {
         return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
     }

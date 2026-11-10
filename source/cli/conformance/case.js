@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 12;
+const FORMAT = 13;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -71,6 +71,7 @@ const INPUTS = {
         of: [(value) => is.integer(value) && value >= 1, false],
         listener: [is.boolean, false],
         handed: [is.boolean, false],
+        delegated: [(value) => is.integer(value) && value >= 1, false],
         sites: [
             (value) => Array.isArray(value) && value.every((one) => is.string(one) && SITE_ADDRESS.test(one)),
             false,
@@ -132,7 +133,17 @@ const ADDED = {
     activate: 11,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
-const KEYS_ADDED = { of: 4, listener: 4, handed: 5, handle: 8, sites: 9, headers: 9, file: 11, origins: 12 };
+const KEYS_ADDED = {
+    of: 4,
+    listener: 4,
+    handed: 5,
+    handle: 8,
+    sites: 9,
+    headers: 9,
+    file: 11,
+    origins: 12,
+    delegated: 13,
+};
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12 };
 // The inputs answered with nothing.
@@ -340,7 +351,8 @@ function stepOf(step, number, format, refuse) {
 
 // `start` first, again only after a `quit`, calls, presses and looks only while the app is started, nothing after a
 // start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of it, no `of`
-// beside `handed`, nor `handle` beside either, and at most one of `site`, `url` and `file`.
+// beside `handed`, nor `handle` beside either, `delegated` beside none of the three, and at most one of `site`, `url`
+// and `file`.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
@@ -354,6 +366,8 @@ function order(steps, refuse) {
         if (step.handed && step.of) refuse(`step ${step.number}: handed is written with no of`);
         if ('handle' in step && (step.of || step.handed))
             refuse(`step ${step.number}: handle is written with neither of nor handed`);
+        if ('delegated' in step && ['of', 'handed', 'handle'].some((key) => key in step))
+            refuse(`step ${step.number}: delegated is written with none of of, handed and handle`);
         if (step.kind !== 'input' || ['call', 'press', 'show', 'activate'].includes(step.what)) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
