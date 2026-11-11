@@ -188,15 +188,16 @@ export function createWeb({ sessions, web: WEB, channels }) {
     // What shows web pages: pages in the mod's page, as elements of it, and in windows, each showing what a session
     // from `web.session` loads. `owner` is whoever hands it out ({ deliver, recordFailure }), `open(url, options)`
     // what opens outside the app an address the page passes on, as the mod's openExternal does; a page or window made
-    // is closed, and nothing more is heard about it, once `scope` is cut.
+    // is closed, and nothing more is heard about it, once `scope` is cut, and none is made after.
     function surfacesOf({ owner, open, scope }) {
         if (!listening) listen();
         // The name of the session `handle` is, thrown its refusal for one that is no handle `web.session` answered in
-        // this page, INVALID_ARGUMENT, or one of a lifecycle that has ended, ENDED.
+        // this page, INVALID_ARGUMENT, or one of a lifecycle that has ended, ENDED, and then ENDED once `scope` is cut.
         const named = (handle) => {
             const made = names.get(handle);
             if (!made) throw invalid('a web page takes a session that web.session(name) answered');
             if (made.scope.isCut) throw REQUEST.refusal('call', 'ENDED', "the session's lifecycle has ended");
+            if (scope.isCut) throw REQUEST.refusal('call', 'ENDED', 'the lifecycle the pages are for has ended');
             return made.name;
         };
         return Object.freeze({
