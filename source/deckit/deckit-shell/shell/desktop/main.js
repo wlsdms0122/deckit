@@ -50,7 +50,7 @@ export function createDesktop({
     let WINDOWS = null;
     let DOCK = null;
     let stage = null; // where the pages are laid, which the host app places
-    let frames = {}; // mod id -> window name -> the frame it was left at
+    let frames = {}; // mod id -> window name -> the frame it was left at, `{ level, x, y, width, height }`
     let moving = null; // { id, from }: the window its content's drag moves, from the frame it had at the press
     let focused = null; // the key window the keyboard was last given to
     let shown = false;
@@ -96,14 +96,14 @@ export function createDesktop({
         });
     }
 
-    // A normal window opens where its mod last left the window of its name, or cascaded from the key window where it
-    // left none or one of that name is open, brought forward as orderFront brings it. A window with a `title` is
+    // A normal window opens where its mod last left a normal window of its name, or cascaded from the key window where
+    // it left none or one of that name is open, brought forward as orderFront brings it. A window with a `title` is
     // titled: the shell draws its title bar, holding the title, over its content.
     function open(window, { activates = true } = {}) {
         const desktopNow = area();
         const after = keyWindow() && MANAGER.frameOf(keyWindow().id);
         const twin = [...windows.values()].some(({ mod, name }) => mod === window.mod && name === window.name);
-        const restored = (!twin && frames[window.mod]?.[window.name]) || null;
+        const restored = (!twin && keptFrameOf(window)) || null;
         const size = LAYOUT.framedSize(window.size, isTitled(window));
         const frame = LAYOUT.placed({ size, restored, after, desktop: desktopNow });
         windows.set(window.id, window);
@@ -256,6 +256,26 @@ export function createDesktop({
         for (const listener of [...listeners]) listener();
     }
 
+    // The frame a window of the mod and the name of `window` was left at, `{ x, y, width, height }`, where it was left
+    // at the level `window` opens at; or null.
+    function keptFrameOf(window) {
+        const kept = frames[window.mod]?.[window.name];
+        if (kept?.level !== window.level) return null;
+        const { x, y, width, height } = kept;
+        return { x, y, width, height };
+    }
+
+    // The frame `window` was left at, by its mod and its name, at its level: a normal window's, zoomed, the one zoom
+    // left; an overlay window's, `frame`, as the host app tells it, in the machine's screen coordinates.
+    function remember(window, frame = MANAGER.standardFrameOf(window.id)) {
+        const { x, y, width, height } = frame;
+        frames = {
+            ...frames,
+            [window.mod]: { ...frames[window.mod], [window.name]: { level: window.level, x, y, width, height } },
+        };
+        keep(FRAMES, frames);
+    }
+
     // Whether the desktop keeps a frame a window of the mod `mod` was left at.
     function keepsFramesOf(mod) {
         return Object.hasOwn(frames, mod);
@@ -283,13 +303,6 @@ export function createDesktop({
         const held = activates && MANAGER.keyOf(seat) !== null;
         for (const id of ids) MANAGER.orderBehindKey(seat, id);
         if (held) ACTIVATION.requestAttention(seat, mod);
-    }
-
-    // The frame the window was left at, by its mod and its name: zoomed, the one zoom left.
-    function remember(window) {
-        const frame = MANAGER.standardFrameOf(window.id);
-        frames = { ...frames, [window.mod]: { ...frames[window.mod], [window.name]: frame } };
-        keep(FRAMES, frames);
     }
 
     // The desktop's page draws alone, so what it tells is the person's: no mod's code runs there. What it tells of a
@@ -606,6 +619,8 @@ export function createDesktop({
 
     return {
         start,
+        keptFrameOf,
+        remember,
         keepsFramesOf,
         forgetFramesOf,
         open,

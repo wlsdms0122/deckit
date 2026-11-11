@@ -3,10 +3,10 @@ import * as DECLARED from '../../../deckit-sdk/shell/window/protocol.js';
 import * as SURFACE from './model/surface.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `PAGES` the shell's pages,
-// `OVERLAY` their overlays, `DESKTOP` where normal windows are and which mods may activate, `KEY` the keys of the app,
-// and `makeStage()` a stage to lay pages on (environment: SHELL.stage); `showWindow(control, { activates })` and
-// `closeWindow(control)` are the host app's, which puts an overlay window on screen in a floating window of its own,
-// taking the keyboard unless `activates` is false, and closes it.
+// `OVERLAY` their overlays, `DESKTOP` where normal windows are, the frames windows were left at and which mods may
+// activate, `KEY` the keys of the app, and `makeStage()` a stage to lay pages on (environment: SHELL.stage);
+// `showWindow(control, { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on
+// screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it.
 export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeStage, showWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -232,7 +232,9 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
 
     // An overlay window floats in a window of the host app's, which the host closes as it is done with it, taking the
     // keyboard unless `activates` is false, where its mod may activate for the local seat. It takes the keyboard as
-    // that seat's input reaches its mod.
+    // that seat's input reaches its mod. Where it is left is kept with the frames of the desktop's windows: the host
+    // app reads the frame the window of its name was left at, `keptFrame`, and tells each frame a move by the person
+    // leaves, `didMove(frame)`, both in the machine's screen coordinates.
     function float(window, { activates }) {
         const host = { control: null, stage: null, unheard: null, key: false };
         host.control = Object.freeze({
@@ -243,6 +245,9 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
             },
             get height() {
                 return window.size.height;
+            },
+            get keptFrame() {
+                return DESKTOP.keptFrameOf(window);
             },
             // Into one of the host app's windows, as a stage is placed (`front`, `bounds`, `onClose`): the content
             // fills it. A window the host app closes closes the mod's.
@@ -261,6 +266,7 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
                 setKey(window, true);
             },
             didResignKey: () => setKey(window, false),
+            didMove: (frame) => DESKTOP.remember(window, frame),
         });
         window.host = host;
         showWindow(host.control, { activates: activates && mayActivate(window) });

@@ -95,7 +95,7 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | a mod's main process modules | which mod starts which and when, and what a module is handed, `deckit-electron/main-process/main.js`, put on deckit by the host app (`attachMainProcess`); running them, and the windows a module opens, the environment's (`mainProcess`, `deckit-electron/main-process/loader.js`) |
 | what a keystroke runs | the keys of the app, in one table of chords, `deckit-shell/shell/key/main.js`: the shell's own keys and the chords mods take (`shell.keys`), a press told to the page that took it; the Keymap mod (`mods/keymap`) takes the chords of the keys mods declare to `deckit/keys` |
 | opening outside the app | `deckit-shell/deckit/open/main.js`, through the environment (`open`) |
-| the windows on the desktop, back to front, and which is key | `deckit-shell/shell/desktop/main.js` (`model/window-manager.js`); where each window was left, in `state/shell/` |
+| the windows on the desktop, back to front, and which is key | `deckit-shell/shell/desktop/main.js` (`model/window-manager.js`); where each window was left, an overlay window's too, in `state/shell/` |
 | the windows mods open | `deckit-shell/shell/window/main.js` |
 | the Dock: the mods the person keeps in it, in the order they arranged it in, and those running | `deckit-shell/shell/dock/main.js`, the order and the pins in `state/shell/` |
 | which mod's view is whose child, which child a region shows, and where it lies | `deckit-shell/shell/region/main.js` |

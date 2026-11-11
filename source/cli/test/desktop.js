@@ -285,13 +285,14 @@ async function main() {
 
     // Mods `a` and `b`; windows 1 and 2 of `a`, 3 of `b`, each a stand-in for what the shell's windows make.
     const desk = desktopOver(createDesktop, {
-        state: { 'window-frames': { a: { main: { x: 200, y: 100, width: 400, height: 300 } } } },
+        state: { 'window-frames': { a: { main: { level: 'normal', x: 200, y: 100, width: 400, height: 300 } } } },
     });
     const pages = { a: { name: 'page-a', mod: 'a' }, b: { name: 'page-b', mod: 'b' }, c: { name: 'page-c', mod: 'c' } };
     const windowOf = (id, mod, name) => ({
         id,
         mod,
         name,
+        level: 'normal',
         page: pages[mod],
         surface: { name: `content-${id}`, of: pages[mod] },
         size: { width: 300, height: 200 },
@@ -498,7 +499,7 @@ async function main() {
     check(
         "a window's frame is remembered by its mod and its name",
         JSON.stringify(desk.state['window-frames'].a.other) ===
-            JSON.stringify({ x: 300, y: 200, width: 500, height: 400 }),
+            JSON.stringify({ level: 'normal', x: 300, y: 200, width: 500, height: 400 }),
         desk.state['window-frames']
     );
 
@@ -570,6 +571,28 @@ async function main() {
             desk.state['window-frames'].b.web.y === before.y + 5 - LAYOUT.TITLE_BAR.height,
         { frame: desk.frameOf(4), kept: desk.state['window-frames'].b }
     );
+    // An overlay window of `b`, in a floating window of the host app's, moved by the person to a screen on the left.
+    const float = { id: 10, mod: 'b', name: 'float', level: 'overlay' };
+    desk.desktop.remember(float, { x: -900, y: 40, width: 400, height: 300 });
+    check(
+        "an overlay window's frame is kept with the desktop's, at its level as the host app tells it, and an overlay " +
+            'window of its name opens at it',
+        JSON.stringify(desk.state['window-frames'].b.float) ===
+            JSON.stringify({ level: 'overlay', x: -900, y: 40, width: 400, height: 300 }) &&
+            JSON.stringify(desk.desktop.keptFrameOf({ ...float, id: 11 })) ===
+                JSON.stringify({ x: -900, y: 40, width: 400, height: 300 }),
+        desk.state['window-frames'].b
+    );
+    const named = windowOf(12, 'b', 'float');
+    desk.desktop.open(named);
+    check(
+        'a window opened at another level than the frame its name was left at takes none',
+        desk.frameOf(12).x !== -900 &&
+            desk.desktop.keptFrameOf({ ...float, name: 'web' }) === null &&
+            desk.desktop.keptFrameOf(named) === null,
+        { frame: desk.frameOf(12), kept: desk.state['window-frames'].b }
+    );
+    desk.desktop.close(named);
     const framesKept = desk.desktop.keepsFramesOf('b') && !desk.desktop.keepsFramesOf('c');
     await desk.desktop.forgetFramesOf('b');
     check(
@@ -578,6 +601,15 @@ async function main() {
             !desk.desktop.keepsFramesOf('b') &&
             !('b' in desk.state['window-frames']) &&
             'a' in desk.state['window-frames'],
+        desk.state['window-frames']
+    );
+    desk.desktop.remember({ ...float, mod: 'c' }, { x: 10, y: 20, width: 400, height: 300 });
+    const overlayKept = desk.desktop.keepsFramesOf('c');
+    await desk.desktop.forgetFramesOf('c');
+    check(
+        'a mod whose overlay window alone was left somewhere is one the desktop keeps frames of, and erasing them ' +
+            'forgets that frame',
+        overlayKept && !desk.desktop.keepsFramesOf('c') && desk.desktop.keptFrameOf({ ...float, mod: 'c' }) === null,
         desk.state['window-frames']
     );
 

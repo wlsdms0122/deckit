@@ -134,6 +134,17 @@ async function main() {
         desktop.inputs
     );
     shown.control.didResignKey();
+    const keptBefore = shown.control.keptFrame;
+    shown.control.didMove({ x: 40, y: 60, width: 400, height: 300 });
+    check(
+        'an overlay window carries the frame the desktop kept for it, and each frame the host app tells a move left ' +
+            'is kept with the desktop',
+        keptBefore === null &&
+            JSON.stringify(desktop.frames.get('overlay:b/float')) ===
+                JSON.stringify({ x: 40, y: 60, width: 400, height: 300 }) &&
+            shown.control.keptFrame?.x === 40,
+        { keptBefore, frames: [...desktop.frames] }
+    );
     desktop.may.add('b');
     shell.fromPage('close', pages.b, { id: toast.id });
     shown.control.place({ name: 'host-window' });
@@ -238,8 +249,9 @@ async function main() {
 // answers what it answers; `openSurface(name, surface)` has a page open a window's content; `focus(page)` and
 // `end(page)` are a page taking the keyboard and its document ending; `webOf` maps a web page to the mod's page that
 // shows it. `desktop` records what the desktop was asked, `key` the id of its key window, `may` the mods that may
-// activate for the local seat; `host` what the host app was asked; `stages` the stages made, each with what it laid
-// last; `sent` what the pages were told, by the channel's last word.
+// activate for the local seat, `frames` the frames it keeps, by the level, the mod and the name; `host` what the host
+// app was asked; `stages` the stages made, each with what it laid last; `sent` what the pages were told, by the
+// channel's last word.
 function windowsOver(createWindows) {
     const handlers = {};
     const guards = {};
@@ -266,6 +278,7 @@ function windowsOver(createWindows) {
         may: new Set(['b']),
         titles: [],
         key: null,
+        frames: new Map(),
         change: () => changes.forEach((listener) => listener()),
     };
     const host = { shown: [], closed: [] };
@@ -304,6 +317,8 @@ function windowsOver(createWindows) {
             mayActivate: (seat, mod) => seat === 'local' && desktop.may.has(mod),
         },
         setTitle: (_window, title) => desktop.titles.push(title),
+        keptFrameOf: (window) => desktop.frames.get(`${window.level}:${window.mod}/${window.name}`) ?? null,
+        remember: (window, frame) => desktop.frames.set(`${window.level}:${window.mod}/${window.name}`, frame),
         minimize() {},
         zoom() {},
         move() {},
