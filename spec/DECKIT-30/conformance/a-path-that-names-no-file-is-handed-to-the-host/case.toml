@@ -1,0 +1,24 @@
+case = 16
+name = "a-path-that-names-no-file-is-handed-to-the-host"
+note = "reveal hands the host an absolute path whether or not a file is there; what the host shows of it is the host's: mod-a, a mod granted nothing, reveals /deckit-conformance/no-such-file, which names none."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+args = ["/deckit-conformance/no-such-file"]
+
+[[step]]
+look = "revealed"
+
+[step.expect]
+answers = ["/deckit-conformance/no-such-file"]

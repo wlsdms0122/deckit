@@ -1,0 +1,22 @@
+case = 16
+name = "a-key-a-dialog-of-folders-does-not-take-is-not-read"
+note = "A key of options that the table does not give is not read and refuses nothing, as the handle reads a table: mod-a, a mod granted nothing, asks with the key folder, which options does not give, and the person chooses folder-a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+chosen = ["folder-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+args = [{ folder = "/" }]
+
+[step.expect]
+answers = ["folder-a"]

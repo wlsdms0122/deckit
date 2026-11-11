@@ -5,7 +5,7 @@ Area: shell
 
 ## Summary
 
-The shell is the layer that gives a mod's run a GUI on the host app: windows, the Dock, the keys, the look, files outside the app. A host stacks it over the system and the web engine, and it stacks one lifecycle of its own over the system's. This DECKIT fixes that lifecycle, the members `attach(shell, deckit, frameworks)` and `detach()` of the instance it calls, when each is called and what each is handed; the handle `shell` as a whole, every member on it with its shape and the shell's DECKIT that fixes it, on the handle of every mod whatever the mod is granted; and the handle cut as its lifecycle ends, its requests and the members that throw refused with `ENDED`. The members themselves are the shell's later DECKITs': files outside the app, windows, activation, the Dock, the shell's keys, the look, and regions and drops.
+The shell is the layer that gives a mod's run a GUI on the host app: windows, the Dock, the keys, the look, files outside the app. A host stacks it over the system and the web engine, and it stacks one lifecycle of its own over the system's. This DECKIT fixes that lifecycle, the members `attach(shell, deckit, frameworks)` and `detach()` of the instance it calls, when each is called and what each is handed; the handle `shell` as a whole, every member on it with its shape and the shell's DECKIT that fixes it, on the handle of every mod whatever the mod is granted; and the handle cut as its lifecycle ends, its requests and the members that throw refused with `ENDED`. The members themselves are [files outside the app](../DECKIT-30/SPEC.md)'s and the shell's later DECKITs': windows, activation, the Dock, the shell's keys, the look, and regions and drops.
 
 ## Motivation
 
@@ -62,7 +62,7 @@ The shell's lifecycle ends as [the entry](../DECKIT-6/SPEC.md) ends a layer's li
 
 | member | what it is | shape | fixed by |
 |---|---|---|---|
-| `dialogs.chooseFolders(options)`, `reveal(path)` | the folders a person chooses, and a file shown where it lies | request | the shell's DECKIT of files outside the app |
+| `dialogs.chooseFolders(options)`, `reveal(path)` | the folders a person chooses, and a file shown where it lies | request | [files outside the app](../DECKIT-30/SPEC.md) |
 | `windows.open(options)`, `windows.list()` | the mod's windows | answers at once | the shell's DECKIT of windows |
 | `web.page(options)`, `web.window(options)` | the web pages the web engine offers the shell, laid in the mod's page and shown apart from it | answers at once | [web pages](../DECKIT-25/SPEC.md), and the window a page apart is shown in, the shell's DECKIT of windows |
 | `active()` | whether the app is in front | request | the shell's DECKIT of activation |
@@ -114,7 +114,7 @@ A registration through a cut handle registers nothing. A value of a cut handle i
 - The handle `web` in `frameworks`, and a session handle cut: [the web engine](../DECKIT-23/SPEC.md). The pages the web engine offers the shell, which `web.page` and `web.window` answer: [web pages](../DECKIT-25/SPEC.md).
 - A chord the owner of `deckit/keys` takes through `keys.take`: [the key bindings](../DECKIT-16/SPEC.md).
 - The base `shell`, and the handle `shell` a `call` reads: [the case format](../DECKIT-1/SPEC.md).
-- What each member takes, answers and is refused with, the permissions the shell defines and the requests they guard, the manifest fields the shell adds, the instance's `reopen()`, which the Dock calls: the shell's later DECKITs, of files outside the app, windows, activation, the Dock, its keys, the look, and regions and drops.
+- What each member takes, answers and is refused with, the permissions the shell defines and the requests they guard, the manifest fields the shell adds, the instance's `reopen()`, which the Dock calls: [files outside the app](../DECKIT-30/SPEC.md), for `dialogs.chooseFolders` and `reveal`, and the shell's later DECKITs, of windows, activation, the Dock, its keys, the look, and regions and drops.
 
 ## Alternatives considered
 

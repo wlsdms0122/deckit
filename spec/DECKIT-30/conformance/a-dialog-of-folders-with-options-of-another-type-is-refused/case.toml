@@ -1,0 +1,23 @@
+case = 16
+name = "a-dialog-of-folders-with-options-of-another-type-is-refused"
+note = "dialogs.chooseFolders is refused at call with kind INVALID_ARGUMENT where what it is handed does not fit what it takes: mod-a, a mod granted nothing, asks with options the number 5, and the person would choose folder-a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+chosen = ["folder-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+args = [5]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

@@ -1,0 +1,31 @@
+case = 16
+name = "paths-revealed-are-handed-in-the-order-revealed"
+note = "Each path reveal is handed reaches the host as it is handed, in order: mod-a, a mod granted nothing, reveals /b and then /a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+args = ["/b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+args = ["/a"]
+
+[[step]]
+look = "revealed"
+
+[step.expect]
+answers = ["/b", "/a"]

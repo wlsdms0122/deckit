@@ -1,0 +1,21 @@
+case = 16
+name = "a-dialog-of-folders-takes-one-folder-where-multiple-is-left-out"
+note = "multiple left out is false: the dialog takes one folder. mod-a, a mod granted nothing, asks for folders with no options, and the person chooses folder-a and folder-b, of which a dialog that takes one takes the first."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+chosen = ["folder-a", "folder-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+
+[step.expect]
+answers = ["folder-a"]

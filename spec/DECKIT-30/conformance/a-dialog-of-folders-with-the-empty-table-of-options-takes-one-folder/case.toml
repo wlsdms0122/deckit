@@ -1,0 +1,22 @@
+case = 16
+name = "a-dialog-of-folders-with-the-empty-table-of-options-takes-one-folder"
+note = "options with no key is options left out: the dialog takes one folder. mod-a, a mod granted nothing, asks with the empty table, and the person chooses folder-a and folder-b."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+chosen = ["folder-a", "folder-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+args = [{}]
+
+[step.expect]
+answers = ["folder-a"]

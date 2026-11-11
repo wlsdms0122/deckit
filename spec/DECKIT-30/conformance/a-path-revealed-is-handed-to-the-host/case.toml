@@ -1,0 +1,24 @@
+case = 16
+name = "a-path-revealed-is-handed-to-the-host"
+note = "reveal hands the host an absolute path to show where it lies, and no permission guards it: mod-a, a mod granted nothing, reveals the path of the folder folder-a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+folders = ["folder-a"]
+
+[[step]]
+look = "revealed"
+
+[step.expect]
+answers = ["folder-a"]

@@ -1,0 +1,24 @@
+case = 16
+name = "a-path-that-is-not-absolute-is-handed-nothing"
+note = "A path that does not begin with / names no file: reveal hands the host nothing of it, and is not refused. mod-a, a mod granted nothing, reveals folder-a/notes.txt, a path that is not absolute."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+args = ["folder-a/notes.txt"]
+
+[[step]]
+look = "revealed"
+
+[step.expect]
+answers = []

@@ -1,0 +1,27 @@
+case = 16
+name = "revealing-no-path-is-refused"
+note = "path is required: reveal with it left out is refused at call with kind INVALID_ARGUMENT, and the host is handed nothing. mod-a, a mod granted nothing, reveals with no argument."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+look = "revealed"
+
+[step.expect]
+answers = []

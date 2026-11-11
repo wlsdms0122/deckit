@@ -1,0 +1,24 @@
+case = 16
+name = "the-empty-path-is-handed-nothing"
+note = "The empty string does not begin with /, so it names no file: reveal hands the host nothing, and is not refused. mod-a, a mod granted nothing, reveals the empty string."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+args = [""]
+
+[[step]]
+look = "revealed"
+
+[step.expect]
+answers = []
