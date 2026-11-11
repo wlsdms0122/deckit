@@ -309,13 +309,7 @@ export function createDesktop({
     // window is the local seat's input, which reaches that window's mod.
     function listen() {
         const fromPage = (handler) => (payload, sender) => sender === desktop.page && handler(payload);
-        const known = (handler) =>
-            fromPage(({ id, ...payload }) => {
-                const window = windows.get(id);
-                if (!window) return;
-                ACTIVATION.input(LOCAL, window.mod);
-                handler(window, payload);
-            });
+        const known = (handler) => fromPage(({ id, ...payload }) => byHand(id, (window) => handler(window, payload)));
         PROTOCOL.setup.handle((_payload, sender) => {
             if (sender !== desktop.page)
                 throw Object.assign(new Error("only the desktop's page asks this"), { stage: 'call', kind: 'REFUSED' });
@@ -325,21 +319,8 @@ export function createDesktop({
             return { glass: TOKEN.GLASS, state };
         });
         PROTOCOL.press.on(known(press));
-        PROTOCOL.button.on(
-            known((window, { button }) => {
-                if (button === 'close') WINDOWS.close(window);
-                else if (button === 'minimize') minimize(window);
-                else if (button === 'zoom') zoom(window);
-            })
-        );
-        PROTOCOL.resize.on(
-            known((window, { phase, x, y, width, height }) => {
-                const frame = { x, y, width, height };
-                MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(frame, area()) : frame);
-                if (phase === 'ended') remember(window);
-                update();
-            })
-        );
+        PROTOCOL.button.on(known((window, { button }) => clicked(window, button)));
+        PROTOCOL.resize.on(known((window, { phase, ...frame }) => framed(window, phase, frame)));
         PROTOCOL.move.on(known((window, { phase, dx, dy }) => move(window, phase, dx, dy)));
         PROTOCOL.doubleClick.on(known(doubleClick));
         PROTOCOL.dock.on(
@@ -350,6 +331,71 @@ export function createDesktop({
         );
         PROTOCOL.restart.on(fromPage(() => down && deckit.restart()));
     }
+
+    // The local seat's input on a window on its screen, which reaches the window's mod.
+    function byHand(id, handler) {
+        const window = windows.get(id);
+        if (!window || MANAGER.isMinimized(LOCAL, id)) return;
+        ACTIVATION.input(LOCAL, window.mod);
+        handler(window);
+    }
+
+    function clicked(window, button) {
+        if (button === 'close') WINDOWS.close(window);
+        else if (button === 'minimize') minimize(window);
+        else if (button === 'zoom') zoom(window);
+    }
+
+    // The frame a drag of an edge draws, kept where its title bar can be reached and remembered as the drag ends.
+    function framed(window, phase, frame) {
+        const { x, y, width, height } = frame;
+        const next = { x, y, width, height };
+        MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(next, area()) : next);
+        if (phase === 'ended') remember(window);
+        update();
+    }
+
+    // The normal windows, back to front, each `{ id, mod, name, frame, key, minimized }`, as the host app reads them.
+    function windowsNow() {
+        const key = MANAGER.keyOf(LOCAL);
+        return MANAGER.orderOf(LOCAL).map((id) => {
+            const { mod, name } = windows.get(id);
+            const minimized = MANAGER.isMinimized(LOCAL, id);
+            return { id, mod, name, frame: { ...MANAGER.frameOf(id) }, key: id === key, minimized };
+        });
+    }
+
+    // A person's hand on the window `id` that windows() answers, as the host app hands it, each gesture whole, as the
+    // desktop's page tells it: a press in it, a click of a button, `close`, `minimize` or `zoom`; a drag of its title bar by `dx`,
+    // `dy`; a drag of its edge `edge`, as LAYOUT.resized names one, by `dx`, `dy`; and a double click on its title
+    // bar. A window minimized takes none.
+    const hand = Object.freeze({
+        press: (id) => byHand(id, press),
+        button: (id, button) =>
+            byHand(id, (window) => {
+                press(window);
+                clicked(window, button);
+            }),
+        move: (id, dx, dy) =>
+            byHand(id, (window) => {
+                move(window, 'began', 0, 0);
+                move(window, 'changed', dx, dy);
+                move(window, 'ended', dx, dy);
+            }),
+        resize: (id, edge, dx, dy) =>
+            byHand(id, (window) => {
+                press(window);
+                const minimum = LAYOUT.minimumOf(window.minimum);
+                const frame = LAYOUT.resized(MANAGER.frameOf(id), edge, dx, dy, minimum);
+                framed(window, 'changed', frame);
+                framed(window, 'ended', frame);
+            }),
+        doubleClick: (id) =>
+            byHand(id, (window) => {
+                press(window);
+                doubleClick(window);
+            }),
+    });
 
     // The desktop's page is the shell's own, made once: it opens the backdrop, and each window's frame and buttons as
     // the window opens. A press there is the person's on a window, so the keyboard goes back to the key window. It
@@ -653,6 +699,8 @@ export function createDesktop({
             focus,
             present,
             shown: () => shown,
+            windows: windowsNow,
+            hand,
         },
     };
 }
