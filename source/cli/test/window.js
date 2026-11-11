@@ -127,6 +127,8 @@ async function main() {
         held.activates === false,
         held
     );
+    // The keyboard went elsewhere before the shell's asks were answered, and the person presses in the window.
+    shown.control.didResignKey();
     shown.control.focus();
     check(
         "an overlay window taking the keyboard is the local seat's input reaching its mod, the active mod's window",
