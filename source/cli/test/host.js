@@ -1,8 +1,8 @@
 // Deckit.app's host app (deckit-app/app) over stand-ins for its windows, its theme and what the shell hands it: the
 // desktop in the host window, full size under the bar, opened as the shell starts and again after it closes, brought
 // up by a second show and by a notification's click, titled by the desktop; each overlay window of a mod in a floating
-// window of its own, kept by its mod, made once until it closes; and a web page's window handed to the shell. Exits 1
-// with a line for each check that failed.
+// window of its own, shown where the shell kept it and telling it each move, made once until it closes; and a web
+// page's window handed to the shell. Exits 1 with a line for each check that failed.
 const path = require('path');
 
 const { createApp } = require(path.join(__dirname, '..', '..', 'deckit', 'deckit-app', 'app', 'app.js'));
@@ -67,9 +67,11 @@ function main() {
     host.showWindow(control);
     const floating = app.floating;
     check(
-        "an overlay window floats in a window of its own, kept by its mod and name, at the mod's size, made once",
+        "an overlay window floats in a window of its own, at the mod's size, made once, telling the shell each move " +
+            'the person makes, and keeping none itself',
         floating.length === 1 &&
-            floating[0].options.key === 'window-switcher/main' &&
+            !('key' in floating[0].options) &&
+            floating[0].options.didMove === control.didMove &&
             floating[0].options.size.width === 600 &&
             floating[0].options.size.height === 400 &&
             floating[0].options.focus === control.focus &&
@@ -78,8 +80,9 @@ function main() {
         floating.map(({ options }) => options)
     );
     check(
-        'it is shown at the size the mod gives it now, taking the keyboard unless asked not to',
+        'it is shown at the size the mod gives it now, where the shell kept it, taking the keyboard unless asked not to',
         app.floated.map(({ activates }) => activates).join() === 'false,true' &&
+            app.floated.every(({ kept }) => kept === control.keptFrame) &&
             app.sized.at(-1)?.size === control &&
             app.sized.at(-1)?.window === floating[0].window,
         app.floated
@@ -137,8 +140,10 @@ function overlay(mod, width, height) {
         placed: null,
         place: (window) => (control.placed = window),
         contains: () => false,
+        keptFrame: { x: 40, y: 60, width: 600, height: 400 },
         focus() {},
         didResignKey() {},
+        didMove() {},
     };
     return control;
 }
@@ -167,7 +172,7 @@ function standIn() {
             options.place(window);
             return window;
         },
-        float: (window, { activates }) => floated.push({ window, activates }),
+        float: (window, { activates, kept }) => floated.push({ window, activates, kept }),
         setViewSize: (window, size) => sized.push({ window, size }),
         setTitle: (window, title) => titles.push({ window, title }),
         recolor() {},
