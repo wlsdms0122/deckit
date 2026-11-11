@@ -93,6 +93,8 @@ async function run(theCase, { folder, hostApp, electron }) {
                 dock: host.dock,
                 // The chords the machine gives the host app outside it: every one but those the case names.
                 unavailable: host.unavailable,
+                // The host app's look, light or dark, as the case names it: dark where it names none.
+                appearance: host.appearance,
                 fields,
                 mainProcess,
                 permissions: host.permissions,
@@ -212,7 +214,8 @@ async function take(step, app, paths, served, delegate, answers, downloads) {
         const asked = { input: what, mod, step: step.number, session: step.session, url, apart: !!step.apart };
         return app.ask({ ...asked, delegate: delegate ?? {} });
     }
-    return partOf(await app.ask({ look: what, mod }), part);
+    if (what === 'appearance') return app.ask({ input: what, appearance: step.appearance });
+    return partOf(await app.ask({ look: what, mod, properties: step.properties }), part);
 }
 
 // The folder the host app writes downloads in: `read()`, each file in it, `{ name, body }`, by its name's code points,

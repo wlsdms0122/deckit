@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 20;
+const FORMAT = 21;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -41,6 +41,10 @@ class TooOld extends Error {}
 const ACTIONS = ['press', 'close', 'minimize', 'zoom', 'move', 'resize', 'doubleClick'];
 // What a person does to a Dock item: format 19.
 const DOCK_ACTIONS = ['click', 'quit', 'keep', 'remove', 'drag'];
+// The looks of the host app, light or dark: format 21.
+const APPEARANCES = ['light', 'dark'];
+// A custom property of a page's root, as a look worn names one: format 21.
+const PROPERTY = /^--[A-Za-z0-9_-]+$/;
 const EDGES = ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
 // A scheme as an address writes it, in lower case: format 12, a key of host.apps.
@@ -136,6 +140,7 @@ const INPUTS = {
         action: [(value) => DOCK_ACTIONS.includes(value), true],
         to: [is.string, false],
     },
+    appearance: { appearance: [(value) => APPEARANCES.includes(value), true] },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -150,6 +155,16 @@ const LOOKS = {
     windows: {},
     desktop: {},
     dock: {},
+    worn: {
+        mod: [is.string, false],
+        properties: [
+            (value) =>
+                Array.isArray(value) &&
+                value.every((one) => is.string(one) && PROPERTY.test(one)) &&
+                new Set(value).size === value.length,
+            true,
+        ],
+    },
     requested: {
         headers: [
             (value) =>
@@ -179,6 +194,8 @@ const ADDED = {
     key: 18,
     desktop: 18,
     dock: 19,
+    appearance: 21,
+    worn: 21,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -195,9 +212,18 @@ const KEYS_ADDED = {
     outside: 20,
 };
 // The format that added a key of the host, where it is not 1.
-const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12, chosen: 16, dock: 19, unavailable: 20 };
+const HOST_KEYS_ADDED = {
+    owners: 5,
+    sites: 9,
+    delegate: 10,
+    apps: 12,
+    chosen: 16,
+    dock: 19,
+    unavailable: 20,
+    appearance: 21,
+};
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key', 'dock'];
+const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
 // and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
@@ -326,6 +352,7 @@ function hostOf(host, format, refuse) {
             chosen: is.bundles,
             dock: is.strings,
             unavailable: (value) => Array.isArray(value) && value.every(is.keystroke),
+            appearance: (value) => APPEARANCES.includes(value),
             owners: is.standards,
             sites: (value) => Array.isArray(value) && value.every(is.name),
             delegate: (value) =>
@@ -371,6 +398,7 @@ function hostOf(host, format, refuse) {
         chosen: host.chosen ?? [],
         dock: host.dock ?? null,
         unavailable: host.unavailable ?? [],
+        appearance: host.appearance ?? 'dark',
     };
 }
 
@@ -412,7 +440,7 @@ function stepOf(step, number, format, refuse) {
     return { number, ...step, kind, what: step[kind], expect };
 }
 
-// `start` first, again only after a `quit`, calls, presses, hands and looks only while the app is started, nothing
+// `start` first, again only after a `quit`, calls, presses, hands, a look changed and looks only while the app is started, nothing
 // after a start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of
 // it, a call's `answered` an earlier call, no `of` beside `handed`, nor `handle` beside either, `delegated` beside none
 // of the three, at most one of `site`, `url` and `file`, a hand's `edge` beside a resize alone and `by` beside a
@@ -442,7 +470,7 @@ function order(steps, refuse) {
             refuse(`step ${step.number}: to is written beside a drag, and only there`);
         if (
             step.kind !== 'input' ||
-            ['call', 'press', 'show', 'activate', 'window', 'key', 'dock'].includes(step.what)
+            ['call', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance'].includes(step.what)
         ) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;

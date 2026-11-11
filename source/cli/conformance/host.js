@@ -16,7 +16,9 @@
 // folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for the look
 // revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a file of the
 // run's, never the person's. A request fetched through a web session reaches no address but on the loopback address. On
-// the base shell it hands the shell the mods the case keeps in the Dock at the first start.
+// the base shell it hands the shell the mods the case keeps in the Dock at the first start, and the host app's look,
+// light or dark, as the case names it, as it starts and as the look changes; it reads what a page of the shell's
+// wears, its colour scheme and the custom properties of its root.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -69,6 +71,13 @@ const chordOf = ({ code, meta = false, control = false, alt = false, shift = fal
     JSON.stringify([code, meta, control, alt, shift]);
 const unavailable = new Set((setup.unavailable ?? []).map(chordOf));
 let title = null; // what the shell last titled the desktop
+// The host app's looks, as a host app hands the shell one: its content's colours, its line and its face.
+const FACE = 'system-ui, sans-serif';
+const LOOKS = Object.freeze({
+    dark: { contentBg: '#1a1d21', contentColor: '#d1d2d3', border: '1px solid rgba(121,124,129,.3)', font: FACE },
+    light: { contentBg: '#ffffff', contentColor: '#1d1c1d', border: '1px solid rgba(29,28,29,.13)', font: FACE },
+});
+const named = new Map(); // a name -> the page of the shell's made under it last, on the base shell
 // What the host app answers the shell, as a host app answers it, on the base shell: the desktop shown as the shell
 // starts, in the host window, which comes up as the shell asks; each overlay window floating over every app, at the
 // frame the shell kept for it where that lies on the screen, or else centred across it, a fifth of the way down, at
@@ -77,6 +86,7 @@ let title = null; // what the shell last titled the desktop
 const HOST = Object.freeze({
     start(given) {
         controls = given;
+        given.setTheme(LOOKS[setup.appearance]);
         given.desktop.show();
     },
     show() {
@@ -125,9 +135,17 @@ const focusFloating = (one) => {
     one.key = true;
     one.control.focus();
 };
-// The pages of the base shell, the machine's keyboard going to the page the shell gives it to.
+// The pages of the base shell, the machine's keyboard going to the page the shell gives it to, and each one the shell
+// makes under a name kept by that name.
 const pagesOn = (pages) =>
     Object.create(pages, {
+        make: {
+            value: (options) => {
+                const page = pages.make(options);
+                if (options?.name) named.set(options.name, page);
+                return page;
+            },
+        },
         focus: {
             value: (page) => {
                 keyboard = page;
@@ -311,7 +329,9 @@ socket.on('data', (chunk) => {
                             ? key(asked)
                             : asked.input === 'dock'
                               ? dockHand(asked)
-                              : told().then(() => look(asked))
+                              : asked.input === 'appearance'
+                                ? appear(asked)
+                                : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
             ).then(async (came) => {
                 if (asked.input) {
                     await runsSettled();
@@ -553,6 +573,31 @@ function runOf(id) {
     if (!run) return { answers: 'notRunning' };
     if (run.refusal) return { refuses: run.refusal.stage, kind: run.refusal.kind, message: run.refusal.message };
     return { answers: run.state };
+}
+
+// The host app's look changes to `appearance`, which the host hands the shell, on the base shell.
+function appear({ appearance }) {
+    if (!controls) return { none: 'no shell is attached' };
+    controls.setTheme(LOOKS[appearance]);
+    return {};
+}
+
+// What the page of the run of `mod` wears, or the desktop's own page where `mod` is null, on the base shell:
+// `{ dark, properties }`, whether its colour scheme is dark, and the value of each custom property of its root that
+// `properties` names and the root holds, trimmed, by name.
+async function worn({ mod, properties }) {
+    if (!controls) return { none: 'no shell is attached' };
+    const page = mod ? runningOf(mod).page : named.get('desktop');
+    if (!page) return mod ? runningOf(mod) : { none: 'no desktop is shown' };
+    const source = `const root = document.documentElement;
+        const style = getComputedStyle(root);
+        const properties = {};
+        for (const name of ${JSON.stringify(properties)}) {
+            const value = style.getPropertyValue(name).trim();
+            if (value) properties[name] = value;
+        }
+        return JSON.stringify({ dark: style.colorScheme === 'dark', properties });`;
+    return { answers: JSON.parse(await page.evaluate(source, 'deckit')) };
 }
 
 // Where in a web page a press lands: from its top left.
