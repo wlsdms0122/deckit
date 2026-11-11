@@ -221,10 +221,11 @@ async function main() {
         .map(({ id, pinned }) => `${id}:${pinned}`)
         .join();
     check(
-        'a mod quit from its menu quits, and one kept in the Dock is kept there, the desktop drawn again',
+        'a mod quit from its menu quits, and one kept in the Dock is kept after the others, the desktop drawn again',
         clicking.quit.join() === 'b' &&
             keptC === 'a:true,b:true,c:true' &&
             JSON.stringify(clicking.state['dock-pinned']) === '["a","b","c"]' &&
+            JSON.stringify(clicking.state['dock-order']) === '["a","b","c"]' &&
             clicking.updates.length > drawnBefore,
         { quit: clicking.quit, keptC }
     );
@@ -242,9 +243,9 @@ async function main() {
         .map(({ id, pinned }) => `${id}:${pinned}`)
         .join();
     check(
-        'a running mod taken out of the Dock stays, after those kept, as it runs',
-        unkeptB === 'c:true,a:true,b:false',
-        unkeptB
+        'a running mod taken out of the Dock stays, after those kept, as it runs, and leaves the order',
+        unkeptB === 'c:true,a:true,b:false' && JSON.stringify(clicking.state['dock-order']) === '["c","a"]',
+        { unkeptB, order: clicking.state['dock-order'] }
     );
 
     // `c` runs, then `a` launches, then `c` quits and launches again.
