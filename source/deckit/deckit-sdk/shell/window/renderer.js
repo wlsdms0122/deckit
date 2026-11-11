@@ -220,6 +220,9 @@ function problemOf(options) {
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.join(' or ')}`;
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
+    if (options.activates !== undefined && typeof options.activates !== 'boolean') return 'takes activates a boolean';
+    const told = CALLBACKS.filter((key) => options[key] !== undefined && typeof options[key] !== 'function');
+    if (told.length) return `takes ${told.join(', ')} a function`;
     return '';
 }
 
