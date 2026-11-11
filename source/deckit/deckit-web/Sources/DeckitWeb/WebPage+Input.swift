@@ -74,7 +74,8 @@ extension WebPage {
     }
 
     // `files` dragged in from outside the app and dropped at `point`, from the page's top left, each by reference as
-    // Finder drags it: dragged over the page first, and dropped once the page has had `settle` to answer the drag.
+    // the system's file browser drags it: dragged over the page first, and dropped once the page has had `settle` to
+    // answer the drag.
     func sendDrop(_ files: [URL], at point: CGPoint, settle: Duration = .milliseconds(300)) async throws {
         let window = try shownWindow()
         let pasteboard = NSPasteboard.withUniqueName()

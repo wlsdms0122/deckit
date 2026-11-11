@@ -15,9 +15,9 @@ import Quartz
 @MainActor
 final class Window: NSObject {
     // MARK: - Property
-    // `titled`: macOS's title bar, its buttons and its title, above what the window shows, or over it where the buttons
-    // are put. `floating`: no bar, over every app, on every Space and over one in full screen, taking the keyboard
-    // without bringing the app forward.
+    // `titled`: the system's title bar, its buttons and its title, above what the window shows, or over it where the
+    // buttons are put. `floating`: no bar, over every app, on every workspace and over one in full screen, taking the
+    // keyboard without bringing the app forward.
     enum Kind: String {
         case titled
         case floating
@@ -43,7 +43,7 @@ final class Window: NSObject {
     // MARK: - Initializer
     // `color` is laid under what the window shows; `material` blurs what is behind it instead. `showsTitle` draws the
     // title in the bar. A titled window with `buttons` shows its content under the bar too, the buttons where they
-    // say; one without has the bar as macOS lays it.
+    // say; one without has the bar as the system lays it.
     init(
         id: Int,
         kind: Kind,
