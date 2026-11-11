@@ -173,17 +173,18 @@ async function main() {
 
     const site = { name: 'site' };
     shell.webOf.set(site, pages.a);
-    const web = shell.windows.openWeb({ title: 'Example', size: { width: 500, height: 600 }, page: site });
+    const web = shell.windows.openWeb({ title: 'Example', page: site });
     const webWindow = desktop.opened.at(-1);
     check(
         'a web page in a window is a normal window on the desktop of the mod whose page shows it, titled, with no ' +
-            'name, its content the web page',
+            'name, 520 by 700, its content the web page',
         webWindow.mod === 'a' &&
             webWindow.page === pages.a &&
             webWindow.surface === site &&
             webWindow.title === 'Example' &&
             webWindow.name === null &&
-            webWindow.size.height === 600,
+            webWindow.size.width === 520 &&
+            webWindow.size.height === 700,
         webWindow
     );
     web.setTitle('Example, again');

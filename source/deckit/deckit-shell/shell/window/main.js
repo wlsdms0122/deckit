@@ -12,8 +12,9 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const NORMAL = 'normal';
     const OVERLAY_LEVEL = 'overlay';
-    // The size a window opens at where its mod gives none.
+    // The size a window opens at where its mod gives none, and the size a web page's window opens at.
     const SIZE = Object.freeze({ width: 720, height: 480 });
+    const WEB_SIZE = Object.freeze({ width: 520, height: 700 });
     // id -> { id, mod, page, name, level, size, minimum, surface, sent, host, title, web }: `name` null for a web
     // page's window, which has none, `surface` its content once
     // the page opened it, `sent` what the page was last told of it, `host` an overlay window's
@@ -48,11 +49,11 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         return [...windows.values()].find((window) => window.surface === page)?.page ?? page;
     }
 
-    // A web page in a window of the app's, as the environment asks the host app for one (`openWindow({ title, size,
-    // page })`): a normal window of the mod whose page shows the web page, its content, under the title bar the shell
+    // A web page in a window of the app's, as the environment asks the host app for one (`openWindow({ title, page })`):
+    // a normal window of the mod whose page shows the web page, its content, WEB_SIZE big under the title bar the shell
     // draws. Answers what the environment drives of it: `setTitle(text)`, `close()`, and `on('close', listener)`, its
     // off answered, heard once as the window closes, however it closes.
-    function openWeb({ title = '', size = null, page: content }) {
+    function openWeb({ title = '', page: content }) {
         const page = web.pageFor(content);
         const mod = page && deckit.mods.modOf(page);
         if (!mod) throw new Error('only a web page a mod shows opens a window');
@@ -63,7 +64,7 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
             page,
             name: null,
             level: NORMAL,
-            size: { width: size?.width ?? SIZE.width, height: size?.height ?? SIZE.height },
+            size: { ...WEB_SIZE },
             minimum: { width: 0, height: 0 },
             surface: content,
             sent: '',

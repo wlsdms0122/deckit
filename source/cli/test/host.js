@@ -96,7 +96,7 @@ function main() {
         floating.length
     );
 
-    const options = { title: 'x', size: null, page: { name: 'web' } };
+    const options = { title: 'x', page: { name: 'web' } };
     const answered = host.openWindow(options);
     check(
         "a web page's window is the shell's, as it answers it",
