@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 18;
+const FORMAT = 19;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -39,6 +39,8 @@ class TooOld extends Error {}
 
 // What a person's hand does on a window, format 17, and the edges a drag of one takes.
 const ACTIONS = ['press', 'close', 'minimize', 'zoom', 'move', 'resize', 'doubleClick'];
+// What a person does to a Dock item: format 19.
+const DOCK_ACTIONS = ['click', 'quit', 'keep', 'remove', 'drag'];
 const EDGES = ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
 // A scheme as an address writes it, in lower case: format 12, a key of host.apps.
@@ -133,6 +135,11 @@ const INPUTS = {
             false,
         ],
     },
+    dock: {
+        mod: [is.string, true],
+        action: [(value) => DOCK_ACTIONS.includes(value), true],
+        to: [is.string, false],
+    },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -146,6 +153,7 @@ const LOOKS = {
     revealed: {},
     windows: {},
     desktop: {},
+    dock: {},
     requested: {
         headers: [
             (value) =>
@@ -174,6 +182,7 @@ const ADDED = {
     windows: 17,
     key: 18,
     desktop: 18,
+    dock: 19,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -189,9 +198,9 @@ const KEYS_ADDED = {
     answered: 14,
 };
 // The format that added a key of the host, where it is not 1.
-const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12, chosen: 16 };
+const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12, chosen: 16, dock: 19 };
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key'];
+const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key', 'dock'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
 // and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
@@ -318,6 +327,7 @@ function hostOf(host, format, refuse) {
             system: is.bundles,
             sources: is.bundles,
             chosen: is.bundles,
+            dock: is.strings,
             owners: is.standards,
             sites: (value) => Array.isArray(value) && value.every(is.name),
             delegate: (value) =>
@@ -361,6 +371,7 @@ function hostOf(host, format, refuse) {
         delegate: host.delegate ?? {},
         apps: host.apps ?? {},
         chosen: host.chosen ?? [],
+        dock: host.dock ?? null,
     };
 }
 
@@ -405,8 +416,8 @@ function stepOf(step, number, format, refuse) {
 // `start` first, again only after a `quit`, calls, presses, hands and looks only while the app is started, nothing
 // after a start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of
 // it, a call's `answered` an earlier call, no `of` beside `handed`, nor `handle` beside either, `delegated` beside none
-// of the three, at most one of `site`, `url` and `file`, and a hand's `edge` beside a resize alone and `by` beside a
-// move or a resize alone.
+// of the three, at most one of `site`, `url` and `file`, a hand's `edge` beside a resize alone and `by` beside a
+// move or a resize alone, and a Dock's `to` beside a drag alone.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
@@ -428,7 +439,12 @@ function order(steps, refuse) {
             refuse(`step ${step.number}: edge is written beside a resize, and only there`);
         if (step.what === 'window' && 'by' in step && !['move', 'resize'].includes(step.action))
             refuse(`step ${step.number}: by is written beside a move or a resize only`);
-        if (step.kind !== 'input' || ['call', 'press', 'show', 'activate', 'window', 'key'].includes(step.what)) {
+        if (step.what === 'dock' && (step.action === 'drag') !== 'to' in step)
+            refuse(`step ${step.number}: to is written beside a drag, and only there`);
+        if (
+            step.kind !== 'input' ||
+            ['call', 'press', 'show', 'activate', 'window', 'key', 'dock'].includes(step.what)
+        ) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
         }

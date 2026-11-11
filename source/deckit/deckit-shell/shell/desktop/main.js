@@ -402,6 +402,17 @@ export function createDesktop({
                 press(window);
                 doubleClick(window);
             }),
+        // On the Dock's item of the mod `id`: a click, Quit from its menu, Keep in Dock or Remove from Dock as
+        // `pinned` says, and a drag of a kept item onto the place of the kept item `to`.
+        dock: Object.freeze({
+            click: (id) => DOCK.hand.click(id, LOCAL),
+            quit: (id) => DOCK.hand.quit(id),
+            keep: (id, pinned) => DOCK.hand.keep(id, pinned),
+            drag: (id, to) => {
+                const kept = DOCK.items().flatMap((item) => (item.pinned ? [item.id] : []));
+                DOCK.hand.reorder(DOCK_MODEL.dragged(kept, id, to));
+            },
+        }),
     });
 
     // The desktop's page is the shell's own, made once: it opens the backdrop, and each window's frame and buttons as
@@ -574,6 +585,19 @@ export function createDesktop({
         return LAYOUT.BUTTONS.map((_button, at) => ({ x: inset + at * (size + gap), y, width: size, height: size }));
     }
 
+    // The Dock's items as the desktop's page draws them, `{ id, pinned, running, attention, active }`: `attention`
+    // where the mod asks for the local seat's attention, and `active` for the mod of the desktop's key window.
+    function dockNow() {
+        const { items, active, attention } = stateOfPage().dock;
+        return items.map(({ id, pinned, running }) => ({
+            id,
+            pinned,
+            running,
+            attention: attention.includes(id),
+            active: id === active,
+        }));
+    }
+
     // `{ windows, strip, title, dock, down }`, as the desktop's page draws it.
     function stateOfPage() {
         const key = MANAGER.keyOf(LOCAL);
@@ -707,6 +731,7 @@ export function createDesktop({
             present,
             shown: () => shown,
             windows: windowsNow,
+            dock: dockNow,
             hand,
             // The local seat's active mod, by its id, or null, and the mods that ask for its attention, in the order
             // they first asked: what a host app shows of them.

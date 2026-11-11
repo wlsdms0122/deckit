@@ -9,12 +9,13 @@
 // the look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there,
 // and presses a web page its layer showed with WebKit's input, as a person's press comes. On the base shell it shows
 // the desktop in a host window the size of a screen of its own, floats each overlay window over it and hands a
-// person's hand on a window as a host app hands it, nothing of either on the person's screen, and presses a key in
-// the page the shell gave the keyboard to, the app in front, never the person's keyboard. It shows none of the
-// system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no dialog of
-// folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for the look
-// revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a file of the
-// run's, never the person's. A request fetched through a web session reaches no address but on the loopback address.
+// person's hand on a window or on the Dock as a host app hands it, nothing of either on the person's screen, and
+// presses a key in the page the shell gave the keyboard to, the app in front, never the person's keyboard. It shows
+// none of the system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no
+// dialog of folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for
+// the look revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a
+// file of the run's, never the person's. A request fetched through a web session reaches no address but on the
+// loopback address. On the base shell it hands the shell the mods the case keeps in the Dock at the first start.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -257,7 +258,8 @@ try {
         webkit = webkit.exports;
     }
     if (setup.base === 'shell') {
-        DECKIT.attach(deckit, given, { host: HOST, web: DECKIT.attachWeb(deckit, given) });
+        const config = setup.dock ? { dock: setup.dock } : {};
+        DECKIT.attach(deckit, given, { host: HOST, web: DECKIT.attachWeb(deckit, given), config });
         deckit.stack('conformance');
     }
     for (const field of setup.fields) deckit.fields.define(field);
@@ -292,7 +294,9 @@ socket.on('data', (chunk) => {
                           ? hand(asked)
                           : asked.input === 'key'
                             ? key(asked)
-                            : told().then(() => look(asked))
+                            : asked.input === 'dock'
+                              ? dockHand(asked)
+                              : told().then(() => look(asked))
             ).then(async (came) => {
                 if (asked.input) {
                     await runsSettled();
@@ -404,6 +408,34 @@ function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
     return { none: `${mod} has no window ${name} on screen` };
 }
 
+// The Dock as the person sees it, its items in order, each `{ mod, pinned, running, attention, active }`.
+function dockSeen() {
+    return controls.desktop.dock().map(({ id, ...marks }) => ({ mod: id, ...marks }));
+}
+
+// What a person's hand on the Dock's item of `mod` comes to: `{}`, or `{ none }` where the Dock has no item of it, its
+// menu offers no such choice, or `to` names no item kept there beside it. The host window takes the keyboard from an
+// overlay window, then by `action`: `click` a click on the item, `quit`, `keep` and `remove` that choice of its menu,
+// Quit offered while the mod runs, Keep in Dock while the item is not kept and Remove from Dock while it is, and
+// `drag` a drag of a kept item onto the place of the kept item of `to`, let go.
+function dockHand({ mod, action, to }) {
+    const items = controls ? controls.desktop.dock() : [];
+    const item = items.find(({ id }) => id === mod);
+    if (!item) return { none: `the Dock has no item of ${mod}` };
+    const offered = { quit: item.running, keep: !item.pinned, remove: item.pinned }[action] ?? true;
+    if (!offered) return { none: `the menu of ${mod} offers no ${action}` };
+    if (action === 'drag' && !(item.pinned && items.some(({ id, pinned }) => id === to && pinned)))
+        return { none: `${mod} and ${to} are not both kept in the Dock` };
+    resignFloating();
+    controls.desktop.focus();
+    const { dock } = controls.desktop.hand;
+    if (action === 'click') dock.click(mod);
+    else if (action === 'quit') dock.quit(mod);
+    else if (action === 'keep' || action === 'remove') dock.keep(mod, action === 'keep');
+    else dock.drag(mod, to);
+    return {};
+}
+
 // What a key comes to: `keystroke` pressed in the page that has the keyboard, which handles none of it, `{}`, or
 // `{ none }` where no page has it. What hears it before the page does may take it; what hears it after, where nothing
 // took it.
@@ -479,6 +511,7 @@ function look({ look: what, mod }) {
     if (what === 'revealed') return { answers: revealed };
     if (what === 'windows') return { answers: windowsSeen() };
     if (what === 'desktop') return controls ? { answers: desktopSeen() } : { none: 'no desktop is shown' };
+    if (what === 'dock') return controls ? { answers: dockSeen() } : { none: 'no desktop is shown' };
     if (what === 'heard' || what === 'delegated') {
         const running = runningOf(mod);
         return running.page ? (what === 'heard' ? heard : delegated).invoke(running.page) : running;

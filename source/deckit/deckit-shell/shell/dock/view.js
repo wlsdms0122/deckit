@@ -115,16 +115,14 @@ function make({ ui, channels, onOut }) {
     ui.sortable(keptList, {
         onReorder: (id, toId) => {
             const kept = items.filter(({ pinned }) => pinned);
-            const moved = kept.find((item) => item.id === id);
-            const to = kept.findIndex((item) => item.id === toId);
-            if (!moved || to < 0) return;
-            const rest = kept.filter((item) => item !== moved);
-            const next = [...rest.slice(0, to), moved, ...rest.slice(to)];
+            const ids = kept.map((item) => item.id);
+            const next = DOCK.dragged(ids, id, toId);
+            if (next === ids) return;
             draw(
-                next,
+                next.map((one) => kept.find((item) => item.id === one)),
                 items.filter(({ pinned }) => !pinned)
             );
-            PROTOCOL.reorder.send({ ids: next.map((item) => item.id) });
+            PROTOCOL.reorder.send({ ids: next });
         },
     });
 

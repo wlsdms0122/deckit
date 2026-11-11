@@ -13,6 +13,15 @@ function items(ids, { pinned, running }) {
     return [...kept, ...others].map((id) => ({ id, pinned: pinned.has(id), running: running.has(id) }));
 }
 
+// The ids of the items kept in the Dock, `ids` in their order, once the person drags the item `id` onto the place of
+// the item `to`: `id` takes that place, and the items between shift by one. Answers `ids` where either is not there.
+function dragged(ids, id, to) {
+    const at = ids.indexOf(to);
+    if (!ids.includes(id) || at < 0) return ids;
+    const rest = ids.filter((one) => one !== id);
+    return [...rest.slice(0, at), id, ...rest.slice(at)];
+}
+
 // Where the Dock takes the pointer on `desktop`: its sliver at the left edge, or all of it while it is `out`.
 function rectOf(desktop, out) {
     return { x: desktop.x, y: desktop.y, width: out ? WIDTH : SLIVER, height: desktop.height };
@@ -20,4 +29,4 @@ function rectOf(desktop, out) {
 
 // MARK: - Private
 
-export { SLIVER, WIDTH, items, rectOf };
+export { SLIVER, WIDTH, items, dragged, rectOf };

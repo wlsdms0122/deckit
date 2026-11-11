@@ -47,17 +47,25 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
             const seat = DESKTOP.seatAt(sender);
             if (seat) handler(payload, seat);
         };
-        PROTOCOL.click.on(
-            bySeat(({ id }, seat) => {
-                DESKTOP.activation.input(seat, id);
-                open(id, seat);
-            })
-        );
-        PROTOCOL.quit.on(bySeat(({ id }) => quit(id)));
-        PROTOCOL.keep.on(bySeat(({ id, pinned: on }) => setPinned(id, on)));
-        PROTOCOL.reorder.on(bySeat(({ ids }) => arrange(ids)));
+        PROTOCOL.click.on(bySeat(({ id }, seat) => hand.click(id, seat)));
+        PROTOCOL.quit.on(bySeat(({ id }) => hand.quit(id)));
+        PROTOCOL.keep.on(bySeat(({ id, pinned: on }) => hand.keep(id, on)));
+        PROTOCOL.reorder.on(bySeat(({ ids }) => hand.reorder(ids)));
         DESKTOP.update();
     }
+
+    // What the person does to the Dock, as the desktop's page tells it or the host app hands it, for `seat`: a click
+    // on an item, its input reaching the mod; Quit from its menu; Keep in Dock or Remove from Dock; and the items kept
+    // there dragged into the order `ids` names.
+    const hand = Object.freeze({
+        click: (id, seat) => {
+            DESKTOP.activation.input(seat, id);
+            open(id, seat);
+        },
+        quit: (id) => quit(id),
+        keep: (id, on) => setPinned(id, on),
+        reorder: (ids) => arrange(ids),
+    });
 
     // What the Dock shows, `[{ id, name, icon, pinned, running }]`: the app mods kept there, as the person arranged
     // them, then those running now, in the order they launched.
@@ -198,5 +206,5 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
         );
     }
 
-    return { start, items, open, keeps, forget };
+    return { start, items, open, hand, keeps, forget };
 }
