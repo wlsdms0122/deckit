@@ -1,9 +1,9 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from '../../../deckit-sdk/shell/files/protocol.js';
 
-// The person's files shown to them outside the app, for any mod's page: the folders they choose in a dialog, and a path
-// shown where it lies. `deckit` is what connect answered, `dialogs` and `reveal` the environment's (environment:
-// SHELL.dialogs, SHELL.reveal).
+// The person's files shown to them outside the app, for any mod's page: the folders they choose in a dialog, and an
+// absolute path shown where it lies. `deckit` is what connect answered, `dialogs` and `reveal` the environment's
+// (environment: SHELL.dialogs, SHELL.reveal).
 export function createFiles({ deckit, dialogs: DIALOGS, reveal: REVEAL }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -14,8 +14,9 @@ export function createFiles({ deckit, dialogs: DIALOGS, reveal: REVEAL }) {
         PROTOCOL.chooseFolders.handle(({ multiple, title, message }) =>
             DIALOGS.chooseFolders({ title, buttonLabel: 'Choose', message, multiple })
         );
+        // A path that is not absolute names no file, and nothing is shown.
         PROTOCOL.reveal.handle(({ path }) => {
-            REVEAL(path);
+            if (path.startsWith('/')) REVEAL(path);
         });
     }
 

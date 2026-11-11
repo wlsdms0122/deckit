@@ -8,9 +8,9 @@
 // let go once the lifecycle that took it ends; `take` refuses a mod without the permission of its scope at call with
 // NOT_PERMITTED, before its arguments, and an argument of another type with INVALID_ARGUMENT. Then the person's files
 // shown to them (shell/files): `shell.dialogs.chooseFolders` and `shell.reveal` for a mod granted nothing, an argument
-// of another type refused INVALID_ARGUMENT, and main handing the environment what a mod's page asks, the channels
-// guarded for a mod's page. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
-// imported as such.
+// of another type refused INVALID_ARGUMENT, and main handing the environment what a mod's page asks, a path that is
+// not absolute shown not at all, the channels guarded for a mod's page. Exits 1 with a line for each check that
+// failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -456,17 +456,19 @@ async function main() {
         reveal: (path) => shown.push(['reveal', path]),
     }).start();
     const revealed = await filesHandlers['deckit-shell:files-reveal']({ path: '/a' }, { mod: 'a' });
+    const relative = await filesHandlers['deckit-shell:files-reveal']({ path: 'a' }, { mod: 'a' });
     const folders = await filesHandlers['deckit-shell:files-choose-folders'](
         { multiple: true, title: 'T', message: 'M' },
         { mod: 'a' }
     );
     check(
-        "a mod's page has a path shown, answered nothing, and the folders it asks the person for",
+        "a mod's page has an absolute path shown, answered nothing, and the folders it asks the person for",
         revealed === undefined &&
+            relative === undefined &&
             JSON.stringify(folders) === '["/f"]' &&
             JSON.stringify(shown) ===
                 '[["reveal","/a"],["chooseFolders",{"title":"T","buttonLabel":"Choose","message":"M","multiple":true}]]',
-        { revealed, folders, shown }
+        { revealed, relative, folders, shown }
     );
     check(
         "the files are shown for a mod's page alone",

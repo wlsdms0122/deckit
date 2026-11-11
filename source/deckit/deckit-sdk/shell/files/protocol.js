@@ -8,7 +8,7 @@ export const chooseFolders = CHANNEL.pageToMain(
     { multiple: 'boolean', title: 'string?', message: 'string?' },
     { reply: true, guard: CHANNEL.GUARD.MOD }
 );
-// Answers nothing once `path` is shown where it lies.
+// Answers nothing once `path`, where it is absolute, is handed the environment to show where it lies.
 export const reveal = CHANNEL.pageToMain(
     'deckit-shell:files-reveal',
     { path: 'string' },
