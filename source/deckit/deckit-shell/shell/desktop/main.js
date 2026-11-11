@@ -369,9 +369,9 @@ export function createDesktop({
     }
 
     // A person's hand on the window `id` that windows() answers, as the host app hands it, each gesture whole, as the
-    // desktop's page tells it: a press in it, a click of a button, `close`, `minimize` or `zoom`; a drag of its title bar by `dx`,
-    // `dy`; a drag of its edge `edge`, as LAYOUT.resized names one, by `dx`, `dy`; and a double click on its title
-    // bar. A window minimized takes none.
+    // desktop's page tells it: a press in it; a click of a button, `close`, `minimize` or `zoom`; a drag of its title
+    // bar by `dx`, `dy`; a drag of its edge `edge`, as LAYOUT.resized names one, by `dx`, `dy`; and a double click on
+    // its title bar. A window minimized takes none.
     const hand = Object.freeze({
         press: (id) => byHand(id, press),
         button: (id, button) =>

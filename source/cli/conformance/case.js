@@ -386,11 +386,11 @@ function stepOf(step, number, format, refuse) {
     return { number, ...step, kind, what: step[kind], expect };
 }
 
-// `start` first, again only after a `quit`, calls, presses, hands and looks only while the app is started, nothing after a
-// start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of it, a
-// call's `answered` an earlier call, no `of`
-// beside `handed`, nor `handle` beside either, `delegated` beside none of the three, and at most one of `site`, `url`
-// and `file`.
+// `start` first, again only after a `quit`, calls, presses, hands and looks only while the app is started, nothing
+// after a start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of
+// it, a call's `answered` an earlier call, no `of` beside `handed`, nor `handle` beside either, `delegated` beside none
+// of the three, at most one of `site`, `url` and `file`, and a hand's `edge` beside a resize alone and `by` beside a
+// move or a resize alone.
 function order(steps, refuse) {
     let up = false;
     for (const [index, step] of steps.entries()) {
