@@ -74,12 +74,12 @@ function shellOf({ channels, drags }) {
                     },
                     async start(instance, handles, scope, frameworks) {
                         scope.add(() => (reported = ENDED));
-                        if (typeof instance.attach !== 'function') return;
-                        const handle = handleOf(handles, scope);
                         if (typeof instance.reopen === 'function') {
                             WINDOWS.reopen(() => deliver('reopen()', () => instance.reopen()));
                             scope.add(() => WINDOWS.reopen(null));
                         }
+                        if (typeof instance.attach !== 'function') return;
+                        const handle = handleOf(handles, scope);
                         try {
                             await instance.attach(handle, handles.deckit, frameworks);
                         } catch (error) {
