@@ -41,7 +41,7 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
             const from = deckit.mods.modOf(sender);
             refuseNoApp(id);
             DESKTOP.activation.request(from, id);
-            open(id, DESKTOP.localSeat);
+            return open(id, DESKTOP.localSeat);
         });
         const bySeat = (handler) => (payload, sender) => {
             const seat = DESKTOP.seatAt(sender);
@@ -56,11 +56,12 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
 
     // What the person does to the Dock, as the desktop's page tells it or the host app hands it, for `seat`: a click
     // on an item, its input reaching the mod; Quit from its menu; Keep in Dock or Remove from Dock; and the items kept
-    // there dragged into the order `ids` names.
+    // there dragged into the order `ids` names. A click and Quit answer a promise, fulfilled once what they asked of
+    // deckit is done, whether it was done or refused.
     const hand = Object.freeze({
         click: (id, seat) => {
             DESKTOP.activation.input(seat, id);
-            open(id, seat);
+            return open(id, seat).catch((error) => deckit.log.error(`${id} did not launch`, error));
         },
         quit: (id) => quit(id),
         keep: (id, on) => setPinned(id, on),
@@ -81,13 +82,13 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
 
     // A mod opened from its Dock item by `seat`: the host window comes up where the mod may activate for the seat; then
     // one that does not run launches, and one that runs has its windows brought forward for that seat, or, with none
-    // open, its instance's reopen().
-    function open(id, seat) {
+    // open, its instance's reopen(). Answers a promise, fulfilled once the mod launched it launches, and rejected as
+    // the launch is refused.
+    async function open(id, seat) {
         if (DESKTOP.activation.mayActivate(seat, id)) host.show();
         const run = deckit.mods.runOf(id);
-        if (!run || (run.state === 'notRunning' && !run.relaunches))
-            deckit.mods.launch(id).catch((error) => deckit.log.error(`${id} did not launch`, error));
-        else if (!WINDOWS.forward(seat, id) && run.state === 'running') {
+        if (!run || (run.state === 'notRunning' && !run.relaunches)) return deckit.mods.launch(id);
+        if (!WINDOWS.forward(seat, id) && run.state === 'running') {
             const page = deckit.mods.runs().find((each) => each.run.mod.id === id)?.page;
             if (page) WINDOWS.reopen(page);
         }
@@ -137,7 +138,7 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
 
     // The person quits a mod from its Dock item's menu.
     function quit(id) {
-        deckit.mods.quit(id).catch((error) => deckit.log.error(`${id} did not quit`, error));
+        return deckit.mods.quit(id).catch((error) => deckit.log.error(`${id} did not quit`, error));
     }
 
     // What the Dock keeps at the first start, in order: the mods the host app names, or else the app mods it ships, in

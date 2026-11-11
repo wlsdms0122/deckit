@@ -403,7 +403,8 @@ export function createDesktop({
                 doubleClick(window);
             }),
         // On the Dock's item of the mod `id`: a click, Quit from its menu, Keep in Dock or Remove from Dock as
-        // `pinned` says, and a drag of a kept item onto the place of the kept item `to`.
+        // `pinned` says, and a drag of a kept item onto the place of the kept item `to`. A click and Quit answer a
+        // promise, fulfilled once what they asked of deckit is done.
         dock: Object.freeze({
             click: (id) => DOCK.hand.click(id, LOCAL),
             quit: (id) => DOCK.hand.quit(id),

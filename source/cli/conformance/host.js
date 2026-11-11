@@ -417,8 +417,9 @@ function dockSeen() {
 // menu offers no such choice, or `to` names no item kept there beside it. The host window takes the keyboard from an
 // overlay window, then by `action`: `click` a click on the item, `quit`, `keep` and `remove` that choice of its menu,
 // Quit offered while the mod runs, Keep in Dock while the item is not kept and Remove from Dock while it is, and
-// `drag` a drag of a kept item onto the place of the kept item of `to`, let go.
-function dockHand({ mod, action, to }) {
+// `drag` a drag of a kept item onto the place of the kept item of `to`, let go; once what a click or Quit asked of the
+// system is done.
+async function dockHand({ mod, action, to }) {
     const items = controls ? controls.desktop.dock() : [];
     const item = items.find(({ id }) => id === mod);
     if (!item) return { none: `the Dock has no item of ${mod}` };
@@ -429,8 +430,8 @@ function dockHand({ mod, action, to }) {
     resignFloating();
     controls.desktop.focus();
     const { dock } = controls.desktop.hand;
-    if (action === 'click') dock.click(mod);
-    else if (action === 'quit') dock.quit(mod);
+    if (action === 'click') await dock.click(mod);
+    else if (action === 'quit') await dock.quit(mod);
     else if (action === 'keep' || action === 'remove') dock.keep(mod, action === 'keep');
     else dock.drag(mod, to);
     return {};
