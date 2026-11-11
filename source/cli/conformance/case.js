@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 15;
+const FORMAT = 16;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -113,6 +113,7 @@ const LOOKS = {
     shown: {},
     delegated: { mod: [is.string, true], part: [is.string, false] },
     downloaded: {},
+    revealed: {},
     requested: {
         headers: [
             (value) =>
@@ -136,6 +137,7 @@ const ADDED = {
     delegated: 10,
     activate: 11,
     downloaded: 14,
+    revealed: 16,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -151,7 +153,7 @@ const KEYS_ADDED = {
     answered: 14,
 };
 // The format that added a key of the host, where it is not 1.
-const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12 };
+const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12, chosen: 16 };
 // The inputs answered with nothing.
 const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate'];
 
@@ -187,7 +189,13 @@ function read(folder) {
     for (const entry of laid) if (!BUNDLE.test(entry.name)) refuse(`mods/${entry.name} is no bundle-name`);
     const bundles = Object.fromEntries(laid.map(({ name }) => [name, path.join(mods, name)]));
     const filed = steps.flatMap(({ file }) => (file ? [BUNDLE_FILE.exec(file)[1]] : []));
-    const named = new Set([...host.ship, ...host.sources, ...steps.flatMap(({ folders = [] }) => folders), ...filed]);
+    const named = new Set([
+        ...host.ship,
+        ...host.sources,
+        ...host.chosen,
+        ...steps.flatMap(({ folders = [] }) => folders),
+        ...filed,
+    ]);
     for (const name of named)
         if ([...host.ship, ...host.sources].filter((one) => one === name).length > 1)
             refuse(`${name} is written twice in host.ship and host.sources`);
@@ -273,6 +281,7 @@ function hostOf(host, format, refuse) {
             ship: is.bundles,
             system: is.bundles,
             sources: is.bundles,
+            chosen: is.bundles,
             owners: is.standards,
             sites: (value) => Array.isArray(value) && value.every(is.name),
             delegate: (value) =>
@@ -315,6 +324,7 @@ function hostOf(host, format, refuse) {
         sites: host.sites ?? [],
         delegate: host.delegate ?? {},
         apps: host.apps ?? {},
+        chosen: host.chosen ?? [],
     };
 }
 

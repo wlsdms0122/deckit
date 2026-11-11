@@ -87,6 +87,8 @@ async function run(theCase, { folder, hostApp, electron }) {
                 clipboard: path.join(folder, 'clipboard.txt'),
                 // The app the machine has for each scheme, as the case names it: none for any other.
                 apps: host.apps,
+                // The folders the person chooses in each dialog of folders: the paths of the bundles the case names.
+                chosen: host.chosen.map((name) => paths[name]),
                 fields,
                 mainProcess,
                 permissions: host.permissions,
@@ -106,7 +108,7 @@ async function run(theCase, { folder, hostApp, electron }) {
         for (const step of theCase.steps) {
             const taken = await take(step, app, paths, served, host.delegate, answers, downloads);
             if (step.what === 'call') answers.set(step.number, taken);
-            const came = downloads.named(served.named(taken));
+            const came = bundled(paths, downloads.named(served.named(taken)));
             if (!matches(step.expect, came))
                 return { outcome: 'failed', step, came: describe(came), expected: describe(step.expect) };
         }
@@ -234,6 +236,21 @@ function folderOf(folder) {
                 }),
         named: (came) => ('answers' in came ? { ...came, answers: read(came.answers) } : came),
     };
+}
+
+// What a step came to, each string in what it answers that is a bundle's path, or starts with it and then `/`, read
+// with that path written as the bundle's name.
+function bundled(paths, came) {
+    const read = (value) => {
+        if (typeof value === 'string') {
+            const found = Object.entries(paths).find(([, at]) => value === at || value.startsWith(at + '/'));
+            return found ? found[0] + value.slice(found[1].length) : value;
+        }
+        if (Array.isArray(value)) return value.map(read);
+        if (TOML.isTable(value)) return Object.fromEntries(Object.entries(value).map(([key, one]) => [key, read(one)]));
+        return value;
+    };
+    return 'answers' in came ? { ...came, answers: read(came.answers) } : came;
 }
 
 // The file address of a file of a bundle, a bundle's name and a path in it, as the bundle is laid out.

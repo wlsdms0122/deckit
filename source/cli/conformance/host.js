@@ -8,9 +8,10 @@
 // ships asks for them, and opens none of the addresses it is handed to open outside the app: it keeps each one, for
 // the look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there,
 // and presses a web page its layer showed with WebKit's input, as a person's press comes. It shows none of the
-// system's notifications: it keeps each one, for the look shown, and presses one when asked. It knows the app for an
-// address of a scheme only where the case names one. Its clipboard is a file of the run's, never the person's. A
-// request fetched through a web session reaches no address but on the loopback address.
+// system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no dialog of
+// folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for the look
+// revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a file of the
+// run's, never the person's. A request fetched through a web session reaches no address but on the loopback address.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -44,6 +45,7 @@ const showed = new Map(); // a show's place -> the web page it showed
 const windowed = new WeakSet(); // the mods' pages shown in a window of the host's
 const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
 const shown = []; // { notification: { title, body, silent }, onClick }: each notification handed to show, in order
+const revealed = []; // each path handed to show where it lies, in the order handed
 // What the host app answers the shell: nothing it is asked to show is shown.
 const SHOWS_NOTHING = Object.freeze({
     start() {},
@@ -96,6 +98,15 @@ try {
         readText: () => (fs.existsSync(setup.clipboard) ? fs.readFileSync(setup.clipboard, 'utf8') : ''),
         writeText: (text) => fs.writeFileSync(setup.clipboard, text),
     });
+    // A dialog of folders shown nowhere: the person chooses the folders the case names, the first alone where the
+    // dialog takes one, and none where it names none, as a person who cancels.
+    const dialogs = Object.freeze({
+        chooseFolders: async ({ multiple = false }) => (multiple ? setup.chosen : setup.chosen.slice(0, 1)),
+    });
+    // Each path kept, and shown nowhere.
+    const reveal = (file) => {
+        revealed.push(file);
+    };
     // A request fetched through a session reaches no address but on the loopback address, where the runner serves the
     // case's sites: one to another address is not answered.
     const web = Object.create(environment.web, {
@@ -112,6 +123,8 @@ try {
         open: { value: open },
         notifications: { value: notifications },
         clipboard: { value: clipboard },
+        dialogs: { value: dialogs },
+        reveal: { value: reveal },
     });
     deckit = DECKIT.connect(given, {
         host: { notificationClicked: () => {}, restart: () => {} },
@@ -260,6 +273,7 @@ function look({ look: what, mod }) {
     if (!deckit) return { none: 'deckit was not connected' };
     if (what === 'opened') return { answers: opened };
     if (what === 'shown') return { answers: shown.map(({ notification }) => notification) };
+    if (what === 'revealed') return { answers: revealed };
     if (what === 'heard' || what === 'delegated') {
         const running = runningOf(mod);
         return running.page ? (what === 'heard' ? heard : delegated).invoke(running.page) : running;
