@@ -303,19 +303,23 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         for (const other of windows.values()) if (other.page === page && other.host?.stage) lay(other);
     }
 
-    // Each page told of the windows it opened as they change.
+    // Each page told of the windows it opened as they change: a window that resigns key is told before one that
+    // becomes key.
     function tell() {
+        const told = [];
         for (const window of windows.values()) {
-            if (window.web) continue;
+            if (window.web || !window.surface) continue;
             const state =
                 window.level === NORMAL
                     ? DESKTOP.stateOf(window)
                     : { shown: true, key: window.host.key, ...window.size, titleBar: null };
             const written = JSON.stringify(state);
-            if (!window.surface || written === window.sent) continue;
+            if (written === window.sent) continue;
+            const resigns = !state.key && !!window.sent && JSON.parse(window.sent).key;
             window.sent = written;
-            PROTOCOL.state.send(window.page, { id: window.id, ...state });
+            told[resigns ? 'unshift' : 'push']({ window, state });
         }
+        for (const { window, state } of told) PROTOCOL.state.send(window.page, { id: window.id, ...state });
     }
 
     // The overlay window a mod's page is laid in, under its content: the first open of a page with no normal window
