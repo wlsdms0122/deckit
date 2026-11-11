@@ -127,21 +127,27 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         return held.handle;
     }
 
+    // A window's handle: each member throws ENDED once the lifecycle that opened the window has ended, after
+    // INVALID_ARGUMENT; one of a window that has closed does nothing.
     function handleOf(id, held) {
+        const sent = (name, send) => () => {
+            if (held.scope.isCut) throw cut(`window.${name}`);
+            send();
+        };
         return Object.freeze({
             name: held.options.name,
             get isKey() {
                 return held.state.key;
             },
-            close: () => PROTOCOL.close.send({ id }),
-            minimize: () => PROTOCOL.minimize.send({ id }),
-            zoom: () => PROTOCOL.zoom.send({ id }),
-            orderFront: () => PROTOCOL.orderFront.send({ id }),
-            makeKeyAndOrderFront: () => PROTOCOL.makeKeyAndOrderFront.send({ id }),
+            close: sent('close', () => PROTOCOL.close.send({ id })),
+            minimize: sent('minimize', () => PROTOCOL.minimize.send({ id })),
+            zoom: sent('zoom', () => PROTOCOL.zoom.send({ id })),
+            orderFront: sent('orderFront', () => PROTOCOL.orderFront.send({ id })),
+            makeKeyAndOrderFront: sent('makeKeyAndOrderFront', () => PROTOCOL.makeKeyAndOrderFront.send({ id })),
             resize(width, height) {
                 if (!positive(width) || !positive(height))
                     throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'resize takes a width and a height above 0');
-                PROTOCOL.resize.send({ id, width, height });
+                sent('resize', () => PROTOCOL.resize.send({ id, width, height }))();
             },
         });
     }
