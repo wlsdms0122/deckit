@@ -239,8 +239,10 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
         return KEY.KEYS.map(entryOf);
     }
 
+    // A key as list answers it: `keystroke` the chord it has now, left out for none.
     function entryOf({ id, name, keystroke }) {
-        return { id, name, defaultKeystroke: keystroke, keystroke: keystrokeOf(id) };
+        const now = keystrokeOf(id);
+        return { id, name, defaultKeystroke: keystroke, ...(now ? { keystroke: now } : {}) };
     }
 
     // `keystroke`, or null for none, set for the key, or undefined for its default again. Worn only once kept: a

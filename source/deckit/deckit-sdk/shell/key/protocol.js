@@ -14,7 +14,7 @@ export const take = CHANNEL.pageToMain(
 // The sending page lets the chord it took under `id` go.
 export const release = CHANNEL.pageToMain('deckit-shell:key-release', { id: 'number' }, { guard: CHANNEL.GUARD.ANY });
 // Answers the shell's keys, in the order a person reads them: `[{ id, name, defaultKeystroke, keystroke }]`,
-// `keystroke` the chord it has now, or null for none.
+// `keystroke` the chord it has now, left out for none.
 export const list = CHANNEL.pageToMain('deckit-shell:key-list', {}, { reply: true, guard: KEY_PERMISSION.SHELL_KEYS });
 // One key given a chord, `{ code, meta, control, alt, shift }`, or none for null: answers the key as kept. Refused at
 // call, INVALID_ARGUMENT, for an id that is none of the shell's keys or a keystroke with no code.

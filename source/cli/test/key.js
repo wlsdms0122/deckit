@@ -211,6 +211,8 @@ async function main() {
             holder({ code: 'KeyB', meta: true }) === null,
         state
     );
+    const unbound = channel('list')({}, 'settings')[0];
+    check('a key bound to none is listed with no keystroke', !('keystroke' in unbound), unbound);
     const reset = await channel('reset')({ id: 'closeWindow' }, 'settings');
     check(
         'a key reset has its default again, held, and the state keeps no chord for it',

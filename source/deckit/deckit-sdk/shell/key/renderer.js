@@ -27,16 +27,16 @@ const SETS = Object.freeze([
 // MARK: - Public
 // `shell.keys` in a mod's page, its channels bound with `channels`. `forScope(scope, { request })` answers it for a
 // lifecycle, `request` making each of its requests as the shell's handle guards them: `take(keystroke, run,
-// { scope })`, a request, takes `keystroke`, `{ code, meta, control, alt, shift }`, `code` as a keyboard event names
-// the key, in `scope`: `app`, every page of the app, with deckit.app-keys, or `global`, every app, with
-// system.global-keys, `run()` what each press does. It resolves to `{ held, release }`: `held` whether it works where its scope says, false for a
-// chord the system did not give, which works in every page of the app still, and `release()` letting it go, as the end
-// of `scope` does; it rejects for a chord another holds. `record(onKeystroke) -> stop`, which throws its refusal, hands
-// `onKeystroke(keystroke)` each key pressed in the page, taken from it, until `stop()`, the next record or the end of
-// `scope`. The requests deckit.shell-keys guards: `list()` resolves to the shell's keys, `[{ id, name,
-// defaultKeystroke, keystroke }]`; `set(id, keystroke)` gives one a chord, `{ code, meta, control, alt, shift }`, or
-// none where it is left out, and `reset(id)` its default again, each resolving to the key as kept.
-// `activeOf({ request })` answers `active()`, a request that resolves to whether the app is in front.
+// { scope })`, a request, takes `keystroke`, `{ code, meta, control, alt, shift }`, `code` as a keyboard event names the key,
+// in `scope`: `app`, every page of the app, with deckit.app-keys, or `global`, every app, with system.global-keys,
+// `run()` what each press does. It resolves to `{ held, release }`: `held` whether it works where its scope says, false
+// for a chord the system did not give, which works in every page of the app still, and `release()` letting it go, as
+// the end of `scope` does; it rejects for a chord another holds. `record(onKeystroke) -> stop`, which throws its
+// refusal, hands `onKeystroke(keystroke)` each key pressed in the page, taken from it, until `stop()`, the next record
+// or the end of `scope`. The requests deckit.shell-keys guards: `list()` resolves to the shell's keys, `[{ id, name,
+// defaultKeystroke, keystroke }]`, `keystroke` left out for none; `set(id, keystroke)` gives one a chord, `{ code,
+// meta, control, alt, shift }`, or none where it is left out, and `reset(id)` its default again, each resolving to the
+// key as kept. `activeOf({ request })` answers `active()`, a request that resolves to whether the app is in front.
 function createKeys({ channels }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
