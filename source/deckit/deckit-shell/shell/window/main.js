@@ -194,6 +194,16 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         else showFloating(window, { activates: activates && mayActivate(window) });
     }
 
+    // Every window of the mod `mod` brought in front as makeKeyAndOrderFront brings one, for `seat`: its normal windows
+    // in the order they stand, then its overlay windows in the order they opened, so the last of them is key where the
+    // mod may activate. Answers whether it has a window open.
+    function forward(seat, mod) {
+        const normal = DESKTOP.activate(seat, mod);
+        const overlays = [...windows.values()].filter((window) => window.mod === mod && window.level === OVERLAY_LEVEL);
+        for (const window of overlays) orderFront(window);
+        return normal || overlays.length > 0;
+    }
+
     function mayActivate(window) {
         return DESKTOP.activation.mayActivate(DESKTOP.localSeat, window.mod);
     }
@@ -350,5 +360,5 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         if (holder) lay(holder);
     }
 
-    return { start, openWeb, pageOf, keyOverlay, reopen, keyboardOf, close };
+    return { start, openWeb, pageOf, keyOverlay, forward, reopen, keyboardOf, close };
 }

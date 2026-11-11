@@ -404,7 +404,6 @@ function dockOver(
             },
         },
         DESKTOP: {
-            activate: (seat, id) => activated.push(`${seat}:${id}`) > 0 && windowed.includes(id),
             seatAt: (sender) => (sender === desktopPage ? 'local' : null),
             localSeat: 'local',
             activation: {
@@ -420,7 +419,10 @@ function dockOver(
             },
             update: () => updates.push(true),
         },
-        WINDOWS: { reopen: (one) => reopened.push(one) },
+        WINDOWS: {
+            forward: (seat, id) => activated.push(`${seat}:${id}`) > 0 && windowed.includes(id),
+            reopen: (one) => reopened.push(one),
+        },
         host: { show: () => shown.push(true) },
         dock,
     });

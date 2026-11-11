@@ -79,18 +79,18 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
         }));
     }
 
-    // A mod opened from its Dock item by `seat`: one that does not run launches; one that runs has its windows brought
-    // forward for that seat, or, with none open, its instance's reopen(). The host window comes up where the mod may
-    // activate for the seat.
+    // A mod opened from its Dock item by `seat`: the host window comes up where the mod may activate for the seat; then
+    // one that does not run launches, and one that runs has its windows brought forward for that seat, or, with none
+    // open, its instance's reopen().
     function open(id, seat) {
+        if (DESKTOP.activation.mayActivate(seat, id)) host.show();
         const run = deckit.mods.runOf(id);
         if (!run || (run.state === 'notRunning' && !run.relaunches))
             deckit.mods.launch(id).catch((error) => deckit.log.error(`${id} did not launch`, error));
-        else if (!DESKTOP.activate(seat, id) && run.state === 'running') {
+        else if (!WINDOWS.forward(seat, id) && run.state === 'running') {
             const page = deckit.mods.runs().find((each) => each.run.mod.id === id)?.page;
             if (page) WINDOWS.reopen(page);
         }
-        if (DESKTOP.activation.mayActivate(seat, id)) host.show();
     }
 
     // MARK: - Private
