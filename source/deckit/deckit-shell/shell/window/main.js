@@ -191,7 +191,7 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
     // then.
     function orderFront(window, { activates = true } = {}) {
         if (window.level === NORMAL) DESKTOP.orderFront(window, { activates });
-        else showWindow(window.host.control, { activates: activates && mayActivate(window) });
+        else showFloating(window, { activates: activates && mayActivate(window) });
     }
 
     function mayActivate(window) {
@@ -202,7 +202,7 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         window.size = size;
         if (window.level === NORMAL) DESKTOP.resize(window, size);
         else {
-            showWindow(window.host.control, { activates: false });
+            showFloating(window, { activates: false });
             tell();
         }
     }
@@ -218,12 +218,14 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
     }
 
     // An overlay window floats in a window of the host app's, which the host closes as it is done with it, taking the
-    // keyboard unless `activates` is false, where its mod may activate for the local seat. It takes the keyboard as
-    // that seat's input reaches its mod. Where it is left is kept with the frames of the desktop's windows: the host
-    // app reads the frame the window of its name was left at, `keptFrame`, and tells each frame a move by the person
-    // leaves, `didMove(frame)`, both in the machine's screen coordinates.
+    // keyboard unless `activates` is false, where its mod may activate for the local seat. The keyboard the host gives
+    // it otherwise, as the person presses in it, is that seat's input reaching its mod. Where it is left is kept with
+    // the frames of the desktop's windows: the host app reads the frame the window of its name was left at,
+    // `keptFrame`, and tells each frame a move by the person leaves, `didMove(frame)`, both in the machine's screen
+    // coordinates.
     function float(window, { activates }) {
-        const host = { control: null, stage: null, unheard: null, key: false };
+        // `giving` while the host is to give it the keyboard as the shell asked.
+        const host = { control: null, stage: null, unheard: null, key: false, giving: false };
         host.control = Object.freeze({
             mod: window.mod,
             name: window.name,
@@ -248,15 +250,27 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
                 }),
             contains: (page) => !!page && pageOf(OVERLAY.ownerOf(page)) === window.page,
             focus: () => {
-                DESKTOP.activation.input(DESKTOP.localSeat, window.mod);
+                if (!host.giving) DESKTOP.activation.input(DESKTOP.localSeat, window.mod);
+                host.giving = false;
                 if (window.surface) PAGES.focus(window.surface);
                 setKey(window, true);
             },
-            didResignKey: () => setKey(window, false),
+            didResignKey: () => {
+                host.giving = false;
+                setKey(window, false);
+            },
             didMove: (frame) => DESKTOP.remember(window, frame),
         });
         window.host = host;
-        showWindow(host.control, { activates: activates && mayActivate(window) });
+        showFloating(window, { activates: activates && mayActivate(window) });
+    }
+
+    // The host asked to show an overlay window, giving it the keyboard where `activates` is true: the keyboard it gives
+    // as asked is the activation of a mod that may activate, and not input reaching it.
+    function showFloating(window, { activates }) {
+        const { host } = window;
+        if (activates && !host.key) host.giving = true;
+        showWindow(host.control, { activates });
     }
 
     // The overlay window that has the keyboard has the active mod: the desktop hears it, and tells the pages.
