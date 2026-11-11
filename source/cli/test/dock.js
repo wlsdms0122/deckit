@@ -58,14 +58,14 @@ async function main() {
         .map(({ id }) => id)
         .join();
     check(
-        "at the first start the Dock keeps the host app's mods in the order it names them, as the shell's own order",
-        JSON.stringify(first.state['dock-order']) === '["c","a"]' && firstDock === 'c,a',
+        "at the first start the Dock keeps the host app's mods in the order it names them, as kept",
+        JSON.stringify(first.state['dock-pinned']) === '["c","a"]' && firstDock === 'c,a',
         { state: first.state, firstDock }
     );
     const keptBefore = first.DOCK.keeps('c') && !first.DOCK.keeps('b');
     await first.DOCK.forget('c');
     check(
-        'the Dock answers whether it keeps a mod, and erasing it takes the mod out of its pins and its order',
+        'the Dock answers whether it keeps a mod, and erasing it takes the mod out of it',
         keptBefore &&
             !first.DOCK.keeps('c') &&
             Object.values(first.state).every((ids) => !ids.includes('c')) &&
@@ -87,7 +87,7 @@ async function main() {
         mods: named(ids3),
         fields: apps(),
         dock: ['c', 'a'],
-        state: { 'dock-pinned': ['a', 'b'], 'dock-order': ['b'] },
+        state: { 'dock-pinned': ['b', 'a'] },
     });
     later.DOCK.start();
     const left = later.DOCK.items()
@@ -95,7 +95,7 @@ async function main() {
         .join();
     check(
         'later the Dock is as the person left it, whatever the host app names',
-        left === 'b,a' && JSON.stringify(later.state['dock-order']) === '["b"]',
+        left === 'b,a' && JSON.stringify(later.state['dock-pinned']) === '["b","a"]',
         left
     );
 
@@ -193,7 +193,7 @@ async function main() {
         fields: apps(),
         running: ['b', 'c'],
         windowed: ['b'],
-        state: { 'dock-pinned': ['a', 'b'], 'dock-order': ['a', 'b'] },
+        state: { 'dock-pinned': ['a', 'b'] },
     });
     clicking.DOCK.start();
     for (const id of ids3) clicking.click('click', { id });
@@ -225,7 +225,6 @@ async function main() {
         clicking.quit.join() === 'b' &&
             keptC === 'a:true,b:true,c:true' &&
             JSON.stringify(clicking.state['dock-pinned']) === '["a","b","c"]' &&
-            JSON.stringify(clicking.state['dock-order']) === '["a","b","c"]' &&
             clicking.updates.length > drawnBefore,
         { quit: clicking.quit, keptC }
     );
@@ -235,8 +234,8 @@ async function main() {
         .join();
     check(
         'the kept items dragged into a new order take it, as kept',
-        reordered === 'c,b,a' && JSON.stringify(clicking.state['dock-order']) === '["c","b","a"]',
-        { reordered, order: clicking.state['dock-order'] }
+        reordered === 'c,b,a' && JSON.stringify(clicking.state['dock-pinned']) === '["c","b","a"]',
+        { reordered, kept: clicking.state['dock-pinned'] }
     );
     clicking.click('keep', { id: 'b', pinned: false });
     const unkeptB = clicking.DOCK.items()
@@ -244,8 +243,8 @@ async function main() {
         .join();
     check(
         'a running mod taken out of the Dock stays, after those kept, as it runs, and leaves the order',
-        unkeptB === 'c:true,a:true,b:false' && JSON.stringify(clicking.state['dock-order']) === '["c","a"]',
-        { unkeptB, order: clicking.state['dock-order'] }
+        unkeptB === 'c:true,a:true,b:false' && JSON.stringify(clicking.state['dock-pinned']) === '["c","a"]',
+        { unkeptB, kept: clicking.state['dock-pinned'] }
     );
 
     // `c` runs, then `a` launches, then `c` quits and launches again.
@@ -253,7 +252,7 @@ async function main() {
         mods: named(ids3),
         fields: apps(),
         running: ['c'],
-        state: { 'dock-pinned': [], 'dock-order': [] },
+        state: { 'dock-pinned': [] },
     });
     launching.DOCK.start();
     const order = () =>

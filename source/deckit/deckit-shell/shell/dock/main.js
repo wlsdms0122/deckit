@@ -12,9 +12,7 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const PINNED = 'dock-pinned';
-    const ORDER = 'dock-order';
-    let pinned = new Set(); // the mods the person keeps in the Dock
-    let order = []; // the ids of the mods kept in the Dock, in its order
+    let pinned = []; // the ids of the mods the person keeps in the Dock, in its order
     let launched = []; // the ids of the mods running, in the order they launched
 
     // MARK: - Initializer
@@ -26,11 +24,8 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
     function start() {
         // At the first start the Dock's mods take their places in the order they are kept there.
         const kept = STATE.read(PINNED, null);
-        const arranged = STATE.read(ORDER, null);
-        pinned = new Set(kept ?? firstDock());
-        order = arranged ?? [...pinned];
-        if (!kept) keep(PINNED, [...pinned]);
-        if (!kept && !arranged) keep(ORDER, order);
+        pinned = kept ?? firstDock();
+        if (!kept) keep(PINNED, pinned);
         PROTOCOL.list.handle(() => listed());
         PROTOCOL.pinned.handle(() => keptApps());
         PROTOCOL.setPinned.handle(({ id, pinned: on }) => {
@@ -73,11 +68,13 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
     function items() {
         const apps = inOrder().filter(({ id }) => isApp(id));
         const names = new Map(apps.map(({ id, name }) => [id, name]));
-        return DOCK.items([...names.keys()], { pinned, running: new Set(launchOrder()) }).map((item) => ({
-            ...item,
-            name: names.get(item.id),
-            icon: FIELD.iconOf(deckit.mods.fieldsOf(item.id)),
-        }));
+        return DOCK.items([...names.keys()], { pinned: new Set(pinned), running: new Set(launchOrder()) }).map(
+            (item) => ({
+                ...item,
+                name: names.get(item.id),
+                icon: FIELD.iconOf(deckit.mods.fieldsOf(item.id)),
+            })
+        );
     }
 
     // A mod opened from its Dock item by `seat`: the host window comes up where the mod may activate for the seat; then
@@ -103,36 +100,31 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
 
     // A mod kept comes after those kept before it, and one taken out leaves the order.
     function setPinned(id, on) {
-        if (on === pinned.has(id)) return;
-        if (on) pinned.add(id);
-        else pinned.delete(id);
-        order = on ? [...order.filter((one) => one !== id), id] : order.filter((one) => one !== id);
-        keep(PINNED, [...pinned]);
-        keep(ORDER, order);
+        if (on === pinned.includes(id)) return;
+        pinned = on ? [...pinned, id] : pinned.filter((one) => one !== id);
+        keep(PINNED, pinned);
         DESKTOP.update();
     }
 
     // The kept mods `ids` names take the places they held among themselves, in the order given; the rest stay put.
     function arrange(ids) {
-        order = LIST_ORDER.arranged(order, ids);
-        keep(ORDER, order);
+        pinned = LIST_ORDER.arranged(pinned, ids);
+        keep(PINNED, pinned);
         DESKTOP.update();
     }
 
-    // Whether the Dock keeps the mod `id`, kept there or in the order the person arranged.
+    // Whether the Dock keeps the mod `id`.
     function keeps(id) {
-        return pinned.has(id) || order.includes(id);
+        return pinned.includes(id);
     }
 
     // The mod `id` taken out of what the Dock keeps, once deckit has kept that. Answers a promise that rejects where
     // deckit refused a write.
     async function forget(id) {
         if (!keeps(id)) return;
-        const nextPinned = [...pinned].filter((one) => one !== id);
-        const nextOrder = order.filter((one) => one !== id);
-        await Promise.all([STATE.write(PINNED, nextPinned), STATE.write(ORDER, nextOrder)]);
-        pinned = new Set(nextPinned);
-        order = nextOrder;
+        const next = pinned.filter((one) => one !== id);
+        await STATE.write(PINNED, next);
+        pinned = next;
         DESKTOP.update();
     }
 
@@ -167,12 +159,12 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
     // The mods in the Dock's order: those kept there, in its order, then the rest in the mods' order.
     function inOrder() {
         const mods = new Map(MODS.loaded(deckit.mods).map((mod) => [mod.id, mod]));
-        return LIST_ORDER.sorted([...mods.keys()], order).map((id) => mods.get(id));
+        return LIST_ORDER.sorted([...mods.keys()], pinned).map((id) => mods.get(id));
     }
 
     // The ids of the app mods kept in the Dock, in its order.
     function keptApps() {
-        return inOrder().flatMap(({ id }) => (pinned.has(id) && isApp(id) ? [id] : []));
+        return pinned.filter((id) => isApp(id));
     }
 
     // Every app mod, in the Dock's order, marked as the Dock marks them.
@@ -187,7 +179,7 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
                     name,
                     icon: FIELD.iconOf(fields),
                     keywords: FIELD.keywordsOf(fields),
-                    pinned: pinned.has(id),
+                    pinned: pinned.includes(id),
                     running: running.has(id),
                 };
             });

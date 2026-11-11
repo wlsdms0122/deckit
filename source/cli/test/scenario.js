@@ -74,8 +74,8 @@ function seed({ data, files, app }) {
     fs.writeFileSync(browserRecord, JSON.stringify({ tabs, front: 1, closed: [] }));
     fs.mkdirSync(path.join(data, 'deckit', 'state', 'shell'), { recursive: true });
     fs.writeFileSync(
-        path.join(data, 'deckit', 'state', 'shell', 'dock-order.json'),
-        JSON.stringify(['editor', 'settings'])
+        path.join(data, 'deckit', 'state', 'shell', 'dock-pinned.json'),
+        JSON.stringify(['editor', 'settings', 'bot', 'browser', 'calendar', 'finder', 'mods', 'note', PROBE])
     );
     fs.writeFileSync(path.join(data, 'deckit', 'deck.json'), JSON.stringify({ uncleared: [REMOVED] }));
     for (const kept of [
@@ -871,7 +871,7 @@ async function run({
             ['web', ['web-sessions', 'web-downloads'].some((key) => stateOf('web', key)?.editor?.length > 0)],
             [
                 'shell',
-                ['dock-pinned', 'dock-order'].some((key) => stateOf('shell', key)?.includes('editor')) ||
+                stateOf('shell', 'dock-pinned')?.includes('editor') ||
                     Object.hasOwn(stateOf('shell', 'window-frames') ?? {}, 'editor'),
             ],
         ]
