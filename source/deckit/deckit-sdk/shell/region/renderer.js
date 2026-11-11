@@ -11,9 +11,9 @@ const STYLE = `
 `;
 
 // `running` is the mod the page runs; `deliver(label, listener, ...args)` calls a listener of the mod's and records on
-// its row what it throws; `channels` binds the regions' channels in the page; `request` makes each of its requests as
-// the shell's handle guards them; `windowOf(element)` is the id of the window of the page's an element is in, or null.
-export function createRegion({ running, deliver, channels, request, windowOf }) {
+// its row what it throws; `channels` binds the regions' channels in the page; `windowOf(element)` is the id of the
+// window of the page's an element is in, or null.
+export function createRegion({ running, deliver, channels, windowOf }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const listeners = new Set();
@@ -22,7 +22,8 @@ export function createRegion({ running, deliver, channels, request, windowOf }) 
 
     // MARK: - Initializer
     // MARK: - Public
-    // What a handle holds of regions, what it makes ending as `scope` is cut. `region(element, interface)` makes a
+    // What a handle holds of regions, what it makes ending as `scope` is cut, `request` making each of its requests as
+    // the shell's handle guards them. `region(element, interface)` makes a
     // place in one of the mod's windows where the shell shows the views of that interface's children, for an interface
     // the manifest provides, and throws its refusal, INVALID_ARGUMENT, for anything else. A child runs in its own page,
     // laid over what of `element` is seen as it moves, so what the parent draws there is covered and nothing of the
@@ -32,10 +33,11 @@ export function createRegion({ running, deliver, channels, request, windowOf }) 
     // names an interface it provides as their parent, while it owns it. `list(interface)`, a request, resolves to those
     // of one interface in the mods' order, and `onChange(listener)` hears `listener(interface, children)` each time an
     // interface's children change, answering its off, and throws its refusal for a listener that is no function.
-    function forScope(scope) {
+    // `region` and `onChange` throw ENDED once `scope` is cut, after what they refuse for what they are handed.
+    function forScope(scope, { request }) {
         return {
             region(element, named) {
-                return make(element, named, scope);
+                return make(element, named, scope, request);
             },
             children: Object.freeze({
                 list: request(
@@ -49,6 +51,7 @@ export function createRegion({ running, deliver, channels, request, windowOf }) 
                 ),
                 onChange(listener) {
                     if (typeof listener !== 'function') throw invalid('children.onChange: listener is no function');
+                    if (scope.isCut) throw ended('children.onChange');
                     childrenNow();
                     listeners.add(listener);
                     return scope.add(() => listeners.delete(listener));
@@ -59,10 +62,11 @@ export function createRegion({ running, deliver, channels, request, windowOf }) 
 
     // MARK: - Private
     // A region ends once its element, after it was in the page, leaves it, or as `scope` is cut.
-    function make(element, named, scope) {
+    function make(element, named, scope, request) {
         if (element?.nodeType !== Node.ELEMENT_NODE) throw invalid('region: element is no element');
         const problem = interfaceProblem(named);
         if (problem) throw invalid(`region: ${problem}`);
+        if (scope.isCut) throw ended('region');
         const region = ++count;
         let sent = '';
         let entered = false; // a region made in attach() has its element in the page only once the view is up
@@ -121,6 +125,10 @@ export function createRegion({ running, deliver, channels, request, windowOf }) 
 
     function invalid(message) {
         return REQUEST.refusal('call', 'INVALID_ARGUMENT', message);
+    }
+
+    function ended(name) {
+        return REQUEST.refusal('call', 'ENDED', `${name}: the lifecycle it was made for has ended`);
     }
 
     // Each listener hears the interfaces whose children changed, one by one.

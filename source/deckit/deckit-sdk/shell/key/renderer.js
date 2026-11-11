@@ -27,9 +27,9 @@ const SETS = Object.freeze([
 // MARK: - Public
 // `shell.keys` in a mod's page, its channels bound with `channels`. `forScope(scope, { request })` answers it for a
 // lifecycle, `request` making each of its requests as the shell's handle guards them: `take(keystroke, run,
-// { scope })`, a request, takes `keystroke`, `{ code, meta, control, alt, shift }`, `code` as a keyboard event names the key, in
-// `scope`: `app`, every page of the app, with deckit.app-keys, or `global`, every app, with system.global-keys, `run()`
-// what each press does. It resolves to `{ held, release }`: `held` whether it works where its scope says, false for a
+// { scope })`, a request, takes `keystroke`, `{ code, meta, control, alt, shift }`, `code` as a keyboard event names
+// the key, in `scope`: `app`, every page of the app, with deckit.app-keys, or `global`, every app, with
+// system.global-keys, `run()` what each press does. It resolves to `{ held, release }`: `held` whether it works where its scope says, false for a
 // chord the system did not give, which works in every page of the app still, and `release()` letting it go, as the end
 // of `scope` does; it rejects for a chord another holds. `record(onKeystroke) -> stop`, which throws its refusal, hands
 // `onKeystroke(keystroke)` each key pressed in the page, taken from it, until `stop()`, the next record or the end of
@@ -123,10 +123,11 @@ function createKeys({ channels }) {
     }
 
     // A recording asked again ends the one before it, as main ends it. Refused at call, INVALID_ARGUMENT, for an
-    // `onKeystroke` that is no function.
+    // `onKeystroke` that is no function, then ENDED once `scope` is cut.
     function record(onKeystroke, scope) {
         if (typeof onKeystroke !== 'function')
             throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'keys.record: onKeystroke is no function');
+        if (scope.isCut) throw REQUEST.refusal('call', 'ENDED', 'keys.record: the lifecycle it was made for has ended');
         const id = ++lastRecording;
         recorders.clear();
         recorders.set(id, onKeystroke);

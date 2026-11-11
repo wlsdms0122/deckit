@@ -52,14 +52,18 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     // `open(options)` opens a window, or orders front the one of its name open, and answers it: the key window, as
     // `makeKeyAndOrderFront()` puts it, or with `activates` false in front as `orderFront()` puts it, the keyboard left
     // where it is. It throws its refusal: NOT_PERMITTED for the level `overlay` without system.overlay-windows, then
-    // INVALID_ARGUMENT for options that are no window's. `list()` answers the windows open, in the order they opened.
+    // INVALID_ARGUMENT for options that are no window's, then ENDED once `scope` is cut. `list()` answers the windows
+    // open, in the order they opened, and throws ENDED once `scope` is cut.
     function forScope(scope) {
         scope.add(() => {
             for (const id of open.keys()) PROTOCOL.close.send({ id });
         });
         return Object.freeze({
-            open: (options) => opened(options),
-            list: () => [...open.values()].map(({ handle }) => handle),
+            open: (options) => opened(options, scope),
+            list: () => {
+                if (scope.isCut) throw cut('windows.list');
+                return [...open.values()].map(({ handle }) => handle);
+            },
         });
     }
 
@@ -78,11 +82,12 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     }
 
     // MARK: - Private
-    function opened(options) {
+    function opened(options, scope) {
         const denied = REQUEST.deniedOf({ mod, granted, guard: PROTOCOL.open.guard }, options);
         if (denied) throw REQUEST.refusal('call', 'NOT_PERMITTED', denied);
         const problem = problemOf(options);
         if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `windows.open: ${problem}`);
+        if (scope.isCut) throw cut('windows.open');
         const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
         const payload = { name, level, width, height, minWidth, minHeight, activates };
         const { id, surface } = PROTOCOL.open.invoke(payload);
@@ -195,6 +200,10 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
 }
 
 // MARK: - Private
+function cut(name) {
+    return REQUEST.refusal('call', 'ENDED', `${name}: the lifecycle it was made for has ended`);
+}
+
 // Why what `shell.windows.open` was handed is not a window, or ''.
 function problemOf(options) {
     if (CHANNEL.kindOf(options) !== 'object') return 'options is no table';

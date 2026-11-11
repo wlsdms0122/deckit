@@ -26,7 +26,9 @@ import { createWindows } from '../window/renderer.js';
 // registers a view for a mod whose manifest fields give its view a parent, and `styles.register()`, which registers
 // styles for a mod granted deckit.styles. A request is refused as deckit's handle refuses one (deckit/request), a
 // member that answers at once throws its refusal, and a registration answers nothing and is never refused: one that
-// does not fit registers nothing. The page wears the theme, the kit and the styles from just before attach(). Once
+// does not fit registers nothing. Once the lifecycle has ended, the handle is cut: what it made is cut with its scope,
+// and each request and each member that throws is refused ENDED after what it is refused for its permission and
+// its arguments. The page wears the theme, the kit and the styles from just before attach(). Once
 // attach() has ended, a child's view is laid where a region of its parent's shows it. `web` shows the pages of the
 // mod's web sessions, as the web engine's layer offers them (`under.web.surfaces`), what they pass on opened as the
 // mod's openExternal opens it. `channels` binds the shell's channels in the page, and `drags` takes the presses in the
@@ -37,8 +39,7 @@ function shellOf({ channels, drags }) {
         // The request `name`, refused NOT_PERMITTED as its channel's guard holds the mod, then for its arguments.
         const request = (name, asked, send) => REQUEST.requestOf(name, { ...asked, mod: running.id, granted }, send);
         const WINDOWS = createWindows({ mod: running.id, granted, deliver, channels, drags });
-        const REGION = createRegion({ running, deliver, channels, request, windowOf: WINDOWS.windowOf });
-        const DOCK = createDock({ channels, request });
+        const REGION = createRegion({ running, deliver, channels, windowOf: WINDOWS.windowOf });
         const DROP = createDrop({ deliver, channels });
         const KEYS = createKeys({ channels });
         // What it tells of the run: nothing until its lifecycle has joined, nothing on screen once it has ended.
@@ -69,23 +70,34 @@ function shellOf({ channels, drags }) {
                         if (typeof instance.attach !== 'function') return;
                         page ??= wear();
                         const deckit = handles.deckit;
+                        // A request of the handle: refused as `request` refuses it, then ENDED once `scope` is cut.
+                        const live = (name, asked, send) =>
+                            request(name, asked, (...args) => {
+                                if (scope.isCut)
+                                    throw REQUEST.refusal(
+                                        'call',
+                                        'ENDED',
+                                        `${name}: the lifecycle it was made for has ended`
+                                    );
+                                return send(...args);
+                            });
                         const handle = Object.freeze({
                             ...(handles.shell ?? {}),
                             theme: themeOf(page.theme, scope),
                             ui: page.ui,
                             windows: WINDOWS.forScope(scope),
-                            ...REGION.forScope(scope),
+                            ...REGION.forScope(scope, { request: live }),
                             ...DROP.forScope(scope),
                             web: under.web.surfaces({
                                 owner: { deliver, recordFailure: fail },
                                 open: deckit.openExternal,
                                 scope,
                             }),
-                            fonts: FONTS.tool({ channels, request }),
-                            mods: DOCK.mods,
-                            keys: KEYS.forScope(scope, { request }),
-                            active: KEYS.activeOf({ request }),
-                            ...filesOf({ channels, request }),
+                            fonts: FONTS.tool({ channels, request: live }),
+                            mods: createDock({ channels, request: live }).mods,
+                            keys: KEYS.forScope(scope, { request: live }),
+                            active: KEYS.activeOf({ request: live }),
+                            ...filesOf({ channels, request: live }),
                         });
                         if (typeof instance.reopen === 'function') {
                             WINDOWS.reopen(() => deliver('reopen()', () => instance.reopen()));
@@ -138,12 +150,14 @@ function shellOf({ channels, drags }) {
 
 // MARK: - Private
 // The page's theme on a handle: what it hears is cut with `scope`. `onChange(listener)` throws its refusal,
-// INVALID_ARGUMENT for a listener that is no function.
+// INVALID_ARGUMENT for a listener that is no function, then ENDED once `scope` is cut.
 function themeOf(theme, scope) {
     const read = {
         onChange(listener) {
             if (typeof listener !== 'function')
                 throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'theme.onChange: listener is no function');
+            if (scope.isCut)
+                throw REQUEST.refusal('call', 'ENDED', 'theme.onChange: the lifecycle it was made for has ended');
             return scope.add(theme.onChange(listener));
         },
     };

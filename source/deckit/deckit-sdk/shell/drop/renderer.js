@@ -14,7 +14,8 @@ export function createDrop({ deliver, channels }) {
     // onTargeted })` takes the files the person drags from outside the app onto `element`: `onTargeted(on)` hears a
     // drag of files come over it and leave, and `onDrop(paths, { x, y })` the files dropped, by their paths, at a point
     // from its top left. Of destinations one inside another, the innermost takes the drop. Answers its off, and throws
-    // its refusal, INVALID_ARGUMENT, for an element that is none or options whose onDrop or onTargeted is no function.
+    // its refusal, INVALID_ARGUMENT, for an element that is none or options whose onDrop or onTargeted is no function,
+    // then ENDED once `scope` is cut.
     function forScope(scope) {
         return {
             dropDestination(element, options) {
@@ -23,6 +24,8 @@ export function createDrop({ deliver, channels }) {
                 if (typeof onDrop !== 'function') throw invalid('options.onDrop is no function');
                 if (onTargeted !== null && typeof onTargeted !== 'function')
                     throw invalid('options.onTargeted is no function');
+                if (scope.isCut)
+                    throw REQUEST.refusal('call', 'ENDED', 'dropDestination: the lifecycle it was made for has ended');
                 return make(element, { onDrop, onTargeted }, scope);
             },
         };
