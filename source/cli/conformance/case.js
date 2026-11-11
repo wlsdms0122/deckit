@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 19;
+const FORMAT = 20;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -58,6 +58,14 @@ const is = {
         value.split('.').every((part) => BigInt(part) <= BigInt(Number.MAX_SAFE_INTEGER)),
     bundles: (value) => Array.isArray(value) && value.every((one) => typeof one === 'string' && BUNDLE.test(one)),
     member: (value) => typeof value === 'string' && MEMBER.test(value),
+    // A keystroke: `code` a string, not empty, and each modifier a boolean, left out where it is not held.
+    keystroke: (value) =>
+        TOML.isTable(value) &&
+        typeof value.code === 'string' &&
+        value.code !== '' &&
+        Object.entries(value).every(
+            ([key, one]) => key === 'code' || (['meta', 'control', 'alt', 'shift'].includes(key) && is.boolean(one))
+        ),
     strings: (value) => Array.isArray(value) && value.every(is.string),
     standards: (value) =>
         Array.isArray(value) &&
@@ -109,19 +117,7 @@ const INPUTS = {
         apart: [is.boolean, false],
     },
     activate: { mod: [is.string, true], of: [(value) => is.integer(value) && value >= 1, true] },
-    key: {
-        keystroke: [
-            (value) =>
-                is.table(value) &&
-                is.string(value.code) &&
-                value.code !== '' &&
-                Object.entries(value).every(
-                    ([key, one]) =>
-                        key === 'code' || (['meta', 'control', 'alt', 'shift'].includes(key) && is.boolean(one))
-                ),
-            true,
-        ],
-    },
+    key: { keystroke: [is.keystroke, true], outside: [is.boolean, false] },
     window: {
         mod: [is.string, true],
         name: [is.string, false],
@@ -196,9 +192,10 @@ const KEYS_ADDED = {
     origins: 12,
     delegated: 13,
     answered: 14,
+    outside: 20,
 };
 // The format that added a key of the host, where it is not 1.
-const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12, chosen: 16, dock: 19 };
+const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12, chosen: 16, dock: 19, unavailable: 20 };
 // The inputs answered with nothing.
 const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key', 'dock'];
 
@@ -328,6 +325,7 @@ function hostOf(host, format, refuse) {
             sources: is.bundles,
             chosen: is.bundles,
             dock: is.strings,
+            unavailable: (value) => Array.isArray(value) && value.every(is.keystroke),
             owners: is.standards,
             sites: (value) => Array.isArray(value) && value.every(is.name),
             delegate: (value) =>
@@ -372,6 +370,7 @@ function hostOf(host, format, refuse) {
         apps: host.apps ?? {},
         chosen: host.chosen ?? [],
         dock: host.dock ?? null,
+        unavailable: host.unavailable ?? [],
     };
 }
 

@@ -5,17 +5,18 @@
 // between two states, and quits when asked. It stacks a layer of its own over deckit on each mod's page (page.js),
 // which makes the requests a call hands it and keeps what its listeners heard, attaches the web engine on the bases web
 // and shell and the shell over it, under the layer, on the base shell, runs main process modules where an owner it
-// ships asks for them, and opens none of the addresses it is handed to open outside the app: it keeps each one, for
-// the look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there,
-// and presses a web page its layer showed with WebKit's input, as a person's press comes. On the base shell it shows
-// the desktop in a host window the size of a screen of its own, floats each overlay window over it and hands a
-// person's hand on a window or on the Dock as a host app hands it, nothing of either on the person's screen, and
-// presses a key in the page the shell gave the keyboard to, the app in front, never the person's keyboard. It shows
-// none of the system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no
-// dialog of folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for
-// the look revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a
-// file of the run's, never the person's. A request fetched through a web session reaches no address but on the
-// loopback address. On the base shell it hands the shell the mods the case keeps in the Dock at the first start.
+// ships asks for them, and opens none of the addresses it is handed to open outside the app: it keeps each one, for the
+// look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there, and
+// presses a web page its layer showed with WebKit's input, as a person's press comes. On the base shell it shows the
+// desktop in a host window the size of a screen of its own, floats each overlay window over it and hands a person's
+// hand on a window or on the Dock as a host app hands it, nothing of either on the person's screen, and presses a key
+// in the page the shell gave the keyboard to, the app in front, never the person's keyboard, or in another app, which
+// reaches the chords the shell holds outside the app, held by the host, never with the machine. It shows none of the
+// system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no dialog of
+// folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for the look
+// revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a file of the
+// run's, never the person's. A request fetched through a web session reaches no address but on the loopback address. On
+// the base shell it hands the shell the mods the case keeps in the Dock at the first start.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -61,6 +62,12 @@ const floating = [];
 let keyboard = null;
 const capturing = new Map(); // page -> [handler(event) -> taken]
 const unhandling = new Map(); // page -> [handler(keystroke) -> taken]
+// The chords the machine gives the host app outside it, as the shell holds them: chord -> handler(), and each it does
+// not give, by its chord, as the case names them.
+const hotkeys = new Map();
+const chordOf = ({ code, meta = false, control = false, alt = false, shift = false }) =>
+    JSON.stringify([code, meta, control, alt, shift]);
+const unavailable = new Set((setup.unavailable ?? []).map(chordOf));
 let title = null; // what the shell last titled the desktop
 // What the host app answers the shell, as a host app answers it, on the base shell: the desktop shown as the shell
 // starts, in the host window, which comes up as the shell asks; each overlay window floating over every app, at the
@@ -129,15 +136,23 @@ const pagesOn = (pages) =>
         },
     });
 // The keys of the base shell: what hears a key pressed in a page kept for the input key, the app in front with the
-// page that has the keyboard.
+// page that has the keyboard, and the chords the machine gives the host app outside it held here, never with the
+// machine: one the case names unavailable, or one held already, is not given.
 const keysOn = (keys) => {
     const kept = (heard) => (page, handler) => {
         heard.set(page, [...(heard.get(page) ?? []), handler]);
+    };
+    const hotkey = (keystroke, handler) => {
+        const chord = chordOf(keystroke);
+        if (unavailable.has(chord) || hotkeys.has(chord)) return null;
+        hotkeys.set(chord, handler);
+        return () => hotkeys.get(chord) === handler && hotkeys.delete(chord);
     };
     return Object.create(keys, {
         capture: { value: kept(capturing) },
         unhandled: { value: kept(unhandling) },
         focused: { value: () => keyboard },
+        hotkey: { value: hotkey },
     });
 };
 // The desktop of the base shell: a stage the size of the host window, which lays what the shell lays nowhere on the
@@ -439,8 +454,12 @@ async function dockHand({ mod, action, to }) {
 
 // What a key comes to: `keystroke` pressed in the page that has the keyboard, which handles none of it, `{}`, or
 // `{ none }` where no page has it. What hears it before the page does may take it; what hears it after, where nothing
-// took it.
-function key({ keystroke }) {
+// took it. Pressed `outside`, in another app in front: the chord the machine gave the host app, if it gave it, `{}`.
+function key({ keystroke, outside }) {
+    if (outside) {
+        hotkeys.get(chordOf(keystroke))?.();
+        return {};
+    }
     if (!keyboard) return { none: 'no page has the keyboard' };
     const { code, meta = false, control = false, alt = false, shift = false } = keystroke;
     const pressed = Object.freeze({ code, meta, control, alt, shift });

@@ -91,6 +91,8 @@ async function run(theCase, { folder, hostApp, electron }) {
                 chosen: host.chosen.map((name) => paths[name]),
                 // The mods the host keeps in the Dock at the first start, as the case names them, or null.
                 dock: host.dock,
+                // The chords the machine gives the host app outside it: every one but those the case names.
+                unavailable: host.unavailable,
                 fields,
                 mainProcess,
                 permissions: host.permissions,
@@ -198,7 +200,7 @@ async function take(step, app, paths, served, delegate, answers, downloads) {
         const { name = null, action, edge = null, by = {} } = step;
         return app.ask({ input: what, mod, name, action, edge, by: { x: by.x ?? 0, y: by.y ?? 0 } });
     }
-    if (what === 'key') return app.ask({ input: what, keystroke: step.keystroke });
+    if (what === 'key') return app.ask({ input: what, keystroke: step.keystroke, outside: !!step.outside });
     if (what === 'dock' && step.kind === 'input')
         return app.ask({ input: what, mod, action: step.action, to: step.to ?? null });
     if (what === 'show') {
