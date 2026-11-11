@@ -168,11 +168,12 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         if (window.level === NORMAL && !DESKTOP.isKey(window)) DESKTOP.press(window);
     }
 
-    // Closed, wherever it is, and the page told, unless the page is what went; a web page's window tells those who
-    // listen to its close instead, the environment closing the web page.
+    // Closed, wherever it is, and the page told, unless the page is what went, before another window takes the key
+    // it had; a web page's window tells those who listen to its close instead, the environment closing the web page.
     function close(window) {
         if (windows.get(window.id) !== window) return;
         windows.delete(window.id);
+        if (!window.web && PAGES.isAlive(window.page)) PROTOCOL.closed.send(window.page, { id: window.id });
         if (window.level === NORMAL) {
             DESKTOP.close(window);
             layOverlayWindowsOf(window.page);
@@ -182,7 +183,6 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
             return;
         }
         if (window.surface) PAGES.close(window.surface);
-        if (PAGES.isAlive(window.page)) PROTOCOL.closed.send(window.page, { id: window.id });
     }
 
     // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false,
