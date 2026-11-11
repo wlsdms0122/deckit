@@ -690,7 +690,7 @@ function desktopOver(createDesktop, { state = {} }) {
     };
     let hostShown = 0;
     const desktop = createDesktop({
-        REGION: { onChange() {}, show() {}, laidOut: () => new Map() },
+        REGION: { onChange() {}, show() {}, laidOut: () => new Map(), shownElsewhere: () => false },
         PAGES,
         OVERLAY: { onChange() {}, withOverlays: (layers) => layers, ownerOf: (page) => page },
         KEY,

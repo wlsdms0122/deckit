@@ -489,15 +489,16 @@ export function createDesktop({
         return mod?.name || deckit.config.name;
     }
 
-    // From the bottom: the mods' pages with a window here, the backdrop, each window in the local seat's order with
-    // the children its regions show, then the desktop's page, taking the pointer only at the host's bar and the Dock,
-    // its sliver or all of it while it is out. Over all of it, the overlay of each page laid that shows anything, at
-    // its page's rect. With deckit's core down the desktop's page alone covers it all.
+    // From the bottom: the mods' pages with a window here, but for a child's another stage shows, the backdrop, each
+    // window in the local seat's order with the children its regions show, then the desktop's page, taking the
+    // pointer only at the host's bar and the Dock, its sliver or all of it while it is out. Over all of it, the
+    // overlay of each page laid that shows anything, at its page's rect. With deckit's core down the desktop's page
+    // alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
         if (down) {
             stage.lay(OVERLAY.withOverlays([{ page: desktop.page, rect: full }]));
-            REGION.show([]);
+            REGION.show(stage, []);
             return;
         }
         const view = MANAGER.viewOf(LOCAL);
@@ -505,7 +506,11 @@ export function createDesktop({
         const laidChildren = new Set(children.map(({ page }) => page));
         const front = new Map(); // a mod's page -> the frame of its front window on screen
         for (const { id, frame } of view) front.set(windows.get(id).page, frame);
-        const pages = new Set([...windows.values()].map(({ page }) => page).filter((page) => !laidChildren.has(page)));
+        const pages = new Set(
+            [...windows.values()]
+                .map(({ page }) => page)
+                .filter((page) => !laidChildren.has(page) && !REGION.shownElsewhere(page, stage))
+        );
         const surface = (name) => desktop.surfaces.get(name);
         const backdrop = surface(PAGE.BACKDROP);
         stage.lay(
@@ -547,7 +552,7 @@ export function createDesktop({
                 },
             ])
         );
-        REGION.show(shown ? [...laidChildren] : []);
+        REGION.show(stage, shown ? [...laidChildren] : []);
     }
 
     // `[{ window, page, rect }]`: the children the windows on screen show in their regions, each page on the stage once

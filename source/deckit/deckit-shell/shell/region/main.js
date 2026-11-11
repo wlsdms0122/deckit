@@ -11,6 +11,8 @@ export function createRegion({ deckit }) {
     // the window's id, that shows a child's view
     const regions = new Map();
     const shown = new Set(); // the children's pages last told they are on screen
+    const showing = new Map(); // a stage -> the children's pages it shows on screen, as it last laid them
+    let flushing = false;
     const sentChildren = new Map(); // parent mod id -> its children as its page was last told them, written
     const listeners = new Set();
 
@@ -64,13 +66,31 @@ export function createRegion({ deckit }) {
         return laid;
     }
 
-    // The children's pages on screen are `pages`: each told as it comes on screen and as it leaves.
-    function show(pages) {
+    // The children's pages `stage` shows on screen are `pages`. Each page is told as it comes on screen on a stage
+    // and as it leaves every stage, once the stages have laid what changed, so a view moved from one stage to another
+    // is told nothing; and as one changes, the listeners are told, so that each stage lays again what another took.
+    function show(stage, pages) {
         const now = new Set(pages);
-        for (const page of shown) if (!now.has(page)) PROTOCOL.visible.send(page, { open: false });
-        for (const page of now) if (!shown.has(page)) PROTOCOL.visible.send(page, { open: true });
-        shown.clear();
-        for (const page of now) shown.add(page);
+        const before = showing.get(stage) ?? new Set();
+        if (now.size === before.size && [...now].every((page) => before.has(page))) return;
+        if (now.size) showing.set(stage, now);
+        else showing.delete(stage);
+        if (flushing) return;
+        flushing = true;
+        queueMicrotask(() => {
+            flushing = false;
+            const all = new Set([...showing.values()].flatMap((one) => [...one]));
+            for (const page of shown) if (!all.has(page)) PROTOCOL.visible.send(page, { open: false });
+            for (const page of all) if (!shown.has(page)) PROTOCOL.visible.send(page, { open: true });
+            shown.clear();
+            for (const page of all) shown.add(page);
+            tell();
+        });
+    }
+
+    // Whether a stage other than `stage` shows `page` as a child's view: `stage` lays it nowhere else.
+    function shownElsewhere(page, stage) {
+        return [...showing].some(([other, pages]) => other !== stage && pages.has(page));
     }
 
     // Hears each change to where children are: answers its off.
@@ -181,5 +201,5 @@ export function createRegion({ deckit }) {
         for (const listener of listeners) listener();
     }
 
-    return { start, interfaceOf, parentOf, laidOut, show, onChange };
+    return { start, interfaceOf, parentOf, laidOut, show, shownElsewhere, onChange };
 }

@@ -76,6 +76,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         web,
         PAGES,
         OVERLAY,
+        REGION,
         DESKTOP,
         KEY,
         makeStage,

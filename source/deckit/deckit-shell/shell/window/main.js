@@ -3,11 +3,23 @@ import * as DECLARED from '../../../deckit-sdk/shell/window/protocol.js';
 import * as SURFACE from './model/surface.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `PAGES` the shell's pages,
-// `OVERLAY` their overlays, `DESKTOP` where normal windows are, the frames windows were left at and which mods may
-// activate, `KEY` the keys of the app, and `makeStage()` a stage to lay pages on (environment: SHELL.stage);
+// `OVERLAY` their overlays, `REGION` the regions mods give their children, `DESKTOP` where normal windows are, the
+// frames windows were left at and which mods may activate, `KEY` the keys of the app, and `makeStage()` a stage to
+// lay pages on (environment: SHELL.stage);
 // `showWindow(control, { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on
 // screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it.
-export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeStage, showWindow, closeWindow }) {
+export function createWindows({
+    deckit,
+    web,
+    PAGES,
+    OVERLAY,
+    REGION,
+    DESKTOP,
+    KEY,
+    makeStage,
+    showWindow,
+    closeWindow,
+}) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const NORMAL = 'normal';
@@ -40,7 +52,11 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
             bySender((window, { phase, dx, dy }) => window.level === NORMAL && DESKTOP.move(window, phase, dx, dy))
         );
         PROTOCOL.doubleClick.on(bySender((window) => window.level === NORMAL && DESKTOP.doubleClick(window)));
-        DESKTOP.onChange(tell);
+        // An overlay window's children are laid again as the desktop's are: as runs, regions and the order change.
+        DESKTOP.onChange(() => {
+            tell();
+            for (const window of windows.values()) if (window.host?.stage) lay(window);
+        });
         OVERLAY.onChange(relay);
     }
 
@@ -301,20 +317,50 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         return host.stage;
     }
 
-    // The content fills the stage, over the mod's page where it is laid here, and the page's overlay is over it while
-    // it shows anything.
+    // The content fills the stage, over the mod's page where it is laid here and no other stage shows it as a child's
+    // view, under the children the window's regions show, cut to the stage; each page's overlay is over it while it
+    // shows anything.
     function lay(window) {
         const { stage } = window.host;
         if (!stage) return;
         const full = { x: 0, y: 0, ...stage.size() };
-        const page = holderOf(window.page) === window ? [{ page: window.page, rect: full, input: [] }] : [];
+        const holds = holderOf(window.page) === window && !REGION.shownElsewhere(window.page, stage);
+        const page = holds ? [{ page: window.page, rect: full, input: [] }] : [];
         const content = window.surface ? [{ page: window.surface, rect: full }] : [];
-        stage.lay(OVERLAY.withOverlays([...page, ...content]));
+        const children = childrenIn(window).map(({ page, rect }) => ({ page, rect, clip: full }));
+        stage.lay(OVERLAY.withOverlays([...page, ...content, ...children]));
+        REGION.show(
+            stage,
+            children.map(({ page }) => page)
+        );
+    }
+
+    // `[{ page, rect }]`: the children the window's regions show, each child's page once its view is there, as
+    // attach() has ended with one, `rect` in the window's content.
+    function childrenIn(window) {
+        const pageOf = new Map(
+            deckit.mods
+                .runs()
+                .filter(({ run }) => run.state === 'running' && run.summary.view)
+                .map(({ run, page }) => [run.mod.id, page])
+        );
+        return [...REGION.laidOut(window.mod, (child) => pageOf.has(child))]
+            .filter(([, laid]) => laid.window === window.id)
+            .map(([child, { rect }]) => ({
+                page: pageOf.get(child),
+                rect: {
+                    x: Math.round(rect.x),
+                    y: Math.round(rect.y),
+                    width: Math.round(rect.width),
+                    height: Math.round(rect.height),
+                },
+            }));
     }
 
     function sink(window) {
         const { host } = window;
         host.unheard?.();
+        if (host.stage) REGION.show(host.stage, []);
         host.stage?.close();
         closeWindow(host.control);
         DESKTOP.update();

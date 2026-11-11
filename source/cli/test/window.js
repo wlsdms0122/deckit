@@ -3,11 +3,12 @@
 // run, a window opened or ordered front without taking the keyboard and one made key and ordered front, an overlay
 // window guarded by its permission, picked by its level, and in a floating window of the host app's, taking the
 // keyboard only where its mod may activate, and its taking it the local seat's input, the mod's page laid in that
-// window under its content until the page has a normal window and again once it has none, the content's keys and
-// presses heard and the page told of its window, a window closed by its page and with its page, the keyboard of a page
-// going to its key window's content, and a web page's window: on the desktop for the mod whose page shows it, titled,
-// with no name, closed however it closes with those who listen told once. Exits 1 with a line for each check that
-// failed. The packages are ES modules, so they are imported as such.
+// window under its content until the page has a normal window and again once it has none, the children its regions
+// show laid over its content, the content's keys and presses heard and the page told of its window, a window closed
+// by its page and with its page, the keyboard of a page going to its key window's content, and a web page's window: on
+// the desktop for the mod whose page shows it, titled, with no name, closed however it closes with those who listen
+// told once. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as
+// such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -169,6 +170,23 @@ async function main() {
             sent.some(({ channel, payload }) => channel === 'closed' && payload.id === normal.id),
         { laid: stage.laid, sent }
     );
+    shell.laidOut.set('c', { window: float.id, rect: { x: 10.4, y: 20, width: 30, height: 40 } });
+    desktop.change();
+    const child = stage.laid.at(-1);
+    check(
+        'an overlay window lays the child its region shows over its content, cut to the stage, and shows it there',
+        names() === 'page-b,content-b,page-c' &&
+            JSON.stringify([child.rect, child.clip]) ===
+                JSON.stringify([
+                    { x: 10, y: 20, width: 30, height: 40 },
+                    { x: 0, y: 0, width: 400, height: 300 },
+                ]) &&
+            shell.shown.get(stage)?.join() === 'page-c',
+        { laid: stage.laid, shown: [...shell.shown] }
+    );
+    shell.laidOut.clear();
+    desktop.change();
+    check('an overlay window lays no child its regions show no more', names() === 'page-b,content-b', stage.laid);
 
     shell.fromPage('close', pages.b, { id: first.id });
     check("a page's word about another page's window is not heard", !desktop.closed.includes(first.id), desktop.closed);
@@ -262,7 +280,10 @@ function windowsOver(createWindows) {
     const pagesClosed = [];
     const webOf = new Map();
     const stages = [];
-    const pages = { a: { name: 'page-a' }, b: { name: 'page-b' } };
+    const pages = { a: { name: 'page-a' }, b: { name: 'page-b' }, c: { name: 'page-c' } };
+    // What the regions lay out, child id -> { window, rect }, all of `b`'s; and the children's pages each stage shows.
+    const laidOut = new Map();
+    const shown = new Map();
     const modOf = new Map([
         [pages.a, 'a'],
         [pages.b, 'b'],
@@ -294,6 +315,7 @@ function windowsOver(createWindows) {
         },
         mods: {
             modOf: (page) => modOf.get(page) ?? null,
+            runs: () => [{ run: { mod: { id: 'c' }, state: 'running', summary: { view: true } }, page: pages.c }],
         },
         pages: { whenEnds: (page, listener) => endListeners.set(page, listener) },
     };
@@ -355,6 +377,15 @@ function windowsOver(createWindows) {
         web: { pageFor: (page) => (modOf.has(page) ? page : (webOf.get(page) ?? null)) },
         PAGES,
         OVERLAY,
+        REGION: {
+            laidOut: (parent, shows) => new Map([...laidOut].filter(([child]) => parent === 'b' && shows(child))),
+            show: (stage, given) =>
+                shown.set(
+                    stage,
+                    given.map(({ name }) => name)
+                ),
+            shownElsewhere: () => false,
+        },
         DESKTOP,
         KEY: { listen: (page, owner) => listenedAs.set(page, owner) },
         makeStage,
@@ -370,6 +401,8 @@ function windowsOver(createWindows) {
         host,
         sent,
         stages,
+        laidOut,
+        shown,
         listenedAs,
         pagesClosed,
         webOf,

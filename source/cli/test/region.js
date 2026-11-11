@@ -2,10 +2,11 @@
 // child is the child of the owner of the interface its view names as parent, at the major it uses, a region shows only
 // the children of its own interface, so a mod that gives regions for two keeps them apart, each laid in the window of
 // its region, and a new owner takes a child out of the old one's region and to the new one's children, a child that
-// does not run launches as a region shows it, the children on screen are told so, a view, as a mod's manifest fields
-// (shell/mods/field) give it, names as parent only an interface its mod uses, a mod is an app unless its fields say it
-// is an accessory, and a bundle that does not load is no child and has none. Exits 1 with a line for each check that
-// failed. The packages are ES modules, so they are imported as such.
+// does not run launches as a region shows it, the children on screen are told so and told nothing as they move from
+// one stage to another, a view, as a mod's manifest fields (shell/mods/field) give it, names as parent only an
+// interface its mod uses, a mod is an app unless its fields say it is an accessory, and a bundle that does not load is
+// no child and has none. Exits 1 with a line for each check that failed. The packages are ES modules, so they are
+// imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -148,13 +149,27 @@ async function main() {
     check('a region in no window lays no child', windowless === 'board', windowless);
     channel('rect')({ region: 2, interface: 'dash/tools', window: 2, ...rect }, pages.dash);
     sent.length = 0;
-    REGION.show([pages.board]);
-    REGION.show([pages.tool]);
+    const [desktop, floating] = [{}, {}];
+    REGION.show(desktop, [pages.board]);
+    await Promise.resolve();
+    REGION.show(desktop, [pages.tool]);
+    await Promise.resolve();
     const visible = sent.map(({ page, payload }) => `${page.mod}:${payload.open}`).join();
     check(
         'a child on screen is told so once, and told again as it leaves',
         visible === 'board:true,board:false,tool:true',
         visible
+    );
+    sent.length = 0;
+    REGION.show(desktop, []);
+    REGION.show(floating, [pages.tool]);
+    await Promise.resolve();
+    const moved = sent.map(({ page, payload }) => `${page.mod}:${payload.open}`).join();
+    check('a child moved from one stage to another is told nothing', moved === '', moved);
+    check(
+        'a child one stage shows is shown elsewhere for every other',
+        REGION.shownElsewhere(pages.tool, desktop) && !REGION.shownElsewhere(pages.tool, floating),
+        [REGION.shownElsewhere(pages.tool, desktop), REGION.shownElsewhere(pages.tool, floating)]
     );
 
     owners.set('dash/boards', 'other');
