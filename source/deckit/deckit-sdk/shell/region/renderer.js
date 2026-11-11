@@ -185,6 +185,8 @@ export function createRegion({ running, deliver, channels, windowOf }) {
 function viewProblem(value, running) {
     if (value?.content?.nodeType !== Node.ELEMENT_NODE)
         return 'takes { content, didAppear, didDisappear }, content an element';
+    for (const part of ['didAppear', 'didDisappear'])
+        if (value[part] != null && typeof value[part] !== 'function') return `takes ${part} a function`;
     if (!FIELD.parentOf(running.fields, running)) return 'is for a mod whose manifest gives its view a parent';
     return '';
 }
