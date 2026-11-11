@@ -2,11 +2,11 @@
 // connect answers: a mod with deckit.app-keys takes a chord in every page listened to, every mod's page among them, one
 // with system.global-keys takes it as a system hotkey too, and a press is told to the page of the mod that took it. A
 // chord is one mod's at a time, a mod without the permission for the scope is refused, and a chord is let go when
-// released or when the mod's page ends. A monitor looks at each key pressed in a page listened to before the chords,
-// and what it takes runs none. The shell's own keys are in the same table: a mod's take of one's chord is refused with
-// the key's name, and it runs only for a key the page did not handle, after the page had it. Each chord told to a mod
-// is heard by its id. A page that records is handed each key pressed in it before anything else, until it stops or
-// ends. A mod's page asks whether the app is in front. Exits 1 with a line for each check that failed. The packages
+// released or when the mod's page ends. A monitor hears each key pressed in a page listened to before anything takes
+// it, and takes none. The shell's own keys are in the same table: a mod's take of one's chord is refused with the key's
+// name, and it runs only for a key the page did not handle, after the page had it. Each chord told to a mod is heard
+// by its id. A page that records is handed each key pressed in it once the monitors heard it, before any chord, until
+// it stops or ends. A mod's page asks whether the app is in front. Exits 1 with a line for each check that failed. The packages
 // are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -137,12 +137,11 @@ async function main() {
         told()
     );
 
-    // A monitor looks at each key pressed before the chords taken, and what it takes runs no chord.
+    // A monitor hears each key pressed before anything takes it, and takes none.
     const looked = []; // [page, keystroke]
-    let takes = true;
-    const off = KEY.monitor((page, pressed) => looked.push([page, pressed]) && takes);
+    const off = KEY.monitor((page, pressed) => looked.push([page, pressed]));
     tells.length = 0;
-    check('a key a monitor takes is taken', press(n, 'KeyK', { alt: true }) === true, looked);
+    check('a key a monitor hears goes to the chords', press(n, 'KeyK', { alt: true }) === true, looked);
     check(
         'a monitor is handed the page it was pressed in and the keystroke',
         looked.length === 1 &&
@@ -150,23 +149,19 @@ async function main() {
             JSON.stringify(looked[0][1]) === JSON.stringify(keystroke('KeyK', { alt: true })),
         looked
     );
-    check('a key a monitor takes runs no chord', told().length === 0, told());
-    takes = false;
-    check('a key a monitor leaves goes to the chords', press(n, 'KeyK', { alt: true }) === true, told());
-    check('a key a monitor leaves runs the chord taken', told().length === 1, told());
+    check('a key a monitor hears runs the chord taken', told().length === 1, told());
     looked.length = 0;
     press(n, 'KeyK', { alt: true }, 'keyup');
-    check('a monitor looks at a key pressed, not released', looked.length === 0, looked);
+    check('a monitor hears a key pressed, not released', looked.length === 0, looked);
     off();
-    takes = true;
     press(shell, 'KeyJ', { alt: true });
-    check('a monitor off looks no more', looked.length === 0, looked);
+    check('a monitor off hears no more', looked.length === 0, looked);
     const offThrows = KEY.monitor(() => {
         throw new Error('broken');
     });
     tells.length = 0;
     check(
-        'a monitor that throws takes nothing, and is logged',
+        'a monitor that throws is logged, and the key goes on',
         press(n, 'KeyK', { alt: true }) === true && told().length === 1 && errors.length === 1,
         errors
     );
@@ -284,18 +279,18 @@ async function main() {
 
     // A page that records: each key pressed in it is handed over first, and taken, until it stops or ends.
     const seenByMonitor = [];
-    const offMonitor = KEY.monitor((page, pressed) => seenByMonitor.push(pressed) && false);
+    const offMonitor = KEY.monitor((page, pressed) => seenByMonitor.push(pressed));
     tells.length = 0;
     record(n, 'record', 1);
     check(
-        'a key pressed in a page that records is told to it under its id and taken, before monitors and chords',
+        'a key pressed in a page that records is heard by the monitors, then told to it under its id and taken',
         press(n, 'KeyM', { meta: true }) === true &&
             recorded().length === 1 &&
             recorded()[0][0] === n &&
             recorded()[0][1].payload.id === 1 &&
             recorded()[0][1].payload.keystroke.code === 'KeyM' &&
             recorded()[0][1].payload.keystroke.meta &&
-            !seenByMonitor.length &&
+            seenByMonitor.length === 1 &&
             !told().length,
         { recorded: recorded(), seenByMonitor, told: told() }
     );

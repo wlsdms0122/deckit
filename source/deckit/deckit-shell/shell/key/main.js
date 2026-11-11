@@ -7,9 +7,9 @@ import * as KEY_PERMISSION from '../../../deckit-sdk/shell/key/model/permission.
 // The keys of the app, in one table of chords, a chord its first holder's at a time: one of the shell's own keys, or
 // one a mod took from every page of the app with deckit.app-keys, or from every app too with system.global-keys, its
 // press told to the page of the mod that took it and let go when the mod's page ends. A mod's chord is taken before the
-// page has the key; one of the shell's keys runs only once the page did not handle it. A page that records is handed
-// each key pressed in it or in one of its documents, before anything else looks at it; then the monitors look at the
-// keys pressed in the pages listened to, before any chord a mod took, and what hears each chord told to a mod hears it.
+// page has the key; one of the shell's keys runs only once the page did not handle it. The monitors hear each key
+// pressed in a page listened to first, taking none; then a page that records is handed each key pressed in it or in
+// one of its documents, taken; then the chords mods took. What hears each chord told to a mod hears it.
 // A mod's page asks whether the app is in front: one of its pages has the keyboard. `deckit` is what connect
 // answered, `state` the shell's own state, and `keys` the environment's (environment: SHELL.keys).
 export function createKey({ deckit, state: STATE, keys: KEYS }) {
@@ -19,7 +19,7 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
     // A chord, by its name -> { page, id, off, drop } for one a mod took, `off` the system's hold or null, or
     // { holder, handler } for one of the shell's keys, `holder` its name as a person reads it.
     const taken = new Map();
-    const monitors = new Set(); // what looks at each key pressed before the chords taken, in the order it began
+    const monitors = new Set(); // what hears each key pressed before anything takes it, in the order it began
     const recording = new Map(); // a page that records -> { id, stop }, the recording it asked for last
     const told = new Set(); // what hears each chord told to a mod
     let set = {}; // a key's id -> the keystroke the person set for it, or null for none
@@ -71,9 +71,8 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
         KEYS.unhandled(target, (keystroke) => pass(target, copied(keystroke)));
     }
 
-    // `handler(page, keystroke) -> taken` looks at each key pressed in a page listened to, `page` the one it was
-    // pressed in and `keystroke` `{ code, meta, control, alt, shift }`, before any chord a mod took: answering true
-    // takes it from the page, and no chord runs for it. Answers its off.
+    // `handler(page, keystroke)` hears each key pressed in a page listened to, `page` the one it was pressed in and
+    // `keystroke` `{ code, meta, control, alt, shift }`, before a recording or a chord takes it. Answers its off.
     function monitor(handler) {
         monitors.add(handler);
         return () => monitors.delete(handler);
@@ -165,20 +164,20 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
         return Object.assign(new Error(message), { stage: 'call', kind: 'INVALID_ARGUMENT' });
     }
 
-    // The recording of `owner`, the page whose document `page` is, first, then the monitors, in order, then the chords
-    // mods took: answers whether the key was taken. A monitor that throws takes nothing.
+    // The monitors, in order, then the recording of `owner`, the page whose document `page` is, then the chords mods
+    // took: answers whether the key was taken.
     function handle(page, owner, keystroke) {
+        for (const handler of monitors) {
+            try {
+                handler(page, keystroke);
+            } catch (error) {
+                deckit.log.error('a key monitor failed', error);
+            }
+        }
         const recorder = recording.get(owner);
         if (recorder) {
             PROTOCOL.recorded.send(owner, { id: recorder.id, keystroke });
             return true;
-        }
-        for (const handler of monitors) {
-            try {
-                if (handler(page, keystroke)) return true;
-            } catch (error) {
-                deckit.log.error('a key monitor failed', error);
-            }
         }
         return press(keystroke);
     }

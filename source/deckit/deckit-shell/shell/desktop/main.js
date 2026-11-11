@@ -74,10 +74,7 @@ export function createDesktop({
         MANAGER.addSeat(LOCAL);
         ACTIVATION.addSeat(LOCAL);
         deckit.mods.onRequest(({ from, to }) => ACTIVATION.request(from, to));
-        KEY.monitor((page) => {
-            ACTIVATION.input(LOCAL, modAt(page));
-            return false;
-        });
+        KEY.monitor((page) => ACTIVATION.input(LOCAL, modAt(page)));
         KEY.onChord((mod) => ACTIVATION.input(LOCAL, mod));
         KEY.start(pressKey);
         stage = makeStage();
