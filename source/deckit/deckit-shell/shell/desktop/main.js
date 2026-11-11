@@ -8,11 +8,22 @@ import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as MODS from '../mods/index.js';
 
-// `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `host` the app's answers, `REGION`
-// the regions mods give their children, `PAGES` the shell's pages, `OVERLAY` their overlays, `KEY` the keys of the app,
-// `makeStage()` a stage to lay them on (environment: SHELL.stage) and `actionOnDoubleClick()` what the person set a
-// double click on a title bar to do (environment: SHELL).
-export function createDesktop({ REGION, PAGES, OVERLAY, KEY, makeStage, actionOnDoubleClick, deckit, web, host }) {
+// `deckit` is what connect answered, `state` the shell's own state, `web` what the web engine answered (`pageFor`),
+// `host` the app's answers, `REGION` the regions mods give their children, `PAGES` the shell's pages, `OVERLAY` their
+// overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment: SHELL.stage) and
+// `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL).
+export function createDesktop({
+    REGION,
+    PAGES,
+    OVERLAY,
+    KEY,
+    makeStage,
+    actionOnDoubleClick,
+    deckit,
+    state: STATE,
+    web,
+    host,
+}) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const FRAMES = 'window-frames';
@@ -59,7 +70,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, KEY, makeStage, actionOn
     function start(given) {
         WINDOWS = given.WINDOWS;
         DOCK = given.DOCK;
-        frames = deckit.state.read(FRAMES, {});
+        frames = STATE.read(FRAMES, {});
         MANAGER.addSeat(LOCAL);
         ACTIVATION.addSeat(LOCAL);
         deckit.mods.onRequest(({ from, to }) => ACTIVATION.request(from, to));
@@ -255,7 +266,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, KEY, makeStage, actionOn
     async function forgetFramesOf(mod) {
         if (!keepsFramesOf(mod)) return;
         const { [mod]: _forgotten, ...next } = frames;
-        await deckit.state.write(FRAMES, next);
+        await STATE.write(FRAMES, next);
         frames = next;
     }
 
@@ -263,7 +274,7 @@ export function createDesktop({ REGION, PAGES, OVERLAY, KEY, makeStage, actionOn
     // What the shell keeps between runs, as the person left it. The desktop goes on with it whether deckit keeps it or
     // refuses the write, as it does state it did not read; deckit logs why it refused.
     function keep(key, value) {
-        deckit.state.write(key, value).catch(() => {});
+        STATE.write(key, value).catch(() => {});
     }
 
     // Windows of `mod`, which may not activate for `seat`, right behind its key window, not key: the mod asks for the

@@ -72,9 +72,9 @@ function seed({ data, files, app }) {
     const browserRecord = path.join(data, 'deckit', 'records', 'browser', 'session.json');
     fs.mkdirSync(path.dirname(browserRecord), { recursive: true });
     fs.writeFileSync(browserRecord, JSON.stringify({ tabs, front: 1, closed: [] }));
-    fs.mkdirSync(path.join(data, 'deckit', 'state', 'host'), { recursive: true });
+    fs.mkdirSync(path.join(data, 'deckit', 'state', 'shell'), { recursive: true });
     fs.writeFileSync(
-        path.join(data, 'deckit', 'state', 'host', 'panel-order.json'),
+        path.join(data, 'deckit', 'state', 'shell', 'dock-order.json'),
         JSON.stringify(['editor', 'settings'])
     );
     fs.writeFileSync(path.join(data, 'deckit', 'deck.json'), JSON.stringify({ uncleared: [REMOVED] }));
@@ -679,7 +679,7 @@ async function run({
             (await settings?.evaluate(pageSize)) === '12px',
             await settings?.evaluate(pageSize)
         );
-        const fontsKept = path.join(home, 'state', 'host', 'fonts.json');
+        const fontsKept = path.join(home, 'state', 'shell', 'fonts.json');
         const sizeKept = await until(
             () => fs.existsSync(fontsKept) && JSON.parse(fs.readFileSync(fontsKept, 'utf8')).size === 12,
             2000
@@ -871,8 +871,8 @@ async function run({
             ['web', ['web-sessions', 'web-downloads'].some((key) => stateOf('web', key)?.editor?.length > 0)],
             [
                 'shell',
-                ['panel-pinned', 'panel-order'].some((key) => stateOf('host', key)?.includes('editor')) ||
-                    Object.hasOwn(stateOf('host', 'window-frames') ?? {}, 'editor'),
+                ['dock-pinned', 'dock-order'].some((key) => stateOf('shell', key)?.includes('editor')) ||
+                    Object.hasOwn(stateOf('shell', 'window-frames') ?? {}, 'editor'),
             ],
         ]
             .filter(([, keeps]) => keeps)
@@ -1067,7 +1067,7 @@ async function run({
             !!movedTo,
             JSON.stringify({ dragFrom, movedFrom, now: await browserFrame() })
         );
-        const framesKept = path.join(home, 'state', 'host', 'window-frames.json');
+        const framesKept = path.join(home, 'state', 'shell', 'window-frames.json');
         const keptFrame = () => {
             try {
                 return JSON.parse(fs.readFileSync(framesKept, 'utf8'));

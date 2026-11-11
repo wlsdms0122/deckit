@@ -10,12 +10,12 @@ import * as KEY_PERMISSION from '../../../deckit-sdk/shell/key/model/permission.
 // page has the key; one of the shell's keys runs only once the page did not handle it. A page that records is handed
 // each key pressed in it, before anything else looks at it; then the monitors look at the keys pressed in the pages
 // listened to, before any chord a mod took, and what hears each chord told to a mod hears it. A mod's page asks whether
-// the app is in front: one of its pages has the keyboard. `deckit` is what connect answered, and `keys` the
-// environment's (environment: SHELL.keys).
-export function createKey({ deckit, keys: KEYS }) {
+// the app is in front: one of its pages has the keyboard. `deckit` is what connect answered, `state` the shell's own
+// state, and `keys` the environment's (environment: SHELL.keys).
+export function createKey({ deckit, state: STATE, keys: KEYS }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    const KEPT = 'panel-keys';
+    const KEPT = 'keys';
     // A chord, by its name -> { page, id, off, drop } for one a mod took, `off` the system's hold or null, or
     // { holder, handler } for one of the shell's keys, `holder` its name as a person reads it.
     const taken = new Map();
@@ -39,7 +39,7 @@ export function createKey({ deckit, keys: KEYS }) {
         PROTOCOL.take.handle(({ id, keystroke, scope }, sender) => take(sender, { id, keystroke, scope }));
         PROTOCOL.release.on(({ id }, sender) => release(sender, id));
         deckit.pages.onSandbox((page) => listen(page));
-        set = KEY.keptOf(deckit.state.read(KEPT, {}));
+        set = KEY.keptOf(STATE.read(KEPT, {}));
         for (const { id, name } of KEY.KEYS) {
             const keystroke = keystrokeOf(id);
             try {
@@ -258,7 +258,7 @@ export function createKey({ deckit, keys: KEYS }) {
             if (keystroke === undefined) delete next[id];
             else next[id] = keystroke;
             try {
-                await deckit.state.write(KEPT, next);
+                await STATE.write(KEPT, next);
             } catch (error) {
                 release?.();
                 throw error;

@@ -95,14 +95,14 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | a mod's main process modules | which mod starts which and when, and what a module is handed, `deckit-electron/main-process/main.js`, put on deckit by the host app (`attachMainProcess`); running them, and the windows a module opens, the environment's (`mainProcess`, `deckit-electron/main-process/loader.js`) |
 | what a keystroke runs | the keys of the app, in one table of chords, `deckit-shell/shell/key/main.js`: the shell's own keys and the chords mods take (`shell.keys`), a press told to the page that took it; the Keymap mod (`mods/keymap`) takes the chords of the keys mods declare to `deckit/keys` |
 | opening outside the app | `deckit-shell/deckit/open/main.js`, through the environment (`open`) |
-| the windows on the desktop, back to front, and which is key | `deckit-shell/shell/desktop/main.js` (`model/window-manager.js`); where each window was left, in `state/host/` |
+| the windows on the desktop, back to front, and which is key | `deckit-shell/shell/desktop/main.js` (`model/window-manager.js`); where each window was left, in `state/shell/` |
 | the windows mods open | `deckit-shell/shell/window/main.js` |
-| the Dock: the mods the person keeps in it, in the order they arranged it in, and those running | `deckit-shell/shell/dock/main.js`, the order and the pins in `state/host/` |
+| the Dock: the mods the person keeps in it, in the order they arranged it in, and those running | `deckit-shell/shell/dock/main.js`, the order and the pins in `state/shell/` |
 | which mod's view is whose child, which child a region shows, and where it lies | `deckit-shell/shell/region/main.js` |
 | the files last dropped on a page from outside the app | WebKit's module, `deckit-web` (`WebPageView`); a mod's page asks main for its own, `deckit-shell/shell/drop/main.js` |
 | whether a page's overlay shows anything, where it takes the pointer, and whether an element in it holds the focus | `deckit-shell/shell/overlay/main.js`, as the page's kit tells it |
 | which styles each page wears, in what order | `deckit-shell/shell/style/main.js` |
-| the person's fonts, and every page wearing them in its theme | `deckit-shell/shell/fonts/main.js`, kept in `state/host/`; told to the pages by `deckit-shell/shell/theme/main.js` |
+| the person's fonts, and every page wearing them in its theme | `deckit-shell/shell/fonts/main.js`, kept in `state/shell/`; told to the pages by `deckit-shell/shell/theme/main.js` |
 | a mod's records | the core, `Deck/Storage/Record`, under deckit's folder (below) |
 | what a layer above deck keeps for a mod | the core, `Deck/Storage/PrincipalState`, by the name the layer reserves |
 | a mod's data | whatever of the mod writes it, under deckit's folder (below) |
@@ -110,7 +110,7 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | erasing what a mod removed with its data kept | the core, `Deck/Erasure`: what `Deck/PrincipalStorage` holds of it, noted until main has cleared its pages' storage and what each layer keeps of it (`deckit-shell/deckit/mods/main.js`, the layers as `stack` names what they keep: the web sessions it used and its downloads from `deckit-shell/web/engine/main.js`, the environment clearing what they stored, and the frames its windows were left at and its place in the Dock from `deckit-shell/shell/attach/main.js`) |
 | what loads in the web pages a mod shows, which sessions attach there, the web sessions a mod used, and what a site asks of it | `deckit-shell/web/engine/main.js`; showing them, their sessions and what a site was allowed, the environment's (`web`, `deckit-electron/web`) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
-| what the layers keep between runs | the core, `Deckit/State`, in `state/`, an owner of its own in a folder of its own: the web engine's (the web sessions each mod used, its downloads) in `state/web/`, the host app's and its shell's in `state/host/` |
+| what the layers keep between runs | the core, `Deckit/State`, in `state/`, an owner of its own in a folder of its own: the web engine's (the web sessions each mod used, its downloads) in `state/web/`, the shell's (where windows were left, the Dock, the chords given its keys, the fonts) in `state/shell/`, a host app's in a folder it names |
 
 What a mod is, the core says (`Deckit/Mod/Manifest`): its manifest, its folder, its permissions and its entry. `deckit-shell/deckit/runner/model/lifecycle.js`, `deckit-sdk/deckit/permission` and `deckit-shell/deckit/event/model/scoped-name.js` hold what main runs mods by: the names of the lifecycle's notifications, deckit's permission ids, and how a name of a mod's is scoped; `deckit-electron/mod` the files of a mod's folder its page is served. They name nothing of running them. Main's runner tells each transition of a run as the core told it (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`), and `didJoin` once a lifecycle over the first has joined, or failed and ended, which changes what the run contributes; what follows a mod's run above deckit in main (its main process modules, its styles, its windows and its place in the Dock) listens to those, or asks the run, and changes none of it but to record a problem.
 
@@ -123,7 +123,7 @@ data/<id>/      a mod's own files (a main process module's notes, its workspaces
 records/<id>/   a mod's records, one JSON file a key
 principal-state/<name>/<id>.json   what a layer above deck keeps for a mod, by the name it reserves
 state/          what the person arranged, and what the layers keep between runs, one JSON file a key
-state/host/     what the host app and its shell keep, one JSON file a key
+state/shell/    what deckit's shell keeps, one JSON file a key
 state/web/      what the web engine keeps, one JSON file a key
 logs/
 ```

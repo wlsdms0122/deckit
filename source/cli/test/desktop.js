@@ -624,10 +624,6 @@ function desktopOver(createDesktop, { state = {} }) {
                 send: (page, payload) => sent.push({ channel: declared.channel, page, payload }),
             }),
         },
-        state: {
-            read: (key, fallback) => state[key] ?? fallback,
-            write: async (key, value) => (state[key] = value),
-        },
         log: { warn() {}, error() {} },
         config: { name: 'Deckit' },
         core: { onDown() {} },
@@ -669,6 +665,10 @@ function desktopOver(createDesktop, { state = {} }) {
         makeStage: () => stage,
         actionOnDoubleClick: () => 'zoom',
         deckit,
+        state: {
+            read: (key, fallback) => state[key] ?? fallback,
+            write: async (key, value) => (state[key] = value),
+        },
         web: { pageFor: () => null },
         host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
     });

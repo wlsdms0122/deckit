@@ -34,7 +34,6 @@ const USED = {
     },
     pages: { add: 'function', whenEnds: 'function', nameOf: 'function', onSandbox: 'function' },
     stateIn: 'function',
-    state: { read: 'function', write: 'function' },
     log: { info: 'function', warn: 'function' },
 };
 

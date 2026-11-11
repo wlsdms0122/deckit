@@ -36,7 +36,7 @@ async function main() {
     // deckit.shell-keys, `other` does not, and `keeper` deckit.app-keys.
     const handlers = {};
     const guards = {}; // a channel's name -> the guard its declaration names
-    const state = { 'panel-keys': { closeWindow: { code: 'KeyB', meta: true }, gone: null, cycleWindows: 'none' } };
+    const state = { keys: { closeWindow: { code: 'KeyB', meta: true }, gone: null, cycleWindows: 'none' } };
     const written = [];
     const holding = (id, granted) => ({ mod: { id }, granted });
     const runs = {
@@ -66,13 +66,6 @@ async function main() {
                 };
             },
         },
-        state: {
-            read: (key, fallback) => state[key] ?? fallback,
-            write: async (key, value) => {
-                written.push(value);
-                state[key] = value;
-            },
-        },
         log: { warn() {}, error() {} },
         pages: { onSandbox: () => () => {}, whenEnds: () => () => {} },
         mods: {
@@ -88,7 +81,14 @@ async function main() {
             KEY_PERMISSION.SCOPES.global === 'system.global-keys',
         KEY_PERMISSION.PERMISSIONS
     );
-    const KEY = createKey({ deckit, keys });
+    const KEPT = {
+        read: (key, fallback) => state[key] ?? fallback,
+        write: async (key, value) => {
+            written.push(value);
+            state[key] = value;
+        },
+    };
+    const KEY = createKey({ deckit, state: KEPT, keys });
     const keyPresses = [];
     KEY.start((id, page) => keyPresses.push([id, page]) > 0);
     const pageA = { mod: 'a' };
@@ -162,7 +162,7 @@ async function main() {
     check(
         'a key set takes its chord, kept in the shell state, held again and the chord it had let go',
         set.keystroke.code === 'KeyS' &&
-            state['panel-keys'].minimizeWindow.alt === true &&
+            state.keys.minimizeWindow.alt === true &&
             holder({ code: 'KeyS', meta: true, alt: true }) === 'minimizeWindow' &&
             holder({ code: 'KeyM', meta: true }) === null,
         { set, state, keyPresses }
@@ -182,7 +182,7 @@ async function main() {
         'a chord another holds is refused, and the key keeps the chord it had',
         keeperTakes === true &&
             modHolds === 'REFUSED' &&
-            state['panel-keys'].minimizeWindow.code === 'KeyS' &&
+            state.keys.minimizeWindow.code === 'KeyS' &&
             holder({ code: 'KeyS', meta: true, alt: true }) === 'minimizeWindow' &&
             press(pageA, { code: 'KeyM', meta: true, alt: true }) === true,
         { keeperTakes, modHolds, state }
@@ -207,7 +207,7 @@ async function main() {
     check(
         'a key set to none has no chord, and holds none',
         KEY.chordOf('closeWindow') === '' &&
-            state['panel-keys'].closeWindow === null &&
+            state.keys.closeWindow === null &&
             holder({ code: 'KeyB', meta: true }) === null,
         state
     );
@@ -215,7 +215,7 @@ async function main() {
     check(
         'a key reset has its default again, held, and the state keeps no chord for it',
         reset.keystroke.code === 'KeyW' &&
-            !Object.hasOwn(state['panel-keys'], 'closeWindow') &&
+            !Object.hasOwn(state.keys, 'closeWindow') &&
             holder({ code: 'KeyW', meta: true }) === 'closeWindow',
         { reset, state }
     );

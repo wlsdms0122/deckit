@@ -5,13 +5,14 @@ import * as DOCK from './model/dock.js';
 import * as FIELD from '../../../deckit-sdk/shell/mods/field.js';
 import * as MODS from '../mods/index.js';
 
-// `deckit` is what connect answered, `host` the app's answers, `DESKTOP` the desktop, `WINDOWS` the mods' windows, and
-// `dock` the ids of the mods the host app keeps in the Dock at the first start, or null.
-export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
+// `deckit` is what connect answered, `state` the shell's own state, `host` the app's answers, `DESKTOP` the desktop,
+// `WINDOWS` the mods' windows, and `dock` the ids of the mods the host app keeps in the Dock at the first start, or
+// null.
+export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    const PINNED = 'panel-pinned';
-    const ORDER = 'panel-order';
+    const PINNED = 'dock-pinned';
+    const ORDER = 'dock-order';
     let pinned = new Set(); // the mods the person keeps in the Dock
     let order = []; // the ids of the mods, as the person arranged the Dock
     let launched = []; // the ids of the mods running, in the order they launched
@@ -24,8 +25,8 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
     // does from it, as the local seat, asking that mod.
     function start() {
         // At the first start the Dock's mods take their places in the order they are kept there.
-        const kept = deckit.state.read(PINNED, null);
-        const arranged = deckit.state.read(ORDER, null);
+        const kept = STATE.read(PINNED, null);
+        const arranged = STATE.read(ORDER, null);
         pinned = new Set(kept ?? firstDock());
         order = arranged ?? (kept ? [] : [...pinned]);
         if (!kept) keep(PINNED, [...pinned]);
@@ -88,7 +89,7 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
     // What the Dock keeps between runs, as the person left it. The Dock goes on with it whether deckit keeps it or
     // refuses the write, as it does state it did not read; deckit logs why it refused.
     function keep(key, value) {
-        deckit.state.write(key, value).catch(() => {});
+        STATE.write(key, value).catch(() => {});
     }
 
     function setPinned(id, on) {
@@ -120,7 +121,7 @@ export function createDock({ deckit, DESKTOP, WINDOWS, host, dock }) {
         if (!keeps(id)) return;
         const nextPinned = [...pinned].filter((one) => one !== id);
         const nextOrder = order.filter((one) => one !== id);
-        await Promise.all([deckit.state.write(PINNED, nextPinned), deckit.state.write(ORDER, nextOrder)]);
+        await Promise.all([STATE.write(PINNED, nextPinned), STATE.write(ORDER, nextOrder)]);
         pinned = new Set(nextPinned);
         order = nextOrder;
         DESKTOP.update();

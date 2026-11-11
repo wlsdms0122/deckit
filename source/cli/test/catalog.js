@@ -323,9 +323,9 @@ async function main() {
         sandboxed
     );
     check(
-        "the host app keeps its state in a folder by name, and its own in the host's",
-        api.stateIn('web').folder === 'web' && api.state.folder === 'host',
-        api.state
+        'an owner keeps its state in a folder by its name, and the handle names no folder of its own',
+        api.stateIn('web').folder === 'web' && !('state' in api),
+        Object.keys(api)
     );
 
     for (const line of failed) console.error(line);

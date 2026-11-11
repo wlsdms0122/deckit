@@ -59,7 +59,7 @@ async function main() {
         .join();
     check(
         "at the first start the Dock keeps the host app's mods in the order it names them, as the shell's own order",
-        JSON.stringify(first.state['panel-order']) === '["c","a"]' && firstDock === 'c,a',
+        JSON.stringify(first.state['dock-order']) === '["c","a"]' && firstDock === 'c,a',
         { state: first.state, firstDock }
     );
     const keptBefore = first.DOCK.keeps('c') && !first.DOCK.keeps('b');
@@ -87,7 +87,7 @@ async function main() {
         mods: named(ids3),
         fields: apps(),
         dock: ['c', 'a'],
-        state: { 'panel-pinned': ['a', 'b'], 'panel-order': ['b'] },
+        state: { 'dock-pinned': ['a', 'b'], 'dock-order': ['b'] },
     });
     later.DOCK.start();
     const left = later.DOCK.items()
@@ -95,7 +95,7 @@ async function main() {
         .join();
     check(
         'later the Dock is as the person left it, whatever the host app names',
-        left === 'b,a' && JSON.stringify(later.state['panel-order']) === '["b"]',
+        left === 'b,a' && JSON.stringify(later.state['dock-order']) === '["b"]',
         left
     );
 
@@ -125,7 +125,7 @@ async function main() {
     const keptNow = await listing.ask('pinned', {}, 'switcher');
     check(
         'a mod taken out of the Dock is no longer kept there, as kept',
-        keptNow.join() === 'a' && JSON.stringify(listing.state['panel-pinned']) === '["a"]',
+        keptNow.join() === 'a' && JSON.stringify(listing.state['dock-pinned']) === '["a"]',
         keptNow
     );
     const refusedPins = [];
@@ -139,7 +139,7 @@ async function main() {
     check(
         'a mod that is no app of the catalog is refused a place in the Dock at call, INVALID_ARGUMENT, and not kept',
         refusedPins.every((one) => one === 'call INVALID_ARGUMENT') &&
-            JSON.stringify(listing.state['panel-pinned']) === '["a"]',
+            JSON.stringify(listing.state['dock-pinned']) === '["a"]',
         refusedPins
     );
 
@@ -193,7 +193,7 @@ async function main() {
         fields: apps(),
         running: ['b', 'c'],
         windowed: ['b'],
-        state: { 'panel-pinned': ['a', 'b'], 'panel-order': ['a', 'b'] },
+        state: { 'dock-pinned': ['a', 'b'], 'dock-order': ['a', 'b'] },
     });
     clicking.DOCK.start();
     for (const id of ids3) clicking.click('click', { id });
@@ -224,7 +224,7 @@ async function main() {
         'a mod quit from its menu quits, and one kept in the Dock is kept there, the desktop drawn again',
         clicking.quit.join() === 'b' &&
             keptC === 'a:true,b:true,c:true' &&
-            JSON.stringify(clicking.state['panel-pinned']) === '["a","b","c"]' &&
+            JSON.stringify(clicking.state['dock-pinned']) === '["a","b","c"]' &&
             clicking.updates.length > drawnBefore,
         { quit: clicking.quit, keptC }
     );
@@ -234,8 +234,8 @@ async function main() {
         .join();
     check(
         'the kept items dragged into a new order take it, as kept',
-        reordered === 'c,b,a' && JSON.stringify(clicking.state['panel-order']) === '["c","b","a"]',
-        { reordered, order: clicking.state['panel-order'] }
+        reordered === 'c,b,a' && JSON.stringify(clicking.state['dock-order']) === '["c","b","a"]',
+        { reordered, order: clicking.state['dock-order'] }
     );
     clicking.click('keep', { id: 'b', pinned: false });
     const unkeptB = clicking.DOCK.items()
@@ -252,7 +252,7 @@ async function main() {
         mods: named(ids3),
         fields: apps(),
         running: ['c'],
-        state: { 'panel-pinned': [], 'panel-order': [] },
+        state: { 'dock-pinned': [], 'dock-order': [] },
     });
     launching.DOCK.start();
     const order = () =>
@@ -382,13 +382,6 @@ function dockOver(
                 };
             },
         },
-        state: {
-            read: (key, fallback) => state[key] ?? fallback,
-            write: async (key, value) => {
-                if (refusesWrites) throw new Error('the state the core keeps was not read');
-                state[key] = value;
-            },
-        },
         log: { error() {} },
         mods: {
             list: () => mods,
@@ -403,6 +396,13 @@ function dockOver(
     };
     const DOCK = createDock({
         deckit,
+        state: {
+            read: (key, fallback) => state[key] ?? fallback,
+            write: async (key, value) => {
+                if (refusesWrites) throw new Error('the state the core keeps was not read');
+                state[key] = value;
+            },
+        },
         DESKTOP: {
             activate: (seat, id) => activated.push(`${seat}:${id}`) > 0 && windowed.includes(id),
             seatAt: (sender) => (sender === desktopPage ? 'local' : null),

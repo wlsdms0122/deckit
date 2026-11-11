@@ -49,7 +49,9 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
     for (const key of FIELD.KEYS) deckit.fields.define(key);
     for (const model of SHELL_PERMISSIONS)
         for (const permission of model.PERMISSIONS) deckit.permissions.define(permission);
-    const KEY = createKey({ deckit, keys: ENV.keys });
+    // What the shell keeps of the person's, in a folder of its own.
+    const STATE = deckit.stateIn('shell');
+    const KEY = createKey({ deckit, state: STATE, keys: ENV.keys });
     web.onPage((page) => KEY.listen(page));
     const PAGES = createPage({ deckit, web, pages: ENV.pages });
     const OVERLAY = createOverlay({ deckit, web, PAGES, KEY });
@@ -65,6 +67,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         makeStage,
         actionOnDoubleClick: ENV.actionOnDoubleClick,
         deckit,
+        state: STATE,
         web,
         host,
     });
@@ -79,7 +82,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         showWindow: (control, options) => host.showWindow(control, options),
         closeWindow: (control) => host.closeWindow(control),
     });
-    const DOCK = createDock({ deckit, DESKTOP, WINDOWS, host, dock });
+    const DOCK = createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock });
     // What the shell keeps of a mod: the frames its windows were left at, and its place in the Dock.
     deckit.stack(SHELL_LAYER.LAYER, {
         keeps: Object.freeze({
@@ -89,7 +92,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
     });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
-    const FONTS = createFonts({ deckit, installed: ENV.fonts });
+    const FONTS = createFonts({ deckit, state: STATE, installed: ENV.fonts });
     const FILES = createFiles({ deckit, dialogs: ENV.dialogs, reveal: ENV.reveal });
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });

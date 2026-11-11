@@ -82,12 +82,12 @@ async function main() {
             modOf: (page) => mods.get(page)?.id || null,
             runOf: (id) => [...mods.values()].find((mod) => mod.id === id) ?? null,
         },
-        state: { read: (_key, fallback) => fallback, write: async () => {} },
         log: { warn: (line) => warned.push(line), error: (line) => errors.push(line) },
     };
     const keyPresses = []; // [id, page], each press of one of the shell's keys
     let keyTakes = true;
-    const KEY = createKey({ deckit, keys });
+    const state = { read: (_key, fallback) => fallback, write: async () => {} };
+    const KEY = createKey({ deckit, state, keys });
     KEY.start((id, page) => keyPresses.push([id, page]) > 0 && keyTakes);
     KEY.listen(shell);
     for (const page of [a, g, n]) for (const listener of sandboxed) listener(page);

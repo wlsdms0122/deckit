@@ -138,9 +138,8 @@ export function createApi({
             // define(key): a top-level manifest key the UI reads, named before deckit starts.
             fields: Object.freeze({ define: MANIFEST_FIELD.define }),
             // stateIn(name): what an owner keeps of the person's, `{ read, write }` in a folder of its own, by `name`,
-            // beside deckit's state. `state` is the host app's and its shell's, `stateIn('host')`.
+            // beside deckit's state.
             stateIn: (name) => STORAGE.stateIn(name),
-            state: STORAGE.stateIn('host'),
             log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error }),
             // How the UI binds its own channels: as deckit/channel declares them, never one of deckit's own.
             channels: IPC.layerChannels,
