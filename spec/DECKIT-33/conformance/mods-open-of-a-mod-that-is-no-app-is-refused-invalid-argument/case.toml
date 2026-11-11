@@ -1,0 +1,23 @@
+case = 15
+name = "mods-open-of-a-mod-that-is-no-app-is-refused-invalid-argument"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-d writes activationPolicy accessory, and mod-c opens it with mods.open."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-d", "mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.open"
+handle = "shell"
+args = ["mod-d"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

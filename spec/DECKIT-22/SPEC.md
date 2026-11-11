@@ -114,7 +114,7 @@ A layer a host stacks may keep something of a mod outside the mod's records, val
 - The queue, the pin and the owner of an interface: [the interfaces](../DECKIT-10/SPEC.md).
 - `mods.usage(id)`, `kept`, and what erasing what a mod stored takes away: [the storage](../DECKIT-13/SPEC.md).
 - The standard interfaces whose owner a host ships: their DECKITs, from [the addresses](../DECKIT-14/SPEC.md) to [the notifications](../DECKIT-19/SPEC.md).
-- What the shell keeps of a mod, the frames its windows were left at among it: [windows](../DECKIT-31/SPEC.md).
+- What the shell keeps of a mod, the frames its windows were left at and its place in the Dock among it: [windows](../DECKIT-31/SPEC.md) and [the Dock](../DECKIT-33/SPEC.md).
 - The host a case sets up, the keys of `[host]` and what the system gives a host: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered

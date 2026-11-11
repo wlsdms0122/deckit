@@ -1,0 +1,43 @@
+case = 15
+name = "mods-setpinned-of-a-mod-that-is-no-app-is-refused-invalid-argument"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-d writes activationPolicy accessory, and mod-x is not installed: neither is an app, so mods.setPinned of each is refused, and the Dock keeps neither."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-d", "mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.setPinned"
+handle = "shell"
+args = ["mod-d", true]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.setPinned"
+handle = "shell"
+args = ["mod-x", true]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.pinned"
+handle = "shell"
+
+[step.expect]
+answers = ["mod-c"]

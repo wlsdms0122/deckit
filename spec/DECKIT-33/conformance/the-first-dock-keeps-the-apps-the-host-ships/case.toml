@@ -1,0 +1,18 @@
+case = 19
+name = "the-first-dock-keeps-the-apps-the-host-ships"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. The host ships mod-a and mod-b and reads mod-c in place, so the first Dock keeps mod-a and mod-b, in the order shipped, and mod-c, which runs, follows them."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+sources = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = true, attention = false, active = false }, { mod = "mod-c", pinned = false, running = true, attention = false, active = false }]

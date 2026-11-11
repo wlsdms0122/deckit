@@ -43,13 +43,13 @@ A mod **may activate** while it is the active mod, and from the time input reach
 | a key pressed in a page of the mod's: the content of one of its windows, a web page it shows, or its page | that mod |
 | a key pressed in a page of the shell's own, such as the desktop's | no mod |
 | a chord a mod took pressed in any page, told to that mod, as the shell's DECKIT of its keys fixes a chord | the page's mod, as a key pressed there, and then the mod that took the chord |
-| a click on the mod's item in the Dock, as the shell's DECKIT of the Dock fixes it | that mod |
+| a click on the mod's item in the Dock, as [the Dock](../DECKIT-33/SPEC.md) fixes it | that mod |
 
 A mod also may activate from the time a request from a mod that may activate reaches it, until input next reaches another mod or none. A **request** of one mod to another is one of these, from the mod whose run makes it to the mod it reaches:
 
 - reaching a mod by its id, `dependencies.reach(id)`, and a call through a connection, of the client to the service or of the service to the client, as [the connections](../DECKIT-9/SPEC.md) fix them;
 - a `launch` or `relaunch` request of a mod, as [the lifecycle](../DECKIT-5/SPEC.md) fixes them;
-- `mods.open(id)`, as the shell's DECKIT of the Dock fixes it.
+- `mods.open(id)`, as [the Dock](../DECKIT-33/SPEC.md) fixes it.
 
 A request of a mod that may not activate hands nothing. The keyboard an overlay window takes as it opens or comes in front, as its mod may activate, is no input: it is that mod activating.
 
@@ -57,7 +57,7 @@ A request of a mod that may not activate hands nothing. The keyboard an overlay 
 
 ### A mod held back
 
-A mod is **held back** where its window is to come in front as the key window, as `makeKeyAndOrderFront()` or `windows.open` with `activates` `true` brings one, and the mod may not activate, so the window comes right behind the key window, or in front where none is, as [windows](../DECKIT-31/SPEC.md) fixes it. A mod held back while the desktop has a key window **asks for attention**: the Dock marks its item, as the shell's DECKIT of the Dock draws it. It asks until it is the active mod, or has no window open. A window brought in front with the key window left key, as `orderFront()` or `activates` `false` brings one, asks for none.
+A mod is **held back** where its window is to come in front as the key window, as `makeKeyAndOrderFront()` or `windows.open` with `activates` `true` brings one, and the mod may not activate, so the window comes right behind the key window, or in front where none is, as [windows](../DECKIT-31/SPEC.md) fixes it. A mod held back while the desktop has a key window **asks for attention**: the Dock marks its item, as [the Dock](../DECKIT-33/SPEC.md) fixes it. It asks until it is the active mod, or has no window open. A window brought in front with the key window left key, as `orderFront()` or `activates` `false` brings one, asks for none.
 
 ### active()
 
@@ -69,7 +69,7 @@ A mod is **held back** where its window is to come in front as the key window, a
 - The handle `shell`, whose member `active()` is: [the shell](../DECKIT-29/SPEC.md). A request, its promise and the argument past those it takes: [the handle](../DECKIT-7/SPEC.md).
 - `name`: [the bundle](../DECKIT-2/SPEC.md). The host's name: [the embedding](../DECKIT-22/SPEC.md).
 - Reaching a mod and a call through a connection: [the connections](../DECKIT-9/SPEC.md). `launch` and `relaunch`: [the lifecycle](../DECKIT-5/SPEC.md).
-- A chord a mod takes and when it is told: the shell's DECKIT of its keys. The Dock, a click on an item, `mods.open(id)` and how an item asking for attention is drawn: the shell's DECKIT of the Dock.
+- A chord a mod takes and when it is told: the shell's DECKIT of its keys. The Dock, a click on an item, `mods.open(id)` and the item marked for attention: [the Dock](../DECKIT-33/SPEC.md).
 - The input `key`, the look `desktop`, and the base `shell`'s keyboard and the app in front: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered
@@ -84,7 +84,7 @@ A mod is **held back** where its window is to come in front as the key window, a
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The keyboard going to the key window's content: no look reads where a key goes but through what it reaches. A click on the Dock and `mods.open(id)`: the shell's DECKIT of the Dock holds them with its inputs. A `launch` and a `relaunch` request handing activation, and a call through a connection of the service to the client: cases hold reaching and a call of the client, and the rest is the same sentence. A key pressed in a page of a mod with no window, and a chord's key pressed in the page of the mod that took it: the base `shell` of [the case format](../DECKIT-1/SPEC.md) presses a key where the keyboard is, which is a window's content or the desktop's page. How the Dock draws an item asking for attention: no look reads the Dock. `ENDED` of `active()`: no `call` reaches a cut handle, as [the shell](../DECKIT-29/SPEC.md) says of its cases. `active()` answering `false`: the base `shell` is the only app on its stand-in for a screen, in front from its start.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The keyboard going to the key window's content: no look reads where a key goes but through what it reaches. A click on the Dock and `mods.open(id)`: [the Dock](../DECKIT-33/SPEC.md) holds them with its inputs. A `launch` and a `relaunch` request handing activation, and a call through a connection of the service to the client: cases hold reaching and a call of the client, and the rest is the same sentence. A key pressed in a page of a mod with no window, and a chord's key pressed in the page of the mod that took it: the base `shell` of [the case format](../DECKIT-1/SPEC.md) presses a key where the keyboard is, which is a window's content or the desktop's page. The Dock's item marked for attention: [the Dock](../DECKIT-33/SPEC.md) holds it with its look. `ENDED` of `active()`: no `call` reaches a cut handle, as [the shell](../DECKIT-29/SPEC.md) says of its cases. `active()` answering `false`: the base `shell` is the only app on its stand-in for a screen, in front from its start.
 
 **Note.** What this costs an implementation: it keeps, for the person, which mods may activate, ended by each input and added to by each request, and tells every request of one mod to another to that record before it goes on; it tells a normal window it is key no more as an overlay window takes the keyboard; and it tells apart the keyboard a host gives an overlay window as asked from the keyboard the person gives it with a press.
 

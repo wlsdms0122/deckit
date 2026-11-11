@@ -1,0 +1,46 @@
+case = 19
+name = "mods-setpinned-keeps-an-app-in-the-dock-or-takes-it-out"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. The host keeps mod-c alone in the Dock; mod-c keeps mod-a there with mods.setPinned true, and itself, kept already, which leaves it where it is; then it takes itself out with false."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-c"]
+system = ["mod-c"]
+dock = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.setPinned"
+handle = "shell"
+args = ["mod-a", true]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.setPinned"
+handle = "shell"
+args = ["mod-c", true]
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-c", pinned = true, running = true, attention = false, active = false }, { mod = "mod-a", pinned = true, running = true, attention = false, active = false }]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.setPinned"
+handle = "shell"
+args = ["mod-c", false]
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-c", pinned = false, running = true, attention = false, active = false }]

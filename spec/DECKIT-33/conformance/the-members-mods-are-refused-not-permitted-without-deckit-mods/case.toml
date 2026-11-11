@@ -1,0 +1,53 @@
+case = 15
+name = "the-members-mods-are-refused-not-permitted-without-deckit-mods"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-a is granted nothing, so each member of shell.mods is refused before its arguments are read."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.list"
+handle = "shell"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.pinned"
+handle = "shell"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.setPinned"
+handle = "shell"
+args = ["mod-a", "yes"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.open"
+handle = "shell"
+args = ["mod-a"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

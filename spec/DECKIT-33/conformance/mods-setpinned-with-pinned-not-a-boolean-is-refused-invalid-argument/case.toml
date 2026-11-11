@@ -1,0 +1,23 @@
+case = 15
+name = "mods-setpinned-with-pinned-not-a-boolean-is-refused-invalid-argument"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mods.setPinned is handed the string yes for pinned."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.setPinned"
+handle = "shell"
+args = ["mod-a", "yes"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

@@ -1,0 +1,29 @@
+case = 19
+name = "mods-list-answers-every-app-in-the-docks-order"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. The host keeps mod-c and then mod-b in the Dock, so mods.list answers them, and then mod-a, kept by no one, which mod-c installs once the host app started, so it does not run; mod-d writes activationPolicy accessory and is not listed."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-c", "mod-b", "mod-d"]
+system = ["mod-c"]
+dock = ["mod-c", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.install"
+folders = ["mod-a"]
+part = "id"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "mod-c", name = "mod-c", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-b", name = "mod-b", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-a", name = "mod-a", icon = "", keywords = [], pinned = false, running = false }]
