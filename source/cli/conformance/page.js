@@ -1,12 +1,13 @@
 // The conformance host's layer over deckit on each mod's page, a script the preload runs as it is: its lifecycle keeps
-// the handle `deckit` and the frameworks' handles it is handed while it has started, and each request main hands it is
+// the handle `deckit`, the frameworks' handles, and over the shell the handle `shell`, it is handed while it has
+// started, and each request main hands it is
 // made through the handle the call names, `deckit` where it names none, or through what an earlier call answered, as
 // the mod's code makes one (spec/DECKIT-1: the input call). It keeps what
 // each call answered, by the call's place, each call of the listener it hands a request, for the look heard, and the
 // first value the listener was last called with, which a call that writes handed is made through, and the first value
 // each call of the host's delegate was called with, which a call that writes delegated is made through.
 function conformanceLayer({ channels }) {
-    let handles = null; // the handles of its lifecycle, `deckit` and each framework's by its name, while it runs
+    let handles = null; // its lifecycle's handles, `deckit`, `shell` and each framework's by its name, while it runs
     let surfaces = null; // what the web engine offers the layer over it, while its lifecycle runs, on the base web
     const shown = new Set(); // the state of each page the layer shows, while it is open: { loading }
     const told = []; // each call of a method of the delegate the host gives, { method, args }, in the order called
@@ -130,14 +131,14 @@ function conformanceLayer({ channels }) {
     });
     return ({ under, deliver }) => ({
         lifecycles: [
-            under.deckit.lifecycle({
+            (under.shell ?? under.deckit).lifecycle({
                 method: 'conformance',
                 registrations: {},
                 start: (_instance, given, scope, frameworks) => {
-                    handles = { ...frameworks, deckit: given.deckit };
-                    // The layer over the web engine, on the base web: it opens outside the app what a page passes on
-                    // as the mod's openExternal does.
-                    if (under.web)
+                    handles = { ...frameworks, deckit: given.deckit, ...(given.shell ? { shell: given.shell } : {}) };
+                    // The layer over the web engine, on the base web, and not over the shell, which lays the web
+                    // pages itself: it opens outside the app what a page passes on as the mod's openExternal does.
+                    if (under.web && !under.shell)
                         surfaces = under.web.surfaces({
                             owner: { deliver, recordFailure: (why) => console.warn(why) },
                             open: given.deckit.openExternal,

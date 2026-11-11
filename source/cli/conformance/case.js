@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 14;
+const FORMAT = 15;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -29,8 +29,10 @@ const STAGES = ['read', 'launch', 'call'];
 const BASES = ['system', 'web', 'shell'];
 // The format that added a base, where it is not 1.
 const BASES_ADDED = { shell: 6, web: 8 };
-// The handles a call's member is read from, by name: `deckit`, and each a framework hands.
-const HANDLES = ['deckit', 'web'];
+// The handles a call's member is read from, by name: `deckit`, each a framework hands, and the shell's.
+const HANDLES = ['deckit', 'web', 'shell'];
+// The format that added a handle, where it is not the one that added the key.
+const HANDLES_ADDED = { shell: 15 };
 
 class NotACase extends Error {}
 class TooOld extends Error {}
@@ -331,6 +333,7 @@ function stepOf(step, number, format, refuse) {
         if (required && !(key in step)) refuse(`${at}: ${key} is missing`);
     for (const key of Object.keys(step))
         if ((KEYS_ADDED[key] ?? 1) > format) refuse(`${at}: ${key} is no key format ${format} has`);
+    if ((HANDLES_ADDED[step.handle] ?? 1) > format) refuse(`${at}: handle ${step.handle} is none format ${format} has`);
     const expect = step.expect ?? null;
     if (kind === 'look' && !expect) refuse(`${at}: a look writes expect`);
     if (expect) {

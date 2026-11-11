@@ -4,13 +4,13 @@
 // or was refused (deckit.whenStarted()), answers each call and look it is asked, a start and a call once no run is
 // between two states, and quits when asked. It stacks a layer of its own over deckit on each mod's page (page.js),
 // which makes the requests a call hands it and keeps what its listeners heard, attaches the web engine on the bases web
-// and shell and the shell over it on the base shell, runs main process modules where an owner it ships asks for them,
-// and opens none of the addresses it is handed to open outside the app: it keeps each one, for the look opened. On the
-// base web it shows a mod's page in a window of its own once its layer shows a web page there, and presses a web page
-// its layer showed with WebKit's input, as a person's press comes. It shows none of the system's notifications: it
-// keeps each one, for the look shown, and presses one when asked. It knows the app for an address of a scheme only
-// where the case names one. Its clipboard is a file of the run's, never the person's. A request fetched through a web
-// session reaches no address but on the loopback address.
+// and shell and the shell over it, under the layer, on the base shell, runs main process modules where an owner it
+// ships asks for them, and opens none of the addresses it is handed to open outside the app: it keeps each one, for
+// the look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there,
+// and presses a web page its layer showed with WebKit's input, as a person's press comes. It shows none of the
+// system's notifications: it keeps each one, for the look shown, and presses one when asked. It knows the app for an
+// address of a scheme only where the case names one. Its clipboard is a file of the run's, never the person's. A
+// request fetched through a web session reaches no address but on the loopback address.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -122,8 +122,9 @@ try {
         },
         folders: { home: setup.home, ship: setup.ship, sources: setup.sources },
     });
-    // On the base web, the host's layer is over the web engine, the layer over it that it offers web pages to.
-    if (setup.base !== 'web') deckit.stack('conformance');
+    // On the base web, the host's layer is over the web engine, the layer over it that it offers web pages to, and on
+    // the base shell over the shell, whose handle `shell` it is handed.
+    if (setup.base === 'system') deckit.stack('conformance');
     // Main process modules run, as a host app runs them, where an owner the case ships asks for them.
     if (setup.mainProcess) ELECTRON.attachMainProcess(deckit, given);
     // On the base web, the web engine is attached as a host app attaches it, and on the base shell the shell over it,
@@ -137,8 +138,10 @@ try {
         process.dlopen(webkit, path.join(path.dirname(path.join(LIBRARY, described.core)), 'deckit-web.node'));
         webkit = webkit.exports;
     }
-    if (setup.base === 'shell')
+    if (setup.base === 'shell') {
         DECKIT.attach(deckit, given, { host: SHOWS_NOTHING, web: DECKIT.attachWeb(deckit, given) });
+        deckit.stack('conformance');
+    }
     for (const field of setup.fields) deckit.fields.define(field);
     for (const permission of setup.permissions) deckit.permissions.define(permission);
     call = deckit.channels.bind({ channel: 'conformance/call', to: 'page', reply: true });
