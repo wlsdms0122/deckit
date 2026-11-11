@@ -97,19 +97,22 @@ export function createDesktop({
     }
 
     // A normal window opens where its mod last left a normal window of its name, or cascaded from the key window where
-    // it left none or one of that name is open, brought forward as orderFront brings it. A window with a `title` is
-    // titled: the shell draws its title bar, holding the title, over its content.
+    // it left none or one of that name is open, placed at its size no smaller than its minimum, brought forward as
+    // orderFront brings it. A window with a `title` is titled: the shell draws its title bar, holding the title, over
+    // its content.
     function open(window, { activates = true } = {}) {
         const desktopNow = area();
         const after = keyWindow() && MANAGER.frameOf(keyWindow().id);
         const twin = [...windows.values()].some(({ mod, name }) => mod === window.mod && name === window.name);
         const restored = (!twin && keptFrameOf(window)) || null;
-        const size = LAYOUT.framedSize(window.size, isTitled(window));
+        const minimum = LAYOUT.minimumOf(window.minimum);
+        const framed = LAYOUT.framedSize(window.size, isTitled(window));
+        const size = { width: Math.max(framed.width, minimum.width), height: Math.max(framed.height, minimum.height) };
         const frame = LAYOUT.placed({ size, restored, after, desktop: desktopNow });
         windows.set(window.id, window);
         for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)])
             PAGES.allowSurface(desktop.page, name, (surface) => openSurface(name, surface));
-        MANAGER.open(LOCAL, window.id, { frame, minimum: LAYOUT.minimumOf(window.minimum) });
+        MANAGER.open(LOCAL, window.id, { frame, minimum });
         orderFront(window, { activates });
     }
 
