@@ -67,7 +67,7 @@ The system's other DECKITs define permissions of their own, each in a table of t
 - The handle a mod makes its requests through: [the handle](../DECKIT-7/SPEC.md). The input that hands a case's request: [the case format](../DECKIT-1/SPEC.md).
 - The permission `system.file-handlers` and the request it guards, for the address of a file: [opening outside the app](../DECKIT-8/SPEC.md).
 - The permissions the web engine defines and what they guard, a request or what a mod's web pages load: [the web engine](../DECKIT-23/SPEC.md).
-- The permissions the shell defines and the requests they guard: the shell's DECKITs.
+- The permissions the shell defines and the requests they guard: the shell's DECKITs, `system.overlay-windows`, which guards a window at the level `overlay`, among them, in [windows](../DECKIT-31/SPEC.md).
 
 ## Alternatives considered
 

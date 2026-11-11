@@ -145,6 +145,7 @@ A blank page is never opened outside the app.
 - An error thrown with a stage and a kind, `INVALID_ARGUMENT`, and a value read: [the handle](../DECKIT-7/SPEC.md).
 - What opens outside the app, its guard `system.file-handlers` and `UNSUPPORTED_URL`: [opening outside the app](../DECKIT-8/SPEC.md).
 - A lifecycle and its end: [the entry](../DECKIT-6/SPEC.md).
+- The window the shell shows a page apart in: [windows](../DECKIT-31/SPEC.md).
 - The inputs `show` and `activate`, a page shown at a file of a bundle, the host's delegate and the look `delegated`: [the case format](../DECKIT-1/SPEC.md).
 - What a site is let have, an app for an address and a certificate refused: [what a site is let have](../DECKIT-26/SPEC.md). A site's notification: [notifications of a site](../DECKIT-27/SPEC.md). A download a page starts: [downloads](../DECKIT-28/SPEC.md).
 
