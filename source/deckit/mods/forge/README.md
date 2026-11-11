@@ -11,7 +11,7 @@ Two settings say where it is, declared in the manifest to `deckit/configuration`
 | `forge` | Forge command | the `forge` program | the `forge` on the login shell's PATH |
 | `forgeConfig` | Forge configuration | the `config.toml` the `default` session is served with (`forge serve --config`), with the workflows it names | forge's own, `config.toml` in the session's folder |
 
-Forge reads them through `deckit/configuration` once it is connected, and until then every call tells that Forge is not serving. forge runs with the login shell's PATH, as do the daemons it starts, for an app opened from the Finder has only the system's. A changed setting is used at once: the commands still running for the settings before end, and a daemon already running stays the one it was started as until it is restarted.
+Forge reads them through `deckit/configuration` once it is connected, and until then every call tells that Forge is not serving. forge runs with the login shell's PATH, as do the daemons it starts, for an app the system opens has only the system's. A changed setting is used at once: the commands still running for the settings before end, and a daemon already running stays the one it was started as until it is restarted.
 
 ## Sessions
 

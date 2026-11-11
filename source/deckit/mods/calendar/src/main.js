@@ -99,7 +99,7 @@ async function sendTest(deckit, notices) {
             date: new Date(),
         });
     } catch {}
-    // macOS reports a notice as shown even when its settings keep it off the screen.
+    // The system reports a notice as shown even when its settings keep it off the screen.
     return posted
         ? `Sent. If none appeared, allow ${deckit.about().name} in System Settings › Notifications.`
         : 'Not sent: no mod shows notifications now.';

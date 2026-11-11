@@ -77,7 +77,7 @@ module.exports = ({ data, emit, files }) => {
 
         read: async (notePath) => readText((await resolveNote(notePath)).full),
 
-        // Written in place so the file keeps its creation date, Finder tags and links. A write cut off halfway would
+        // Written in place so the file keeps its creation date, tags and links. A write cut off halfway would
         // leave the note truncated, so the old version is first copied beside it and flushed, and removed once the new
         // text is down. A backup already there is the last whole version from a failed save and is never overwritten.
         write: async (notePath, text, base, { bom = false, eol = '\n' } = {}) => {
@@ -283,7 +283,7 @@ module.exports = ({ data, emit, files }) => {
         return { hits: hits.slice(0, HITS_LIMIT), partial: partial || hits.length > HITS_LIMIT };
     }
 
-    // Made again on every call: the folder may be deleted in Finder while this module runs.
+    // Made again on every call: the folder may be deleted from outside the app while this module runs.
     async function notesRoot() {
         await fs.promises.mkdir(ROOT, { recursive: true });
         if (!realRoot) realRoot = await fs.promises.realpath(ROOT);
@@ -316,7 +316,7 @@ module.exports = ({ data, emit, files }) => {
             throw files.refuse('OUTSIDE', 'not a place in the notes folder: ' + text);
         }
         const full = path.join(root, ...parts);
-        for (let probe = full; ; ) {
+        for (let probe = full; ;) {
             const real = await fs.promises.realpath(probe).catch(() => null);
             if (real) {
                 if (real !== root && !real.startsWith(root + path.sep))

@@ -126,7 +126,7 @@ class Finder {
                 applications: { key: 'mod+shift+a', run: () => goToPlace({ place: 'applications' }) },
                 hidden: { key: 'mod+shift+.', run: () => toggleHidden() },
                 newFolder: { key: 'mod+shift+n', run: () => newFolder() },
-                // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
+                // Command-1 and Command-2 are tabs here, so the views add Control.
                 columnView: { key: 'ctrl+mod+1', run: () => setView('columns') },
                 listView: { key: 'ctrl+mod+2', run: () => setView('list') },
                 // While a field has the keyboard, ⌘⌫ stays the field's (delete to line start).

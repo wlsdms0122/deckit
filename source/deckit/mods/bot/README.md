@@ -19,7 +19,7 @@ Settings says where it is, `~` at the start of a path being the home folder. Whe
 | `brain` | Brain folder | the brain llmemory reads (`--home`) | not set: Brain says so and lists nothing |
 | `wrapCode` | Wrap code in notes | whether long lines in a note's code blocks wrap; the wrap button on a block switches it too | off |
 
-Until the settings are read, Brain says it is not serving the brain. llmemory runs with the login shell's PATH, for an app opened from the Finder has only the system's. A changed setting is used at once: what Bot still runs of llmemory for the settings before ends.
+Until the settings are read, Brain says it is not serving the brain. llmemory runs with the login shell's PATH, for an app the system opens has only the system's. A changed setting is used at once: what Bot still runs of llmemory for the settings before ends.
 
 ## Sessions
 

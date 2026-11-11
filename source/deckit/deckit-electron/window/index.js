@@ -7,14 +7,14 @@ export function createWindows({ LOG, WEBKIT, openWindow }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A window, hidden until shown: `kind` `titled`, with macOS's title bar, its title shown with `showsTitle`, over
-    // the content with its buttons where `buttons` puts the first's top left, or above it as macOS lays it where no
-    // `buttons` are given, or `floating`, with no bar, over every app and on every Space, taking the keyboard without
-    // bringing the app forward; `size` its content's; `frame` where it is on screen, `{ x, y, width, height }` from the
-    // top left of the main display as Electron's screen gives it; `color` `{ red, green, blue }` under what it shows,
-    // or `material` (`hud`, `sidebar`, `menu`, `popover`) blurring what is behind it instead. It tells `resize` ({
-    // width, height }, its content's size), `moving`, before the person moves it, `moved`, `key` and `resign`, as it
-    // takes and loses the keyboard, and `close`, once, as it closes.
+    // A window, hidden until shown: `kind` `titled`, with the system's title bar, its title shown with `showsTitle`,
+    // over the content with its buttons where `buttons` puts the first's top left, or above it as the system lays it
+    // where no `buttons` are given, or `floating`, with no bar, over every app and on every workspace, taking the
+    // keyboard without bringing the app forward; `size` its content's; `frame` where it is on screen, `{ x, y, width,
+    // height }` from the top left of the main display as Electron's screen gives it; `color` `{ red, green, blue }`
+    // under what it shows, or `material` (`hud`, `sidebar`, `menu`, `popover`) blurring what is behind it instead. It
+    // tells `resize` ({ width, height }, its content's size), `moving`, before the person moves it, `moved`, `key` and
+    // `resign`, as it takes and loses the keyboard, and `close`, once, as it closes.
     function open({
         kind = 'titled',
         size,
@@ -53,7 +53,7 @@ export function createWindows({ LOG, WEBKIT, openWindow }) {
             isClosed: () => closed,
             isKey: () => !closed && native.keyWindow() === id,
             frame: () => (closed ? null : native.windowFrame(id)),
-            // Whether it fills the screen as macOS's full screen, or is zoomed to fill it.
+            // Whether it fills the screen as the system's full screen, or is zoomed to fill it.
             isFullScreen: () => !closed && native.windowState(id).fullScreen,
             isZoomed: () => !closed && native.windowState(id).zoomed,
             setFrame: live((rect) => native.setWindowFrame(id, rect)),

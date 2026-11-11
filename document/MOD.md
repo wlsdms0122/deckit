@@ -67,7 +67,7 @@ Any other field stops the mod loading, and so does a `main` that names no file i
 
 Only the part of TOML a manifest uses is read: top-level keys, one level of tables, and strings, booleans, integers, arrays and inline tables of those as values. An inline table is written on one line. A key with a dot is quoted (`"system.main-process" = …`).
 
-An id is lower case letters, digits, `.`, `_` and `-`, starts with a letter or digit, is at most 64 characters and has no `..`. Lower case only, because a mod's data is kept in a folder named by its id and macOS disks ignore case.
+An id is lower case letters, digits, `.`, `_` and `-`, starts with a letter or digit, is at most 64 characters and has no `..`. Lower case only, because a mod's data is kept in a folder named by its id and the machine's disks ignore case.
 
 ### interfaces
 
@@ -375,7 +375,7 @@ A mod's view is shown in another's when that one gives a place in its window for
 
 ### dropDestination(element, { onDrop, onTargeted })
 
-`shell.dropDestination(element, { onDrop, onTargeted })` takes files the person drags from outside the app, from Finder or another app, onto `element`. `onTargeted(on)`, optional, hears a drag of files come over the element (`true`) and leave it (`false`), to show that it takes them. `onDrop(paths, { x, y })` hears the files dropped, by their absolute paths in the order they came, folders too, and the point they landed, from the element's top left. A drag that carries no files is left to the page. Of destinations one inside another, the innermost takes the drop. It answers its off, and ends with the screen lifecycle. A page reads no file's path from the web's own drop events: this is where a mod gets them. A drag within the page, of the kit's things, is the kit's `dragSource` and `dropTarget` ([UI.md](UI.md)).
+`shell.dropDestination(element, { onDrop, onTargeted })` takes files the person drags from outside the app, from another app, onto `element`. `onTargeted(on)`, optional, hears a drag of files come over the element (`true`) and leave it (`false`), to show that it takes them. `onDrop(paths, { x, y })` hears the files dropped, by their absolute paths in the order they came, folders too, and the point they landed, from the element's top left. A drag that carries no files is left to the page. Of destinations one inside another, the innermost takes the drop. It answers its off, and ends with the screen lifecycle. A page reads no file's path from the web's own drop events: this is where a mod gets them. A drag within the page, of the kit's things, is the kit's `dragSource` and `dropTarget` ([UI.md](UI.md)).
 
 ### web
 

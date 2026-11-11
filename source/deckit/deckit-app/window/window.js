@@ -21,13 +21,13 @@ function createWindow({ CONFIG, THEME, windows }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A window of Deckit.app, with macOS's title bar across its top, drawn in the bar's colour, and a view below it,
-    // all of the window's content, through `place(window)`. The bar is the window's own, laid as macOS lays it, so
-    // it drags, snaps and answers a double click as the person set. `size` is the view's. `glass`, for a view drawn as
-    // glass: the window blurs what is behind it instead. `fullSize`: the view fills the window, the bar's height
-    // included, and draws and drags what lies under the bar itself (TITLE_BAR), the title not drawn. A window with a
-    // `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to the
-    // view as the window takes it.
+    // A window of Deckit.app, with the system's title bar across its top, drawn in the bar's colour, and a view below
+    // it, all of the window's content, through `place(window)`. The bar is the window's own, laid as the system lays
+    // it, so it drags, snaps and answers a double click as the person set. `size` is the view's. `glass`, for a view
+    // drawn as glass: the window blurs what is behind it instead. `fullSize`: the view fills the window, the bar's
+    // height included, and draws and drags what lies under the bar itself (TITLE_BAR), the title not drawn. A window
+    // with a `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to
+    // the view as the window takes it.
     function open({ title = '', size = null, glass = null, fullSize = false, key = null, place, focus = null }) {
         const viewSize = size || DEFAULT_VIEW_SIZE;
         const windowSize = fullSize
@@ -54,7 +54,7 @@ function createWindow({ CONFIG, THEME, windows }) {
         return window;
     }
 
-    // A window over every app, on every desktop and over an app in full screen, that takes the keyboard without
+    // A window over every app, on every workspace and over an app in full screen, that takes the keyboard without
     // bringing Deckit.app forward. It blurs what is behind it, the system draws its edge, and it has no bar, so what is
     // laid in it, as glass, is all it draws, and it moves by what that marks to drag. `size` is its own.
     // `place(window)` puts a view in it, which fills it; `focus` hands the view the keyboard as the window takes it,

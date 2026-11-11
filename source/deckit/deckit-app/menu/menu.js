@@ -1,5 +1,6 @@
-// Deckit.app's menu bar: the app's menu, and the Edit menu a text field's keys go through, each item as macOS has it by
-// its role. Closing and minimizing a window are the shell's keys, which come after the content, so it has neither.
+// Deckit.app's menu bar: the app's menu, and the Edit menu a text field's keys go through, each item as the system has
+// it by its role. Closing and minimizing a window are the shell's keys, which come after the content, so it has
+// neither.
 const TEMPLATE = [
     {
         role: 'appMenu',

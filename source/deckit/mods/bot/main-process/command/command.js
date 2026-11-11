@@ -1,5 +1,5 @@
-// How the bot runs its commands: on the PATH of the person's login shell, asked once, for an app opened from the Finder
-// has only the system's, and the commands, and those they run in turn, are found on it.
+// How the bot runs its commands: on the PATH of the person's login shell, asked once, for an app the system opens has
+// only the system's, and the commands, and those they run in turn, are found on it.
 module.exports = () => {
     const { execFile } = require('child_process');
     const MARK = '__bot_path__';

@@ -16,7 +16,7 @@ function readText(file) {
     return fs.readFile(file, 'utf8');
 }
 
-// The colon is Finder's spelling of a slash, so it is refused with the slash.
+// The colon is how the system's file browser writes a slash, so it is refused with the slash.
 function name(raw) {
     const written = String(raw ?? '')
         .replace(/[\u0000-\u001f]/g, '')
@@ -47,7 +47,7 @@ function rename(from, newName) {
 }
 
 // Into-itself is judged on real paths: a link to a folder inside it is still inside it. Another disk
-// shows as the rename's EXDEV: macOS's system and data volumes report one device.
+// shows as the rename's EXDEV: the system's own volume and its data volume report one device.
 async function move(from, folder) {
     const self = await fs.lstat(from).catch(() => null);
     if (!self) throw refuse('GONE', 'it is no longer there');

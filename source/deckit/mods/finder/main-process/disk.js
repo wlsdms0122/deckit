@@ -8,7 +8,7 @@ module.exports = ({ emit, window, files }) => {
     const path = require('path');
     const { app, shell, nativeImage } = require('electron');
     const { imageSize } = require('./image-size.js');
-    // macOS shows a folder with one of these extensions as one item, opened and not walked into.
+    // The system shows a folder with one of these extensions as one item, opened and not walked into.
     const PACKAGE_EXTENSIONS = new Set([
         'app',
         'xcodeproj',
@@ -50,7 +50,8 @@ module.exports = ({ emit, window, files }) => {
 
         async list(given) {
             const folder = absolute(given);
-            // macOS answers EPERM for a folder it has not given the host app, and a folder's own mode answers EACCES.
+            // The system answers EPERM for a folder it has not given the host app, and a folder's own mode answers
+            // EACCES.
             const names = await fs.readdir(folder).catch((error) => {
                 if (error.code === 'EACCES' || error.code === 'EPERM')
                     throw files.refuse('NOT_PERMITTED', error.message);

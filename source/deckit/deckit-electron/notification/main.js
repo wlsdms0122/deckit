@@ -1,7 +1,7 @@
 // The system's notifications (deckit-shell/environment: notifications). `guard` adds a listener on one.
 export function createNotifications({ guard }) {
     // MARK: - Property
-    // A Notification nothing refers to is garbage collected, and macOS then withdraws it or never delivers it. The
+    // A Notification nothing refers to is garbage collected, and the system then withdraws it or never delivers it. The
     // cap covers a close that never comes.
     const live = new Set();
     const HOLD_MS = 24 * 3600 * 1000;

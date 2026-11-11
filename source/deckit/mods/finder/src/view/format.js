@@ -70,7 +70,7 @@ function formatKind(entry) {
     return entry.extension ? entry.extension.toUpperCase() + ' File' : 'Document';
 }
 
-// Decimal, as the system's Finder counts: 1 KB is 1000 bytes.
+// Decimal, as the system counts: 1 KB is 1000 bytes.
 function formatSize(entry) {
     if (entry.size == null) return '--';
     let amount = entry.size;

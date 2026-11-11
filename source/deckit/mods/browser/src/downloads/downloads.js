@@ -151,7 +151,7 @@ function downloadList({ theme, ui, downloads, reveal }) {
         return state === 'cancelled' ? 'Stopped' : 'Failed';
     }
 
-    // Bytes as Finder counts them, in steps of 1000.
+    // Bytes as the system counts them, in steps of 1000.
     function sizeOf(bytes) {
         let value = Math.max(0, bytes);
         let unit = 0;
