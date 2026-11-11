@@ -8,22 +8,22 @@ export function createFonts({ deckit, state: STATE, installed }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const KEPT = 'fonts';
-    let fonts = FONTS.DEFAULT;
+    let fonts = {};
     let keeping = Promise.resolve(); // the change being kept, which the next one waits for
 
     // MARK: - Initializer
     // MARK: - Public
-    // The person's fonts, kept in the shell's state, which a mod with deckit.fonts changes: a change that is not one is
-    // refused at call, INVALID_ARGUMENT. `onChange(fonts)` hears them at once and at each change.
+    // The person's fonts, kept in the shell's state, which a mod with deckit.fonts sets whole: fonts that are not ones
+    // are refused at call, INVALID_ARGUMENT. `onChange(fonts)` hears them at once and at each change.
     function start({ onChange }) {
         fonts = FONTS.keptOf(STATE.read(KEPT, {}));
         onChange(fonts);
         PROTOCOL.installed.handle(() => installed());
-        PROTOCOL.set.handle((change) => {
-            const problem = FONTS.problemOf(change);
+        PROTOCOL.set.handle((next) => {
+            const problem = FONTS.problemOf(next);
             if (problem)
                 throw Object.assign(new Error(`fonts.set: ${problem}`), { stage: 'call', kind: 'INVALID_ARGUMENT' });
-            const kept = keeping.then(() => keep(change, onChange));
+            const kept = keeping.then(() => keep(next, onChange));
             keeping = kept.catch(() => {});
             return kept;
         });
@@ -31,8 +31,7 @@ export function createFonts({ deckit, state: STATE, installed }) {
 
     // MARK: - Private
     // Worn only once kept: a change the core refuses leaves the fonts as they were.
-    async function keep(change, onChange) {
-        const next = FONTS.merged(fonts, change);
+    async function keep(next, onChange) {
         if (JSON.stringify(next) === JSON.stringify(fonts)) return fonts;
         await STATE.write(KEPT, next);
         fonts = next;

@@ -76,11 +76,13 @@ function generalSection({ ui, theme, fonts }) {
         return row;
     }
 
-    // The controls show what was kept.
+    // The fonts are set whole, the one changed and the other as it is; the controls show what was kept.
     async function change(key, value) {
         rows[key].set(value);
+        const next = { ...theme.fonts, [key]: value };
+        if (value === DEFAULT) delete next[key];
         try {
-            show(await fonts.set({ [key]: value === DEFAULT ? null : value }));
+            show(await fonts.set(next));
         } catch (error) {
             draw();
             ui.toast('Could not change the fonts: ' + error.message);

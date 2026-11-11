@@ -3,7 +3,7 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as FONTS_PERMISSION from './model/permission.js';
 
-// Any of { text, size }, null for the default: answers the fonts as kept.
+// The fonts whole, any of { text, size }, each left out for the default: answers the fonts as kept.
 export const set = CHANNEL.pageToMain(
     'deckit-shell:fonts-set',
     { text: 'string?', size: 'number?' },
