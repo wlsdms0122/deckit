@@ -28,8 +28,8 @@ public final class Deckit {
     static let mods = Permission(
         id: "deckit.mods",
         name: "Mods",
-        description: "It can see every mod, launch and quit them, add one from a folder and delete installed ones, "
-            + "with what they stored.",
+        description: "It can see every mod and the system's folders, launch and quit them, add one from a folder and "
+            + "delete installed ones, with what they stored.",
         privileged: true
     )
     static let reachMods = Permission(
