@@ -1,0 +1,22 @@
+case = 15
+name = "windows-open-throws-not-permitted-before-what-it-is-handed"
+note = "A member that answers at once throws NOT_PERMITTED before INVALID_ARGUMENT: windows.open of a window of the level overlay, which system.overlay-windows guards, and with no name and no content, called by mod-a, granted nothing, throws NOT_PERMITTED."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "windows.open"
+handle = "shell"
+args = [{ level = "overlay" }]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

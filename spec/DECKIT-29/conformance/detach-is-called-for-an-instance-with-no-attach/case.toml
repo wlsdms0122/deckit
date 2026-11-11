@@ -1,0 +1,24 @@
+case = 6
+name = "detach-is-called-for-an-instance-with-no-attach"
+note = "The shell's lifecycle of an instance with no attach ends by calling detach, before stop. mod-a's instance has no attach, its detach and stop each open https://said.test/ and its name outside the app, and mod-b quits mod-a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "mods.quit"
+args = ["mod-a"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/detach", activates = true }, { url = "https://said.test/stop", activates = true }]

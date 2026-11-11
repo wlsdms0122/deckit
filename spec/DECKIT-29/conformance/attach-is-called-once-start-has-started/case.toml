@@ -1,0 +1,17 @@
+case = 6
+name = "attach-is-called-once-start-has-started"
+note = "The shell's lifecycle starts once the system's has started: attach is called once the promise start answered is fulfilled. mod-a's start opens https://said.test/start outside the app after a wait, and its attach opens https://said.test/attach."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/start", activates = true }, { url = "https://said.test/attach", activates = true }]

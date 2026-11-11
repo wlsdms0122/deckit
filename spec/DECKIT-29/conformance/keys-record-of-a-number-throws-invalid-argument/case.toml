@@ -1,0 +1,22 @@
+case = 15
+name = "keys-record-of-a-number-throws-invalid-argument"
+note = "A member that answers at once throws INVALID_ARGUMENT where what it is handed does not fit what it takes: keys.record, handed a number for its listener, throws INVALID_ARGUMENT."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "keys.record"
+handle = "shell"
+args = [5]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

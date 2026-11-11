@@ -1,0 +1,20 @@
+case = 15
+name = "an-attach-that-is-no-function-is-read-as-left-out"
+note = "A member that is not a function is read as one left out, not as an attach that throws: mod-a's attach is 5, and the host's layer, whose lifecycle starts once the shell's has, lists mod-a's windows, none."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "windows.list"
+handle = "shell"
+
+[step.expect]
+answers = []

@@ -1,0 +1,24 @@
+case = 6
+name = "a-shells-lifecycle-that-failed-is-not-ended-again"
+note = "A shell's lifecycle that ended as its attach threw is not ended again as the run ends: detach is called once, and stop after it. mod-a's start, detach and stop each open https://said.test/ and its name outside the app, its attach throws, and mod-b quits mod-a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "mods.quit"
+args = ["mod-a"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/start", activates = true }, { url = "https://said.test/detach", activates = true }, { url = "https://said.test/stop", activates = true }]

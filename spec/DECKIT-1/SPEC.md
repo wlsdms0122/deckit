@@ -295,7 +295,7 @@ A case is written by hand, in the manifest text, and is judged by its value. A c
 - The app the host has for a scheme, asked as a site goes to an address of it, and a site named in what a mod lets it have: [what a site is let have](../DECKIT-26/SPEC.md).
 - The host's downloads folder, the downloads a page starts in it, and the ids a later call is handed: [downloads](../DECKIT-28/SPEC.md).
 - The requests fetched through a session, which the sites a case serves answer, and the grammars of a header and of base64: [fetching through a session](../DECKIT-24/SPEC.md).
-- The shell the base `shell` attaches, and the handle `shell` it hands a mod: the shell's DECKITs.
+- The shell the base `shell` attaches, and the handle `shell` it hands a mod and the host's layer over it: [the shell](../DECKIT-29/SPEC.md).
 - What a host hands the system before the start, and what the system asks of a host after it: [the embedding](../DECKIT-22/SPEC.md).
 - The live set, and what an implementation conforms to: [the specification](../README.md).
 

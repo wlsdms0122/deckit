@@ -1,0 +1,22 @@
+case = 15
+name = "children-list-of-a-number-is-refused-invalid-argument"
+note = "A request of the handle shell is refused as the handle refuses one: children.list, handed a number for its interface, is refused INVALID_ARGUMENT."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = [5]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

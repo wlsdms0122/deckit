@@ -59,7 +59,7 @@ A mod written for a mod manager prints why a request failed: a dry run of `insta
 | `clipboard.readText()`, `clipboard.writeText(text)` | what the person copied, read and replaced | `system.clipboard-read`, `system.clipboard-write` | [the clipboard](../DECKIT-20/SPEC.md) |
 | `notifications.show(notification)` | a notification of the machine's | `system.notifications` | [notifications of the machine](../DECKIT-21/SPEC.md) |
 
-**Note.** `keys.take(keystroke, run, options)`, a chord the mod takes, `active()`, whether the app is in front, `dialogs.chooseFolders(options)`, the folders a person chooses, and `reveal(path)`, a file shown outside the app, are members of the handle `shell`, not of this one: the shell's DECKITs, and for the keys a mod declares, which the owner of `deckit/keys` takes, [the key bindings](../DECKIT-16/SPEC.md).
+**Note.** `keys.take(keystroke, run, options)`, a chord the mod takes, `active()`, whether the app is in front, `dialogs.chooseFolders(options)`, the folders a person chooses, and `reveal(path)`, a file shown outside the app, are members of the handle `shell`, not of this one: [the shell](../DECKIT-29/SPEC.md), and for the keys a mod declares, which the owner of `deckit/keys` takes, [the key bindings](../DECKIT-16/SPEC.md).
 
 A `.` names a member of the member before it, as [the case format](../DECKIT-1/SPEC.md)'s `member` does. A member's DECKIT fixes what it takes, answers and is refused with, and whether it is a request.
 
@@ -103,7 +103,7 @@ An argument the signature does not require may be left out. An argument past tho
 - The requests `list`, `install` and `remove`, their signatures and refusals: [the catalog](../DECKIT-4/SPEC.md). The requests `launch`, `quit` and `relaunch`, theirs, and a mod quitting itself: [the lifecycle](../DECKIT-5/SPEC.md).
 - The input `call`, which has a case's mod make a request through its handle, and the look `opened`: [the case format](../DECKIT-1/SPEC.md).
 - Every other member of the table: the DECKIT the table names for it.
-- The handle `shell`, which the shell hands its own lifecycles: the shell's DECKITs.
+- The handle `shell`, which the shell hands its own lifecycle and each lifecycle over it: [the shell](../DECKIT-29/SPEC.md).
 - The handle `web`, which the web engine hands every lifecycle: [the web engine](../DECKIT-23/SPEC.md).
 - The handle `mainProcess`, a framework a host stacks that starts a mod's modules in the host's own process: outside this spec.
 
@@ -121,6 +121,6 @@ An argument the signature does not require may be left out. An argument past tho
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a request answers a promise and never throws, and that the error is rejected rather than thrown: [the case format](../DECKIT-1/SPEC.md) reads what a request comes to, and not how it came. The `message` of an error: no rule states one. An argument handed with no value: the manifest text has no null, so a case hands one only by leaving it out. That a layer's lifecycles may be handed a handle of their own: no case's host stacks a layer a case writes, so the shell's DECKITs hold it with the shell on. What a framework hands: the cases of [the web engine](../DECKIT-23/SPEC.md) hold it, on the base `web` of [the case format](../DECKIT-1/SPEC.md), where a `call` reads the handle `web`. That `mods.restart()` restarts the app: a case runs in one app, which a restart would end. What the members the table leaves to another DECKIT take and answer, and which permission guards each: that DECKIT's cases hold them.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That a request answers a promise and never throws, and that the error is rejected rather than thrown: [the case format](../DECKIT-1/SPEC.md) reads what a request comes to, and not how it came. The `message` of an error: no rule states one. An argument handed with no value: the manifest text has no null, so a case hands one only by leaving it out. That a layer's lifecycles may be handed a handle of their own: the cases of [the shell](../DECKIT-29/SPEC.md) hold it, on the base `shell`, where a `call` reads the handle `shell`. What a framework hands: the cases of [the web engine](../DECKIT-23/SPEC.md) hold it, on the base `web` of [the case format](../DECKIT-1/SPEC.md), where a `call` reads the handle `web`. That `mods.restart()` restarts the app: a case runs in one app, which a restart would end. What the members the table leaves to another DECKIT take and answer, and which permission guards each: that DECKIT's cases hold them.
 
 **Note.** What this costs an implementation: every member is on every handle, and a guarded one checks the permission its arguments pick as it is called; every request answers a promise, `mods.list()` among them; the arguments are checked against the signature before the request goes on; and an error carries its `stage` beside its `kind` across every boundary it crosses.

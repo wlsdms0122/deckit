@@ -101,7 +101,7 @@ It guards `openExternal` of a `file` URL. The other requests it guards are those
 - The handle `openExternal`, `fileURL` and `filePath` are members of, what a request answers, the error it is rejected with and `INVALID_ARGUMENT`: [the handle](../DECKIT-7/SPEC.md).
 - What a mod is granted, `NOT_PERMITTED`, the shape of a table of the system's permissions and their order: [the permissions](../DECKIT-3/SPEC.md). How a permission is asked for and answered usable: [the bundle](../DECKIT-2/SPEC.md).
 - The input `call`, which has a case's mod make the request, and the look `opened`, whose answer this DECKIT fixes: [the case format](../DECKIT-1/SPEC.md).
-- A file shown in its folder, `reveal(path)`, a member of the handle `shell`: the shell's DECKITs.
+- The handle `shell` that `reveal(path)` is a member of: [the shell](../DECKIT-29/SPEC.md). A file shown in its folder, what `reveal` takes and answers: the shell's DECKIT of files outside the app.
 - A window or an address a mod's web page opens outside the app, which this DECKIT's `openExternal` opens: [web pages](../DECKIT-25/SPEC.md). An address of an app a site goes to, which is handed the host apart from `openExternal`, once the mod lets the site have the app: [what a site is let have](../DECKIT-26/SPEC.md). A download opened, which `system.file-handlers` guards: [downloads](../DECKIT-28/SPEC.md).
 - Which mod opens an address a mod hands on: [the addresses](../DECKIT-14/SPEC.md), `deckit/urls`.
 

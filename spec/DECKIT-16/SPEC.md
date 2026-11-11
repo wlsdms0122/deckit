@@ -121,7 +121,7 @@ The owner keeps what a person set in its own storage, as [the storage](../DECKIT
 ## Interactions
 
 - `contributes`, an entry as a value, and a bundle's `id` and `name`: [the bundle](../DECKIT-2/SPEC.md).
-- `deckit.system-services` and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md). `deckit.app-keys`, `system.global-keys`, `keys.take` and the handle `shell` it is on, handed to `attach`: the shell's DECKITs.
+- `deckit.system-services` and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md). The handle `shell` that `keys.take` is on, handed to `attach`: [the shell](../DECKIT-29/SPEC.md). `deckit.app-keys`, `system.global-keys` and what `keys.take` takes and answers: the shell's DECKIT of its keys.
 - The catalog's order: [the catalog](../DECKIT-4/SPEC.md).
 - `INVALID_ARGUMENT`, and what a value is: [the handle](../DECKIT-7/SPEC.md).
 - The owner of an interface, the connection to it, and the entries declared to it: [the interfaces](../DECKIT-10/SPEC.md). A call of a member of the exports and its refusal: [calls across a connection](../DECKIT-11/SPEC.md).

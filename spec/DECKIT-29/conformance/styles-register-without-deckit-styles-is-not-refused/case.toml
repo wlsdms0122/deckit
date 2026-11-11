@@ -1,0 +1,18 @@
+case = 15
+name = "styles-register-without-deckit-styles-is-not-refused"
+note = "A registration is never refused, for a mod not granted the permission that guards it as well: styles.register, which deckit.styles guards, called by mod-a, granted nothing, answers nothing."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "styles.register"
+handle = "shell"
+args = [{ "*" = "body { color: red; }" }]

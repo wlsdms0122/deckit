@@ -1,0 +1,18 @@
+case = 6
+name = "an-instance-with-no-attach-runs"
+note = "An instance with no attach has started the shell's lifecycle at once: mod-a's instance has start alone, and its run is running."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "running"

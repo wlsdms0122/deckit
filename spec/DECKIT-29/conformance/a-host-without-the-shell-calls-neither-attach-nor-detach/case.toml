@@ -1,0 +1,24 @@
+case = 8
+name = "a-host-without-the-shell-calls-neither-attach-nor-detach"
+note = "A host that does not stack the shell calls none of attach and detach: on the base web, mod-a's start, attach, detach and stop each open https://said.test/ and its name outside the app, and mod-b quits mod-a."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "mods.quit"
+args = ["mod-a"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/start", activates = true }, { url = "https://said.test/stop", activates = true }]
