@@ -384,9 +384,11 @@ socket.on('data', (chunk) => {
                                   ? drop(asked)
                                   : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
             ).then(async (came) => {
+                // A run a page starts or ends as it takes what it was told is waited for too.
                 if (asked.input) {
                     await runsSettled();
                     await told();
+                    while (await runsSettled()) await told();
                 }
                 say({ id: asked.id, came });
             });
@@ -587,10 +589,12 @@ function runningOf(mod) {
     return running ? { page: running.page } : { none: `no run of ${mod} is running` };
 }
 
-// Resolves once no run is between two states: each has started, or has ended.
+// Resolves once no run is between two states: each has started, or has ended. Answers whether one was.
 async function runsSettled() {
     const moving = ({ run }) => run.state === 'launching' || run.state === 'terminating';
+    const was = !!deckit?.mods.runs().some(moving);
     while (deckit?.mods.runs().some(moving)) await new Promise((resolve) => setTimeout(resolve, 10));
+    return was;
 }
 
 // What a look comes to: `{ answers }`, `{ refuses, kind, message }` for a bundle found and not taken or a run refused,
