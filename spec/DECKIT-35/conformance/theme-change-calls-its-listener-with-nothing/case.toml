@@ -1,0 +1,29 @@
+case = 21
+name = "theme-change-calls-its-listener-with-nothing"
+note = "Each change of the theme calls a listener of theme.onChange once, with no arguments: mod-a listens, the host app's look turns light, and the listener was called once with nothing."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.onChange"
+handle = "shell"
+listener = true
+
+[[step]]
+input = "appearance"
+appearance = "light"
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[]]

@@ -1,0 +1,19 @@
+case = 21
+name = "a-style-declared-without-deckit-styles-is-not-worn"
+note = "A mod not granted deckit.styles declares nothing: mod-a, granted nothing, declares a.css for \"*\", and mod-b's page holds neither of what it sets."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = {} }

@@ -281,7 +281,7 @@ A bundle the system does not take is refused at `read` with kind `NOT_LOADABLE`,
 - The permissions the system defines and what each one grants: [the permissions](../DECKIT-3/SPEC.md).
 - What a host ships and marks system, and when it adds fields and defines permissions: [the embedding](../DECKIT-22/SPEC.md).
 - Two bundles of one id, which one is read, installing and removing: [the catalog](../DECKIT-4/SPEC.md).
-- The fields the shell adds and what it reads of them: the shell's DECKITs, [the Dock](../DECKIT-33/SPEC.md) for `activationPolicy`, `icon` and `keywords`.
+- The fields the shell adds and what it reads of them: the shell's DECKITs, [the Dock](../DECKIT-33/SPEC.md) for `activationPolicy`, `icon` and `keywords`, and [the look](../DECKIT-35/SPEC.md) for `styles`.
 
 ## Alternatives considered
 

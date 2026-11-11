@@ -1,0 +1,20 @@
+case = 15
+name = "theme-fonts-chosen-none-are-an-empty-table"
+note = "theme.fonts leaves out each font the person chose none of: on a host whose fonts were never set, theme.fonts answers an empty table."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.fonts"
+handle = "shell"
+
+[step.expect]
+answers = {}

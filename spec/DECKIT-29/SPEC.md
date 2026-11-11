@@ -5,7 +5,7 @@ Area: shell
 
 ## Summary
 
-The shell is the layer that gives a mod's run a GUI on the host app: windows, the Dock, the keys, the look, files outside the app. A host stacks it over the system and the web engine, and it stacks one lifecycle of its own over the system's. This DECKIT fixes that lifecycle, the members `attach(shell, deckit, frameworks)` and `detach()` of the instance it calls, when each is called and what each is handed; the handle `shell` as a whole, every member on it with its shape and the shell's DECKIT that fixes it, on the handle of every mod whatever the mod is granted; and the handle cut as its lifecycle ends, its requests and the members that throw refused with `ENDED`. The members themselves are fixed by [files outside the app](../DECKIT-30/SPEC.md), [windows](../DECKIT-31/SPEC.md) and the shell's later DECKITs: activation, the Dock, the shell's keys, the look, and regions and drops.
+The shell is the layer that gives a mod's run a GUI on the host app: windows, the Dock, the keys, the look, files outside the app. A host stacks it over the system and the web engine, and it stacks one lifecycle of its own over the system's. This DECKIT fixes that lifecycle, the members `attach(shell, deckit, frameworks)` and `detach()` of the instance it calls, when each is called and what each is handed; the handle `shell` as a whole, every member on it with its shape and the shell's DECKIT that fixes it, on the handle of every mod whatever the mod is granted; and the handle cut as its lifecycle ends, its requests and the members that throw refused with `ENDED`. The members themselves are fixed by [files outside the app](../DECKIT-30/SPEC.md), [windows](../DECKIT-31/SPEC.md), [activation](../DECKIT-32/SPEC.md), [the Dock](../DECKIT-33/SPEC.md), [the shell's keys](../DECKIT-34/SPEC.md), [the look](../DECKIT-35/SPEC.md), and the shell's later DECKIT of regions and drops.
 
 ## Motivation
 
@@ -69,11 +69,11 @@ The shell's lifecycle ends as [the entry](../DECKIT-6/SPEC.md) ends a layer's li
 | `mods.list()`, `mods.pinned()`, `mods.setPinned(id, pinned)`, `mods.open(id)` | the mods the Dock shows, and a mod opened as a person opens it | request | [the Dock](../DECKIT-33/SPEC.md) |
 | `keys.take(keystroke, run, options)`, `keys.list()`, `keys.set(id, keystroke)`, `keys.reset(id)` | a chord the mod takes, and the shell's own keys | request | [the shell's keys](../DECKIT-34/SPEC.md) |
 | `keys.record(onKeystroke)` | the keys pressed in the mod's pages, as they are pressed | answers at once | [the shell's keys](../DECKIT-34/SPEC.md) |
-| `theme` | the look the shell draws with | value | the shell's DECKIT of the look |
-| `theme.onChange(listener)` | being told that `theme` changed | answers at once | the shell's DECKIT of the look |
-| `ui` | the components the shell draws with | value | the shell's DECKIT of the look |
-| `fonts.set(change)` | the fonts the person reads in | request | the shell's DECKIT of the look |
-| `styles.register(styles)` | the styles the mod lays over pages | registration | the shell's DECKIT of the look |
+| `theme` | the look the shell draws with | value | [the look](../DECKIT-35/SPEC.md) |
+| `theme.onChange(listener)` | being told that `theme` changed | answers at once | [the look](../DECKIT-35/SPEC.md) |
+| `ui` | the components the shell draws with | value | [the look](../DECKIT-35/SPEC.md) |
+| `fonts.set(fonts)` | the fonts the person reads in | request | [the look](../DECKIT-35/SPEC.md) |
+| `styles.register(styles)` | the styles the mod lays over pages | registration | [the look](../DECKIT-35/SPEC.md) |
 | `region(element, interface)`, `children.onChange(listener)`, `dropDestination(element, options)` | a place a child's view is shown in, being told the children changed, and the files a person drops | answers at once | the shell's DECKIT of regions and drops |
 | `children.list(interface)` | the mod's children of an interface | request | the shell's DECKIT of regions and drops |
 | `view.register(view)` | the mod's view, shown in a region of its parent's | registration | the shell's DECKIT of regions and drops |
@@ -114,7 +114,7 @@ A registration through a cut handle registers nothing. A value of a cut handle i
 - The handle `web` in `frameworks`, and a session handle cut: [the web engine](../DECKIT-23/SPEC.md). The pages the web engine offers the shell, which `web.page` and `web.window` answer: [web pages](../DECKIT-25/SPEC.md).
 - A chord the owner of `deckit/keys` takes through `keys.take`: [the key bindings](../DECKIT-16/SPEC.md).
 - The base `shell`, and the handle `shell` a `call` reads: [the case format](../DECKIT-1/SPEC.md).
-- What each member takes, answers and is refused with, the permissions the shell defines and the requests they guard, the manifest fields the shell adds, the instance's `reopen()`, which the Dock calls: [files outside the app](../DECKIT-30/SPEC.md), for `dialogs.chooseFolders` and `reveal`, [windows](../DECKIT-31/SPEC.md), for `windows.open`, `windows.list`, a window's handle and `system.overlay-windows`, [activation](../DECKIT-32/SPEC.md), for `active()`, [the Dock](../DECKIT-33/SPEC.md), for `mods.list`, `mods.pinned`, `mods.setPinned`, `mods.open`, the fields `activationPolicy`, `icon` and `keywords` and `reopen()`, [the shell's keys](../DECKIT-34/SPEC.md), for `keys.take`, `keys.list`, `keys.set`, `keys.reset`, `keys.record`, `deckit.app-keys`, `system.global-keys` and `deckit.shell-keys`, and the shell's later DECKITs, of the look, and regions and drops.
+- What each member takes, answers and is refused with, the permissions the shell defines and the requests they guard, the manifest fields the shell adds, the instance's `reopen()`, which the Dock calls: [files outside the app](../DECKIT-30/SPEC.md), for `dialogs.chooseFolders` and `reveal`, [windows](../DECKIT-31/SPEC.md), for `windows.open`, `windows.list`, a window's handle and `system.overlay-windows`, [activation](../DECKIT-32/SPEC.md), for `active()`, [the Dock](../DECKIT-33/SPEC.md), for `mods.list`, `mods.pinned`, `mods.setPinned`, `mods.open`, the fields `activationPolicy`, `icon` and `keywords` and `reopen()`, [the shell's keys](../DECKIT-34/SPEC.md), for `keys.take`, `keys.list`, `keys.set`, `keys.reset`, `keys.record`, `deckit.app-keys`, `system.global-keys` and `deckit.shell-keys`, [the look](../DECKIT-35/SPEC.md), for `theme`, `theme.onChange`, `ui`, `fonts.set`, `styles.register`, the field `styles`, `deckit.styles` and `deckit.fonts`, and the shell's later DECKIT of regions and drops.
 
 ## Alternatives considered
 

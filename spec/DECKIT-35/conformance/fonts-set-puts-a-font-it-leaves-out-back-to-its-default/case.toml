@@ -1,0 +1,28 @@
+case = 15
+name = "fonts-set-puts-a-font-it-leaves-out-back-to-its-default"
+note = "fonts.set sets the fonts whole, and a font it leaves out is the default: mod-a sets { text = \"Helvetica\", size = 16 }, then { size = 12 }, answered { size = 12 }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ text = "Helvetica", size = 16 }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 12 }]
+
+[step.expect]
+answers = { size = 12 }

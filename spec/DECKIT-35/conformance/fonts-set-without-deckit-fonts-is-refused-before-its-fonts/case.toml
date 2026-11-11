@@ -1,0 +1,22 @@
+case = 15
+name = "fonts-set-without-deckit-fonts-is-refused-before-its-fonts"
+note = "fonts.set is refused NOT_PERMITTED first: mod-b, not granted deckit.fonts, sets { size = 30 }, which is no size of the fonts."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 30 }]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

@@ -1,0 +1,32 @@
+case = 15
+name = "fonts-set-calls-a-theme-listener"
+note = "A change of the person's fonts is a change of the theme: mod-b listens to theme.onChange, mod-a sets { size = 18 }, and mod-b's listener was called once with nothing."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "theme.onChange"
+handle = "shell"
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 18 }]
+
+[[step]]
+look = "heard"
+mod = "mod-b"
+
+[step.expect]
+answers = [[]]

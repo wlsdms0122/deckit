@@ -1,0 +1,22 @@
+case = 15
+name = "fonts-set-of-no-table-is-refused"
+note = "fonts.set is refused INVALID_ARGUMENT where fonts is no table: mod-a hands it the integer 16."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [16]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

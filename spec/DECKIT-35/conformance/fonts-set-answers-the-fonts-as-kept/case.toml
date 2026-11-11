@@ -1,0 +1,21 @@
+case = 15
+name = "fonts-set-answers-the-fonts-as-kept"
+note = "fonts.set answers the person's fonts as kept, each left out where it is the default: mod-a, granted deckit.fonts, sets { size = 16 }, answered { size = 16 }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 16 }]
+
+[step.expect]
+answers = { size = 16 }

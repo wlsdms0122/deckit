@@ -1,0 +1,39 @@
+case = 15
+name = "fonts-set-to-the-fonts-there-are-calls-no-listener"
+note = "The theme changes only as the person's fonts change: mod-a sets { size = 18 }, then listens, then sets { size = 18 } again, and its listener was not called."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 18 }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.onChange"
+handle = "shell"
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 18 }]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []

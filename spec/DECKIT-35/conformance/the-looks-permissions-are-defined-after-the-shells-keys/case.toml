@@ -1,0 +1,19 @@
+case = 21
+name = "the-looks-permissions-are-defined-after-the-shells-keys"
+note = "The shell defines deckit.styles and deckit.fonts after the permissions of its keys, in that order, each named and described as the table gives: mod-a asks for deckit.fonts, deckit.styles and deckit.app-keys."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [{ id = "deckit.app-keys", name = "App Keys", description = "Its keys work wherever you are in the app, whatever is in front, and are taken from every page there.", reason = "Keys.", privileged = false, usable = true }, { id = "deckit.styles", name = "Styles", description = "It can change how every page in the app looks, other mods' among them, and so read what they show.", reason = "Styles.", privileged = false, usable = true }, { id = "deckit.fonts", name = "Fonts", description = "It can change the fonts and the text size every mod writes text in.", reason = "Fonts.", privileged = false, usable = true }]

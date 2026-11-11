@@ -1,0 +1,19 @@
+case = 21
+name = "a-style-registered-once-attach-has-answered-is-not-worn"
+note = "styles.register registers only until the shell's lifecycle has started: mod-a's attach registers a style for \"*\" from a timer, once it has answered, and mod-b's page holds nothing of it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = {} }

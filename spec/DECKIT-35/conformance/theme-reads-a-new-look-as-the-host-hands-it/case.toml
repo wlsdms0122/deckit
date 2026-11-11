@@ -1,0 +1,24 @@
+case = 21
+name = "theme-reads-a-new-look-as-the-host-hands-it"
+note = "The theme changes as the host hands a new look: the host app's look turns light from dark, and theme.dark, read through mod-a's handle shell, answers false."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "appearance"
+appearance = "light"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.dark"
+handle = "shell"
+
+[step.expect]
+answers = false

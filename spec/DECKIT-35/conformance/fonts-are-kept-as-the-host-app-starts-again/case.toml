@@ -1,0 +1,33 @@
+case = 15
+name = "fonts-are-kept-as-the-host-app-starts-again"
+note = "The shell keeps the person's fonts: mod-a sets { size = 18 }, the host app quits and starts again, and theme.fonts answers { size = 18 }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 18 }]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.fonts"
+handle = "shell"
+
+[step.expect]
+answers = { size = 18 }

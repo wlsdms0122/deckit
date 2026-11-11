@@ -1,0 +1,19 @@
+case = 21
+name = "a-style-declared-for-a-mod-is-not-worn-by-the-declaring-mods-page"
+note = "A style of a mod's id is worn by the pages drawn for that mod's run alone: mod-a, granted deckit.styles, declares in its manifest's field styles the file a.css, which sets --case-a and --case-order to a, for mod-b, and mod-a's own page holds neither."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-a"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = {} }

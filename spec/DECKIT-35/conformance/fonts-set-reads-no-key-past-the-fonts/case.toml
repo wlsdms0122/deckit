@@ -1,0 +1,21 @@
+case = 15
+name = "fonts-set-reads-no-key-past-the-fonts"
+note = "A key of a table past those a request takes is not read: mod-a sets { size = 16, weight = 700 }, answered { size = 16 }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 16, weight = 700 }]
+
+[step.expect]
+answers = { size = 16 }

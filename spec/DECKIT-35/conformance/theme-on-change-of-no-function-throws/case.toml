@@ -1,0 +1,22 @@
+case = 15
+name = "theme-on-change-of-no-function-throws"
+note = "theme.onChange throws INVALID_ARGUMENT at call where its listener is no function: mod-a hands it the integer 5."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.onChange"
+handle = "shell"
+args = [5]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

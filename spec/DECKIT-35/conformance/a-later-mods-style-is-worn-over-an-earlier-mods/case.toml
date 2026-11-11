@@ -1,0 +1,18 @@
+case = 21
+name = "a-later-mods-style-is-worn-over-an-earlier-mods"
+note = "The mods' styles go in the catalog's order: mod-a registers a style for \"*\" setting --case-order to a, mod-b, after it, declares b.css for \"*\" setting it to b, and the desktop's own page holds b."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = { --case-b = "b", --case-order = "b" } }

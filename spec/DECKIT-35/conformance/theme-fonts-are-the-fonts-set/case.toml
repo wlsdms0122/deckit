@@ -1,0 +1,27 @@
+case = 15
+name = "theme-fonts-are-the-fonts-set"
+note = "theme.fonts are the person's fonts: mod-a sets { text = \"Helvetica\" }, and theme.fonts, read through its handle shell, answers { text = \"Helvetica\" }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ text = "Helvetica" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.fonts"
+handle = "shell"
+
+[step.expect]
+answers = { text = "Helvetica" }
