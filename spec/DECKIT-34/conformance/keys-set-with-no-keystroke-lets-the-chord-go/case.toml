@@ -1,0 +1,50 @@
+case = 18
+name = "keys-set-with-no-keystroke-lets-the-chord-go"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a sets closeWindow with no keystroke, answered the key with none; mod-b takes cmd+w, and the person presses in mod-b's window and presses cmd+w: it is told to mod-b, and the window stays open."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "keys.set"
+handle = "shell"
+args = ["closeWindow"]
+
+[step.expect]
+answers = { id = "closeWindow", name = "Close Window", defaultKeystroke = { code = "KeyW", meta = true, control = false, alt = false, shift = false } }
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { take = { code = "KeyW", meta = true }, as = "b" }]
+
+[[step]]
+input = "window"
+mod = "mod-b"
+name = "main"
+action = "press"
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyW", meta = true }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/take/b/held/true", activates = true }, { url = "https://said.test/chord/b", activates = true }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-b", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]

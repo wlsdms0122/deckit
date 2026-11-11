@@ -1,0 +1,41 @@
+case = 18
+name = "the-shells-keys-do-nothing-in-an-overlay-window"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a, granted system.overlay-windows, opens main and the overlay window f; the person presses in main, then in f, which takes the keyboard, and presses cmd+w, cmd+m and cmd+`: no window closes, is minimized or moves."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "f"
+action = "press"
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyW", meta = true }
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyM", meta = true }
+
+[[step]]
+input = "key"
+keystroke = { code = "Backquote", meta = true }
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "f", level = "overlay", frame = { x = 540, y = 160, width = 200, height = 100 }, key = true, minimized = false }]

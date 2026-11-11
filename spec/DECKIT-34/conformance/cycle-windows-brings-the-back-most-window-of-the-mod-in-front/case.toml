@@ -1,0 +1,37 @@
+case = 18
+name = "cycle-windows-brings-the-back-most-window-of-the-mod-in-front"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a opens main, x and y; the person presses in main and presses cmd+` twice: each time the back-most of mod-a's windows on screen comes in front as the key window."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "key"
+keystroke = { code = "Backquote", meta = true }
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "y", level = "normal", frame = { x = 331, y = 155, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+input = "key"
+keystroke = { code = "Backquote", meta = true }
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "y", level = "normal", frame = { x = 331, y = 155, width = 720, height = 480 }, key = true, minimized = false }]

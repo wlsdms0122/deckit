@@ -1,0 +1,22 @@
+case = 15
+name = "keys-list-without-shell-keys-is-refused"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a, not granted deckit.shell-keys, lists the shell's keys: refused at call with kind NOT_PERMITTED."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "keys.list"
+handle = "shell"
+args = []
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

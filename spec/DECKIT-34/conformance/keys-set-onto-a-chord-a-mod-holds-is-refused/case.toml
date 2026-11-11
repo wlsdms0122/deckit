@@ -1,0 +1,29 @@
+case = 15
+name = "keys-set-onto-a-chord-a-mod-holds-is-refused"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-b takes cmd+j, and mod-a sets closeWindow to it: refused with kind REFUSED."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { take = { code = "KeyJ", meta = true }, as = "b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "keys.set"
+handle = "shell"
+args = ["closeWindow", { code = "KeyJ", meta = true }]
+
+[step.expect]
+refuses = "call"
+kind = "REFUSED"

@@ -1,0 +1,39 @@
+case = 18
+name = "a-recording-hears-the-keys-pressed-in-its-mods-window"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-b takes ctrl+alt+k; mod-a records, and the person presses in mod-a's main and presses ctrl+alt+k there: the recording is handed it, and it is taken, so nothing is told to mod-b."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "b" }]
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { record = true }]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyK", control = true, alt = true }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/take/b/held/true", activates = true }, { url = "https://said.test/rec/KeyK/control+alt", activates = true }]

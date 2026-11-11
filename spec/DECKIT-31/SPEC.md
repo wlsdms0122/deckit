@@ -156,7 +156,7 @@ As the shell's lifecycle ends, as [the shell](../DECKIT-29/SPEC.md) fixes it, ea
 - A member's refusal, `INVALID_ARGUMENT`, and a key of a table or an argument past those a member takes, which is not read: [the handle](../DECKIT-7/SPEC.md). `NOT_PERMITTED` and a permission a mod is granted: [the permissions](../DECKIT-3/SPEC.md).
 - What a layer keeps of a mod, which `mods.usage(id)` names under `kept`: [the embedding](../DECKIT-22/SPEC.md); `remove` and `erase`: [the catalog](../DECKIT-4/SPEC.md).
 - A page apart, `web.window`, its title and its delegate told it closed: [web pages](../DECKIT-25/SPEC.md).
-- Which window is key while an overlay window holds the keyboard, which mod may activate, and the attention a mod held back asks for: [activation](../DECKIT-32/SPEC.md). The shell's keys that close and minimize the key window: the shell's DECKIT of its keys. The Dock and its edge: [the Dock](../DECKIT-33/SPEC.md).
+- Which window is key while an overlay window holds the keyboard, which mod may activate, and the attention a mod held back asks for: [activation](../DECKIT-32/SPEC.md). The shell's keys that close and minimize the key window: [the shell's keys](../DECKIT-34/SPEC.md). The Dock and its edge: [the Dock](../DECKIT-33/SPEC.md).
 - The base `shell`, its desktop and the overlay windows it floats, the input `window` and the look `windows`: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered

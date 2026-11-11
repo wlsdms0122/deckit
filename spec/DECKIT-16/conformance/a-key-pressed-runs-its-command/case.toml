@@ -1,0 +1,36 @@
+case = 18
+name = "a-key-pressed-runs-its-command"
+note = "mod-a, marked system, lists the keys, which answers once the owner has taken their chords. mod-b declares the command today and a key for it on ctrl+alt+t; its code opens https://said.test/ran/<id> outside the app as a command of its is run. The key is of the scope app. The person presses ctrl+alt+t in the host app: the owner runs today on mod-b, a background mod."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyT", control = true, alt = true }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/ran/today", activates = true }]

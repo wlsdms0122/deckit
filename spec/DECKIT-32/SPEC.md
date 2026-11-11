@@ -42,7 +42,7 @@ A mod **may activate** while it is the active mod, and from the time input reach
 | a press in one of the mod's windows, normal or overlay, as [windows](../DECKIT-31/SPEC.md) fixes the person's hand | the window's mod |
 | a key pressed in a page of the mod's: the content of one of its windows, a web page it shows, or its page | that mod |
 | a key pressed in a page of the shell's own, such as the desktop's | no mod |
-| a chord a mod took pressed in any page, told to that mod, as the shell's DECKIT of its keys fixes a chord | the page's mod, as a key pressed there, and then the mod that took the chord |
+| a chord a mod took pressed in any page, told to that mod, as [the shell's keys](../DECKIT-34/SPEC.md) fix a chord | the page's mod, as a key pressed there, and then the mod that took the chord |
 | a click on the mod's item in the Dock, as [the Dock](../DECKIT-33/SPEC.md) fixes it | that mod |
 
 A mod also may activate from the time a request from a mod that may activate reaches it, until input next reaches another mod or none. A **request** of one mod to another is one of these, from the mod whose run makes it to the mod it reaches:
@@ -69,7 +69,7 @@ A mod is **held back** where its window is to come in front as the key window, a
 - The handle `shell`, whose member `active()` is: [the shell](../DECKIT-29/SPEC.md). A request, its promise and the argument past those it takes: [the handle](../DECKIT-7/SPEC.md).
 - `name`: [the bundle](../DECKIT-2/SPEC.md). The host's name: [the embedding](../DECKIT-22/SPEC.md).
 - Reaching a mod and a call through a connection: [the connections](../DECKIT-9/SPEC.md). `launch` and `relaunch`: [the lifecycle](../DECKIT-5/SPEC.md).
-- A chord a mod takes and when it is told: the shell's DECKIT of its keys. The Dock, a click on an item, `mods.open(id)` and the item marked for attention: [the Dock](../DECKIT-33/SPEC.md).
+- A chord a mod takes and when it is told, and a key a mod records: [the shell's keys](../DECKIT-34/SPEC.md). The Dock, a click on an item, `mods.open(id)` and the item marked for attention: [the Dock](../DECKIT-33/SPEC.md).
 - The input `key`, the look `desktop`, and the base `shell`'s keyboard and the app in front: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered

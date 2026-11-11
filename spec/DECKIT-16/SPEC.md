@@ -1,7 +1,7 @@
 # DECKIT-16: Key bindings
 
 Status: draft
-Area: system
+Area: shell
 
 ## Summary
 
@@ -35,7 +35,7 @@ A mod declares its keys as entries to `deckit/keys`, under `contributes` as [the
 | `keystroke` | string: a `spec`, below | yes | the chord it is bound to by default |
 | `scope` | `"app"` or `"global"` | no | where it works: `app` wherever the person is in the host app, `global` in every app too; left out, `app` |
 
-A key of scope `app` needs its mod granted `deckit.app-keys`, and one of scope `global` `system.global-keys`, the permissions of `keys.take` of the shell's handle. The shell defines both: on a host with no shell, no mod is granted the permission of either scope, and every key is left out.
+A key of scope `app` needs its mod granted `deckit.app-keys`, and one of scope `global` `system.global-keys`, the permissions of `keys.take` of the shell's handle, as [the shell's keys](../DECKIT-34/SPEC.md) fix them. The shell defines both: on a host with no shell, no mod is granted the permission of either scope, and every key is left out.
 
 An entry is **left out** where it is not a table, where a key does not take what the table gives, where its command is none that [the commands](../DECKIT-15/SPEC.md)' `list` answers of its mod, or one whose `params` require a key, where its mod is not granted the permission of its scope, where its keystroke does not fit, below, or where its mod declared a key for its command in an entry before it that is not left out. Entries are read in [the catalog's](../DECKIT-4/SPEC.md) order and then the order written.
 
@@ -121,7 +121,7 @@ The owner keeps what a person set in its own storage, as [the storage](../DECKIT
 ## Interactions
 
 - `contributes`, an entry as a value, and a bundle's `id` and `name`: [the bundle](../DECKIT-2/SPEC.md).
-- `deckit.system-services` and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md). The handle `shell` that `keys.take` is on, handed to `attach`: [the shell](../DECKIT-29/SPEC.md). `deckit.app-keys`, `system.global-keys` and what `keys.take` takes and answers: the shell's DECKIT of its keys.
+- `deckit.system-services` and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md). The handle `shell` that `keys.take` is on, handed to `attach`: [the shell](../DECKIT-29/SPEC.md). `deckit.app-keys`, `system.global-keys`, the scopes, and what `keys.take` takes, answers and is refused with, and when a press of a chord is told: [the shell's keys](../DECKIT-34/SPEC.md).
 - The catalog's order: [the catalog](../DECKIT-4/SPEC.md).
 - `INVALID_ARGUMENT`, and what a value is: [the handle](../DECKIT-7/SPEC.md).
 - The owner of an interface, the connection to it, and the entries declared to it: [the interfaces](../DECKIT-10/SPEC.md). A call of a member of the exports and its refusal: [calls across a connection](../DECKIT-11/SPEC.md).
@@ -143,6 +143,6 @@ The owner keeps what a person set in its own storage, as [the storage](../DECKIT
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `message` and `problem`: no rule states their text. A press of a chord, and the scope a key works in: no input of the case format presses a key. Keys of scope `global` and `unavailable`: whether the machine gives a chord to the host app outside it is the machine's. The order of keys of `app` before those of `global`, and the kinds of `issues`: what a case reads of an answer is a value or the value under one key of it, and a key's `issues` hold a `message`; whether a key runs is read from `active` and `chordOf`. What is kept for a key whose mod is gone: no input of the case format removes a bundle. That the owner opens its exports in its start and for every client: every case reaches it so.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `message` and `problem`: no rule states their text. A press of a key of scope `app` while the host app is not in front, and which of a key of `app` and one of `global` on one chord runs: no input of the case format puts another app in front but for one key. The order of keys of `app` before those of `global`, and the kinds of `issues`: what a case reads of an answer is a value or the value under one key of it, and a key's `issues` hold a `message`; whether a key runs is read from `active` and `chordOf`. What is kept for a key whose mod is gone: no input of the case format removes a bundle. That the owner opens its exports in its start and for every client: every case reaches it so.
 
 **Note.** What this costs an implementation's owner: it reads the entries declared to `deckit/keys` and the commands of `deckit/commands` again as they change, resolves every key again on each change, and takes and lets go of chords to match.
