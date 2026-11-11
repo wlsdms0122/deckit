@@ -1,14 +1,20 @@
 // What an empty cell shows.
 const NO_VALUE = '–';
 
-// What `deckit.mods.usage` found of a mod, in words: a phrase for each place it has something in, and the name of each
-// thing the layers keep for it (`kept`), such as its configuration.
+// What each layer of this app keeps of a mod, by the layer's name in `kept`. A name not here is shown as it is.
+const KEPT_TEXT = new Map([
+    ['shell', 'window frames and Dock place'],
+    ['web', 'site data and downloads'],
+]);
+
+// What `deckit.mods.usage` found of a mod, in words: a phrase for each place it has something in, and what each layer
+// keeps for it (`kept`).
 function usageParts({ data, records, values, kept = [] }) {
     return [
         data.count || data.hidden ? filesText(data, 'data file') : '',
         records.count || records.hidden ? filesText(records, 'record') : '',
         values.count ? filesText({ ...values, hidden: false }, 'value') : '',
-        ...kept,
+        ...kept.map((name) => KEPT_TEXT.get(name) ?? name),
     ].filter(Boolean);
 }
 

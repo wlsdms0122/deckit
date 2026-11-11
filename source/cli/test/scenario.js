@@ -883,17 +883,21 @@ async function run({
         ]
             .filter(([, keeps]) => keeps)
             .map(([name]) => name);
+        // The row tells a layer's keeping by what Settings words it as, and any other name as it is.
+        const keptText = { shell: 'window frames and Dock place', web: 'site data and downloads' };
         const told = [
             counted(filesIn(path.join(home, 'data', 'editor')), 'data file'),
             counted(filesIn(path.join(home, 'records', 'editor')), 'record'),
-            ...layers,
-            ...(fs.existsSync(path.join(home, 'principal-state'))
-                ? fs.readdirSync(path.join(home, 'principal-state'))
-                : []
-            )
-                .filter((name) => fs.existsSync(path.join(home, 'principal-state', name, 'editor.json')))
-                .filter((name) => !layers.includes(name))
-                .sort(),
+            ...[
+                ...layers,
+                ...(fs.existsSync(path.join(home, 'principal-state'))
+                    ? fs.readdirSync(path.join(home, 'principal-state'))
+                    : []
+                )
+                    .filter((name) => fs.existsSync(path.join(home, 'principal-state', name, 'editor.json')))
+                    .filter((name) => !layers.includes(name))
+                    .sort(),
+            ].map((name) => (Object.hasOwn(keptText, name) ? keptText[name] : name)),
         ].filter(Boolean);
         check(
             "a mod's row tells what it has where deck keeps it",
