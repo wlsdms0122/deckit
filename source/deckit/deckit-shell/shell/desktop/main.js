@@ -96,13 +96,13 @@ export function createDesktop({
         });
     }
 
-    // A normal window opens where its mod last left a normal window of its name, or cascaded from the key window where
-    // it left none or one of that name is open, placed at its size no smaller than its minimum, brought forward as
-    // orderFront brings it. A window with a `title` is titled: the shell draws its title bar, holding the title, over
-    // its content.
+    // A normal window opens where its mod last left a normal window of its name, or cascaded from the key window, or
+    // the front window on screen while none is key, where it left none or one of that name is open, placed at its size
+    // no smaller than its minimum, brought forward as orderFront brings it. A window with a `title` is titled: the
+    // shell draws its title bar, holding the title, over its content.
     function open(window, { activates = true } = {}) {
         const desktopNow = area();
-        const after = keyWindow() && MANAGER.frameOf(keyWindow().id);
+        const after = keyWindow() ? MANAGER.frameOf(keyWindow().id) : (MANAGER.viewOf(LOCAL).at(-1)?.frame ?? null);
         const twin = [...windows.values()].some(({ mod, name }) => mod === window.mod && name === window.name);
         const restored = (!twin && keptFrameOf(window)) || null;
         const minimum = LAYOUT.minimumOf(window.minimum);

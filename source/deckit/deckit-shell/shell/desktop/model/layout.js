@@ -35,8 +35,8 @@ function minimumOf({ width = 0, height = 0 } = {}) {
     return { width: Math.max(MINIMUM.width, width), height: Math.max(MINIMUM.height, height) };
 }
 
-// Where a new window `size` big opens: its `restored` frame, or `after` the key window, cascaded from its top left,
-// or centred on the desktop; kept where its title bar can be reached.
+// Where a new window `size` big opens: its `restored` frame, or cascaded from the top left of `after`, the frame of the
+// window it follows, or centred on the desktop; kept where its title bar can be reached.
 function placed({ size, restored = null, after = null, desktop }) {
     if (restored) return kept(restored, desktop);
     const area = zoomedIn(desktop);
