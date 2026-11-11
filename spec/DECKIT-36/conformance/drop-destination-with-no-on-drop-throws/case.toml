@@ -1,0 +1,23 @@
+case = 22
+name = "drop-destination-with-no-on-drop-throws"
+note = "dropDestination throws INVALID_ARGUMENT at call where options.onDrop is no function: mod-a hands it an empty table."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { drop = "outer", box = { x = 50, y = 50, width = 300, height = 300 }, options = {} }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/drop/outer/threw/INVALID_ARGUMENT", activates = true }]

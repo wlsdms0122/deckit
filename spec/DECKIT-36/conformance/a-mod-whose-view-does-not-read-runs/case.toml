@@ -1,0 +1,18 @@
+case = 22
+name = "a-mod-whose-view-does-not-read-runs"
+note = "The system judges no value of the field view: mod-b, whose view is a string, is taken and runs."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"

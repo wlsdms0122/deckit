@@ -1,0 +1,21 @@
+case = 22
+name = "a-view-whose-parent-is-no-string-makes-no-child"
+note = "A view whose parent is no string is read as none: mod-b's view.parent is the integer 5, and mod-a has no children of case/view."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = []

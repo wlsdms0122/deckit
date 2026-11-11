@@ -1,0 +1,35 @@
+case = 22
+name = "place-of-a-mod-that-is-no-child-in-an-ended-region-is-refused-as-ended"
+note = "place is refused with ENDED for an ended region before INVALID_ARGUMENT for a mod that is no child: mod-a removes the region's element, then places mod-c, which names no view."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { remove = 1 }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { place = 1, id = "mod-c" }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/place/1/threw/ENDED", activates = true }]

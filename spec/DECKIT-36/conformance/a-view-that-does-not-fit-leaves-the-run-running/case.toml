@@ -1,0 +1,18 @@
+case = 22
+name = "a-view-that-does-not-fit-leaves-the-run-running"
+note = "A registration is never refused: mod-b registers { content = 5 }, and its run runs."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"

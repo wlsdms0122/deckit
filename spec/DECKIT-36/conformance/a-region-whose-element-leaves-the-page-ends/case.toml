@@ -1,0 +1,35 @@
+case = 22
+name = "a-region-whose-element-leaves-the-page-ends"
+note = "A region ends as its element leaves the page, and place of an ended region is refused at call with ENDED: mod-a removes the element and places mod-b again."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { remove = 1 }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { place = 1, id = "mod-b" }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/place/1/threw/ENDED", activates = true }]

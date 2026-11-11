@@ -1,0 +1,29 @@
+case = 22
+name = "another-child-placed-in-a-region-takes-its-place"
+note = "A region shows at most one child: mod-a places mod-b, then mod-c, in the same region, and mod-c alone is laid over it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { place = 1, id = "mod-c" }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-c", parent = "mod-a", window = "main", frame = { x = 383, y = 207, width = 200, height = 150 } }]

@@ -1,0 +1,21 @@
+case = 22
+name = "a-view-that-is-no-table-makes-no-child"
+note = "A field view that is no table is read as none: mod-b's view is the string case/view, and mod-a has no children of case/view."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = []

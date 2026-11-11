@@ -1,0 +1,22 @@
+case = 22
+name = "children-on-change-of-no-function-throws"
+note = "children.onChange throws INVALID_ARGUMENT at call where its listener is no function: mod-a hands it the integer 5."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.onChange"
+handle = "shell"
+args = [5]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

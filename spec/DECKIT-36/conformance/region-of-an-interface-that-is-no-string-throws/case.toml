@@ -1,0 +1,23 @@
+case = 22
+name = "region-of-an-interface-that-is-no-string-throws"
+note = "region throws INVALID_ARGUMENT at call where interface is no string: mod-a hands it the integer 5."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = 5, box = { x = 100, y = 100, width = 200, height = 150 } }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/region/1/threw/INVALID_ARGUMENT", activates = true }]

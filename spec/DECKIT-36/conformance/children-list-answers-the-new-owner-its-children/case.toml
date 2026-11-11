@@ -1,0 +1,28 @@
+case = 22
+name = "children-list-answers-the-new-owner-its-children"
+note = "The children are the owner's: once mod-x pins case/view to mod-c, mod-c's children.list of case/view answers mod-b."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c", "mod-x"]
+system = ["mod-x"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-x"
+member = "mods.pin"
+args = ["case/view", "mod-c"]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = [{ id = "mod-b", name = "mod-b", icon = "" }]

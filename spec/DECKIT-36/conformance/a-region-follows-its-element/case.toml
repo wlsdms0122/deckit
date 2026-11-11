@@ -1,0 +1,29 @@
+case = 22
+name = "a-region-follows-its-element"
+note = "A region's rect is where its element is now: mod-a moves the element to 200, 50, and mod-b is laid at 483, 157."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { move = 1, box = { x = 200, y = 50, width = 200, height = 150 } }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-b", parent = "mod-a", window = "main", frame = { x = 483, y = 157, width = 200, height = 150 } }]

@@ -1,0 +1,30 @@
+case = 22
+name = "a-child-that-does-not-run-launches-as-it-is-placed"
+note = "place launches a child whose run is not running: mod-b does not run, mod-a places it, and once it is laid over the region it runs."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-b", parent = "mod-a", window = "main", frame = { x = 383, y = 207, width = 200, height = 150 } }]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"

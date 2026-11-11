@@ -1,0 +1,29 @@
+case = 22
+name = "a-child-is-laid-cut-to-its-window"
+note = "A child's page is cut to its window's frame: mod-a moves the region's element to 600, 400, 300 by 200, past the window's 720 by 480, and mod-b is laid at 883, 507, 120 by 80."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { move = 1, box = { x = 600, y = 400, width = 300, height = 200 } }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-b", parent = "mod-a", window = "main", frame = { x = 883, y = 507, width = 120, height = 80 } }]

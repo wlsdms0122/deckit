@@ -1,0 +1,32 @@
+case = 22
+name = "a-child-whose-run-ends-is-a-child-still"
+note = "A mod is a child whether it runs or not, so its run ending changes no children: mod-a listens, mod-x quits mod-b, and the listener is not called."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-x"]
+system = ["mod-x"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.onChange"
+handle = "shell"
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-x"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []

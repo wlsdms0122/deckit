@@ -1,0 +1,21 @@
+case = 22
+name = "a-provider-that-does-not-own-the-interface-has-no-children"
+note = "A mod's children are those of an interface it owns: mod-c provides case/view after mod-a, which owns it, and mod-c's children.list of case/view answers none."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = []

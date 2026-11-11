@@ -1,0 +1,35 @@
+case = 22
+name = "place-of-no-string-in-an-ended-region-is-refused-as-invalid"
+note = "place is refused with INVALID_ARGUMENT for what it is handed before ENDED: mod-a removes the region's element, then places the integer 5."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { remove = 1 }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { place = 1, id = 5 }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/place/1/threw/INVALID_ARGUMENT", activates = true }]

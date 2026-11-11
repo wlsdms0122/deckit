@@ -1,0 +1,30 @@
+case = 22
+name = "a-child-whose-run-ends-is-told-did-disappear-before-detach"
+note = "As the child's shell lifecycle ends, its view on screen is told didDisappear before detach() is called: mod-x quits mod-b, and mod-b says didAppear, didDisappear, then detach."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-x"]
+system = ["mod-x"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-x"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/mod-b/didAppear", activates = true }, { url = "https://said.test/mod-b/didDisappear", activates = true }, { url = "https://said.test/mod-b/detach", activates = true }]

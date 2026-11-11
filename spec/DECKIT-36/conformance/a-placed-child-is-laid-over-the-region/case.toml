@@ -1,0 +1,23 @@
+case = 22
+name = "a-placed-child-is-laid-over-the-region"
+note = "A region shows the child placed in it, its page laid over the region's rect in the window: mod-a's region over an element at 100, 100, 200 by 150, of its window at 283, 107 shows mod-b at 383, 207, 200 by 150."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-b", parent = "mod-a", window = "main", frame = { x = 383, y = 207, width = 200, height = 150 } }]
