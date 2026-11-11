@@ -21,7 +21,6 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     const COOKIE_LIFETIME = 60 * 60 * 24 * 14;
     // `fetch` reads in the app's process, and a huge answer would be held whole there.
     const FETCH_LIMIT = 4 * 1024 * 1024;
-    const WINDOW_SIZE = Object.freeze({ width: 520, height: 700 });
     // How long after a key or mouse press in a web page its window.open is taken as coming of that press, as a browser
     // keeps a page's transient user activation.
     const ACTIVATION_MS = 5000;
@@ -66,7 +65,6 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
             requestApp: (embedder, id, { url, origin }) => openApp(embedder, id, url, origin),
             cookieLifetime: COOKIE_LIFETIME,
             fetchLimit: FETCH_LIMIT,
-            windowSize: WINDOW_SIZE,
         });
         listen();
         DOWNLOAD.start();

@@ -92,7 +92,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         const page = makePage(PARTITION.spell(mod, session), modPage);
         pages.set(page.id, page);
         adopt(modPage, page, { inPage: false });
-        showInWindow(modPage, page, { title, size: client.windowSize });
+        showInWindow(modPage, page, { title });
         if (!SITE.isBlank(url)) page.loadURL(url);
         return page.id;
     }
@@ -345,11 +345,11 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     // closes itself takes its window. The window is titled by the page, and a site's page says which site it is, so a
     // page cannot pass for another. The page fills the stage once the host app places it, which a host that lays the
     // page itself never does.
-    function showInWindow(modPage, page, { title = '', size }) {
+    function showInWindow(modPage, page, { title = '' }) {
         let closing = false;
         const stage = STAGES.stage();
         stage.whenResized(() => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]));
-        const window = WINDOWS.openForStage({ title, size, page, stage, focus: () => page.focus() });
+        const window = WINDOWS.openForStage({ title, page, stage, focus: () => page.focus() });
         windows.set(page.id, { window, embedder: modPage });
         LOG.guard(page, 'changed', () => window.setTitle(labelOf(page)));
         LOG.guard(page, 'close', () => !closing && window.close());

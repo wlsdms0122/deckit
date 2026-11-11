@@ -442,9 +442,9 @@ function runOf(id) {
 const PRESSED = Object.freeze({ x: 10, y: 10 });
 
 // A page deckit shows on its own, in a window of the environment's, shown without taking the keyboard.
-function openWindow({ title = '', size = null, place, ...rest }) {
-    if (setup.base === 'shell') return controls.openWindow({ title, size, place, ...rest });
-    const window = environment.windows.open({ title, size: size || { width: 800, height: 600 } });
+function openWindow({ title = '', place, ...rest }) {
+    if (setup.base === 'shell') return controls.openWindow({ title, place, ...rest });
+    const window = environment.windows.open({ title, size: { width: 800, height: 600 } });
     place(window);
     window.show({ focus: false });
     return window;

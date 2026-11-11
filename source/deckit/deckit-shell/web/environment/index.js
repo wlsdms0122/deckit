@@ -94,9 +94,8 @@ const WEB = Object.freeze({
 // `writeClipboard(embedder, id, { origin, text })`, whether it replaced the clipboard's text with `text`; and
 // `requestApp(embedder, id, { url, origin })`, an app's address a site in the web page of that id goes to, which the web
 // engine opens with `open.url` (WEB) where the mod lets it, a promise of whether it opened. Kept as given:
-// `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
-// past which `fetch` refuses an answer; and `windowSize`, `{ width, height }`, a web page's window where it asks for no
-// size.
+// `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; and `fetchLimit`, the
+// bytes past which `fetch` refuses an answer.
 const WEB_CLIENT = Object.freeze({
     loading: 'function',
     attaching: 'function',
@@ -118,7 +117,6 @@ const WEB_CLIENT = Object.freeze({
     requestApp: 'function',
     cookieLifetime: 'number',
     fetchLimit: 'number',
-    windowSize: { width: 'number', height: 'number' },
 });
 
 // What an environment gives the web engine on a mod's page.
