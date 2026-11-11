@@ -18,9 +18,9 @@
 // run's, never the person's. A request fetched through a web session reaches no address but on the loopback address. On
 // the base shell it hands the shell the mods the case keeps in the Dock at the first start, and the host app's look,
 // light or dark, as the case names it, as it starts and as the look changes; it reads what a page of the shell's
-// wears, its colour scheme and the custom properties of its root. It keeps what the shell lays on the desktop, for the
-// children's views laid over regions, and drops files from outside the app on the page laid at a point of a window,
-// through WebKit, as the machine drops them, never in a drag of the machine's.
+// wears, its colour scheme and the custom properties of its root. It keeps what the shell lays on the desktop and in
+// each overlay window, for the children's views laid over regions, and drops files from outside the app on the page
+// laid at a point of a window, through WebKit, as the machine drops them, never in a drag of the machine's.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -59,7 +59,8 @@ const revealed = []; // each path handed to show where it lies, in the order han
 // person's screen.
 const SCREEN = Object.freeze({ width: 1280, height: 800 });
 let controls = null; // what the host drives of the shell, handed as it starts, on the base shell
-// Each overlay window the shell asks the host to show, back to front: `{ control, frame, key }`, `frame` on SCREEN.
+// Each overlay window the shell asks the host to show, back to front: `{ control, frame, key, holder }`, `frame` on
+// SCREEN, `holder` the window of the host's off every screen its stage is placed in.
 const floating = [];
 // The machine's keyboard on the base shell: the page of the app's that has it, as the shell last gave it, the app in
 // front; and what hears each key pressed in a page, before it and after it did not handle it, by the page.
@@ -114,15 +115,22 @@ const HOST = Object.freeze({
             const at = fits
                 ? { x: kept.x, y: kept.y }
                 : { x: Math.round((SCREEN.width - width) / 2), y: Math.round(SCREEN.height / 5) };
-            one = { control, frame: { ...at, width, height }, key: false };
+            one = { control, frame: { ...at, width, height }, key: false, holder: null };
         } else floating.splice(floating.indexOf(one), 1);
         one.frame = { ...one.frame, width, height };
         floating.push(one);
+        const offScreen = { x: -40000 + one.frame.x, y: -38000 + one.frame.y, width, height };
+        if (!one.holder) {
+            one.holder = environment.windows.open({ kind: 'floating', size: { width, height } });
+            one.holder.setFrame(offScreen);
+            control.place(one.holder);
+            one.holder.show({ focus: false });
+        } else one.holder.setFrame(offScreen);
         if (activates) focusFloating(one);
     },
     closeWindow(control) {
         const at = floating.findIndex((each) => each.control === control);
-        if (at >= 0) floating.splice(at, 1);
+        if (at >= 0) floating.splice(at, 1)[0].holder?.close();
     },
 });
 // The overlay window that has the keyboard gives it up.
@@ -176,32 +184,50 @@ const keysOn = (keys) => {
         hotkey: { value: hotkey },
     });
 };
-// The stages of the base shell, the size of the host window. The first, the desktop's, is laid in a window of the
-// host's off every screen, shown there so that its pages draw, and nothing of it on the person's screen; it keeps what
-// the shell lays last, bottom to top, for a drop and the look regions. Each other, an overlay window's, lays nothing.
+// The stages of the base shell, each in a window of the host's off every screen, shown there so that its pages draw,
+// and nothing of it on the person's screen. The first, the desktop's, is the size of the host window and keeps what the
+// shell lays last, bottom to top, for a drop and the look regions; each other, an overlay window's, is placed in the
+// window its overlay window's holder is, and keeps what the shell lays last in `staged`, for the look regions.
 let desktopStaged = false;
-const DESKTOP_STAGE = () => {
-    const first = !desktopStaged;
-    desktopStaged = true;
-    let stage = null;
-    if (first) {
+const staged = []; // { window, laid }: each overlay window's stage, the window it is placed in and what it lays
+const STAGE = () => {
+    const stage = environment.stage();
+    if (!desktopStaged) {
+        desktopStaged = true;
         const holder = environment.windows.open({ kind: 'floating', size: { ...SCREEN } });
         holder.setFrame({ x: -40000, y: -40000, ...SCREEN });
-        stage = environment.stage();
         stage.place(holder);
         holder.show({ focus: false });
+        return Object.freeze({
+            place() {},
+            size: () => ({ ...SCREEN }),
+            whenResized: () => () => {},
+            show() {},
+            lay(layers) {
+                laid = layers;
+                stage.lay(layers);
+            },
+            close() {},
+        });
     }
+    const record = { window: null, laid: [] };
+    staged.push(record);
     return Object.freeze({
-        place() {},
-        size: () => ({ ...SCREEN }),
-        whenResized: () => () => {},
-        show() {},
+        place(window, options) {
+            record.window = window;
+            stage.place(window, options);
+        },
+        size: () => stage.size(),
+        whenResized: (listener) => stage.whenResized(listener),
+        show: (on) => stage.show(on),
         lay(layers) {
-            if (!stage) return;
-            laid = layers;
+            record.laid = layers;
             stage.lay(layers);
         },
-        close() {},
+        close() {
+            staged.splice(staged.indexOf(record), 1);
+            stage.close();
+        },
     });
 };
 
@@ -277,7 +303,7 @@ try {
         reveal: { value: reveal },
         ...(setup.base === 'shell'
             ? {
-                  stage: { value: DESKTOP_STAGE },
+                  stage: { value: STAGE },
                   pages: { value: pagesOn(environment.pages) },
                   keys: { value: keysOn(environment.keys) },
               }
@@ -630,23 +656,35 @@ async function worn({ mod, properties }) {
 const inside = (point, { x, y, width, height }) =>
     point.x >= x && point.x < x + width && point.y >= y && point.y < y + height;
 
-// The views of the mods laid over the regions of the windows on the desktop, back to front, each `{ mod, parent,
-// window, frame }`: the child's id, the mod and the name of the window, and the rect it is laid at, cut to the
-// window's frame. A mod's page laid cut to a window's frame is a child's view; the window's content is a page of
-// its own.
+// The views of the mods laid over the regions of the windows, back to front: on the desktop, then in each overlay
+// window, each `{ mod, parent, window, frame }`: the child's id, the mod and the name of the window, and the rect it is
+// laid at on the screen, cut to the window's frame. A mod's page laid cut to a window's frame is a child's view; the
+// window's content is a page of its own.
 function regionsSeen() {
     const pages = new Map(deckit.mods.runs().map(({ run, page }) => [page, run.mod.id]));
-    const windows = controls.desktop.windows();
-    return laid.flatMap(({ page, rect, clip }) => {
-        const window =
-            clip && windows.find(({ frame }) => ['x', 'y', 'width', 'height'].every((k) => frame[k] === clip[k]));
-        if (!pages.has(page) || !window) return [];
+    const cut = (rect, clip) => {
         const x = Math.max(rect.x, clip.x);
         const y = Math.max(rect.y, clip.y);
         const width = Math.max(0, Math.min(rect.x + rect.width, clip.x + clip.width) - x);
         const height = Math.max(0, Math.min(rect.y + rect.height, clip.y + clip.height) - y);
-        return [{ mod: pages.get(page), parent: window.mod, window: window.name, frame: { x, y, width, height } }];
+        return { x, y, width, height };
+    };
+    const windows = controls.desktop.windows();
+    const desktop = laid.flatMap(({ page, rect, clip }) => {
+        const window =
+            clip && windows.find(({ frame }) => ['x', 'y', 'width', 'height'].every((k) => frame[k] === clip[k]));
+        if (!pages.has(page) || !window) return [];
+        return [{ mod: pages.get(page), parent: window.mod, window: window.name, frame: cut(rect, clip) }];
     });
+    const overlays = floating.flatMap(({ control, frame: { x: left, y: top }, holder }) =>
+        (staged.find(({ window }) => window === holder)?.laid ?? []).flatMap(({ page, rect, clip }) => {
+            if (!pages.has(page) || !clip || !rect) return [];
+            const { x, y, width, height } = cut(rect, clip);
+            const frame = { x: left + x, y: top + y, width, height };
+            return [{ mod: pages.get(page), parent: control.mod, window: control.name, frame }];
+        })
+    );
+    return [...desktop, ...overlays];
 }
 
 // What a drop comes to: the files at `paths` dragged in from outside the app and dropped at `at`, from the top left of

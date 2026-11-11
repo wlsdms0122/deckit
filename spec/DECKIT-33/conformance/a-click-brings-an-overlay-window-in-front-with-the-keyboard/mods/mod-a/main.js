@@ -7,7 +7,7 @@ module.exports = class {
         const open = (options) => {
             const content = document.createElement('div');
             const told = {};
-            if (true) for (const one of CALLBACKS) told[one] = () => say(options.name + '/' + one);
+            if (false) for (const one of CALLBACKS) told[one] = () => say(options.name + '/' + one);
             try {
                 const window = shell.windows.open({ ...told, ...options, content });
                 held.set(options.name, Object.assign(Object.create(window), { content }));

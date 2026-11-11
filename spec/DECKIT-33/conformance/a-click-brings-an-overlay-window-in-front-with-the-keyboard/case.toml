@@ -1,6 +1,6 @@
 case = 19
 name = "a-click-brings-an-overlay-window-in-front-with-the-keyboard"
-note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-a opens main in attach, and the person presses on it. mod-b, granted system.overlay-windows, opens the overlay window f without the keyboard, and has reopen(), which opens https://said.test/reopen/mod-b outside the app. The person clicks mod-b's item: f takes the keyboard, and reopen() is not called, as mod-b has a window open."
+note = "Each mod's code, in attach, opens the windows the case says, mod-b's each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-a opens main in attach, and the person presses on it. mod-b, granted system.overlay-windows, opens the overlay window f without the keyboard, and has reopen(), which opens https://said.test/reopen/mod-b outside the app. The person clicks mod-b's item: f takes the keyboard, and reopen() is not called, as mod-b has a window open. mod-a's window says no callback: what the pages of two mods say reaches the host in no order between them."
 
 [host]
 base = "shell"
@@ -37,4 +37,4 @@ answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, 
 look = "opened"
 
 [step.expect]
-answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/f/didAppear", activates = true }, { url = "https://said.test/main/didResignKey", activates = true }, { url = "https://said.test/f/didBecomeKey", activates = true }]
+answers = [{ url = "https://said.test/f/didAppear", activates = true }, { url = "https://said.test/f/didBecomeKey", activates = true }]
