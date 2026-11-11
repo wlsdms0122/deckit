@@ -13,6 +13,12 @@ import { createDrop } from '../drop/renderer.js';
 import { createWindows } from '../window/renderer.js';
 
 // MARK: - Property
+// The shell's registrations on a handle of a lifecycle over it: each registers nothing.
+const UNREGISTERED = Object.freeze({
+    view: Object.freeze({ register() {} }),
+    styles: Object.freeze({ register() {} }),
+});
+
 // MARK: - Initializer
 // MARK: - Public
 // The shell as a layer on deckit in a mod's page (deckit/runner/renderer.js), stacked with what the layers under it
@@ -31,8 +37,9 @@ import { createWindows } from '../window/renderer.js';
 // its arguments. The page wears the theme, the kit and the styles from just before attach(). Once
 // attach() has ended, a child's view is laid where a region of its parent's shows it. `web` shows the pages of the
 // mod's web sessions, as the web engine's layer offers them (`under.web.surfaces`), what they pass on opened as the
-// mod's openExternal opens it. `channels` binds the shell's channels in the page, and `drags` takes the presses in the
-// drag regions of a window's content (environment: SHELL_PAGE.drags).
+// mod's openExternal opens it. A layer over the shell stacks lifecycles each handed a handle `shell` of its own
+// (`over`). `channels` binds the shell's channels in the page, and `drags` takes the presses in the drag regions of a
+// window's content (environment: SHELL_PAGE.drags).
 function shellOf({ channels, drags }) {
     return ({ mod: running, granted, deliver, fail, under }) => {
         const has = (permission) => granted.includes(permission);
@@ -68,43 +75,13 @@ function shellOf({ channels, drags }) {
                     async start(instance, handles, scope, frameworks) {
                         scope.add(() => (reported = ENDED));
                         if (typeof instance.attach !== 'function') return;
-                        page ??= wear();
-                        const deckit = handles.deckit;
-                        // A request of the handle: refused as `request` refuses it, then ENDED once `scope` is cut.
-                        const live = (name, asked, send) =>
-                            request(name, asked, (...args) => {
-                                if (scope.isCut)
-                                    throw REQUEST.refusal(
-                                        'call',
-                                        'ENDED',
-                                        `${name}: the lifecycle it was made for has ended`
-                                    );
-                                return send(...args);
-                            });
-                        const handle = Object.freeze({
-                            ...(handles.shell ?? {}),
-                            theme: themeOf(page.theme, scope),
-                            ui: page.ui,
-                            windows: WINDOWS.forScope(scope),
-                            ...REGION.forScope(scope, { request: live }),
-                            ...DROP.forScope(scope),
-                            web: under.web.surfaces({
-                                owner: { deliver, recordFailure: fail },
-                                open: deckit.openExternal,
-                                scope,
-                            }),
-                            fonts: FONTS.tool({ channels, request: live }),
-                            mods: createDock({ channels, request: live }).mods,
-                            keys: KEYS.forScope(scope, { request: live }),
-                            active: KEYS.activeOf({ request: live }),
-                            ...filesOf({ channels, request: live }),
-                        });
+                        const handle = handleOf(handles, scope);
                         if (typeof instance.reopen === 'function') {
                             WINDOWS.reopen(() => deliver('reopen()', () => instance.reopen()));
                             scope.add(() => WINDOWS.reopen(null));
                         }
                         try {
-                            await instance.attach(handle, deckit, frameworks);
+                            await instance.attach(handle, handles.deckit, frameworks);
                         } catch (error) {
                             throw new Error(`attach() threw: ${error.message || error}`);
                         }
@@ -137,7 +114,60 @@ function shellOf({ channels, drags }) {
                     },
                 }),
             ],
+            // What a layer over the shell stacks a lifecycle of its own with, as over deckit's: `lifecycle({ method,
+            // registrations, start, end, join })`, whose `start` is handed the handle `shell` made for it beside
+            // deckit's, whose `view` and `styles` register nothing: they are attach()'s.
+            over: Object.freeze({
+                lifecycle: (over) =>
+                    under.deckit.lifecycle({
+                        ...over,
+                        start: (instance, handles, scope, frameworks) =>
+                            over.start(
+                                instance,
+                                {
+                                    ...handles,
+                                    shell: handleOf(
+                                        { ...handles, shell: { ...UNREGISTERED, ...handles.shell } },
+                                        scope
+                                    ),
+                                },
+                                scope,
+                                frameworks
+                            ),
+                    }),
+            }),
         };
+
+        // The handle `shell` for the lifecycle whose handles are `handles` and whose scope is `scope`, beside the
+        // registrations `handles.shell` holds.
+        function handleOf(handles, scope) {
+            page ??= wear();
+            // A request of the handle: refused as `request` refuses it, then ENDED once `scope` is cut.
+            const live = (name, asked, send) =>
+                request(name, asked, (...args) => {
+                    if (scope.isCut)
+                        throw REQUEST.refusal('call', 'ENDED', `${name}: the lifecycle it was made for has ended`);
+                    return send(...args);
+                });
+            return Object.freeze({
+                ...(handles.shell ?? {}),
+                theme: themeOf(page.theme, scope),
+                ui: page.ui,
+                windows: WINDOWS.forScope(scope),
+                ...REGION.forScope(scope, { request: live }),
+                ...DROP.forScope(scope),
+                web: under.web.surfaces({
+                    owner: { deliver, recordFailure: fail },
+                    open: handles.deckit.openExternal,
+                    scope,
+                }),
+                fonts: FONTS.tool({ channels, request: live }),
+                mods: createDock({ channels, request: live }).mods,
+                keys: KEYS.forScope(scope, { request: live }),
+                active: KEYS.activeOf({ request: live }),
+                ...filesOf({ channels, request: live }),
+            });
+        }
 
         // The page wears what the shell draws with, and its windows the page's rules as they change.
         function wear() {

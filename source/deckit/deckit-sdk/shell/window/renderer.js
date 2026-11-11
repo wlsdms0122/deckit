@@ -18,8 +18,8 @@ const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'd
 
 // MARK: - Initializer
 // MARK: - Public
-// A mod's windows, in its own page: `forScope(scope)` is `shell.windows` for a lifecycle, whose windows close as
-// `scope` is cut; `windowOf(element)` the id of the window an element is in, or null; `reopen(listener)` what main's
+// A mod's windows, in its own page: `forScope(scope)` is `shell.windows` for a lifecycle, the windows it opened closing
+// as `scope` is cut; `windowOf(element)` the id of the window an element is in, or null; `reopen(listener)` what main's
 // reopen calls; `unmount()`, each window that is key resigning it and each on screen disappearing, and its parts told
 // nothing more. Each window's content
 // is a document the page opens beside itself, which wears the page's rules, where the pointer and what is presented
@@ -29,7 +29,7 @@ const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'd
 function createWindows({ mod, granted, deliver, channels, drags }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
-    const open = new Map(); // id -> { handle, options, document, state, off }, while it is open
+    const open = new Map(); // id -> { handle, options, document, scope, state, off }, while it is open
     const kept = document.createElement('div'); // the contents of the windows that closed, in the page, shown nowhere
     kept.hidden = true;
     let mounted = true;
@@ -56,7 +56,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     // open, in the order they opened, and throws ENDED once `scope` is cut.
     function forScope(scope) {
         scope.add(() => {
-            for (const id of open.keys()) PROTOCOL.close.send({ id });
+            for (const [id, held] of open) if (held.scope === scope) PROTOCOL.close.send({ id });
         });
         return Object.freeze({
             open: (options) => opened(options, scope),
@@ -101,7 +101,14 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         root.className = 'deckit-window';
         root.append(options.content);
         document.body.replaceChildren(root);
-        const held = { handle: null, options, document, state: { shown: false, key: false, size: null }, off: [] };
+        const held = {
+            handle: null,
+            options,
+            document,
+            scope,
+            state: { shown: false, key: false, size: null },
+            off: [],
+        };
         held.off.push(
             LAYER.wear(view),
             drags.take(document, (down) => moved(id, down))
