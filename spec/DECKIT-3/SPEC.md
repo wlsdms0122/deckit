@@ -47,7 +47,7 @@ The system defines these permissions, as [the bundle](../DECKIT-2/SPEC.md) defin
 
 | id | name | description | privileged |
 |---|---|---|---|
-| `deckit.mods` | `Mods` | `It can see every mod, launch and quit them, add one from a folder and delete installed ones, with what they stored.` | `true` |
+| `deckit.mods` | `Mods` | `It can see every mod and the system's folders, launch and quit them, add one from a folder and delete installed ones, with what they stored.` | `true` |
 | `deckit.reach-mods` | `Reach Mods` | `It connects to any mod by its id, which launches the mod if it does not run.` | `true` |
 | `deckit.system-services` | `System Services` | `It can act on other mods through the system's services: run their commands, change their keys and settings, and choose which mod opens an address.` | `true` |
 

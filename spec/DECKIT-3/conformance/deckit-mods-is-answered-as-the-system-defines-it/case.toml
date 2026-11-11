@@ -18,5 +18,5 @@ part = "permissions"
 
 [step.expect]
 answers = [
-    { id = "deckit.mods", reason = "Lists the mods.", usable = true, name = "Mods", description = "It can see every mod, launch and quit them, add one from a folder and delete installed ones, with what they stored.", privileged = true },
+    { id = "deckit.mods", reason = "Lists the mods.", usable = true, name = "Mods", description = "It can see every mod and the system's folders, launch and quit them, add one from a folder and delete installed ones, with what they stored.", privileged = true },
 ]
