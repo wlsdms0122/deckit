@@ -198,10 +198,12 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         gone(held);
     }
 
-    // A window going resigns key before it disappears.
+    // A window going resigns key before it disappears, and is neither key nor shown after.
     function gone(held) {
-        if (held.state.key) tell(held, 'didResignKey');
-        if (held.state.shown) tell(held, 'didDisappear');
+        const was = held.state;
+        held.state = { ...was, shown: false, key: false };
+        if (was.key) tell(held, 'didResignKey');
+        if (was.shown) tell(held, 'didDisappear');
     }
 
     function tell(held, name) {
