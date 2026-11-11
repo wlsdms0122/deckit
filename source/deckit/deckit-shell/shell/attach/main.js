@@ -24,8 +24,8 @@ import * as FIELD from '../../../deckit-sdk/shell/mods/field.js';
 const SHELL_CONFIG = { dock: null };
 // What the host app answers the UI: where it is shown.
 const ATTACH_ANSWERS = ['start', 'show', 'desktopTitled', 'showWindow', 'closeWindow'];
-// The permissions the UI defines, in the order a person reads them.
-const SHELL_PERMISSIONS = [WINDOW_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION, KEY_PERMISSION];
+// The permissions the UI defines, in the order a person reads them: the windows', the keys', then the look's.
+const SHELL_PERMISSIONS = [WINDOW_PERMISSION, KEY_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION];
 // The UI is attached once, to what connect answered.
 let attached = false;
 
