@@ -77,7 +77,7 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
         PAGES.allowSurface(page, SURFACE.NAME, (surface) => {
             if (overlays.get(page) !== held) return PAGES.close(surface);
             held.surface = surface;
-            KEY.listen(surface);
+            KEY.listen(surface, page);
         });
         deckit.pages.whenEnds(page, ({ replaced }) => {
             if (overlays.get(page) !== held) return;

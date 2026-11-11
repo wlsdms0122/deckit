@@ -75,12 +75,12 @@ async function main() {
     const content = { name: 'content-a' };
     shell.openSurface(first.surface, content);
     check(
-        "the content's keys reach the key map, and its page is told of its window",
-        shell.listened.includes(content) &&
+        "the content's keys reach the keys of the app as its page's, and its page is told of its window",
+        shell.listenedAs.get(content) === pages.a &&
             sent.some(
                 ({ channel, page, payload }) => channel === 'state' && page === pages.a && payload.id === first.id
             ),
-        { listened: shell.listened, sent }
+        { listened: [...shell.listenedAs], sent }
     );
     shell.focus(content);
     check("a press in the content is the person's on its window", desktop.pressed.at(-1) === first.id, null);
@@ -259,7 +259,7 @@ function windowsOver(createWindows) {
     const allowed = new Map(); // a surface's name -> its onOpen
     const focusListeners = new Map(); // a page -> what hears it take the keyboard
     const endListeners = new Map(); // a page -> what hears its document end
-    const listened = [];
+    const listenedAs = new Map(); // a page whose keys reach the keys of the app -> the page they are of
     const pagesClosed = [];
     const webOf = new Map();
     const stages = [];
@@ -352,7 +352,7 @@ function windowsOver(createWindows) {
         PAGES,
         OVERLAY,
         DESKTOP,
-        KEY: { listen: (page) => listened.push(page) },
+        KEY: { listen: (page, owner) => listenedAs.set(page, owner) },
         makeStage,
         showWindow: (control, options) => host.shown.push({ control, ...options }),
         closeWindow: (control) => host.closed.push(control),
@@ -366,7 +366,7 @@ function windowsOver(createWindows) {
         host,
         sent,
         stages,
-        listened,
+        listenedAs,
         pagesClosed,
         webOf,
         fromPage: (name, page, payload) => handlers[`deckit-shell:window-${name}`]?.(payload, page),

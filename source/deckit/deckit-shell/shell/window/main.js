@@ -170,7 +170,7 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
     function opened(window, surface) {
         if (windows.get(window.id) !== window) return PAGES.close(surface);
         window.surface = surface;
-        KEY.listen(surface);
+        KEY.listen(surface, window.page);
         PAGES.whenFocused(surface, () => focused(window));
         if (window.level === NORMAL) DESKTOP.update();
         else lay(window);

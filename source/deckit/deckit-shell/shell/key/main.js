@@ -8,10 +8,10 @@ import * as KEY_PERMISSION from '../../../deckit-sdk/shell/key/model/permission.
 // one a mod took from every page of the app with deckit.app-keys, or from every app too with system.global-keys, its
 // press told to the page of the mod that took it and let go when the mod's page ends. A mod's chord is taken before the
 // page has the key; one of the shell's keys runs only once the page did not handle it. A page that records is handed
-// each key pressed in it, before anything else looks at it; then the monitors look at the keys pressed in the pages
-// listened to, before any chord a mod took, and what hears each chord told to a mod hears it. A mod's page asks whether
-// the app is in front: one of its pages has the keyboard. `deckit` is what connect answered, `state` the shell's own
-// state, and `keys` the environment's (environment: SHELL.keys).
+// each key pressed in it or in one of its documents, before anything else looks at it; then the monitors look at the
+// keys pressed in the pages listened to, before any chord a mod took, and what hears each chord told to a mod hears it.
+// A mod's page asks whether the app is in front: one of its pages has the keyboard. `deckit` is what connect
+// answered, `state` the shell's own state, and `keys` the environment's (environment: SHELL.keys).
 export function createKey({ deckit, state: STATE, keys: KEYS }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -63,10 +63,11 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
         PROTOCOL.reset.handle(({ id }) => change(id, undefined));
     }
 
-    // Keystrokes in `target`, a page of the app, go by the chords taken: one a mod took pressed there is taken from the
-    // page and told to its mod, and one of the shell's keys is its once the page did not handle it.
-    function listen(target) {
-        KEYS.capture(target, (event) => event.type === 'keydown' && handle(target, copied(event)));
+    // Keystrokes in `target`, a page of the app or one of `page`'s documents, go by the chords taken: one a mod took
+    // pressed there is taken from the page and told to its mod, and one of the shell's keys is its once the page did
+    // not handle it. What `page` records hears them.
+    function listen(target, page = target) {
+        KEYS.capture(target, (event) => event.type === 'keydown' && handle(target, page, copied(event)));
         KEYS.unhandled(target, (keystroke) => pass(target, copied(keystroke)));
     }
 
@@ -164,12 +165,12 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
         return Object.assign(new Error(message), { stage: 'call', kind: 'INVALID_ARGUMENT' });
     }
 
-    // The page's recording first, then the monitors, in order, then the chords mods took: answers whether the key was
-    // taken. A monitor that throws takes nothing.
-    function handle(page, keystroke) {
-        const recorder = recording.get(page);
+    // The recording of `owner`, the page whose document `page` is, first, then the monitors, in order, then the chords
+    // mods took: answers whether the key was taken. A monitor that throws takes nothing.
+    function handle(page, owner, keystroke) {
+        const recorder = recording.get(owner);
         if (recorder) {
-            PROTOCOL.recorded.send(page, { id: recorder.id, keystroke });
+            PROTOCOL.recorded.send(owner, { id: recorder.id, keystroke });
             return true;
         }
         for (const handler of monitors) {

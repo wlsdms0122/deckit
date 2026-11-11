@@ -239,6 +239,21 @@ async function main() {
     handlers['deckit-shell:key-stop-recording']({ id: 1 }, recorder);
     press(recorder, { code: 'KeyR' });
     check('a recording stopped is told nothing more', recordedTold.length === 2, recordedTold);
+    // A document of the page's, as its window's content, is listened to as the page's: what the page records hears it.
+    const content = { mod: null };
+    KEY.listen(content, recorder);
+    handlers['deckit-shell:key-record']({ id: 3 }, recorder);
+    const contentPress = press(content, { code: 'KeyK', meta: true });
+    check(
+        "a page that records is told each key pressed in a document listened to as the page's, taken from it",
+        contentPress === true &&
+            recordedTold.length === 3 &&
+            recordedTold[2][0] === recorder &&
+            recordedTold[2][1].id === 3 &&
+            recordedTold[2][1].keystroke.code === 'KeyK',
+        recordedTold
+    );
+    handlers['deckit-shell:key-stop-recording']({ id: 3 }, recorder);
     check(
         'what is no key of the shell, or no keystroke, is refused',
         refusedTo(() => channel('set')({ id: 'gone', keystroke: null }, 'settings')) !== '' &&
