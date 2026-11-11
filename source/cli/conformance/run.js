@@ -192,6 +192,10 @@ async function take(step, app, paths, served, delegate, answers, downloads) {
     }
     if (what === 'press') return app.ask({ input: what, notification: step.notification });
     if (what === 'activate') return app.ask({ input: what, mod, of: step.of });
+    if (what === 'window') {
+        const { name = null, action, edge = null, by = {} } = step;
+        return app.ask({ input: what, mod, name, action, edge, by: { x: by.x ?? 0, y: by.y ?? 0 } });
+    }
     if (what === 'show') {
         const url = step.site
             ? served.address(step.site)

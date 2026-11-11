@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 16;
+const FORMAT = 17;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -36,6 +36,10 @@ const HANDLES_ADDED = { shell: 15 };
 
 class NotACase extends Error {}
 class TooOld extends Error {}
+
+// What a person's hand does on a window, format 17, and the edges a drag of one takes.
+const ACTIONS = ['press', 'close', 'minimize', 'zoom', 'move', 'resize', 'doubleClick'];
+const EDGES = ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
 // A scheme as an address writes it, in lower case: format 12, a key of host.apps.
 const SCHEME = /^[a-z][a-z0-9+.-]*$/;
@@ -103,6 +107,19 @@ const INPUTS = {
         apart: [is.boolean, false],
     },
     activate: { mod: [is.string, true], of: [(value) => is.integer(value) && value >= 1, true] },
+    window: {
+        mod: [is.string, true],
+        name: [is.string, false],
+        action: [(value) => ACTIONS.includes(value), true],
+        edge: [(value) => EDGES.includes(value), false],
+        by: [
+            (value) =>
+                is.table(value) &&
+                Object.keys(value).every((key) => key === 'x' || key === 'y') &&
+                Object.values(value).every(is.integer),
+            false,
+        ],
+    },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -114,6 +131,7 @@ const LOOKS = {
     delegated: { mod: [is.string, true], part: [is.string, false] },
     downloaded: {},
     revealed: {},
+    windows: {},
     requested: {
         headers: [
             (value) =>
@@ -138,6 +156,8 @@ const ADDED = {
     activate: 11,
     downloaded: 14,
     revealed: 16,
+    window: 17,
+    windows: 17,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -155,7 +175,7 @@ const KEYS_ADDED = {
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12, chosen: 16 };
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate'];
+const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
 // and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
@@ -366,7 +386,7 @@ function stepOf(step, number, format, refuse) {
     return { number, ...step, kind, what: step[kind], expect };
 }
 
-// `start` first, again only after a `quit`, calls, presses and looks only while the app is started, nothing after a
+// `start` first, again only after a `quit`, calls, presses, hands and looks only while the app is started, nothing after a
 // start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of it, a
 // call's `answered` an earlier call, no `of`
 // beside `handed`, nor `handle` beside either, `delegated` beside none of the three, and at most one of `site`, `url`
@@ -388,7 +408,11 @@ function order(steps, refuse) {
             refuse(`step ${step.number}: handle is written with neither of nor handed`);
         if ('delegated' in step && ['of', 'handed', 'handle'].some((key) => key in step))
             refuse(`step ${step.number}: delegated is written with none of of, handed and handle`);
-        if (step.kind !== 'input' || ['call', 'press', 'show', 'activate'].includes(step.what)) {
+        if (step.what === 'window' && (step.action === 'resize') !== 'edge' in step)
+            refuse(`step ${step.number}: edge is written beside a resize, and only there`);
+        if (step.what === 'window' && 'by' in step && !['move', 'resize'].includes(step.action))
+            refuse(`step ${step.number}: by is written beside a move or a resize only`);
+        if (step.kind !== 'input' || ['call', 'press', 'show', 'activate', 'window'].includes(step.what)) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
         }

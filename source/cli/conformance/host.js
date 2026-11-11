@@ -7,7 +7,9 @@
 // and shell and the shell over it, under the layer, on the base shell, runs main process modules where an owner it
 // ships asks for them, and opens none of the addresses it is handed to open outside the app: it keeps each one, for
 // the look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there,
-// and presses a web page its layer showed with WebKit's input, as a person's press comes. It shows none of the
+// and presses a web page its layer showed with WebKit's input, as a person's press comes. On the base shell it shows
+// the desktop in a host window the size of a screen of its own, floats each overlay window over it and hands a
+// person's hand on a window as a host app hands it, nothing of either on the person's screen. It shows none of the
 // system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no dialog of
 // folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for the look
 // revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a file of the
@@ -46,14 +48,76 @@ const windowed = new WeakSet(); // the mods' pages shown in a window of the host
 const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
 const shown = []; // { notification: { title, body, silent }, onClick }: each notification handed to show, in order
 const revealed = []; // each path handed to show where it lies, in the order handed
-// What the host app answers the shell: nothing it is asked to show is shown.
-const SHOWS_NOTHING = Object.freeze({
-    start() {},
-    show() {},
+// The machine's screen on the base shell, which the host window fills, the desktop in it: nothing of either is on the
+// person's screen.
+const SCREEN = Object.freeze({ width: 1280, height: 800 });
+let controls = null; // what the host drives of the shell, handed as it starts, on the base shell
+// Each overlay window the shell asks the host to show, back to front: `{ control, frame, key }`, `frame` on SCREEN.
+const floating = [];
+// What the host app answers the shell, as a host app answers it, on the base shell: the desktop shown as the shell
+// starts, in the host window, which comes up as the shell asks; each overlay window floating over every app, at the
+// frame the shell kept for it where that lies on the screen, or else centred across it, a fifth of the way down, at
+// the size the mod gives it now, in front, and taking the keyboard unless `activates` is false; and a web page's
+// window one on the desktop.
+const HOST = Object.freeze({
+    start(given) {
+        controls = given;
+        given.desktop.show();
+    },
+    show() {
+        resignFloating();
+        controls?.desktop.show();
+    },
     desktopTitled() {},
-    showWindow() {},
-    closeWindow() {},
+    showWindow(control, { activates = true } = {}) {
+        let one = floating.find((each) => each.control === control);
+        const { width, height } = control;
+        if (!one) {
+            const kept = control.keptFrame;
+            const fits =
+                !!kept &&
+                kept.x >= 0 &&
+                kept.y >= 0 &&
+                kept.x + width <= SCREEN.width &&
+                kept.y + height <= SCREEN.height;
+            const at = fits
+                ? { x: kept.x, y: kept.y }
+                : { x: Math.round((SCREEN.width - width) / 2), y: Math.round(SCREEN.height / 5) };
+            one = { control, frame: { ...at, width, height }, key: false };
+        } else floating.splice(floating.indexOf(one), 1);
+        one.frame = { ...one.frame, width, height };
+        floating.push(one);
+        if (activates) focusFloating(one);
+    },
+    closeWindow(control) {
+        const at = floating.findIndex((each) => each.control === control);
+        if (at >= 0) floating.splice(at, 1);
+    },
 });
+// The overlay window that has the keyboard gives it up.
+const resignFloating = () => {
+    for (const one of floating.filter(({ key }) => key)) {
+        one.key = false;
+        one.control.didResignKey();
+    }
+};
+const focusFloating = (one) => {
+    if (one.key) return;
+    resignFloating();
+    one.key = true;
+    one.control.focus();
+};
+// The desktop of the base shell: a stage the size of the host window, which lays what the shell lays nowhere on the
+// person's screen.
+const DESKTOP_STAGE = () =>
+    Object.freeze({
+        place() {},
+        size: () => ({ ...SCREEN }),
+        whenResized: () => () => {},
+        show() {},
+        lay() {},
+        close() {},
+    });
 
 const settle = (came) => {
     if (settled) return;
@@ -125,6 +189,9 @@ try {
         clipboard: { value: clipboard },
         dialogs: { value: dialogs },
         reveal: { value: reveal },
+        ...(setup.base === 'shell' ? { stage: { value: DESKTOP_STAGE } } : {}),
+        // A double click on a title bar zooms the window, as the person set it to.
+        actionOnDoubleClick: { value: () => 'zoom' },
     });
     deckit = DECKIT.connect(given, {
         host: { notificationClicked: () => {}, restart: () => {} },
@@ -152,7 +219,7 @@ try {
         webkit = webkit.exports;
     }
     if (setup.base === 'shell') {
-        DECKIT.attach(deckit, given, { host: SHOWS_NOTHING, web: DECKIT.attachWeb(deckit, given) });
+        DECKIT.attach(deckit, given, { host: HOST, web: DECKIT.attachWeb(deckit, given) });
         deckit.stack('conformance');
     }
     for (const field of setup.fields) deckit.fields.define(field);
@@ -183,9 +250,14 @@ socket.on('data', (chunk) => {
                       ? press(asked)
                       : asked.input === 'activate'
                         ? activate(asked)
-                        : look(asked)
+                        : asked.input === 'window'
+                          ? hand(asked)
+                          : told().then(() => look(asked))
             ).then(async (came) => {
-                if (asked.input) await runsSettled();
+                if (asked.input) {
+                    await runsSettled();
+                    await told();
+                }
                 say({ id: asked.id, came });
             });
     }
@@ -214,6 +286,74 @@ async function request({ input, mod, member, args, step, handle, of, listener, h
     } catch (error) {
         return { refuses: error.stage ?? null, kind: error.kind ?? null, message: String(error.message) };
     }
+}
+
+// Resolves once each mod's page has taken what main told it before, and main what the page asked as it took it, on
+// the base shell: a window's page is told of it, and its mod's code answers.
+async function told() {
+    if (setup.base !== 'shell' || !deckit) return;
+    for (let round = 0; round < 2; round++)
+        for (const { run, page } of deckit.mods.runs())
+            if (run.state === 'running') await quiet.invoke(page, {}).catch(() => {});
+}
+
+// The windows the person sees, back to front: those on the desktop, then those floating over every app, each
+// `{ mod, name, level, frame, key, minimized }`, `name` null for a web page's window, which has none.
+function windowsSeen() {
+    const normal = (controls?.desktop.windows() ?? []).map(({ mod, name, frame, key, minimized }) => ({
+        mod,
+        name,
+        level: 'normal',
+        frame,
+        key,
+        minimized,
+    }));
+    const over = floating.map(({ control, frame, key }) => ({
+        mod: control.mod,
+        name: control.name,
+        level: 'overlay',
+        frame: { ...frame },
+        key,
+        minimized: false,
+    }));
+    return [...normal, ...over];
+}
+
+// What a person's hand on a window comes to: `{}`, or `{ none }` where the mod has no window of the name on screen,
+// a web page's window where `name` is null. On a window on the desktop, the host window taking the keyboard from an
+// overlay window: a press in it, a click of its button `action` (`close`, `minimize`, `zoom`), a drag of its title
+// bar by `by`, a drag of its edge `edge` by `by`, or a double click on its title bar. On one floating over every app,
+// a press, or a drag by `by`, either taking it the keyboard, the shell told the frame a drag leaves it at.
+function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
+    if (!controls) return { none: 'the shell has not started' };
+    const on = (each) => each.mod === mod && each.name === name;
+    const normal = controls.desktop
+        .windows()
+        .filter((each) => on(each) && !each.minimized)
+        .at(-1);
+    const over = floating.find(({ control }) => on(control));
+    if (normal) {
+        resignFloating();
+        const { hand: person } = controls.desktop;
+        if (action === 'press') person.press(normal.id);
+        else if (['close', 'minimize', 'zoom'].includes(action)) person.button(normal.id, action);
+        else if (action === 'move') person.move(normal.id, by.x, by.y);
+        else if (action === 'resize') person.resize(normal.id, edge, by.x, by.y);
+        else if (action === 'doubleClick') person.doubleClick(normal.id);
+        return {};
+    }
+    if (over && action === 'press') {
+        focusFloating(over);
+        return {};
+    }
+    if (over && action === 'move') {
+        focusFloating(over);
+        over.frame = { ...over.frame, x: over.frame.x + by.x, y: over.frame.y + by.y };
+        over.control.didMove({ ...over.frame });
+        return {};
+    }
+    if (over) return { none: `an overlay window has no ${action} a hand gives` };
+    return { none: `${mod} has no window ${name} on screen` };
 }
 
 // What a press comes to: the notification at the place `notification` in what shown answers pressed, `{}`, or
@@ -274,6 +414,7 @@ function look({ look: what, mod }) {
     if (what === 'opened') return { answers: opened };
     if (what === 'shown') return { answers: shown.map(({ notification }) => notification) };
     if (what === 'revealed') return { answers: revealed };
+    if (what === 'windows') return { answers: windowsSeen() };
     if (what === 'heard' || what === 'delegated') {
         const running = runningOf(mod);
         return running.page ? (what === 'heard' ? heard : delegated).invoke(running.page) : running;
@@ -301,7 +442,8 @@ function runOf(id) {
 const PRESSED = Object.freeze({ x: 10, y: 10 });
 
 // A page deckit shows on its own, in a window of the environment's, shown without taking the keyboard.
-function openWindow({ title = '', size = null, place }) {
+function openWindow({ title = '', size = null, place, ...rest }) {
+    if (setup.base === 'shell') return controls.openWindow({ title, size, place, ...rest });
     const window = environment.windows.open({ title, size: size || { width: 800, height: 600 } });
     place(window);
     window.show({ focus: false });
