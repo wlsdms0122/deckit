@@ -213,19 +213,19 @@ export function createDesktop({
     }
 
     // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` some seat's
-    // key window, its size, and where its buttons stand over its top.
+    // key window while no overlay window holds the keyboard, its size, and where its buttons stand over its top.
     function stateOf(window) {
         const frame = MANAGER.frameOf(window.id);
         return {
             shown: shown && MANAGER.isShown(window.id),
-            key: MANAGER.isKey(window.id),
+            key: MANAGER.isKey(window.id) && !WINDOWS.keyOverlay(),
             width: frame?.width ?? 0,
             height: frame?.height ?? 0,
             titleBar: { ...LAYOUT.TITLE_BAR },
         };
     }
 
-    // Whether the window is the local seat's key window.
+    // Whether the window is the local seat's key window, which an overlay window holding the keyboard gives it back to.
     function isKey(window) {
         return MANAGER.keyOf(LOCAL) === window.id;
     }
@@ -361,9 +361,10 @@ export function createDesktop({
         update();
     }
 
-    // The normal windows, back to front, each `{ id, mod, name, frame, key, minimized }`, as the host app reads them.
+    // The normal windows, back to front, each `{ id, mod, name, frame, key, minimized }`, as the host app reads them:
+    // none is key while an overlay window holds the keyboard.
     function windowsNow() {
-        const key = MANAGER.keyOf(LOCAL);
+        const key = WINDOWS.keyOverlay() ? null : MANAGER.keyOf(LOCAL);
         return MANAGER.orderOf(LOCAL).map((id) => {
             const { mod, name } = windows.get(id);
             const minimized = MANAGER.isMinimized(LOCAL, id);
