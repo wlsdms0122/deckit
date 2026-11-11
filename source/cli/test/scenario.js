@@ -311,7 +311,15 @@ async function run({
     // Editor last, so it is in front. The region parent is opened from the Mods mod, and comes into the Dock as it
     // runs. The region child comes as its parent places it, the test's mods the Dock does not keep are opened as a
     // person opens them, and the rest run as their work asks for them.
-    const launchedAtStart = (await targets()).map(({ url }) => url);
+    // The pages and the Dock are read together, until they agree on which mods run.
+    let launchedAtStart = [];
+    const runsAtStart = (id) => launchedAtStart.some((url) => url.startsWith(`deckit://${id}.mod`));
+    const dockedAtStart =
+        (await until(async () => {
+            launchedAtStart = (await targets()).map(({ url }) => url);
+            const dock = await dockNow();
+            return dock.length && dock.every(({ id, running }) => running === runsAtStart(id)) && dock;
+        })) || (await dockNow());
     check(
         'a background mod runs as the app starts',
         launchedAtStart.some((url) => url.startsWith('deckit://switcher.mod')),
@@ -329,8 +337,6 @@ async function run({
     );
     // A background app, Calendar, runs as the app starts, and Settings, whose interface it uses, with it; each opens
     // its window as it attaches.
-    const runsAtStart = (id) => launchedAtStart.some((url) => url.startsWith(`deckit://${id}.mod`));
-    const dockedAtStart = (await until(async () => (await dockNow()).length && dockNow())) || [];
     const idsAtStart = dockedAtStart.map(({ id }) => id);
     check(
         'the Dock keeps the shipped apps, running or not, and no accessory',
