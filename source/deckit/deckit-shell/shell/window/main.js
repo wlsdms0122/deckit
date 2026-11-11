@@ -14,9 +14,8 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
     const OVERLAY_LEVEL = 'overlay';
     // The size a window opens at where its mod gives none.
     const SIZE = Object.freeze({ width: 720, height: 480 });
-    // The name the frame of a web page's window is remembered by.
-    const WEB = 'web';
-    // id -> { id, mod, page, name, level, size, minimum, surface, sent, host, title, web }: `surface` its content once
+    // id -> { id, mod, page, name, level, size, minimum, surface, sent, host, title, web }: `name` null for a web
+    // page's window, which has none, `surface` its content once
     // the page opened it, `sent` what the page was last told of it, `host` an overlay window's
     // `{ control, stage, key }`; and for a web page's window, `title`, what its title bar holds, and `web`,
     // `{ closed }`, the listeners of its close.
@@ -62,7 +61,7 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
             id,
             mod,
             page,
-            name: WEB,
+            name: null,
             level: NORMAL,
             size: { width: size?.width ?? SIZE.width, height: size?.height ?? SIZE.height },
             minimum: { width: 0, height: 0 },

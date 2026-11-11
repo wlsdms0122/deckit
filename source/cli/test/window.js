@@ -6,8 +6,8 @@
 // window under its content until the page has a normal window and again once it has none, the content's keys and
 // presses heard and the page told of its window, a window closed by its page and with its page, the keyboard of a page
 // going to its key window's content, and a web page's window: on the desktop for the mod whose page shows it, titled,
-// closed however it closes with those who listen told once. Exits 1 with a line for each check that failed. The
-// packages are ES modules, so they are imported as such.
+// with no name, closed however it closes with those who listen told once. Exits 1 with a line for each check that
+// failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -176,13 +176,13 @@ async function main() {
     const web = shell.windows.openWeb({ title: 'Example', size: { width: 500, height: 600 }, page: site });
     const webWindow = desktop.opened.at(-1);
     check(
-        'a web page in a window is a normal window on the desktop of the mod whose page shows it, titled, its content ' +
-            'the web page',
+        'a web page in a window is a normal window on the desktop of the mod whose page shows it, titled, with no ' +
+            'name, its content the web page',
         webWindow.mod === 'a' &&
             webWindow.page === pages.a &&
             webWindow.surface === site &&
             webWindow.title === 'Example' &&
-            webWindow.name === 'web' &&
+            webWindow.name === null &&
             webWindow.size.height === 600,
         webWindow
     );

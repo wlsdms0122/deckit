@@ -257,8 +257,9 @@ export function createDesktop({
     }
 
     // The frame a window of the mod and the name of `window` was left at, `{ x, y, width, height }`, where it was left
-    // at the level `window` opens at; or null.
+    // at the level `window` opens at; or null, as for a window with no name.
     function keptFrameOf(window) {
+        if (window.name === null) return null;
         const kept = frames[window.mod]?.[window.name];
         if (kept?.level !== window.level) return null;
         const { x, y, width, height } = kept;
@@ -266,8 +267,10 @@ export function createDesktop({
     }
 
     // The frame `window` was left at, by its mod and its name, at its level: a normal window's, zoomed, the one zoom
-    // left; an overlay window's, `frame`, as the host app tells it, in the machine's screen coordinates.
+    // left; an overlay window's, `frame`, as the host app tells it, in the machine's screen coordinates. A window
+    // with no name leaves none.
     function remember(window, frame = MANAGER.standardFrameOf(window.id)) {
+        if (window.name === null) return;
         const { x, y, width, height } = frame;
         frames = {
             ...frames,
