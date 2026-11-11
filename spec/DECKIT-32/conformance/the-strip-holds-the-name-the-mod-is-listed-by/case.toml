@@ -1,0 +1,23 @@
+case = 18
+name = "the-strip-holds-the-name-the-mod-is-listed-by"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-a opens main in attach. mod-a's manifest names it Notes. The person presses on main, and the strip holds Notes."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+look = "desktop"
+
+[step.expect]
+answers = { active = "mod-a", attention = [], title = "Notes" }

@@ -5,7 +5,7 @@ Area: shell
 
 ## Summary
 
-A mod shows what it draws in windows: `windows.open(options)` opens one and answers its handle, and `windows.list()` answers those open, members of [the handle `shell`](../DECKIT-29/SPEC.md). This DECKIT fixes the two members and the window handle with its callbacks; the two levels a window is at, `normal`, on the desktop among every mod's windows, and `overlay`, floating over every app, which `system.overlay-windows` guards; one window of a name in a run; where a normal window opens, the frame it is left at, kept by its mod, its name and its level, and what removing a mod with what it stored does to it; the order of the windows, the key window and its callbacks' order; what the person's hand does on a window; the title bar a window's content is told; the window a web page apart is shown in; and the windows as the run ends. Which mod may activate, and so whether a window becomes key as it opens, is the shell's DECKIT of activation's.
+A mod shows what it draws in windows: `windows.open(options)` opens one and answers its handle, and `windows.list()` answers those open, members of [the handle `shell`](../DECKIT-29/SPEC.md). This DECKIT fixes the two members and the window handle with its callbacks; the two levels a window is at, `normal`, on the desktop among every mod's windows, and `overlay`, floating over every app, which `system.overlay-windows` guards; one window of a name in a run; where a normal window opens, the frame it is left at, kept by its mod, its name and its level, and what removing a mod with what it stored does to it; the order of the windows, the key window and its callbacks' order; what the person's hand does on a window; the title bar a window's content is told; the window a web page apart is shown in; and the windows as the run ends. Which mod may activate, and so whether a window becomes key as it opens, is [activation](../DECKIT-32/SPEC.md)'s.
 
 ## Motivation
 
@@ -44,9 +44,9 @@ A frame is **reachable** where its top is on the desktop and at least 64 of its 
 
 ### The order and the key window
 
-The normal windows on screen stand in an **order**, back to front, and at most one of them is the **key window**, the one whose content the keyboard goes to. A window comes **in front** at the front of the order. A **minimized** window is off screen and not key.
+The normal windows on screen stand in an **order**, back to front, and at most one of them is the **key window**, the one whose content the keyboard goes to while no overlay window holds it, as [activation](../DECKIT-32/SPEC.md) fixes which window is key. A window comes **in front** at the front of the order. A **minimized** window is off screen and not key.
 
-Whether a mod **may activate**, its window coming in front as the key window, is fixed by the shell's DECKIT of activation; a press of the person on one of a mod's windows lets it. Where a window is to come in front and its mod may not activate, it comes right behind the key window, not key, or in front where no window is key.
+Whether a mod **may activate**, its window coming in front as the key window, is fixed by [activation](../DECKIT-32/SPEC.md); a press of the person on one of a mod's windows lets it. Where a window is to come in front and its mod may not activate, it comes right behind the key window, not key, or in front where no window is key.
 
 Where a window becomes key, the window that was key is told `didResignKey` before the other is told anything. Where the key window closes or is minimized, the front window on screen becomes key, after the window going is told all it is told.
 
@@ -111,7 +111,7 @@ A window is told `didAppear` before `didBecomeKey`, `didResignKey` before `didDi
 A normal window opens at its size, no smaller than its minimum, at the first of these places that applies, brought into reach:
 
 1. Where a frame is kept for a window of its mod, its name and its level, under *Frames kept*: at that frame.
-2. Where a window is key: with its top left 24 right of and 24 down from the key window's; and where its frame would then pass the zoom area's right or bottom edge, 24 right of and 24 down from the zoom area's top left.
+2. Where a window is on screen: with its top left 24 right of and 24 down from the key window's, or, where no window is key, from the front window's on screen; and where its frame would then pass the zoom area's right or bottom edge, 24 right of and 24 down from the zoom area's top left.
 3. Centred across the zoom area, a third of the height the window leaves in it above it: `x` is the zoom area's `x` plus half of what its width leaves of the zoom area's, and `y` the zoom area's `y` plus a third of what its height leaves, each 0 where the window leaves nothing.
 
 ### The person's hand
@@ -156,7 +156,7 @@ As the shell's lifecycle ends, as [the shell](../DECKIT-29/SPEC.md) fixes it, ea
 - A member's refusal, `INVALID_ARGUMENT`, and a key of a table or an argument past those a member takes, which is not read: [the handle](../DECKIT-7/SPEC.md). `NOT_PERMITTED` and a permission a mod is granted: [the permissions](../DECKIT-3/SPEC.md).
 - What a layer keeps of a mod, which `mods.usage(id)` names under `kept`: [the embedding](../DECKIT-22/SPEC.md); `remove` and `erase`: [the catalog](../DECKIT-4/SPEC.md).
 - A page apart, `web.window`, its title and its delegate told it closed: [web pages](../DECKIT-25/SPEC.md).
-- Which mod may activate, the attention a mod held back asks for, and the shell's keys that close and minimize the key window: the shell's DECKITs of activation and of its keys. The Dock and its edge: the shell's DECKIT of the Dock.
+- Which window is key while an overlay window holds the keyboard, which mod may activate, and the attention a mod held back asks for: [activation](../DECKIT-32/SPEC.md). The shell's keys that close and minimize the key window: the shell's DECKIT of its keys. The Dock and its edge: the shell's DECKIT of the Dock.
 - The base `shell`, its desktop and the overlay windows it floats, the input `window` and the look `windows`: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered

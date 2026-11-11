@@ -65,7 +65,7 @@ The shell's lifecycle ends as [the entry](../DECKIT-6/SPEC.md) ends a layer's li
 | `dialogs.chooseFolders(options)`, `reveal(path)` | the folders a person chooses, and a file shown where it lies | request | [files outside the app](../DECKIT-30/SPEC.md) |
 | `windows.open(options)`, `windows.list()` | the mod's windows | answers at once | [windows](../DECKIT-31/SPEC.md) |
 | `web.page(options)`, `web.window(options)` | the web pages the web engine offers the shell, laid in the mod's page and shown apart from it | answers at once | [web pages](../DECKIT-25/SPEC.md), and the window a page apart is shown in, [windows](../DECKIT-31/SPEC.md) |
-| `active()` | whether the app is in front | request | the shell's DECKIT of activation |
+| `active()` | whether the app is in front | request | [activation](../DECKIT-32/SPEC.md) |
 | `mods.list()`, `mods.pinned()`, `mods.setPinned(id, pinned)`, `mods.open(id)` | the mods the Dock shows, and a mod opened as a person opens it | request | the shell's DECKIT of the Dock |
 | `keys.take(keystroke, run, options)`, `keys.list()`, `keys.set(id, keystroke)`, `keys.reset(id)` | a chord the mod takes, and the shell's own keys | request | the shell's DECKIT of its keys |
 | `keys.record(onKeystroke)` | the keys pressed in the mod's pages, as they are pressed | answers at once | the shell's DECKIT of its keys |
@@ -114,7 +114,7 @@ A registration through a cut handle registers nothing. A value of a cut handle i
 - The handle `web` in `frameworks`, and a session handle cut: [the web engine](../DECKIT-23/SPEC.md). The pages the web engine offers the shell, which `web.page` and `web.window` answer: [web pages](../DECKIT-25/SPEC.md).
 - A chord the owner of `deckit/keys` takes through `keys.take`: [the key bindings](../DECKIT-16/SPEC.md).
 - The base `shell`, and the handle `shell` a `call` reads: [the case format](../DECKIT-1/SPEC.md).
-- What each member takes, answers and is refused with, the permissions the shell defines and the requests they guard, the manifest fields the shell adds, the instance's `reopen()`, which the Dock calls: [files outside the app](../DECKIT-30/SPEC.md), for `dialogs.chooseFolders` and `reveal`, [windows](../DECKIT-31/SPEC.md), for `windows.open`, `windows.list`, a window's handle and `system.overlay-windows`, and the shell's later DECKITs, of activation, the Dock, its keys, the look, and regions and drops.
+- What each member takes, answers and is refused with, the permissions the shell defines and the requests they guard, the manifest fields the shell adds, the instance's `reopen()`, which the Dock calls: [files outside the app](../DECKIT-30/SPEC.md), for `dialogs.chooseFolders` and `reveal`, [windows](../DECKIT-31/SPEC.md), for `windows.open`, `windows.list`, a window's handle and `system.overlay-windows`, [activation](../DECKIT-32/SPEC.md), for `active()`, and the shell's later DECKITs, of the Dock, its keys, the look, and regions and drops.
 
 ## Alternatives considered
 
