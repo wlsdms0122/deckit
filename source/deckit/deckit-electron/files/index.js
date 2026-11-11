@@ -63,7 +63,7 @@ async function move(from, folder) {
         if (error.code !== 'EXDEV') throw error;
         throw refuse(
             'OTHER_DISK',
-            `"${path.basename(from)}" is on another disk than that folder; copy it there with Finder`
+            `"${path.basename(from)}" is on another disk than that folder; copy it there instead`
         );
     }
 }

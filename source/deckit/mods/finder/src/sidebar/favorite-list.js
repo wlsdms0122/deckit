@@ -46,7 +46,7 @@ function favoriteList({ ui, reveal, records, tildify, folds, currentLocation, on
             const missing = missingPlaces();
             return [
                 { label: 'Open in New Tab', icon: 'window', hint: '⌘', run: () => onOpenInNewTab(path) },
-                { label: 'Show in Finder', icon: 'folder', run: () => reveal(path) },
+                { label: 'Show in Folder', icon: 'folder', run: () => reveal(path) },
                 '-',
                 { label: 'Remove from Favorites', icon: 'x', run: () => remove(path) },
                 ...(missing.length

@@ -23,7 +23,7 @@ function operations({
 }) {
     let rootAsked = null;
 
-    return { rename, move, trashNote, trashFolder, newNote, newFolder, copyText, showInFinder };
+    return { rename, move, trashNote, trashFolder, newNote, newFolder, copyText, showInFolder };
 
     // Over `label`, in place.
     function rename(label, held, since = relocations.since()) {
@@ -106,7 +106,7 @@ function operations({
         if (copied != null) clipboard.writeText(copied).catch(() => {});
     }
 
-    async function showInFinder(path) {
+    async function showInFolder(path) {
         rootAsked ||= notesFolder
             .root()
             .then((answer) => answer.root)

@@ -63,7 +63,7 @@ function treeEntryActions({
 
     function pathItems(path, relative) {
         return [
-            { label: 'Show in Finder', icon: 'folder', run: () => reveal(path) },
+            { label: 'Show in Folder', icon: 'folder', run: () => reveal(path) },
             { label: 'Copy Path', icon: 'copy', run: () => clipboard.writeText(path).catch(() => {}) },
             ...(relative
                 ? [{ label: 'Copy Relative Path', run: () => clipboard.writeText(relative).catch(() => {}) }]

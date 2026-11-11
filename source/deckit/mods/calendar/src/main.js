@@ -63,7 +63,7 @@ class Calendar {
                 list: () => [
                     {
                         button: 'Send a test',
-                        hint: 'Shows one now, to see that macOS lets it through.',
+                        hint: 'Shows one now, to see that the system lets it through.',
                         after: 'notify',
                         value: 'send-test',
                     },
@@ -101,6 +101,6 @@ async function sendTest(deckit, notices) {
     } catch {}
     // The system reports a notice as shown even when its settings keep it off the screen.
     return posted
-        ? `Sent. If none appeared, allow ${deckit.about().name} in System Settings › Notifications.`
+        ? `Sent. If none appeared, allow ${deckit.about().name} in the system's notification settings.`
         : 'Not sent: no mod shows notifications now.';
 }

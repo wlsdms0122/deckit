@@ -134,7 +134,7 @@ function downloadList({ theme, ui, downloads, reveal }) {
         if (state === 'finished')
             return ui.rowAction({
                 icon: ui.icon('search', { size: ICON_SIZE }),
-                title: 'Show in Finder',
+                title: 'Show in Folder',
                 onClick: () => reveal(path),
             });
         return ui.rowAction({

@@ -98,7 +98,7 @@ function fileOperator({
             return ui.confirmTrash({ name: entries[0].name, onConfirm: () => moveToTrash(entries) });
         ui.dialog({
             title: `Move ${entries.length} items to the Trash?`,
-            message: 'They go to the macOS Trash, folders with all they hold, where Finder can put them back.',
+            message: 'They go to the Trash, folders with all they hold, where they can be put back.',
             confirmLabel: 'Move to Trash',
             destructive: true,
             onConfirm: () => moveToTrash(entries),

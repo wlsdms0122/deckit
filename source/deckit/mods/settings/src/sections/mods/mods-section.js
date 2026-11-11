@@ -201,7 +201,7 @@ function modsSection({
         });
         const revealAction = ui.rowAction({
             icon: ui.icon('externalWindow', { size: 14 }),
-            title: 'Show in Finder',
+            title: 'Show in Folder',
             onClick: () => reveal(current.folder),
         });
         const removeAction = ui.rowAction({
