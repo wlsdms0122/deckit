@@ -25,18 +25,14 @@ const stack = [];
 // The layer under what is presented, while an element of it is: a press outside it lands there, over the page and
 // its web pages too.
 let backdrop = null;
-// Tells whether anything is presented, as that changes.
-let tell = () => {};
 let overlayDocument = null;
 
 // MARK: - Initializer
 // MARK: - Public
 // Presses and keys are heard in the page and in its overlay. On pointerdown, so a control that cancels the mouse
 // events after it (a resize handle) still dismisses what is presented. Keys are the top one's first, in the capture
-// phase, before the page sees them. The keyboard moving between the page and its overlay is no blur. `tell(on)` hears
-// whether anything is presented, as that changes.
-function start({ tell: given }) {
-    tell = given;
+// phase, before the page sees them. The keyboard moving between the page and its overlay is no blur.
+function start() {
     const [page, overlay] = LAYER.windows();
     overlayDocument = overlay.document;
     watch(page);
@@ -96,7 +92,6 @@ function present({
         close: () => close(presented, speed),
     };
     stack.push(presented);
-    if (stack.length === 1) tell(true);
     if (element) show(presented);
     return presented;
 }
@@ -141,7 +136,6 @@ function close(presented, speed) {
     const index = stack.indexOf(presented);
     if (index < 0) return;
     stack.splice(index, 1);
-    if (!stack.length) tell(false);
     const { element, layer, returns } = presented;
     if (!element) return;
     if (!stack.some((each) => each.element)) {

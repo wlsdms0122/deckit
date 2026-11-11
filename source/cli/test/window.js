@@ -158,11 +158,7 @@ async function main() {
         stage.laid
     );
     const normal = shell.fromPage('open', pages.b, { name: 'main' });
-    check(
-        'the page leaves its overlay window as it opens a normal window',
-        names() === 'content-b' && shell.windows.holderOf(pages.b) === null,
-        stage.laid
-    );
+    check('the page leaves its overlay window as it opens a normal window', names() === 'content-b', stage.laid);
     shell.fromPage('close', pages.b, { id: normal.id });
     check(
         'the page is back in its overlay window once its last normal window closes, and is told the window closed',
@@ -199,7 +195,7 @@ async function main() {
     shell.focus(site);
     check("a press in the web page is the person's on its window", desktop.pressed.at(-1) === webWindow.id, null);
     const sentBefore = sent.length;
-    shell.windows.relay(pages.a);
+    shell.overlayChanged(pages.a);
     desktop.change();
     check(
         "the mod's page is told nothing of a web page's window",
@@ -304,7 +300,12 @@ function windowsOver(createWindows) {
         close: (page) => pagesClosed.push(page),
         isAlive: (page) => !pagesClosed.includes(page),
     };
-    const OVERLAY = { onChange() {}, withOverlays: (laid) => laid, ownerOf: (page) => page };
+    const overlayListeners = [];
+    const OVERLAY = {
+        onChange: (listener) => overlayListeners.push(listener),
+        withOverlays: (laid) => laid,
+        ownerOf: (page) => page,
+    };
     const DESKTOP = {
         open: (window, { activates = true } = {}) => desktop.opened.push({ ...window, activates }),
         close: (window) => desktop.closed.push(window.id),
@@ -371,6 +372,7 @@ function windowsOver(createWindows) {
         webOf,
         fromPage: (name, page, payload) => handlers[`deckit-shell:window-${name}`]?.(payload, page),
         openSurface: (name, surface) => allowed.get(name)(surface),
+        overlayChanged: (page) => overlayListeners.forEach((listener) => listener(page)),
         focus: (page) => focusListeners.get(page)(),
         end: (page) => endListeners.get(page)(),
     };

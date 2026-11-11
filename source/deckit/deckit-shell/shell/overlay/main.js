@@ -8,14 +8,13 @@ import * as SURFACE from './model/surface.js';
 // (`withOverlays`), and what asks whose a page is asks `ownerOf`. It takes the pointer where it draws what takes it. It
 // has the keyboard while an element drawn in it has it, once the person presses there or the page gives its keyboard
 // for an element focused there; the page has it again once that is not so. Its keys reach the keys of the app as the
-// page's, and as those of a page that is no mod's while anything is presented over the page: no key of the page's own
-// runs behind it.
+// page's.
 // `deckit` is what connect answered, `web` what the web engine answered (`holdsKeyboard`), `PAGES` the shell's pages,
 // and `KEY` the keys of the app.
 export function createOverlay({ deckit, web, PAGES, KEY }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    const overlays = new Map(); // a page -> { surface, shows, focused, regions, presents }, once the page asked for it
+    const overlays = new Map(); // a page -> { surface, shows, focused, regions }, once the page asked for it
     const listeners = new Set();
     let keyboardOf = null;
     const NOTHING = Object.freeze({ shows: false, focused: false, regions: [] });
@@ -28,10 +27,6 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
         PROTOCOL.open.handle((_payload, sender) => open(sender));
         PROTOCOL.state.on((state, sender) => setState(sender, state));
         PROTOCOL.take.on((_payload, sender) => take(sender));
-        PROTOCOL.presents.on(({ on }, sender) => {
-            const held = overlays.get(sender);
-            if (held) held.presents = on;
-        });
     }
 
     // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect,
@@ -42,11 +37,6 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
             return surface ? [{ page: surface, rect, input: overlays.get(page).regions }] : [];
         });
         return [...laid, ...over];
-    }
-
-    // Whether `page` has the keyboard: itself, a web page in it or its overlay.
-    function holdsKeyboard(page) {
-        return web.holdsKeyboard(page) || overlayHoldsKeyboard(overlays.get(page));
     }
 
     // The page `page` is: itself, or the page whose overlay it is.
@@ -69,10 +59,9 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
             throw new Error('[deckit] an overlay is for a page the shell draws in');
         let held = overlays.get(page);
         if (!held) {
-            held = { surface: null, presents: false, ...NOTHING };
+            held = { surface: null, ...NOTHING };
             overlays.set(page, held);
         }
-        held.presents = false;
         setState(page, NOTHING);
         PAGES.allowSurface(page, SURFACE.NAME, (surface) => {
             if (overlays.get(page) !== held) return PAGES.close(surface);
@@ -81,7 +70,6 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
         });
         deckit.pages.whenEnds(page, ({ replaced }) => {
             if (overlays.get(page) !== held) return;
-            held.presents = false;
             setState(page, NOTHING);
             if (replaced) return;
             overlays.delete(page);
@@ -140,5 +128,5 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
         for (const listener of [...listeners]) listener(page);
     }
 
-    return { start, withOverlays, holdsKeyboard, ownerOf, onChange };
+    return { start, withOverlays, ownerOf, onChange };
 }

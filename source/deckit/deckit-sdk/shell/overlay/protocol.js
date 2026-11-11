@@ -19,12 +19,5 @@ export const state = CHANNEL.pageToMain(
     },
     { guard: CHANNEL.GUARD.ANY }
 );
-// Whether anything is presented over the page (a menu, a popover, a dialog, a drag), so no key of the page's own runs
-// while the overlay has the keyboard.
-export const presents = CHANNEL.pageToMain(
-    'deckit-shell:overlay-presents',
-    { on: 'boolean' },
-    { guard: CHANNEL.GUARD.ANY }
-);
 // The overlay asks for the keyboard its page has, for an element drawn in it that holds the focus.
 export const take = CHANNEL.pageToMain('deckit-shell:overlay-take', {}, { guard: CHANNEL.GUARD.ANY });

@@ -44,22 +44,9 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         OVERLAY.onChange(relay);
     }
 
-    // The windows of a mod's runs, open now, in the order they opened.
-    function of(mod) {
-        return [...windows.values()].filter((window) => window.mod === mod);
-    }
-
     // The page a page is: the mod's page whose window's content it is, or itself.
     function pageOf(page) {
         return [...windows.values()].find((window) => window.surface === page)?.page ?? page;
-    }
-
-    // The overlay window a mod's page is laid in, under its content: the first open of a page with no normal window
-    // open, so what its overlay draws is over that window; or null, where the page is laid on the desktop.
-    function holderOf(page) {
-        const own = [...windows.values()].filter((window) => window.page === page);
-        if (own.some(({ level }) => level === NORMAL)) return null;
-        return own.find(({ host }) => host?.stage) ?? null;
     }
 
     // A web page in a window of the app's, as the environment asks the host app for one (`openWindow({ title, size,
@@ -331,11 +318,19 @@ export function createWindows({ deckit, web, PAGES, OVERLAY, DESKTOP, KEY, makeS
         }
     }
 
+    // The overlay window a mod's page is laid in, under its content: the first open of a page with no normal window
+    // open, so what its overlay draws is over that window; or null, where the page is laid on the desktop.
+    function holderOf(page) {
+        const own = [...windows.values()].filter((window) => window.page === page);
+        if (own.some(({ level }) => level === NORMAL)) return null;
+        return own.find(({ host }) => host?.stage) ?? null;
+    }
+
     // The overlay of a page laid in an overlay window is laid there as it changes.
     function relay(page) {
         const holder = holderOf(page);
         if (holder) lay(holder);
     }
 
-    return { start, openWeb, of, pageOf, holderOf, keyOverlay, reopen, keyboardOf, relay, close };
+    return { start, openWeb, pageOf, keyOverlay, reopen, keyboardOf, close };
 }
