@@ -87,6 +87,8 @@ The shapes are these:
 
 **Every member is on the handle `shell` of every mod**, whatever the mod is granted. What a permission guards, called by a mod not granted it, is refused as [the permissions](../DECKIT-3/SPEC.md) say, and its member is on the handle all the same.
 
+Before the start, the shell defines the permissions its DECKITs define, after the web engine's: each DECKIT's, by the DECKITs' numbers, each in its table's order, as [the permissions](../DECKIT-3/SPEC.md) order a layer's.
+
 The shell hands the handle `shell` to `attach`, made for the shell's lifecycle, and to each lifecycle of a layer a host stacks over the shell, made for that lifecycle, as [the handle](../DECKIT-7/SPEC.md) lets a layer hand its lifecycles a handle of its own. A call through either is the run's, as one through the handle `attach` is handed.
 
 **Note.** So what a host's layer over the shell calls is what a mod's own code calls, and the base `shell` of [the case format](../DECKIT-1/SPEC.md) reads the handle `shell` so.
