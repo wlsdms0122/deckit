@@ -9,7 +9,8 @@
 // the look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there,
 // and presses a web page its layer showed with WebKit's input, as a person's press comes. On the base shell it shows
 // the desktop in a host window the size of a screen of its own, floats each overlay window over it and hands a
-// person's hand on a window as a host app hands it, nothing of either on the person's screen. It shows none of the
+// person's hand on a window as a host app hands it, nothing of either on the person's screen, and presses a key in
+// the page the shell gave the keyboard to, the app in front, never the person's keyboard. It shows none of the
 // system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no dialog of
 // folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for the look
 // revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a file of the
@@ -54,6 +55,12 @@ const SCREEN = Object.freeze({ width: 1280, height: 800 });
 let controls = null; // what the host drives of the shell, handed as it starts, on the base shell
 // Each overlay window the shell asks the host to show, back to front: `{ control, frame, key }`, `frame` on SCREEN.
 const floating = [];
+// The machine's keyboard on the base shell: the page of the app's that has it, as the shell last gave it, the app in
+// front; and what hears each key pressed in a page, before it and after it did not handle it, by the page.
+let keyboard = null;
+const capturing = new Map(); // page -> [handler(event) -> taken]
+const unhandling = new Map(); // page -> [handler(keystroke) -> taken]
+let title = null; // what the shell last titled the desktop
 // What the host app answers the shell, as a host app answers it, on the base shell: the desktop shown as the shell
 // starts, in the host window, which comes up as the shell asks; each overlay window floating over every app, at the
 // frame the shell kept for it where that lies on the screen, or else centred across it, a fifth of the way down, at
@@ -67,8 +74,11 @@ const HOST = Object.freeze({
     show() {
         resignFloating();
         controls?.desktop.show();
+        controls?.desktop.focus();
     },
-    desktopTitled() {},
+    desktopTitled(given) {
+        title = given;
+    },
     showWindow(control, { activates = true } = {}) {
         let one = floating.find((each) => each.control === control);
         const { width, height } = control;
@@ -106,6 +116,28 @@ const focusFloating = (one) => {
     resignFloating();
     one.key = true;
     one.control.focus();
+};
+// The pages of the base shell, the machine's keyboard going to the page the shell gives it to.
+const pagesOn = (pages) =>
+    Object.create(pages, {
+        focus: {
+            value: (page) => {
+                keyboard = page;
+                return pages.focus(page);
+            },
+        },
+    });
+// The keys of the base shell: what hears a key pressed in a page kept for the input key, the app in front with the
+// page that has the keyboard.
+const keysOn = (keys) => {
+    const kept = (heard) => (page, handler) => {
+        heard.set(page, [...(heard.get(page) ?? []), handler]);
+    };
+    return Object.create(keys, {
+        capture: { value: kept(capturing) },
+        unhandled: { value: kept(unhandling) },
+        focused: { value: () => keyboard },
+    });
 };
 // The desktop of the base shell: a stage the size of the host window, which lays what the shell lays nowhere on the
 // person's screen.
@@ -189,7 +221,13 @@ try {
         clipboard: { value: clipboard },
         dialogs: { value: dialogs },
         reveal: { value: reveal },
-        ...(setup.base === 'shell' ? { stage: { value: DESKTOP_STAGE } } : {}),
+        ...(setup.base === 'shell'
+            ? {
+                  stage: { value: DESKTOP_STAGE },
+                  pages: { value: pagesOn(environment.pages) },
+                  keys: { value: keysOn(environment.keys) },
+              }
+            : {}),
         // A double click on a title bar zooms the window, as the person set it to.
         actionOnDoubleClick: { value: () => 'zoom' },
     });
@@ -252,7 +290,9 @@ socket.on('data', (chunk) => {
                         ? activate(asked)
                         : asked.input === 'window'
                           ? hand(asked)
-                          : told().then(() => look(asked))
+                          : asked.input === 'key'
+                            ? key(asked)
+                            : told().then(() => look(asked))
             ).then(async (came) => {
                 if (asked.input) {
                     await runsSettled();
@@ -319,6 +359,13 @@ function windowsSeen() {
     return [...normal, ...over];
 }
 
+// The desktop as the person sees it: `{ active, attention, title }`, the active mod by its id, left out where there is
+// none, the mods that ask for attention, and the title the shell gives the desktop.
+function desktopSeen() {
+    const active = controls.desktop.active();
+    return { ...(active === null ? {} : { active }), attention: controls.desktop.attention(), title };
+}
+
 // What a person's hand on a window comes to: `{}`, or `{ none }` where the mod has no window of the name on screen,
 // a web page's window where `name` is null. On a window on the desktop, the host window taking the keyboard from an
 // overlay window: a press in it, a click of its button `action` (`close`, `minimize`, `zoom`), a drag of its title
@@ -334,6 +381,7 @@ function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
     const over = floating.find(({ control }) => on(control));
     if (normal) {
         resignFloating();
+        controls.desktop.focus();
         const { hand: person } = controls.desktop;
         if (action === 'press') person.press(normal.id);
         else if (['close', 'minimize', 'zoom'].includes(action)) person.button(normal.id, action);
@@ -354,6 +402,21 @@ function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
     }
     if (over) return { none: `an overlay window has no ${action} a hand gives` };
     return { none: `${mod} has no window ${name} on screen` };
+}
+
+// What a key comes to: `keystroke` pressed in the page that has the keyboard, which handles none of it, `{}`, or
+// `{ none }` where no page has it. What hears it before the page does may take it; what hears it after, where nothing
+// took it.
+function key({ keystroke }) {
+    if (!keyboard) return { none: 'no page has the keyboard' };
+    const { code, meta = false, control = false, alt = false, shift = false } = keystroke;
+    const pressed = Object.freeze({ code, meta, control, alt, shift });
+    const page = keyboard;
+    const taken = (capturing.get(page) ?? []).some((handler) =>
+        handler(Object.freeze({ type: 'keydown', ...pressed }))
+    );
+    if (!taken) (unhandling.get(page) ?? []).some((handler) => handler(pressed));
+    return {};
 }
 
 // What a press comes to: the notification at the place `notification` in what shown answers pressed, `{}`, or
@@ -415,6 +478,7 @@ function look({ look: what, mod }) {
     if (what === 'shown') return { answers: shown.map(({ notification }) => notification) };
     if (what === 'revealed') return { answers: revealed };
     if (what === 'windows') return { answers: windowsSeen() };
+    if (what === 'desktop') return controls ? { answers: desktopSeen() } : { none: 'no desktop is shown' };
     if (what === 'heard' || what === 'delegated') {
         const running = runningOf(mod);
         return running.page ? (what === 'heard' ? heard : delegated).invoke(running.page) : running;

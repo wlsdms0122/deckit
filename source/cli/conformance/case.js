@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 17;
+const FORMAT = 18;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -107,6 +107,19 @@ const INPUTS = {
         apart: [is.boolean, false],
     },
     activate: { mod: [is.string, true], of: [(value) => is.integer(value) && value >= 1, true] },
+    key: {
+        keystroke: [
+            (value) =>
+                is.table(value) &&
+                is.string(value.code) &&
+                value.code !== '' &&
+                Object.entries(value).every(
+                    ([key, one]) =>
+                        key === 'code' || (['meta', 'control', 'alt', 'shift'].includes(key) && is.boolean(one))
+                ),
+            true,
+        ],
+    },
     window: {
         mod: [is.string, true],
         name: [is.string, false],
@@ -132,6 +145,7 @@ const LOOKS = {
     downloaded: {},
     revealed: {},
     windows: {},
+    desktop: {},
     requested: {
         headers: [
             (value) =>
@@ -158,6 +172,8 @@ const ADDED = {
     revealed: 16,
     window: 17,
     windows: 17,
+    key: 18,
+    desktop: 18,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -175,7 +191,7 @@ const KEYS_ADDED = {
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = { owners: 5, sites: 9, delegate: 10, apps: 12, chosen: 16 };
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window'];
+const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
 // and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
@@ -412,7 +428,7 @@ function order(steps, refuse) {
             refuse(`step ${step.number}: edge is written beside a resize, and only there`);
         if (step.what === 'window' && 'by' in step && !['move', 'resize'].includes(step.action))
             refuse(`step ${step.number}: by is written beside a move or a resize only`);
-        if (step.kind !== 'input' || ['call', 'press', 'show', 'activate', 'window'].includes(step.what)) {
+        if (step.kind !== 'input' || ['call', 'press', 'show', 'activate', 'window', 'key'].includes(step.what)) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
         }

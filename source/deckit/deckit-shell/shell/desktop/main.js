@@ -707,6 +707,10 @@ export function createDesktop({
             shown: () => shown,
             windows: windowsNow,
             hand,
+            // The local seat's active mod, by its id, or null, and the mods that ask for its attention, in the order
+            // they first asked: what a host app shows of them.
+            active: () => ACTIVATION.activeOf(LOCAL),
+            attention: () => ACTIVATION.attentionOf(LOCAL),
         },
     };
 }

@@ -39,6 +39,11 @@ function createActivation() {
         for (const [seat, held] of seats) if (mayActivate(seat, from)) held.handed.add(to);
     }
 
+    // The seat's active mod, or null.
+    function activeOf(seat) {
+        return seats.get(seat)?.active ?? null;
+    }
+
     function mayActivate(seat, mod) {
         const held = seats.get(seat);
         return !!held && mod !== null && (held.active === mod || held.handed.has(mod));
@@ -65,6 +70,7 @@ function createActivation() {
         setActive,
         input,
         request,
+        activeOf,
         mayActivate,
         requestAttention,
         cancelAttention,

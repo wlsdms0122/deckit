@@ -196,6 +196,7 @@ async function take(step, app, paths, served, delegate, answers, downloads) {
         const { name = null, action, edge = null, by = {} } = step;
         return app.ask({ input: what, mod, name, action, edge, by: { x: by.x ?? 0, y: by.y ?? 0 } });
     }
+    if (what === 'key') return app.ask({ input: what, keystroke: step.keystroke });
     if (what === 'show') {
         const url = step.site
             ? served.address(step.site)
