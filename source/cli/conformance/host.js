@@ -18,7 +18,9 @@
 // run's, never the person's. A request fetched through a web session reaches no address but on the loopback address. On
 // the base shell it hands the shell the mods the case keeps in the Dock at the first start, and the host app's look,
 // light or dark, as the case names it, as it starts and as the look changes; it reads what a page of the shell's
-// wears, its colour scheme and the custom properties of its root.
+// wears, its colour scheme and the custom properties of its root. It keeps what the shell lays on the desktop, for the
+// children's views laid over regions, and drops files from outside the app on the page laid at a point of a window,
+// through WebKit, as the machine drops them, never in a drag of the machine's.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -71,6 +73,7 @@ const chordOf = ({ code, meta = false, control = false, alt = false, shift = fal
     JSON.stringify([code, meta, control, alt, shift]);
 const unavailable = new Set((setup.unavailable ?? []).map(chordOf));
 let title = null; // what the shell last titled the desktop
+let laid = []; // what the shell last laid on the desktop, bottom to top: `{ page, rect, clip, input }`
 // The host app's looks, as a host app hands the shell one: its content's colours, its line and its face.
 const FACE = 'system-ui, sans-serif';
 const LOOKS = Object.freeze({
@@ -173,17 +176,34 @@ const keysOn = (keys) => {
         hotkey: { value: hotkey },
     });
 };
-// The desktop of the base shell: a stage the size of the host window, which lays what the shell lays nowhere on the
-// person's screen.
-const DESKTOP_STAGE = () =>
-    Object.freeze({
+// The stages of the base shell, the size of the host window. The first, the desktop's, is laid in a window of the
+// host's off every screen, shown there so that its pages draw, and nothing of it on the person's screen; it keeps what
+// the shell lays last, bottom to top, for a drop and the look regions. Each other, an overlay window's, lays nothing.
+let desktopStaged = false;
+const DESKTOP_STAGE = () => {
+    const first = !desktopStaged;
+    desktopStaged = true;
+    let stage = null;
+    if (first) {
+        const holder = environment.windows.open({ kind: 'floating', size: { ...SCREEN } });
+        holder.setFrame({ x: -40000, y: -40000, ...SCREEN });
+        stage = environment.stage();
+        stage.place(holder);
+        holder.show({ focus: false });
+    }
+    return Object.freeze({
         place() {},
         size: () => ({ ...SCREEN }),
         whenResized: () => () => {},
         show() {},
-        lay() {},
+        lay(layers) {
+            if (!stage) return;
+            laid = layers;
+            stage.lay(layers);
+        },
         close() {},
     });
+};
 
 const settle = (came) => {
     if (settled) return;
@@ -291,6 +311,9 @@ try {
         webkit = webkit.exports;
     }
     if (setup.base === 'shell') {
+        webkit = { exports: {} };
+        process.dlopen(webkit, path.join(path.dirname(path.join(LIBRARY, described.core)), 'deckit-web.node'));
+        webkit = webkit.exports;
         const config = setup.dock ? { dock: setup.dock } : {};
         DECKIT.attach(deckit, given, { host: HOST, web: DECKIT.attachWeb(deckit, given), config });
         deckit.stack('conformance');
@@ -331,7 +354,9 @@ socket.on('data', (chunk) => {
                               ? dockHand(asked)
                               : asked.input === 'appearance'
                                 ? appear(asked)
-                                : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
+                                : asked.input === 'drop'
+                                  ? drop(asked)
+                                  : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
             ).then(async (came) => {
                 if (asked.input) {
                     await runsSettled();
@@ -552,6 +577,7 @@ function look({ look: what, mod }) {
     if (what === 'windows') return { answers: windowsSeen() };
     if (what === 'desktop') return controls ? { answers: desktopSeen() } : { none: 'no desktop is shown' };
     if (what === 'dock') return controls ? { answers: dockSeen() } : { none: 'no desktop is shown' };
+    if (what === 'regions') return controls ? { answers: regionsSeen() } : { none: 'no desktop is shown' };
     if (what === 'heard' || what === 'delegated') {
         const running = runningOf(mod);
         return running.page ? (what === 'heard' ? heard : delegated).invoke(running.page) : running;
@@ -598,6 +624,62 @@ async function worn({ mod, properties }) {
         }
         return JSON.stringify({ dark: style.colorScheme === 'dark', properties });`;
     return { answers: JSON.parse(await page.evaluate(source, 'deckit')) };
+}
+
+// Whether `point`, on the desktop, is inside `rect`.
+const inside = (point, { x, y, width, height }) =>
+    point.x >= x && point.x < x + width && point.y >= y && point.y < y + height;
+
+// The views of the mods laid over the regions of the windows on the desktop, back to front, each `{ mod, parent,
+// window, frame }`: the child's id, the mod and the name of the window, and the rect it is laid at, cut to the
+// window's frame. A mod's page laid cut to a window's frame is a child's view; the window's content is a page of
+// its own.
+function regionsSeen() {
+    const pages = new Map(deckit.mods.runs().map(({ run, page }) => [page, run.mod.id]));
+    const windows = controls.desktop.windows();
+    return laid.flatMap(({ page, rect, clip }) => {
+        const window =
+            clip && windows.find(({ frame }) => ['x', 'y', 'width', 'height'].every((k) => frame[k] === clip[k]));
+        if (!pages.has(page) || !window) return [];
+        const x = Math.max(rect.x, clip.x);
+        const y = Math.max(rect.y, clip.y);
+        const width = Math.max(0, Math.min(rect.x + rect.width, clip.x + clip.width) - x);
+        const height = Math.max(0, Math.min(rect.y + rect.height, clip.y + clip.height) - y);
+        return [{ mod: pages.get(page), parent: window.mod, window: window.name, frame: { x, y, width, height } }];
+    });
+}
+
+// What a drop comes to: the files at `paths` dragged in from outside the app and dropped at `at`, from the top left of
+// the window on the desktop of the run of `mod` named `name`, on the page the shell laid there that takes the pointer
+// at that point, `{}`, or `{ none }` where the mod has no such window on screen or no page takes it, through WebKit, as
+// the machine drops them.
+async function drop({ mod, name, paths, at }) {
+    if (!controls) return { none: 'no desktop is shown' };
+    const window = controls.desktop
+        .windows()
+        .filter((each) => each.mod === mod && each.name === name && !each.minimized)
+        .at(-1);
+    if (!window) return { none: `${mod} has no window ${name} on screen` };
+    const { frame } = window;
+    const point = { x: frame.x + at.x, y: frame.y + at.y };
+    if (!inside(point, frame)) return { none: `the point is not in the window ${name}` };
+    const hit = [...laid]
+        .reverse()
+        .find(
+            ({ page, rect, clip, input, hidden }) =>
+                !hidden &&
+                page &&
+                inside(point, rect) &&
+                (!clip || inside(point, clip)) &&
+                (!input || input.some((one) => inside({ x: point.x - rect.x, y: point.y - rect.y }, one)))
+        );
+    if (!hit) return { none: 'no page takes the pointer there' };
+    try {
+        await webkit.sendDrop(hit.page.id, { files: paths, x: point.x - hit.rect.x, y: point.y - hit.rect.y });
+    } catch (error) {
+        return { none: `the page took no drop: ${error.message}` };
+    }
+    return {};
 }
 
 // Where in a web page a press lands: from its top left.

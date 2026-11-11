@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 21;
+const FORMAT = 22;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -141,6 +141,19 @@ const INPUTS = {
         to: [is.string, false],
     },
     appearance: { appearance: [(value) => APPEARANCES.includes(value), true] },
+    drop: {
+        mod: [is.string, true],
+        name: [is.string, true],
+        folders: [(value) => is.bundles(value) && value.length > 0, true],
+        at: [
+            (value) =>
+                is.table(value) &&
+                ['x', 'y'].every((key) => key in value) &&
+                Object.keys(value).every((key) => key === 'x' || key === 'y') &&
+                Object.values(value).every(is.integer),
+            true,
+        ],
+    },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -155,6 +168,7 @@ const LOOKS = {
     windows: {},
     desktop: {},
     dock: {},
+    regions: {},
     worn: {
         mod: [is.string, false],
         properties: [
@@ -196,6 +210,8 @@ const ADDED = {
     dock: 19,
     appearance: 21,
     worn: 21,
+    drop: 22,
+    regions: 22,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -223,7 +239,7 @@ const HOST_KEYS_ADDED = {
     appearance: 21,
 };
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance'];
+const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance', 'drop'];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
 // and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
@@ -470,7 +486,7 @@ function order(steps, refuse) {
             refuse(`step ${step.number}: to is written beside a drag, and only there`);
         if (
             step.kind !== 'input' ||
-            ['call', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance'].includes(step.what)
+            ['call', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance', 'drop'].includes(step.what)
         ) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;

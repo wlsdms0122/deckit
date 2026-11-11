@@ -68,9 +68,23 @@ function conformanceLayer({ channels }) {
     };
     channels.bind({ channel: 'conformance/heard', to: 'page', reply: true }).handle(() => ({ answers: heard }));
     channels.bind({ channel: 'conformance/delegated', to: 'page', reply: true }).handle(() => ({ answers: told }));
-    // Once the pages the layer shows are quiet since main asked, as after a press main handed one.
+    // Two frames drawn of the page, or 300 ms where it draws none: what a frame follows, a region's element among it, is
+    // told by then.
+    const frames = () =>
+        new Promise((resolve) => {
+            const late = setTimeout(resolve, 300);
+            requestAnimationFrame(() =>
+                requestAnimationFrame(() => {
+                    clearTimeout(late);
+                    resolve();
+                })
+            );
+        });
+    // Once the pages the layer shows are quiet since main asked, as after a press main handed one, and, where the page
+    // is drawn, once it has drawn two frames.
     channels.bind({ channel: 'conformance/quiet', to: 'page', reply: true }).handle(async () => {
         await quiet(Date.now());
+        if (document.visibilityState === 'visible') await frames();
         return {};
     });
     // A page shown in the session `session` of the lifecycle's handle `web`, at `url`, in the mod's page, which it

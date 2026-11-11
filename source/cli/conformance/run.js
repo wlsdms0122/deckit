@@ -215,6 +215,10 @@ async function take(step, app, paths, served, delegate, answers, downloads) {
         return app.ask({ ...asked, delegate: delegate ?? {} });
     }
     if (what === 'appearance') return app.ask({ input: what, appearance: step.appearance });
+    if (what === 'drop') {
+        const { name, folders, at } = step;
+        return app.ask({ input: what, mod, name, paths: folders.map((one) => paths[one]), at });
+    }
     return partOf(await app.ask({ look: what, mod, properties: step.properties }), part);
 }
 
