@@ -15,6 +15,7 @@ const SHIPS = [
     'settings',
     'deckit',
     'switcher',
+    'status-bar',
     'notifications',
     'commands',
     'keymap',
