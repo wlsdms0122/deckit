@@ -1,7 +1,9 @@
 const { nameOf } = require('../notes-folder/path.js');
+const { COMPOSE_SHAPES } = require('../icons/icons.js');
 
-// Back, Forward and the path of the folder, whose crumbs take a dragged note or folder.
-function navigationBar({ ui, chordOf, onBack, onForward, onGo, acceptDrops }) {
+// Back, Forward and the path of the folder, whose crumbs take a dragged note or folder, and at the end New Note, the
+// window's primary action, before what the screen adds to `trailing`.
+function navigationBar({ ui, chordOf, onBack, onForward, onGo, onNewNote, acceptDrops }) {
     const element = ui.element('div');
     ui.titleBar(element);
     const backButton = ui.iconButton({
@@ -19,6 +21,13 @@ function navigationBar({ ui, chordOf, onBack, onForward, onGo, acceptDrops }) {
         style: { display: 'flex', alignItems: 'center', gap: '4px', flex: '0 0 auto' },
     });
 
+    const newNote = ui.iconButton({
+        icon: ui.iconOf(COMPOSE_SHAPES, { size: 16 }),
+        title: 'New note',
+        onClick: () => onNewNote(),
+    });
+    ui.tooltip(newNote.element, { text: 'New note', chord: () => chordOf('newNote') });
+    trailing.append(newNote.element);
     breadcrumb.element.style.margin = '0 6px';
     element.append(backButton.element, forwardButton.element, breadcrumb.element, trailing);
     for (const [button, text, action] of [

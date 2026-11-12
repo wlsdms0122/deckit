@@ -531,6 +531,7 @@ class Note {
                 onBack: () => placeHistory.goBack(),
                 onForward: () => placeHistory.goForward(),
                 onGo: (path) => showFolder(path),
+                onNewNote: () => newNote(currentFolder()),
                 acceptDrops: dragging.acceptDrops,
             });
         }
