@@ -29,8 +29,8 @@ const STYLE = `
         position: relative;
         display: flex;
         flex: 0 0 auto;
-        flex-direction: column;
-        gap: 2px;
+        align-items: flex-start;
+        gap: 8px;
         box-sizing: border-box;
         padding: 10px 36px 10px 12px;
         border-radius: var(--deckit-radius-large);
@@ -38,7 +38,16 @@ const STYLE = `
         box-shadow: var(--deckit-rim);
         cursor: default;
     }
-    .notifications-title { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .notifications-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+    .notifications-title-row { display: flex; align-items: baseline; gap: 8px; min-height: 20px; }
+    .notifications-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     .notifications-body {
         display: -webkit-box;
         overflow: hidden;
@@ -46,7 +55,12 @@ const STYLE = `
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
     }
-    .notifications-meta { color: var(--deckit-muted); font: var(--deckit-type-caption); }
+    .notifications-time {
+        flex: 0 0 auto;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-caption);
+        font-variant-numeric: tabular-nums;
+    }
     .notifications-actions { display: flex; gap: 6px; margin-top: 4px; }
     .notifications-close { position: absolute; top: 6px; right: 6px; }
     .notifications-empty { margin-top: 24px; color: var(--deckit-muted); text-align: center; }
@@ -59,6 +73,7 @@ function screen(shell, center) {
     content.className = 'notifications';
     shell.ui.addStyle(STYLE);
     const toasts = new Map(); // id -> { notification, timer }
+    const icons = new Map(); // a sending mod's id -> its app icon, as the shell reads it
     let face = 'toasts';
     let window = null; // the window, while it is open
     const offs = [
@@ -68,7 +83,8 @@ function screen(shell, center) {
 
     // MARK: - Initializer
     // MARK: - Public
-    function showList() {
+    async function showList() {
+        await Promise.all(center.list().map((notification) => iconRead(notification.mod.id)));
         face = 'list';
         draw();
         if (!window) return open(LIST_HEIGHT);
@@ -83,7 +99,9 @@ function screen(shell, center) {
     }
 
     // MARK: - Private
-    function showToast(notification) {
+    // A toast shows once its sender's icon is read, so the default icon never stands in for it first.
+    async function showToast(notification) {
+        await iconRead(notification.mod.id);
         const timer = notification.actions.length ? 0 : setTimeout(() => hideToast(notification.id), STAYS);
         toasts.set(notification.id, { notification, timer });
         if (face === 'toasts') toToasts();
@@ -163,15 +181,19 @@ function screen(shell, center) {
     // record.
     function card(notification, { meta }) {
         const made = element('div', 'notifications-card');
-        if (notification.title) made.append(element('div', 'notifications-title', notification.title));
-        if (notification.body) made.append(element('div', 'notifications-body', notification.body));
-        if (meta) made.append(element('div', 'notifications-meta', `${notification.mod.name} · ${when(notification)}`));
+        const words = element('div', 'notifications-words');
+        const titleRow = element('div', 'notifications-title-row');
+        titleRow.append(element('div', 'notifications-title', notification.title || notification.mod.name));
+        if (meta) titleRow.append(element('div', 'notifications-time', when(notification)));
+        words.append(titleRow);
+        if (notification.body) words.append(element('div', 'notifications-body', notification.body));
+        made.append(ui.appIcon(icons.get(notification.mod.id) ?? '', { alt: notification.mod.name }), words);
         if (notification.actions.length) {
             const actions = element('div', 'notifications-actions');
             notification.actions.forEach((action, index) =>
                 actions.append(button(action.title, () => center.press(notification.id, index)))
             );
-            made.append(actions);
+            words.append(actions);
         }
         const close = ui.iconButton({
             icon: ui.icon('x', { size: 14 }),
@@ -184,6 +206,11 @@ function screen(shell, center) {
         made.append(close);
         made.addEventListener('click', () => center.press(notification.id));
         return made;
+    }
+
+    // The app icon of the mod `id` read once, and kept: '' where it has none or it is not read.
+    async function iconRead(id) {
+        if (!icons.has(id)) icons.set(id, await shell.mods.icon(id).catch(() => ''));
     }
 
     function button(label, pressed) {
