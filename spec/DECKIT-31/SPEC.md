@@ -38,9 +38,9 @@ A **window** is a place on screen in which a mod's run shows an element, its **c
 
 A run has one window of a name open at a time, whatever its level, and the name is free again once that window has closed. The windows are the run's: a window opened through the handle `shell` of one lifecycle of the run is the one the handle of another lifecycle of the run opens and lists.
 
-A normal window has a **frame**, `{ x, y, width, height }`, in the coordinates of the screen the desktop is on, `x` to the right and `y` down: its top left, and its **size**, `width` by `height`. Each value of a frame is a whole number, a value a window is opened or set at rounded to the nearest one. A normal window has a **minimum size**, the `minWidth` and `minHeight` its mod gives, and never smaller than 120 by 38, the width of its title bar's buttons with room beside them and the height of its title bar; no frame of the window is smaller than it. The **zoom area** is the desktop but a band 6 wide along its left edge, where the Dock comes out, as [the Dock](../DECKIT-33/SPEC.md) fixes it.
+A normal window has a **frame**, `{ x, y, width, height }`, in the coordinates of the screen the desktop is on, `x` to the right and `y` down: its top left, and its **size**, `width` by `height`. Each value of a frame is a whole number, a value a window is opened or set at rounded to the nearest one. A normal window has a **minimum size**, the `minWidth` and `minHeight` its mod gives, and never smaller than 120 by 48, the width of its title bar's buttons with room beside them and the height of its title bar; no frame of the window is smaller than it. The **zoom area** is the desktop but a band 6 wide along its left edge, where the Dock comes out, as [the Dock](../DECKIT-33/SPEC.md) fixes it.
 
-A frame is **reachable** where its top is on the desktop and at least 64 of its width and 38 of its height, its title bar, are on it: `x` from the desktop's left plus 64 minus `width` to the desktop's right minus 64, and `y` from the desktop's top to its bottom minus 38. A frame **brought into reach** is moved the least way it takes to be reachable.
+A frame is **reachable** where its top is on the desktop and at least 64 of its width and 48 of its height, its title bar, are on it: `x` from the desktop's left plus 64 minus `width` to the desktop's right minus 64, and `y` from the desktop's top to its bottom minus 48. A frame **brought into reach** is moved the least way it takes to be reachable.
 
 ### The order and the key window
 
@@ -140,11 +140,11 @@ The shell asks the host app to show an overlay window in a window of its own, fl
 
 ### The title bar
 
-A normal window has a **title bar**, 38 high across the top of its frame, whose buttons `close`, `minimize` and `zoom` stand in its first 78 from the left. The shell draws the buttons over the content, and the content lays out the rest. The root element of the document the content is in is told it: it has the attribute `data-deckit-title-bar`, `--deckit-title-bar-area-height` is `38px` and `--deckit-title-bar-area-x` is `78px`. An overlay window has no title bar: the root element has no such attribute, and both properties are `0px`.
+A normal window has a **title bar**, 48 high across the top of its frame, whose buttons `close`, `minimize` and `zoom` stand in its first 78 from the left. The shell draws the buttons over the content, and the content lays out the rest. The root element of the document the content is in is told it: it has the attribute `data-deckit-title-bar`, `--deckit-title-bar-area-height` is `48px` and `--deckit-title-bar-area-x` is `78px`. An overlay window has no title bar: the root element has no such attribute, and both properties are `0px`.
 
 ### A web page's window
 
-A page apart, which `web.window(options)` answers as [web pages](../DECKIT-25/SPEC.md) fix it, is shown in a normal window of the mod whose page shows it, which has no name and is in no `windows.list()`. The window is **titled**: the shell draws its title bar over the page, holding the page's title as web pages fix it, and the page fills the frame under it, 520 by 700, so the frame is 520 by 738. It opens as a window with no frame kept opens, and comes in front as `makeKeyAndOrderFront()` brings a window. It takes the person's hand as a normal window does, and closing it closes the page.
+A page apart, which `web.window(options)` answers as [web pages](../DECKIT-25/SPEC.md) fix it, is shown in a normal window of the mod whose page shows it, which has no name and is in no `windows.list()`. The window is **titled**: the shell draws its title bar over the page, holding the page's title as web pages fix it, and the page fills the frame under it, 520 by 700, so the frame is 520 by 748. It opens as a window with no frame kept opens, and comes in front as `makeKeyAndOrderFront()` brings a window. It takes the person's hand as a normal window does, and closing it closes the page.
 
 ### The run's end
 

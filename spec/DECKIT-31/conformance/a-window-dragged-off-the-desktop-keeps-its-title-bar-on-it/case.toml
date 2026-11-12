@@ -27,4 +27,4 @@ by = { x = 2000, y = 2000 }
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 1216, y = 762, width = 720, height = 480 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 1216, y = 752, width = 720, height = 480 }, key = true, minimized = false }]
