@@ -801,12 +801,12 @@ async function run({
             refusedDrop,
             await settingsOverlay?.evaluate(toastText)
         );
-        // A second refusal stacks on the first, at the top right of the page under its title bar.
+        // A second refusal stacks on the first, at the bottom right of the page, clear of its title bar.
         await main(`return webkit.sendDrop(${settingsId}, ${dropped})`);
         const stackOf = `(() => {
             const toasts = [...document.querySelectorAll('.deckit-toast')];
             const stack = document.querySelector('.deckit-toasts')?.getBoundingClientRect();
-            return stack && { count: toasts.length, right: innerWidth - stack.right, top: stack.top };
+            return stack && { count: toasts.length, right: innerWidth - stack.right, bottom: innerHeight - stack.bottom, top: stack.top };
         })()`;
         const stacked = await until(async () => (await settingsOverlay?.evaluate(stackOf))?.count === 2, 4000);
         const stackSeen = await settingsOverlay?.evaluate(stackOf);
@@ -814,8 +814,8 @@ async function run({
             `document.querySelector('.deckit-title-bar').getBoundingClientRect().bottom`
         );
         check(
-            'toasts stack at the top right of the page, under its title bar',
-            stacked && stackSeen.right === 12 && stackSeen.top >= titleBottom,
+            'toasts stack at the bottom right of the page, clear of its title bar',
+            stacked && stackSeen.right === 12 && stackSeen.bottom === 12 && stackSeen.top >= titleBottom,
             JSON.stringify({ stackSeen, titleBottom })
         );
         // A folder whose package file names a mod not installed is dry run through deckit/packages: the sheet shows

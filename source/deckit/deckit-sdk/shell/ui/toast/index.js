@@ -7,8 +7,9 @@ const STYLE = `
 .deckit-toasts {
     position: fixed;
     right: 12px;
+    bottom: 12px;
     display: flex;
-    flex-direction: column;
+    flex-direction: column-reverse;
     align-items: flex-end;
     gap: 8px;
     pointer-events: none;
@@ -40,8 +41,6 @@ const STYLE = `
 const STAY = { base: 2500, perCharacter: 50, most: 8000 };
 // The most toasts shown at once: one more closes the oldest.
 const MOST = 4;
-// The room between the stack and the top of the page, or the title bar it lies under.
-const GAP = 8;
 // A toast slides in from the right as it fades in, and back as it fades out.
 const SLIDE = [{ transform: 'translateX(12px)' }, { transform: 'none' }];
 const FADE = [{ opacity: 0 }, { opacity: 1 }];
@@ -57,9 +56,10 @@ function make(theme, ui) {
 }
 
 // MARK: - Private
-// `text` at the top right of the page, under its title bar, on a layer over it: what was just done, told where it was
-// done, for a while, taking no presses. A `failure` stays until it is closed, takes presses and holds a close button
-// and, with `action` (`{ label, run }`), one button that runs it and closes the toast. Toasts stack, the newest on top.
+// `text` at the bottom right of the page, clear of its title bar and what heads its content, on a layer over it: what
+// was just done, told where it was done, for a while, taking no presses. A `failure` stays until it is closed, takes
+// presses and holds a close button and, with `action` (`{ label, run }`), one button that runs it and closes the
+// toast. Toasts stack, the newest nearest the edge.
 // It returns `{ close() }`.
 function toast(ui, text, { kind = 'done', action = null } = {}) {
     const element = document.createElement('div');
@@ -93,7 +93,6 @@ function toast(ui, text, { kind = 'done', action = null } = {}) {
         element.textContent = text;
     }
     const { element: list } = stack || (stack = open());
-    list.style.top = topOf() + 'px';
     glide(list, () => list.prepend(element));
     slide(element);
     const stay = failure ? 0 : setTimeout(close, Math.min(STAY.base + text.length * STAY.perCharacter, STAY.most));
@@ -129,14 +128,6 @@ function open() {
     const element = document.createElement('div');
     element.className = 'deckit-toasts';
     return { layer: LAYER.add(element), element };
-}
-
-// Under the title bars the page's documents lay, or at their top.
-function topOf() {
-    const bars = LAYER.windows()
-        .flatMap(({ document }) => [...document.querySelectorAll('.deckit-title-bar')])
-        .map((bar) => bar.getBoundingClientRect());
-    return Math.max(0, ...bars.filter((box) => box.width && box.height).map((box) => box.bottom)) + GAP;
 }
 
 // The toasts staying glide from where they were to where `change` puts them.
