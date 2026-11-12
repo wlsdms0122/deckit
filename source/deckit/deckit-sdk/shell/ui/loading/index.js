@@ -40,8 +40,9 @@ function make() {
 }
 
 // MARK: - Private
-// Still while the system asks for reduced motion.
-function spinner({ size = 14 } = {}) {
+// Still while the system asks for reduced motion. `wait` shows it only once the load has taken WAIT_MS, as a row's icon
+// slot does.
+function spinner({ size = 14, wait = false } = {}) {
     const made = document.createElement('span');
     made.className = 'deckit-spinner';
     made.style.width = made.style.height = size + 'px';
@@ -50,6 +51,7 @@ function spinner({ size = 14 } = {}) {
             duration: TURN_MS,
             iterations: Infinity,
         });
+    if (wait) shown(made);
     return { element: made };
 }
 
@@ -87,10 +89,10 @@ function skeleton({ rows = 3, height = 28 } = {}) {
     return { element: box, settled: shown(box) };
 }
 
-// `box` fades in once WAIT_MS has passed; answers `settled()`.
+// `box` fades in to its own opacity once WAIT_MS has passed; answers `settled()`.
 function shown(box) {
     const made = performance.now();
-    box.animate([{ opacity: 0 }, { opacity: 1 }], {
+    box.animate([{ opacity: 0, offset: 0 }], {
         delay: WAIT_MS,
         duration: TOKEN.MOTION.fade,
         fill: 'backwards',
