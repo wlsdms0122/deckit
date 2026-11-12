@@ -1,6 +1,6 @@
 // Find in the page of the tab in front, in a bar at the top right of `area`, on a layer over the page and its web
-// pages: it stays while the person uses the page, fading in as it shows and out as it hides. Closing it gives the page
-// the keyboard back.
+// pages: it stays while the person uses the page, fading in as it shows and out as it hides, in place: a key opens it.
+// Closing it gives the page the keyboard back.
 function findInPage({ theme, ui, area, frontTab }) {
     let searchedTab = null;
     let state = { query: '', caseSensitive: false };
@@ -15,11 +15,9 @@ function findInPage({ theme, ui, area, frontTab }) {
             padding: 4px;
             box-sizing: border-box;
             border-radius: var(--deckit-radius-round);
-            border: var(--deckit-border);
-            background: var(--deckit-background);
-            box-shadow: var(--deckit-shadow-raised);
+            background: var(--deckit-elevated);
+            box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
             color: var(--deckit-text);
-            transform-origin: top right;
         }
         .browser-find-field { flex: 0 1 auto; width: 300px; min-width: 0; margin: 0 2px; }
         .browser-find .deckit-icon-button,
@@ -57,7 +55,7 @@ function findInPage({ theme, ui, area, frontTab }) {
             element.style.pointerEvents = '';
         } else if (!layer) {
             layer = ui.layer(element);
-            element.animate(FADE, { duration: theme.motion.move.fast, easing: theme.motion.easing });
+            element.animate(FADE, { duration: theme.motion.fade, easing: theme.motion.easing });
         }
         layer.focus(field);
         if (state.query) step(false);
@@ -73,7 +71,7 @@ function findInPage({ theme, ui, area, frontTab }) {
         if (!layer || leaving) return;
         element.style.pointerEvents = 'none';
         leaving = element.animate(FADE, {
-            duration: theme.motion.move.fast,
+            duration: theme.motion.fade,
             easing: theme.motion.easing,
             direction: 'reverse',
             fill: 'forwards',
@@ -120,9 +118,6 @@ function findInPage({ theme, ui, area, frontTab }) {
     }
 }
 
-const FADE = [
-    { opacity: 0, transform: 'translateY(-6px) scale(.96)' },
-    { opacity: 1, transform: 'none' },
-];
+const FADE = [{ opacity: 0 }, { opacity: 1 }];
 
 module.exports = { findInPage };
