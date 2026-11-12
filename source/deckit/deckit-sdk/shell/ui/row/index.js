@@ -20,6 +20,8 @@ const STYLE = `
     .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; }
     .deckit-row:hover { background: var(--deckit-hover); }
     .deckit-row[data-active] { background: var(--deckit-selected); }
+    .deckit-row-glyph { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
+    .deckit-row[data-active] .deckit-row-glyph { color: inherit; }
     :is(.deckit-row, [data-deckit-row-actions]):not(
             :hover,
             :focus-within,
@@ -44,15 +46,28 @@ function make() {
 }
 
 // MARK: - Private
-// A row of a list, washed under the pointer. `setActive` marks it chosen; `setActionsShown` keeps its actions
-// shown. Its actions take no room while they are hidden, as in any element marked `data-deckit-row-actions`, which
-// shows them as a row does, and keeps them shown while the mark is `shown`.
-function row({ size = 'medium' } = {}) {
+// A row of a list, washed under the pointer. `glyph`, an svg or an element, leads it in its slot (`glyph`), in
+// `muted`, and in the row's own ink while it is chosen; `setGlyph` shows another there. `setActive` marks it chosen;
+// `setActionsShown` keeps its actions shown. Its actions take no room while they are hidden, as in any element marked
+// `data-deckit-row-actions`, which shows them as a row does, and keeps them shown while the mark is `shown`.
+function row({ size = 'medium', glyph = null } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-row';
     element.dataset.size = size;
+    const slot = glyph === null ? null : document.createElement('span');
+    const setGlyph = (next) => {
+        if (typeof next === 'string') slot.innerHTML = next;
+        else slot.replaceChildren(...(next ? [next] : []));
+    };
+    if (slot) {
+        slot.className = 'deckit-row-glyph';
+        element.append(slot);
+        setGlyph(glyph);
+    }
     return {
         element,
+        glyph: slot,
+        setGlyph: slot ? setGlyph : () => {},
         setActive: (on) => element.toggleAttribute('data-active', !!on),
         setActionsShown: (on) => element.toggleAttribute('data-actions-shown', !!on),
     };
