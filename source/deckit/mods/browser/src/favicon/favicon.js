@@ -1,6 +1,7 @@
 const { hrefOf } = require('../address/address.js');
 
-// The icon of a page ({ url, icon, loading }) in a line: a spinner while it loads, else its favicon in a 16px box.
+// The icon of a page ({ url, icon, loading }) in a line: a spinner while it loads, else its favicon in a 16px box, or
+// a globe where it has none or its favicon fails.
 function favicon({ ui, page }) {
     if (page.loading) return ui.spinner({ size: 13 });
     const element = ui.element('span', {
@@ -13,8 +14,15 @@ function favicon({ ui, page }) {
             justifyContent: 'center',
         },
     });
+    const globe = () => {
+        element.style.color = 'var(--deckit-muted)';
+        element.innerHTML = ui.icon('globe', { size: 16 });
+    };
     const source = faviconOf(page);
-    if (!source) return { element };
+    if (!source) {
+        globe();
+        return { element };
+    }
     const image = ui.element('img', {
         style: { width: '16px', height: '16px', objectFit: 'contain', borderRadius: '3px' },
     });
@@ -22,7 +30,7 @@ function favicon({ ui, page }) {
     image.alt = '';
     image.loading = 'lazy';
     image.draggable = false;
-    image.addEventListener('error', () => image.remove());
+    image.addEventListener('error', globe);
     element.append(image);
     return { element };
 }
