@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { until, sleep, ALT, META, SHIFT } = require('./devtools.js');
+const { seat } = require('./seat.js');
 
 // The mods Deckit.app ships that are apps, which the Dock keeps from the first start: every one but the accessories,
 // such as Deckit, the Switcher and Notifications.
@@ -24,9 +25,6 @@ const REMOVED = 'removed-with-data';
 // The Browser's tabs brought back: the one in front, and the one behind it, asleep.
 const FRONT_TAB = 'https://example.com/';
 const BEHIND_TAB = 'https://example.org/';
-// What the test reads of a document a page opened beside itself: its name, its opener's address, and whether it draws
-// a window's frame as the key window's.
-const SURFACE = `return ([window.name, window.opener?.location.href ?? '', !!document.querySelector('.deckit-window-material[data-key]')])`;
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them declaring addresses as it may not, the window probe shipped with the app
@@ -114,25 +112,6 @@ function storeOf(partition) {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-// A line of WebKit's module's `tree`, a view indented under its superview: its type, its frame in its superview,
-// whether it is hidden, whether it has its window's keyboard, and the page it shows and the rects of it that take the
-// pointer, if one.
-function viewOf(line) {
-    const match = /^ *(\S+) \{\{([-\d.]+), ([-\d.]+)\}, \{([-\d.]+), ([-\d.]+)\}\}(.*)$/.exec(line);
-    if (!match) return null;
-    const [x, y, width, height] = match.slice(2, 6).map(Number);
-    const page = Number(/ page (\d+)/.exec(match[6])?.[1]) || null;
-    const input = / input \[(.*?)\]/.exec(match[6])?.[1].split('|').filter(Boolean).map(rectOf) ?? null;
-    const responder = / responder/.test(match[6]);
-    return { type: match[1], rect: { x, y, width, height }, hidden: / hidden/.test(match[6]), responder, page, input };
-}
-
-// A rect as NSStringFromRect writes it, `{{x, y}, {width, height}}`.
-function rectOf(text) {
-    const [x, y, width, height] = text.match(/[-\d.]+/g).map(Number);
-    return { x, y, width, height };
-}
-
 // Whether two rects are the same to a point.
 function near(a, b) {
     return !!a && !!b && ['x', 'y', 'width', 'height'].every((key) => Math.abs(a[key] - b[key]) <= 1);
@@ -158,113 +137,13 @@ async function run({
 }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
-    // Every window of WebKit's module: its content's size, and its stages from the bottom, each whether it is shown
-    // and the pages on it, bottom to top, `{ id, width, height, stages: [{ shown, rect, pages: [{ id, url, name,
-    // opener, keyed, rect, hidden, responder, input }] }] }`, a page's rect on its stage, through the clips it is drawn
-    // in, and its name, opener and `keyed` those of a document a page opened beside itself (SURFACE).
-    const laidNow = async () => {
-        const found = await main(`
-            const urls = Object.fromEntries(webkit.pages().map((id) => [id, webkit.state(id).url]));
-            const named = {};
-            for (const [id, url] of Object.entries(urls)) {
-                if (url !== 'about:blank') continue;
-                try {
-                    const told = await webkit.evaluate(Number(id), ${JSON.stringify(SURFACE)}, 'page');
-                    named[id] = typeof told === 'string' ? JSON.parse(told) : null;
-                } catch {}
-            }
-            return { windows: webkit.windows().map((id) => ({ id, tree: webkit.tree(id) })), urls, named };`);
-        return (found?.windows || []).map(({ id, tree }) => {
-            const lines = tree.split('\n');
-            const stages = [];
-            const origins = []; // by depth, each view's origin on the stage it is in
-            let first = null;
-            for (const line of lines) {
-                const view = viewOf(line);
-                if (!view) continue;
-                first ??= view;
-                const depth = (line.length - line.trimStart().length) / 2;
-                if (view.type === 'StageView') {
-                    stages.push({ shown: !view.hidden, rect: view.rect, pages: [], depth });
-                    origins[depth] = { x: 0, y: 0 };
-                    continue;
-                }
-                const stage = stages.at(-1);
-                const inStage = stage && depth > stage.depth;
-                const parent = inStage ? origins[depth - 1] : null;
-                const at = parent ? { x: parent.x + view.rect.x, y: parent.y + view.rect.y } : null;
-                origins[depth] = at;
-                if (!view.page || !inStage) continue;
-                const [name, opener, keyed] = found.named[view.page] || ['', '', false];
-                stage.pages.push({
-                    id: view.page,
-                    url: found.urls[view.page] || '',
-                    name,
-                    opener,
-                    keyed,
-                    rect: { ...view.rect, ...at },
-                    hidden: view.hidden,
-                    responder: view.responder,
-                    input: view.input,
-                });
-            }
-            return { id, width: first?.rect.width, height: first?.rect.height, stages };
-        });
-    };
-    // The host window's desktop: its stage, `{ shown, rect, pages, width, height }`, its pages bottom to top, or null.
-    const desktopLaid = async () => {
-        for (const window of await laidNow())
-            for (const stage of window.stages)
-                if (stage.pages.some(({ url }) => url.startsWith('deckit://desktop')))
-                    return { ...stage, width: window.width, height: window.height };
-        return null;
-    };
-    // The windows on the desktop, back to front, as the local seat sees them: `{ id, mod, url, rect, key, content }`
-    // each, `mod` the mod whose page opened its content, `rect` its content's on the desktop, `key` whether its frame
-    // is drawn as the key window's, and `content` the page its content is.
-    const windowsNow = async () => {
-        const laid = (await desktopLaid())?.pages || [];
-        const windows = [];
-        laid.forEach((each, at) => {
-            const id = /^frame-(\d+)$/.exec(each.name)?.[1];
-            const content = laid[at + 1];
-            if (!id || !content || content.name === `buttons-${id}`) return;
-            const mod = /^deckit:\/\/([^./]+)\.mod/.exec(content.opener)?.[1] ?? null;
-            windows.push({
-                id: Number(id),
-                mod,
-                url: content.url,
-                rect: content.rect,
-                key: each.keyed,
-                content: content.id,
-            });
-        });
-        return windows;
-    };
-    // The mod of the local seat's key window, or null.
-    const keyMod = async () => (await windowsNow()).find(({ key }) => key)?.mod ?? null;
-    // The session of the content of mod `id`'s front window on the desktop, or null.
-    const windowOf = async (id) => {
-        const front = (await windowsNow()).filter(({ mod }) => mod === id).at(-1);
-        return front ? pageById(front.content) : null;
-    };
-    // The Dock's items as the desktop's page draws them: `{ id, running, active, attention }` each, in order.
-    const dockNow = async () =>
-        (await desktop?.evaluate(`[...document.querySelectorAll('.deckit-dock-item')].map((item) => ({
-            id: item.dataset.modId,
-            running: item.hasAttribute('data-running'),
-            active: item.hasAttribute('data-active'),
-            attention: item.hasAttribute('data-attention'),
-        }))`)) || [];
+    const { laidNow, desktopLaid, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = seat({
+        main,
+        pageById,
+        compose,
+        desktop: () => desktop,
+    });
     const asksAttention = async (id) => !!(await dockNow()).find((item) => item.id === id)?.attention;
-    // A click on mod `id`'s Dock item.
-    const dockClick = (id) =>
-        desktop.evaluate(`document.querySelector('.deckit-dock-item[data-mod-id="${id}"]')?.click()`);
-    // The mod `id` brought front from its Dock item, its window the key window.
-    const show = async (id) => {
-        await dockClick(id);
-        await until(async () => (await keyMod()) === id, 3000);
-    };
     // What the strip over the desktop holds.
     const stripTitle = () =>
         desktop.evaluate(`document.querySelector('.deckit-desktop-strip .deckit-desktop-title')?.textContent`);
@@ -291,18 +170,6 @@ async function run({
         );
     };
     const namesOf = (stack) => stack.map(({ url, name }) => name || url.replace(/\/$/, ''));
-    // The desktop as a person sees it, its pages laid one over another from the backdrop up.
-    const desktopShot = async (name) => {
-        const laid = ((await desktopLaid())?.pages || []).filter(({ input }) => !Array.isArray(input) || input.length);
-        const from = laid.findIndex(({ name: each }) => each === 'backdrop');
-        if (from < 0) return;
-        const layers = [];
-        for (const { id, rect } of laid.slice(from)) {
-            const session = await pageById(id);
-            if (session) layers.push({ session, x: rect.x, y: rect.y });
-        }
-        await compose(name, layers);
-    };
 
     await sleep(9000);
     const desktop = await until(() => page('deckit://desktop'));
