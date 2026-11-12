@@ -12,14 +12,7 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
 
     // The field is centred in the bar, as wide as the room between the two sides lets it be.
     ui.addStyle(`
-        .browser-toolbar {
-            flex: 0 0 auto;
-            display: grid;
-            grid-template-columns: 1fr minmax(0, 640px) 1fr;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-        }
+        .browser-toolbar { display: grid; grid-template-columns: 1fr minmax(0, 640px) 1fr; }
         .browser-toolbar-side { display: flex; align-items: center; gap: 2px; }
         .browser-toolbar-side[data-trailing] { justify-content: flex-end; }
         .browser-address-field {

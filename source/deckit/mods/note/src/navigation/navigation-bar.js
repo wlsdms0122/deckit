@@ -2,27 +2,17 @@ const { nameOf } = require('../notes-folder/path.js');
 
 // Back, Forward and the path of the folder, whose crumbs take a dragged note or folder.
 function navigationBar({ ui, chordOf, onBack, onForward, onGo, acceptDrops }) {
-    const element = ui.element('div', {
-        style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '2px',
-            flex: '0 0 auto',
-            padding: '7px 12px',
-        },
-    });
+    const element = ui.element('div');
     ui.titleBar(element);
     const backButton = ui.iconButton({
         icon: ui.icon('chevronLeft', { size: 16 }),
         title: 'Back',
         onClick: () => onBack(),
-        size: 'small',
     });
     const forwardButton = ui.iconButton({
         icon: ui.icon('chevronRight', { size: 16 }),
         title: 'Forward',
         onClick: () => onForward(),
-        size: 'small',
     });
     const breadcrumb = ui.breadcrumb({ onGo });
     const trailing = ui.element('div', {

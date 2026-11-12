@@ -93,7 +93,6 @@ function gallery({
     const element = ui.element('div', { className: 'note-pane' });
     const field = ui.field({
         placeholder: 'Search all notes',
-        size: 'small',
         icon: ui.icon('search', { size: 13 }),
         clearable: true,
         onInput: (value) => search(value),

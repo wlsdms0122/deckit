@@ -25,13 +25,6 @@ function toolbar({
     ];
     const STAR_PULSE_DURATION = 220; // milliseconds
     const STYLE = `
-        .finder-toolbar {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            flex: 0 0 auto;
-            padding: 9px 12px;
-        }
         .finder-breadcrumb { margin: 0 6px; }
         .finder-toolbar .finder-view-button { width: auto; padding: 0 5px; }
         .finder-view-icon { display: flex; align-items: center; gap: 1px; }
@@ -45,31 +38,26 @@ function toolbar({
         icon: ui.icon('chevronLeft', { size: 16 }),
         title: 'Back',
         onClick: onBack,
-        size: 'small',
     });
     const forward = ui.iconButton({
         icon: ui.icon('chevronRight', { size: 16 }),
         title: 'Forward',
         onClick: onForward,
-        size: 'small',
     });
     const up = ui.iconButton({
-        icon: ui.icon('arrowUp', { size: 15 }),
+        icon: ui.icon('arrowUp', { size: 16 }),
         title: 'Enclosing folder',
         onClick: onUp,
-        size: 'small',
     });
     const breadcrumb = ui.breadcrumb({ onGo: onCrumb });
     const star = ui.iconButton({
         icon: starIcon(false),
         title: 'Add to Favorites',
-        onClick: toggleFavorite,
-        size: 'small',
+        onClick: () => onToggleFavorite(),
     });
-    const viewButton = ui.iconButton({ icon: '', title: 'View', onClick: showViews, size: 'small' });
+    const viewButton = ui.iconButton({ icon: '', title: 'View', onClick: showViews });
     const filter = ui.field({
         placeholder: 'Filter this folder',
-        size: 'small',
         icon: ui.icon('search', { size: 13 }),
         clearable: true,
         onInput: onFilter,
@@ -142,7 +130,7 @@ function toolbar({
 
     function setView(next) {
         view = next;
-        const icon = ui.icon(VIEWS.find((each) => each.key === view).icon, { size: 14 });
+        const icon = ui.icon(VIEWS.find((each) => each.key === view).icon, { size: 16 });
         viewButton.setIcon(`<span class="finder-view-icon">${icon}${ui.icon('chevronDown', { size: 10 })}</span>`);
     }
 
@@ -168,7 +156,7 @@ function toolbar({
     }
 
     function starIcon(on) {
-        return ui.icon('star', { size: 15, fill: on ? 'currentColor' : 'none' });
+        return ui.icon('star', { size: 16, fill: on ? 'currentColor' : 'none' });
     }
 }
 
