@@ -1959,7 +1959,7 @@ async function run({
             3000
         );
         // The frame's surface is the window grown by its shadow.
-        const SHADOW = 32;
+        const SHADOW = 48;
         check(
             "a mod's web window is a window on the desktop, its page under the title bar the shell draws, with its site",
             webAt &&
