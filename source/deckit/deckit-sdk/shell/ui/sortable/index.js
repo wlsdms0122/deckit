@@ -1,5 +1,4 @@
 import * as TOKEN from '../token/index.js';
-import * as MOTION from '../motion/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as GESTURE from '../gesture/index.js';
 import * as LIST from '../list/index.js';
@@ -69,11 +68,8 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     const keptDisplay = carried.map((child) => child.style.display);
     const putAway = (away) =>
         carried.forEach((child, index) => (child.style.display = away ? 'none' : keptDisplay[index]));
-    carried.forEach((child) => MOTION.finish(child));
     putAway(true);
-    const rows = [...list.children].filter(
-        (child) => child.getClientRects().length && !child.hasAttribute(LIST.LEAVING)
-    );
+    const rows = [...list.children].filter((child) => child.getClientRects().length);
     const from = rows.indexOf(row);
     // A lone row has nowhere in the list to go, and is lifted only to be carried out of it.
     const described = describe?.(key) || null;
@@ -81,8 +77,6 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         putAway(false);
         return null;
     }
-    // A row still unfolding is taken at its own size.
-    rows.forEach((child) => MOTION.finish(child));
     // Places are read once, as they stood at the lift; a scroll since is added to the pointer instead.
     const boxes = rows.map((child) => child.getBoundingClientRect());
     const held = boxes[from];

@@ -1,99 +1,56 @@
 import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
-// What a fold sets inline, as the element had it before: put back once the fold is over.
-const FOLDED = ['transition', 'overflow', 'opacity', 'pointerEvents'];
-const folding = new Map(); // element -> { inline, timer, then }: a fold under way
+const folding = new Map(); // box -> { timer, then }: a fold under way
+// How long a fold takes for each px it opens or closes by, within the base and slow lengths.
+const MS_PER_PX = 2;
 
 // MARK: - Initializer
 // MARK: - Public
-// A transition from `from` to `to`. The start is read back before the end is written, or both land in one style
-// pass and nothing transitions; a frame in between is not enough.
-function play(element, from, to) {
-    Object.assign(element.style, from);
-    void element.offsetHeight;
-    Object.assign(element.style, to);
+// Opens or closes `box`, a grid of one item, along its rows: the item grows from nothing to its height or folds away
+// to nothing, longer the taller it is, and fades as it goes. `then` runs once it is over. A fold under way is turned
+// back from where it stands.
+function fold(box, open, then = null) {
+    const item = box.firstElementChild;
+    const running = folding.get(box);
+    if (running) clearTimeout(running.timer);
+    const { move, fade, easing } = TOKEN.MOTION;
+    const height = item?.scrollHeight ?? 0;
+    const length = move.fast && Math.min(move.slow, Math.max(move.base, height * MS_PER_PX));
+    if (!length || !height) {
+        settle(box);
+        return then?.();
+    }
+    Object.assign(item.style, { minHeight: '0', overflow: 'hidden' });
+    const shut = { gridTemplateRows: '0fr', opacity: '0' };
+    const shown = { gridTemplateRows: '1fr', opacity: '1' };
+    // The start is read back before the end is written, or both land in one style pass and nothing transitions.
+    if (!running) {
+        Object.assign(box.style, open ? shut : shown, { transition: 'none' });
+        void box.offsetHeight;
+    }
+    const transition = `grid-template-rows ${length}ms ${easing}, opacity ${fade}ms ${easing}`;
+    Object.assign(box.style, open ? shown : shut, { transition });
+    const timer = setTimeout(() => {
+        settle(box);
+        then?.();
+    }, length);
+    folding.set(box, { timer, then });
 }
 
-// Folds `element` away along an axis, to nothing, and runs `then` once it has. `across` folds its width rather
-// than its height. A fold under way is taken over from where it stands.
-function collapse(element, { across = false } = {}, then = null) {
-    const axis = axisOf(across);
-    const from = element.getBoundingClientRect()[axis.size];
-    const opacity = getComputedStyle(element).opacity;
-    settle(element);
-    const length = TOKEN.MOTION.move.fast;
-    if (!length || !from) return then?.();
-    fold(element, axis, length, then, {
-        from: { [axis.size]: from + 'px', opacity },
-        to: { [axis.size]: '0px', opacity: '0', [axis.start]: '0', [axis.end]: '0' },
-    });
-}
-
-// Unfolds `element` along an axis from nothing to its own size and opacity: the reverse of `collapse`, from
-// where a fold under way stands.
-function expand(element, { across = false } = {}) {
-    const axis = axisOf(across);
-    const running = folding.has(element);
-    const from = running ? element.getBoundingClientRect()[axis.size] : 0;
-    const opacity = running ? getComputedStyle(element).opacity : '0';
-    settle(element);
-    const length = TOKEN.MOTION.move.fast;
-    const to = element.getBoundingClientRect()[axis.size];
-    if (!length || !to) return;
-    const style = getComputedStyle(element);
-    fold(element, axis, length, null, {
-        from: { [axis.size]: from + 'px', opacity, [axis.start]: '0', [axis.end]: '0' },
-        to: {
-            [axis.size]: to + 'px',
-            opacity: style.opacity,
-            [axis.start]: style[axis.start],
-            [axis.end]: style[axis.end],
-        },
-    });
-}
-
-// A fold under way ends at once, as it would have: its `then` runs.
-function finish(element) {
-    const then = folding.get(element)?.then;
-    settle(element);
-    then?.();
+// Fades `element` in, as a row that joins a list does.
+function appear(element) {
+    element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TOKEN.MOTION.fade, easing: TOKEN.MOTION.easing });
 }
 
 // MARK: - Private
-function axisOf(across) {
-    return across
-        ? { size: 'width', minSize: 'minWidth', start: 'marginLeft', end: 'marginRight' }
-        : { size: 'height', minSize: 'minHeight', start: 'marginTop', end: 'marginBottom' };
+// A fold stops, its `then` not run, and the box and its item are as they were before it.
+function settle(box) {
+    const running = folding.get(box);
+    if (running) clearTimeout(running.timer);
+    folding.delete(box);
+    Object.assign(box.style, { transition: '', gridTemplateRows: '', opacity: '' });
+    if (box.firstElementChild) Object.assign(box.firstElementChild.style, { minHeight: '', overflow: '' });
 }
 
-function fold(element, axis, length, then, { from, to }) {
-    const names = [...FOLDED, axis.size, axis.minSize, axis.start, axis.end];
-    const inline = Object.fromEntries(names.map((name) => [name, element.style[name]]));
-    play(
-        element,
-        { ...from, transition: 'none', [axis.minSize]: '0', overflow: 'hidden', pointerEvents: 'none' },
-        {
-            ...to,
-            transition: [axis.size, 'opacity', 'margin']
-                .map((property) => `${property} ${length}ms ${TOKEN.MOTION.easing}`)
-                .join(', '),
-        }
-    );
-    const timer = setTimeout(() => {
-        settle(element);
-        then?.();
-    }, length);
-    folding.set(element, { inline, timer, then });
-}
-
-// A fold under way stops, its `then` not run, and the element's inline style is put back as it was before it.
-function settle(element) {
-    const running = folding.get(element);
-    if (!running) return;
-    clearTimeout(running.timer);
-    folding.delete(element);
-    Object.assign(element.style, running.inline);
-}
-
-export { play, collapse, expand, finish };
+export { fold, appear };

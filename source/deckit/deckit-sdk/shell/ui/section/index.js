@@ -52,7 +52,8 @@ const STYLE = `
     .deckit-section[data-collapsed] .deckit-section-caret { transform: rotate(-90deg); color: var(--deckit-disabled); }
     .deckit-section[data-collapsed] .deckit-section-icon { color: var(--deckit-disabled); }
     .deckit-section[data-collapsed] .deckit-section-label { color: var(--deckit-muted); }
-    .deckit-section-body { display: flex; flex-direction: column; flex: 0 0 auto; }
+    .deckit-section-fold { display: grid; grid-template-columns: minmax(0, 1fr); flex: 0 0 auto; }
+    .deckit-section-body { display: flex; flex-direction: column; }
     .deckit-section[data-foldable] .deckit-section-body { padding-left: 18px; }
     .deckit-section-body[hidden] { display: none; }
     .deckit-breadcrumb {
@@ -153,19 +154,19 @@ function section(
         return button;
     });
     const body = tag('div', 'deckit-section-body');
+    const box = tag('div', 'deckit-section-fold');
+    box.append(body);
     let folded = !!collapsed;
-    // The body unfolds and folds away as a list's rows come and go.
+    // The body unfolds and folds away along its height.
     const fold = (animate) => {
         element.toggleAttribute('data-collapsed', folded);
         if (foldable) heading.setAttribute('aria-expanded', String(!folded));
-        if (!folded) {
-            body.hidden = false;
-            if (animate) MOTION.expand(body);
-        } else if (animate) MOTION.collapse(body, {}, () => (body.hidden = true));
-        else body.hidden = true;
+        if (!folded) body.hidden = false;
+        if (animate) MOTION.fold(box, !folded, () => (body.hidden = folded));
+        else body.hidden = folded;
     };
     fold(false);
-    element.append(head, body);
+    element.append(head, box);
     return {
         element,
         body,

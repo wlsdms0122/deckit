@@ -1,8 +1,6 @@
 import * as MOTION from '../motion/index.js';
 
 // MARK: - Property
-// The mark of a row folding away: it is still drawn, but no longer one of the list's items.
-const LEAVING = 'data-deckit-leaving';
 const waiting = new Map(); // list element -> the change it waits to apply
 
 // MARK: - Initializer
@@ -10,7 +8,7 @@ const waiting = new Map(); // list element -> the change it waits to apply
 // A list drawn from items by key: the same key keeps the same element, so what the pointer rests on, what has
 // the focus and what plays stay put. `create(item)` makes an element; a kept one is given to `update(element,
 // item)` when there is one, or made again when its item changed. A key names one item. With `animated`, a row
-// added once the list has shown items unfolds along the list's axis, and a removed one folds away. While
+// added once the list has shown items fades in; a removed one leaves at once, and the rows after it close up. While
 // something in or around the list is held (dragged, renamed) a new set of items waits, and the last one is drawn
 // when it is let go.
 function list({ element = document.createElement('div'), key, create, update = null, animated = false }) {
@@ -42,18 +40,13 @@ function list({ element = document.createElement('div'), key, create, update = n
         for (const [name, entry] of kept) entries.set(name, entry);
         let cursor = element.firstChild;
         for (const node of order) {
-            while (cursor && cursor.hasAttribute?.(LEAVING)) cursor = cursor.nextSibling;
             if (cursor === node) cursor = cursor.nextSibling;
             else element.insertBefore(node, cursor);
         }
-        if (animated && shown) for (const node of added) MOTION.expand(node, { across: across(element) });
+        if (animated && shown) for (const node of added) MOTION.appear(node);
         shown ||= items.length > 0;
     };
-    const remove = (node) => {
-        if (!animated) return node.remove();
-        node.setAttribute(LEAVING, '');
-        MOTION.collapse(node, { across: across(element) }, () => node.remove());
-    };
+    const remove = (node) => node.remove();
     return {
         element,
         set: (items) => {
@@ -121,4 +114,4 @@ function same(left, right) {
     return keys.length === Object.keys(right).length && keys.every((name) => Object.is(left[name], right[name]));
 }
 
-export { list, hold, heldWhile, across, LEAVING };
+export { list, hold, heldWhile, across };
