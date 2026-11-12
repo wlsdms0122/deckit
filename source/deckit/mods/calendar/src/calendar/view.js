@@ -88,13 +88,15 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     });
 
     const RELOAD = ui.icon('reload', { size: 15 });
+    // Under this bar width the view switch is a pop-up button, so the title keeps its room.
+    const NARROW = 560;
     const head = document.createElement('div');
     head.style.borderBottom = 'var(--deckit-border)';
     ui.titleBar(head);
     const title = document.createElement('div');
     title.className = 'deckit-title-bar-title';
-    title.style.padding = '0 4px';
-    // The status takes only the room left, so it gives way before the title does.
+    Object.assign(title.style, { flex: '0 0 auto', padding: '0 4px' });
+    // The status takes only the room left and is all that gives way: a date is never cut.
     const status = document.createElement('span');
     Object.assign(status.style, {
         flex: '1 1 0',
@@ -111,6 +113,11 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         value: mode,
         onChange: (key) => setMode(key),
     });
+    const modeSelect = ui.select({
+        options: MODES.map(([value, label]) => ({ value, label })),
+        value: mode,
+        onChange: (key) => setMode(key),
+    });
     const reloadButton = ui.iconButton({ icon: RELOAD, title: 'Refresh', onClick: () => calendar.read(true) });
     let spinning = false;
     head.append(
@@ -124,8 +131,15 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         status,
         reloadButton.element,
         ui.button({ label: 'Today', title: 'Jump to today', onClick: () => goTo(new Date()) }).element,
-        modeBar.element
+        modeBar.element,
+        modeSelect.element
     );
+    modeSelect.element.style.display = 'none';
+    new ResizeObserver(() => {
+        const narrow = head.clientWidth < NARROW;
+        modeBar.element.style.display = narrow ? 'none' : '';
+        modeSelect.element.style.display = narrow ? '' : 'none';
+    }).observe(head);
 
     const body = document.createElement('div');
     Object.assign(body.style, {
@@ -289,6 +303,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         const loading = reads.isLoading();
         title.textContent = titleOf(mode, cursor);
         modeBar.set(mode);
+        modeSelect.set(mode);
         showSpinner(loading);
         status.textContent = statusText(loading);
 
