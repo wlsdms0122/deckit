@@ -446,7 +446,7 @@ async function run({
             const style = document.documentElement.style;
             return [document.documentElement.hasAttribute('data-deckit-title-bar'), style.getPropertyValue('--deckit-title-bar-area-height'), style.getPropertyValue('--deckit-title-bar-area-x')].join(' ');
         })()`);
-        check("a window's content is told where its buttons stand over its top", guide === 'true 38px 78px', guide);
+        check("a window's content is told where its buttons stand over its top", guide === 'true 48px 78px', guide);
         const notesKept = path.join(home, 'data', 'note');
         const notesMade = await until(() => fs.existsSync(notesKept), 3000);
         check("a main process module keeps what it keeps in its mod's data folder", notesMade, notesKept);
@@ -1970,7 +1970,7 @@ async function run({
             webAt &&
                 shownIn &&
                 shownIn.content.rect.x === shownIn.frame.rect.x + SHADOW &&
-                shownIn.content.rect.y === shownIn.frame.rect.y + SHADOW + 38 &&
+                shownIn.content.rect.y === shownIn.frame.rect.y + SHADOW + 48 &&
                 webTitle === 'Example Domain (example.com)',
             `${await mark(webUser, 'at')} ${webTitle} ${JSON.stringify(shownIn)}`
         );

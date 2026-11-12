@@ -1,7 +1,7 @@
 import * as SCROLL from '../scroll/index.js';
 
 // MARK: - Property
-// A title bar's height, in px: its contents centre on the window's buttons where they lie over it.
+// A title bar's height, in px, the window's title bar's: its contents centre on the window's buttons over it.
 const TITLE_BAR = 48;
 // The focus ring every part draws, at no weight, so a part or a view that draws its own keeps it: outside the edge, or
 // inside it for what is typed into.
@@ -39,7 +39,6 @@ const STYLE = `
     [data-deckit-title-bar] .deckit-title-bar {
         --app-region: drag;
         min-height: max(${TITLE_BAR}px, var(--deckit-title-bar-area-height));
-        padding-bottom: max(0px, ${TITLE_BAR}px - var(--deckit-title-bar-area-height));
     }
     .deckit-title-bar-title {
         flex: 0 1 auto;

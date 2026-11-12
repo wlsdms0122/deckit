@@ -356,7 +356,7 @@ function windowsOver(createWindows) {
             shown: true,
             key: window.id === desktop.key,
             ...window.size,
-            titleBar: { height: 38, controlsWidth: 78 },
+            titleBar: { height: 48, controlsWidth: 78 },
         }),
         onChange: (listener) => changes.push(listener),
     };

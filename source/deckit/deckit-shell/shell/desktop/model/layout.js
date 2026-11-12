@@ -2,12 +2,13 @@ import * as DOCK from '../../dock/model/dock.js';
 
 // MARK: - Property
 // A window's frame: the margin its shadow takes around it, the band outside its edge that resizes it, the rounding of
-// its corners, and its title bar, where the window's buttons stand at its top left: `controlsWidth` the width they
-// take from its start.
+// its corners, and its title bar, where the window's buttons stand at its top left, centred on its height:
+// `controlsWidth` the width they take from its start. The height is the kit's title bar's, so what a content lays in
+// it is centred on the buttons.
 const SHADOW = 32;
 const EDGE = 6;
 const RADIUS = 16;
-const TITLE_BAR = Object.freeze({ height: 38, controlsWidth: 78 });
+const TITLE_BAR = Object.freeze({ height: 48, controlsWidth: 78 });
 // The buttons in the title bar: close, minimize and zoom, their size, the room between them and their inset.
 const BUTTONS = Object.freeze(['close', 'minimize', 'zoom']);
 const BUTTON = Object.freeze({ size: 12, gap: 8, inset: 13 });
