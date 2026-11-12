@@ -63,8 +63,8 @@ function watch(each) {
     });
 }
 
-// Presents over the page: `element` (optional) on a layer of its own, placed by `anchor`, `rect`, `point` or `beside`,
-// with the focus and the keyboard the page has.
+// Presents over the page: `element` (optional) on a layer of its own, placed by `anchor`, `rect`, `point` or `beside`
+// (`fit` as PLACE.place has it), with the focus and the keyboard the page has.
 // - A press outside it and what it hangs from dismisses it, then the next one down, until one holds the press. A
 //   `modal` one holds every press.
 // - A key goes to `onKey` first; one it does not take (it returns falsy) that is Escape dismisses it.
@@ -80,6 +80,7 @@ function present({
     point = null,
     beside = null,
     gap = 4,
+    fit = false,
     modal = false,
     transient = false,
     contains = () => false,
@@ -97,7 +98,8 @@ function present({
             !!element?.contains(target) || !!anchor?.contains(target) || !!beside?.contains(target) || contains(target),
         onKey,
         dismiss: () => onDismiss(),
-        place: () => (anchor || rect || point || beside) && PLACE.place(element, { anchor, rect, point, beside, gap }),
+        place: () =>
+            (anchor || rect || point || beside) && PLACE.place(element, { anchor, rect, point, beside, gap, fit }),
         close: () => close(presented, keyed ? null : speed),
     };
     stack.push(presented);

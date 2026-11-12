@@ -8,8 +8,8 @@ const STYLE = `
     .deckit-menu {
         position: fixed;
         box-sizing: border-box;
-        max-height: 320px;
         overflow-y: auto;
+        overscroll-behavior: contain;
         padding: 4px;
         border-radius: var(--deckit-radius-large);
         background: var(--deckit-elevated);
@@ -231,7 +231,7 @@ function autocomplete({ onPick, over = null }) {
     let items = [];
     let open = false;
     const list = LISTBOX.listbox(box, { onPick: (index) => pick(index) });
-    const place = (rect) => open && rect && PLACE.place(box, { rect, gap: 6 });
+    const place = (rect) => open && rect && PLACE.place(box, { rect, gap: 6, fit: true });
     const close = () => {
         open = false;
         items = [];
@@ -358,11 +358,13 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
         anchor,
         point,
         beside,
+        fit: true,
         transient: true,
         onKey,
         onDismiss: close,
     });
     list.set(options, { active: options[active]?.disabled ? -1 : active });
+    options[active]?.element.scrollIntoView({ block: 'nearest' });
     stopFaces = wearFaces(box, options);
     // A menu that grows once placed (its rows wear their faces) is placed again, so it stays clear of the edges.
     // In a frame of its own: a place that changes its size again is not one more turn of the same observation.
