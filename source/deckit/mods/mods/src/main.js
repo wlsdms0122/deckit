@@ -144,7 +144,9 @@ class Mods {
                 return empty.set({
                     title: 'Could not list the mods',
                     hint: error.message,
-                    actions: [ui.button({ label: 'Try Again', size: 'small', onClick: draw }).element],
+                    actions: [
+                        ui.button({ label: 'Try Again', size: 'small', variant: 'primary', onClick: draw }).element,
+                    ],
                 });
             }
             if (now !== asked) return;
@@ -156,7 +158,12 @@ class Mods {
             const mods = shown();
             grid.replaceChildren(...mods.map(itemOf));
             none.hidden = mods.length > 0;
-            const settings = ui.button({ label: 'Open Settings', size: 'small', onClick: () => open('settings') });
+            const settings = ui.button({
+                label: 'Open Settings',
+                size: 'small',
+                variant: 'primary',
+                onClick: () => open('settings'),
+            });
             empty.set({
                 title: query ? `No mod named “${query}”` : 'No mods to open',
                 hint: 'Install a mod in Settings.',
