@@ -13,8 +13,8 @@ function downloadList({ ui, downloads, reveal }) {
         .browser-downloads-button[hidden] { display: none; }
         .browser-downloads-button[data-active] { color: var(--deckit-accent); }
         .browser-downloads { display: flex; flex-direction: column; gap: 6px; width: 320px; }
-        .browser-downloads-heading { display: flex; align-items: center; justify-content: space-between; }
-        .browser-downloads-title { font: var(--deckit-type-heading); }
+        .browser-downloads-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
+        .browser-downloads-title { font: 600 var(--deckit-type-body); }
         .browser-download { min-height: 44px; }
         .browser-download-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
         .browser-download-name { overflow: hidden; text-overflow: ellipsis; }
@@ -132,7 +132,7 @@ function downloadList({ ui, downloads, reveal }) {
             });
         if (state === 'finished')
             return ui.rowAction({
-                icon: ui.icon('search', { size: ICON_SIZE }),
+                icon: ui.icon('folder', { size: ICON_SIZE }),
                 title: 'Show in Folder',
                 onClick: () => reveal(path),
             });
