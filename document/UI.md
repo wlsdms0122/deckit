@@ -118,7 +118,7 @@ Floats are placed by their caller and stay in the page, where the keyboard stays
 ## Everything else
 
 - `emptyState({ icon, title, hint, actions })` returns `{ element, set({ title, hint, actions }) }`.
-- `spinner({ size })` and `loading({ text })` return `{ element }`.
+- `spinner({ size })` returns `{ element }`. `loading({ text })` returns `{ element, settled() }`: it shows only once the load has taken 200ms, and `settled()` answers once it may be taken away, at once if it never showed or once it has shown 400ms, so it never flashes.
 - `icon(name, { size, fill, color, stroke })`: one of the kit's icons (Lucide), as SVG markup. A name it does not have throws. `iconOf(shapes, { size, fill, color, stroke })` draws shapes of the mod's own in the same frame. `sanitizeIcon(svg)` is an icon another mod gave, as an `<svg>` element rebuilt from its shapes alone, so nothing in the text runs, loads or styles the page, and no bigger than 24 by 24, its shape kept: what a mod draws of another's icon goes through it.
 - `element(tag, { className, style, text })`.
 - `edgeFade(element, { size })`, `pressable(element)`, `selectable(element)`, `titleBar(element)` are decorators: the edges of what scrolls fade, something pressed is washed and ringed, text can be selected, and a bar along the top of the view lies in the window's title bar area (MOD.md, `shell.view.register`): at least as tall as it, clear of the window's buttons, and dragging the window wherever nothing in it is pressed. Buttons, fields, links and anything with a `tabindex` in it take presses; another control there marks itself `--app-region: no-drag`.

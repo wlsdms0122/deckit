@@ -24,6 +24,9 @@ const STYLE = `
 .deckit-loading-text { color: var(--deckit-muted); }
     `;
 const TURN_MS = 750;
+// A load shorter than WAIT_MS shows nothing; one that shows stays at least STAY_MS, so it never flashes.
+const WAIT_MS = 200;
+const STAY_MS = 400;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -45,6 +48,8 @@ function spinner({ size = 14 } = {}) {
     return { element: made };
 }
 
+// Shows once the load has taken WAIT_MS. `settled()` answers once it may go: at once if it has not shown, or once it
+// has shown STAY_MS.
 function loading({ text = '' } = {}) {
     const box = document.createElement('div');
     box.className = 'deckit-loading';
@@ -55,7 +60,18 @@ function loading({ text = '' } = {}) {
         words.textContent = text;
         box.append(words);
     }
-    return { element: box };
+    const made = performance.now();
+    box.animate([{ opacity: 0 }, { opacity: 1 }], {
+        delay: WAIT_MS,
+        duration: TOKEN.MOTION.fade,
+        fill: 'backwards',
+    });
+    const settled = () => {
+        const shown = performance.now() - made - WAIT_MS;
+        const left = shown <= 0 ? 0 : STAY_MS - shown;
+        return new Promise((resolve) => (left > 0 ? setTimeout(resolve, left) : resolve()));
+    };
+    return { element: box, settled };
 }
 
 export { STYLE, make };
