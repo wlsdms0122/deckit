@@ -1,36 +1,19 @@
 const VIEW_MODEL = require('./view-model.js');
 
 // MARK: - Property
-// How each tone looks on a row of the Now strip: its mark, its glyph, the row's wash and the colour it breathes
-// when it asks for attention. Only `alert` tints the row and `info` has no colour, so a colour still means
-// something.
+// How each tone looks on a row of the Now strip: its glyph, the row's wash and the colour it breathes when it asks for
+// attention. Only `alert` tints the row and `info` has no colour, so a colour still means something.
 const TONE_LOOK = {
-    info: {
-        mark: 'rgba(128,128,128,.45)',
-        glyph: '',
-        wash: '',
-        attention: 'rgba(128,128,128,.9)',
-        peak: 'rgba(128,128,128,.26)',
-    },
-    ok: {
-        mark: 'var(--deckit-ok)',
-        glyph: 'var(--deckit-ok-ink)',
-        wash: '',
-        attention: '',
-        peak: 'color-mix(in srgb, var(--deckit-ok) 20%, transparent)',
-    },
+    info: { glyph: '', wash: '', peak: 'var(--deckit-selected)' },
+    ok: { glyph: 'var(--deckit-ok-ink)', wash: '', peak: 'color-mix(in srgb, var(--deckit-ok) 20%, transparent)' },
     warn: {
-        mark: 'var(--deckit-warn)',
         glyph: 'var(--deckit-warn-ink)',
         wash: '',
-        attention: '',
         peak: 'color-mix(in srgb, var(--deckit-warn) 20%, transparent)',
     },
     alert: {
-        mark: 'var(--deckit-alert)',
         glyph: 'var(--deckit-alert-ink)',
         wash: 'color-mix(in srgb, var(--deckit-alert) 10%, transparent)',
-        attention: '',
         peak: 'color-mix(in srgb, var(--deckit-alert) 24%, transparent)',
     },
 };
@@ -53,7 +36,7 @@ const STYLE =
         margin-bottom: 4px;
         padding: 9px 11px;
         border-radius: var(--deckit-radius-large);
-        background: var(--switcher-wash, rgba(128, 128, 128, 0.1));
+        background: var(--switcher-wash, var(--deckit-fill));
     }
     .switcher-row[data-active],
     .switcher-row[data-lead][data-active] { background: var(--deckit-selected); }
@@ -68,16 +51,9 @@ const STYLE =
         opacity: 0.8;
     }
     .switcher-row[data-lead] .switcher-glyph { width: 22px; height: 22px; opacity: 0.75; }
-    .switcher-mark {
-        flex: 0 0 auto;
-        align-self: stretch;
-        width: 3px;
-        border-radius: 2px;
-        background: var(--switcher-mark);
-    }
     .switcher-stack { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
     .switcher-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .switcher-label b { font-weight: 800; }
+    .switcher-label b { font-weight: 600; }
     .switcher-row[data-lead] .switcher-label { font: 600 var(--deckit-type-large); }
     .switcher-hint {
         flex: 0 0 auto;
@@ -85,23 +61,23 @@ const STYLE =
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        opacity: 0.45;
+        color: var(--deckit-muted);
         font: var(--deckit-type-small);
     }
-    .switcher-row[data-lead] .switcher-hint { max-width: none; opacity: 0.6; }
+    .switcher-row[data-lead] .switcher-hint { max-width: none; }
     .switcher-status {
         display: flex;
         flex: 0 0 auto;
         margin-left: 10px;
-        opacity: 0.55;
+        color: var(--deckit-muted);
     }
-    .switcher-status[data-status='done'] { color: var(--deckit-ok-ink); opacity: 1; }
-    .switcher-status[data-status='failed'] { color: var(--deckit-alert-ink); opacity: 1; }
+    .switcher-status[data-status='done'] { color: var(--deckit-ok-ink); }
+    .switcher-status[data-status='failed'] { color: var(--deckit-alert-ink); }
     .switcher-number {
         display: none;
         flex: 0 0 auto;
         margin-left: 10px;
-        opacity: 0.55;
+        color: var(--deckit-muted);
         font: var(--deckit-type-small);
         font-variant-numeric: tabular-nums;
     }
@@ -116,10 +92,8 @@ const STYLE =
     }
     .switcher-heading {
         padding: 12px 12px 4px;
-        opacity: 0.45;
-        font: 700 var(--deckit-type-caption);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-label);
     }
     .switcher-heading[data-kind='group'] { padding: 8px 12px 3px; }
     .switcher-heading[data-kind='section'] {
@@ -129,10 +103,6 @@ const STYLE =
         margin-top: 6px;
         padding: 10px 12px 4px;
         border-top: var(--deckit-border);
-        opacity: 0.55;
-        font: 600 var(--deckit-type-small);
-        letter-spacing: normal;
-        text-transform: none;
     }
     .switcher-heading[data-first] { margin-top: 0; padding: 4px 12px 4px; border-top: 0; }
     .switcher-heading svg { width: 13px; height: 13px; }
@@ -141,10 +111,9 @@ const STYLE =
         .map(([tone, look]) => {
             const row = `.switcher-row[data-tone='${tone}']`;
             return `
-            ${row} { --switcher-mark: ${look.mark}; --switcher-peak: ${look.peak}; }
+            ${row} { --switcher-peak: ${look.peak}; }
             ${look.wash ? `${row} { --switcher-wash: ${look.wash}; }` : ''}
             ${look.glyph ? `${row} .switcher-glyph { color: ${look.glyph}; opacity: 1; }` : ''}
-            ${look.attention ? `${row}[data-attention] { --switcher-mark: ${look.attention}; }` : ''}
         `;
         })
         .join('');
@@ -286,7 +255,7 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
     if (item.lead) {
         const stack = element('div', 'switcher-stack');
         stack.append(label, note);
-        made.replaceChildren(element('span', 'switcher-mark'), glyph, stack);
+        made.replaceChildren(glyph, stack);
         // Its own layer behind the text: the row's background is the active wash's.
         if (item.attention && theme.motion.move.fast) {
             const glow = element('span', 'switcher-glow');
