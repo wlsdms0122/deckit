@@ -18,6 +18,8 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         warn: 'var(--deckit-warn)',
         alert: 'var(--deckit-alert)',
         idle: `color-mix(in srgb, var(--deckit-text) 45%, var(--deckit-background))`,
+        // Not running, and not because it failed.
+        off: 'var(--deckit-disabled)',
     };
     // A tone as text, where it is read.
     const INK = {
@@ -129,6 +131,8 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     };
 
     const tree = document.createElement('div');
+    // Rows in the shape of the table while the first answer is on its way.
+    let skeleton = null;
 
     const rows = new Map();
 
@@ -203,7 +207,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             gridTemplateColumns: 'subgrid',
             alignItems: 'center',
             padding: '0 8px',
-            minHeight: '32px',
+            minHeight: '36px',
             borderRadius: 'var(--deckit-radius-control)',
             ...extra,
         });
@@ -375,17 +379,19 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     const load = async () => {
         const mine = ++generation;
         const asked = session;
+        let entry, next;
         try {
-            const entry = await forge.session(asked);
-            const next = await snapshot(entry);
-            if (mine !== generation) return;
-            picker.told(entry);
-            state = { ...next, loading: false };
+            entry = await forge.session(asked);
+            next = { ...(await snapshot(entry)), loading: false };
         } catch (error) {
-            if (mine !== generation) return;
-            picker.told({ name: asked, up: false, authority: false });
-            state = { ...state, error: String(error?.message || error), loading: false };
+            entry = { name: asked, up: false, authority: false };
+            next = { ...state, error: String(error?.message || error), loading: false };
         }
+        // A skeleton that showed stays its least, so it does not flash.
+        await skeleton?.settled();
+        if (mine !== generation) return;
+        picker.told(entry);
+        state = next;
         render();
     };
 
@@ -438,6 +444,16 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             );
         else tell();
 
+        tree.style.display = loading ? 'none' : 'grid';
+        if (loading && !skeleton) {
+            skeleton = ui.loading.skeleton({ rows: 3, height: 36 });
+            body.insertBefore(skeleton.element, tree);
+        }
+        empty.style.display = 'none';
+        if (loading) return;
+        skeleton?.element.remove();
+        skeleton = null;
+
         if (!tree.firstChild) tree.appendChild(headerRow());
 
         const wanted = [{ key: 'forge', indent: false }];
@@ -462,34 +478,32 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         }
 
         rows.get('forge').update({
-            tone: loading ? 'idle' : up ? 'ok' : 'alert',
+            tone: up ? 'ok' : error ? 'alert' : 'off',
             name: 'forge',
-            state: loading ? 'checking' : up ? 'running' : 'stopped',
+            state: up ? 'running' : 'stopped',
             pid: daemon?.pid,
             uptime: up ? since(daemon.started_at) : '',
             chips: up && !authority ? [chip('started elsewhere', 'warn')] : [],
-            signature: loading ? 'loading' : `${up}|${authority}|${controls.stop}`,
+            signature: `${up}|${authority}|${controls.stop}`,
             actions: () =>
-                loading
-                    ? []
-                    : up
-                      ? [
-                            button(
-                                'reload',
-                                authority
-                                    ? 'Restart forge: the services it supervises come with it'
-                                    : 'Restart: launching it from here puts it under control from here',
-                                () => act((forge) => forge.restart()),
-                                controls.restart
-                            ),
-                            button(
-                                'square',
-                                'Stop forge: the services it supervises go down with it',
-                                () => act((forge) => forge.stop()),
-                                controls.stop
-                            ),
-                        ]
-                      : [button('play', 'Start forge', () => act((forge) => forge.start()), controls.start)],
+                up
+                    ? [
+                          button(
+                              'reload',
+                              authority
+                                  ? 'Restart forge: the services it supervises come with it'
+                                  : 'Restart: launching it from here puts it under control from here',
+                              () => act((forge) => forge.restart()),
+                              controls.restart
+                          ),
+                          button(
+                              'square',
+                              'Stop forge: the services it supervises go down with it',
+                              () => act((forge) => forge.stop()),
+                              controls.stop
+                          ),
+                      ]
+                    : [button('play', 'Start forge', () => act((forge) => forge.start()), controls.start)],
         });
 
         empty.style.display = up && authority && state.services && !services.length ? 'block' : 'none';
@@ -505,7 +519,9 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
                     : 'ok'
                 : service.state === 'backoff'
                   ? 'warn'
-                  : 'alert';
+                  : service.state === 'failed'
+                    ? 'alert'
+                    : 'off';
 
             const chips = [];
             if (running && expectsHandler)
