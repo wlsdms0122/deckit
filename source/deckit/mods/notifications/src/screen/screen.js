@@ -27,14 +27,6 @@ const STYLE = `
         color: var(--deckit-text);
         font: var(--deckit-type-body);
     }
-    .notifications-head {
-        display: flex;
-        flex: 0 0 auto;
-        align-items: center;
-        justify-content: space-between;
-        min-height: 24px;
-        font: 600 var(--deckit-type-large);
-    }
     .notifications-card {
         position: relative;
         display: flex;
@@ -47,6 +39,14 @@ const STYLE = `
         background: var(--deckit-elevated);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         cursor: default;
+    }
+    /* The head and the empty record on a card too: the window has nothing behind its words but the desktop. */
+    .notifications-head {
+        align-items: center;
+        justify-content: space-between;
+        min-height: 44px;
+        padding: 8px 8px 8px 12px;
+        font: 600 var(--deckit-type-large);
     }
     .notifications-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
     .notifications-title-row { display: flex; align-items: baseline; gap: 8px; min-height: 20px; }
@@ -73,7 +73,6 @@ const STYLE = `
     }
     .notifications-actions { display: flex; gap: 6px; margin-top: 4px; }
     .notifications-close { position: absolute; top: 6px; right: 6px; }
-    /* On a card, as a notification would be: the window has nothing behind its words but the desktop. */
     .notifications-empty { padding-right: 12px; flex-direction: column; gap: 2px; color: var(--deckit-muted); }
     .notifications-empty-hint { font: var(--deckit-type-small); }
 `;
@@ -193,7 +192,7 @@ function screen(shell, center) {
             content.replaceChildren(...[...toasts.values()].map(({ notification }) => toastCard(notification)));
             return;
         }
-        const head = element('div', 'notifications-head', 'Notifications');
+        const head = element('div', 'notifications-card notifications-head', 'Notifications');
         const notifications = center.list();
         if (notifications.length) head.append(button('Clear All', () => center.clear()));
         const rows = notifications.map((notification) => card(notification, { meta: true }));
