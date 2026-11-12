@@ -111,7 +111,7 @@ A post to `deckit/notifications` (MOD.md, Standard interfaces) tells the person 
 
 - The title is what it is about (the event, the site), and the body is the rest.
 - Its `token` runs a command of the mod's that brings it to the front at what it is about.
-- The result of what the person just did where they are looking is shown there, in the view or on the switcher's row. What has no place of its own in the view to stay (a mod removed, a change that did not apply) is a `ui.toast`.
+- The result of what the person just did where they are looking is shown there, in the view or on the switcher's row. A failure is said where its result has a place, in `alert` on the row it is about (a setting that did not apply, a mod that did not restart), until the next try. What has no place of its own in the view to stay (a mod removed, a folder that holds no mod) is a `ui.toast`, a failure one (`kind: 'failure'`) with its one action.
 
 ## Keys
 
