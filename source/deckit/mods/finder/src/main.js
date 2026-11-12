@@ -54,7 +54,7 @@ class Finder {
     }
 
     async attach(shell, deckit, { mainProcess }) {
-        const { theme, ui } = shell;
+        const { ui } = shell;
         const { storage } = deckit;
         const { values, records } = storage;
         const about = deckit.about();
@@ -192,7 +192,6 @@ class Finder {
         });
         const bar = toolbar({
             ui,
-            theme,
             chordOf: (name) => keys.chordOf(name),
             tildify,
             homeLocation: () => home,
@@ -578,10 +577,9 @@ class Finder {
 
         function toggleFavorite() {
             const location = tabs.location();
-            if (!location) return false;
+            if (!location) return;
             if (favorites.has(location)) favorites.remove(location);
             else favorites.add(location);
-            return true;
         }
 
         function drawStar() {

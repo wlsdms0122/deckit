@@ -1,11 +1,10 @@
 const { nameOf, parentOf } = require('../path/path.js');
 
 // The bar over the files: back, forward and the enclosing folder, the path, the favorite star, the view menu and the
-// filter. A press reports what it asks for; the caller sets what the bar shows. `onToggleFavorite()` answers whether
-// it did, and the star then pulses.
+// filter. A press reports what it asks for; the caller sets what the bar shows, the star in the accent while the
+// folder is a favorite.
 function toolbar({
     ui,
-    theme,
     chordOf,
     tildify,
     homeLocation,
@@ -23,7 +22,6 @@ function toolbar({
         { key: 'columns', label: 'As Columns', icon: 'columns', action: 'columnView' },
         { key: 'list', label: 'As List', icon: 'list', action: 'listView' },
     ];
-    const STAR_PULSE_DURATION = 220; // milliseconds
     const STYLE = `
         .finder-breadcrumb { margin: 0 6px; }
         .finder-toolbar .finder-view-button { width: auto; padding: 0 5px; }
@@ -125,6 +123,7 @@ function toolbar({
 
     function setFavorite(on) {
         star.setIcon(starIcon(on));
+        star.setPressed(on);
         star.element.title = on ? 'Remove from Favorites' : 'Add to Favorites';
     }
 
@@ -132,14 +131,6 @@ function toolbar({
         view = next;
         const icon = ui.icon(VIEWS.find((each) => each.key === view).icon, { size: 16 });
         viewButton.setIcon(`<span class="finder-view-icon">${icon}${ui.icon('chevronDown', { size: 10 })}</span>`);
-    }
-
-    function toggleFavorite() {
-        if (!onToggleFavorite() || !theme.motion.move.fast) return;
-        star.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
-            duration: STAR_PULSE_DURATION,
-            easing: theme.motion.easing,
-        });
     }
 
     function showViews() {

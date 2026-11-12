@@ -1,8 +1,8 @@
 // The Browser's downloads (`web.downloads`): a button at the toolbar's end, there once anything was downloaded,
 // that opens them newest first. A row is a file and how far it got, and a press on a finished one opens it in its
 // app. Its action stops one under way, shows a finished one where it lies (`reveal`, the shell's), or forgets one
-// that did not finish; Clear forgets every one that ended. The button bounces as a download starts.
-function downloadList({ theme, ui, downloads, reveal }) {
+// that did not finish; Clear forgets every one that ended. The button is in the accent while a download runs.
+function downloadList({ ui, downloads, reveal }) {
     const ICON_SIZE = 16;
     const MAX_ROWS = 8;
     const UNITS = ['bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -57,7 +57,6 @@ function downloadList({ theme, ui, downloads, reveal }) {
     function changed(download) {
         const known = items.some(({ id }) => id === download.id);
         items = known ? items.map((item) => (item.id === download.id ? download : item)) : [download, ...items];
-        if (!known) bounce();
         draw();
     }
 
@@ -160,14 +159,6 @@ function downloadList({ theme, ui, downloads, reveal }) {
             unit++;
         }
         return unit ? `${value.toFixed(value < 10 ? 1 : 0)} ${UNITS[unit]}` : `${value} ${UNITS[0]}`;
-    }
-
-    function bounce() {
-        if (!theme.motion.move.fast) return;
-        button.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
-            duration: 220,
-            easing: theme.motion.easing,
-        });
     }
 }
 

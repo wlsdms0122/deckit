@@ -5,7 +5,7 @@ const { START } = require('../tabs/tab-list.js');
 // The window's title bar, as the Browser's toolbar: Back and Forward, the field of the tab in front, and `trailing` at
 // its end. The field holds the site's icon, which opens its permissions, the site, and Reload and the bookmark star of
 // the page. A press on the site edits the address. `onBookmark()` is a press on the star.
-function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
+function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
     const ICON_SIZE = 16;
 
     let shownTab = null;
@@ -115,6 +115,7 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
         site.disabled = !isWeb(tab.url);
         place.textContent = placeOf(tab.url);
         star.setIcon(starIcon(bookmarked));
+        star.setPressed(bookmarked);
     }
 
     function edit() {
@@ -130,13 +131,7 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
     }
 
     function bookmark() {
-        if (!shownTab) return;
-        onBookmark();
-        if (!theme.motion.move.fast) return;
-        star.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
-            duration: 220,
-            easing: theme.motion.easing,
-        });
+        if (shownTab) onBookmark();
     }
 
     function starIcon(on) {
