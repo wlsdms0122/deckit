@@ -75,6 +75,11 @@ const ALLOWED = [
     },
     { file: 'mods/browser/src/sidebar/outline.js', selector: /^\(code\)$/, why: 'the colours a folder takes' },
     { file: 'mods/editor/src/file-type/file-type.js', selector: /^\(code\)$/, why: "each file type's colour" },
+    {
+        file: 'deckit-shell/shell/desktop/frame.js',
+        selector: /^\.deckit-window-button\b/,
+        why: "a window's buttons, each in the colour of its own the system draws it in, whatever the look",
+    },
 ].map((allow) => ({ rule: 'colour-literal', ...allow }));
 // A spinner turns at a pace of its own for as long as it shows: a loop, not a change that a length of motion times.
 ALLOWED.push({ file: 'deckit-sdk/shell/ui/loading/index.js', selector: /^\(inline\)$/, rule: 'duration-literal' });

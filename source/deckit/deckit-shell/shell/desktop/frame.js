@@ -72,19 +72,36 @@ const STYLE = `
     .deckit-window-button {
         position: fixed;
         top: ${(TITLE_BAR.height - BUTTON.size) / 2}px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: ${BUTTON.size}px;
         height: ${BUTTON.size}px;
         padding: 0;
         border: 0;
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-disabled);
+        box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+        color: rgba(0, 0, 0, 0.5);
     }
-    [data-key] > .deckit-window-button[data-button='close'], .deckit-window-buttons:hover > [data-button='close'] { background: var(--deckit-alert); }
-    [data-key] > .deckit-window-button[data-button='minimize'], .deckit-window-buttons:hover > [data-button='minimize'] { background: var(--deckit-warn); }
-    [data-key] > .deckit-window-button[data-button='zoom'], .deckit-window-buttons:hover > [data-button='zoom'] { background: var(--deckit-ok); }
+    .deckit-window-button[data-button='close'] { --deckit-window-light: #ff5f57; }
+    .deckit-window-button[data-button='minimize'] { --deckit-window-light: #febc2e; }
+    .deckit-window-button[data-button='zoom'] { --deckit-window-light: #28c840; }
+    [data-key] > .deckit-window-button, .deckit-window-buttons:hover > .deckit-window-button {
+        background: var(--deckit-window-light);
+    }
+    .deckit-window-button:active { filter: brightness(0.85); }
+    .deckit-window-button svg { width: 8px; height: 8px; opacity: 0; }
+    .deckit-window-buttons:hover .deckit-window-button svg, .deckit-window-button:focus-visible svg { opacity: 1; }
     .deckit-window-buttons { position: fixed; inset: 0; }
 `;
 const LABELS = Object.freeze({ close: 'Close', minimize: 'Minimize', zoom: 'Zoom' });
+// The glyph each button shows while the pointer is over them.
+const GLYPHS = Object.freeze({
+    close: 'M2 2l4 4M6 2L2 6',
+    minimize: 'M1.5 4h5',
+    zoom: 'M4 1.5v5M1.5 4h5',
+});
 const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right']);
 
 // MARK: - Initializer
@@ -179,6 +196,9 @@ function boot(theme, channels) {
             button.title = LABELS[name];
             button.setAttribute('aria-label', LABELS[name]);
             button.style.left = BUTTON.inset + at * (BUTTON.size + BUTTON.gap) + 'px';
+            button.innerHTML =
+                '<svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">' +
+                `<path d="${GLYPHS[name]}"/></svg>`;
             button.addEventListener('click', () => PROTOCOL.button.send({ id, button: name }));
             buttons.append(button);
         });
