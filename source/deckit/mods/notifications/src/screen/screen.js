@@ -1,35 +1,60 @@
 // The notifications on screen, in the mod's overlay window, open while it shows any: the toasts `center` lets out,
-// stacked and each gone after a time, which leave the keyboard where it is, and on `showList()` the record, newest
-// first, to press, remove or clear, until the keyboard leaves it. A press on a toast, a row or an action is the
-// center's.
+// stacked, each as tall as what it holds, which leave the keyboard where it is, and on `showList()` the record,
+// newest first, to press, remove or clear, until the keyboard leaves it. A toast with actions stays until one is
+// pressed or it is closed; any other leaves after a time. A press on a toast, a row or an action is the center's.
 const WIDTH = 360;
-const TOAST_HEIGHT = 76;
 const GAP = 8;
 const LIST_HEIGHT = 440;
-// How long a toast stays.
+// What a toast is drawn in at most, its title, two lines of body and a row of actions: the window's height for each
+// until they are measured.
+const TOAST_MOST = 112;
+// How long a toast with no actions stays.
 const STAYS = 6000;
 
+// The app's own type, not the reading font: a toast is part of the app, not a page.
 const STYLE = `
-    .notifications { font: var(--deckit-text-size, 13px) / 1.35 var(--deckit-text-font, system-ui); color: inherit;
-        display: flex; flex-direction: column; gap: ${GAP}px; padding: ${GAP}px; box-sizing: border-box;
-        overflow-y: auto; height: 100%; }
+    .notifications {
+        display: flex;
+        flex-direction: column;
+        gap: ${GAP}px;
+        box-sizing: border-box;
+        height: 100%;
+        padding: ${GAP}px;
+        overflow-y: auto;
+        color: var(--deckit-text);
+        font: var(--deckit-type-body);
+    }
     .notifications-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; }
-    .notifications-card { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 10px 28px 10px
-        12px; border-radius: 10px; border: 1px solid var(--deckit-border, rgba(127, 127, 127, 0.3)); cursor: default;
-        flex: 0 0 auto; box-sizing: border-box; }
-    .notifications-toast { height: ${TOAST_HEIGHT}px; overflow: hidden; }
-    .notifications-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .notifications-body { color: var(--deckit-muted, inherit); overflow: hidden; text-overflow: ellipsis;
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .notifications-meta { color: var(--deckit-muted, inherit); font-size: 11px; }
+    .notifications-card {
+        position: relative;
+        display: flex;
+        flex: 0 0 auto;
+        flex-direction: column;
+        gap: 2px;
+        box-sizing: border-box;
+        padding: 10px 36px 10px 12px;
+        border-radius: var(--deckit-radius-large);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim);
+        cursor: default;
+    }
+    .notifications-title { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .notifications-body {
+        display: -webkit-box;
+        overflow: hidden;
+        color: var(--deckit-muted);
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+    .notifications-meta { color: var(--deckit-muted); font: var(--deckit-type-caption); }
     .notifications-actions { display: flex; gap: 6px; margin-top: 4px; }
-    .notifications-close { position: absolute; top: 6px; right: 6px; border: 0; background: none; color: inherit;
-        opacity: 0.6; cursor: default; }
-    .notifications-empty { color: var(--deckit-muted, inherit); text-align: center; margin-top: 24px; }
+    .notifications-close { position: absolute; top: 6px; right: 6px; }
+    .notifications-empty { margin-top: 24px; color: var(--deckit-muted); text-align: center; }
 `;
 
 function screen(shell, center) {
     // MARK: - Property
+    const { ui } = shell;
     const content = document.createElement('div');
     content.className = 'notifications';
     shell.ui.addStyle(STYLE);
@@ -59,7 +84,7 @@ function screen(shell, center) {
 
     // MARK: - Private
     function showToast(notification) {
-        const timer = setTimeout(() => hideToast(notification.id), STAYS);
+        const timer = notification.actions.length ? 0 : setTimeout(() => hideToast(notification.id), STAYS);
         toasts.set(notification.id, { notification, timer });
         if (face === 'toasts') toToasts();
     }
@@ -82,8 +107,19 @@ function screen(shell, center) {
             window = null;
             return;
         }
-        if (window) window.resize(WIDTH, heightOf(toasts.size));
-        else open(heightOf(toasts.size), { activates: false });
+        if (!window) open(toasts.size * TOAST_MOST + (toasts.size + 1) * GAP, { activates: false });
+        fit();
+    }
+
+    // The window as tall as the toasts it shows, once they are laid out in it.
+    function fit() {
+        const view = content.ownerDocument.defaultView;
+        view.requestAnimationFrame(() => {
+            if (face !== 'toasts' || !window || !content.isConnected) return;
+            const cards = [...content.children];
+            const height = cards.reduce((sum, card) => sum + card.getBoundingClientRect().height, 0);
+            window.resize(WIDTH, Math.ceil(height + (cards.length + 1) * GAP));
+        });
     }
 
     // The window opened `height` tall, taking the keyboard unless `activates` is false. One closed where the screen did
@@ -120,9 +156,7 @@ function screen(shell, center) {
     }
 
     function toastCard(notification) {
-        const made = card(notification, { meta: false });
-        made.classList.add('notifications-toast');
-        return made;
+        return card(notification, { meta: false });
     }
 
     // A press on the card runs what it names; its close button takes a toast off the screen, and a row out of the
@@ -139,22 +173,22 @@ function screen(shell, center) {
             );
             made.append(actions);
         }
-        const close = button('×', () =>
-            face === 'list' ? center.remove(notification.id) : hideToast(notification.id)
-        );
-        close.className = 'notifications-close';
-        close.title = face === 'list' ? 'Remove' : 'Close';
+        const close = ui.iconButton({
+            icon: ui.icon('x', { size: 14 }),
+            title: face === 'list' ? 'Remove' : 'Close',
+            size: 'small',
+            onClick: () => (face === 'list' ? center.remove(notification.id) : hideToast(notification.id)),
+        }).element;
+        close.classList.add('notifications-close');
+        close.addEventListener('click', (event) => event.stopPropagation());
         made.append(close);
         made.addEventListener('click', () => center.press(notification.id));
         return made;
     }
 
-    function button(text, pressed) {
-        const made = element('button', '', text);
-        made.addEventListener('click', (event) => {
-            event.stopPropagation();
-            pressed();
-        });
+    function button(label, pressed) {
+        const made = ui.button({ label, size: 'small', onClick: pressed }).element;
+        made.addEventListener('click', (event) => event.stopPropagation());
         return made;
     }
 
@@ -166,10 +200,6 @@ function screen(shell, center) {
     }
 
     return Object.freeze({ showList, end });
-}
-
-function heightOf(count) {
-    return count * TOAST_HEIGHT + (count + 1) * GAP;
 }
 
 function when(notification) {
