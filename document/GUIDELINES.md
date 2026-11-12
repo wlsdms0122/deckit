@@ -16,6 +16,7 @@ A person meets a mod through its window, its actions in the switcher, its keys, 
 | Something due now | the switcher's `now`, and a notification when the person may be elsewhere |
 | A choice set once that holds from then on | a setting (`[[contributes."deckit/configuration"]]`). One switched while working is a control in the window |
 | A view shown inside another mod's | a region of that mod (`parent`, MOD.md, `shell.region`) |
+| Something to glance at or reach from anywhere in the app (the time, a state, the way to a list) | an item in the status bar (The status bar) |
 
 ## Checklist
 
@@ -115,6 +116,17 @@ A post to `deckit/notifications` (MOD.md, Standard interfaces) tells the person 
 - The title is what it is about (the event, the site), and the body is the rest.
 - Its `token` runs a command of the mod's that brings it to the front at what it is about.
 - The result of what the person just did where they are looking is shown there, in the view or on the switcher's row. A failure is said where its result has a place, in `alert` on the row it is about (a setting that did not apply, a mod that did not restart), until the next try. What has no place of its own in the view to stay (a mod removed, a folder that holds no mod) is a `ui.toast`, a failure one (`kind: 'failure'`) with its one action.
+
+## The status bar
+
+A mod joins the status bar, the capsule at the top right of the app, by naming its interface as its view's parent: its view is then an item there, in the mods' order, and the bar launches the mod to show it. The view draws the item with `ui.barItem`, a 16px glyph by default; a wider one, as text, tells its width with `setWidth` once connected ([README](../source/deckit/mods/status-bar/README.md)). An item takes a press only where it does something, and what it opens comes up in a window of the mod's.
+
+```toml
+view = { parent = "status-bar/items" }
+
+[interfaces]
+uses = { "status-bar/items" = 1 }
+```
 
 ## Keys
 
