@@ -23,12 +23,21 @@ const STYLE = `
     }
     .deckit-button:hover { background: var(--deckit-hover); }
     .deckit-button:active { background: var(--deckit-pressed); }
-    .deckit-button:disabled { background: transparent; color: var(--deckit-disabled); cursor: default; }
+    .deckit-button:is(:disabled, [aria-disabled='true']) {
+        background: transparent;
+        color: var(--deckit-disabled);
+        cursor: default;
+    }
     .deckit-icon-button { width: 32px; height: 32px; border-radius: var(--deckit-radius-medium); }
     .deckit-icon-button[data-size='small'] { width: 24px; height: 24px; border-radius: var(--deckit-radius-control); }
     .deckit-icon-button[data-muted]:not(:hover) { color: var(--deckit-muted); }
     .deckit-icon-button[aria-pressed='true'] { color: var(--deckit-accent); }
-    .deckit-text-button { height: 32px; padding: 0 12px; border: var(--deckit-border); border-radius: var(--deckit-radius-medium); }
+    .deckit-text-button {
+        height: 32px;
+        padding: 0 12px;
+        border: var(--deckit-border);
+        border-radius: var(--deckit-radius-medium);
+    }
     .deckit-text-button[data-size='small'] {
         height: 24px;
         padding: 0 9px;
@@ -46,7 +55,10 @@ const STYLE = `
     }
     .deckit-text-button[data-variant]:hover { filter: brightness(1.1); }
     .deckit-text-button[data-variant]:active { filter: brightness(0.92); }
-    .deckit-text-button[data-variant]:disabled { background: var(--deckit-disabled); filter: none; }
+    .deckit-text-button[data-variant]:is(:disabled, [aria-disabled='true']) {
+        background: var(--deckit-disabled);
+        filter: none;
+    }
     .deckit-row-action {
         width: 24px;
         height: 24px;
@@ -100,10 +112,13 @@ const STYLE = `
         height: 20px;
         border-radius: var(--deckit-radius-round);
     }
-    .deckit-toggle,
-    .deckit-toggle:hover,
-    .deckit-toggle:active { background: var(--deckit-disabled); }
+    .deckit-toggle { background: var(--deckit-pressed); }
+    .deckit-toggle:hover { background: linear-gradient(var(--deckit-hover) 0 0), var(--deckit-pressed); }
+    .deckit-toggle:active { background: linear-gradient(var(--deckit-pressed) 0 0), var(--deckit-pressed); }
     .deckit-toggle[aria-checked='true'] { background: var(--deckit-accent-fill); }
+    .deckit-toggle[aria-checked='true']:hover { filter: brightness(1.1); }
+    .deckit-toggle[aria-checked='true']:active { filter: brightness(0.92); }
+    .deckit-toggle[aria-disabled='true'] { opacity: 0.45; filter: none; }
     .deckit-toggle-knob {
         position: absolute;
         top: 2px;
@@ -111,7 +126,7 @@ const STYLE = `
         width: 16px;
         height: 16px;
         border-radius: var(--deckit-radius-round);
-        background: #fff;
+        background: var(--deckit-on-accent);
         box-shadow: var(--deckit-shadow-control);
         transition: transform var(--deckit-move-fast) var(--deckit-easing-move);
     }
@@ -130,11 +145,11 @@ function iconButton({ icon, title, size = 'medium', muted = false, onClick }) {
     const element = buttonOf('deckit-icon-button', title, size);
     element.innerHTML = icon;
     element.toggleAttribute('data-muted', muted);
-    element.addEventListener('click', onClick);
+    element.addEventListener('click', unlessDisabled(element, onClick));
     return {
         element,
         setPressed: (on) => element.setAttribute('aria-pressed', String(!!on)),
-        setEnabled: (on) => (element.disabled = !on),
+        setEnabled: (on) => setEnabled(element, on),
         setIcon: (next) => (element.innerHTML = next),
     };
 }
@@ -146,11 +161,11 @@ function button({ label, title = '', icon = '', size = 'medium', variant = 'plai
     if (icon) element.insertAdjacentHTML('afterbegin', icon);
     element.append(text);
     if (variant !== 'plain') element.dataset.variant = variant;
-    element.addEventListener('click', onClick);
+    element.addEventListener('click', unlessDisabled(element, onClick));
     return {
         element,
         setLabel: (next) => (text.textContent = next),
-        setEnabled: (on) => (element.disabled = !on),
+        setEnabled: (on) => setEnabled(element, on),
     };
 }
 
@@ -271,6 +286,16 @@ function tooltip(element, { text, chord = () => '' }) {
     write();
     element.addEventListener('pointerenter', write);
     return () => element.removeEventListener('pointerenter', write);
+}
+
+// A button turned off keeps the pointer and its tooltip, and its presses do nothing.
+function setEnabled(element, on) {
+    if (on) element.removeAttribute('aria-disabled');
+    else element.setAttribute('aria-disabled', 'true');
+}
+
+function unlessDisabled(element, onClick) {
+    return (event) => element.getAttribute('aria-disabled') !== 'true' && onClick?.(event);
 }
 
 function buttonOf(kind, title, size) {
