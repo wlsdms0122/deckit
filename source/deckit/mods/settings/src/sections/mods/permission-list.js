@@ -53,6 +53,7 @@ const PERMISSION_ICONS = {
     'system.clipboard-write': 'copy',
     'system.file-handlers': 'externalWindow',
     'system.overlay-windows': 'dockWindow',
+    'deckit.panel-windows': 'panelTop',
     'system.notifications': 'bell',
     'system.global-keys': 'monitor',
     'deckit.mods': 'puzzle',
