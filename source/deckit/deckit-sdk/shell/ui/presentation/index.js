@@ -220,18 +220,22 @@ function placeAgain() {
     for (const presented of stack) if (presented.element) presented.place();
 }
 
-function dismissTransient() {
-    for (const presented of [...stack].reverse()) if (presented.transient) presented.dismiss();
+// Those of `among` still presented, all of it unless given.
+function dismissTransient(among = [...stack]) {
+    for (const presented of [...stack].reverse())
+        if (presented.transient && among.includes(presented)) presented.dismiss();
 }
 
-// After a frame of the window that lost the keyboard.
+// After a frame of the window that lost the keyboard, what was presented as it lost it. An overlay taken off the
+// screen draws its next frame once it is laid again, for what is presented then.
 function unfocused({ currentTarget: view }) {
-    view.requestAnimationFrame(() => setTimeout(dismissUnfocused));
+    const presented = [...stack];
+    view.requestAnimationFrame(() => setTimeout(() => dismissUnfocused(presented)));
 }
 
 // Once none of the page's documents has the keyboard: it went to another page or another app.
-function dismissUnfocused() {
-    if (!LAYER.windows().some(({ document }) => document.hasFocus())) dismissTransient();
+function dismissUnfocused(presented) {
+    if (!LAYER.windows().some(({ document }) => document.hasFocus())) dismissTransient(presented);
 }
 
 export { STYLE, start, watch, present, top, count, escape };
