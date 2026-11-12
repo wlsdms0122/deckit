@@ -508,11 +508,12 @@ async function run({
         // Running: each mod that runs, a background one said so; then each background mod with its reason. A run
         // that is running says no state of its own under the Running card.
         const [running, background] = activityText.split(/\nIn the background\n/);
+        const runRows = running.split(/\nRunning\n/)[1] || '';
         check(
             'Activity lists the running mods, the background ones said so, and the background mods with why',
-            /Switcher\s+In the background/.test(running) &&
-                /\bEditor\b/.test(running) &&
-                !/\bRunning\b/.test(running.split('\n').slice(2).join('\n')) &&
+            /Switcher\s+In the background/.test(runRows) &&
+                /\bEditor\b/.test(runRows) &&
+                !/\bRunning\b/.test(runRows) &&
                 /Notifications\s+Takes the notifications mods send/.test(background || ''),
             activityText.slice(0, 600)
         );
