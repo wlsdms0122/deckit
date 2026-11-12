@@ -13,18 +13,8 @@ import * as DECLARED from './protocol.js';
 // titled window at its top, the edges that resize it just outside it, as model/layout.js partsOf has them.
 const { SHADOW, EDGE, RADIUS, BUTTON, TITLE_BAR } = LAYOUT;
 const STYLE = `
-    .deckit-desktop-strip {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-        --app-region: drag;
-    }
-    .deckit-desktop-title {
+    .deckit-desktop-strip { position: fixed; top: 0; left: 0; right: 0; --app-region: drag; }
+    .deckit-window-title-text {
         overflow: hidden;
         color: var(--deckit-muted);
         font: var(--deckit-type-body);
@@ -108,8 +98,8 @@ const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-
 // MARK: - Public
 // The desktop, in the desktop's own page: the backdrop under every window, and each window's frame under its content
 // and its buttons over it, each a document this page opens beside itself and main lays where the window is. The page
-// itself is laid over the whole desktop, with the Dock at its left edge and the host window's bar at its top, which
-// drags the host window and holds the active mod's name, clear of the host's controls. It takes the pointer only there,
+// itself is laid over the whole desktop, with the Dock at its left edge and the host window's bar at its top, an empty
+// strip that drags the host window, its controls in it, the backdrop showing through. It takes the pointer only there,
 // or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the desktop's
 // and the Dock's channels in the page.
 function boot(theme, channels) {
@@ -126,8 +116,6 @@ function boot(theme, channels) {
 
     const dock = DOCK.make({ ui, channels, onOut: (out) => PROTOCOL.dock.send({ out }) });
     const strip = element(document, 'div', 'deckit-desktop-strip');
-    const title = element(document, 'span', 'deckit-desktop-title');
-    strip.append(title);
     const down = element(document, 'div', 'deckit-desktop-down');
     const downNote = ui.emptyState({
         actions: [
@@ -146,8 +134,6 @@ function boot(theme, channels) {
 
     function draw() {
         strip.style.height = state.strip.height + 'px';
-        strip.style.padding = `0 ${state.strip.controlsWidth}px`;
-        title.textContent = state.title;
         dock.setTop(state.strip.height);
         dock.update(state.dock);
         down.hidden = !state.down;
@@ -175,7 +161,7 @@ function boot(theme, channels) {
         const frame = surface(PAGE.frameOf(id));
         const material = element(frame.document, 'div', 'deckit-window-material');
         const bar = element(frame.document, 'div', 'deckit-window-title');
-        const text = element(frame.document, 'span', 'deckit-desktop-title');
+        const text = element(frame.document, 'span', 'deckit-window-title-text');
         bar.append(text);
         bar.addEventListener('pointerdown', (down) => move(id, bar, down));
         const edges = EDGES.map((edge) => {

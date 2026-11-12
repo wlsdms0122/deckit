@@ -144,9 +144,8 @@ async function run({
         desktop: () => desktop,
     });
     const asksAttention = async (id) => !!(await dockNow()).find((item) => item.id === id)?.attention;
-    // What the strip over the desktop holds.
-    const stripTitle = () =>
-        desktop.evaluate(`document.querySelector('.deckit-desktop-strip .deckit-desktop-title')?.textContent`);
+    // What the strip over the desktop holds: nothing but the host's controls.
+    const stripText = () => desktop.evaluate(`document.querySelector('.deckit-desktop-strip')?.textContent ?? null`);
     // The host's stage, bottom to top, `{ id, url, name, opener, rect }` each; and whether the window probe's main
     // process module finds the window its page is shown in.
     const stackNow = async () =>
@@ -214,11 +213,10 @@ async function run({
         JSON.stringify(dockedAtStart)
     );
     const windowsAtLaunch = await windowsNow();
-    const keyAtLaunch = windowsAtLaunch.find(({ key }) => key)?.mod ?? 'deckit';
     check(
-        "the desktop starts with the windows of the apps that run, its strip holding the key one's name",
-        windowsAtLaunch.every(({ mod }) => runsAtStart(mod)) && (await stripTitle())?.toLowerCase() === keyAtLaunch,
-        JSON.stringify({ windows: windowsAtLaunch.map(({ mod }) => mod), title: await stripTitle() })
+        'the desktop starts with the windows of the apps that run, its strip an empty bar that drags the window',
+        windowsAtLaunch.every(({ mod }) => runsAtStart(mod)) && (await stripText()) === '',
+        JSON.stringify({ windows: windowsAtLaunch.map(({ mod }) => mod), strip: await stripText() })
     );
     // The Dock slides out as the pointer comes to its sliver at the desktop's edge, the only part of the desktop's page
     // that takes the pointer there, and its item is pressed as a person presses it.
@@ -316,15 +314,11 @@ async function run({
         check('editor view up', editorPage && editor);
         const windowsAtStart = await windowsNow();
         check(
-            "the Editor's window is in front as the key window, and the strip holds its name",
+            "the Editor's window is in front as the key window",
             windowsAtStart.at(-1)?.mod === 'editor' &&
                 windowsAtStart.filter(({ key }) => key).length === 1 &&
-                windowsAtStart.at(-1).key &&
-                (await stripTitle()) === 'Editor',
-            JSON.stringify({
-                windows: windowsAtStart.map(({ mod, key }) => mod + (key ? ' key' : '')),
-                title: await stripTitle(),
-            })
+                windowsAtStart.at(-1).key,
+            JSON.stringify(windowsAtStart.map(({ mod, key }) => mod + (key ? ' key' : '')))
         );
         const dock = await dockNow();
         const ids = dock.map(({ id }) => id);
@@ -366,7 +360,7 @@ async function run({
         const finderFront = await windowsNow();
         check(
             'picking Finder in the Dock brings its window front as the key window',
-            finderFront.at(-1)?.mod === 'finder' && finderFront.at(-1).key && (await stripTitle()) === 'Finder',
+            finderFront.at(-1)?.mod === 'finder' && finderFront.at(-1).key,
             JSON.stringify(finderFront.map(({ mod, key }) => mod + (key ? ' key' : '')))
         );
         check(
@@ -1765,13 +1759,13 @@ async function run({
                 return first?.key && first;
             }, 4000);
             check(
-                "a click on a mod's Dock item brings its window front as the key window, the strip holding its mod's " +
-                    'name, and puts its mark for attention away',
+                "a click on a mod's Dock item brings its window front as the key window and puts its mark for " +
+                    'attention away',
                 one?.id === opened?.id &&
                     (await windowsNow()).at(-1)?.mod === 'window-user' &&
-                    (await stripTitle()) === 'Window User' &&
+                    (await keyMod()) === 'window-user' &&
                     !(await asksAttention('window-user')),
-                JSON.stringify({ one, title: await stripTitle(), dock: await dockNow() })
+                JSON.stringify({ one, dock: await dockNow() })
             );
             check(
                 "a mod's window opens at the size it gives",
@@ -1934,7 +1928,7 @@ async function run({
             }, 5000);
             check(
                 'a file the active mod opens brings the window of the mod that opens it front as the key window',
-                probeKey === PROBE && fileFront && (await stripTitle()) === 'Editor',
+                probeKey === PROBE && fileFront && (await keyMod()) === 'editor',
                 JSON.stringify({
                     before: probeKey,
                     opened: await mark(services, 'opened'),

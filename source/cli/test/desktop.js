@@ -349,7 +349,7 @@ async function main() {
     );
     check(
         "the keyboard and the host's title are the key window's",
-        desk.focused.at(-1)?.name === 'content-3' && desk.titles.at(-1) === 'B' && desk.page().title === 'B',
+        desk.focused.at(-1)?.name === 'content-3' && desk.titles.at(-1) === 'B' && !('title' in desk.page()),
         { focused: desk.focused.at(-1), titles: desk.titles }
     );
     check(
