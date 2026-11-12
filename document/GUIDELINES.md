@@ -144,8 +144,27 @@ Draw with the kit and its tokens (UI.md, The theme). A new theme or new fonts ch
 - **Text the person reads and writes** (a note, a file, a message being written) is in `--deckit-text-font` at `--deckit-text-size`, or `--deckit-mono` for code. A page's text is in them too where nothing chooses another. The UI around it stays on the type scale.
 - **Colour:** `text`, `muted` for what is secondary, `disabled`, never a lowered opacity on text; `fill` for fields; `hover`, `pressed` and `selected` for state; `accentFill` under `onAccent` for the one thing to press and for what is on, `accent` for text and glyphs in it; `ok`, `warn` and `alert` for status only, as dots and washes, and `okInk`, `warnInk` and `alertInk` for status as text or a glyph; `elevated` for what floats, edged by `--deckit-rim` under `--deckit-shadow-float` and no border. A colour of the content's own (a calendar's, a file type's) is data, with `ui.onColor` for the text over it.
 - **Radius:** `--deckit-radius-*`: `control` for rows and `small` controls, `medium` for `medium` controls and the sidebar's card, `large` for a menu and a popover, `card` for a dialog's card and a toast, `round` for fields and pills. An inner corner is the outer one less the room between them.
-- **Icons:** `ui.icon`, 16px in the title bar and section headers, 15px in rows, 13px beside text in a line.
+- **Icons:** `ui.icon`, 16px in the title bar and section headers, 15px in rows, 13px beside text in a line. These are glyphs, for actions and places; a mod is drawn with its app icon (App icons, below).
 - **Motion:** `--deckit-fade` for what fades or changes colour (hover, press, a fade in), `--deckit-move-fast`, `--deckit-move-base` and `--deckit-move-slow` for what moves or changes size, by how far, never a length written out. `--deckit-easing` for what comes and goes, `--deckit-easing-move` for what moves on screen (a sidebar, an indicator). An animation in code reads `theme.motion`: `move` is 0 with reduced motion, `fade` keeps its length. What a key opens or toggles comes and goes at once.
+
+## App icons
+
+Two kinds of icon, by role. An **app icon** names a mod: full colour, on a tile, drawn as an image with `ui.appIcon`. A **glyph** names an action or a place inside a mod: the kit's line set, `currentColor`. An app icon never stands on a button, and a glyph never stands in for a mod.
+
+- **The file:** an SVG in the mod's folder, named by the manifest's `icon` (MOD.md), `viewBox="0 0 128 128"`, at most 32 KB. One file serves every size and look: there is no dark variant.
+- **The grid:** a tile 112 by 112 at an inset of 8, corner radius 26, one hue, about 6 percent lighter at the top than at the bottom. No shadow outside the tile: the surface lays `shadow.icon` at 32px and up. The symbol sits in the middle 72 by 72, one silhouette that reads at 16px, no line under 8 units (1px at 16). A light tile carries a faint dark edge, and a dark one a faint light edge, so it holds on a ground of its own tone.
+- **No text** in the file (a font that is not there changes it), nothing it would load, and no purple-to-blue gradient or glow.
+- **Sizes:** the token's `appIcon`, one per role.
+
+| Size | Where |
+|---|---|
+| `small` 16 | a menu or a chip that names a mod, a sidebar heading |
+| `row` 20 | a row of the switcher or of Settings, a notification |
+| `lead` 32 | the switcher's top match |
+| `dock` 40 | the Dock |
+| `grid` 56 | the Mods launcher |
+
+A mod without an icon, or with one the shell cannot draw, is drawn with the default icon, a grey tile with a cube.
 
 ## Words
 

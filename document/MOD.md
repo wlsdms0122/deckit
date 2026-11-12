@@ -25,7 +25,7 @@ version = "1.0.0"
 api = "1.0.0"
 main = "dist/main.js"
 background = "Shows the boards' alerts as they come."
-icon = "<svg viewBox='0 0 24 24' …>…</svg>"
+icon = "icon.svg"
 keywords = ["boards", "alerts"]
 
 [interfaces]
@@ -58,7 +58,7 @@ The layers on the host app add fields of their own, which deck carries and does 
 | Field | What it says |
 |---|---|
 | `activationPolicy` | `"accessory"` for a mod the Dock never shows; any other value, or none, is `regular`, an app mod |
-| `icon` | an inline SVG string, about 18px, single-quoted attributes, which the shell draws rebuilt from its shapes |
+| `icon` | the path of the mod's app icon in its folder, an SVG file with a square `viewBox`, at most 32 KB (GUIDELINES.md, App icons). It is drawn as an image, so what it would run or load does nothing. A value that names no such file reads as none, and a mod with none is drawn with the default icon |
 | `keywords` | other words the mod is matched by beside its name |
 | `view` | `{ parent = "<interface>" }`: the interface, one in its `uses`, whose owner's regions show the mod's view (`shell.region`, below) |
 | `styles` | `{ "<mod id>" or "*" = a CSS file inside the folder }`, worn as `shell.styles.register`'s are, from the time the mod is installed, running or not, with `deckit.styles` |
@@ -359,7 +359,7 @@ Every member is on the handle of every mod, whatever it is granted. A member is 
 | `children` | `list(interface)`, a request, resolves to `[{ id, name, icon }]` of the mods whose view names that interface as its `parent`, while this mod owns it, and that run or are launching again, each from its first launch, in the mods' order, refused `INVALID_ARGUMENT` for an interface the mod does not provide; `onChange(listener)`, `listener(interface, children)` each time an interface's children change, which returns its off and throws `INVALID_ARGUMENT` for a listener that is no function |
 | `web` | `page({ session, url })`, `window({ session, url, title })` (below) |
 | `fonts` | `set(fonts)`, a request `deckit.fonts` guards: `fonts` the fonts whole, any of `{ text, size }`, a face's name for `text` and a whole size from 11 to 22 px, each left out for its default; it resolves to the fonts as kept, and is refused `INVALID_ARGUMENT` for a face or size it does not take. Every page's `theme` wears the person's fonts (`textFont`, `textSize`) |
-| `mods` | requests `deckit.mods` guards: `list()` resolves to every app mod in the Dock's order, `[{ id, name, icon, keywords, pinned, running }]`, `pinned` whether the person keeps it in the Dock and `running` whether it runs; `pinned()` to the ids of the mods the person keeps in the Dock; `setPinned(id, pinned)` keeps an app there or takes it out; and `open(id)` opens an app as the Dock opens it: launched when it does not run, its windows brought forward when it does, or its `reopen()` with none open. `setPinned` and `open` are refused `INVALID_ARGUMENT` for a mod that is no app |
+| `mods` | requests `deckit.mods` guards: `list()` resolves to every app mod in the Dock's order, `[{ id, name, icon, keywords, pinned, running }]`, `icon` the text of its icon file or `""`, `icon(id)` to the icon of any mod, app or not, the same way, `pinned` whether the person keeps it in the Dock and `running` whether it runs; `pinned()` to the ids of the mods the person keeps in the Dock; `setPinned(id, pinned)` keeps an app there or takes it out; and `open(id)` opens an app as the Dock opens it: launched when it does not run, its windows brought forward when it does, or its `reopen()` with none open. `setPinned` and `open` are refused `INVALID_ARGUMENT` for a mod that is no app |
 | `keys` | `take(keystroke, run, { scope })`, a request, a chord taken for the mod, `keystroke` `{ code, meta, control, alt, shift }`, in `scope` `app`, the default, with `deckit.app-keys`, or `global` with `system.global-keys`, `run()` what each press does; it resolves to `{ held, release }`, `held` false for a chord the system did not give, which works in the app still, and the chord is let go as `attach`'s run ends. `record(onKeystroke)` answers at once its stop and hands over each key pressed in the page until then, and throws `INVALID_ARGUMENT` for no function. `list()`, `set(id, keystroke)` and `reset(id)` of the shell's own keys are requests `deckit.shell-keys` guards: `set` and `reset` resolve to the key as kept, and are refused `INVALID_ARGUMENT` for an id that is none of the shell's keys, `REFUSED` for a chord another of them has |
 | `active()` | a request: resolves to whether the app is in front, one of its pages has the keyboard |
 | `dialogs` | `chooseFolders({ multiple, title, message })`, which asks the person for folders in a dialog titled `title` and saying `message`, and resolves to the absolute paths of those they chose, one unless `multiple`, none when they chose none |
