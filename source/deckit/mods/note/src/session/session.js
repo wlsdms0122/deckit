@@ -107,7 +107,14 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
     };
     const STYLE = `
         .note-session { display: contents; }
-        .note-header { flex: 0 0 auto; width: 100%; box-sizing: border-box; padding: 6px 28px 6px; }
+        /* As wide as the body's measure, in the body's face and size, so the title stands over the text. */
+        .note-header {
+            flex: 0 0 auto;
+            width: min(100%, calc(72ch + 64px));
+            box-sizing: border-box;
+            margin: 0 auto;
+            padding: 6px 32px;
+        }
         .note-title {
             width: 100%;
             box-sizing: border-box;
@@ -224,8 +231,10 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             titleInput.focus();
             titleInput.select();
         },
-        setFont: (font) => {
+        setTypeface: ({ font, size }) => {
             titleInput.style.fontFamily = font;
+            header.style.fontFamily = font;
+            header.style.fontSize = size + 'px';
         },
     };
 

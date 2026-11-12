@@ -240,12 +240,14 @@ function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollo
                 '&.cm-focused': { outline: 'none' },
                 // The font face is set only by typefaceTheme, so two rules never race. The side margin is on the
                 // scroller: the engine paints a selected line from the content's outer edge, so a margin inside it
-                // would be painted.
-                '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 28px' },
+                // would be painted. The text keeps a reading measure, 72 characters at most, in the middle.
+                '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 32px' },
                 '.cm-content': {
                     padding: '4px 0 40vh',
                     caretColor: theme.color.accent,
                     width: '100%',
+                    maxWidth: '72ch',
+                    margin: '0 auto',
                     boxSizing: 'border-box',
                 },
                 '.cm-line': { padding: '0' },

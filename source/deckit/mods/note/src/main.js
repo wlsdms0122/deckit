@@ -555,7 +555,7 @@ class Note {
         function applyTypeface() {
             const typeface = currentTypeface();
             editor.setTypeface(typeface);
-            noteSession.setFont(typeface.font);
+            noteSession.setTypeface(typeface);
         }
     }
 
