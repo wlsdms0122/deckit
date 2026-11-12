@@ -316,6 +316,14 @@ async function draw(app, look, shots, origin) {
             await sleep(300);
             await windowShot(name, 'settings');
         });
+    // Activity at a mod with no icon of its own, Keymap, drawn with the default icon.
+    await surface('settings-activity-default-icon', async (name) => {
+        await settings.evaluate(`[...${sectionOf('Activity')}.querySelectorAll('*')]
+            .find((each) => !each.childElementCount && each.textContent === 'Keymap')
+            ?.scrollIntoView({ block: 'center' })`);
+        await sleep(300);
+        await windowShot(name, 'settings');
+    });
     await surface('menu', async (name) => {
         const select = `${sectionOf('General')}.querySelector('.deckit-select')`;
         await settings.evaluate(`${select}.scrollIntoView({ block: 'center' })`);
