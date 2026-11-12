@@ -26,18 +26,17 @@ function activitySection({ ui, mods, onInterfaces }) {
         .settings-activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 12px; }
         .settings-activity-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 1px; min-width: 0; }
         .settings-activity-name { display: flex; align-items: center; gap: 6px; font: var(--deckit-type-body); }
-        .settings-activity-why { font: var(--deckit-type-small); line-height: 1.45; opacity: 0.5; }
+        .settings-activity-why { color: var(--deckit-muted); font: var(--deckit-type-small); }
         .settings-activity-problem {
             color: var(--deckit-alert-ink);
             font: var(--deckit-type-small);
-            line-height: 1.45;
             white-space: pre-line;
             word-break: break-word;
         }
         .settings-activity-problem:empty { display: none; }
-        .settings-activity-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; min-height: 22px; }
+        .settings-activity-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; min-height: 24px; }
         .settings-activity-actions > [hidden] { display: none; }
-        .settings-activity-none { padding: 4px 12px 6px; font: 12.5px var(--deckit-font); opacity: 0.4; }
+        .settings-activity-none { padding: 4px 12px 6px; color: var(--deckit-muted); font: var(--deckit-type-small); }
         .settings-activity-none[hidden] { display: none; }
     `);
     const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
@@ -81,6 +80,8 @@ function activitySection({ ui, mods, onInterfaces }) {
         const words = ui.element('div', { className: 'settings-activity-words' });
         const name = ui.element('div', { className: 'settings-activity-name' });
         const label = ui.element('span');
+        // Its actions show while the row is under the pointer or holds the focus, as a list row's do.
+        element.dataset.deckitRowActions = '';
         const state = chip({ ui, text: '' });
         const why = ui.element('div', { className: 'settings-activity-why' });
         const problem = ui.element('div', { className: 'settings-activity-problem' });
@@ -113,9 +114,11 @@ function activitySection({ ui, mods, onInterfaces }) {
         function fill(mod) {
             current = mod;
             label.textContent = mod.name;
+            // Under the Running card, only a run starting or stopping says its state.
             state.element.textContent = STATE_WORDS[mod.run.state];
+            state.element.hidden = mod.run.state === 'running';
             const since = mod.run.launchedAt ? elapsedText(Date.now() - mod.run.launchedAt) : '';
-            why.textContent = [mod.background ? 'In the background' : '', since].filter(Boolean).join(' · ');
+            why.textContent = [mod.background ? 'In the background' : '', since].filter(Boolean).join(', ');
             problem.textContent = problemsOf(mod, refusals.get(mod.id)).join('\n');
             owns.element.hidden = !ownsInterface(mod);
             relaunch.element.hidden = mod.run.state !== 'running';
