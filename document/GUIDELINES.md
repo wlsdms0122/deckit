@@ -60,6 +60,7 @@ The bar along the top of the content, laid with `ui.titleBar`, which lies in the
 ## The sidebar
 
 - Build it of `ui.section`s. A section's header holds its actions at the end: New folder, then its add action (`plus`). The section's menu holds the rest.
+- An action on the whole sidebar, not on one section, sits at its foot, a small labelled button (Note's New Folder).
 - What can nest is a `ui.tree`; what cannot is `ui.row`s.
 - One row is selected (`--deckit-selected`): the one the content shows. While the window is not the key one, the kit draws it in `--deckit-fill`.
 - A section's heading is `--deckit-type-body` at 600 in `--deckit-muted`, never larger than the window's title.
