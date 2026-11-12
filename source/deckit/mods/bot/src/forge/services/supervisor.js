@@ -238,7 +238,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         const span = document.createElement('span');
         span.textContent = text == null ? '' : String(text);
         if (span.textContent) span.title = span.textContent;
-        Object.assign(span.style, { ...CELL, font: '13px var(--deckit-font)', ...style });
+        Object.assign(span.style, { ...CELL, font: 'var(--deckit-type-body)', ...style });
         return span;
     };
 
@@ -293,7 +293,6 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             top: '0',
             bottom: '0',
             borderLeft: 'var(--deckit-border)',
-            opacity: '.8',
         });
         const elbow = document.createElement('span');
         Object.assign(elbow.style, {
@@ -302,7 +301,6 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             top: '50%',
             width: '9px',
             borderTop: 'var(--deckit-border)',
-            opacity: '.8',
         });
         guide.append(stem, elbow);
 
