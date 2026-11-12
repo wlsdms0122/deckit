@@ -176,7 +176,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     function told(held, { shown, key, width, height, titleBar }) {
         const was = held.state;
         held.state = { shown, key, size: { width, height } };
-        guide(held.document, titleBar);
+        guide(held.document, titleBar, key);
         if (shown && !was.shown) tell(held, 'didAppear');
         if (was.key && !key) tell(held, 'didResignKey');
         if (!was.key && key) tell(held, 'didBecomeKey');
@@ -184,9 +184,11 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         if (was.size && (was.size.width !== width || was.size.height !== height)) tell(held, 'didResize');
     }
 
-    // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons.
-    function guide(document, titleBar) {
+    // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons. The root says
+    // whether the window is key (`data-deckit-key`), which the kit's title bar and selection read.
+    function guide(document, titleBar, key) {
         const root = document.documentElement;
+        root.dataset.deckitKey = String(key);
         root.toggleAttribute('data-deckit-title-bar', !!titleBar);
         root.style.setProperty('--deckit-title-bar-area-height', (titleBar?.height ?? 0) + 'px');
         root.style.setProperty('--deckit-title-bar-area-x', (titleBar?.controlsWidth ?? 0) + 'px');
