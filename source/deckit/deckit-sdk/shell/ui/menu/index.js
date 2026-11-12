@@ -34,6 +34,7 @@ const STYLE = `
     .deckit-menu-tick { display: flex; flex: 0 0 14px; color: var(--deckit-accent); }
     .deckit-menu-row:not([aria-checked='true']) .deckit-menu-tick { visibility: hidden; }
     .deckit-menu-icon { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
+    .deckit-menu[data-icons] .deckit-menu-icon { justify-content: center; width: 16px; }
     .deckit-menu-label { flex: 1 1 auto; }
     .deckit-menu-more { display: flex; flex: 0 0 auto; margin: 0 -6px 0 16px; color: var(--deckit-muted); }
     .deckit-menu-hint { flex: 0 0 auto; margin-left: 16px; color: var(--deckit-muted); }
@@ -245,7 +246,9 @@ function autocomplete({ onPick, over = null }) {
     };
     const show = (next, rect) => {
         items = next;
-        const rows = items.map((item) => rowOf(item, false));
+        const icons = items.some((item) => item.icon);
+        box.toggleAttribute('data-icons', icons);
+        const rows = items.map((item) => rowOf(item, false, icons));
         box.replaceChildren(...rows);
         list.set(
             rows.map((row) => ({ element: row, disabled: false })),
@@ -267,13 +270,16 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     box.style.minWidth = Math.max(minWidth, WIDTH_MIN) + 'px';
     const shown = withoutStraySeparators(items);
     const ticks = shown.some((item) => item !== '-' && typeof item.checked === 'boolean');
+    // One label column: when any row has an icon, a row without one keeps its room.
+    const icons = shown.some((item) => item !== '-' && item.icon);
+    box.toggleAttribute('data-icons', icons);
     const options = [];
     for (const item of shown) {
         if (item === '-') {
             box.append(tag('div', 'deckit-menu-separator'));
             continue;
         }
-        const row = rowOf(item, ticks);
+        const row = rowOf(item, ticks, icons);
         options.push({ element: row, disabled: !!item.disabled, item });
         box.append(row);
     }
@@ -389,7 +395,7 @@ function wearFaces(box, options) {
     };
 }
 
-function rowOf(item, ticks) {
+function rowOf(item, ticks, icons) {
     const row = tag('div', 'deckit-menu-row');
     row.setAttribute('role', ticks ? 'menuitemcheckbox' : 'menuitem');
     if (ticks) {
@@ -400,9 +406,9 @@ function rowOf(item, ticks) {
         row.append(tick);
     }
     if (item.disabled) row.setAttribute('aria-disabled', 'true');
-    if (item.icon) {
+    if (icons) {
         const glyph = tag('span', 'deckit-menu-icon');
-        glyph.innerHTML = iconMarkup(item.icon);
+        if (item.icon) glyph.innerHTML = iconMarkup(item.icon);
         row.append(glyph);
     }
     const label = tag('span', 'deckit-menu-label');
