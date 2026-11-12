@@ -24,6 +24,8 @@ makes `.build/Deckit.app` from it too, the way any host app embeds it. Deckit ke
 
 `test` runs the app in the background, with data of its own that it throws away, so it never takes the screen or touches `~/.config/deckit`. It leaves screenshots and the app's log in `.build/test/`; `--port` picks the DevTools port when another test is running.
 
+`style` reads the CSS deckit writes, in its scripts' templates and the styles they set from code, and holds it to the rules of its look: colours from the token, motion only of what does not lay the page out, no capitals or wide tracking under 16px, no stripe down one side, no glow, no text under 11px, a border or a wide shadow but not both, and the kit's layers rather than a z-index of its own. Each problem is a line, its file, its line and its rule; the places whose job is a colour written out are listed in it, each with why.
+
 `resize` is for a person's drag: `deckit dev --inspect=9445`, then `deckit resize start 9445`, drag the window's edge, and `deckit resize stop 9445` tells how often the window was resized, how often each page drew, and how far each page as wide as the window trailed it. A resize made in code does not wait on the pages the way a drag does.
 
 `manifest.toml` lists them for open-package, but for `engine` and `resize`, which are for work on deckit itself.
