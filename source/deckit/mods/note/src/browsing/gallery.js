@@ -120,6 +120,8 @@ function gallery({
         onClick: () => onNewNote(),
         size: 'small',
         icon: ui.iconOf(COMPOSE_SHAPES, { size: 14 }),
+        // The note is what fills the empty screen, so it is the one primary there.
+        variant: 'primary',
     });
     const newFolderAction = ui.button({
         label: 'New Folder',
