@@ -66,8 +66,8 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         gap: '8px',
         flex: '0 0 auto',
         padding: '7px 14px',
-        color: `color-mix(in srgb, var(--deckit-text) 55%, var(--deckit-background))`,
-        font: '12px var(--deckit-font)',
+        color: 'var(--deckit-muted)',
+        font: 'var(--deckit-type-small)',
         borderTop: 'var(--deckit-border)',
         cursor: 'row-resize',
     });
@@ -95,8 +95,8 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         minHeight: '0',
         overflow: 'auto',
         padding: '8px 14px 10px',
-        background: '#12141a',
-        color: '#c8ccd4',
+        background: 'var(--deckit-surface)',
+        color: 'var(--deckit-text)',
     });
     ui.edgeFade(logBody);
     ui.selectable(logBody);
@@ -540,11 +540,10 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         row.textContent = line;
         Object.assign(row.style, {
             padding: '1px 0',
-            font: '11.5px ui-monospace, SFMono-Regular, Menlo, monospace',
-            opacity: '.82',
+            font: 'var(--deckit-type-small)',
+            fontFamily: 'var(--deckit-mono)',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
-            lineHeight: '1.55',
         });
         return row;
     };
@@ -572,7 +571,11 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             logBody.textContent = '';
             const nothing = document.createElement('div');
             nothing.textContent = 'No log output';
-            Object.assign(nothing.style, { padding: '4px 0', opacity: '.4', font: '12px var(--deckit-font)' });
+            Object.assign(nothing.style, {
+                padding: '4px 0',
+                color: 'var(--deckit-muted)',
+                font: 'var(--deckit-type-small)',
+            });
             logBody.appendChild(nothing);
             return;
         }
