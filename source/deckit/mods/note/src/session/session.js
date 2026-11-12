@@ -244,7 +244,10 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             read = await notesFolder.read(path);
         } catch (error) {
             if (!quiet)
-                ui.dialog({ title: 'Could not open ' + noteNameOf(path), message: error.message, confirmLabel: 'OK' });
+                ui.toast(`Could not open ${noteNameOf(path)}: ${error.message}`, {
+                    kind: 'failure',
+                    action: { label: 'Try Again', run: () => open(path, { focus }) },
+                });
             return 'gone';
         }
         if (attempt !== opening) return 'blocked';
@@ -422,7 +425,10 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
         try {
             await enqueue(() => notesFolder.restore(path));
         } catch (error) {
-            ui.dialog({ title: 'Could not restore ' + noteNameOf(path), message: error.message, confirmLabel: 'OK' });
+            ui.toast(`Could not restore ${noteNameOf(path)}: ${error.message}`, {
+                kind: 'failure',
+                action: { label: 'Try Again', run: () => note.path === path && restoreBackup() },
+            });
             return;
         }
         note.unsaved = false;

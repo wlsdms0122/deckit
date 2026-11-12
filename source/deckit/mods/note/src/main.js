@@ -500,7 +500,10 @@ class Note {
         // Opening answers only whether anything opened the address, with no reason when nothing did.
         async function openAddress(address) {
             if (await openURL(address).catch(() => false)) return;
-            ui.dialog({ title: 'Could not open the link', message: address, confirmLabel: 'OK' });
+            ui.toast(`Could not open the link ${address}`, {
+                kind: 'failure',
+                action: { label: 'Try Again', run: () => openAddress(address) },
+            });
         }
 
         // The name label of a row or a card in sight, for a rename to type over. With neither in sight (the sidebar

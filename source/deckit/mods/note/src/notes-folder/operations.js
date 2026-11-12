@@ -2,7 +2,8 @@ const { nameOf, parentOf, noteNameOf, isWithin } = require('./path.js');
 
 // What is done to a note or a folder on disk. A path is held as it was read with the relocation count it was read at
 // (`since`). A step that moves, renames or removes what may be the open note settles the open note first, so what
-// changes is what was on screen. `onChanged()` hears that the notes folder changed.
+// changes is what was on screen. `onChanged()` hears that the notes folder changed. A step that fails says so in a
+// failure toast, whose Try Again takes the step again: the tree has no line of its own to hold it.
 function operations({
     ui,
     clipboard,
@@ -57,7 +58,7 @@ function operations({
             try {
                 onRelocate(path, (await notesFolder.move(path, into)).path);
             } catch (error) {
-                ui.dialog({ title: 'Could not move ' + nameOf(path), message: error.message, confirmLabel: 'OK' });
+                failed('Could not move ' + nameOf(path), error, () => move(path, into));
             }
         });
         await onChanged();
@@ -82,7 +83,7 @@ function operations({
         try {
             made = await notesFolder.create(into);
         } catch (error) {
-            ui.dialog({ title: 'Could not make a note', message: error.message, confirmLabel: 'OK' });
+            failed('Could not make a note', error, () => newNote(into));
             return;
         }
         await onNoteMade(made.path);
@@ -93,7 +94,7 @@ function operations({
         try {
             made = await notesFolder.mkdir(parent, '');
         } catch (error) {
-            ui.dialog({ title: 'Could not make the folder', message: error.message, confirmLabel: 'OK' });
+            failed('Could not make the folder', error, () => newFolder(parent));
             return;
         }
         await onChanged();
@@ -115,6 +116,10 @@ function operations({
         if (root) reveal(path ? root + '/' + path : root);
     }
 
+    function failed(title, error, retry) {
+        ui.toast(`${title}: ${error.message}`, { kind: 'failure', action: { label: 'Try Again', run: retry } });
+    }
+
     // Saved first, so what goes to the Trash is what was on screen.
     async function trash(held, since, failureTitle) {
         const path = await relocations.currentPath(held, since);
@@ -127,7 +132,7 @@ function operations({
                 onRelocate(path, null);
             });
         } catch (error) {
-            ui.dialog({ title: failureTitle(path), message: error.message, confirmLabel: 'OK' });
+            failed(failureTitle(path), error, () => trash(path, relocations.since(), failureTitle));
             return;
         }
         await onTrash(path, wasOpen);
