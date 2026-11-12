@@ -23,7 +23,7 @@ A person meets a mod through its window, its actions in the switcher, its keys, 
 - [ ] The window can be used with the sidebar folded.
 - [ ] What the mod does from a button or a menu has a key declared to `deckit/keys`, and the button's tooltip shows it with the Keymap's `chordOf`.
 - [ ] Lists are `ui.tree` or `ui.row`, and answer the keys under Lists.
-- [ ] Empty, loading and failed content is drawn (`ui.emptyState`, `ui.loading`, `ui.dialog`).
+- [ ] Empty, loading and failed content is drawn (`ui.emptyState`, `ui.loading`, a failure where its result has a place).
 - [ ] Colours, type, radii and motion come from the theme's tokens, and text the person writes follows `shell.fonts`.
 - [ ] Nothing moves with reduced motion (`theme.motion.move`); fades keep `theme.motion.fade`.
 - [ ] Switcher actions, settings and notifications are written as Words says.
@@ -37,7 +37,7 @@ A mod's window lays two areas with `ui.splitView`: the sidebar, and the content 
 
 ## The title bar
 
-The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room.
+The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room. It is 48px tall, its row centred on the window's buttons; its `title` is `heading` at 600, and while the window is not the key one its text and glyphs go to `muted`.
 
 - Every window lays one, empty if it has nothing to put there, so the window can be dragged from the top of any mod.
 - A web page, an editor, a canvas or a map starts below it. Pressed content drawn to the top edge leaves nowhere to drag the window from.
@@ -50,7 +50,7 @@ The bar along the top of the content, laid with `ui.titleBar`, which lies in the
 | Middle | what is shown: its title, its path, its address | the address field, a breadcrumb, a month |
 | End | acting on what is shown: search, a view switch, the mod's main action | Finder's view menu and filter, Calendar's Today and Day, Week, Month |
 
-- Buttons are `ui.iconButton` at `medium` with 16px icons. A control with a label of its own (Today, a segmented control) is a text button or `ui.segmented` of the same height.
+- Buttons are `ui.iconButton` at `medium` (32px) with 16px icons. A control with a label of its own (Today, a segmented control) is a text button or `ui.segmented` of the same height. `small` (24px) is for rows and section headers, never the bar.
 - A field in the bar is 32px tall, `--deckit-radius-round`, on `--deckit-fill`, ringed with `--deckit-focus` while it is edited. Buttons about what is in the field go inside it (the Browser's Reload and bookmark star).
 - An action the sidebar's section already has (a new tab, a new note) is not in the bar too.
 - Where the mod has tabs of its content (the Editor's open files), the tab strip may be the title bar, with room left at its end.
@@ -59,14 +59,15 @@ The bar along the top of the content, laid with `ui.titleBar`, which lies in the
 
 - Build it of `ui.section`s. A section's header holds its actions at the end: New folder, then its add action (`plus`). The section's menu holds the rest.
 - What can nest is a `ui.tree`; what cannot is `ui.row`s.
-- One row is selected (`--deckit-selected`): the one the content shows.
+- One row is selected (`--deckit-selected`): the one the content shows. While the window is not the key one, the kit draws it in `--deckit-fill`.
+- A section's heading is `--deckit-type-body` at 600 in `--deckit-muted`, never larger than the window's title.
 - A folder's colour is on the folder's row, from where it is indented, and not on what is in it.
 
 ## Content
 
-- **Empty:** `ui.emptyState` with an icon, a title that says what is missing ("This folder is empty", "No notes yet"), at most one line of hint, and the one or two actions that fill it, as `small` buttons with their keys in their tooltips.
-- **Loading:** `ui.loading` where the content waits on something slow.
-- **Failed:** what the person asked for and could not be done is a `ui.dialog` saying what failed and why, with OK. What failed without being asked for (a sync, a background fetch) is shown where its result would be. A command that fails is recorded against the run, which Settings shows on the mod's row.
+- **Empty:** `ui.emptyState` with an icon, a title that says what is missing ("This folder is empty", "No notes yet"), at most one line of hint, and the one or two actions that fill it, as `small` buttons with their keys in their tooltips; a lone action is `primary`.
+- **Loading:** `ui.loading` where the content waits on something slow. It shows once the wait passes 200ms and then stays at least 400ms: await its `settled()` before the content replaces it.
+- **Failed:** a failure is said where its result has a place, in `alertInk` on the row or in the view it is about, with what to do next (a Try Again button, where to set what is missing), until the next try. Only what has no such place is a `ui.toast` with `kind: 'failure'` and its one action (Notifications). A command that fails is recorded against the run, which Settings shows on the mod's row.
 
 ## Lists
 
@@ -139,10 +140,10 @@ Draw with the kit and its tokens (UI.md, The theme). A new theme or new fonts ch
 
 - **Type:** the `--deckit-type-*` scale, and no sizes between, at weight 400 or 600. Body is the default; small is for what sits beside something more important (a count, a time); heading and title are for the content's own titles, title with `--deckit-tracking-title`. What names a group or a column is `--deckit-type-label` in `--deckit-muted`, in sentence case and never in capitals.
 - **Text the person reads and writes** (a note, a file, a message being written) is in `--deckit-text-font` at `--deckit-text-size`, or `--deckit-mono` for code. A page's text is in them too where nothing chooses another. The UI around it stays on the type scale.
-- **Colour:** `text`, `muted` for what is secondary, `disabled`, never a lowered opacity on text; `fill` for fields; `hover`, `pressed` and `selected` for state; `accentFill` under `onAccent` for the one thing to press and for what is on, `accent` for text and glyphs in it; `ok`, `warn` and `alert` for status only, as dots and washes, and `okInk`, `warnInk` and `alertInk` for status as text or a glyph; `elevated` for what floats. A colour of the content's own (a calendar's, a file type's) is data, with `ui.onColor` for the text over it.
-- **Radius:** `--deckit-radius-*`: `control` for buttons and rows, `card` for surfaces, `round` for pills and fields in a bar.
+- **Colour:** `text`, `muted` for what is secondary, `disabled`, never a lowered opacity on text; `fill` for fields; `hover`, `pressed` and `selected` for state; `accentFill` under `onAccent` for the one thing to press and for what is on, `accent` for text and glyphs in it; `ok`, `warn` and `alert` for status only, as dots and washes, and `okInk`, `warnInk` and `alertInk` for status as text or a glyph; `elevated` for what floats, edged by `--deckit-rim` under `--deckit-shadow-float` and no border. A colour of the content's own (a calendar's, a file type's) is data, with `ui.onColor` for the text over it.
+- **Radius:** `--deckit-radius-*`: `control` for rows and `small` controls, `medium` for `medium` controls and the sidebar's card, `large` for a menu and a popover, `card` for a dialog's card and a toast, `round` for fields and pills. An inner corner is the outer one less the room between them.
 - **Icons:** `ui.icon`, 16px in the title bar and section headers, 15px in rows, 13px beside text in a line.
-- **Motion:** `--deckit-fade` for what fades or changes colour (hover, press, a fade in), `--deckit-move-fast`, `--deckit-move-base` and `--deckit-move-slow` for what moves or changes size, by how far, never a length written out. `--deckit-easing` for what comes and goes, `--deckit-easing-move` for what moves on screen (a sidebar, an indicator). An animation in code reads `theme.motion`: `move` is 0 with reduced motion, `fade` keeps its length.
+- **Motion:** `--deckit-fade` for what fades or changes colour (hover, press, a fade in), `--deckit-move-fast`, `--deckit-move-base` and `--deckit-move-slow` for what moves or changes size, by how far, never a length written out. `--deckit-easing` for what comes and goes, `--deckit-easing-move` for what moves on screen (a sidebar, an indicator). An animation in code reads `theme.motion`: `move` is 0 with reduced motion, `fade` keeps its length. What a key opens or toggles comes and goes at once.
 
 ## Words
 
