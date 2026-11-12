@@ -83,6 +83,20 @@ const ALLOWED = [
 ].map((allow) => ({ rule: 'colour-literal', ...allow }));
 // A spinner turns at a pace of its own for as long as it shows: a loop, not a change that a length of motion times.
 ALLOWED.push({ file: 'deckit-sdk/shell/ui/loading/index.js', selector: /^\(inline\)$/, rule: 'duration-literal' });
+ALLOWED.push(
+    {
+        file: 'mods/switcher/src/list/list.js',
+        selector: /^\(inline\)$/,
+        rule: 'duration-literal',
+        why: 'an attention breath, pulses at a pace of their own like the spinner, not a change timed by motion',
+    },
+    {
+        file: 'mods/calendar/src/occurrence/paint.js',
+        selector: /^\(inline\)$/,
+        rule: 'opacity-text',
+        why: 'an occurrence over fades as a whole, block and text with it, as data drawn in its own colour',
+    }
+);
 // Engines' bundles: a mod's src/engine/engine.js, which `deckit engine` makes from the packages it bundles.
 const BUNDLED = /^mods\/[^/]+\/src\/engine\/engine\.js$/;
 const NAMED_COLOURS = new Set(
