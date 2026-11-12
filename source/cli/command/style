@@ -22,6 +22,11 @@ const RULES = {
     'side-stripe': 'one side drawn 2px or more and wider than the others',
     glow: 'a shadow with no offset in a colour that is not grey',
     'small-text': 'text under 11px',
+    'off-scale-text': 'text in a size off the type scale',
+    'opacity-text': 'text made faint by opacity rather than drawn in muted or disabled',
+    'font-weight': 'a weight other than 400 and 600',
+    'radius-literal': 'a radius written out where a token is meant',
+    'duration-literal': 'a duration written out where a token is meant',
     'edge-and-elevation': 'a 1px border and a wide soft shadow on one surface',
     'z-index': 'a z-index of its own beside the layers of PLACE.Z',
 };
@@ -42,11 +47,16 @@ const LAYOUT = new RegExp(
 // children, from -1 to 1, or makes a layer of its own.
 const Z_OWN = 1;
 // The places a rule does not hold, each with why: those whose job is a colour written out, then the system's own
-// chrome. `selector` narrows one to its rules, `(code)` being the strings in a script's code and `(inline)` what it
-// sets on an element. Anything else draws with the token.
+// chrome and a loop. `selector` narrows one to its rules, `(code)` being the strings in a script's code and `(inline)`
+// what it sets on an element. Anything else draws with the token.
 const ALLOWED = [
     { file: 'deckit-sdk/shell/ui/token/index.js', why: 'the token, where the colours are' },
     { file: 'deckit-app/theme/theme.js', selector: /^\(code\)$/, why: "the host app's colours, the token's ground" },
+    {
+        file: 'deckit-sdk/shell/ui/color/index.js',
+        selector: /^\(code\)$/,
+        why: "the inks text takes over a colour of the content's own",
+    },
     {
         file: 'deckit-sdk/shell/ui/color-picker/index.js',
         selector: /^(?:\.deckit-color-(?:area|hue|knob)\b|\(code\)$)/,
@@ -66,6 +76,8 @@ const ALLOWED = [
     { file: 'mods/browser/src/sidebar/outline.js', selector: /^\(code\)$/, why: 'the colours a folder takes' },
     { file: 'mods/editor/src/file-type/file-type.js', selector: /^\(code\)$/, why: "each file type's colour" },
 ].map((allow) => ({ rule: 'colour-literal', ...allow }));
+// A spinner turns at a pace of its own for as long as it shows: a loop, not a change that a length of motion times.
+ALLOWED.push({ file: 'deckit-sdk/shell/ui/loading/index.js', selector: /^\(inline\)$/, rule: 'duration-literal' });
 // The Dock floats over every window as the system's own, outlined and lifted as a window's frame is.
 ALLOWED.push({ file: 'deckit-shell/shell/dock/view.js', selector: /^\.deckit-dock-card$/, rule: 'edge-and-elevation' });
 // Engines' bundles: a mod's src/engine/engine.js, which `deckit engine` makes from the packages it bundles.
@@ -94,6 +106,35 @@ const GREY_NAMES = /^(?:black|white|gr[ae]y|silver|gainsboro|whitesmoke|snow|(?:
 // Where a word in a value is a name and never a colour.
 const NAMES_ONLY =
     /^(?:font(?:-family)?|transition(?:-property)?|animation(?:-name)?|will-change|grid-[a-z-]+|content)$/;
+// What draws no text, so it may be made fainter by opacity: a picture, an icon and its parts.
+const ICONIC = new RegExp(
+    [
+        'icon',
+        'svg',
+        'circle',
+        'path',
+        'glyph',
+        'img',
+        'image',
+        'picture',
+        'thumb',
+        'swatch',
+        'dot',
+        'spinner',
+        'chevron',
+        'caret',
+        'arrow',
+        'grip',
+        'handle',
+        'knob',
+        'logo',
+        'canvas',
+        'tick',
+        '::?before',
+        '::?after',
+    ].join('|'),
+    'i'
+);
 // What reads a colour for its alpha alone: a mask.
 const ALPHA_ONLY = /^(?:-webkit-)?mask(?:-image)?$/;
 // A colour written out: a hex, or a colour function of numbers.
@@ -161,35 +202,45 @@ function linesOf(text) {
 }
 
 // What the token is, read from its module: the type scale in px, each colour's custom property and whether it is
-// grey, and each shadow's custom property and value. A token that cannot be read is said, as the rules need it.
+// grey, and each shadow's custom property and value, a look's own read from the light one. A token that cannot be
+// read is said, as the rules need it.
 function tokenOf(file) {
     const text = fs.readFileSync(file, 'utf8');
-    const objectAfter = (pattern) => {
-        const at = text.search(pattern);
+    const objectAfter = (pattern, from = 0) => {
+        const at = text.slice(from).search(pattern);
         if (at < 0)
             throw new Error(`deckit style: ${pattern} is not in the token (${path.relative(LIBRARY.DECKIT, file)})`);
-        const open = text.indexOf('{', at);
-        return text.slice(open + 1, closing(text, open));
+        const open = text.indexOf('{', from + at);
+        return { body: text.slice(open + 1, closing(text, open)), at: open };
     };
     const pairs = (body) =>
         [...body.matchAll(/^\s*(\w+):\s*([^\n]+?),?\s*$/gm)].map(([, name, value]) => [name, value]);
+    const literalOf = (value) => /^'([^']*)'$/.exec(value)?.[1];
     const type = Object.fromEntries(
-        pairs(objectAfter(/const TYPE\s*=/).replace(/,/g, ',\n')).map(([n, v]) => [n, Number(v)])
+        [...objectAfter(/const TYPE\s*=/).body.matchAll(/(\w+):\s*\{\s*size:\s*(\d+(?:\.\d+)?)/g)].map(
+            ([, name, size]) => [name, Number(size)]
+        )
     );
+    const light = objectAfter(/\blight:\s*\{/, objectAfter(/const LOOKS\s*=/).at);
+    const look = Object.fromEntries(pairs(light.body).map(([name, value]) => [name, literalOf(value)]));
+    const made = objectAfter(/function tokenOf\b/).at;
     const colours = {};
-    for (const [name, value] of pairs(objectAfter(/\bcolor:\s*\{/))) {
-        const literal = /^'([^']*)'$/.exec(value)?.[1];
+    for (const [name, value] of pairs(objectAfter(/\bcolor:\s*\{/, made).body)) {
+        const literal = literalOf(value) ?? (/^look\.(\w+)$/.exec(value) && look[/^look\.(\w+)$/.exec(value)[1]]);
         // A wash, and a step from the text to the background, are greys of the theme's own.
         colours[kebab(name)] = literal ? greyOf(literal) : /^(?:WASH|toward|text|background)\b/.test(value);
     }
     const shadows = {};
-    for (const [name, value] of pairs(objectAfter(/\bshadow:\s*\{/))) {
-        const literal = /^'([^']*)'$/.exec(value)?.[1];
+    for (const [name, value] of [
+        ...pairs(objectAfter(/\bshadow:\s*\{/, made).body),
+        ...pairs(objectAfter(/\bshadow:\s*\{/, light.at).body),
+    ]) {
+        const literal = literalOf(value);
         if (literal) shadows[kebab(name)] = literal;
     }
     if (!Object.keys(type).length || !Object.keys(colours).length || !Object.keys(shadows).length)
         throw new Error('deckit style: the token has no type scale, colours or shadows as it is read');
-    return { type, colours, shadows };
+    return { type, scale: new Set(Object.values(type)), colours, shadows };
 }
 
 // The styles a page holds: each `<style>` and each `style="..."`.
@@ -218,7 +269,7 @@ function fromScript(source) {
 function coloursOfCode(text) {
     const declarations = [];
     const colour = /^\s*(?:#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})|(?:rgba?|hsla?)\([\d.,%\s/]+\))\s*$/i;
-    for (let at = 0; at < text.length; ) {
+    for (let at = 0; at < text.length;) {
         const character = text[at];
         if (character === '"' || character === "'" || character === '`') {
             const end = character === '`' ? templateEnd(text, at) : stringEnd(text, at);
@@ -310,7 +361,7 @@ function codeEnd(text, at) {
         const character = text[at];
         if (character === '"' || character === "'") at = stringEnd(text, at);
         else if (character === '`') at = templateEnd(text, at);
-        else if (character === '{') depth++, at++;
+        else if (character === '{') (depth++, at++);
         else if (character === '}') {
             if (!--depth) return at + 1;
             at++;
@@ -371,7 +422,7 @@ function templatesOf(text, from, to) {
 // no value is guessed at and every offset stays where it is.
 function templateText(body) {
     let out = '';
-    for (let at = 0; at < body.length; ) {
+    for (let at = 0; at < body.length;) {
         if (body[at] === '\\') {
             out += body.slice(at, at + 2);
             at += 2;
@@ -537,14 +588,30 @@ function stylesOfCode(text) {
         }
         if (declarations.length)
             styles.push({ rules: [{ selector: '(animate)', keyframes: true, at: match.index, declarations }] });
+        const length = durationOf(text, named ? start + named.length : close + 1);
+        if (length) inline([{ name: 'animation-duration', value: length, at: match.index }], match.index);
     }
     return styles;
+}
+
+// The duration an `animate()` call's options, after its keyframes at `at`, give when it is written out: a number, or a
+// constant of the file's that is one, as `240ms` or `NAME (240ms)`; else null.
+function durationOf(text, at) {
+    const options = /^\s*,\s*\{/.exec(text.slice(at));
+    if (!options) return null;
+    const open = at + options[0].length - 1;
+    const duration = /(?:^|[{,\s])duration\s*:\s*([\w$.]+)\s*[,}\n]/.exec(text.slice(open, closing(text, open) + 1));
+    if (!duration) return null;
+    if (/^\d+(?:\.\d+)?$/.test(duration[1])) return duration[1] + 'ms';
+    const name = duration[1].replace(/\$/g, '\\$');
+    const constant = new RegExp(`\\bconst\\s+${name}\\s*=\\s*(\\d+(?:\\.\\d+)?)\\s*;`).exec(text);
+    return constant ? `${duration[1]} (${constant[1]}ms)` : null;
 }
 
 // `text` with what its strings and templates hold blanked, the quotes kept, so a word in one is not taken for code.
 function codeOnly(text) {
     let out = '';
-    for (let at = 0; at < text.length; ) {
+    for (let at = 0; at < text.length;) {
         const character = text[at];
         if (character === '"' || character === "'" || character === '`') {
             const end = character === '`' ? templateEnd(text, at) : stringEnd(text, at);
@@ -640,10 +707,15 @@ function hold({ rules }, say) {
         for (const declaration of rule.declarations) {
             colourLiterals(declaration, tell);
             layoutMotion(declaration, rule, tell);
+            durationLiteral(declaration, tell);
             if (declaration.fragment) continue;
             smallText(declaration, tell);
+            offScaleText(declaration, tell);
+            fontWeight(declaration, tell);
+            radiusLiteral(declaration, tell);
             zIndex(declaration, tell);
             glow(declaration, rule, tell);
+            if (!rule.keyframes) opacityText(declaration, rule.selector, tell);
         }
         if (rule.keyframes) continue;
         trackedCaps(whole, tell);
@@ -697,6 +769,44 @@ function layoutMotion({ name, value, at, fragment }, rule, tell) {
 function smallText({ name, value, at }, tell) {
     const size = name === 'font-size' ? sizeOf(value) : name === 'font' ? sizeOfFont(value) : null;
     if (size !== null && size < 11) tell('small-text', at, `${name}: ${value}`);
+}
+
+// A size the scale has not, 11px or more: what is under it is small text.
+function offScaleText({ name, value, at }, tell) {
+    const size = name === 'font-size' ? sizeOf(value) : name === 'font' ? sizeOfFont(value) : null;
+    if (size === null || size < 11 || TOKEN.scale.has(size) || /var\(--deckit-text-size\)/.test(value)) return;
+    tell('off-scale-text', at, `${name}: ${value}`);
+}
+
+// A weight set alone or first in the `font` shorthand.
+function fontWeight({ name, value, at }, tell) {
+    const weights = name === 'font-weight' ? [value.trim()] : name === 'font' ? leadOfFont(value) : [];
+    for (const weight of weights)
+        if (/^(?:[1-9]00|bold|bolder|lighter)$/.test(weight) && !/^[46]00$/.test(weight))
+            tell('font-weight', at, `${name}: ${value}`);
+}
+
+// A radius in px but none, where the token's `--deckit-radius-*` is meant. One worked out from the token is its own.
+function radiusLiteral({ name, value, at }, tell) {
+    if (!/^border(?:-[a-z]+)*-radius$/.test(name) || /var\(/.test(value)) return;
+    if (/(?<![\w.$-])(?:\d*\.)?\d+px\b/.test(value.replace(/(?<![\w.$-])0?\.?0+px\b/g, '')))
+        tell('radius-literal', at, `${name}: ${value}`);
+}
+
+// A length of motion in ms or s but none, where `--deckit-fade`, `--deckit-move-*` or `theme.motion` is meant.
+function durationLiteral({ name, value, at }, tell) {
+    if (!/^(?:transition|animation)(?:-duration|-delay)?$/.test(name)) return;
+    for (const match of value.matchAll(/(?<![\w.$-])((?:\d*\.)?\d+)(ms|s)\b/g))
+        if (Number(match[1])) tell('duration-literal', at, `${name}: ${value.trim()}`, match[0]);
+}
+
+// Opacity under full on what holds text: an icon, a picture or a part that only comes and goes may take it.
+function opacityText({ name, value, at }, selector, tell) {
+    if (name !== 'opacity') return;
+    const percent = /^([\d.]+)%$/.exec(value.trim());
+    const amount = percent ? Number(percent[1]) / 100 : /^[\d.]+$/.test(value.trim()) ? Number(value) : NaN;
+    if (!(amount > 0 && amount < 1) || ICONIC.test(selector)) return;
+    tell('opacity-text', at, `opacity: ${value.trim()}`);
 }
 
 function zIndex({ name, value, at }, tell) {
@@ -852,6 +962,13 @@ function sizeOf(value) {
     if (type) return TOKEN.type[type[1]] ?? null;
     if (/^var\(--deckit-text-size\)$/.test(value.trim())) return 14;
     return null;
+}
+
+// What comes before the size in the `font` shorthand: its style, variant and weight.
+function leadOfFont(value) {
+    const parts = split(value.trim(), ' ');
+    const size = parts.findIndex((part) => /^(?:[\d.]+(?:px|em|rem|%)|var\(|[a-z-]*-size\b)/.test(part));
+    return size < 0 ? [] : parts.slice(0, size);
 }
 
 // The size the `font` shorthand gives, in px, or null.
