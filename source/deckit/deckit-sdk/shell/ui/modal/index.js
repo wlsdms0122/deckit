@@ -11,8 +11,8 @@ const STYLE = `
         justify-content: center;
         box-sizing: border-box;
         background: var(--deckit-scrim);
-        font: var(--deckit-type-medium);
-        transition: opacity var(--deckit-base) var(--deckit-easing);
+        font: var(--deckit-type-body);
+        transition: opacity var(--deckit-fade) var(--deckit-easing);
     }
     .deckit-modal[data-align='top'] { align-items: flex-start; padding-top: 12vh; }
     .deckit-modal[data-align='fill'] { align-items: stretch; background: transparent; }
@@ -26,7 +26,7 @@ const STYLE = `
         background: var(--deckit-background);
         box-shadow: var(--deckit-shadow-modal);
         color: var(--deckit-text);
-        transition: transform var(--deckit-base) var(--deckit-easing);
+        transition: transform var(--deckit-move-base) var(--deckit-easing);
     }
     .deckit-modal[data-bare] .deckit-modal-card { padding: 8px; }
     .deckit-modal[data-state='closed'] .deckit-modal-card { transform: translateY(6px) scale(.99); }
@@ -132,7 +132,7 @@ function modal(
               onExtra?.();
           })
         : null;
-    if (extra && destructive) extra.style.color = 'var(--deckit-alert)';
+    if (extra && destructive) extra.style.color = 'var(--deckit-alert-ink)';
     if (chrome) {
         const actions = document.createElement('div');
         actions.className = 'deckit-modal-actions';

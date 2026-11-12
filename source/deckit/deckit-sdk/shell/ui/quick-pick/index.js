@@ -15,7 +15,7 @@ const STYLE = `
         padding: 0 10px;
         border-radius: var(--deckit-radius-control);
         background: var(--deckit-selected);
-        font: 600 var(--deckit-type-medium);
+        font: 600 var(--deckit-type-body);
         white-space: nowrap;
     }
     .deckit-quick-pick-chip[hidden] { display: none; }
@@ -41,7 +41,7 @@ const STYLE = `
     .deckit-modal[data-drags] .deckit-quick-pick-list { --app-region: no-drag; }
     .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; opacity: 0.45; }
     .deckit-quick-pick-message:empty { display: none; }
-    .deckit-quick-pick-message[data-alert] { opacity: 1; color: var(--deckit-alert); }
+    .deckit-quick-pick-message[data-alert] { opacity: 1; color: var(--deckit-alert-ink); }
     .deckit-quick-pick-note {
         margin-top: 4px;
         padding: 6px 12px 2px;

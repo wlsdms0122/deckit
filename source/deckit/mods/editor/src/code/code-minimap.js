@@ -7,7 +7,7 @@ const MINIMAP_STYLE = `
         pointer-events: none;
         background: transparent;
         border-left: var(--deckit-border);
-        transition: opacity var(--deckit-fast) var(--deckit-easing);
+        transition: opacity var(--deckit-fade) var(--deckit-easing);
     }
     .editor-minimap:not([data-mode='always']) { backdrop-filter: blur(12px); box-shadow: var(--deckit-shadow-drawer); }
     .editor-minimap[data-shown] { opacity: 1; pointer-events: auto; }
@@ -280,7 +280,7 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
                 const line = content.line(fileLineOf(shownLine, folds));
                 const text = line.text;
                 const y = (shownLine - 1) * LINE_HEIGHT - offset;
-                for (let index = 0, x = 0; index < text.length && x < WIDTH; ) {
+                for (let index = 0, x = 0; index < text.length && x < WIDTH;) {
                     if (text[index] === ' ' || text[index] === '\t') {
                         x += text[index] === '\t' ? TAB_CHARACTERS * CHARACTER_WIDTH : CHARACTER_WIDTH;
                         index++;

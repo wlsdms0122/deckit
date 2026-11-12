@@ -7,7 +7,7 @@ const STYLE = `
     .deckit-surface {
         position: fixed;
         outline: none;
-        transition: opacity var(--deckit-fast) var(--deckit-easing), transform var(--deckit-base) var(--deckit-easing);
+        transition: opacity var(--deckit-fade) var(--deckit-easing), transform var(--deckit-move-base) var(--deckit-easing);
     }
     .deckit-surface[data-side='bottom'] { transform-origin: top left; }
     .deckit-surface[data-side='top'] { transform-origin: bottom left; }
@@ -148,7 +148,8 @@ function close(presented, speed) {
         else active.blur();
     }
     element.dataset.state = 'closed';
-    const length = TOKEN.MOTION[speed];
+    // It fades out as it moves away, so it is gone once the longer of the two is over.
+    const length = speed ? Math.max(TOKEN.MOTION.move[speed], TOKEN.MOTION.fade) : 0;
     if (length) setTimeout(() => element.dataset.state === 'closed' && layer.remove(), length);
     else layer.remove();
 }

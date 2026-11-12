@@ -10,7 +10,7 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
     const SEARCH_DELAY_MS = 160;
 
     ui.addStyle(`
-    .bot-pressable { transition: background-color var(--deckit-fast) var(--deckit-easing); }
+    .bot-pressable { transition: background-color var(--deckit-fade) var(--deckit-easing); }
     .bot-pressable:hover { background: var(--deckit-hover); }
     .bot-pressable[data-active] { background: var(--deckit-selected); }
   `);
@@ -164,7 +164,7 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         background: LINE_IDLE,
         opacity: '0',
         transition:
-            'opacity var(--deckit-fast) var(--deckit-easing), background-color var(--deckit-fast) var(--deckit-easing)',
+            'opacity var(--deckit-fade) var(--deckit-easing), background-color var(--deckit-fade) var(--deckit-easing)',
     });
     hit.title = 'Drag to resize';
     divider.append(line, hit);
@@ -285,7 +285,7 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
 
     const glideTo = (heading) => {
         const top = reader.scrollTop + heading.getBoundingClientRect().top - reader.getBoundingClientRect().top - 12;
-        const still = !theme.motion.base;
+        const still = !theme.motion.move.base;
         reader.scrollTo({ top, behavior: still ? 'auto' : 'smooth' });
         if (still) return;
 

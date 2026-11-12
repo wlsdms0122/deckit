@@ -133,7 +133,11 @@ const schedulesView = ({ shell, deckit, forge, picker }) => {
     };
     const stateBadge = (item) => {
         const label = item.spent ? 'Spent' : item.enabled ? 'Enabled' : 'Paused';
-        const color = item.spent ? 'var(--deckit-muted)' : item.enabled ? 'var(--deckit-ok)' : 'var(--deckit-warn)';
+        const color = item.spent
+            ? 'var(--deckit-muted)'
+            : item.enabled
+              ? 'var(--deckit-ok-ink)'
+              : 'var(--deckit-warn-ink)';
         const badge = styled('span', {
             display: 'inline-flex',
             alignItems: 'center',

@@ -19,7 +19,7 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
     const dot = (entry) =>
         ui.iconOf('<circle cx="12" cy="12" r="5"/>', {
             size: 14,
-            fill: entry.checking ? theme.color.muted : entry.up ? theme.color.ok : theme.color.alert,
+            fill: entry.checking ? theme.color.muted : entry.up ? theme.color.okInk : theme.color.alertInk,
             color: 'none',
         });
     const button = ui.select({ options: [], value: session, onChange: (name) => choose(name) });

@@ -39,7 +39,7 @@ const PERMISSION_LIST_STYLE = `
         font: var(--deckit-type-small);
         opacity: 0.5;
     }
-    .settings-permission-unusable { margin-top: 4px; font: var(--deckit-type-small); color: var(--deckit-warn); }
+    .settings-permission-unusable { margin-top: 4px; font: var(--deckit-type-small); color: var(--deckit-warn-ink); }
 `;
 
 // The glyph each permission is drawn with, by its id; one Settings does not know is drawn as a permission.

@@ -28,7 +28,7 @@ const listDivider = ({ ui, store, pane, list, key }) => {
         background: LINE_IDLE,
         opacity: '0',
         transition:
-            'opacity var(--deckit-fast) var(--deckit-easing), background-color var(--deckit-fast) var(--deckit-easing)',
+            'opacity var(--deckit-fade) var(--deckit-easing), background-color var(--deckit-fade) var(--deckit-easing)',
     });
     hit.title = 'Drag to resize';
     divider.append(line, hit);

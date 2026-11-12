@@ -56,7 +56,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             display: flex;
             flex: 0 0 auto;
             color: var(--browser-folder-ink);
-            transition: transform var(--deckit-fast) var(--deckit-easing);
+            transition: transform var(--deckit-move-fast) var(--deckit-easing);
         }
         .browser-folder[aria-expanded='true'] .browser-folder-caret { transform: rotate(90deg); }
         .browser-folder[data-empty] .browser-folder-caret { visibility: hidden; }

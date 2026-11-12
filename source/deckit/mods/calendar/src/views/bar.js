@@ -37,9 +37,9 @@ function rowItems(start, count, occurrences) {
         .filter(Boolean);
 }
 
-// A filled bar when `continuous`, or a dot, the time and the title. A click opens the occurrence with
-// `onOpen(occurrence, element)`.
-function bar(occurrence, continuous, onOpen) {
+// A filled bar when `continuous`, its text in the ink that reads on its colour, or a dot, the time and the title. A
+// click opens the occurrence with `onOpen(occurrence, element)`.
+function bar(ui, occurrence, continuous, onOpen) {
     const element = document.createElement('div');
     Object.assign(element.style, {
         display: 'flex',
@@ -55,9 +55,9 @@ function bar(occurrence, continuous, onOpen) {
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         background: continuous ? occurrence.color : 'transparent',
-        color: continuous ? '#fff' : 'inherit',
+        color: continuous ? ui.onColor(occurrence.color) : 'inherit',
         transition:
-            'background-color var(--deckit-fast) var(--deckit-easing), filter var(--deckit-fast) var(--deckit-easing)',
+            'background-color var(--deckit-fade) var(--deckit-easing), filter var(--deckit-fade) var(--deckit-easing)',
     });
     if (continuous) {
         paintSolid(element, occurrence);

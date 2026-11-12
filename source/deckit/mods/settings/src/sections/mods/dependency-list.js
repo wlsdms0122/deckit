@@ -13,7 +13,7 @@ const DEPENDENCY_LIST_STYLE = `
     .settings-dependency-name { font: 600 13.5px var(--deckit-font); }
     .settings-dependency-requirement { font: 11.5px var(--deckit-mono); opacity: 0.5; }
     .settings-dependency-state { margin-left: auto; font: var(--deckit-type-small); opacity: 0.6; }
-    .settings-dependency-state[data-unmet] { color: var(--deckit-alert); opacity: 1; }
+    .settings-dependency-state[data-unmet] { color: var(--deckit-alert-ink); opacity: 1; }
 `;
 
 // The mods a mod depends on: each one's name, its requirement, and the version installed, marked where the requirement

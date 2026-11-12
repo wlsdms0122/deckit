@@ -18,7 +18,7 @@ const STYLE = `
         box-sizing: border-box;
         padding: 8px 0;
         transform: translateX(-${WIDTH - SLIVER}px);
-        transition: transform var(--deckit-base) var(--deckit-easing);
+        transition: transform var(--deckit-move-base) var(--deckit-easing-move);
     }
     .deckit-dock[data-out] { transform: none; }
     .deckit-dock-card {
@@ -54,7 +54,7 @@ const STYLE = `
         color: var(--deckit-text);
         font: var(--deckit-type-heading);
         cursor: pointer;
-        transition: background-color var(--deckit-fast) var(--deckit-easing);
+        transition: background-color var(--deckit-fade) var(--deckit-easing);
     }
     .deckit-dock-item:hover { background: var(--deckit-hover); }
     .deckit-dock-item[data-active] { background: var(--deckit-selected); }

@@ -7,7 +7,7 @@ const STYLE = `
     flex: 0 0 12px;
     justify-content: center;
     opacity: 0;
-    transition: transform var(--deckit-fast) var(--deckit-easing);
+    transition: transform var(--deckit-move-fast) var(--deckit-easing);
 }
 .deckit-tree-row[data-folds] .deckit-tree-caret { opacity: 0.55; }
 .deckit-tree-row[aria-expanded='true'] .deckit-tree-caret { transform: rotate(90deg); }

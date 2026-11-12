@@ -31,7 +31,7 @@ function interfacesSection({ ui, mods }) {
         }
         .settings-interface-refusal {
             padding: 4px 12px 6px 44px;
-            color: var(--deckit-alert);
+            color: var(--deckit-alert-ink);
             font: var(--deckit-type-small);
             white-space: pre-wrap;
         }

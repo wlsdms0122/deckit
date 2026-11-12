@@ -9,25 +9,65 @@ const FALLBACK_THEME = Object.freeze({
     contentColor: '#d1d2d3',
     font: '-apple-system, system-ui, sans-serif',
 });
-// Lengths in ms of what moves, as long as each can take: read as they are where nothing knows the system's settings.
+// Lengths in ms, as long as each can take: read as they are where nothing knows the system's settings.
 const LENGTH = Object.freeze({ fast: 110, base: 170, slow: 260 });
-// Lengths in ms, read at each use: 0 while the system asks for reduced motion.
+// Lengths in ms, read at each use. `move`, for what moves or changes size, is 0 while the system asks for reduced
+// motion; `fade`, for what fades or changes colour, keeps its length then, so a state never jumps.
 const MOTION = Object.freeze({
-    get fast() {
-        return reducedMotion() ? 0 : LENGTH.fast;
-    },
-    get base() {
-        return reducedMotion() ? 0 : LENGTH.base;
-    },
-    get slow() {
-        return reducedMotion() ? 0 : LENGTH.slow;
-    },
+    move: Object.freeze({
+        get fast() {
+            return reducedMotion() ? 0 : LENGTH.fast;
+        },
+        get base() {
+            return reducedMotion() ? 0 : LENGTH.base;
+        },
+        get slow() {
+            return reducedMotion() ? 0 : LENGTH.slow;
+        },
+    }),
+    fade: LENGTH.fast,
+    // What comes on screen and leaves it.
     easing: 'cubic-bezier(.2,.7,.3,1)',
+    // What is on screen and moves to another place there: a sidebar, the Dock, an indicator.
+    easingMove: 'cubic-bezier(.65,0,.35,1)',
     // Where a surface that slides in arrives from and leaves to.
     entrance: 'translateY(6px) scale(.99)',
 });
-// A surface drawn as glass lays its colour at this strength over what is behind it, blurred through.
-const GLASS = 0.68;
+// What differs between a light look and a dark one. `glass` is the strength a surface drawn as glass lays its colour
+// at over what is behind it, blurred through. `rim` is the hairline inside a floating surface's edge, and `float` the
+// shadow it casts. `sidebar` is the sidebar's material over the window's.
+const LOOKS = Object.freeze({
+    light: {
+        accent: '#2a6fdb',
+        okInk: '#1a7f55',
+        warnInk: '#8a6100',
+        alertInk: '#c4174d',
+        sidebar: 'rgba(0,0,0,.022)',
+        rim: 'rgba(0,0,0,.08)',
+        glass: 0.72,
+        shadow: {
+            float: '0 8px 24px rgba(0,0,0,.14), 0 1px 3px rgba(0,0,0,.1)',
+            control: '0 1px 2px rgba(0,0,0,.3)',
+            sidebar: 'inset 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.08)',
+        },
+    },
+    dark: {
+        accent: '#4b8bf4',
+        okInk: '#2eb67d',
+        warnInk: '#ecb22e',
+        alertInk: '#ff5c86',
+        sidebar: 'rgba(255,255,255,.035)',
+        rim: 'rgba(255,255,255,.1)',
+        glass: 0.85,
+        shadow: {
+            float: '0 8px 24px rgba(0,0,0,.4)',
+            control: '0 1px 2px rgba(0,0,0,.5)',
+            sidebar: 'inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.35)',
+        },
+    },
+});
+// The rim's strength while the system asks for more contrast.
+const RIM_MORE = 0.3;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 // The size text a person reads and writes is in, in px, until they choose one.
 const TEXT_SIZE = 14;
@@ -58,7 +98,17 @@ const SYNTAX = Object.freeze({
         invalid: '#cf222e',
     },
 });
-const TYPE = { caption: 11, small: 12, body: 13, medium: 14, large: 15, heading: 16, title: 18 };
+// The type scale: each step's size in px and its line height, the title's tracking; `label` is what names a group
+// or a column, drawn in `muted` in sentence case.
+const TYPE = Object.freeze({
+    caption: { size: 11, line: 1.35 },
+    small: { size: 12, line: 1.4 },
+    body: { size: 13, line: 1.45 },
+    large: { size: 15, line: 1.4 },
+    heading: { size: 17, line: 1.3 },
+    title: { size: 20, line: 1.2, tracking: '-0.01em' },
+    label: { size: 12, line: 1.4, weight: 600 },
+});
 // A neutral grey over any background, light or dark.
 const WASH = (amount) => `rgba(128,128,128,${amount})`;
 
@@ -67,12 +117,14 @@ const WASH = (amount) => `rgba(128,128,128,${amount})`;
 // What every view draws with, derived once from the embedder's theme and the person's fonts. `font` and `type` are the
 // host's, the face the app's own parts are in; `textFont` and `textSize` are what a page's text is in where nothing
 // chooses another, and text a person reads and writes, the person's where they chose them; `fonts` is what the person
-// chose, `{ text, size }`, each left out for the default; `mono` is the system's fixed-width face.
+// chose, `{ text, size }`, each left out for the default; `mono` is the system's fixed-width face. `glass` is read at
+// each use: 1, opaque, while the system asks for less transparency or more contrast.
 function tokenOf(theme, fonts = {}) {
     const text = theme.contentColor;
     const background = theme.contentBg;
     const toward = (amount) => COLOR.mix(text, background, amount);
     const dark = COLOR.isDark(background);
+    const look = LOOKS[dark ? 'dark' : 'light'];
     return deepFreeze({
         dark,
         font: theme.font,
@@ -80,32 +132,44 @@ function tokenOf(theme, fonts = {}) {
         textFont: fonts.text ? `${FONTS.familyOf(fonts.text)}, ${theme.font}` : theme.font,
         textSize: fonts.size || TEXT_SIZE,
         fonts: { ...(fonts.text ? { text: fonts.text } : {}), ...(fonts.size ? { size: fonts.size } : {}) },
-        type: Object.fromEntries(Object.entries(TYPE).map(([name, size]) => [name, `${size}px ${theme.font}`])),
+        type: mapped(TYPE, (step) => fontOf(step, theme.font)),
+        tracking: { title: TYPE.title.tracking },
         border: theme.border,
         color: {
             text,
             muted: toward(0.62),
             disabled: toward(0.3),
+            placeholder: toward(0.62),
             background,
             surface: toward(0.06),
             lifted: toward(0.1),
+            // What floats over the content: a menu, a popover, a dialog's card, a toast, the Dock.
+            elevated: toward(dark ? 0.1 : 0),
+            sidebar: look.sidebar,
             divider: WASH(0.22),
             fill: WASH(0.12),
             hover: WASH(0.14),
             selected: WASH(0.22),
             pressed: WASH(0.3),
-            accent: '#4b8bf4',
+            // Text and glyphs in the accent, and the fill of what is on or pressed first, white over it.
+            accent: look.accent,
+            accentFill: '#2a6fdb',
             onAccent: '#fff',
+            // Status as a fill (a dot, a wash) and as text or a glyph.
             ok: '#2eb67d',
             warn: '#ecb22e',
             alert: '#e01e5a',
-            focus: 'rgba(124,160,255,.7)',
+            okInk: look.okInk,
+            warnInk: look.warnInk,
+            alertInk: look.alertInk,
+            focus: look.accent,
             // What a drop or a context menu is about.
-            target: 'rgba(75,139,244,.75)',
+            target: look.accent,
             scrim: 'rgba(0,0,0,.45)',
             folder: '#5aa9e6',
         },
         radius: { small: 4, control: 6, medium: 8, large: 10, card: 12, round: 999 },
+        rim: rimOf(look.rim),
         shadow: {
             raised: '0 10px 32px rgba(0,0,0,.32)',
             nested: '0 14px 40px rgba(0,0,0,.42), 0 2px 8px rgba(0,0,0,.28)',
@@ -113,16 +177,20 @@ function tokenOf(theme, fonts = {}) {
             lifted: '0 8px 22px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.2)',
             // Along an edge of the content and over it, casting to every side whichever edge it is at.
             drawer: '0 0 24px rgba(0,0,0,.22)',
+            ...look.shadow,
         },
         syntax: { ...SYNTAX[dark ? 'dark' : 'light'] },
         motion: MOTION,
-        glass: GLASS,
+        get glass() {
+            return opaque() ? 1 : look.glass;
+        },
     });
 }
 
 // The token as custom properties on the root (`--deckit-muted`, `--deckit-radius-card`, ...), so a stylesheet
-// reads it by name.
+// reads it by name, and what changes with the system's settings in media queries after it.
 function propertiesOf(token) {
+    const look = LOOKS[token.dark ? 'dark' : 'light'];
     const properties = {
         font: token.font,
         mono: token.mono,
@@ -131,18 +199,31 @@ function propertiesOf(token) {
         border: token.border,
         ...prefixed('', token.color),
         ...prefixed('type-', token.type),
+        ...prefixed('tracking-', token.tracking),
         ...prefixed(
             'radius-',
             mapped(token.radius, (value) => value + 'px')
         ),
+        rim: token.rim,
         ...prefixed('shadow-', token.shadow),
-        ...mapped(LENGTH, (value) => value + 'ms'),
+        glass: look.glass * 100 + '%',
+        fade: MOTION.fade + 'ms',
+        ...prefixed(
+            'move-',
+            mapped(LENGTH, (value) => value + 'ms')
+        ),
         easing: MOTION.easing,
+        easingMove: MOTION.easingMove,
     };
     const declarations = Object.entries(properties).map(([name, value]) => `--deckit-${kebab(name)}: ${value};`);
+    const still = Object.keys(LENGTH).map((name) => `--deckit-move-${name}: 0ms;`);
+    const opaque = '--deckit-glass: 100%;';
+    const more = `${opaque} --deckit-rim: ${rimOf(COLOR.alpha(look.rim, RIM_MORE))};`;
     return (
         `:root { ${declarations.join(' ')} }\n` +
-        `@media (prefers-reduced-motion: reduce) { :root { --deckit-fast: 0ms; --deckit-base: 0ms; --deckit-slow: 0ms; } }\n`
+        `@media (prefers-reduced-motion: reduce) { :root { ${still.join(' ')} } }\n` +
+        `@media (prefers-reduced-transparency: reduce) { :root { ${opaque} } }\n` +
+        `@media (prefers-contrast: more) { :root { ${more} } }\n`
     );
 }
 
@@ -159,8 +240,21 @@ function kebab(name) {
     return name.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase());
 }
 
+// A type step as a font shorthand: its weight where it has one, its size and line height, the face.
+function fontOf({ size, line, weight }, font) {
+    return `${weight ? weight + ' ' : ''}${size}px/${line} ${font}`;
+}
+
+function rimOf(colour) {
+    return `inset 0 0 0 1px ${colour}`;
+}
+
 function reducedMotion() {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function opaque() {
+    return window.matchMedia('(prefers-reduced-transparency: reduce), (prefers-contrast: more)').matches;
 }
 
 function deepFreeze(value) {
@@ -169,4 +263,4 @@ function deepFreeze(value) {
     return Object.freeze(value);
 }
 
-export { FALLBACK_THEME, LENGTH, MOTION, GLASS, tokenOf, propertiesOf };
+export { FALLBACK_THEME, LENGTH, MOTION, tokenOf, propertiesOf };

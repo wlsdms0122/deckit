@@ -75,7 +75,7 @@ function modsSection({
             flex: 0 0 auto;
             margin-left: -4px;
             opacity: 0.45;
-            transition: transform var(--deckit-slow) var(--deckit-easing);
+            transition: transform var(--deckit-move-slow) var(--deckit-easing);
         }
         .settings-mod[data-open] .settings-caret { transform: rotate(90deg); }
         .settings-mod-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -104,7 +104,7 @@ function modsSection({
             white-space: pre-line;
             word-break: break-word;
         }
-        .settings-mod-failure { color: var(--deckit-alert); }
+        .settings-mod-failure { color: var(--deckit-alert-ink); }
         .settings-mod-note { opacity: 0.5; }
         .settings-install-mod { margin: 12px 0 6px; font: 600 var(--deckit-type-body); }
         .settings-install-mod:first-child { margin-top: 0; }
@@ -128,7 +128,7 @@ function modsSection({
             font: 600 var(--deckit-type-body);
             opacity: 0;
             pointer-events: none;
-            transition: opacity var(--deckit-fast) var(--deckit-easing);
+            transition: opacity var(--deckit-fade) var(--deckit-easing);
         }
         .settings-mods[data-targeted] .settings-drop { opacity: 1; }
         .settings-drop-icon { display: flex; color: var(--deckit-target); }

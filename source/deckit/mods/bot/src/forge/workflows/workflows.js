@@ -231,7 +231,7 @@ const workflowsView = ({ shell, deckit, forge, picker }) => {
         part.text.textContent = run.workflow_name;
         part.text.title = run.workflow_id;
         part.state.textContent = run.state;
-        part.state.style.color = run.state === 'running' ? 'var(--deckit-ok)' : 'var(--deckit-warn)';
+        part.state.style.color = run.state === 'running' ? 'var(--deckit-ok-ink)' : 'var(--deckit-warn-ink)';
         part.cancel.setEnabled(!busy && available && run.state !== 'cancelling');
     }
     const runEmpty = muted('');

@@ -7,7 +7,7 @@ const HOUR_HEIGHT = 44;
 const GUTTER_WIDTH = '52px';
 
 // `days` side by side on a grid of hours, the occurrences that span a day or more as bars above it.
-function timeGridView({ detail }) {
+function timeGridView({ ui, detail }) {
     // The grid is drawn anew each time, so its scroll offset is carried here. It opens on the working day.
     let hourScroll = 7.5 * HOUR_HEIGHT;
 
@@ -85,8 +85,8 @@ function timeGridView({ detail }) {
                 lineHeight: '22px',
             });
             if (sameDay(day, now)) {
-                number.style.background = 'var(--deckit-accent)';
-                number.style.color = '#fff';
+                number.style.background = 'var(--deckit-accent-fill)';
+                number.style.color = 'var(--deckit-on-accent)';
             }
             cell.append(weekday, number);
             head.appendChild(cell);
@@ -120,7 +120,7 @@ function timeGridView({ detail }) {
             const grid = laneGrid(days.length);
             for (const item of items.filter((candidate) => candidate.lane === lane)) {
                 const cell = laneCell(item.column, item.span);
-                cell.appendChild(bar(item.occurrence, true, detail.show));
+                cell.appendChild(bar(ui, item.occurrence, true, detail.show));
                 grid.appendChild(cell);
             }
             holder.appendChild(grid);
@@ -187,7 +187,7 @@ function timeGridView({ detail }) {
             left: `calc(${(item.column / item.columns) * 100}% + 2px)`,
             width: `calc(${(1 / item.columns) * 100}% - 4px)`,
             background: item.color,
-            color: '#fff',
+            color: ui.onColor(item.color),
             borderRadius: '5px',
             padding: '2px 6px',
             font: '12px var(--deckit-font)',
@@ -195,7 +195,7 @@ function timeGridView({ detail }) {
             cursor: 'pointer',
             boxSizing: 'border-box',
             transition:
-                'filter var(--deckit-fast) var(--deckit-easing), box-shadow var(--deckit-fast) var(--deckit-easing)',
+                'filter var(--deckit-fade) var(--deckit-easing), box-shadow var(--deckit-fade) var(--deckit-easing)',
         });
         element.addEventListener('mouseenter', () => {
             element.style.filter = 'brightness(1.12)';

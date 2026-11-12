@@ -30,7 +30,7 @@ const STYLE = `
         outline: none;
         background: var(--deckit-fill);
         color: inherit;
-        font: var(--deckit-type-medium);
+        font: var(--deckit-type-body);
     }
     .deckit-input:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -43,8 +43,8 @@ const STYLE = `
         border-radius: var(--deckit-radius-control);
         cursor: pointer;
         transition:
-            box-shadow var(--deckit-fast) var(--deckit-easing),
-            transform var(--deckit-fast) var(--deckit-easing);
+            box-shadow var(--deckit-fade) var(--deckit-easing),
+            transform var(--deckit-move-fast) var(--deckit-easing);
     }
     .deckit-swatch[aria-pressed='true'] {
         box-shadow: 0 0 0 2px var(--deckit-background), 0 0 0 4px var(--deckit-swatch);

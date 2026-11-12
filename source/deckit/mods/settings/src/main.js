@@ -64,7 +64,7 @@ class Settings {
                 height: 100%;
                 overflow: hidden;
                 color: var(--deckit-text);
-                font: var(--deckit-type-medium);
+                font: var(--deckit-type-body);
             }
             .settings-title {
                 display: flex;

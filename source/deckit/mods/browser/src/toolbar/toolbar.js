@@ -147,7 +147,7 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
     function bookmark() {
         if (!shownTab) return;
         onBookmark();
-        if (!theme.motion.fast) return;
+        if (!theme.motion.move.fast) return;
         star.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
             duration: 220,
             easing: theme.motion.easing,

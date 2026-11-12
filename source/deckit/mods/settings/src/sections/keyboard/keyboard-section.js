@@ -56,7 +56,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
     ui.addStyle(`
         .settings-chip.settings-conflicts {
             border-color: color-mix(in srgb, var(--deckit-alert) 50%, transparent);
-            color: var(--deckit-alert);
+            color: var(--deckit-alert-ink);
             opacity: 1;
         }
         .settings-card.settings-shortcut-card { padding-bottom: 6px; }
@@ -90,13 +90,13 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
             cursor: pointer;
         }
         .settings-chord[data-unset] { opacity: 0.45; }
-        .settings-chord[data-conflicts] { border: 1px solid var(--deckit-alert); color: var(--deckit-alert); }
+        .settings-chord[data-conflicts] { border: 1px solid var(--deckit-alert-ink); color: var(--deckit-alert-ink); }
         .settings-chord[data-recording] { border-color: var(--deckit-accent); color: var(--deckit-accent); opacity: 1; }
         .settings-shortcut-line .settings-reset { opacity: 0.6; }
         .settings-shortcut-line .settings-reset[data-unchanged] { opacity: 0; pointer-events: none; }
         .settings-issue {
             padding: 0 0 5px;
-            color: var(--deckit-alert);
+            color: var(--deckit-alert-ink);
             font: 11.5px var(--deckit-font);
             line-height: 1.45;
         }

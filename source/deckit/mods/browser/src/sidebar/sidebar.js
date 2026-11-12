@@ -44,7 +44,7 @@ function sidebar({
         .browser-sidebar { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
         .browser-tab-icon { display: flex; flex: 0 0 auto; }
         .browser-tab-indicators { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
-        .browser-tab-capture { display: flex; color: var(--deckit-alert); }
+        .browser-tab-capture { display: flex; color: var(--deckit-alert-ink); }
         .browser-tab [hidden] { display: none; }
     `);
     const element = ui.element('div', { className: 'browser-sidebar' });

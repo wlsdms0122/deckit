@@ -37,7 +37,7 @@ function spinner({ size = 14 } = {}) {
     const made = document.createElement('span');
     made.className = 'deckit-spinner';
     made.style.width = made.style.height = size + 'px';
-    if (TOKEN.MOTION.base)
+    if (TOKEN.MOTION.move.base)
         made.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], {
             duration: TURN_MS,
             iterations: Infinity,

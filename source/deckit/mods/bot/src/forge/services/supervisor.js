@@ -19,6 +19,13 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         alert: 'var(--deckit-alert)',
         idle: `color-mix(in srgb, var(--deckit-text) 45%, var(--deckit-background))`,
     };
+    // A tone as text, where it is read.
+    const INK = {
+        ...TONE,
+        ok: 'var(--deckit-ok-ink)',
+        warn: 'var(--deckit-warn-ink)',
+        alert: 'var(--deckit-alert-ink)',
+    };
 
     const CALLS_FORGE = new Set(['runner']);
 
@@ -144,8 +151,8 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             padding: '1px 7px',
             borderRadius: '999px',
             font: '11px var(--deckit-font)',
-            color: TONE[tone],
-            border: `1px solid ${TONE[tone]}`,
+            color: INK[tone],
+            border: `1px solid ${INK[tone]}`,
             opacity: '.85',
         });
         return span;
@@ -211,7 +218,6 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
 
     const FLASH_MS = 850;
     const flash = (row, tone) => {
-        if (!theme.motion.base) return;
         const wash = document.createElement('span');
         Object.assign(wash.style, {
             position: 'absolute',

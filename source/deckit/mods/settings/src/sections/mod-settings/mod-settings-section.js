@@ -27,7 +27,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
 
     ui.addStyle(`
         .settings-setting-message { padding: 0 8px; font: 12.5px var(--deckit-font); opacity: 0.45; }
-        .settings-setting-card { transition: background var(--deckit-slow) var(--deckit-easing); }
+        .settings-setting-card { transition: background var(--deckit-fade) var(--deckit-easing); }
         .settings-setting-card[data-highlighted] {
             background: color-mix(in srgb, var(--deckit-accent) 12%, transparent);
         }

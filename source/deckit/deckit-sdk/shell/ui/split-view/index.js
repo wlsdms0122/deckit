@@ -9,16 +9,9 @@ const CONTENT_MIN = 360;
 // over the content's edge; folded, the handle stays at the window's edge, this far in.
 const INSET = 8;
 const HANDLE = Object.freeze({ width: 16, height: 64, out: 6, folded: 3 });
-// The sidebar's material is drawn in the content's ink over the window's background material, which shows through
-// the split view everywhere it draws nothing.
+// The sidebar's material is drawn over the window's background material, which shows through the split view
+// everywhere it draws nothing.
 const STYLE = `
-    :root {
-        --deckit-sidebar-top: light-dark(rgba(0,0,0,.03), rgba(255,255,255,.045));
-        --deckit-sidebar-bottom: light-dark(rgba(0,0,0,.015), rgba(255,255,255,.025));
-        --deckit-sidebar-rim: light-dark(rgba(0,0,0,.08), rgba(255,255,255,.1));
-        --deckit-sidebar-shadow: inset 0 1px 0 light-dark(rgba(255,255,255,.8), rgba(255,255,255,.09)),
-            0 1px 2px light-dark(rgba(0,0,0,.08), rgba(0,0,0,.35)), 0 10px 28px light-dark(rgba(0,0,0,.1), rgba(0,0,0,.32));
-    }
     .deckit-split {
         --deckit-split-drawn: min(var(--deckit-split-width), max(${MIN}px, 100cqw - ${CONTENT_MIN}px));
         position: relative;
@@ -33,7 +26,7 @@ const STYLE = `
         flex: 0 0 auto;
         width: calc(var(--deckit-split-drawn) + ${2 * INSET}px);
         overflow: hidden;
-        transition: width var(--deckit-base) var(--deckit-easing);
+        transition: width var(--deckit-move-base) var(--deckit-easing-move);
     }
     .deckit-split-card {
         position: absolute;
@@ -43,10 +36,9 @@ const STYLE = `
         width: var(--deckit-split-drawn);
         box-sizing: border-box;
         overflow: hidden;
-        border: 1px solid var(--deckit-sidebar-rim);
         border-radius: var(--deckit-radius-card);
-        background: linear-gradient(180deg, var(--deckit-sidebar-top), var(--deckit-sidebar-bottom));
-        box-shadow: var(--deckit-sidebar-shadow);
+        background: var(--deckit-sidebar);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-sidebar);
     }
     .deckit-split-list {
         display: flex;
@@ -89,7 +81,7 @@ const STYLE = `
         background: transparent;
         cursor: col-resize;
         --app-region: no-drag;
-        transition: left var(--deckit-base) var(--deckit-easing);
+        transition: left var(--deckit-move-base) var(--deckit-easing-move);
     }
     .deckit-split-handle::before {
         content: '';
@@ -98,9 +90,9 @@ const STYLE = `
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-disabled);
         transition:
-            background-color var(--deckit-fast) var(--deckit-easing),
-            height var(--deckit-fast) var(--deckit-easing),
-            width var(--deckit-fast) var(--deckit-easing);
+            background-color var(--deckit-fade) var(--deckit-easing),
+            height var(--deckit-move-fast) var(--deckit-easing),
+            width var(--deckit-move-fast) var(--deckit-easing);
     }
     .deckit-split-handle:hover::before,
     .deckit-split[data-dragging] .deckit-split-handle::before { width: 5px; height: 48px; background: var(--deckit-muted); }

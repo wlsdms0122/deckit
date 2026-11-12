@@ -26,7 +26,7 @@ const TABS_STYLE = `
         cursor: pointer;
         opacity: 0.65;
         --app-region: no-drag;
-        transition: background-color var(--deckit-fast) var(--deckit-easing);
+        transition: background-color var(--deckit-fade) var(--deckit-easing);
     }
     .editor-tab:hover { background: var(--deckit-hover); }
     .editor-tab[data-active] { background: var(--deckit-selected); opacity: 1; }

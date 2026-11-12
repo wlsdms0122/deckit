@@ -151,16 +151,15 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     };
     const landIn = () => {
         unlight();
-        if (!MOTION.fast) return end();
         clearTimeout(lifting);
-        fade(MOTION.fast, MOTION.easing);
-        ending = setTimeout(end, MOTION.fast);
+        fade(MOTION.fade, MOTION.easing);
+        ending = setTimeout(end, MOTION.fade);
     };
     const goBack = () => {
         unlight();
-        const to = home();
-        const length = to ? MOTION.base : MOTION.fast;
-        if (!length) return end();
+        // With no motion it fades where it is.
+        const to = MOTION.move.base ? home() : null;
+        const length = to ? MOTION.move.base : MOTION.fade;
         clearTimeout(lifting);
         if (to) {
             morph(length);
@@ -178,14 +177,14 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     };
     hangAt(down.clientX, down.clientY);
     const from = home();
-    if (from && MOTION.base) {
+    if (from && MOTION.move.base) {
         label.style.translate = `${from.x - down.clientX + GRAB.x}px ${from.y - down.clientY + GRAB.y}px`;
         shape(from, false);
         void label.offsetHeight;
-        morph(MOTION.base, { follows: true });
+        morph(MOTION.move.base, { follows: true });
         label.style.translate = '0px 0px';
         shape(chip, true);
-        lifting = setTimeout(() => (label.style.transition = ''), MOTION.base);
+        lifting = setTimeout(() => (label.style.transition = ''), MOTION.move.base);
     }
     return {
         follow: (x, y) => {

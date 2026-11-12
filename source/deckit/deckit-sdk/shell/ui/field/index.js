@@ -15,7 +15,7 @@ const STYLE = `
             background: var(--deckit-fill);
             box-shadow: inset 0 0 0 1px transparent;
             cursor: text;
-            transition: box-shadow var(--deckit-fast) var(--deckit-easing);
+            transition: box-shadow var(--deckit-fade) var(--deckit-easing);
         }
         .deckit-field[data-size='small'] { height: 26px; }
         .deckit-field[data-icon] { padding-left: 9px; }
@@ -72,7 +72,7 @@ const STYLE = `
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
         }
-        .deckit-find-caret { transition: transform var(--deckit-fast) var(--deckit-easing); }
+        .deckit-find-caret { transition: transform var(--deckit-move-fast) var(--deckit-easing); }
         .deckit-find-caret[aria-expanded='true'] { transform: rotate(90deg); }
         .deckit-find-indent { flex: 0 0 auto; width: 24px; }
     `;

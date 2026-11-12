@@ -5,7 +5,6 @@ import * as PAGE from './model/page-name.js';
 import * as WM from './model/window-manager.js';
 import * as ACTIVATION_MODEL from './model/activation.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
-import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered, `state` the shell's own state, `web` what the web engine answered (`pageFor`),
@@ -319,7 +318,7 @@ export function createDesktop({
             deckit.pages.whenEnds(sender, pageEnded);
             const state = stateOfPage();
             desktop.sent = JSON.stringify(state);
-            return { glass: TOKEN.GLASS, state };
+            return { state };
         });
         PROTOCOL.press.on(known(press));
         PROTOCOL.button.on(known((window, { button }) => clicked(window, button)));
@@ -724,7 +723,7 @@ export function createDesktop({
         update,
         // What the host drives of it.
         control: {
-            glass: TOKEN.GLASS,
+            glass: true,
             // Into one of the host app's windows, as a stage is placed (`bounds`, `onClose`).
             place: (window, options) => stage.place(window, options),
             contains,

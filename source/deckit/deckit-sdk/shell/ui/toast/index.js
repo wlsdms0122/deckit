@@ -31,10 +31,9 @@ const STAY = { base: 2500, perCharacter: 50, most: 8000 };
 const MOST = 4;
 // The room between the stack and the top of the page, or the title bar it lies under.
 const GAP = 8;
-const SLIDE = [
-    { opacity: 0, transform: 'translateX(12px)' },
-    { opacity: 1, transform: 'none' },
-];
+// A toast slides in from the right as it fades in, and back as it fades out.
+const SLIDE = [{ transform: 'translateX(12px)' }, { transform: 'none' }];
+const FADE = [{ opacity: 0 }, { opacity: 1 }];
 
 // The stack on screen, `{ layer, element }`, while it holds a toast.
 let stack = null;
@@ -57,7 +56,7 @@ function toast(text) {
     const { element: list } = stack || (stack = open());
     list.style.top = topOf() + 'px';
     glide(list, () => list.prepend(element));
-    element.animate(SLIDE, { duration: TOKEN.MOTION.slow, easing: TOKEN.MOTION.easing });
+    slide(element);
     const stay = setTimeout(close, Math.min(STAY.base + text.length * STAY.perCharacter, STAY.most));
     closers.set(element, close);
     for (const old of [...list.children].filter((child) => !child.dataset.leaving).slice(MOST)) closers.get(old)();
@@ -67,20 +66,24 @@ function toast(text) {
         if (element.dataset.leaving) return;
         element.dataset.leaving = 'true';
         clearTimeout(stay);
-        element
-            .animate(SLIDE, {
-                duration: TOKEN.MOTION.base,
-                easing: TOKEN.MOTION.easing,
-                direction: 'reverse',
-                fill: 'forwards',
-            })
-            .finished.finally(() => {
-                glide(list, () => element.remove());
-                if (list.childElementCount || stack?.element !== list) return;
-                stack.layer.remove();
-                stack = null;
-            });
+        slide(element, { out: true }).finally(() => {
+            glide(list, () => element.remove());
+            if (list.childElementCount || stack?.element !== list) return;
+            stack.layer.remove();
+            stack = null;
+        });
     }
+}
+
+// Slides and fades `element` in, or with `out` out, faster, and keeps it out: answers once both are over.
+function slide(element, { out = false } = {}) {
+    const options = { easing: TOKEN.MOTION.easing, ...(out ? { direction: 'reverse', fill: 'forwards' } : {}) };
+    const moved = TOKEN.MOTION.move[out ? 'base' : 'slow'];
+    const played = [
+        element.animate(SLIDE, { ...options, duration: moved }),
+        element.animate(FADE, { ...options, duration: TOKEN.MOTION.fade }),
+    ];
+    return Promise.allSettled(played.map((animation) => animation.finished));
 }
 
 function open() {
@@ -106,8 +109,8 @@ function glide(list, change) {
         const by = top - child.getBoundingClientRect().top;
         if (child.isConnected && by)
             child.animate([{ transform: `translateY(${by}px)` }, { transform: 'none' }], {
-                duration: TOKEN.MOTION.base,
-                easing: TOKEN.MOTION.easing,
+                duration: TOKEN.MOTION.move.base,
+                easing: TOKEN.MOTION.easingMove,
             });
     }
 }

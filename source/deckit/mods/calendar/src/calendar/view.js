@@ -52,7 +52,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         onRefresh: () => calendar.read(true),
     });
     const month = monthView({ ui, detail, onOpenDay: (day) => goTo(day, 'day') });
-    const timeGrid = timeGridView({ detail });
+    const timeGrid = timeGridView({ ui, detail });
     const side = sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, onChange: render });
     const actions = switcher({
         ui,
@@ -301,7 +301,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         emptyAction.setLabel(noAccount ? 'Add account' : 'Choose calendars');
         if (empty.style.display !== (blank ? 'flex' : 'none')) {
             empty.style.display = blank ? 'flex' : 'none';
-            if (blank) fade(empty, theme.motion.base);
+            if (blank) fade(empty);
         }
         const firstRead = !blank && loading && feeds.all().every((feed) => !reads.has(feed));
         firstLoad.style.display = firstRead ? 'flex' : 'none';
@@ -320,7 +320,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         const occurrences = calendar.shownBetween(from, to);
         if (mode === 'month') month.draw(body, { start: from, month: cursor.getMonth(), occurrences });
         else timeGrid.draw(body, { days: daysOf(from, to), occurrences });
-        if (navigated) fade(body, theme.motion.fast);
+        if (navigated) fade(body);
 
         const today = startOfDay(new Date()),
             tomorrow = addDays(today, 1);
@@ -349,8 +349,8 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         else reloadButton.setIcon(RELOAD);
     }
 
-    function fade(element, length) {
-        element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: length, easing: theme.motion.easing });
+    function fade(element) {
+        element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: theme.motion.fade, easing: theme.motion.easing });
     }
 
     // Calendar's window comes on screen and asks in a dialog: `{ answer, close }`, `answer` whether the person

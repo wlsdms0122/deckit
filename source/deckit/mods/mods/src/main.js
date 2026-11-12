@@ -40,7 +40,7 @@ class Mods {
                 height: 100%;
                 overflow: hidden;
                 color: var(--deckit-text);
-                font: var(--deckit-type-medium);
+                font: var(--deckit-type-body);
             }
             .mods-head { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; padding: 10px 14px; }
             .mods-title { flex: 0 0 auto; font: 700 var(--deckit-type-large); }
@@ -64,7 +64,7 @@ class Mods {
                 color: inherit;
                 font: var(--deckit-type-body);
                 cursor: pointer;
-                transition: background-color var(--deckit-fast) var(--deckit-easing);
+                transition: background-color var(--deckit-fade) var(--deckit-easing);
             }
             .mods-item:hover { background: var(--deckit-hover); }
             .mods-item:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--deckit-focus); }

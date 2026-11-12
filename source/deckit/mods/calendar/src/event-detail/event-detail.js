@@ -58,8 +58,8 @@ function eventDetail({ ui, onAnswer, onClose }) {
                 display: 'inline-block',
                 padding: '3px 10px',
                 borderRadius: '7px',
-                background: 'var(--deckit-accent)',
-                color: '#fff',
+                background: 'var(--deckit-accent-fill)',
+                color: 'var(--deckit-on-accent)',
                 textDecoration: 'none',
                 font: '600 12.5px var(--deckit-font)',
             });
@@ -151,7 +151,7 @@ function eventDetail({ ui, onAnswer, onClose }) {
         Object.assign(note.style, {
             display: 'none',
             marginTop: '6px',
-            color: 'var(--deckit-alert)',
+            color: 'var(--deckit-alert-ink)',
             font: '12px var(--deckit-font)',
         });
         let answering = false;

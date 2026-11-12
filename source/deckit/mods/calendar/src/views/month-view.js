@@ -101,7 +101,7 @@ function monthView({ ui, detail, onOpenDay }) {
                 const grid = laneGrid(7);
                 for (const item of items.filter((candidate) => candidate.lane === lane)) {
                     const cell = laneCell(item.column, item.span);
-                    cell.appendChild(bar(item.occurrence, item.span > 1 || item.occurrence.allDay, detail.show));
+                    cell.appendChild(bar(ui, item.occurrence, item.span > 1 || item.occurrence.allDay, detail.show));
                     grid.appendChild(cell);
                 }
                 stack.appendChild(grid);
@@ -143,11 +143,11 @@ function monthView({ ui, detail, onOpenDay }) {
             font: '12.5px var(--deckit-font)',
             padding: '1px 7px',
             borderRadius: '10px',
-            transition: 'background-color var(--deckit-fast) var(--deckit-easing)',
+            transition: 'background-color var(--deckit-fade) var(--deckit-easing)',
         });
         if (sameDay(day, now)) {
-            number.style.background = 'var(--deckit-accent)';
-            number.style.color = '#fff';
+            number.style.background = 'var(--deckit-accent-fill)';
+            number.style.color = 'var(--deckit-on-accent)';
             number.style.fontWeight = '700';
         } else {
             ui.pressable(number);

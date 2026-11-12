@@ -99,13 +99,12 @@ function boot(theme, channels) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const ui = KIT.make(theme, { fonts: FONTS.installed({ channels }) });
     KIT.addStyle(STYLE);
-    const setup = PROTOCOL.setup.invoke();
-    let { state } = setup;
+    let { state } = PROTOCOL.setup.invoke();
     const drawn = new Map(); // a window's id -> { material, buttons, off }, its frame's parts as drawn
 
     const backdrop = surface(PAGE.BACKDROP);
     const backdropRoot = element(backdrop.document, 'div', 'deckit-desktop-backdrop');
-    backdropRoot.style.background = `color-mix(in srgb, var(--deckit-background) ${setup.glass * 100}%, transparent)`;
+    backdropRoot.style.background = 'color-mix(in srgb, var(--deckit-background) var(--deckit-glass), transparent)';
     backdrop.document.body.append(backdropRoot);
 
     const dock = DOCK.make({ ui, channels, onOut: (out) => PROTOCOL.dock.send({ out }) });

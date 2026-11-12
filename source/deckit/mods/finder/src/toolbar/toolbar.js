@@ -147,7 +147,7 @@ function toolbar({
     }
 
     function toggleFavorite() {
-        if (!onToggleFavorite() || !theme.motion.fast) return;
+        if (!onToggleFavorite() || !theme.motion.move.fast) return;
         star.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
             duration: STAR_PULSE_DURATION,
             easing: theme.motion.easing,

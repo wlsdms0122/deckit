@@ -155,7 +155,10 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
                     editor.signInAgain(account);
                 },
             }).element;
-            Object.assign(signInButton.style, { color: 'var(--deckit-alert)', borderColor: 'var(--deckit-alert)' });
+            Object.assign(signInButton.style, {
+                color: 'var(--deckit-alert-ink)',
+                borderColor: 'var(--deckit-alert-ink)',
+            });
             row.appendChild(signInButton);
         }
         row.appendChild(
@@ -179,7 +182,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             border: '1.5px solid ' + feed.color,
             boxSizing: 'border-box',
             transition:
-                'background-color var(--deckit-base) var(--deckit-easing), border-color var(--deckit-base) var(--deckit-easing)',
+                'background-color var(--deckit-fade) var(--deckit-easing), border-color var(--deckit-fade) var(--deckit-easing)',
         });
         const label = document.createElement('span');
         label.textContent = feed.label || feed.calendar;
@@ -190,7 +193,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             opacity: feed.hidden ? '.45' : '1',
-            color: feed.error ? 'var(--deckit-alert)' : 'inherit',
+            color: feed.error ? 'var(--deckit-alert-ink)' : 'inherit',
         });
         row.append(
             swatch,

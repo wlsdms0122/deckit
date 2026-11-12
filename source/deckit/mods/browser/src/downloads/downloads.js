@@ -19,7 +19,7 @@ function downloadList({ theme, ui, downloads, reveal }) {
         .browser-download-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
         .browser-download-name { overflow: hidden; text-overflow: ellipsis; }
         .browser-download-status { color: var(--deckit-muted); font: var(--deckit-type-small); }
-        .browser-download[data-state='failed'] .browser-download-status { color: var(--deckit-alert); }
+        .browser-download[data-state='failed'] .browser-download-status { color: var(--deckit-alert-ink); }
         .browser-download-bar { height: 3px; border-radius: 2px; background: var(--deckit-fill); overflow: hidden; }
         .browser-download-bar > div { height: 100%; background: var(--deckit-accent); }
         .browser-download:not([data-state='downloading']) .browser-download-bar { display: none; }
@@ -163,7 +163,7 @@ function downloadList({ theme, ui, downloads, reveal }) {
     }
 
     function bounce() {
-        if (!theme.motion.fast) return;
+        if (!theme.motion.move.fast) return;
         button.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
             duration: 220,
             easing: theme.motion.easing,

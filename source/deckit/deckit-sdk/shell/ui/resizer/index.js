@@ -104,7 +104,7 @@ function resizer(
 
 // Through `resize`, so it is drawn the way a drag is, in `page`, a document: one not being drawn is put there at once.
 function springTo(resize, from, to, page, then) {
-    const length = TOKEN.MOTION.base;
+    const length = TOKEN.MOTION.move.base;
     if (from === to || !length || page.hidden) {
         resize(to);
         then();

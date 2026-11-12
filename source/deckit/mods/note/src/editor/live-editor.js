@@ -306,7 +306,7 @@ function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollo
                     cursor: 'pointer',
                 },
                 ".note-check[aria-checked='true']": {
-                    background: `${theme.color.accent} url("data:image/svg+xml,${tick}") center / 68% no-repeat`,
+                    background: `${theme.color.accentFill} url("data:image/svg+xml,${tick}") center / 68% no-repeat`,
                     boxShadow: 'none',
                 },
             },

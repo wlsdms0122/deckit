@@ -22,7 +22,7 @@ function collapse(element, { across = false } = {}, then = null) {
     const from = element.getBoundingClientRect()[axis.size];
     const opacity = getComputedStyle(element).opacity;
     settle(element);
-    const length = TOKEN.MOTION.fast;
+    const length = TOKEN.MOTION.move.fast;
     if (!length || !from) return then?.();
     fold(element, axis, length, then, {
         from: { [axis.size]: from + 'px', opacity },
@@ -38,7 +38,7 @@ function expand(element, { across = false } = {}) {
     const from = running ? element.getBoundingClientRect()[axis.size] : 0;
     const opacity = running ? getComputedStyle(element).opacity : '0';
     settle(element);
-    const length = TOKEN.MOTION.fast;
+    const length = TOKEN.MOTION.move.fast;
     const to = element.getBoundingClientRect()[axis.size];
     if (!length || !to) return;
     const style = getComputedStyle(element);

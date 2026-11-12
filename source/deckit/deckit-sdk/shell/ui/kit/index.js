@@ -75,6 +75,7 @@ function make(theme, { fonts }) {
         tree: TREE.tree,
         alpha: COLOR.alpha,
         mix: COLOR.mix,
+        onColor: COLOR.onColor,
         capturePointer: POINTER.capture,
         edgeFade: SCROLL.edgeFade,
         installedFonts: FONTS.installedFonts,

@@ -3,7 +3,7 @@
 function codeTheme({ engine, theme, ui }) {
     const { tags } = engine;
     const { syntax } = theme;
-    const fast = (property) => `${property} ${theme.motion.fast}ms ${theme.motion.easing}`;
+    const fade = (property) => `${property} ${theme.motion.fade}ms ${theme.motion.easing}`;
     const highlights = [
         {
             tag: [
@@ -71,7 +71,7 @@ function codeTheme({ engine, theme, ui }) {
             '.cm-foldGutter .editor-fold-open, .cm-foldGutter .editor-fold-closed': {
                 cursor: 'pointer',
                 color: theme.color.muted,
-                transition: `${fast('background-color')}, ${fast('color')}`,
+                transition: `${fade('background-color')}, ${fade('color')}`,
             },
             '.cm-foldGutter .editor-fold-closed': { color: theme.color.text },
             '.cm-foldGutter .editor-fold-open:hover, .cm-foldGutter .editor-fold-closed:hover': {
@@ -86,7 +86,7 @@ function codeTheme({ engine, theme, ui }) {
                 padding: '0 6px',
                 margin: '0 3px',
                 cursor: 'pointer',
-                transition: fast('background-color'),
+                transition: fade('background-color'),
             },
             '.cm-foldPlaceholder:hover': { backgroundColor: theme.color.pressed },
             '.cm-panels': { backgroundColor: theme.color.surface, color: theme.color.text },

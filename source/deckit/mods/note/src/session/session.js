@@ -119,7 +119,7 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             font: 800 26px var(--deckit-font);
             letter-spacing: -0.01em;
         }
-        .note-title-error { min-height: 0; color: var(--deckit-alert); font: var(--deckit-type-small); }
+        .note-title-error { min-height: 0; color: var(--deckit-alert-ink); font: var(--deckit-type-small); }
         .note-stamp { min-height: 16px; margin-top: 3px; color: var(--deckit-muted); font: 11.5px var(--deckit-font); }
         .note-banner {
             display: flex;
@@ -525,7 +525,7 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
     }
 
     function nudge() {
-        if (!theme.motion.fast) return;
+        if (!theme.motion.move.fast) return;
         banner.animate(
             [
                 { transform: 'translateX(0)' },

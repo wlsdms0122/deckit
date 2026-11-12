@@ -64,7 +64,7 @@ const STYLE = `
         display: flex;
         flex: 0 0 auto;
         color: var(--deckit-muted);
-        transition: transform var(--deckit-fast) var(--deckit-easing);
+        transition: transform var(--deckit-move-fast) var(--deckit-easing);
     }
     .deckit-select[aria-expanded='true'] .deckit-select-caret { transform: rotate(180deg); }
     [data-deckit-target] { outline: 2px solid var(--deckit-target); outline-offset: -2px; }

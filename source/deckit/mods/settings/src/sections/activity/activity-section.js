@@ -28,7 +28,7 @@ function activitySection({ ui, mods, onInterfaces }) {
         .settings-activity-name { display: flex; align-items: center; gap: 6px; font: var(--deckit-type-body); }
         .settings-activity-why { font: var(--deckit-type-small); line-height: 1.45; opacity: 0.5; }
         .settings-activity-problem {
-            color: var(--deckit-alert);
+            color: var(--deckit-alert-ink);
             font: var(--deckit-type-small);
             line-height: 1.45;
             white-space: pre-line;

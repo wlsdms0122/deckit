@@ -21,7 +21,7 @@ const STYLE = `
         color: var(--deckit-text);
     }
     .deckit-rename[data-grows] { margin-right: auto; }
-    .deckit-refusal { max-width: 280px; padding: 6px 9px; white-space: normal; color: var(--deckit-alert); }
+    .deckit-refusal { max-width: 280px; padding: 6px 9px; white-space: normal; color: var(--deckit-alert-ink); }
 `;
 // A list the field is in (a menu, a drag) must not act on a press or a text drag inside it.
 const KEPT_IN = ['pointerdown', 'mousedown', 'click', 'dblclick', 'contextmenu', 'dragstart'];

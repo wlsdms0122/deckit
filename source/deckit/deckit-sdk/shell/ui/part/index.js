@@ -1,6 +1,6 @@
 // MARK: - Property
 const STYLE = `
-    .deckit-pressable { transition: background-color var(--deckit-fast) var(--deckit-easing); }
+    .deckit-pressable { transition: background-color var(--deckit-fade) var(--deckit-easing); }
     .deckit-pressable:hover { background: var(--deckit-hover); }
     .deckit-pressable:active { background: var(--deckit-pressed); }
     .deckit-pressable:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--deckit-focus); }
@@ -9,7 +9,7 @@ const STYLE = `
         box-sizing: border-box;
         min-height: var(--deckit-title-bar-area-height, 0px);
         margin-left: var(--deckit-title-bar-area-x, 0px);
-        transition: margin-left var(--deckit-base) var(--deckit-easing);
+        transition: margin-left var(--deckit-move-base) var(--deckit-easing-move);
     }
     [data-deckit-title-bar] .deckit-title-bar { --app-region: drag; }
     .deckit-title-bar :is(button, input, textarea, select, a[href], [role='button'], [tabindex], [contenteditable]) {

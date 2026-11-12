@@ -14,21 +14,21 @@ const TONE_LOOK = {
     },
     ok: {
         mark: 'var(--deckit-ok)',
-        glyph: 'var(--deckit-ok)',
+        glyph: 'var(--deckit-ok-ink)',
         wash: '',
         attention: '',
         peak: 'color-mix(in srgb, var(--deckit-ok) 20%, transparent)',
     },
     warn: {
         mark: 'var(--deckit-warn)',
-        glyph: 'var(--deckit-warn)',
+        glyph: 'var(--deckit-warn-ink)',
         wash: '',
         attention: '',
         peak: 'color-mix(in srgb, var(--deckit-warn) 20%, transparent)',
     },
     alert: {
         mark: 'var(--deckit-alert)',
-        glyph: 'var(--deckit-alert)',
+        glyph: 'var(--deckit-alert-ink)',
         wash: 'color-mix(in srgb, var(--deckit-alert) 10%, transparent)',
         attention: '',
         peak: 'color-mix(in srgb, var(--deckit-alert) 24%, transparent)',
@@ -45,7 +45,7 @@ const STYLE =
         min-width: 0;
         padding: 7px 10px;
         border-radius: var(--deckit-radius-medium);
-        transition: background-color var(--deckit-fast) var(--deckit-easing);
+        transition: background-color var(--deckit-fade) var(--deckit-easing);
     }
     .switcher-row[data-actionable] { cursor: pointer; }
     .switcher-row[data-lead] {
@@ -95,8 +95,8 @@ const STYLE =
         margin-left: 10px;
         opacity: 0.55;
     }
-    .switcher-status[data-status='done'] { color: var(--deckit-ok); opacity: 1; }
-    .switcher-status[data-status='failed'] { color: var(--deckit-alert); opacity: 1; }
+    .switcher-status[data-status='done'] { color: var(--deckit-ok-ink); opacity: 1; }
+    .switcher-status[data-status='failed'] { color: var(--deckit-alert-ink); opacity: 1; }
     .switcher-number {
         display: none;
         flex: 0 0 auto;
@@ -288,7 +288,7 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
         stack.append(label, note);
         made.replaceChildren(element('span', 'switcher-mark'), glyph, stack);
         // Its own layer behind the text: the row's background is the active wash's.
-        if (item.attention && theme.motion.fast) {
+        if (item.attention && theme.motion.move.fast) {
             const glow = element('span', 'switcher-glow');
             made.append(glow);
             glow.animate(BREATH, { duration: BREATH_MS, easing: 'ease-in-out' });

@@ -1,3 +1,5 @@
+import * as COLOR from '../color/index.js';
+
 // MARK: - Property
 const STYLE = `
     .deckit-button {
@@ -15,10 +17,10 @@ const STYLE = `
         font: var(--deckit-type-body);
         cursor: pointer;
         transition:
-            background-color var(--deckit-fast) var(--deckit-easing),
-            color var(--deckit-fast) var(--deckit-easing),
-            opacity var(--deckit-fast) var(--deckit-easing),
-            filter var(--deckit-fast) var(--deckit-easing);
+            background-color var(--deckit-fade) var(--deckit-easing),
+            color var(--deckit-fade) var(--deckit-easing),
+            opacity var(--deckit-fade) var(--deckit-easing),
+            filter var(--deckit-fade) var(--deckit-easing);
     }
     .deckit-button:hover { background: var(--deckit-hover); }
     .deckit-button:active { background: var(--deckit-pressed); }
@@ -35,7 +37,7 @@ const STYLE = `
         border-radius: var(--deckit-radius-control);
         font: var(--deckit-type-small);
     }
-    .deckit-text-button[data-variant='primary'] { --deckit-fill-on: var(--deckit-accent); }
+    .deckit-text-button[data-variant='primary'] { --deckit-fill-on: var(--deckit-accent-fill); }
     .deckit-text-button[data-variant='destructive'] { --deckit-fill-on: var(--deckit-alert); }
     .deckit-text-button[data-variant],
     .deckit-text-button[data-variant]:hover,
@@ -76,7 +78,7 @@ const STYLE = `
     .deckit-segment[aria-pressed='true'] { background: var(--deckit-selected); color: var(--deckit-text); }
     .deckit-segmented[data-accent] .deckit-segment[aria-pressed='true'] {
         background: var(--deckit-segment-on);
-        color: var(--deckit-on-accent);
+        color: var(--deckit-segment-ink);
     }
     .deckit-toggle-button {
         min-width: 22px;
@@ -101,7 +103,7 @@ const STYLE = `
     .deckit-toggle,
     .deckit-toggle:hover,
     .deckit-toggle:active { background: var(--deckit-disabled); }
-    .deckit-toggle[aria-checked='true'] { background: var(--deckit-accent); }
+    .deckit-toggle[aria-checked='true'] { background: var(--deckit-accent-fill); }
     .deckit-toggle-knob {
         position: absolute;
         top: 2px;
@@ -110,8 +112,8 @@ const STYLE = `
         height: 16px;
         border-radius: var(--deckit-radius-round);
         background: #fff;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        transition: transform var(--deckit-fast) var(--deckit-easing);
+        box-shadow: var(--deckit-shadow-control);
+        transition: transform var(--deckit-move-fast) var(--deckit-easing-move);
     }
     .deckit-toggle[aria-checked='true'] .deckit-toggle-knob { transform: translateX(14px); }
 `;
@@ -174,6 +176,7 @@ function segmented({ items, value = null, size = 'medium', accent = null, fill =
     if (accent) {
         element.dataset.accent = '';
         element.style.setProperty('--deckit-segment-on', accent);
+        element.style.setProperty('--deckit-segment-ink', COLOR.onColor(accent));
     }
     const segments = new Map(); // key -> { button, label, lead }
     let current = value;
