@@ -53,9 +53,9 @@ function bar(ui, occurrence, continuous, onOpen) {
         height: LANE_HEIGHT - 3 + 'px',
         margin: '0 2px',
         padding: '0 5px',
-        borderRadius: '4px',
+        borderRadius: 'var(--deckit-radius-small)',
         boxSizing: 'border-box',
-        font: '12px var(--deckit-font)',
+        font: 'var(--deckit-type-small)',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
@@ -76,7 +76,7 @@ function bar(ui, occurrence, continuous, onOpen) {
         paintDot(dot, occurrence);
         const time = document.createElement('span');
         time.textContent = clockText(occurrence.start);
-        Object.assign(time.style, { flex: '0 0 auto', opacity: '.6' });
+        Object.assign(time.style, { flex: '0 0 auto', color: 'var(--deckit-muted)' });
         element.append(dot, time);
         ui.pressable(element);
     }

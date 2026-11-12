@@ -129,7 +129,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
 
     function accountRow(account) {
         const row = ui.row().element;
-        Object.assign(row.style, { minHeight: '24px', font: '12.5px var(--deckit-font)' });
+        Object.assign(row.style, { minHeight: '24px', font: 'var(--deckit-type-small)' });
         const who = document.createElement('span');
         who.textContent = account.email;
         const provider = client.providerOf(account);
@@ -139,7 +139,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            opacity: '.6',
+            color: 'var(--deckit-muted)',
         });
         row.append(providerIcon(ui, provider ? provider.icon : ui.icon('info'), 13), who);
         const reading = reads.isReading(account.id);
@@ -177,7 +177,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             flex: '0 0 auto',
             width: '10px',
             height: '10px',
-            borderRadius: '3px',
+            borderRadius: 'var(--deckit-radius-small)',
             background: feed.hidden ? 'transparent' : feed.color,
             border: '1.5px solid ' + feed.color,
             boxSizing: 'border-box',
@@ -192,8 +192,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            opacity: feed.hidden ? '.45' : '1',
-            color: feed.error ? 'var(--deckit-alert-ink)' : 'inherit',
+            color: feed.error ? 'var(--deckit-alert-ink)' : feed.hidden ? 'var(--deckit-muted)' : 'inherit',
         });
         row.append(
             swatch,
@@ -234,8 +233,8 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             Object.assign(date.style, {
                 flex: '0 0 auto',
                 width: '76px',
-                opacity: '.55',
-                font: '13px var(--deckit-font)',
+                color: 'var(--deckit-muted)',
+                font: 'var(--deckit-type-body)',
             });
             row.appendChild(date);
         }
@@ -245,8 +244,8 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
         Object.assign(time.style, {
             flex: '0 0 auto',
             width: '52px',
-            opacity: spanning ? '.45' : '.6',
-            font: (spanning ? '12px' : '13px') + ' var(--deckit-font)',
+            color: 'var(--deckit-muted)',
+            font: spanning ? 'var(--deckit-type-small)' : 'var(--deckit-type-body)',
         });
         const name = document.createElement('span');
         name.textContent = nameOf(occurrence);
@@ -267,7 +266,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
     function emptyRow(text) {
         const row = ui.row().element;
         row.textContent = text;
-        Object.assign(row.style, { opacity: '.45', cursor: 'default', font: '13px var(--deckit-font)' });
+        Object.assign(row.style, { color: 'var(--deckit-muted)', cursor: 'default', font: 'var(--deckit-type-body)' });
         return row;
     }
 

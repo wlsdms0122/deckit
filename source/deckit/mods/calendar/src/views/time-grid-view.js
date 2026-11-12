@@ -36,8 +36,8 @@ function timeGridView({ ui, detail }) {
                 position: 'absolute',
                 right: '8px',
                 top: hour * HOUR_HEIGHT - 7 + 'px',
-                font: '11px var(--deckit-font)',
-                opacity: '.45',
+                font: 'var(--deckit-type-caption)',
+                color: 'var(--deckit-muted)',
             });
             gutter.appendChild(label);
         }
@@ -68,20 +68,16 @@ function timeGridView({ ui, detail }) {
             const cell = document.createElement('div');
             Object.assign(cell.style, { padding: '6px 4px', textAlign: 'center', borderLeft: 'var(--deckit-border)' });
             const weekday = document.createElement('div');
-            weekday.textContent = WEEKDAYS[day.getDay()].toUpperCase();
-            Object.assign(weekday.style, {
-                font: '700 11px var(--deckit-font)',
-                opacity: '.55',
-                letterSpacing: '.04em',
-            });
+            weekday.textContent = WEEKDAYS[day.getDay()];
+            Object.assign(weekday.style, { color: 'var(--deckit-muted)', font: 'var(--deckit-type-label)' });
             const number = document.createElement('div');
             number.textContent = String(day.getDate());
             Object.assign(number.style, {
-                font: '600 15px var(--deckit-font)',
+                font: '600 var(--deckit-type-large)',
                 marginTop: '2px',
                 display: 'inline-block',
                 padding: '0 7px',
-                borderRadius: '11px',
+                borderRadius: 'var(--deckit-radius-round)',
                 lineHeight: '22px',
             });
             if (sameDay(day, now)) {
@@ -106,8 +102,8 @@ function timeGridView({ ui, detail }) {
         const label = document.createElement('div');
         label.textContent = 'All day';
         Object.assign(label.style, {
-            font: '11px var(--deckit-font)',
-            opacity: '.5',
+            font: 'var(--deckit-type-caption)',
+            color: 'var(--deckit-muted)',
             padding: '2px 8px',
             textAlign: 'right',
         });
@@ -134,7 +130,7 @@ function timeGridView({ ui, detail }) {
         Object.assign(column.style, {
             position: 'relative',
             borderLeft: 'var(--deckit-border)',
-            background: `repeating-linear-gradient(to bottom, transparent 0 ${HOUR_HEIGHT - 1}px, rgba(128,128,128,.18) ${HOUR_HEIGHT - 1}px ${HOUR_HEIGHT}px)`,
+            background: `repeating-linear-gradient(to bottom, transparent 0 ${HOUR_HEIGHT - 1}px, var(--deckit-divider) ${HOUR_HEIGHT - 1}px ${HOUR_HEIGHT}px)`,
         });
         // Each occurrence that overlaps the day, cut to it: one over midnight shows on both its days.
         const dayStart = +day,
@@ -188,9 +184,9 @@ function timeGridView({ ui, detail }) {
             width: `calc(${(1 / item.columns) * 100}% - 4px)`,
             background: item.color,
             color: ui.onColor(item.color),
-            borderRadius: '5px',
+            borderRadius: 'var(--deckit-radius-control)',
             padding: '2px 6px',
-            font: '12px var(--deckit-font)',
+            font: 'var(--deckit-type-small)',
             overflow: 'hidden',
             cursor: 'pointer',
             boxSizing: 'border-box',
@@ -200,7 +196,7 @@ function timeGridView({ ui, detail }) {
         paintPast(element, item);
         const time = document.createElement('div');
         time.textContent = clockText(item.start) + '–' + clockText(item.end);
-        Object.assign(time.style, { opacity: '.85', font: '11px var(--deckit-font)' });
+        Object.assign(time.style, { font: 'var(--deckit-type-caption)' });
         const name = document.createElement('div');
         name.textContent = nameOf(item);
         Object.assign(name.style, { fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' });

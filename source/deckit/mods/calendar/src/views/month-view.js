@@ -24,13 +24,13 @@ function monthView({ ui, detail, onOpenDay }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(7, 1fr)',
             borderBottom: 'var(--deckit-border)',
-            opacity: '.6',
-            font: '700 11.5px var(--deckit-font)',
+            color: 'var(--deckit-muted)',
+            font: 'var(--deckit-type-label)',
         });
         for (const weekday of WEEKDAYS) {
             const cell = document.createElement('div');
-            cell.textContent = weekday.toUpperCase();
-            Object.assign(cell.style, { padding: '6px 8px', textAlign: 'center', letterSpacing: '.04em' });
+            cell.textContent = weekday;
+            Object.assign(cell.style, { padding: '6px 8px', textAlign: 'center' });
             weekHead.appendChild(cell);
         }
         into.appendChild(weekHead);
@@ -140,15 +140,15 @@ function monthView({ ui, detail, onOpenDay }) {
                 day.getMonth() === month
                     ? 'var(--deckit-text)'
                     : 'color-mix(in srgb, var(--deckit-text) 38%, var(--deckit-background))',
-            font: '12.5px var(--deckit-font)',
+            font: 'var(--deckit-type-small)',
             padding: '1px 7px',
-            borderRadius: '10px',
+            borderRadius: 'var(--deckit-radius-round)',
             transition: 'background-color var(--deckit-fade) var(--deckit-easing)',
         });
         if (sameDay(day, now)) {
             number.style.background = 'var(--deckit-accent-fill)';
             number.style.color = 'var(--deckit-on-accent)';
-            number.style.fontWeight = '700';
+            number.style.fontWeight = '600';
         } else {
             ui.pressable(number);
         }
@@ -174,11 +174,11 @@ function monthView({ ui, detail, onOpenDay }) {
                     width: 'calc(100% - 4px)',
                     margin: '0 2px',
                     height: LANE_HEIGHT - 3 + 'px',
-                    color: 'color-mix(in srgb, var(--deckit-text) 65%, var(--deckit-background))',
-                    font: '11.5px var(--deckit-font)',
+                    color: 'var(--deckit-muted)',
+                    font: 'var(--deckit-type-small)',
                     textAlign: 'left',
                     padding: '0 5px',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--deckit-radius-small)',
                     overflow: 'hidden',
                     whiteSpace: 'nowrap',
                 });
