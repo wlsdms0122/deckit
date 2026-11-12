@@ -1,4 +1,8 @@
+import * as SCROLL from '../scroll/index.js';
+
 // MARK: - Property
+// A title bar's height, in px: its contents centre on the window's buttons where they lie over it.
+const TITLE_BAR = 48;
 // The focus ring every part draws, at no weight, so a part or a view that draws its own keeps it: outside the edge, or
 // inside it for what is typed into.
 const STYLE = `
@@ -23,12 +27,34 @@ const STYLE = `
     .deckit-pressable:active { background: var(--deckit-pressed); }
     .deckit-pressable:is(:disabled, [aria-disabled='true']) { background: transparent; }
     .deckit-title-bar {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: 0 0 auto;
         box-sizing: border-box;
-        min-height: var(--deckit-title-bar-area-height, 0px);
+        min-height: ${TITLE_BAR}px;
+        padding: 0 12px;
         margin-left: var(--deckit-title-bar-area-x, 0px);
-        transition: margin-left var(--deckit-move-base) var(--deckit-easing-move);
     }
-    [data-deckit-title-bar] .deckit-title-bar { --app-region: drag; }
+    [data-deckit-title-bar] .deckit-title-bar {
+        --app-region: drag;
+        min-height: max(${TITLE_BAR}px, var(--deckit-title-bar-area-height));
+        padding-bottom: max(0px, ${TITLE_BAR}px - var(--deckit-title-bar-area-height));
+    }
+    .deckit-title-bar-title {
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font: 600 var(--deckit-type-heading);
+    }
+    [data-deckit-key='false'] :is(.deckit-title-bar, .deckit-title-bar .deckit-button:not([data-variant])) {
+        color: var(--deckit-muted);
+    }
+    [data-deckit-key='false'] :is(.deckit-row[data-active], .deckit-section-heading[data-current]) {
+        background: var(--deckit-fill);
+    }
     .deckit-title-bar :is(button, input, textarea, select, a[href], [role='button'], [tabindex], [contenteditable]) {
         --app-region: no-drag;
     }
@@ -57,12 +83,25 @@ function selectable(element) {
     return () => (element.style.webkitUserSelect = element.style.userSelect = '');
 }
 
-// A bar along the top of the view, where the window's title bar may lie over it: at least as tall as the
-// bar, clear of the window's buttons, and dragging the window wherever nothing in it is pressed. A control the
-// kit does not know as one marks itself `--app-region: no-drag`.
-function titleBar(element) {
+// A bar along the top of the view, where the window's title bar may lie over it: TITLE_BAR tall, what it holds in a
+// row centred on the window's buttons and clear of them, and dragging the window wherever nothing in it is pressed. A
+// control the kit does not know as one marks itself `--app-region: no-drag`. `title` puts the view's title first;
+// `scroller` is what scrolls under the bar, whose edges fade where there is more of it. While the page's root is
+// marked `data-deckit-key="false"`, its window not the key one, the bar's text and glyphs are muted.
+function titleBar(element, { title = null, scroller = null } = {}) {
     element.classList.add('deckit-title-bar');
-    return () => element.classList.remove('deckit-title-bar');
+    const heading = title == null ? null : element.ownerDocument.createElement('div');
+    if (heading) {
+        heading.className = 'deckit-title-bar-title';
+        heading.textContent = title;
+        element.prepend(heading);
+    }
+    const unfade = scroller ? SCROLL.edgeFade(scroller) : () => {};
+    return () => {
+        element.classList.remove('deckit-title-bar');
+        heading?.remove();
+        unfade();
+    };
 }
 
 // MARK: - Private
