@@ -12,7 +12,6 @@ keywords = ["notifications", "알림", "toast"]
 "system.notifications" = "Shows a notification as the system's while you are in another app."
 "system.overlay-windows" = "Shows notifications over the app, and the recent ones when you ask."
 "deckit.system-services" = "Runs the command of a notification you press, which launches its sender if it does not run."
-"deckit.mods" = "Shows each notification with the app icon of the mod that sent it."
 
 [interfaces]
 provides = { "deckit/notifications" = [1] }
