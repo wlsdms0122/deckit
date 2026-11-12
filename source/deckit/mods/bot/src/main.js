@@ -122,14 +122,7 @@ class Bot {
         const setFold = (key, on) => store.set('folds', { ...folds(), [key]: on });
         const navRows = new Map();
         const navRow = (entry) => {
-            const row = ui.row();
-            const glyph = document.createElement('span');
-            glyph.innerHTML = ui.icon(entry.icon, { size: 16 });
-            Object.assign(glyph.style, {
-                display: 'flex',
-                flex: '0 0 auto',
-                color: `color-mix(in srgb, var(--deckit-text) 75%, var(--deckit-background))`,
-            });
+            const row = ui.row({ glyph: ui.icon(entry.icon, { size: 16 }) });
             const label = document.createElement('span');
             label.textContent = entry.label;
             Object.assign(label.style, {
@@ -138,7 +131,7 @@ class Bot {
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
             });
-            row.element.append(glyph, label);
+            row.element.append(label);
             row.element.addEventListener('click', () => setMode(entry.key));
             navRows.set(entry.key, row);
             return row.element;

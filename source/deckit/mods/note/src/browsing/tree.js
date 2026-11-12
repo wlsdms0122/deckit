@@ -36,14 +36,13 @@ function tree({
             background: linear-gradient(var(--deckit-sidebar), var(--deckit-sidebar)), var(--deckit-background);
         }
         .note-tree { outline: none; }
-        .note-tree-glyph { display: flex; color: var(--deckit-muted); }
     `;
 
     let expanded = new Set(store.get('expanded', []));
     let shown = []; // the rows drawn, in order
 
     ui.addStyle(STYLE);
-    const noteGlyph = `<span class="note-tree-glyph">${ui.icon('fileText', { size: 16 })}</span>`;
+    const noteGlyph = ui.icon('fileText', { size: 16 });
     const element = ui.element('div', { className: 'note-sidebar' });
     const section = ui.section({
         label: 'All Notes',

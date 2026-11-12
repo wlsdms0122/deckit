@@ -2,20 +2,19 @@
 function sidebarRow(ui) {
     let shownIcon = null;
 
-    const row = ui.row();
-    const icon = ui.element('span', { style: { display: 'flex', flex: '0 0 auto', opacity: '.8' } });
+    const row = ui.row({ glyph: '' });
     const label = ui.element('span', {
         style: { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis' },
     });
 
-    row.element.append(icon, label);
+    row.element.append(label);
 
     return { ...row, set };
 
     function set({ icon: name, label: text, title }) {
         if (name !== shownIcon) {
             shownIcon = name;
-            icon.innerHTML = ui.icon(name, { size: 16 });
+            row.setGlyph(ui.icon(name, { size: 16 }));
         }
         label.textContent = text;
         row.element.title = title;

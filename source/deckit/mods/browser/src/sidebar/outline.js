@@ -33,7 +33,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
     let shownRows = [];
     let chosen = null; // the item chosen, as the caller last set it
     let leadKey = null; // the row the keys stand on, when it is not the chosen item's
-    const folderRows = new WeakMap(); // row element -> { row, glyph, label, count }
+    const folderRows = new WeakMap(); // row element -> { row, label, count }
 
     // A folder's own row is washed in its colour, and the rows in it are drawn plain, as rows outside a folder are.
     // The hover and the mark of the row chosen are drawn over the colour, as they are over none.
@@ -60,7 +60,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         }
         .browser-folder[aria-expanded='true'] .browser-folder-caret { transform: rotate(90deg); }
         .browser-folder[data-empty] .browser-folder-caret { visibility: hidden; }
-        .browser-folder-glyph { display: flex; flex: 0 0 auto; color: var(--browser-folder-ink); }
+        .browser-outline-row.browser-folder .deckit-row-glyph { color: var(--browser-folder-ink); }
         .browser-folder-label { color: var(--browser-folder-ink); font-weight: 600; }
         .browser-folder-count { flex: 0 0 auto; color: var(--deckit-muted); font: var(--deckit-type-small); }
     `);
@@ -280,26 +280,26 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
     }
 
     function folderRow(shown) {
-        const row = ui.row();
+        const row = ui.row({ glyph: '' });
         row.element.classList.add('browser-outline-row', 'browser-folder');
         const caret = ui.element('span', { className: 'browser-folder-caret' });
         caret.innerHTML = ui.icon('chevronRight', { size: 14 });
-        const glyph = ui.element('span', { className: 'browser-folder-glyph' });
         const label = ui.element('span', { className: 'browser-row-label browser-folder-label' });
         const count = ui.element('span', { className: 'browser-folder-count' });
-        row.element.append(caret, glyph, label, count);
+        row.element.prepend(caret);
+        row.element.append(label, count);
         row.element.addEventListener('click', () => {
             const folder = rowOf(list.keyOf(row.element)).node;
             if (folder.children.length) onToggle(folder);
         });
-        folderRows.set(row.element, { row, glyph, label, count });
+        folderRows.set(row.element, { row, label, count });
         updateFolderRow(row.element, shown);
         return row.element;
     }
 
     // An empty folder has nothing to fold, so no caret. A folded one shows how many items it holds.
     function updateFolderRow(element, { node, size, active }) {
-        const { row, glyph, label, count } = folderRows.get(element);
+        const { row, label, count } = folderRows.get(element);
         const empty = !node.children.length;
         const open = !empty && !node.collapsed;
         element.toggleAttribute('data-empty', empty);
@@ -307,7 +307,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         if (empty) element.removeAttribute('aria-expanded');
         else element.setAttribute('aria-expanded', String(open));
         element.title = empty ? '' : open ? 'Collapse folder' : 'Expand folder';
-        glyph.innerHTML = ui.icon(open ? 'folderOpen' : 'folder', { size: 16 });
+        row.setGlyph(ui.icon(open ? 'folderOpen' : 'folder', { size: 16 }));
         label.textContent = folderLabel(node);
         count.textContent = node.collapsed && size ? String(size) : '';
         row.setActive(active);

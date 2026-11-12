@@ -42,7 +42,6 @@ function sidebar({
 
     ui.addStyle(`
         .browser-sidebar { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
-        .browser-tab-icon { display: flex; flex: 0 0 auto; }
         .browser-tab-indicators { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
         .browser-tab-capture { display: flex; color: var(--deckit-alert-ink); }
         .browser-tab [hidden] { display: none; }
@@ -161,9 +160,9 @@ function sidebar({
 
     function tabRow(shown) {
         const { node: tab } = shown;
-        const row = ui.row();
+        const row = ui.row({ glyph: '' });
         row.element.classList.add('browser-tab');
-        const icon = ui.element('span', { className: 'browser-tab-icon' });
+        const icon = row.glyph;
         const label = ui.element('span', { className: 'browser-row-label' });
         const indicators = ui.element('span', { className: 'browser-tab-indicators' });
         const captures = CAPTURES.map(([kind, name, title]) => {
@@ -184,7 +183,7 @@ function sidebar({
         });
         indicators.append(...captures.map(({ indicator }) => indicator), mute.element);
         const close = ui.rowAction({ icon: ui.icon('x'), title: 'Close tab', onClick: () => onCloseTab(tab) });
-        row.element.append(icon, label, indicators, close.element);
+        row.element.append(label, indicators, close.element);
         row.element.addEventListener('click', () => onSelectTab(tab));
         tabRows.set(row.element, { row, icon, label, captures, mute });
         updateTabRow(row.element, shown);
@@ -205,7 +204,7 @@ function sidebar({
 
     function bookmarkRow(shown) {
         const { node: bookmark } = shown;
-        const row = ui.row();
+        const row = ui.row({ glyph: favicon({ ui, page: bookmark }).element });
         row.element.classList.add('browser-bookmark');
         const label = ui.element('span', { className: 'browser-row-label' });
         const editAction = ui.rowAction({
@@ -218,7 +217,7 @@ function sidebar({
             title: 'Remove',
             onClick: () => bookmarks.remove(bookmark),
         });
-        row.element.append(favicon({ ui, page: bookmark }).element, label, editAction.element, removeAction.element);
+        row.element.append(label, editAction.element, removeAction.element);
         row.element.addEventListener('click', () => onOpenBookmark(bookmark));
         bookmarkRows.set(row.element, { row, label });
         updateBookmarkRow(row.element, shown);
