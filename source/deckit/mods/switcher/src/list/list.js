@@ -65,6 +65,9 @@ const STYLE =
         font: var(--deckit-type-small);
     }
     .switcher-row[data-lead] .switcher-hint { max-width: none; }
+    .switcher-hint[data-path] { display: flex; }
+    .switcher-path-head { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .switcher-path-tail { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .switcher-status {
         display: flex;
         flex: 0 0 auto;
@@ -250,8 +253,7 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
     if (item.icon) glyph.append(ui.sanitizeIcon(item.icon));
     const label = element('span', 'switcher-label');
     label.append(...labelOf(item.label, lit));
-    const note = element('span', 'switcher-hint');
-    note.textContent = hint;
+    const note = hintOf(hint);
     if (item.lead) {
         const stack = element('div', 'switcher-stack');
         stack.append(label, note);
@@ -269,6 +271,24 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
         badge.textContent = '⌘' + number;
         made.append(badge);
     }
+}
+
+// The hint, a path cut in its middle where it does not fit: its start gives way, its last two segments stay.
+function hintOf(hint) {
+    const made = element('span', 'switcher-hint');
+    const cut = /^[/~]/.test(hint) ? hint.lastIndexOf('/', hint.lastIndexOf('/') - 1) : -1;
+    if (cut <= 0) {
+        made.textContent = hint;
+        return made;
+    }
+    made.dataset.path = '';
+    made.title = hint;
+    const head = element('span', 'switcher-path-head');
+    head.textContent = hint.slice(0, cut);
+    const tail = element('span', 'switcher-path-tail');
+    tail.textContent = hint.slice(cut);
+    made.append(head, tail);
+    return made;
 }
 
 // A run under way turns; one ended says how.
