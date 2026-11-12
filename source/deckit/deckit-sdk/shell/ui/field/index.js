@@ -56,7 +56,7 @@ const STYLE = `
         .deckit-find-line { display: flex; align-items: center; gap: 2px; min-width: 0; }
         .deckit-find-line[hidden] { display: none; }
         .deckit-find .deckit-field { max-width: 460px; }
-        .deckit-find-option { font: 600 11.5px var(--deckit-mono); line-height: 20px; }
+        .deckit-find-option { font: 600 12px/20px var(--deckit-mono); }
         .deckit-find-option[data-option='word'] {
             text-decoration: underline;
             text-underline-offset: 3px;

@@ -43,7 +43,7 @@ const STYLE = `
     }
     .deckit-modal[data-drags] .deckit-modal-card { --app-region: drag; }
     .deckit-modal[data-drags] :is(input, textarea, select, button, a) { --app-region: no-drag; }
-    .deckit-modal-title { font: 700 var(--deckit-type-heading); margin-bottom: 12px; }
+    .deckit-modal-title { font: 600 var(--deckit-type-heading); margin-bottom: 12px; }
     .deckit-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 `;
 
