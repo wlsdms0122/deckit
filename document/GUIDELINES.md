@@ -37,11 +37,12 @@ A mod's window lays two areas with `ui.splitView`: the sidebar, and the content 
 
 ## The title bar
 
-The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room. It is 48px tall, its row centred on the window's buttons; its `title` is `heading` at 600, and while the window is not the key one its text and glyphs go to `muted`.
+The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room. It is 48px tall, as the window's title bar is, its row centred on the window's buttons; its `title` is `heading` at 600, and a breadcrumb that names the view is its title too, its current part drawn the same. While the window is not the key one its text and glyphs go to `muted`, and a button turned off keeps its own look.
 
 - Every window lays one, empty if it has nothing to put there, so the window can be dragged from the top of any mod.
 - A web page, an editor, a canvas or a map starts below it. Pressed content drawn to the top edge leaves nowhere to drag the window from.
 - Leave empty room in it: a field or a strip of tabs does not run edge to edge.
+- Where the bar is narrow, what names the view is never cut: a field gives way first and then folds into a button that opens it (Finder's filter), a segmented control becomes a `ui.select` of the same height (Calendar's Day, Week, Month), and only what is said in passing (a status) is cut.
 - Lay it in three parts:
 
 | Part | What goes there | Examples |
@@ -67,7 +68,8 @@ The bar along the top of the content, laid with `ui.titleBar`, which lies in the
 
 - **Empty:** `ui.emptyState` with an icon, a title that says what is missing ("This folder is empty", "No notes yet"), at most one line of hint, and the one or two actions that fill it, as `small` buttons with their keys in their tooltips; a lone action is `primary`.
 - **Loading:** `ui.loading` where the content waits on something slow. It shows once the wait passes 200ms and then stays at least 400ms: await its `settled()` before the content replaces it.
-- **Failed:** a failure is said where its result has a place, in `alertInk` on the row or in the view it is about, with what to do next (a Try Again button, where to set what is missing), until the next try. Only what has no such place is a `ui.toast` with `kind: 'failure'` and its one action (Notifications). A command that fails is recorded against the run, which Settings shows on the mod's row.
+- **Failed:** a failure of what the person asked is said where its result has a place, in `alertInk` on the row or in the view it is about (Finder's footer), with what to do next (a Try Again button, where to set what is missing), until the next try. Only what has no such place is a `ui.toast` with `kind: 'failure'` and its one action (Notifications). A `ui.dialog` is for a decision the person has to make, never to say that something failed. A command that fails is recorded against the run, which Settings shows on the mod's row.
+- **State:** what is ordinary (a mod that is not running) is said in `muted`; `alertInk` is for what went wrong.
 
 ## Lists
 
