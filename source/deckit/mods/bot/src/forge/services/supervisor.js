@@ -41,17 +41,24 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     const bar = document.createElement('div');
     Object.assign(bar.style, { display: 'flex', flex: '1 1 auto', minWidth: '0', alignItems: 'center', gap: '10px' });
 
-    const body = document.createElement('div');
-    Object.assign(body.style, { flex: '1 1 auto', minHeight: '0', overflowY: 'auto', padding: '16px' });
-    ui.edgeFade(body);
-
     const LOG_MIN = 90,
         LOG_DEFAULT = 240,
         LOG_KEY = 'log-height';
+    // The table keeps the height of what it shows and the log gives way to it, down to its least; past that the table
+    // scrolls.
+    const body = document.createElement('div');
+    Object.assign(body.style, {
+        flex: '1 0 auto',
+        maxHeight: `calc(100% - ${LOG_MIN}px)`,
+        overflowY: 'auto',
+        padding: '16px',
+    });
+    ui.edgeFade(body);
+
     const logPane = document.createElement('div');
     Object.assign(logPane.style, {
-        flex: '0 0 auto',
-        minHeight: '0',
+        flex: '0 1 auto',
+        minHeight: LOG_MIN + 'px',
         display: 'flex',
         flexDirection: 'column',
         height: Math.max(LOG_MIN, store.get(LOG_KEY, LOG_DEFAULT)) + 'px',
