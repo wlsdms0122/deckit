@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+<defs><linearGradient id="set" x1="0" y1="8" x2="0" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#a9afb9"/><stop offset="1" stop-color="#6c727d"/></linearGradient>
+<linearGradient id="ser" x1="0" y1="8" x2="0" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".8" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".14"/></linearGradient>
+<linearGradient id="sew" x1="0" y1="20" x2="0" y2="108" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e6eaf0"/></linearGradient>
+<linearGradient id="seh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".32"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<filter id="ses" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="2" stdDeviation="1" flood-color="#000" flood-opacity=".18"/></filter>
+<clipPath id="sec"><rect x="8" y="8" width="112" height="112" rx="26"/></clipPath>
+</defs>
+<rect x="8" y="8" width="112" height="112" rx="26" fill="url(#set)"/>
+<g filter="url(#ses)">
+<path d="M54.2 32.5 L56.9 22.6 L71.1 22.6 L73.8 32.5 L74.6 32.7 L82.5 26.3 L94.1 34.7 L90.5 44.3 L90.9 44.9 L101.2 44.4 L105.6 58.0 L97.0 63.6 L97.0 64.4 L105.6 70.0 L101.2 83.6 L90.9 83.1 L90.5 83.7 L94.1 93.3 L82.5 101.7 L74.6 95.3 L73.8 95.5 L71.1 105.4 L56.9 105.4 L54.2 95.5 L53.4 95.3 L45.5 101.7 L33.9 93.3 L37.5 83.7 L37.1 83.1 L26.8 83.6 L22.4 70.0 L31.0 64.4 L31.0 63.6 L22.4 58.0 L26.8 44.4 L37.1 44.9 L37.5 44.3 L33.9 34.7 L45.5 26.3 L53.4 32.7 Z M77 64 A13 13 0 1 0 51 64 A13 13 0 1 0 77 64 Z" fill="url(#sew)" fill-rule="evenodd"/>
+<circle cx="64" cy="64" r="22" fill="none" stroke="#9aa1ac" stroke-width="4"/></g>
+<rect x="8.5" y="8.5" width="111" height="111" rx="25.5" fill="none" stroke="url(#ser)"/>
+</svg>

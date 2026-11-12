@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+<defs><linearGradient id="not" x1="0" y1="8" x2="0" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffd66e"/><stop offset="1" stop-color="#f2a91f"/></linearGradient>
+<linearGradient id="nor" x1="0" y1="8" x2="0" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".8" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".14"/></linearGradient>
+<linearGradient id="now" x1="0" y1="20" x2="0" y2="108" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e6eaf0"/></linearGradient>
+<linearGradient id="noh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".32"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<filter id="nos" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="2" stdDeviation="1" flood-color="#000" flood-opacity=".18"/></filter>
+<clipPath id="noc"><rect x="8" y="8" width="112" height="112" rx="26"/></clipPath>
+</defs>
+<rect x="8" y="8" width="112" height="112" rx="26" fill="url(#not)"/>
+<g filter="url(#nos)">
+<rect x="28" y="22" width="60" height="80" rx="9" fill="url(#now)"/>
+<path d="M40 44 H76 M40 58 H76 M40 72 H62" stroke="#e3a630" stroke-width="6" stroke-linecap="round"/>
+<g transform="rotate(38 86 70)">
+<rect x="79" y="30" width="15" height="54" rx="3" fill="#3a3530"/>
+<rect x="79" y="30" width="15" height="10" rx="3" fill="#ff8a70"/>
+<path d="M79 84 L94 84 L86.5 100 Z" fill="#f3d9b1"/>
+<path d="M83.6 94 L89.4 94 L86.5 100 Z" fill="#3a3530"/>
+</g></g>
+<rect x="8.5" y="8.5" width="111" height="111" rx="25.5" fill="none" stroke="url(#nor)"/>
+</svg>
