@@ -20,9 +20,18 @@ const STYLE = `
     .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; font: var(--deckit-type-body); }
     .deckit-row:hover { background: var(--deckit-hover); }
     .deckit-row[data-active] { background: var(--deckit-selected); }
-    .deckit-row:hover .deckit-row-action,
-    .deckit-row:focus-within .deckit-row-action,
-    .deckit-row[data-actions-shown] .deckit-row-action { opacity: 1; }
+    :is(.deckit-row, [data-deckit-row-actions]):not(
+            :hover,
+            :focus-within,
+            [data-actions-shown],
+            [data-deckit-row-actions='shown']
+        )
+        .deckit-row-action {
+        position: absolute;
+        width: 0;
+        overflow: hidden;
+        opacity: 0;
+    }
     .deckit-list { flex: 0 0 auto; }
     .deckit-list[data-scrolls] { overflow-y: auto; overscroll-behavior: contain; }
 `;
@@ -36,7 +45,8 @@ function make() {
 
 // MARK: - Private
 // A row of a list, washed under the pointer. `setActive` marks it chosen; `setActionsShown` keeps its actions
-// shown.
+// shown. Its actions take no room while they are hidden, as in any element marked `data-deckit-row-actions`, which
+// shows them as a row does, and keeps them shown while the mark is `shown`.
 function row({ size = 'medium' } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-row';

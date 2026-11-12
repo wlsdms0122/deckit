@@ -53,9 +53,7 @@ const STYLE = `
         border-radius: var(--deckit-radius-control);
         color: inherit;
         line-height: 1;
-        opacity: 0;
     }
-    .deckit-row-action:focus-visible { opacity: 1; }
     .deckit-segmented {
         display: flex;
         flex: 0 0 auto;
@@ -156,7 +154,8 @@ function button({ label, title = '', icon = '', size = 'medium', variant = 'plai
     };
 }
 
-// An action of a row, shown while the row is hovered or holds the focus. Its click is its own, not the row's.
+// An action of a row, shown while the row is hovered or holds the focus, and always where no row or element marked
+// `data-deckit-row-actions` holds it. Its click is its own, not the row's.
 function rowAction({ icon = '', label = '', title, onClick }) {
     const element = buttonOf('deckit-row-action', title, 'medium');
     if (icon) element.innerHTML = icon;
