@@ -29,6 +29,7 @@ const STYLE = `
         position: fixed;
         border-radius: var(--deckit-radius-round);
         background: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     }
     .deckit-window-material {
         position: fixed;
