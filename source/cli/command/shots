@@ -112,9 +112,13 @@ async function draw(app, look, shots, origin) {
         if (overlay) drawn.push(...laid.filter((each) => each.name === 'deckit-overlay' && each.opener === opener));
         const { x, y } = laid[from].rect;
         const layers = [];
-        for (const { id: each, rect, hidden } of drawn) {
+        for (const { id: each, rect, clips, hidden } of drawn) {
             const session = !hidden && (await pageById(each));
-            if (session) layers.push({ session, x: rect.x - x, y: rect.y - y });
+            const moved = clips.map((clip) => ({
+                ...clip,
+                rect: { ...clip.rect, x: clip.rect.x - x, y: clip.rect.y - y },
+            }));
+            if (session) layers.push({ session, x: rect.x - x, y: rect.y - y, clips: moved });
         }
         await compose(name, layers);
     };

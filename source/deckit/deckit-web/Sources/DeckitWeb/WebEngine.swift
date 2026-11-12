@@ -45,8 +45,8 @@ import CNodeAPI
 //   clips, input } | { page, hidden: true }])`, `clips` the rects on the stage the page is cut to, each
 //   `{ x, y, width, height, cornerRadius }`, `input` the rects in the page that take the pointer, all of it without;
 //   `showStage(id, on)`;
-//   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, and
-//   the view with the window's keyboard marked.
+//   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, a
+//   view that cuts what is in it to rounded corners with their radius, and the view with the window's keyboard marked.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -707,10 +707,13 @@ final class WebEngine {
     }
 
     private func tree(of view: NSView, depth: Int = 0) -> String {
+        let cut = view.layer.flatMap { $0.masksToBounds && $0.cornerRadius > 0 ? $0.cornerRadius : nil }
+        let radius = cut.map { " radius \($0)" } ?? ""
         let line = String(repeating: "  ", count: depth)
             + "\(type(of: view)) \(NSStringFromRect(view.frame))\(view.isHidden ? " hidden" : "")"
             + "\(view.isFlipped ? " flipped" : "")"
             + "\(view.window?.firstResponder === view ? " responder" : "")"
+            + radius
             + (pages.values.first { $0.view === view }.map { " page \($0.id)" } ?? "")
             + ((view as? WebPageView)?.inputRegion.map { " input [\($0.map(NSStringFromRect).joined(separator: "|"))]" }
                 ?? "")

@@ -7,8 +7,8 @@ const { until } = require('./devtools.js');
 const SURFACE = `return ([window.name, window.opener?.location.href ?? '', !!document.querySelector('.deckit-window-material[data-key]')])`;
 
 // A line of WebKit's module's `tree`, a view indented under its superview: its type, its frame in its superview,
-// whether it is hidden, whether it has its window's keyboard, and the page it shows and the rects of it that take the
-// pointer, if one.
+// whether it is hidden, whether it has its window's keyboard, the radius of the corners it cuts what is in it to, if
+// any, and the page it shows and the rects of it that take the pointer, if one.
 function viewOf(line) {
     const match = /^ *(\S+) \{\{([-\d.]+), ([-\d.]+)\}, \{([-\d.]+), ([-\d.]+)\}\}(.*)$/.exec(line);
     if (!match) return null;
@@ -16,7 +16,16 @@ function viewOf(line) {
     const page = Number(/ page (\d+)/.exec(match[6])?.[1]) || null;
     const input = / input \[(.*?)\]/.exec(match[6])?.[1].split('|').filter(Boolean).map(rectOf) ?? null;
     const responder = / responder/.test(match[6]);
-    return { type: match[1], rect: { x, y, width, height }, hidden: / hidden/.test(match[6]), responder, page, input };
+    const radius = Number(/ radius ([\d.]+)/.exec(match[6])?.[1]) || 0;
+    return {
+        type: match[1],
+        rect: { x, y, width, height },
+        hidden: / hidden/.test(match[6]),
+        responder,
+        radius,
+        page,
+        input,
+    };
 }
 
 // A rect as NSStringFromRect writes it, `{{x, y}, {width, height}}`.
@@ -30,8 +39,9 @@ function rectOf(text) {
 function seat({ main, pageById, compose, desktop }) {
     // Every window of WebKit's module: its content's size, and its stages from the bottom, each whether it is shown
     // and the pages on it, bottom to top, `{ id, width, height, stages: [{ shown, rect, pages: [{ id, url, name,
-    // opener, keyed, rect, hidden, responder, input }] }] }`, a page's rect on its stage, through the clips it is drawn
-    // in, and its name, opener and `keyed` those of a document a page opened beside itself (SURFACE).
+    // opener, keyed, rect, clips, hidden, responder, input }] }] }`, a page's rect on its stage, through the clips it is
+    // drawn in, those clips' `{ rect, radius }` on the stage, outermost first, and its name, opener and `keyed` those of
+    // a document a page opened beside itself (SURFACE).
     const laidNow = async () => {
         const found = await main(`
             const urls = Object.fromEntries(webkit.pages().map((id) => [id, webkit.state(id).url]));
@@ -48,6 +58,7 @@ function seat({ main, pageById, compose, desktop }) {
             const lines = tree.split('\n');
             const stages = [];
             const origins = []; // by depth, each view's origin on the stage it is in
+            const cuts = []; // by depth, the views with rounded corners a view is in, and itself if it is one
             let first = null;
             for (const line of lines) {
                 const view = viewOf(line);
@@ -64,6 +75,9 @@ function seat({ main, pageById, compose, desktop }) {
                 const parent = inStage ? origins[depth - 1] : null;
                 const at = parent ? { x: parent.x + view.rect.x, y: parent.y + view.rect.y } : null;
                 origins[depth] = at;
+                const around = (inStage && cuts[depth - 1]) || [];
+                cuts[depth] =
+                    view.radius && at ? [...around, { rect: { ...view.rect, ...at }, radius: view.radius }] : around;
                 if (!view.page || !inStage) continue;
                 const [name, opener, keyed] = found.named[view.page] || ['', '', false];
                 stage.pages.push({
@@ -73,6 +87,7 @@ function seat({ main, pageById, compose, desktop }) {
                     opener,
                     keyed,
                     rect: { ...view.rect, ...at },
+                    clips: around,
                     hidden: view.hidden,
                     responder: view.responder,
                     input: view.input,
@@ -140,9 +155,9 @@ function seat({ main, pageById, compose, desktop }) {
         const from = laid.findIndex(({ name: each }) => each === 'backdrop');
         if (from < 0) return;
         const layers = [];
-        for (const { id, rect } of laid.slice(from)) {
+        for (const { id, rect, clips } of laid.slice(from)) {
             const session = await pageById(id);
-            if (session) layers.push({ session, x: rect.x, y: rect.y });
+            if (session) layers.push({ session, x: rect.x, y: rect.y, clips });
         }
         await compose(name, layers);
     };
