@@ -1,5 +1,6 @@
 import * as LAYER from '../layer/index.js';
 import * as TOKEN from '../token/index.js';
+import * as ICON from '../icon/index.js';
 
 // MARK: - Property
 const STYLE = `
@@ -12,17 +13,28 @@ const STYLE = `
     gap: 8px;
     pointer-events: none;
 }
+.deckit-toasts:has(> [data-kind='failure']) { pointer-events: auto; }
 .deckit-toast {
     box-sizing: border-box;
     max-width: min(360px, calc(100vw - 24px));
     padding: 8px 14px;
+    overflow-wrap: anywhere;
     border-radius: var(--deckit-radius-card);
     background: var(--deckit-elevated);
     box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     color: var(--deckit-text);
     font: var(--deckit-type-body);
-    line-height: 1.45;
+    pointer-events: none;
 }
+.deckit-toast[data-kind='failure'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 6px 6px 14px;
+    pointer-events: auto;
+}
+.deckit-toast-text { flex: 1 1 auto; min-width: 0; padding: 4px 0; }
+.deckit-toast-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 `;
 // How long a toast stays, in ms: long enough to read, longer for more words.
 const STAY = { base: 2500, perCharacter: 50, most: 8000 };
@@ -40,23 +52,51 @@ const closers = new WeakMap(); // toast -> its close()
 
 // MARK: - Initializer
 // MARK: - Public
-function make() {
-    return { toast };
+function make(theme, ui) {
+    return { toast: (text, options) => toast(ui, text, options) };
 }
 
 // MARK: - Private
-// `text` at the top right of the page for a while, under its title bar, on a layer over it, taking no presses: what
-// was just done, told where it was done. Toasts stack, the newest on top. It returns `{ close() }`.
-function toast(text) {
+// `text` at the top right of the page, under its title bar, on a layer over it: what was just done, told where it was
+// done, for a while, taking no presses. A `failure` stays until it is closed, takes presses and holds a close button
+// and, with `action` (`{ label, run }`), one button that runs it and closes the toast. Toasts stack, the newest on top.
+// It returns `{ close() }`.
+function toast(ui, text, { kind = 'done', action = null } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-toast';
-    element.setAttribute('role', 'status');
-    element.textContent = text;
+    const failure = kind === 'failure';
+    if (failure) {
+        element.dataset.kind = kind;
+        element.setAttribute('role', 'alert');
+        const words = document.createElement('div');
+        words.className = 'deckit-toast-text';
+        words.textContent = text;
+        const actions = document.createElement('div');
+        actions.className = 'deckit-toast-actions';
+        if (action)
+            actions.append(
+                ui.button({
+                    label: action.label,
+                    size: 'small',
+                    onClick: () => {
+                        close();
+                        action.run();
+                    },
+                }).element
+            );
+        actions.append(
+            ui.iconButton({ icon: ICON.icon('x', { size: 14 }), title: 'Close', size: 'small', onClick: close }).element
+        );
+        element.append(words, actions);
+    } else {
+        element.setAttribute('role', 'status');
+        element.textContent = text;
+    }
     const { element: list } = stack || (stack = open());
     list.style.top = topOf() + 'px';
     glide(list, () => list.prepend(element));
     slide(element);
-    const stay = setTimeout(close, Math.min(STAY.base + text.length * STAY.perCharacter, STAY.most));
+    const stay = failure ? 0 : setTimeout(close, Math.min(STAY.base + text.length * STAY.perCharacter, STAY.most));
     closers.set(element, close);
     for (const old of [...list.children].filter((child) => !child.dataset.leaving).slice(MOST)) closers.get(old)();
     return { close };
