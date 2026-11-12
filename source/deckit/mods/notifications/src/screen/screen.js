@@ -275,13 +275,20 @@ function screen(shell, center) {
     return Object.freeze({ showList, end });
 }
 
-function when(notification) {
-    return new Date(notification.posted).toLocaleString([], {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+// When a notification was posted, as much as the clock beside it does not already say: the time for today, the
+// weekday and time for the six days before, the date beyond, with the year when it is not this one.
+const TIME = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' });
+const WEEKDAY = new Intl.DateTimeFormat([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+const DATE = new Intl.DateTimeFormat([], { month: 'short', day: 'numeric' });
+const DATE_YEAR = new Intl.DateTimeFormat([], { month: 'short', day: 'numeric', year: 'numeric' });
+
+function when(notification, now = new Date()) {
+    const posted = new Date(notification.posted);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    if (posted >= today) return TIME.format(posted);
+    if (posted >= weekAgo) return WEEKDAY.format(posted);
+    return (posted.getFullYear() === now.getFullYear() ? DATE : DATE_YEAR).format(posted);
 }
 
 module.exports = { screen };
