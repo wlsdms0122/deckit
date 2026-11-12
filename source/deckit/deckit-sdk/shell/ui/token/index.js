@@ -176,6 +176,8 @@ function tokenOf(theme, fonts = {}) {
         rim: rimOf(look.rim),
         shadow: {
             raised: '0 10px 32px rgba(0,0,0,.32)',
+            // A window without the keyboard: close to the desktop, so the key one stands out.
+            inactive: '0 3px 10px rgba(0,0,0,.16)',
             lifted: '0 8px 22px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.2)',
             // Along an edge of the content and over it, casting to every side whichever edge it is at.
             drawer: '0 0 24px rgba(0,0,0,.22)',
