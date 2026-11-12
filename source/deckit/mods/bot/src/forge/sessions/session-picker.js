@@ -40,11 +40,23 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
         onChange(name);
     };
 
+    // What a session is now, as asked here or by a view that showed it, so the two never disagree.
+    const told = (entry) => {
+        sessions = sessions.map((each) => (each.name === entry.name ? entry : each));
+        paint();
+    };
+    // A session that could not be asked about is not running, as the views say.
+    const unknown = (name) => ({ name, up: false, authority: false });
+
     // The sessions there are now; one chosen that is gone gives way to the main one.
     const load = async () => {
         const mine = ++asked;
         const answer = await forge.sessions().catch(() => null);
-        if (!answer || mine !== asked) return sessions;
+        if (mine !== asked) return sessions;
+        if (!answer) {
+            for (const entry of sessions) if (entry.checking) told(unknown(entry.name));
+            return sessions;
+        }
         sessions = answer.sessions || [];
         if (!sessions.some((entry) => entry.name === session)) choose(answer.main);
         paint();
@@ -53,10 +65,9 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
     const loadCurrent = async () => {
         const mine = asked;
         const name = session;
-        const entry = await forge.session(name).catch(() => null);
-        if (!entry || mine !== asked || name !== session) return;
-        sessions = sessions.map((each) => (each.name === name ? entry : each));
-        paint();
+        const entry = await forge.session(name).catch(() => unknown(name));
+        if (mine !== asked || name !== session) return;
+        told(entry);
     };
     paint();
 
@@ -64,6 +75,7 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
         element: button.element,
         current: () => session,
         choose,
+        told,
         show: () => {
             load();
             for (const timer of timers) clearInterval(timer);

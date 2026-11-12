@@ -387,12 +387,16 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     let generation = 0;
     const load = async () => {
         const mine = ++generation;
+        const asked = session;
         try {
-            const next = await snapshot(await forge.session(session));
+            const entry = await forge.session(asked);
+            const next = await snapshot(entry);
             if (mine !== generation) return;
+            picker.told(entry);
             state = { ...next, loading: false };
         } catch (error) {
             if (mine !== generation) return;
+            picker.told({ name: asked, up: false, authority: false });
             state = { ...state, error: String(error?.message || error), loading: false };
         }
         render();
