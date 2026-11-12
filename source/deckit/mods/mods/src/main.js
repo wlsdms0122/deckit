@@ -85,8 +85,7 @@ class Mods {
         const head = ui.element('div', { className: 'mods-head' });
         const field = ui.field({
             placeholder: 'Search',
-            icon: ui.icon('search', { size: 14 }),
-            size: 'small',
+            icon: ui.icon('search', { size: 13 }),
             clearable: true,
             onInput: (value) => {
                 query = value;
