@@ -65,10 +65,10 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         alignItems: 'center',
         gap: '8px',
         flex: '0 0 auto',
-        padding: '7px 14px',
+        // 24 under what is above it, with the body's own 16.
+        padding: '8px 16px',
         color: 'var(--deckit-muted)',
-        font: 'var(--deckit-type-small)',
-        borderTop: 'var(--deckit-border)',
+        font: 'var(--deckit-type-label)',
         cursor: 'row-resize',
     });
     const logTitle = document.createElement('span');
@@ -94,7 +94,9 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         flex: '1 1 auto',
         minHeight: '0',
         overflow: 'auto',
-        padding: '8px 14px 10px',
+        margin: '0 16px 16px',
+        padding: '12px',
+        borderRadius: 'var(--deckit-radius-medium)',
         background: 'var(--deckit-surface)',
         color: 'var(--deckit-text)',
     });
@@ -582,7 +584,6 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             const nothing = document.createElement('div');
             nothing.textContent = 'No log output';
             Object.assign(nothing.style, {
-                padding: '4px 0',
                 color: 'var(--deckit-muted)',
                 font: 'var(--deckit-type-small)',
             });
