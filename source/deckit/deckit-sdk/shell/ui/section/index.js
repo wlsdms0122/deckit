@@ -45,11 +45,10 @@ const STYLE = `
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: var(--deckit-text);
-        font: 700 var(--deckit-type-heading);
-        letter-spacing: 0.08px;
+        color: var(--deckit-muted);
+        font: 600 var(--deckit-type-body);
     }
-    .deckit-section[data-title] .deckit-section-label { font: 800 var(--deckit-type-title); letter-spacing: var(--deckit-tracking-title); }
+    .deckit-section[data-title] .deckit-section-label { color: var(--deckit-text); font: 600 var(--deckit-type-heading); }
     .deckit-section[data-collapsed] .deckit-section-caret { transform: rotate(-90deg); color: var(--deckit-disabled); }
     .deckit-section[data-collapsed] .deckit-section-icon { color: var(--deckit-disabled); }
     .deckit-section[data-collapsed] .deckit-section-label { color: var(--deckit-muted); }

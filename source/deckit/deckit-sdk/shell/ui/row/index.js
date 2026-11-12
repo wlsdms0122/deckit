@@ -12,12 +12,12 @@ const STYLE = `
         box-sizing: border-box;
         padding: 0 8px;
         border-radius: var(--deckit-radius-control);
-        font: var(--deckit-type-large);
+        font: var(--deckit-type-body);
         white-space: nowrap;
         cursor: pointer;
         transition: background-color var(--deckit-fade) var(--deckit-easing);
     }
-    .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; font: var(--deckit-type-body); }
+    .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; }
     .deckit-row:hover { background: var(--deckit-hover); }
     .deckit-row[data-active] { background: var(--deckit-selected); }
     :is(.deckit-row, [data-deckit-row-actions]):not(
