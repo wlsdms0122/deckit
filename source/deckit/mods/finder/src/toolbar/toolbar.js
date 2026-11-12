@@ -124,7 +124,7 @@ function toolbar({
     // The path keeps room for the shown folder's name while the filter can give it; past that the filter folds.
     function fit() {
         const current = breadcrumb.element.querySelector('[aria-current="page"]');
-        const name = current ? current.scrollWidth + (depth > 1 ? FOLDED : 0) : 0;
+        const name = current ? widthOf(current) + (depth > 1 ? FOLDED : 0) : 0;
         const style = getComputedStyle(element);
         const path = getComputedStyle(breadcrumb.element);
         const fixed = [back, forward, up, star, viewButton].reduce((sum, each) => sum + each.element.offsetWidth, 0);
@@ -140,6 +140,15 @@ function toolbar({
         const folded = room < name + FILTER_LEAST;
         element.toggleAttribute('data-folded', folded);
         breadcrumb.element.style.minWidth = folded ? '' : name + 'px';
+    }
+
+    // The width `crumb` takes uncut: a cut one answers its cut width to scrollWidth.
+    function widthOf(crumb) {
+        const kept = crumb.style.cssText;
+        Object.assign(crumb.style, { flex: 'none', width: 'max-content' });
+        const width = crumb.offsetWidth;
+        crumb.style.cssText = kept;
+        return width;
     }
 
     // From `shown` up to the home folder when it is inside it, or else up to the disk's root.
