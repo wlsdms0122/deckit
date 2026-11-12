@@ -1,5 +1,6 @@
 // What the file area shows of the tab's folder in place of its entries: the folder loading, failing to be read, empty,
-// or holding nothing the filter keeps.
+// or holding nothing the filter keeps. A loading screen once shown stays its least time: `holds(then)` answers whether
+// it is up still, and `then()` runs once it may go.
 function folderStatus({ ui, chordOf, onShowHidden, onReveal, onPrivacySettings }) {
     const STYLE = `
         .finder-status-message { padding: 18px 8px; color: var(--deckit-muted); }
@@ -7,17 +8,31 @@ function folderStatus({ ui, chordOf, onShowHidden, onReveal, onPrivacySettings }
     `;
 
     const element = ui.element('div');
-    const loadingScreen = ui.loading({ text: 'Loading…' }).element;
+    let loading = null; // the loading screen up, { element, settled }
+    let leaving = null; // its least time running out
 
     ui.addStyle(STYLE);
-    loadingScreen.classList.add('finder-status-screen');
 
-    return { element, draw };
+    return { element, draw, holds };
+
+    function holds(then) {
+        if (!loading) return false;
+        leaving ??= loading.settled().then(() => {
+            loading = leaving = null;
+            then();
+        });
+        return true;
+    }
 
     // `failure` is { title, hint, permission }; `hasHidden` says an empty folder holds hidden entries.
-    function draw({ folder, loading, failure, isEmpty, filtering, hasHidden }) {
-        if (loading) element.replaceChildren(loadingScreen);
-        else if (failure) element.replaceChildren(failureScreen(failure));
+    function draw({ folder, loading: waiting, failure, isEmpty, filtering, hasHidden }) {
+        if (waiting) {
+            if (!loading) {
+                loading = ui.loading({ text: 'Loading…' });
+                loading.element.classList.add('finder-status-screen');
+            }
+            if (element.firstChild !== loading.element) element.replaceChildren(loading.element);
+        } else if (failure) element.replaceChildren(failureScreen(failure));
         else if (isEmpty && filtering) element.replaceChildren(message('Nothing here matches'));
         else if (isEmpty && folder) element.replaceChildren(emptyScreen(folder, hasHidden));
         else element.replaceChildren();

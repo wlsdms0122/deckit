@@ -94,7 +94,7 @@ function fileArea({
     // While the tab's folder loads or fails, either view shows the list's place with the status in it.
     function draw() {
         if (tabs.location()) holdSelection();
-        const loading = isLoading();
+        const loading = isLoading() || status.holds(draw);
         const failure = loading ? null : listings.of(tabs.location())?.failure || startFailure;
         const asColumns = view === 'columns' && !loading && !failure;
         const shown = asColumns ? [columns.element] : [list.element, status.element];
