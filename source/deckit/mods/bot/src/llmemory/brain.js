@@ -290,8 +290,8 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         if (still) return;
 
         const mark = () =>
-            heading.animate([{ background: 'rgba(128,128,128,.24)' }, { background: 'transparent' }], {
-                duration: 1100,
+            heading.animate([{ background: theme.color.selected }, { background: 'transparent' }], {
+                duration: theme.motion.move.slow,
                 easing: theme.motion.easing,
             });
         reader.addEventListener('scrollend', mark, { once: true });
