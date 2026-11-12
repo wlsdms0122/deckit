@@ -47,7 +47,7 @@ const WORKSPACE_SEARCH_STYLE = `
         flex: 0 0 auto;
         min-width: 18px;
         padding: 0 5px;
-        border-radius: 999px;
+        border-radius: var(--deckit-radius-round);
         background: var(--deckit-fill);
         font: 600 11px var(--deckit-font);
         text-align: center;
@@ -56,7 +56,7 @@ const WORKSPACE_SEARCH_STYLE = `
     .editor-search-match { padding: 0 6px 0 22px; overflow: hidden; }
     .editor-search-line { flex: 0 0 auto; opacity: 0.4; min-width: 22px; text-align: right; font: 12px var(--deckit-mono); }
     .editor-search-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 12px var(--deckit-mono); }
-    .editor-search-hit { background: color-mix(in srgb, var(--deckit-warn) 35%, transparent); border-radius: 2px; }
+    .editor-search-hit { background: color-mix(in srgb, var(--deckit-warn) 35%, transparent); border-radius: var(--deckit-radius-small); }
 `;
 
 // Find and replace in the files of a workspace, asked of the main process module. `head` stays put and `element`

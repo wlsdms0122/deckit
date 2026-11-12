@@ -8,7 +8,7 @@ const DRAFTS_STYLE = `
         gap: 4px;
         margin: 8px 14px 0;
         padding: 7px 8px 7px 10px;
-        border-radius: 7px;
+        border-radius: var(--deckit-radius-medium);
         border: var(--deckit-border);
         font: 12.5px var(--deckit-font);
         background: color-mix(in srgb, var(--deckit-warn) 10%, transparent);

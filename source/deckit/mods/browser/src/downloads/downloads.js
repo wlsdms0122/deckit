@@ -20,7 +20,7 @@ function downloadList({ ui, downloads, reveal }) {
         .browser-download-name { overflow: hidden; text-overflow: ellipsis; }
         .browser-download-status { color: var(--deckit-muted); font: var(--deckit-type-small); }
         .browser-download[data-state='failed'] .browser-download-status { color: var(--deckit-alert-ink); }
-        .browser-download-bar { height: 3px; border-radius: 2px; background: var(--deckit-fill); overflow: hidden; }
+        .browser-download-bar { height: 3px; border-radius: var(--deckit-radius-round); background: var(--deckit-fill); overflow: hidden; }
         .browser-download-bar > div { height: 100%; background: var(--deckit-accent); }
         .browser-download:not([data-state='downloading']) .browser-download-bar { display: none; }
     `);

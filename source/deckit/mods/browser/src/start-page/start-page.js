@@ -43,7 +43,7 @@ function startPage({ ui, onOpen }) {
             font-weight: 600;
             transition: background var(--deckit-fade) var(--deckit-easing);
         }
-        .browser-start-icon img { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; }
+        .browser-start-icon img { width: 32px; height: 32px; object-fit: contain; border-radius: var(--deckit-radius-control); }
         .browser-start-tile:hover .browser-start-icon { background: var(--deckit-hover); }
         .browser-start-title {
             width: 100%;

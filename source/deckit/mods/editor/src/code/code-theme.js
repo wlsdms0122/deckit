@@ -81,7 +81,7 @@ function codeTheme({ engine, theme, ui }) {
             '.cm-foldPlaceholder': {
                 backgroundColor: theme.color.selected,
                 border: '0',
-                borderRadius: '5px',
+                borderRadius: 'var(--deckit-radius-control)',
                 color: 'inherit',
                 padding: '0 6px',
                 margin: '0 3px',

@@ -47,7 +47,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
         }
         .finder-preview-name { margin-top: 10px; font: 600 var(--deckit-type-body); overflow-wrap: anywhere; }
         .finder-preview-detail { color: var(--deckit-muted); }
-        .finder-thumbnail { max-width: 100%; max-height: min(240px, 50%); object-fit: contain; border-radius: 4px; }
+        .finder-thumbnail { max-width: 100%; max-height: min(240px, 50%); object-fit: contain; border-radius: var(--deckit-radius-small); }
     `;
     const columnParts = new WeakMap(); // column element -> { rows, message, loading }
     const cellParts = new WeakMap(); // cell element -> its row

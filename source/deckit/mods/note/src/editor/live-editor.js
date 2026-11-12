@@ -264,20 +264,20 @@ function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollo
                     padding: '0 .8em !important',
                 },
                 '.note-code-first': {
-                    borderTopLeftRadius: '7px',
-                    borderTopRightRadius: '7px',
+                    borderTopLeftRadius: 'var(--deckit-radius-medium)',
+                    borderTopRightRadius: 'var(--deckit-radius-medium)',
                     paddingTop: '.3em !important',
                 },
                 '.note-code-last': {
-                    borderBottomLeftRadius: '7px',
-                    borderBottomRightRadius: '7px',
+                    borderBottomLeftRadius: 'var(--deckit-radius-medium)',
+                    borderBottomRightRadius: 'var(--deckit-radius-medium)',
                     paddingBottom: '.3em !important',
                 },
                 '.note-fence': { color: muted, fontSize: '.8em' },
                 '.note-fence-folded': { color: muted, fontSize: '.7em', lineHeight: '1.1', textAlign: 'right' },
                 '.note-inline-code': {
                     backgroundColor: ui.alpha(theme.color.text, 0.1),
-                    borderRadius: '4px',
+                    borderRadius: 'var(--deckit-radius-small)',
                     padding: '.05em .25em',
                 },
                 '.note-link': {
