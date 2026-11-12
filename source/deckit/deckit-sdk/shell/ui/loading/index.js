@@ -22,16 +22,21 @@ const STYLE = `
     text-align: center;
 }
 .deckit-loading-text { color: var(--deckit-muted); }
+.deckit-skeleton { display: flex; flex-direction: column; }
+.deckit-skeleton-row { display: flex; align-items: center; padding: 0 12px; }
+.deckit-skeleton-bar { height: 12px; border-radius: var(--deckit-radius-small); background: var(--deckit-fill); }
     `;
 const TURN_MS = 750;
 // A load shorter than WAIT_MS shows nothing; one that shows stays at least STAY_MS, so it never flashes.
 const WAIT_MS = 200;
 const STAY_MS = 400;
+// The widths of a skeleton's bars, row after row.
+const WIDTHS = Object.freeze(['60%', '40%', '75%']);
 
 // MARK: - Initializer
 // MARK: - Public
 function make() {
-    return { spinner, loading };
+    return { spinner, loading: Object.assign((options) => loading(options), { skeleton }) };
 }
 
 // MARK: - Private
@@ -60,6 +65,30 @@ function loading({ text = '' } = {}) {
         words.textContent = text;
         box.append(words);
     }
+    return { element: box, settled: shown(box) };
+}
+
+// The shape of a list on its way: `rows` rows `height` px tall, each a still bar in `fill`, shown and settled as
+// `loading` is.
+function skeleton({ rows = 3, height = 28 } = {}) {
+    const box = document.createElement('div');
+    box.className = 'deckit-skeleton';
+    box.setAttribute('aria-busy', 'true');
+    for (let at = 0; at < rows; at++) {
+        const row = document.createElement('div');
+        row.className = 'deckit-skeleton-row';
+        row.style.height = height + 'px';
+        const bar = document.createElement('div');
+        bar.className = 'deckit-skeleton-bar';
+        bar.style.width = WIDTHS[at % WIDTHS.length];
+        row.append(bar);
+        box.append(row);
+    }
+    return { element: box, settled: shown(box) };
+}
+
+// `box` fades in once WAIT_MS has passed; answers `settled()`.
+function shown(box) {
     const made = performance.now();
     box.animate([{ opacity: 0 }, { opacity: 1 }], {
         delay: WAIT_MS,
@@ -67,11 +96,11 @@ function loading({ text = '' } = {}) {
         fill: 'backwards',
     });
     const settled = () => {
-        const shown = performance.now() - made - WAIT_MS;
-        const left = shown <= 0 ? 0 : STAY_MS - shown;
+        const seen = performance.now() - made - WAIT_MS;
+        const left = seen <= 0 ? 0 : STAY_MS - seen;
         return new Promise((resolve) => (left > 0 ? setTimeout(resolve, left) : resolve()));
     };
-    return { element: box, settled };
+    return settled;
 }
 
 export { STYLE, make };
