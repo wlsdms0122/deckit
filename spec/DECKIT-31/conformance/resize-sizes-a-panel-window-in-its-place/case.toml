@@ -1,0 +1,24 @@
+case = 23
+name = "resize-sizes-a-panel-window-in-its-place"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. resize sets a panel window's size, the shell placing it again at the right end of the bar: mod-a, granted deckit.panel-windows, opens p, then calls its resize(80, 20)."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { name = "p", do = "resize", args = [80, 20] }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1192, y = 16, width = 80, height = 20 }, key = false, minimized = false }]

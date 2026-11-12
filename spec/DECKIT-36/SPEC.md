@@ -75,7 +75,7 @@ A region that showed a child shows none once the child is a child of it no more:
 
 ### Where a child is shown
 
-A region's **rect** is what of its element is seen: the element's rect in its window's content, cut to each element it lies in that cuts what overflows it, and nothing while the element is hidden. A region in a window on screen, normal or overlay, as [windows](../DECKIT-31/SPEC.md) fix them, whose rect is not empty, shows its child where the child's run is `running` and has registered a view: the shell lays the child's page over the rect, the rect in the window's frame, cut to the window's frame, over the window's content and in the window's place in the order. A region whose element is in no window shows nothing.
+A region's **rect** is what of its element is seen: the element's rect in its window's content, cut to each element it lies in that cuts what overflows it, and nothing while the element is hidden. A region in a window on screen, at any level, as [windows](../DECKIT-31/SPEC.md) fix them, whose rect is not empty, shows its child where the child's run is `running` and has registered a view: the shell lays the child's page over the rect, the rect in the window's frame, cut to the window's frame, over the window's content and in the window's place in the order. A region whose element is in no window shows nothing.
 
 So the child's view is drawn over what of the parent lies under the rect, and nothing of the parent's is drawn over it; and as the window moves, comes in front or goes behind another, the child's view moves with it.
 

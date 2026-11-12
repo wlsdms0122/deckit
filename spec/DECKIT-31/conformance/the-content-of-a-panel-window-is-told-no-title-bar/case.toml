@@ -1,0 +1,24 @@
+case = 23
+name = "the-content-of-a-panel-window-is-told-no-title-bar"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. mod-a reads, of the root element of the document p's content is in, whether it has the attribute data-deckit-title-bar and the properties --deckit-title-bar-area-height and --deckit-title-bar-area-x, which it says. A window at the level panel has no title bar: mod-a, granted deckit.panel-windows, opens p."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { guide = "p" }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/p/didAppear", activates = true }, { url = "https://said.test/p/guide/false/0px/0px", activates = true }]
