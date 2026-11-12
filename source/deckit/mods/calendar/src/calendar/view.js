@@ -378,7 +378,10 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
 
     function showFailure() {
         // An account waiting for its provider is said in the status, not as a calendar's failure.
-        const provided = (feed) => client.providerOf(accounts.all().find((account) => account.id === feed.account));
+        const provided = (feed) => {
+            const account = accounts.all().find((each) => each.id === feed.account);
+            return account && client.providerOf(account);
+        };
         const broken = feeds.all().filter((feed) => reads.of(feed)?.error && provided(feed));
         const nameOf = (feed) => feed.label || feed.calendar;
         const said = broken.map((feed) => `${nameOf(feed)}: ${reads.of(feed).error}`).join('\n');
