@@ -4,6 +4,9 @@
 // pressed or it is closed; any other leaves after a time. A press on a toast, a row or an action is the center's.
 const WIDTH = 360;
 const GAP = 8;
+// Room around the cards in the window for the shadow they cast, deeper below, where the shadow falls.
+const ROOM = 16;
+const ROOM_BELOW = 24;
 const LIST_HEIGHT = 440;
 // What a toast is drawn in at most, its title, two lines of body and a row of actions: the window's height for each
 // until they are measured.
@@ -19,7 +22,7 @@ const STYLE = `
         gap: ${GAP}px;
         box-sizing: border-box;
         height: 100%;
-        padding: ${GAP}px;
+        padding: ${ROOM}px ${ROOM}px ${ROOM_BELOW}px;
         overflow-y: auto;
         color: var(--deckit-text);
         font: var(--deckit-type-body);
@@ -32,10 +35,10 @@ const STYLE = `
         align-items: flex-start;
         gap: 8px;
         box-sizing: border-box;
-        padding: 10px 36px 10px 12px;
-        border-radius: var(--deckit-radius-large);
+        padding: 12px 36px 12px 12px;
+        border-radius: var(--deckit-radius-card);
         background: var(--deckit-elevated);
-        box-shadow: var(--deckit-rim);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         cursor: default;
     }
     .notifications-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
@@ -125,7 +128,7 @@ function screen(shell, center) {
             window = null;
             return;
         }
-        if (!window) open(toasts.size * TOAST_MOST + (toasts.size + 1) * GAP, { activates: false });
+        if (!window) open(around(toasts.size * TOAST_MOST, toasts.size), { activates: false });
         fit();
     }
 
@@ -136,8 +139,13 @@ function screen(shell, center) {
             if (face !== 'toasts' || !window || !content.isConnected) return;
             const cards = [...content.children];
             const height = cards.reduce((sum, card) => sum + card.getBoundingClientRect().height, 0);
-            window.resize(WIDTH, Math.ceil(height + (cards.length + 1) * GAP));
+            window.resize(WIDTH, Math.ceil(around(height, cards.length)));
         });
+    }
+
+    // The height of `cards` cards `height` tall in all, with the gaps between them and the room around them.
+    function around(height, cards) {
+        return height + Math.max(0, cards - 1) * GAP + ROOM + ROOM_BELOW;
     }
 
     // The window opened `height` tall, taking the keyboard unless `activates` is false. One closed where the screen did
