@@ -17,7 +17,8 @@ function make() {
 // MARK: - Private
 // A handle that sizes something by its drag along `axis`. `size()` reads the size, `onResize(px)` draws one,
 // `onCommit(px)` keeps the one let go of. Past `min` or `max` (numbers or functions read at the press) the edge
-// gives and springs back. A press that does not travel is a click (`onClick`); `onDrag(on)` hears a drag start
+// gives and springs back. A press that does not travel is a click (`onClick(event)`, the click, which Enter and Space
+// make too); `onDrag(on)` hears a drag start
 // and end; `resizable()` says whether a drag sizes at all. Returns the dispose.
 function resizer(
     handle,
@@ -95,7 +96,7 @@ function resizer(
             return;
         }
         gesture?.settleNow();
-        onClick?.();
+        onClick?.(event);
     };
     handle.addEventListener('pointerdown', press, { signal: listening.signal });
     handle.addEventListener('click', click, { signal: listening.signal });
