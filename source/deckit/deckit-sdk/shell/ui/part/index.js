@@ -36,6 +36,7 @@ const STYLE = `
         padding: 0 12px;
         margin-left: var(--deckit-title-bar-area-x, 0px);
     }
+    .deckit-title-bar[data-hairline] { border-bottom: 1px solid var(--deckit-divider); }
     [data-deckit-title-bar] .deckit-title-bar {
         --app-region: drag;
         min-height: max(${TITLE_BAR}px, var(--deckit-title-bar-area-height));
@@ -89,11 +90,13 @@ function selectable(element) {
 // A bar along the top of the view, where the window's title bar may lie over it: TITLE_BAR tall, what it holds in a
 // row centred on the window's buttons and clear of them, and dragging the window wherever nothing in it is pressed. A
 // control the kit does not know as one marks itself `--app-region: no-drag`. `title` puts the view's title first;
-// `scroller` is what scrolls under the bar, whose edges fade where there is more of it. While the page's root is
+// `scroller` is what scrolls under the bar, whose edges fade where there is more of it; `hairline` draws a rule under
+// the bar instead, for content the fade cannot reach, as a web page. While the page's root is
 // marked `data-deckit-key="false"`, its window not the key one, the bar's text and glyphs are muted, its title a
 // breadcrumb's current part too; what is disabled stays as it is.
-function titleBar(element, { title = null, scroller = null } = {}) {
+function titleBar(element, { title = null, scroller = null, hairline = false } = {}) {
     element.classList.add('deckit-title-bar');
+    element.toggleAttribute('data-hairline', hairline);
     const heading = title == null ? null : element.ownerDocument.createElement('div');
     if (heading) {
         heading.className = 'deckit-title-bar-title';
@@ -103,6 +106,7 @@ function titleBar(element, { title = null, scroller = null } = {}) {
     const unfade = scroller ? SCROLL.edgeFade(scroller) : () => {};
     return () => {
         element.classList.remove('deckit-title-bar');
+        element.removeAttribute('data-hairline');
         heading?.remove();
         unfade();
     };
