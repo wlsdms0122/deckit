@@ -7,7 +7,8 @@ import * as SURFACE from './model/surface.js';
 // frames windows were left at and which mods may activate, `KEY` the keys of the app, and `makeStage()` a stage to
 // lay pages on (environment: SHELL.stage);
 // `showWindow(control, { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on
-// screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it.
+// screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it. A panel
+// window stands in the host's bar over the desktop, where DESKTOP places it.
 export function createWindows({
     deckit,
     web,
@@ -24,6 +25,7 @@ export function createWindows({
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const NORMAL = 'normal';
     const OVERLAY_LEVEL = 'overlay';
+    const PANEL = 'panel';
     // The size a window opens at where its mod gives none, and the size a web page's window opens at.
     const SIZE = Object.freeze({ width: 720, height: 480 });
     const WEB_SIZE = Object.freeze({ width: 520, height: 700 });
@@ -39,7 +41,8 @@ export function createWindows({
     // MARK: - Initializer
     // MARK: - Public
     // The windows mods open, each a run's: a normal one on the desktop, an overlay one in a floating window of the host
-    // app's. A window's content is a document its mod's page opens; it closes with the page's document.
+    // app's, a panel one in the host's bar over the desktop. A window's content is a document its mod's page opens; it
+    // closes with the page's document.
     function start() {
         PROTOCOL.open.handle((options, sender) => open(sender, options));
         PROTOCOL.close.on(bySender(close));
@@ -118,7 +121,7 @@ export function createWindows({
     // the page itself while it has none.
     function keyboardOf(page) {
         const own = [...windows.values()].filter((window) => window.page === page && window.surface);
-        const key = own.find((window) => (window.level === NORMAL ? DESKTOP.isKey(window) : window.host.key));
+        const key = own.find((window) => (window.level === NORMAL ? DESKTOP.isKey(window) : !!window.host?.key));
         return (key ?? own[0])?.surface ?? page;
     }
 
@@ -140,14 +143,13 @@ export function createWindows({
             orderFront(same, { activates });
             return { id: same.id, surface: SURFACE.nameOf(same.id) };
         }
-        const overlay = level === OVERLAY_LEVEL;
         const id = ++count;
         const window = {
             id,
             mod,
             page,
             name,
-            level: overlay ? OVERLAY_LEVEL : NORMAL,
+            level: [OVERLAY_LEVEL, PANEL].includes(level) ? level : NORMAL,
             size: { width: width ?? SIZE.width, height: height ?? SIZE.height },
             minimum: { width: minWidth ?? 0, height: minHeight ?? 0 },
             surface: null,
@@ -159,9 +161,10 @@ export function createWindows({
         windows.set(id, window);
         closesWith(page);
         PAGES.allowSurface(page, SURFACE.nameOf(id), (surface) => opened(window, surface));
-        if (overlay) float(window, { activates });
+        if (window.level === OVERLAY_LEVEL) float(window, { activates });
         else {
-            DESKTOP.open(window, { activates });
+            if (window.level === PANEL) DESKTOP.openPanel(window);
+            else DESKTOP.open(window, { activates });
             layOverlayWindowsOf(page);
         }
         return { id, surface: SURFACE.nameOf(id) };
@@ -169,20 +172,21 @@ export function createWindows({
 
     // The content, once the page opened it: its keys reach the keys of the app as the page's, and a press in it is the
     // person's on its window. Only a press takes the keyboard to a window that is not key, the shell giving it to the
-    // key window's content alone.
+    // key window's content alone; a press in a panel window leaves the key window key.
     function opened(window, surface) {
         if (windows.get(window.id) !== window) return PAGES.close(surface);
         window.surface = surface;
         KEY.listen(surface, window.page);
         PAGES.whenFocused(surface, () => focused(window));
-        if (window.level === NORMAL) DESKTOP.update();
-        else lay(window);
+        if (window.level === OVERLAY_LEVEL) lay(window);
+        else DESKTOP.update();
         tell();
     }
 
     function focused(window) {
         if (windows.get(window.id) !== window) return;
-        if (window.level === NORMAL && !DESKTOP.isKey(window)) DESKTOP.press(window);
+        if (window.level === PANEL) DESKTOP.pressPanel(window);
+        else if (window.level === NORMAL && !DESKTOP.isKey(window)) DESKTOP.press(window);
     }
 
     // Closed, wherever it is, and the page told, unless the page is what went, before another window takes the key
@@ -191,10 +195,12 @@ export function createWindows({
         if (windows.get(window.id) !== window) return;
         windows.delete(window.id);
         if (!window.web && PAGES.isAlive(window.page)) PROTOCOL.closed.send(window.page, { id: window.id });
-        if (window.level === NORMAL) {
-            DESKTOP.close(window);
+        if (window.level === OVERLAY_LEVEL) sink(window);
+        else {
+            if (window.level === PANEL) DESKTOP.closePanel(window);
+            else DESKTOP.close(window);
             layOverlayWindowsOf(window.page);
-        } else sink(window);
+        }
         if (window.web) {
             for (const listener of [...window.web.closed]) listener();
             return;
@@ -204,8 +210,9 @@ export function createWindows({
 
     // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false,
     // where the mod may activate for the local seat (DESKTOP.orderFront); an overlay window takes the keyboard only
-    // then.
+    // then. A panel window stands where it is, never key.
     function orderFront(window, { activates = true } = {}) {
+        if (window.level === PANEL) return;
         if (window.level === NORMAL) DESKTOP.orderFront(window, { activates });
         else showFloating(window, { activates: activates && mayActivate(window) });
     }
@@ -227,6 +234,7 @@ export function createWindows({
     function resize(window, size) {
         window.size = size;
         if (window.level === NORMAL) DESKTOP.resize(window, size);
+        else if (window.level === PANEL) DESKTOP.update();
         else {
             showFloating(window, { activates: false });
             tell();
@@ -381,9 +389,9 @@ export function createWindows({
         for (const window of windows.values()) {
             if (window.web || !window.surface) continue;
             const state =
-                window.level === NORMAL
-                    ? DESKTOP.stateOf(window)
-                    : { shown: true, key: window.host.key, ...window.size, titleBar: null };
+                window.level === OVERLAY_LEVEL
+                    ? { shown: true, key: window.host.key, ...window.size, titleBar: null }
+                    : DESKTOP.stateOf(window);
             const written = JSON.stringify(state);
             if (written === window.sent) continue;
             const resigns = !state.key && !!window.sent && JSON.parse(window.sent).key;
@@ -393,11 +401,11 @@ export function createWindows({
         for (const { window, state } of told) PROTOCOL.state.send(window.page, { id: window.id, ...state });
     }
 
-    // The overlay window a mod's page is laid in, under its content: the first open of a page with no normal window
-    // open, so what its overlay draws is over that window; or null, where the page is laid on the desktop.
+    // The overlay window a mod's page is laid in, under its content: the first open of a page with no normal or panel
+    // window open, so what its overlay draws is over that window; or null, where the page is laid on the desktop.
     function holderOf(page) {
         const own = [...windows.values()].filter((window) => window.page === page);
-        if (own.some(({ level }) => level === NORMAL)) return null;
+        if (own.some(({ level }) => level !== OVERLAY_LEVEL)) return null;
         return own.find(({ host }) => host?.stage) ?? null;
     }
 

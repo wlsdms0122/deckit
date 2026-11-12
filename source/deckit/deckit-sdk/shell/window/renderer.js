@@ -13,7 +13,7 @@ const STYLE = `
     .deckit-window { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
     .deckit-window > * { flex: 1 1 auto; min-height: 0; }
 `;
-const LEVELS = Object.freeze(['normal', 'overlay']);
+const LEVELS = Object.freeze(['normal', 'overlay', 'panel']);
 const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didResize', 'didClose']);
 
 // MARK: - Initializer
@@ -51,9 +51,10 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     // MARK: - Public
     // `open(options)` opens a window, or orders front the one of its name open, and answers it: the key window, as
     // `makeKeyAndOrderFront()` puts it, or with `activates` false in front as `orderFront()` puts it, the keyboard left
-    // where it is. It throws its refusal: NOT_PERMITTED for the level `overlay` without system.overlay-windows, then
-    // INVALID_ARGUMENT for options that are no window's, then ENDED once `scope` is cut. `list()` answers the windows
-    // open, in the order they opened, and throws ENDED once `scope` is cut.
+    // where it is. It throws its refusal: NOT_PERMITTED for the level `overlay` without system.overlay-windows, or
+    // `panel` without deckit.panel-windows, then INVALID_ARGUMENT for options that are no window's, then ENDED once
+    // `scope` is cut. `list()` answers the windows open, in the order they opened, and throws ENDED once `scope` is
+    // cut.
     function forScope(scope) {
         scope.add(() => {
             for (const [id, held] of open) if (held.scope === scope) PROTOCOL.close.send({ id });
@@ -227,7 +228,7 @@ function problemOf(options) {
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
         return `takes { name, content, level, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;
-    if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.join(' or ')}`;
+    if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.slice(0, -1).join(', ')} or ${LEVELS.at(-1)}`;
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
     if (options.activates !== undefined && typeof options.activates !== 'boolean') return 'takes activates a boolean';

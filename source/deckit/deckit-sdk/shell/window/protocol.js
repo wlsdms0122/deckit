@@ -3,8 +3,8 @@ import * as CHANNEL from '../../deckit/channel/index.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
 
 // A window opens, or the one of that name open orders front: answers `{ id, surface }` at once, `surface` the name
-// the page opens its content by (window.open('', surface)). `level` is 'normal' or 'overlay'; `activates` false leaves
-// the key window where it is.
+// the page opens its content by (window.open('', surface)). `level` is 'normal', 'overlay' or 'panel'; `activates`
+// false leaves the key window where it is.
 export const open = CHANNEL.pageToMain(
     'deckit-shell:window-open',
     {

@@ -12,8 +12,9 @@
 // ordered front or opened without taking the keyboard, the shell's keys, a frame restored and remembered by the
 // window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window
 // following the desktop's size and any other kept reachable as it shrinks, and a titled window's content under the
-// title bar the shell draws, its title told and its drag. Exits 1 with a line for each check that failed. The packages
-// are ES modules, so they are imported as such.
+// title bar the shell draws, its title told and its drag, and the panel windows in the host's bar: placed right to left
+// in the order they opened, laid over the desktop's page, told no title bar, never key, pressed with the key window
+// left key. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -620,6 +621,56 @@ async function main() {
             'forgets that frame',
         overlayKept && !desk.desktop.keepsFramesOf('c') && desk.desktop.keptFrameOf({ ...float, mod: 'c' }) === null,
         desk.state['window-frames']
+    );
+
+    // Panel windows in the host's bar, 28 high across a stage 800 wide.
+    const panelOf = (id, mod, size) => ({ ...windowOf(id, mod, `bar-${id}`), level: 'panel', size });
+    const firstPanel = panelOf(21, 'a', { width: 100, height: 20 });
+    const secondPanel = panelOf(22, 'b', { width: 60, height: 40 });
+    const keyBefore = desk.page().windows.find(({ key }) => key)?.id ?? null;
+    desk.desktop.openPanel(firstPanel);
+    desk.desktop.openPanel(secondPanel);
+    const inBar = desk.desktop.control.panels();
+    check(
+        "panel windows stand in the host's bar right to left in the order they opened, 8 in from its right end and 8 " +
+            'apart, each no higher than the bar and centred on its height',
+        JSON.stringify(inBar.map(({ frame }) => frame)) ===
+            JSON.stringify([
+                { x: 692, y: 4, width: 100, height: 20 },
+                { x: 624, y: 0, width: 60, height: 28 },
+            ]) &&
+            inBar[0].mod === 'a' &&
+            inBar[1].name === 'bar-22',
+        inBar
+    );
+    const laidNames = names();
+    const content = desk.laid().find(({ page }) => page.name === 'content-21');
+    check(
+        "a panel window's content is laid over the desktop's page, cut to its frame rounded by half its height, its " +
+            'material under it in that page',
+        laidNames.indexOf('content-21') > laidNames.indexOf('desktop') &&
+            laidNames.indexOf('content-22') > laidNames.indexOf('content-21') &&
+            content.clip.cornerRadius === 10 &&
+            JSON.stringify(desk.page().panels) === JSON.stringify(inBar.map(({ id, frame }) => ({ id, frame }))),
+        { laidNames, content, panels: desk.page().panels }
+    );
+    const panelTold = desk.desktop.stateOf(firstPanel);
+    desk.desktop.pressPanel(firstPanel);
+    check(
+        'a panel window is told no title bar and is never key, and a press in it leaves the key window key',
+        panelTold.titleBar === null &&
+            panelTold.key === false &&
+            panelTold.width === 100 &&
+            panelTold.height === 20 &&
+            (desk.page().windows.find(({ key }) => key)?.id ?? null) === keyBefore,
+        { panelTold, keyBefore, windows: desk.page().windows }
+    );
+    desk.desktop.closePanel(firstPanel);
+    check(
+        'a panel window closed leaves its place to those opened after it',
+        JSON.stringify(desk.desktop.control.panels().map(({ frame }) => frame)) ===
+            JSON.stringify([{ x: 732, y: 0, width: 60, height: 28 }]),
+        desk.desktop.control.panels()
     );
 
     if (failed.length) {

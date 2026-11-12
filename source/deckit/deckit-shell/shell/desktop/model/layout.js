@@ -18,6 +18,8 @@ const MINIMUM = Object.freeze({ width: TITLE_BAR.controlsWidth + 42, height: TIT
 const CASCADE = 24;
 // How much of a window's title bar stays on the desktop, so it can always be dragged back.
 const KEPT = 64;
+// Where panel windows stand in the host's bar: in from its right end, and apart.
+const PANEL = Object.freeze({ margin: 8, gap: 8 });
 
 // MARK: - Initializer
 // MARK: - Public
@@ -62,6 +64,20 @@ function kept({ x, y, width, height }, desktop) {
         y: Math.min(bottom, Math.max(desktop.y, y)),
         width,
         height,
+    });
+}
+
+// The frames of panel windows `sizes` big, in the order they opened, in the host's bar `bar` high across a stage
+// `width` wide: right to left from PANEL.margin in from its right end, PANEL.gap apart, each no higher than the bar
+// and centred on its height.
+function panelsIn(sizes, { width, bar }) {
+    let right = width - PANEL.margin;
+    return sizes.map((size) => {
+        const across = Math.round(size.width);
+        const height = Math.min(Math.round(size.height), bar);
+        const frame = { x: right - across, y: Math.round((bar - height) / 2), width: across, height };
+        right = frame.x - PANEL.gap;
+        return frame;
     });
 }
 
@@ -148,11 +164,13 @@ export {
     BUTTONS,
     BUTTON,
     MINIMUM,
+    PANEL,
     desktopOf,
     zoomedIn,
     minimumOf,
     placed,
     kept,
+    panelsIn,
     underBar,
     resized,
     partsOf,
