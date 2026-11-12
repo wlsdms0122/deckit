@@ -100,8 +100,11 @@ class Mods {
         const empty = ui.emptyState({ icon: ui.icon('search', { size: 24 }) });
         const none = empty.element;
         none.classList.add('mods-none');
+        // Why the mods could not be listed, where they would be.
+        const failure = ui.notice({});
+        failure.element.style.display = 'none';
         head.append(field.element);
-        body.append(grid, none);
+        body.append(failure.element, grid, none);
         page.append(head, body);
         ui.titleBar(head, { title: 'Mods', scroller: body });
         ui.contextMenu(grid, {
@@ -138,14 +141,14 @@ class Mods {
             } catch (error) {
                 if (now !== asked) return;
                 grid.replaceChildren();
-                none.hidden = false;
-                return empty.set({
-                    title: 'Could not list the mods',
-                    hint: error.message,
-                    actions: [
-                        ui.button({ label: 'Try Again', size: 'small', variant: 'primary', onClick: draw }).element,
-                    ],
+                none.hidden = true;
+                failure.set({
+                    text: 'Could not list the mods.',
+                    details: error.message,
+                    action: { label: 'Try Again', run: draw },
                 });
+                failure.element.style.display = '';
+                return;
             }
             if (now !== asked) return;
             listed = answered;
@@ -154,6 +157,7 @@ class Mods {
 
         function show() {
             const mods = shown();
+            failure.element.style.display = 'none';
             grid.replaceChildren(...mods.map(itemOf));
             none.hidden = mods.length > 0;
             const settings = ui.button({
