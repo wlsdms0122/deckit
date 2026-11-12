@@ -194,17 +194,8 @@ function timeGridView({ ui, detail }) {
             overflow: 'hidden',
             cursor: 'pointer',
             boxSizing: 'border-box',
-            transition:
-                'filter var(--deckit-fade) var(--deckit-easing), box-shadow var(--deckit-fade) var(--deckit-easing)',
         });
-        element.addEventListener('mouseenter', () => {
-            element.style.filter = 'brightness(1.12)';
-            element.style.boxShadow = '0 2px 8px rgba(0,0,0,.28)';
-        });
-        element.addEventListener('mouseleave', () => {
-            element.style.filter = 'none';
-            element.style.boxShadow = 'none';
-        });
+        element.className = 'calendar-filled';
         paintSolid(element, item);
         paintPast(element, item);
         const time = document.createElement('div');

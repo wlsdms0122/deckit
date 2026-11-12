@@ -1,6 +1,7 @@
 const { accountEditor } = require('../accounts/account-editor.js');
 const { WEEKDAYS, MONTHS, addDays, startOfDay, startOfWeek, clockText, dayOf } = require('../date/date.js');
 const { eventDetail } = require('../event-detail/event-detail.js');
+const { STYLE: ENTRY_STYLE } = require('../views/bar.js');
 const { monthView } = require('../views/month-view.js');
 const { paintPastNow } = require('../occurrence/paint.js');
 const { sidebar } = require('../sidebar/sidebar.js');
@@ -22,6 +23,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     const { theme, ui } = shell;
     const { values } = deckit.storage;
     const { accounts, feeds, reads, client } = calendar;
+    ui.addStyle(ENTRY_STYLE);
 
     let mode = MODES.some(([key]) => key === values.get('mode', '')) ? values.get('mode') : 'month';
     let cursor = startOfDay(new Date());

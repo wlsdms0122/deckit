@@ -4,6 +4,11 @@ const { paintPast, paintSolid, paintDot, paintText } = require('../occurrence/pa
 
 // Occurrences as bars on a row of days, each bar in a lane: the month's weeks and the all-day strip of the time grid.
 const LANE_HEIGHT = 19;
+// A filled entry brightens under the pointer; one drawn as a dot and its text takes the kit's wash.
+const STYLE = `
+    .calendar-filled { transition: filter var(--deckit-fade) var(--deckit-easing); }
+    .calendar-filled:hover { filter: brightness(1.12); }
+`;
 
 // Greedy lane packing, so a multi-day event stays one block across the row.
 function assignLanes(items) {
@@ -54,12 +59,10 @@ function bar(ui, occurrence, continuous, onOpen) {
         cursor: 'pointer',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
-        background: continuous ? occurrence.color : 'transparent',
-        color: continuous ? ui.onColor(occurrence.color) : 'inherit',
-        transition:
-            'background-color var(--deckit-fade) var(--deckit-easing), filter var(--deckit-fade) var(--deckit-easing)',
     });
     if (continuous) {
+        element.className = 'calendar-filled';
+        Object.assign(element.style, { background: occurrence.color, color: ui.onColor(occurrence.color) });
         paintSolid(element, occurrence);
     } else {
         const dot = document.createElement('span');
@@ -75,6 +78,7 @@ function bar(ui, occurrence, continuous, onOpen) {
         time.textContent = clockText(occurrence.start);
         Object.assign(time.style, { flex: '0 0 auto', opacity: '.6' });
         element.append(dot, time);
+        ui.pressable(element);
     }
     const text = document.createElement('span');
     text.textContent = nameOf(occurrence);
@@ -87,21 +91,6 @@ function bar(ui, occurrence, continuous, onOpen) {
         event.stopPropagation();
         onOpen(occurrence, element);
     });
-    if (continuous) {
-        element.addEventListener('mouseenter', () => {
-            element.style.filter = 'brightness(1.12)';
-        });
-        element.addEventListener('mouseleave', () => {
-            element.style.filter = 'none';
-        });
-    } else {
-        element.addEventListener('mouseenter', () => {
-            element.style.background = 'rgba(128,128,128,.16)';
-        });
-        element.addEventListener('mouseleave', () => {
-            element.style.background = 'transparent';
-        });
-    }
     return element;
 }
 
@@ -122,4 +111,4 @@ function laneCell(column, span) {
     return cell;
 }
 
-module.exports = { LANE_HEIGHT, assignLanes, rowItems, bar, laneGrid, laneCell };
+module.exports = { STYLE, LANE_HEIGHT, assignLanes, rowItems, bar, laneGrid, laneCell };
