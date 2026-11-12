@@ -1433,7 +1433,7 @@ async function run({
         const drawn = await desktop.evaluate(
             `[...document.querySelectorAll('.deckit-dock-item img')].filter((img) => img.naturalWidth > 0).length`
         );
-        check("every app's icon is drawn in the Dock", drawn === APPS, drawn);
+        check('every item in the Dock draws an app icon, its own or the default', drawn === APPS + TEST_APPS, drawn);
         const ran = await editorPage.evaluate(`new Promise((resolve) => {
             const image = document.createElement('img');
             image.setAttribute('onerror', 'window.ranInPage = true');
