@@ -39,6 +39,8 @@ For CSS, the token is also custom properties on the page's root: each colour by 
 
 ## Buttons
 
+A control is `size: 'medium'`, 32px tall, or `'small'`, 24px: an icon button, a text button, a segmented control, a field, a stepper and a select alike, so controls side by side line up. What is smaller (a row's action, a stepper's buttons) is pressed in a 24px square all the same.
+
 - `iconButton({ icon, title, size, muted, onClick })` returns `{ element, setPressed(on), setEnabled(on), setIcon(svg) }`. `muted` rests it a step back until the pointer comes.
 - `button({ label, title, icon, size, variant, onClick })` returns `{ element, setLabel(text), setEnabled(on) }`. `variant` is `plain`, `primary` or `destructive`.
 - `rowAction({ icon | label, title, onClick })` returns `{ element }`: an action of a row, shown while the row is hovered or holds the focus. Its click is its own.
@@ -50,7 +52,7 @@ For CSS, the token is also custom properties on the page's root: each colour by 
 ## Text and numbers
 
 - `field({ placeholder, value, icon, inline, trailing, size, clearable, onInput, onSubmit, onCancel })` returns `{ element, input, set(value), focus() }`. Enter calls `onSubmit(value, { shift })`; Escape is the field's only when `onCancel` takes it.
-- `stepper({ value, min, max, step, unit, unset, onChange })` returns `{ element, set(value) }`. Enter and leaving the field report what is typed; Escape puts the value back. With `unset`, `{ label, value }`, it may hold no number, null: it shows `label` then and steps from `value`, and what is typed cleared reports null.
+- `stepper({ value, min, max, step, unit, unset, size, onChange })` returns `{ element, set(value) }`. Enter and leaving the field report what is typed; Escape puts the value back. With `unset`, `{ label, value }`, it may hold no number, null: it shows `label` then and steps from `value`, and what is typed cleared reports null.
 - `findBar({ placeholder, options, nav, replace, onChange, onNext, onPrevious, onCancel })` returns `{ element, setQuery(text, options), focus(which), setCount(active, total), setReplaceOpen(on), state(), replacement() }`. `options` are any of `caseSensitive`, `word`, `regex`, and `state()` is `{ query, caseSensitive, word, regex }`, what `onChange` gets too; `setQuery` takes the same keys. `focus(which)` puts the keyboard in the find field, or with `'replace'` in the replace field. `replace` is `{ open, onReplace, onReplaceAll }`: `onReplaceAll` is required, and without `onReplace` there is no Replace button and Enter in the replace field replaces all.
 
 ## Layers and what is presented
@@ -62,7 +64,7 @@ A page's layers are drawn in its overlay: a document beside the page, laid over 
 What is presented over the page is on layers, in one stack. The top one has the keys first; Escape and a press outside put it away, then the next, until one holds the press. It lies on a backdrop that takes every press over the page while anything is presented, so a press outside is theirs and goes no further. Each has the focus and the keyboard as it opens, and gives them back as it closes. What a drag carries is drawn on a layer too.
 
 - `menu({ items, anchor | point, onClose })` returns `{ element, close(), isOpen() }`, or null when a second press on its anchor closed it. An item is `'-'` (a separator) or `{ label, icon, hint, checked, disabled, items, font, run }`; `items` makes a submenu. Arrow keys move, Enter or Space takes, Tab and Escape close.
-- `select({ options, value, onChange })` returns `{ element, set(value), setOptions(options) }`: a pop-up button. `options` are `{ value, label, font, icon, hint }`, drawn as a menu's items are; the chosen one's icon stands before its label on the button.
+- `select({ options, value, size, onChange })` returns `{ element, set(value), setOptions(options) }`: a pop-up button. `options` are `{ value, label, font, icon, hint }`, drawn as a menu's items are; the chosen one's icon stands before its label on the button.
 - `contextMenu(area, { rowAt, items, keyRow })` is a decorator: the context click, the ContextMenu key or Shift+F10 opens `items(row)` for the row under the pointer or with the focus, and the row is marked while it is open.
 - `popover({ width, onClose })` returns `{ element, show(anchor), close(), isOpen() }`. `width` is the widest it grows to.
 - `modal({ title, confirmLabel, cancelLabel, destructive, extraLabel, onExtra, chrome, align, drags, glass, width, fill, onKey, onConfirm, onClose })` returns `{ close }`. `fill(card)` puts the content in and returns what takes the focus. With `chrome`, a title and the buttons; Enter in a text field confirms. `align` is `center`, `top`, or `fill`, the card all the page draws, filling it, its edge the page's, which comes and goes at once, as its window does. With `drags` the card drags the window it is in where nothing in it is pressed. With `glass`, a strength from 0 to 1, the card's colour is laid at it, for a page over something that blurs what is behind it. `onKey(event)` has a key first and answers true when it took it; a key it does not take goes on to Enter and Escape as well.

@@ -9,14 +9,15 @@ const STYLE = `
             flex: 1 1 auto;
             min-width: 0;
             box-sizing: border-box;
-            height: 28px;
-            padding: 0 4px 0 11px;
+            height: 32px;
+            padding: 0 4px 0 12px;
             border-radius: var(--deckit-radius-round);
             background: var(--deckit-fill);
             cursor: text;
         }
-        .deckit-field[data-size='small'] { height: 26px; }
-        .deckit-field[data-icon] { padding-left: 9px; }
+        .deckit-field[data-size='small'] { height: 24px; padding-left: 10px; }
+        .deckit-field[data-icon] { padding-left: 10px; }
+        .deckit-field[data-size='small'][data-icon] { padding-left: 8px; }
         .deckit-field-icon { display: flex; flex: 0 0 auto; opacity: 0.5; }
         .deckit-field-input,
         .deckit-stepper-input {
@@ -38,17 +39,20 @@ const STYLE = `
             display: flex;
             align-items: center;
             flex: 0 0 auto;
-            height: 26px;
-            padding: 0 2px;
+            box-sizing: border-box;
+            height: 32px;
+            padding: 0 4px;
             border-radius: var(--deckit-radius-round);
             background: var(--deckit-fill);
         }
         .deckit-stepper-input { width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
         .deckit-stepper[data-unset] .deckit-stepper-input { width: 56px; }
         .deckit-stepper-input::placeholder { color: var(--deckit-text); }
+        .deckit-stepper[data-size='small'] { height: 24px; padding: 0; }
+        .deckit-stepper[data-size='small'] .deckit-stepper-input { font: var(--deckit-type-small); }
         .deckit-stepper-button {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             border-radius: var(--deckit-radius-round);
             color: var(--deckit-muted);
         }
@@ -168,9 +172,19 @@ function field({
 // A number typed or stepped, drawn as the caller sets it. Enter and leaving the field commit what is typed; Escape
 // puts the value back. With `unset`, `{ label, value }`, it may hold no number, null: it shows `label` then, steps from
 // `value`, and what is typed cleared commits null.
-function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = '', unset = null, onChange } = {}) {
+function stepper({
+    value = 0,
+    min = -Infinity,
+    max = Infinity,
+    step = 1,
+    unit = '',
+    unset = null,
+    size = 'medium',
+    onChange,
+} = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-stepper';
+    element.dataset.size = size;
     let current = value;
     const clamp = (number) => Math.min(max, Math.max(min, Math.round(number / step) * step));
     const input = document.createElement('input');

@@ -44,7 +44,7 @@ const STYLE = `
         gap: 6px;
         flex: 0 0 auto;
         max-width: 240px;
-        height: 26px;
+        height: 32px;
         padding: 0 8px 0 12px;
         border: 0;
         border-radius: var(--deckit-radius-round);
@@ -53,6 +53,7 @@ const STYLE = `
         font: var(--deckit-type-body);
         cursor: pointer;
     }
+    .deckit-select[data-size='small'] { height: 24px; padding: 0 6px 0 10px; font: var(--deckit-type-small); }
     .deckit-select:hover { background: var(--deckit-selected); }
     .deckit-select-icon { display: flex; flex: 0 0 auto; margin-left: -2px; }
     .deckit-select-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -104,12 +105,13 @@ function menu({ items, anchor = null, point = null, onClose }) {
 }
 
 // One of `options` ({ value, label, font, icon, hint }), chosen from a menu. A choice is reported; the caller sets it.
-function select({ options, value = null, onChange }) {
+function select({ options, value = null, size = 'medium', onChange }) {
     let current = value;
     let choices = options;
     let shown = null;
     const element = tag('button', 'deckit-select');
     element.type = 'button';
+    element.dataset.size = size;
     element.setAttribute('aria-haspopup', 'listbox');
     element.setAttribute('aria-expanded', 'false');
     const glyph = tag('span', 'deckit-select-icon');
