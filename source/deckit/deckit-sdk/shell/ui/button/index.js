@@ -118,7 +118,10 @@ const STYLE = `
     .deckit-toggle[aria-checked='true'] { background: var(--deckit-accent-fill); }
     .deckit-toggle[aria-checked='true']:hover { filter: brightness(1.1); }
     .deckit-toggle[aria-checked='true']:active { filter: brightness(0.92); }
-    .deckit-toggle[aria-disabled='true'] { opacity: 0.45; filter: none; }
+    .deckit-toggle[aria-disabled='true'] { background: var(--deckit-fill); filter: none; }
+    .deckit-toggle[aria-disabled='true'][aria-checked='true'] {
+        background: color-mix(in srgb, var(--deckit-accent-fill) 45%, transparent);
+    }
     .deckit-toggle-knob {
         position: absolute;
         top: 2px;
@@ -272,9 +275,12 @@ function toggle({ value = false, onChange }) {
         current = !!next;
         element.setAttribute('aria-checked', String(current));
     };
-    element.addEventListener('click', () => onChange?.(!current));
+    element.addEventListener(
+        'click',
+        unlessDisabled(element, () => onChange?.(!current))
+    );
     set(current);
-    return { element, set };
+    return { element, set, setEnabled: (on) => setEnabled(element, on) };
 }
 
 // The tooltip of `element`, with the chord that does the same when there is one, read again as the pointer comes.

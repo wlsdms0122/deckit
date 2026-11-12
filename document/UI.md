@@ -46,7 +46,7 @@ A control is `size: 'medium'`, 32px tall, or `'small'`, 24px: an icon button, a 
 - `rowAction({ icon | label, title, onClick })` returns `{ element }`: an action of a row, shown while the row is hovered or holds the focus, and taking no room while it is hidden. An element that is no `ui.row` shows its actions the same way when it carries `data-deckit-row-actions`, and keeps them shown while that is `shown`; outside both they always show. Its click is its own.
 - `segmented({ items, value, size, accent, fill, onChange })` returns `{ element, set(key), setItems(items), elementOf(key) }`. `items` are `{ key, label, title, lead }`; with `fill` the choices share the width it is given.
 - `toggleButton({ icon | label, title, value, onChange })` returns `{ element, set(on), setMarked(on) }`: on or off beside a field that keeps the keyboard.
-- `toggle({ value, onChange })` returns `{ element, set(on) }`: a switch.
+- `toggle({ value, onChange })` returns `{ element, set(on), setEnabled(on) }`: a switch.
 - `tooltip(element, { text, chord })` is a decorator: `chord()` is read as the pointer comes, so a key the person changes shows.
 
 ## Text and numbers
