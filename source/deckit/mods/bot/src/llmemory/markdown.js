@@ -45,8 +45,8 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
     const CODE_STYLE = {
         font: '12px ' + MONO,
         padding: '1px 5px',
-        borderRadius: '4px',
-        background: 'rgba(128,128,128,.16)',
+        borderRadius: 'var(--deckit-radius-small)',
+        background: 'var(--deckit-hover)',
     };
 
     const inline = (text) => {
@@ -61,7 +61,7 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
                 const codeElement = styled('code', CODE_STYLE, code);
                 fragment.append(/^https?:\/\/\S+$/.test(code.trim()) ? link(code.trim(), codeElement) : codeElement);
             } else if (bold != null) {
-                const strong = styled('strong', { fontWeight: '700' });
+                const strong = styled('strong', { fontWeight: '600' });
                 strong.append(inline(bold));
                 fragment.append(strong);
             } else if (star != null || under != null) {
@@ -69,7 +69,7 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
                 emphasis.append(inline(star ?? under));
                 fragment.append(emphasis);
             } else if (strike != null) {
-                const struck = styled('s', { opacity: '.6' });
+                const struck = styled('s', { color: 'var(--deckit-muted)' });
                 struck.append(inline(strike));
                 fragment.append(struck);
             } else if (note != null) {
@@ -127,9 +127,9 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
         const box = styled('div', {
             margin: '0 0 12px',
             border: 'var(--deckit-border)',
-            borderRadius: '8px',
+            borderRadius: 'var(--deckit-radius-medium)',
             overflow: 'hidden',
-            background: 'rgba(128,128,128,.08)',
+            background: 'var(--deckit-surface)',
         });
         const head = styled('div', {
             display: 'flex',
@@ -137,7 +137,6 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
             gap: '2px',
             padding: '2px 4px 2px 12px',
             borderBottom: 'var(--deckit-border)',
-            background: 'rgba(128,128,128,.08)',
         });
         head.append(
             styled(
@@ -145,10 +144,8 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
                 {
                     flex: '1 1 auto',
                     minWidth: '0',
-                    opacity: '.55',
-                    font: '600 10.5px var(--deckit-font)',
-                    letterSpacing: '.08em',
-                    textTransform: 'uppercase',
+                    color: 'var(--deckit-muted)',
+                    font: 'var(--deckit-type-label)',
                 },
                 language || 'text'
             )
@@ -198,7 +195,7 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
             .map((cell) => cell.trim());
 
     const render = (source) => {
-        const root = styled('div', { font: '13.5px var(--deckit-font)', lineHeight: '1.65' });
+        const root = styled('div', { font: 'var(--deckit-type-body)', lineHeight: '1.65' });
         const lines = String(source || '')
             .replace(/\r\n?/g, '\n')
             .split('\n');
@@ -243,7 +240,7 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
                 const head = styled('div', {
                     margin: root.childNodes.length ? '20px 0 8px' : '0 0 8px',
                     font: `700 ${HEADING_SIZE[level]}px/1.4 var(--deckit-font)`,
-                    borderRadius: '4px',
+                    borderRadius: 'var(--deckit-radius-small)',
                 });
                 head.append(inline(heading[2].trim()));
                 head.dataset.heading = heading[2].trim();
@@ -261,7 +258,7 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
                     .filter((tableLine) => !cells(tableLine).every((cell) => /^:?-+:?$/.test(cell)))
                     .map(cells);
                 const scroller = styled('div', { margin: '0 0 12px', overflowX: 'auto' });
-                const table = styled('table', { borderCollapse: 'collapse', font: '12.5px/1.5 var(--deckit-font)' });
+                const table = styled('table', { borderCollapse: 'collapse', font: 'var(--deckit-type-small)' });
                 body.forEach((row, rowIndex) => {
                     const rowElement = styled('tr');
                     for (const cell of row) {
@@ -296,11 +293,15 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
                 const check = listItem[3].match(/^\[([ xX])\]\s+(.*)$/);
                 const marker = check ? (check[1] === ' ' ? '☐' : '☑') : ordered ? listItem[2] : '•';
                 item.append(
-                    styled('span', { flex: '0 0 auto', minWidth: ordered ? '18px' : '10px', opacity: '.55' }, marker)
+                    styled(
+                        'span',
+                        { flex: '0 0 auto', minWidth: ordered ? '18px' : '10px', color: 'var(--deckit-muted)' },
+                        marker
+                    )
                 );
                 const text = styled('div', { minWidth: '0' });
                 text.append(inline(check ? check[2] : listItem[3]));
-                if (check && check[1] !== ' ') text.style.opacity = '.6';
+                if (check && check[1] !== ' ') text.style.color = 'var(--deckit-muted)';
                 item.append(text);
                 root.append(item);
                 lastItem = text;
@@ -316,8 +317,7 @@ const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
                         : styled('div', {
                               margin: '0 0 12px',
                               padding: '2px 12px',
-                              borderLeft: '3px solid rgba(128,128,128,.4)',
-                              opacity: '.8',
+                              borderLeft: '3px solid var(--deckit-divider)',
                           });
                 if (quote !== previous) {
                     quote.dataset.quote = '1';

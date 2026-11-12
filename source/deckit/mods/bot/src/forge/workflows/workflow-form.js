@@ -41,10 +41,10 @@ const workflowForm = ({ ui, fields, draft }) => {
                 minHeight: '90px',
                 padding: '8px',
                 border: 'var(--deckit-border)',
-                borderRadius: '6px',
+                borderRadius: 'var(--deckit-radius-control)',
                 background: 'var(--deckit-fill)',
                 color: 'var(--deckit-text)',
-                font: '13px var(--deckit-font)',
+                font: 'var(--deckit-type-body)',
             });
             input.value = draft[field.name] ?? '';
             input.addEventListener('input', () => changed(input.value));

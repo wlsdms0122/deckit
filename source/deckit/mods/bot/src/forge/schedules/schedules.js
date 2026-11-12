@@ -41,7 +41,7 @@ const schedulesView = ({ shell, deckit, forge, picker }) => {
     const inputDrafts = new Map();
     const call = (target, operation, args) => forge.call(operation, args, { session: target });
     const muted = (text) =>
-        styled('div', { color: 'var(--deckit-muted)', font: '12px var(--deckit-font)', whiteSpace: 'pre-wrap' }, text);
+        styled('div', { color: 'var(--deckit-muted)', font: 'var(--deckit-type-small)', whiteSpace: 'pre-wrap' }, text);
     const bar = styled('div', { display: 'none', flex: '1', gap: '8px', alignItems: 'center', minWidth: '0' });
     const search = ui.field({
         placeholder: 'Search schedules',
@@ -144,10 +144,10 @@ const schedulesView = ({ shell, deckit, forge, picker }) => {
             gap: '4px',
             flexShrink: '0',
             padding: '3px 6px',
-            borderRadius: '5px',
+            borderRadius: 'var(--deckit-radius-control)',
             color,
             background: `color-mix(in srgb, ${color} 12%, transparent)`,
-            font: '600 11px var(--deckit-font)',
+            font: '600 var(--deckit-type-caption)',
             whiteSpace: 'nowrap',
         });
         badge.innerHTML = item.spent
@@ -270,8 +270,8 @@ const schedulesView = ({ shell, deckit, forge, picker }) => {
             header.append(controls);
             const state = styled('div'),
                 workflow = muted(''),
-                trigger = styled('div', { font: '600 15px var(--deckit-font)' });
-            const next = styled('div', { font: '600 18px var(--deckit-font)' }),
+                trigger = styled('div', { font: '600 var(--deckit-type-large)' });
+            const next = styled('div', { font: '600 var(--deckit-type-heading)' }),
                 history = styled('div'),
                 inputs = styled('div'),
                 definition = styled('div');
@@ -500,9 +500,9 @@ const schedulesView = ({ shell, deckit, forge, picker }) => {
         }
         preview = styled('div', {
             padding: '12px',
-            borderRadius: '6px',
+            borderRadius: 'var(--deckit-radius-control)',
             background: 'var(--deckit-fill)',
-            font: '600 13px var(--deckit-font)',
+            font: '600 var(--deckit-type-body)',
         });
         trigger.append(preview);
         detail.append(trigger);
