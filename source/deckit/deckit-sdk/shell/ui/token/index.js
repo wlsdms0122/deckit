@@ -35,7 +35,8 @@ const MOTION = Object.freeze({
 });
 // What differs between a light look and a dark one. `glass` is the strength a surface drawn as glass lays its colour
 // at over what is behind it, blurred through. `rim` is the hairline inside a floating surface's edge, and `float` the
-// shadow it casts. `sidebar` is the sidebar's material over the window's. `scrim` dims the page under a dialog.
+// shadow it casts. `sidebar` is the sidebar's material over the window's. `scrim` dims the page under a dialog. The
+// shadow `icon` is a filter, laid under an app icon drawn at 32px and up, following the tile's shape.
 const LOOKS = Object.freeze({
     light: {
         accent: '#2a6fdb',
@@ -50,6 +51,7 @@ const LOOKS = Object.freeze({
             float: '0 8px 24px rgba(0,0,0,.14), 0 1px 3px rgba(0,0,0,.1)',
             control: '0 1px 2px rgba(0,0,0,.3)',
             sidebar: 'inset 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.08)',
+            icon: 'drop-shadow(0 2px 3px rgba(0,0,0,.20))',
         },
     },
     dark: {
@@ -65,6 +67,7 @@ const LOOKS = Object.freeze({
             float: '0 8px 24px rgba(0,0,0,.4)',
             control: '0 1px 2px rgba(0,0,0,.5)',
             sidebar: 'inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.35)',
+            icon: 'drop-shadow(0 2px 3px rgba(0,0,0,.45))',
         },
     },
 });
@@ -111,6 +114,9 @@ const TYPE = Object.freeze({
     title: { size: 20, line: 1.2, tracking: '-0.01em' },
     label: { size: 12, line: 1.4, weight: 600 },
 });
+// The sizes in px an app icon is drawn at, one per role: in a menu, a bar or a sidebar heading; in a row; leading the
+// top match or a mod's own head; in the Dock; in a launcher's grid.
+const APP_ICON = Object.freeze({ small: 16, row: 20, lead: 32, dock: 40, grid: 56 });
 // A neutral grey over any background, light or dark.
 const WASH = (amount) => `rgba(128,128,128,${amount})`;
 
@@ -174,6 +180,7 @@ function tokenOf(theme, fonts = {}) {
             folder: '#5aa9e6',
         },
         radius: { small: 4, control: 6, medium: 8, large: 10, card: 12, round: 999 },
+        appIcon: { ...APP_ICON },
         rim: rimOf(look.rim),
         shadow: {
             raised: '0 10px 32px rgba(0,0,0,.32)',
@@ -211,6 +218,10 @@ function propertiesOf(token) {
         ),
         rim: token.rim,
         ...prefixed('shadow-', token.shadow),
+        ...prefixed(
+            'app-icon-',
+            mapped(token.appIcon, (value) => value + 'px')
+        ),
         glass: look.glass * 100 + '%',
         fade: MOTION.fade + 'ms',
         ...prefixed(
@@ -268,4 +279,4 @@ function deepFreeze(value) {
     return Object.freeze(value);
 }
 
-export { FALLBACK_THEME, LENGTH, MOTION, tokenOf, propertiesOf };
+export { FALLBACK_THEME, LENGTH, MOTION, APP_ICON, tokenOf, propertiesOf };
