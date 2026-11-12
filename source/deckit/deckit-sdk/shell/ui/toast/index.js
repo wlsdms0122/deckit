@@ -28,14 +28,21 @@ const STYLE = `
     pointer-events: none;
 }
 .deckit-toast[data-kind='failure'] {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'text close';
+    align-items: start;
+    gap: 4px 8px;
     padding: 6px 6px 6px 14px;
     pointer-events: auto;
 }
-.deckit-toast-text { flex: 1 1 auto; min-width: 0; padding: 4px 0; }
-.deckit-toast-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.deckit-toast[data-kind='failure']:has(> .deckit-toast-action) {
+    grid-template-areas: 'text close' 'action action';
+    padding-bottom: 8px;
+}
+.deckit-toast-text { grid-area: text; padding: 4px 0; }
+.deckit-toast-close { grid-area: close; }
+.deckit-toast-action { grid-area: action; justify-self: end; }
 `;
 // How long a toast stays, in ms: long enough to read, longer for more words.
 const STAY = { base: 2500, perCharacter: 50, most: 8000 };
@@ -58,8 +65,8 @@ function make(theme, ui) {
 // MARK: - Private
 // `text` at the bottom right of the page, clear of its title bar and what heads its content, on a layer over it: what
 // was just done, told where it was done, for a while, taking no presses. A `failure` stays until it is closed, takes
-// presses and holds a close button and, with `action` (`{ label, run }`), one button that runs it and closes the
-// toast. Toasts stack, the newest nearest the edge.
+// presses and holds a close button beside its text and, with `action` (`{ label, run }`), one button under the text
+// at its end that runs it and closes the toast. Toasts stack, the newest nearest the edge.
 // It returns `{ close() }`.
 function toast(ui, text, { kind = 'done', action = null } = {}) {
     const element = document.createElement('div');
@@ -71,23 +78,26 @@ function toast(ui, text, { kind = 'done', action = null } = {}) {
         const words = document.createElement('div');
         words.className = 'deckit-toast-text';
         words.textContent = text;
-        const actions = document.createElement('div');
-        actions.className = 'deckit-toast-actions';
-        if (action)
-            actions.append(
-                ui.button({
-                    label: action.label,
-                    size: 'small',
-                    onClick: () => {
-                        close();
-                        action.run();
-                    },
-                }).element
-            );
-        actions.append(
-            ui.iconButton({ icon: ICON.icon('x', { size: 14 }), title: 'Close', size: 'small', onClick: close }).element
-        );
-        element.append(words, actions);
+        const closer = ui.iconButton({
+            icon: ICON.icon('x', { size: 14 }),
+            title: 'Close',
+            size: 'small',
+            onClick: close,
+        });
+        closer.element.classList.add('deckit-toast-close');
+        element.append(words, closer.element);
+        if (action) {
+            const button = ui.button({
+                label: action.label,
+                size: 'small',
+                onClick: () => {
+                    close();
+                    action.run();
+                },
+            });
+            button.element.classList.add('deckit-toast-action');
+            element.append(button.element);
+        }
     } else {
         element.setAttribute('role', 'status');
         element.textContent = text;
