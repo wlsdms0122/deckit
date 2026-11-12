@@ -167,7 +167,7 @@ export function createDesktop({
     }
 
     // A drag of the content's drag regions, or of the title bar of a titled window, `dx`, `dy` from the press: the
-    // window follows, and is left where its title bar can be reached.
+    // window follows, never over the host's bar, and is left where its title bar can be reached.
     function move(window, phase, dx, dy) {
         if (phase === 'began') {
             moving = { id: window.id, from: MANAGER.frameOf(window.id) };
@@ -175,7 +175,9 @@ export function createDesktop({
             return;
         }
         if (moving?.id !== window.id) return;
-        const frame = { ...moving.from, x: moving.from.x + dx, y: moving.from.y + dy };
+        const frame = LAYOUT.underBar({ ...moving.from, x: moving.from.x + dx, y: moving.from.y + dy }, area(), {
+            moved: true,
+        });
         MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(frame, area()) : frame);
         if (phase === 'ended') {
             moving = null;
@@ -348,10 +350,10 @@ export function createDesktop({
         else if (button === 'zoom') zoom(window);
     }
 
-    // The frame a drag of an edge draws, kept where its title bar can be reached and remembered as the drag ends.
+    // The frame a drag of an edge draws, under the host's bar, kept where its title bar can be reached and remembered
+    // as the drag ends.
     function framed(window, phase, frame) {
-        const { x, y, width, height } = frame;
-        const next = { x, y, width, height };
+        const next = LAYOUT.underBar(frame, area(), { moved: false });
         MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(next, area()) : next);
         if (phase === 'ended') remember(window);
         update();

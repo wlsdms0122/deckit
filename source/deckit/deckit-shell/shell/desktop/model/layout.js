@@ -65,6 +65,14 @@ function kept({ x, y, width, height }, desktop) {
     });
 }
 
+// The frame as a drag leaves it while it goes, kept under the host's bar: one moved stays below it, and one whose top
+// edge is dragged stops there.
+function underBar({ x, y, width, height }, desktop, { moved }) {
+    if (y >= desktop.y) return { x, y, width, height };
+    if (moved) return { x, y: desktop.y, width, height };
+    return { x, y: desktop.y, width, height: Math.max(0, height - (desktop.y - y)) };
+}
+
 // The frame `from` resized by a drag of its `edge` by `dx`, `dy`: `edge` names the sides it moves, of `top`,
 // `bottom`, `left`, `right`, as `top-left`. The opposite side stays put at the minimum.
 function resized(from, edge, dx, dy, minimum) {
@@ -145,6 +153,7 @@ export {
     minimumOf,
     placed,
     kept,
+    underBar,
     resized,
     partsOf,
     framedSize,

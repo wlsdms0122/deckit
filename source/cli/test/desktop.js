@@ -4,15 +4,16 @@
 // the key window, and a frame no smaller than its minimum; which mods may activate for a seat (model/activation): the
 // mod its input reaches and those asked along the chain, until its next input, and the mods that ask for its attention;
 // and where windows go (model/layout): a new one cascaded from the key window or centred, a restored one kept
-// reachable, a resize held to the minimum, zoom to the desktop but the Dock's sliver, and the frame's parts; and the
-// desktop (desktop/main) over stand-ins for what connect answers, the shell's pages and a stage: the pages laid in the
-// local seat's order, no window key at start, the keyboard and the host's title following its key window, a window
-// brought forward in front and key, the host window coming up, only by a mod that may activate, and right behind the
-// key window, its mod asking for attention, by one that may not, a window ordered front or opened without taking the
-// keyboard, the shell's keys, a frame restored and remembered by the window's name, a mod's windows brought in front
-// for a seat from the Dock, the Dock's pointer room, a zoomed window following the desktop's size and any other kept
-// reachable as it shrinks, and a titled window's content under the title bar the shell draws, its title told and its
-// drag. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// reachable, a resize held to the minimum, a drag kept under the host's strip as it goes, zoom to the desktop but the
+// Dock's sliver, and the frame's parts; and the desktop (desktop/main) over stand-ins for what connect answers, the
+// shell's pages and a stage: the pages laid in the local seat's order, no window key at start, the keyboard and the
+// host's title following its key window, a window brought forward in front and key, the host window coming up, only by
+// a mod that may activate, and right behind the key window, its mod asking for attention, by one that may not, a window
+// ordered front or opened without taking the keyboard, the shell's keys, a frame restored and remembered by the
+// window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window
+// following the desktop's size and any other kept reachable as it shrinks, and a titled window's content under the
+// title bar the shell draws, its title told and its drag. Exits 1 with a line for each check that failed. The packages
+// are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -257,6 +258,14 @@ async function main() {
         'a resize from the top left moves those sides, the others staying put at the minimum',
         JSON.stringify(fromLeft) === JSON.stringify({ x: 300, y: 80, width: 100, height: 220 }),
         fromLeft
+    );
+    const draggedUp = LAYOUT.underBar({ x: 100, y: 10, width: 300, height: 200 }, desktop, { moved: true });
+    const toppedUp = LAYOUT.underBar({ x: 100, y: 10, width: 300, height: 200 }, desktop, { moved: false });
+    check(
+        "a drag as it goes leaves no window over the host's strip: a move stops below it, a top edge at it",
+        JSON.stringify(draggedUp) === JSON.stringify({ x: 100, y: 40, width: 300, height: 200 }) &&
+            JSON.stringify(toppedUp) === JSON.stringify({ x: 100, y: 40, width: 300, height: 170 }),
+        { draggedUp, toppedUp }
     );
     check(
         "a window's minimum is at least its title bar and buttons",
