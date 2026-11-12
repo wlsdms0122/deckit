@@ -170,7 +170,12 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     // The first read, from when it starts until it has settled: `chips`, a skeleton chip for each day of the month.
     let firstLoad = null;
 
-    content.append(head, body, empty);
+    // Calendars that could not be read, above the view, with a retry. Drawn anew only when what it says changes.
+    const failure = ui.notice({});
+    let failureSaid = '';
+    Object.assign(failure.element.style, { display: 'none', flex: '0 0 auto', margin: '16px 16px 8px' });
+
+    content.append(head, failure.element, body, empty);
 
     // The body's size is observed in the window it is shown in, from each time it appears.
     let resizing = null;
@@ -306,6 +311,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         modeSelect.set(mode);
         showSpinner(loading);
         status.textContent = statusText(loading);
+        showFailure();
 
         const noAccount = !accounts.all().length,
             blank = !feeds.all().length;
@@ -367,6 +373,25 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         going.chips[0].settled().then(() => {
             drop();
             render();
+        });
+    }
+
+    function showFailure() {
+        // An account waiting for its provider is said in the status, not as a calendar's failure.
+        const provided = (feed) => client.providerOf(accounts.all().find((account) => account.id === feed.account));
+        const broken = feeds.all().filter((feed) => reads.of(feed)?.error && provided(feed));
+        const nameOf = (feed) => feed.label || feed.calendar;
+        const said = broken.map((feed) => `${nameOf(feed)}: ${reads.of(feed).error}`).join('\n');
+        failure.element.style.display = said ? '' : 'none';
+        if (!said || said === failureSaid) return;
+        failureSaid = said;
+        failure.set({
+            text:
+                broken.length === 1
+                    ? `${nameOf(broken[0])} could not be read.`
+                    : `${broken.length} calendars could not be read.`,
+            details: said,
+            action: { label: 'Try Again', run: () => calendar.read(true) },
         });
     }
 
