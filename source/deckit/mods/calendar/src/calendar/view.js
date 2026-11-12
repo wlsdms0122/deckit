@@ -80,30 +80,28 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         display: 'flex',
         flexDirection: 'column',
         color: 'var(--deckit-text)',
-        font: '14px var(--deckit-font)',
+        font: 'var(--deckit-type-body)',
         position: 'relative',
         overflow: 'hidden',
     });
 
     const RELOAD = ui.icon('reload', { size: 15 });
     const head = document.createElement('div');
-    Object.assign(head.style, {
-        flex: '0 0 auto',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-        padding: '9px 12px',
-        borderBottom: 'var(--deckit-border)',
-    });
+    head.style.borderBottom = 'var(--deckit-border)';
     ui.titleBar(head);
     const title = document.createElement('div');
-    Object.assign(title.style, { font: '700 16px var(--deckit-font)', padding: '0 8px', whiteSpace: 'nowrap' });
+    title.className = 'deckit-title-bar-title';
+    title.style.padding = '0 4px';
     const status = document.createElement('span');
     Object.assign(status.style, {
         flex: '1 1 auto',
-        opacity: '.55',
-        font: '12.5px var(--deckit-font)',
-        paddingLeft: '6px',
+        minWidth: '0',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        color: 'var(--deckit-muted)',
+        font: 'var(--deckit-type-small)',
+        paddingLeft: '4px',
     });
     const modeBar = ui.segmented({
         items: MODES.map(([key, label]) => ({ key, label, title: label + ' view' })),
