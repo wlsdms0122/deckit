@@ -75,7 +75,8 @@ function screen(shell, center) {
     const content = document.createElement('div');
     content.className = 'notifications';
     shell.ui.addStyle(STYLE);
-    const toasts = new Map(); // id -> { notification, timer }
+    const toasts = new Map(); // id -> { notification, timer, leaving }
+    const toastCards = new Map(); // id -> its toast's card, kept while it shows
     const icons = new Map(); // a sending mod's id -> its app icon, as the shell reads it
     let face = 'toasts';
     let window = null; // the window, while it is open
@@ -110,14 +111,23 @@ function screen(shell, center) {
         if (face === 'toasts') toToasts();
     }
 
-    // `told`: the center is told the toast is gone, unless it is the one that took it away.
+    // `told`: the center is told the toast is gone, unless it is the one that took it away. A toast on screen fades
+    // out first.
     function hideToast(id, { told = true } = {}) {
         const toast = toasts.get(id);
-        if (!toast) return;
+        if (!toast || toast.leaving) return;
         clearTimeout(toast.timer);
-        toasts.delete(id);
-        if (told) center.toastGone(id);
-        if (face === 'toasts') toToasts();
+        toast.leaving = true;
+        const gone = () => {
+            toasts.delete(id);
+            if (told) center.toastGone(id);
+            if (face === 'toasts') toToasts();
+        };
+        const card = toastCards.get(id);
+        if (face !== 'toasts' || !card?.isConnected) return gone();
+        const { fade, easing } = shell.theme.motion;
+        card.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade, easing, fill: 'forwards' });
+        setTimeout(gone, fade);
     }
 
     function toToasts() {
@@ -170,6 +180,7 @@ function screen(shell, center) {
 
     function draw() {
         if (face === 'toasts') {
+            for (const id of toastCards.keys()) if (!toasts.has(id)) toastCards.delete(id);
             content.replaceChildren(...[...toasts.values()].map(({ notification }) => toastCard(notification)));
             return;
         }
@@ -181,8 +192,26 @@ function screen(shell, center) {
         content.replaceChildren(head, ...rows, ...empty);
     }
 
+    // Made once per toast, coming in from the right edge, where it lives; under reduced motion it only fades in.
     function toastCard(notification) {
-        return card(notification, { meta: false });
+        const kept = toastCards.get(notification.id);
+        if (kept) return kept;
+        const made = card(notification, { meta: false });
+        toastCards.set(notification.id, made);
+        const { move, fade, easing } = shell.theme.motion;
+        if (move.base)
+            made.animate(
+                [
+                    { opacity: 0, transform: 'translateX(16px)' },
+                    { opacity: 1, transform: 'none' },
+                ],
+                {
+                    duration: move.base,
+                    easing,
+                }
+            );
+        else made.animate([{ opacity: 0 }, { opacity: 1 }], { duration: fade, easing });
+        return made;
     }
 
     // A press on the card runs what it names; its close button takes a toast off the screen, and a row out of the
