@@ -5,8 +5,9 @@ const { nameOf, parentOf } = require('../path/path.js');
 // Opening and the Trash take the entries given; a drag from one of several selected (`selection()`) carries them all.
 // `labelOf(path)` finds the name an entry shows, which a rename types over. `onMade(path)` shows a folder just made and
 // answers whether it is in sight, to be named. `onMoved(from, to)` hears a path go elsewhere, `to` null when it went to
-// the Trash; `onChanged(folder)` hears a folder whose contents changed. `onFailure(text, retry)` says what failed in
-// the view, with `retry` to try it again, and `onFailure(null)` takes it away as another is asked.
+// the Trash; `onChanged(folder)` hears a folder whose contents changed. `onFailure(text, retry, details)` says what
+// failed in the view, with `retry` to try it again and the system's words in `details`, and `onFailure(null)` takes
+// it away as another is asked.
 function fileOperator({
     ui,
     openURL,
@@ -137,12 +138,14 @@ function fileOperator({
                 ? 'Could not move “' + failures[0].entry.name + '” to the Trash'
                 : `Could not move ${failures.length} items to the Trash`;
         if (failures.length < entries.length) onChanged(parentOf(entries[0].path));
-        onFailure(failures.length === 1 ? title + ': ' + failures[0].error.message : title, () =>
-            moveToTrash(failures.map(({ entry }) => entry))
+        onFailure(
+            title,
+            () => moveToTrash(failures.map(({ entry }) => entry)),
+            wordsOf(failures.map(({ entry, error }) => [entry.name, error]))
         );
     }
 
-    // Each one that can go into `into`; one that fails does not keep the others. What did not move is said in the
+    // Each one that can go into `into`; one that fails does not keep the others. What did not move is said over the
     // footer, with Try Again for it alone.
     async function move(paths, into) {
         const moving = paths.filter((from) => ui.movesInto(from, into));
@@ -161,14 +164,20 @@ function fileOperator({
         if (!failures.length) return;
         onFailure(
             failures.length === 1
-                ? 'Could not move “' + nameOf(failures[0].from) + '”: ' + failures[0].error.message
+                ? 'Could not move “' + nameOf(failures[0].from) + '”'
                 : `Could not move ${failures.length} items`,
             () =>
                 move(
                     failures.map(({ from }) => from),
                     into
-                )
+                ),
+            wordsOf(failures.map(({ from, error }) => [nameOf(from), error]))
         );
+    }
+
+    // What the system said of each `[name, error]`, a line each.
+    function wordsOf(failed) {
+        return failed.map(([name, error]) => `${name}: ${error.message}`).join('\n');
     }
 }
 

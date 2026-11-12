@@ -276,7 +276,7 @@ class Finder {
 
         ui.addStyle(STYLE);
         bar.setView(area.view());
-        content.append(bar.element, list.header, area.element, area.footer);
+        content.append(bar.element, list.header, area.element, area.failure, area.footer);
         sidebar.append(tabs.element, favorites.element);
         // The content's size is observed in the window it is shown in, from each time it appears.
         const fit = () => {

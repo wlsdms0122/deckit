@@ -41,30 +41,28 @@ function fileArea({
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
         }
-        .finder-footer[data-failure] { color: var(--deckit-alert-ink); }
-        .finder-footer-text {
-            flex: 1 1 auto;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+        .finder-failure { flex: 0 0 auto; padding: 0 12px 8px; }
+        .finder-failure[hidden] { display: none; }
     `;
     let view = values.get('view', 'columns');
     let sortOrder = values.get('sort', { key: 'name', up: true });
     let startFailure = null;
-    // What the person asked that failed, `{ text, retry, location }`: said in the footer until it is tried again,
-    // another is asked, or another folder is in front.
+    // What the person asked that failed, `{ text, retry, details, location }`: said over the footer until it is tried
+    // again, another is asked, or another folder is in front.
     let said = null;
+    let drawnSaid = null; // the one the notice shows, kept as drawn, its Details open or not, until another is said
 
     const element = ui.element('div', { className: 'finder-files' });
     const footer = ui.element('div', { className: 'finder-footer' });
+    const failure = ui.element('div', { className: 'finder-failure' });
+    failure.hidden = true;
 
     ui.addStyle(STYLE);
 
     return {
         element,
         footer,
+        failure,
         view: () => view,
         setView,
         sortBy,
@@ -138,35 +136,31 @@ function fileArea({
         if (view === 'columns') columns.endElement()?.scrollIntoView(NEAREST);
     }
 
-    // `text` said in the footer in alert ink, with Try Again where `retry` runs it again; null takes it away.
-    function showFailure(text, retry = null) {
+    // `text` said in a failure notice over the footer, with `details` behind its disclosure and Try Again where
+    // `retry` runs it again; null takes it away.
+    function showFailure(text, retry = null, details = '') {
         if (!text && !said) return;
-        said = text ? { text, retry, location: tabs.location() } : null;
+        said = text ? { text, retry, details, location: tabs.location() } : null;
         drawFooter(false);
     }
 
-    // The count, or nothing while `blank`, or what failed while it holds.
+    // The count, or nothing while `blank`; and what failed, while it holds.
     function drawFooter(blank) {
         if (said && said.location !== tabs.location()) said = null;
-        footer.toggleAttribute('data-failure', !!said);
-        if (!said) {
-            footer.textContent = blank ? '' : countText();
-            return;
-        }
-        const text = ui.element('span', { className: 'finder-footer-text', text: said.text });
-        text.title = said.text;
-        const { retry } = said;
-        const again =
-            retry &&
-            ui.button({
-                label: 'Try Again',
-                size: 'small',
-                onClick: () => {
-                    showFailure(null);
-                    retry();
-                },
-            });
-        footer.replaceChildren(text, ...(again ? [again.element] : []));
+        footer.textContent = blank ? '' : countText();
+        failure.hidden = !said;
+        if (said === drawnSaid) return;
+        drawnSaid = said;
+        if (!said) return failure.replaceChildren();
+        const { text, retry, details } = said;
+        const again = retry && {
+            label: 'Try Again',
+            run: () => {
+                showFailure(null);
+                retry();
+            },
+        };
+        failure.replaceChildren(ui.notice({ kind: 'failure', text, details, action: again }).element);
     }
 
     function filterBy(typed) {
