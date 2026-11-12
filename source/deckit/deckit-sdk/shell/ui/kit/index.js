@@ -30,6 +30,7 @@ import * as COLOR_PICKER from '../color-picker/index.js';
 import * as DIALOG from '../dialog/index.js';
 import * as TOAST from '../toast/index.js';
 import * as APP_ICON from '../app-icon/index.js';
+import * as NOTICE from '../notice/index.js';
 
 const components = [
     BUTTON,
@@ -53,6 +54,7 @@ const components = [
     DIALOG,
     TOAST,
     APP_ICON,
+    NOTICE,
 ];
 // MARK: - Property
 let installed = false;
