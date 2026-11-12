@@ -36,7 +36,9 @@ const MOTION = Object.freeze({
 // What differs between a light look and a dark one. `glass` is the strength a surface drawn as glass lays its colour
 // at over what is behind it, blurred through. `rim` is the hairline inside a floating surface's edge, and `float` the
 // shadow it casts. `sidebar` is the sidebar's material over the window's. `scrim` dims the page under a dialog. The
-// shadow `icon` is a filter, laid under an app icon drawn at 32px and up, following the tile's shape.
+// shadow `icon` is a filter, laid under an app icon drawn at 32px and up, following the tile's shape. A window's
+// shadows, `key` for the one with the keyboard and `inactive` for the rest, hold its ring: a wide ambient shadow and a
+// tight contact one in light, and in dark, where a drop shadow reads as glow, an inner light rim besides.
 const LOOKS = Object.freeze({
     light: {
         accent: '#2a6fdb',
@@ -52,6 +54,8 @@ const LOOKS = Object.freeze({
             control: '0 1px 2px rgba(0,0,0,.3)',
             sidebar: 'inset 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.08)',
             icon: 'drop-shadow(0 2px 3px rgba(0,0,0,.20))',
+            key: '0 0 0 1px rgba(0,0,0,.10), 0 12px 36px rgba(0,0,0,.22), 0 2px 6px rgba(0,0,0,.10)',
+            inactive: '0 0 0 1px rgba(0,0,0,.08), 0 4px 14px rgba(0,0,0,.10)',
         },
     },
     dark: {
@@ -68,6 +72,10 @@ const LOOKS = Object.freeze({
             control: '0 1px 2px rgba(0,0,0,.5)',
             sidebar: 'inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.35)',
             icon: 'drop-shadow(0 2px 3px rgba(0,0,0,.45))',
+            key:
+                '0 0 0 1px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.10), 0 12px 36px rgba(0,0,0,.5), ' +
+                '0 2px 6px rgba(0,0,0,.3)',
+            inactive: '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.35)',
         },
     },
 });
@@ -183,9 +191,6 @@ function tokenOf(theme, fonts = {}) {
         appIcon: { ...APP_ICON },
         rim: rimOf(look.rim),
         shadow: {
-            raised: '0 10px 32px rgba(0,0,0,.32)',
-            // A window without the keyboard: close to the desktop, so the key one stands out.
-            inactive: '0 3px 10px rgba(0,0,0,.16)',
             lifted: '0 8px 22px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.2)',
             // Along an edge of the content and over it, casting to every side whichever edge it is at.
             drawer: '0 0 24px rgba(0,0,0,.22)',

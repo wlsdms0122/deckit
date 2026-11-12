@@ -40,9 +40,9 @@ const STYLE = `
         inset: ${SHADOW}px;
         border-radius: ${RADIUS}px;
         background: var(--deckit-background);
-        box-shadow: 0 0 0 1px var(--deckit-divider), var(--deckit-shadow-inactive);
+        box-shadow: var(--deckit-shadow-inactive);
     }
-    .deckit-window-material[data-key] { box-shadow: 0 0 0 1px var(--deckit-divider), var(--deckit-shadow-raised); }
+    .deckit-window-material[data-key] { box-shadow: var(--deckit-shadow-key); }
     .deckit-window-title {
         position: fixed;
         top: ${SHADOW}px;
