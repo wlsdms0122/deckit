@@ -94,9 +94,10 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     const title = document.createElement('div');
     title.className = 'deckit-title-bar-title';
     title.style.padding = '0 4px';
+    // The status takes only the room left, so it gives way before the title does.
     const status = document.createElement('span');
     Object.assign(status.style, {
-        flex: '1 1 auto',
+        flex: '1 1 0',
         minWidth: '0',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
