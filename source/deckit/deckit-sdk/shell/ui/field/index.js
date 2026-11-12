@@ -13,13 +13,10 @@ const STYLE = `
             padding: 0 4px 0 11px;
             border-radius: var(--deckit-radius-round);
             background: var(--deckit-fill);
-            box-shadow: inset 0 0 0 1px transparent;
             cursor: text;
-            transition: box-shadow var(--deckit-fade) var(--deckit-easing);
         }
         .deckit-field[data-size='small'] { height: 26px; }
         .deckit-field[data-icon] { padding-left: 9px; }
-        .deckit-field:focus-within { box-shadow: inset 0 0 0 1px var(--deckit-focus); }
         .deckit-field-icon { display: flex; flex: 0 0 auto; opacity: 0.5; }
         .deckit-field-input,
         .deckit-stepper-input {

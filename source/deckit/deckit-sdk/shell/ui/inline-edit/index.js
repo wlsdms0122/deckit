@@ -14,10 +14,9 @@ const STYLE = `
         margin: -2px 0 -2px -4px;
         padding: 1px 4px;
         border: 0;
-        outline: none;
+        outline-offset: 0;
         border-radius: var(--deckit-radius-small);
         background: var(--deckit-background);
-        box-shadow: 0 0 0 2px var(--deckit-focus);
         color: var(--deckit-text);
     }
     .deckit-rename[data-grows] { margin-right: auto; }

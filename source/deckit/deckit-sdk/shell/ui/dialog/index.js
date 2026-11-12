@@ -27,12 +27,10 @@ const STYLE = `
         padding: 0 10px;
         border: var(--deckit-border);
         border-radius: var(--deckit-radius-medium);
-        outline: none;
         background: var(--deckit-fill);
         color: inherit;
         font: var(--deckit-type-body);
     }
-    .deckit-input:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .deckit-swatch {
         flex: 0 0 auto;

@@ -100,7 +100,7 @@ function addStyle(rules) {
 function install() {
     if (installed) return;
     installed = true;
-    const rules = [PRESENTATION, PART, ...components].map((part) => part.STYLE);
+    const rules = [PART, PRESENTATION, ...components].map((part) => part.STYLE);
     addStyle(rules.join('\n'));
 }
 

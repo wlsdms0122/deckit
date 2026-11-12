@@ -49,7 +49,6 @@ const STYLE = `
         height: 26px;
         padding: 0 8px 0 12px;
         border: 0;
-        outline: none;
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-fill);
         color: var(--deckit-text);
@@ -57,7 +56,6 @@ const STYLE = `
         cursor: pointer;
     }
     .deckit-select:hover { background: var(--deckit-selected); }
-    .deckit-select:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-select-icon { display: flex; flex: 0 0 auto; margin-left: -2px; }
     .deckit-select-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .deckit-select-caret {

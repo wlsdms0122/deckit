@@ -17,7 +17,6 @@ const STYLE = `
         height: 28px;
         padding: 0 6px 0 8px;
         border: 0;
-        outline: none;
         border-radius: var(--deckit-radius-control);
         background: transparent;
         color: inherit;
@@ -28,7 +27,6 @@ const STYLE = `
     button.deckit-section-heading { cursor: pointer; }
     button.deckit-section-heading:hover { background: var(--deckit-hover); }
     button.deckit-section-heading:active { background: var(--deckit-pressed); }
-    button.deckit-section-heading:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-section-heading[data-current] { background: var(--deckit-selected); }
     .deckit-section[data-foldable] .deckit-section-heading { padding-left: 0; }
     .deckit-section-caret {

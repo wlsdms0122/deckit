@@ -11,7 +11,6 @@ const STYLE = `
         box-sizing: border-box;
         padding: 0;
         border: 0;
-        outline: none;
         background: transparent;
         color: var(--deckit-text);
         font: var(--deckit-type-body);
@@ -24,7 +23,6 @@ const STYLE = `
     }
     .deckit-button:hover { background: var(--deckit-hover); }
     .deckit-button:active { background: var(--deckit-pressed); }
-    .deckit-button:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-button:disabled { background: transparent; color: var(--deckit-disabled); cursor: default; }
     .deckit-icon-button { width: 30px; height: 30px; border-radius: var(--deckit-radius-medium); }
     .deckit-icon-button[data-size='small'] { width: 24px; height: 24px; border-radius: var(--deckit-radius-control); }
