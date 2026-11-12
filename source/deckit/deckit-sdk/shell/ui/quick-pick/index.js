@@ -1,4 +1,5 @@
 import * as ICON from '../icon/index.js';
+import * as APP_ICON from '../app-icon/index.js';
 import * as LIST from '../list/index.js';
 import * as LISTBOX from '../list/listbox.js';
 
@@ -163,7 +164,10 @@ function quickPick(
     // What the field searches in, shown before it: `{ icon, label }`, the icon as SVG markup, or null for none.
     function setScope(scope) {
         chip.hidden = !scope;
-        chip.replaceChildren(...(scope ? [ICON.sanitize(scope.icon), scope.label] : []));
+        const mark = scope?.appIcon
+            ? APP_ICON.appIcon(scope.icon, { size: 'small' })
+            : ICON.sanitize(scope?.icon ?? '');
+        chip.replaceChildren(...(scope ? [mark, scope.label] : []));
     }
 
     // The text typed is the caller's to set too; one it sets is not heard as typed.

@@ -56,7 +56,7 @@ async function main() {
         ui: {},
         theme: {},
         iconOf: () => '',
-        mods: { list: () => [], open: async () => {} },
+        mods: { list: () => [], icon: async () => '', open: async () => {} },
         windows: { open: () => ({ close: () => {} }) },
     };
     const connection = { mod: { name: 'A' }, credential: { mod: 'a', permissions: [] } };

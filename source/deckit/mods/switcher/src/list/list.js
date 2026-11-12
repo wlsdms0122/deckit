@@ -46,11 +46,11 @@ const STYLE =
         flex: 0 0 auto;
         align-items: center;
         justify-content: center;
-        width: 18px;
-        height: 18px;
-        opacity: 0.8;
+        width: var(--deckit-app-icon-row);
+        height: var(--deckit-app-icon-row);
+        color: var(--deckit-muted);
     }
-    .switcher-row[data-lead] .switcher-glyph { width: 22px; height: 22px; opacity: 0.75; }
+    .switcher-row[data-lead] .switcher-glyph { width: var(--deckit-app-icon-lead); height: var(--deckit-app-icon-lead); }
     .switcher-stack { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
     .switcher-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .switcher-label b { font-weight: 600; }
@@ -108,7 +108,6 @@ const STYLE =
         border-top: var(--deckit-border);
     }
     .switcher-heading[data-first] { margin-top: 0; padding: 4px 12px 4px; border-top: 0; }
-    .switcher-heading svg { width: 13px; height: 13px; }
 ` +
     Object.entries(TONE_LOOK)
         .map(([tone, look]) => {
@@ -116,7 +115,7 @@ const STYLE =
             return `
             ${row} { --switcher-peak: ${look.peak}; }
             ${look.wash ? `${row} { --switcher-wash: ${look.wash}; }` : ''}
-            ${look.glyph ? `${row} .switcher-glyph { color: ${look.glyph}; opacity: 1; }` : ''}
+            ${look.glyph ? `${row} .switcher-glyph { color: ${look.glyph}; }` : ''}
         `;
         })
         .join('');
@@ -200,7 +199,8 @@ function open({ ui, theme }, { placeholder, items, now, onQuery, onClose }) {
             submenuShown = state.submenu?.id ?? null;
             picker.setText('');
             picker.setPlaceholder(state.placeholder);
-            picker.setScope(state.submenu ? { icon: state.submenu.icon, label: state.submenu.label } : null);
+            const scope = state.submenu;
+            picker.setScope(scope ? { icon: scope.icon, appIcon: scope.appIcon, label: scope.label } : null);
             picker.focus();
         }
         const entries = state.rows.flatMap((row, index) => [
@@ -224,7 +224,7 @@ function headingOf(ui, { heading, first }) {
     if (heading.kind === 'section') {
         const title = element('span', '');
         title.textContent = heading.label;
-        made.append(ui.sanitizeIcon(heading.icon), title);
+        made.append(ui.appIcon(heading.icon, { size: 'small' }), title);
     } else made.textContent = heading.label;
     return made;
 }
@@ -234,6 +234,7 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
     const drawn = JSON.stringify([
         item.label,
         item.icon,
+        item.appIcon,
         item.tone,
         item.attention,
         item.lead,
@@ -250,7 +251,8 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
     made.toggleAttribute('data-attention', !!(item.lead && item.attention));
     made.dataset.tone = item.tone;
     const glyph = element('span', 'switcher-glyph');
-    if (item.icon) glyph.append(ui.sanitizeIcon(item.icon));
+    if (item.appIcon) glyph.append(ui.appIcon(item.icon, { size: item.lead ? 'lead' : 'row' }));
+    else if (item.icon) glyph.append(ui.sanitizeIcon(item.icon));
     const label = element('span', 'switcher-label');
     label.append(...labelOf(item.label, lit));
     const note = hintOf(hint);

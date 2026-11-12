@@ -26,7 +26,7 @@ function make({ placeholder, items, now, onQuery, onPick }) {
     // A row was aimed at since the query changed, so a late answer does not move the choice.
     let aimed = false;
     const answers = new Map(); // submenu id and query -> the entries answered
-    // A submenu opened to search inside it: { id, label, icon }.
+    // A submenu opened to search inside it: { id, label, icon, appIcon }.
     let inside = null;
     // While a submenu has not answered what is typed, its last answer stays up and the list is provisional: a row aimed
     // at is only remembered (`aimedId`), and Enter or a number waits for the answer (`held`).
@@ -59,7 +59,7 @@ function make({ placeholder, items, now, onQuery, onPick }) {
         });
         return {
             placeholder: inside ? 'Search…' : placeholder,
-            submenu: inside && { id: inside.id, label: inside.label, icon: inside.icon },
+            submenu: inside && { id: inside.id, label: inside.label, icon: inside.icon, appIcon: inside.appIcon },
             query: asked,
             rows,
             active,
@@ -185,7 +185,7 @@ function make({ placeholder, items, now, onQuery, onPick }) {
     }
 
     function enter(item) {
-        inside = { id: item.id, label: item.label, icon: item.submenu.icon || '' };
+        inside = { id: item.id, label: item.label, icon: item.submenu.icon || '', appIcon: !!item.submenu.appIcon };
         reset();
         touched = true;
         onQuery?.('', inside.id); // what the submenu shows before anything is typed

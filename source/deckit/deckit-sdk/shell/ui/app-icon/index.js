@@ -45,4 +45,4 @@ function urlOf(text) {
     return url;
 }
 
-export { STYLE, make };
+export { STYLE, make, appIcon };

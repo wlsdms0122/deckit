@@ -5,7 +5,7 @@ const SHOWN_BY = '@shell';
 
 // MARK: - Initializer
 // MARK: - Public
-// What the list holds, before it is made runnable: `{ id, label, hint, icon, group, section, keywords, tone,
+// What the list holds, before it is made runnable: `{ id, label, hint, icon, appIcon, group, section, keywords, tone,
 // attention, fallback, mod, value, opens, command, args, shows }`, `section` the one it is in, `{ id, name, icon }`. An
 // item gives `value` to the `run` of `mod`, the mod whose action it is, or with `opens` searches inside it; one `mod`
 // declared runs its `command` with `args`; a Show item `shows` a mod; one with none of these is read only.
@@ -25,6 +25,7 @@ function listed({ actions, shown, about }) {
             id: idOf('show', id),
             label: `Show ${name}`,
             icon: section.icon,
+            appIcon: true,
             keywords: keywords.join(' '),
             shows: id,
         });
@@ -36,7 +37,7 @@ function listed({ actions, shown, about }) {
 
 // An action of `mod` as an item in its section as `about` draws it: listed, of the Now strip, or answered under
 // `kind`, the query or the submenu it answers. It shows its own icon, or none: only a row of the Now strip, which no
-// section names, shows its mod's, and its tone colours it.
+// section names, shows its mod's app icon, and its tone colours it.
 function itemOf(kind, mod, action, about) {
     const section = sectionOf(mod, about);
     return {
@@ -44,6 +45,7 @@ function itemOf(kind, mod, action, about) {
         ...action,
         id: idOf(kind, mod, action.label, action.value, action.command ?? '', action.args ?? null),
         icon: action.icon || (kind === 'now' ? section.icon : ''),
+        appIcon: !action.icon && kind === 'now',
         keywords: action.keywords.join(' '),
         mod,
     };
@@ -55,6 +57,7 @@ function blank(section) {
         label: '',
         hint: '',
         icon: '',
+        appIcon: false,
         group: '',
         section,
         keywords: '',
@@ -71,7 +74,7 @@ function blank(section) {
 }
 
 // The section of mod `id`, `{ id, name, icon }`. `about` is `{ names, iconOf }`: `names` each mod's name by id, and
-// `iconOf(mod)` the icon its manifest fields give it, or ''.
+// `iconOf(mod)` its app icon as the shell reads it, or ''.
 function sectionOf(id, { names, iconOf }) {
     return { id, name: names.get(id) || id, icon: iconOf(id) };
 }
