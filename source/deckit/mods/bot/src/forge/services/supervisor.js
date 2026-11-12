@@ -242,21 +242,21 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         return span;
     };
 
-    const FLASH_MS = 850;
-    const flash = (row, tone) => {
+    // A row whose state changed lights once: its tone is on its dot.
+    const flash = (row) => {
         const wash = document.createElement('span');
         Object.assign(wash.style, {
             position: 'absolute',
             inset: '0',
-            borderRadius: '6px',
+            borderRadius: 'var(--deckit-radius-control)',
             pointerEvents: 'none',
-            background: TONE[tone] || TONE.idle,
+            background: 'var(--deckit-selected)',
             opacity: '0',
         });
         row.appendChild(wash);
         const done = () => wash.remove();
-        const play = wash.animate([{ opacity: 0 }, { opacity: 0.22, offset: 0.18 }, { opacity: 0 }], {
-            duration: FLASH_MS,
+        const play = wash.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], {
+            duration: Math.max(theme.motion.move.slow, theme.motion.fade),
             easing: theme.motion.easing,
         });
         play.finished.then(done, done);
@@ -345,7 +345,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             last = false,
         }) => {
             const snapshot = [tone, stateText || '', pid || ''].join('|');
-            if (lastSnapshot && snapshot !== lastSnapshot) flash(element, tone);
+            if (lastSnapshot && snapshot !== lastSnapshot) flash(element);
             lastSnapshot = snapshot;
 
             stem.style.bottom = last ? '50%' : '0';
