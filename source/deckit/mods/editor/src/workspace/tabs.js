@@ -4,7 +4,16 @@ const { nameOf } = require('../path/path.js');
 
 const TABS_STYLE = `
     .editor-tabs { overflow-x: auto; overflow-y: hidden; }
-    .editor-tab-list { display: flex; align-items: stretch; gap: 2px; height: 32px; }
+    /* Two tabs or more sit on a track, the chosen one lifted off it; a lone tab has nothing to be chosen from. */
+    .editor-tab-list {
+        display: flex;
+        align-items: stretch;
+        gap: 2px;
+        height: 32px;
+        box-sizing: border-box;
+        border-radius: var(--deckit-radius-medium);
+    }
+    .editor-tab-list[data-many] { padding: 2px; background: var(--deckit-fill); }
     .editor-tab {
         display: flex;
         align-items: center;
@@ -12,7 +21,7 @@ const TABS_STYLE = `
         flex: 0 0 auto;
         max-width: 220px;
         overflow: hidden;
-        border-radius: var(--deckit-radius-medium);
+        border-radius: var(--deckit-radius-control);
         color: var(--deckit-muted);
         font: var(--deckit-type-body);
         white-space: nowrap;
@@ -21,7 +30,11 @@ const TABS_STYLE = `
         transition: background-color var(--deckit-fade) var(--deckit-easing);
     }
     .editor-tab:hover { background: var(--deckit-hover); }
-    .editor-tab[data-active] { background: var(--deckit-selected); color: var(--deckit-text); }
+    .editor-tab[data-active] { color: var(--deckit-text); }
+    .editor-tab-list[data-many] .editor-tab[data-active] {
+        background: var(--deckit-thumb);
+        box-shadow: var(--deckit-shadow-control);
+    }
     .editor-tab-icon { display: flex; margin-left: 10px; }
     .editor-tab-label { overflow: hidden; text-overflow: ellipsis; }
     .editor-tab[data-preview] .editor-tab-label { font-style: italic; }
@@ -75,6 +88,7 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
             rows = tabList();
             element.replaceChildren(rows.element);
         }
+        rows.element.toggleAttribute('data-many', list.length > 1);
         rows.set(
             list.map((file) => ({
                 file,
