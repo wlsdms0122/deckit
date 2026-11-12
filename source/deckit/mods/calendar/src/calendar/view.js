@@ -150,10 +150,10 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     const empty = emptyState.element;
     Object.assign(empty.style, { position: 'absolute', inset: '0', display: 'none' });
 
-    const firstLoad = ui.loading({ text: 'Loading calendars…' }).element;
-    Object.assign(firstLoad.style, { position: 'absolute', inset: '0', display: 'none' });
+    // The loading over the first read, from when it starts until it has settled.
+    let firstLoad = null;
 
-    content.append(head, body, firstLoad, empty);
+    content.append(head, body, empty);
 
     // The body's size is observed in the window it is shown in, from each time it appears.
     let resizing = null;
@@ -303,10 +303,10 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
             if (blank) fade(empty);
         }
         const firstRead = !blank && loading && feeds.all().every((feed) => !reads.has(feed));
-        firstLoad.style.display = firstRead ? 'flex' : 'none';
+        showFirstLoad(firstRead, blank);
         // Hidden under the overlays, so the window's background material shows through them.
-        head.style.visibility = blank || firstRead ? 'hidden' : '';
-        body.style.visibility = blank || firstRead ? 'hidden' : '';
+        head.style.visibility = blank || firstLoad ? 'hidden' : '';
+        body.style.visibility = blank || firstLoad ? 'hidden' : '';
 
         const [from, to] = rangeOf(mode, cursor);
         // Only a move to another range fades in, so a background refresh of the same range does not blink.
@@ -326,6 +326,29 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         side.draw({
             today: calendar.shownBetween(today, tomorrow),
             upcoming: calendar.shownBetween(tomorrow, addDays(tomorrow, 14)).slice(0, 10),
+        });
+    }
+
+    // A loading shown stays its least before the view takes its place, so it does not flash; with nothing to show it
+    // goes at once.
+    function showFirstLoad(reading, blank) {
+        if (reading && !firstLoad) {
+            firstLoad = ui.loading({ text: 'Loading calendars…' });
+            Object.assign(firstLoad.element.style, { position: 'absolute', inset: '0' });
+            content.append(firstLoad.element);
+        }
+        if (reading || !firstLoad) return;
+        const going = firstLoad;
+        const drop = () => {
+            going.element.remove();
+            if (firstLoad === going) firstLoad = null;
+        };
+        if (blank) return drop();
+        if (going.going) return;
+        going.going = true;
+        going.settled().then(() => {
+            drop();
+            render();
         });
     }
 
