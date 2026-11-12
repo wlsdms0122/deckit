@@ -49,7 +49,13 @@ function codeTheme({ engine, theme, ui }) {
             '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
                 { backgroundColor: ui.alpha(theme.color.accent, 0.28) },
             // Transparent: lines scrolled sideways are clipped at its edge (clipGutter in code-view.js).
-            '.cm-gutters': { backgroundColor: 'transparent', color: theme.color.muted, border: '0' },
+            // Only the number of the line in hand speaks; the others step back.
+            '.cm-gutters': { backgroundColor: 'transparent', color: theme.color.disabled, border: '0' },
+            '.cm-lineNumbers .cm-gutterElement': {
+                padding: '0 12px',
+                textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums',
+            },
             '.cm-activeLineGutter': { backgroundColor: 'transparent', color: theme.color.text },
             '.cm-activeLine': { backgroundColor: theme.color.surface },
             // The engine draws a partial-line selection at letter height and this band at line height, so the two never
