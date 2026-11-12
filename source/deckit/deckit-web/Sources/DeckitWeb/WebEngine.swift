@@ -27,10 +27,10 @@ import CNodeAPI
 //   are fixed-width.
 // - Downloads a page started (WebDownload): `cancelDownload(id)`, nothing for one that ended.
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
-//   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
-//   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
-//   `windowState(id) -> { fullScreen, zoomed }`; `windowSize(id)`, `setWindowSize(id, size)`, its content's;
-//   `setTitle(id, title)`; `setColor(id, color)`; `keyWindow()`, the window with the keyboard, or null;
+//   `{ red, green, blue }` and `material` one of `hud`, `window`, `sidebar`, `menu`, `popover`;
+//   `showWindow(id, { focus })`; `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`,
+//   in the screen's space; `windowState(id) -> { fullScreen, zoomed }`; `windowSize(id)`, `setWindowSize(id, size)`,
+//   its content's; `setTitle(id, title)`; `setColor(id, color)`; `keyWindow()`, the window with the keyboard, or null;
 //   `doubleClickTitleBar(id)`, as `actionOnDoubleClick()` says, what the person set a double click on a title bar to
 //   do: `zoom`, `minimize` or `none`; `drag(id)`, moved by the press of the mouse under way, false where none is;
 //   `previewFile(id, file, title)` and `closeFilePreview(id)`, Quick Look's panel over the window;
@@ -591,6 +591,7 @@ final class WebEngine {
 
     private static let materials: [String: NSVisualEffectView.Material] = [
         "hud": .hudWindow,
+        "window": .underWindowBackground,
         "sidebar": .sidebar,
         "menu": .menu,
         "popover": .popover
