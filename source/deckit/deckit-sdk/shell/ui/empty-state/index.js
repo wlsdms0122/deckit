@@ -15,7 +15,7 @@ const STYLE = `
     }
     .deckit-empty-icon { display: flex; opacity: 0.25; }
     .deckit-empty-title { font: 700 var(--deckit-type-heading); }
-    .deckit-empty-hint { max-width: 460px; margin-top: -4px; opacity: 0.5; font: var(--deckit-type-body); line-height: 1.6; }
+    .deckit-empty-hint { max-width: 460px; margin-top: -4px; color: var(--deckit-muted); font: var(--deckit-type-body); line-height: 1.6; }
     .deckit-empty-actions { display: flex; gap: 8px; margin-top: 4px; }
     .deckit-empty-hint:empty, .deckit-empty-actions:empty { display: none; }
 `;

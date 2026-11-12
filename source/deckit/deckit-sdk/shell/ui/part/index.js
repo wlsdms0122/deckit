@@ -2,11 +2,16 @@
 // The focus ring every part draws, at no weight, so a part or a view that draws its own keeps it: outside the edge, or
 // inside it for what is typed into.
 const STYLE = `
-    :where(:focus-visible, .deckit-field:has(:focus-visible), .deckit-stepper:has(.deckit-stepper-input:focus-visible)) {
+    :where(
+        :focus-visible,
+        .deckit-field:has(:focus-visible),
+        .deckit-stepper:has(.deckit-stepper-input:focus-visible)
+    ) {
         outline: 2px solid var(--deckit-focus);
         outline-offset: 2px;
     }
     :where(input, textarea, .deckit-field, .deckit-stepper) { outline-offset: -2px; }
+    ::placeholder { color: var(--deckit-placeholder); opacity: 1; }
     .deckit-pressable { transition: background-color var(--deckit-fade) var(--deckit-easing); }
     .deckit-pressable:hover { background: var(--deckit-hover); }
     .deckit-pressable:active { background: var(--deckit-pressed); }

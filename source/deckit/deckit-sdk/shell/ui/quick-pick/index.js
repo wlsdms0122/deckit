@@ -39,14 +39,14 @@ const STYLE = `
     .deckit-modal[data-align='fill'] .deckit-quick-pick-list { flex: 1 1 auto; min-height: 0; max-height: none; }
     .deckit-modal[data-drags] .deckit-quick-pick-field { --app-region: drag; }
     .deckit-modal[data-drags] .deckit-quick-pick-list { --app-region: no-drag; }
-    .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; opacity: 0.45; }
+    .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: var(--deckit-muted); }
     .deckit-quick-pick-message:empty { display: none; }
-    .deckit-quick-pick-message[data-alert] { opacity: 1; color: var(--deckit-alert-ink); }
+    .deckit-quick-pick-message[data-alert] { color: var(--deckit-alert-ink); }
     .deckit-quick-pick-note {
         margin-top: 4px;
         padding: 6px 12px 2px;
         border-top: var(--deckit-border);
-        opacity: 0.5;
+        color: var(--deckit-muted);
         font: var(--deckit-type-small);
     }
     .deckit-quick-pick-note:empty { display: none; }

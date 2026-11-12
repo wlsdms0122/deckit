@@ -21,7 +21,7 @@ const STYLE = `
     font: var(--deckit-type-body);
     text-align: center;
 }
-.deckit-loading-text { opacity: 0.6; }
+.deckit-loading-text { color: var(--deckit-muted); }
     `;
 const TURN_MS = 750;
 

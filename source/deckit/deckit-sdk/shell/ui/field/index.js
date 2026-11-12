@@ -45,6 +45,7 @@ const STYLE = `
         }
         .deckit-stepper-input { width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
         .deckit-stepper[data-unset] .deckit-stepper-input { width: 56px; }
+        .deckit-stepper-input::placeholder { color: var(--deckit-text); }
         .deckit-stepper-button {
             width: 22px;
             height: 22px;

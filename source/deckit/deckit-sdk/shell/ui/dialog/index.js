@@ -3,7 +3,7 @@ import * as PART from '../part/index.js';
 
 // MARK: - Property
 const STYLE = `
-    .deckit-dialog-message { opacity: 0.7; line-height: 1.6; overflow-wrap: anywhere; margin-bottom: 8px; }
+    .deckit-dialog-message { color: var(--deckit-muted); line-height: 1.6; overflow-wrap: anywhere; margin-bottom: 8px; }
     .deckit-dialog-message[data-last],
     .deckit-dialog-content { margin-bottom: 18px; }
     .deckit-dialog[data-fields] .deckit-dialog-message[data-last],
@@ -19,7 +19,7 @@ const STYLE = `
         cursor: pointer;
     }
     .deckit-dialog-field { display: block; margin-bottom: 14px; }
-    .deckit-dialog-label { margin-bottom: 6px; opacity: 0.55; font: 700 var(--deckit-type-small); letter-spacing: 0.02em; }
+    .deckit-dialog-label { margin-bottom: 6px; color: var(--deckit-muted); font: var(--deckit-type-label); }
     .deckit-input {
         width: 100%;
         box-sizing: border-box;
