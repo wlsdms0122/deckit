@@ -1,0 +1,339 @@
+#!/usr/bin/env node
+// Draws every surface of Deckit.app reached without the real screen, in the light look and in the dark, into
+// .build/shots/<light|dark>/<name>.png, so one design can be held beside another. The look is the app's own, its main
+// process's `nativeTheme.themeSource`, set in memory: the machine's appearance is left as it is. Each look is a run of
+// its own of Deckit.app, put together from the archive it builds first, with data of its own that is thrown away; the
+// app's log is left beside the shots, .build/shots/<look>.log. Notifications is not drawn: what it shows while the app
+// is not the active one is the system's notification, on the real screen. Exits 1 naming each surface not drawn.
+const fs = require('fs');
+const http = require('http');
+const path = require('path');
+
+const root = path.join(__dirname, '..', '..', '..');
+const { execFileSync } = require('child_process');
+const { start } = require(path.join(root, 'source', 'cli', 'test', 'start.js'));
+const { seat } = require(path.join(root, 'source', 'cli', 'test', 'seat.js'));
+const { until, sleep, ALT, META } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
+const OUT = path.join(root, '.build', 'shots');
+const LOOKS = ['light', 'dark'];
+const LIMIT = 600000;
+// The folder the Editor comes back to, named the same in every run, its files, and the one it shows.
+const FOLDER = 'sample';
+const FILES = {
+    'README.md': '# Sample\n\nA small project the Editor and the Finder show.\n',
+    'source/main.js': "import { greet } from './greet.js';\n\nconsole.log(greet('Deckit'));\n",
+    'source/greet.js': 'export function greet(name) {\n    return `Hello, ${name}`;\n}\n',
+    'notes.txt': Array.from({ length: 30 }, (_, index) => `line ${index + 1}`).join('\n') + '\n',
+};
+const SHOWN = 'source/main.js';
+
+const args = process.argv.slice(2);
+const port = args.length ? Number(args[1]) : 9336;
+if ((args.length && (args.length !== 2 || args[0] !== '--port')) || !Number.isInteger(port) || port <= 0) {
+    console.error("usage: deckit shots [--port <the main process's inspector port, default 9336>]");
+    process.exit(2);
+}
+
+// A site of the machine's own for the Browser's tabs: two pages, and a file it hands over to keep.
+function site() {
+    const pages = {
+        '/': '<title>Example</title><h1>Example</h1><p>A page the Browser shows in front.</p>',
+        '/behind': '<title>Behind</title><h1>Behind</h1><p>A page the Browser keeps asleep.</p>',
+    };
+    return http.createServer((request, response) => {
+        if (request.url === '/report.csv') {
+            response.writeHead(200, {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': 'attachment; filename="report.csv"',
+            });
+            return response.end('a,b\n1,2\n');
+        }
+        response.writeHead(pages[request.url] ? 200 : 404, { 'Content-Type': 'text/html' });
+        response.end(pages[request.url] || '');
+    });
+}
+
+// What the app comes back to: the Editor's files, and the Browser's two tabs on the site at `origin`.
+function seedOf(origin) {
+    return ({ data, files: given }) => {
+        const files = path.join(given, FOLDER);
+        for (const [name, text] of Object.entries(FILES)) {
+            fs.mkdirSync(path.dirname(path.join(files, name)), { recursive: true });
+            fs.writeFileSync(path.join(files, name), text);
+        }
+        const shown = path.join(files, SHOWN);
+        const records = path.join(data, 'deckit', 'records');
+        const write = (name, value) => {
+            fs.mkdirSync(path.dirname(path.join(records, name)), { recursive: true });
+            fs.writeFileSync(path.join(records, name), JSON.stringify(value));
+        };
+        write('editor/session.json', {
+            spaces: [{ root: files, open: [shown], active: shown, mode: 'files' }],
+            active: files,
+        });
+        const tabs = [
+            { id: 1, url: origin + '/', title: 'Example', icon: '' },
+            { id: 2, url: origin + '/behind', title: 'Behind', icon: '' },
+        ];
+        write('browser/session.json', { tabs, front: 1, closed: [] });
+    };
+}
+
+// Every surface in `look`, each into `shots`; the names of those not drawn.
+async function draw(app, look, shots, origin) {
+    const { page, pageById, overlayOf, compose, main } = app;
+    const { desktopLaid, windowsNow, keyMod, windowOf, dockNow, show, desktopShot } = seat({
+        main,
+        pageById,
+        compose,
+        desktop: () => desktop,
+    });
+    const missed = [];
+    // `take(name)` draws surface `name`, which is missed if it threw or drew nothing.
+    const surface = async (name, take) => {
+        try {
+            await take(name);
+        } catch (error) {
+            console.error(`[shots] ${look} ${name}: ${error.message}`);
+        }
+        if (!fs.existsSync(path.join(shots, name + '.png'))) missed.push(name);
+    };
+    // Mod `id`'s front window alone: its frame, its content and the pages laid in it, and with `overlay` what its
+    // page presents over it.
+    const windowShot = async (name, id, { overlay = false } = {}) => {
+        const laid = (await desktopLaid())?.pages || [];
+        const window = (await windowsNow()).filter(({ mod }) => mod === id).at(-1);
+        if (!window) return;
+        const from = laid.findIndex(({ name: each }) => each === `frame-${window.id}`);
+        const to = laid.findIndex(({ name: each }) => each === `buttons-${window.id}`);
+        if (from < 0 || to < 0) return;
+        const opener = laid.find(({ id: each }) => each === window.content)?.opener;
+        const drawn = laid.slice(from, to + 1);
+        if (overlay) drawn.push(...laid.filter((each) => each.name === 'deckit-overlay' && each.opener === opener));
+        const { x, y } = laid[from].rect;
+        const layers = [];
+        for (const { id: each, rect, hidden } of drawn) {
+            const session = !hidden && (await pageById(each));
+            if (session) layers.push({ session, x: rect.x - x, y: rect.y - y });
+        }
+        await compose(name, layers);
+    };
+    // The overlay of mod `id`'s page once `expression` comes to something in it, or nothing after a few seconds.
+    const presented = async (id, expression) => {
+        const overlay = await overlayOf(await page(`deckit://${id}.mod`));
+        return (await until(() => overlay?.evaluate(expression), 4000)) && overlay;
+    };
+    const escape = (overlay) => overlay?.key('Escape', 'Escape');
+
+    await sleep(9000);
+    const desktop = await until(() => page('deckit://desktop'));
+    const dark = await main(`const { nativeTheme } = require('electron');
+        nativeTheme.themeSource = ${JSON.stringify(look)};
+        return nativeTheme.shouldUseDarkColors`);
+    if (dark !== (look === 'dark')) throw new Error(`the app did not take the ${look} look`);
+    // What the Browser downloads is kept with the app's data, out of the person's Downloads folder.
+    const downloads = path.join(app.data, 'Downloads');
+    fs.mkdirSync(downloads, { recursive: true });
+    await main(`require('electron').app.setPath('downloads', ${JSON.stringify(downloads)})`);
+    await sleep(1500);
+    await surface('desktop', desktopShot);
+
+    // Each app in the Dock, its window the key one, then behind another's.
+    const apps = (await dockNow()).map(({ id }) => id);
+    for (const id of apps)
+        await surface(id, async (name) => {
+            await show(id);
+            await sleep(800);
+            await windowShot(name, id);
+        });
+    for (const id of apps.slice(0, -1)) await surface(`${id}-inactive`, (name) => windowShot(name, id));
+    await show(apps[0]);
+    await sleep(400);
+    await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
+    await surface('desktop-windows', desktopShot);
+
+    // The Dock slid out as the pointer comes, and the menu of one of its items.
+    const dock = (event) =>
+        desktop.evaluate(`document.querySelector('.deckit-dock').dispatchEvent(new PointerEvent('${event}'))`);
+    await dock('pointerenter');
+    await until(() => desktop.evaluate(`document.querySelector('.deckit-dock').hasAttribute('data-out')`), 2000);
+    await sleep(400);
+    await surface('dock', desktopShot);
+    await surface('dock-menu', async (name) => {
+        await desktop.evaluate(`(() => {
+            const item = document.querySelector('.deckit-dock-item');
+            const { x, y } = item.getBoundingClientRect();
+            item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x + 8, clientY: y + 8 }));
+        })()`);
+        const overlay = await overlayOf(desktop);
+        await until(() => overlay?.evaluate(`!!document.querySelector('.deckit-menu[data-state="open"]')`), 3000);
+        await sleep(300);
+        await desktopShot(name);
+        await escape(overlay);
+    });
+    await dock('pointerleave');
+
+    // The switcher, on its chord, empty and with a search typed.
+    const keyed = await windowOf(await keyMod());
+    await keyed?.key(' ', 'Space', ALT);
+    const switcher = await until(async () => overlayOf(await page('deckit://switcher.mod')));
+    await until(async () => /Notes/.test((await switcher?.evaluate('document.body.innerText')) || ''));
+    await sleep(300);
+    await surface('switcher', (name) => switcher?.shot(name));
+    await switcher?.type('Show Notes');
+    await sleep(1200);
+    await surface('switcher-typed', (name) => switcher?.shot(name));
+    await escape(switcher);
+    await sleep(600);
+
+    // Settings, section by section, then a menu, a sheet and a toast over it.
+    await show('settings');
+    const settings = await windowOf('settings');
+    await until(async () => /Editor[\s\S]*1\.0\.0/.test((await settings?.evaluate('document.body.innerText')) || ''));
+    const titles =
+        (await settings?.evaluate(
+            `[...document.querySelectorAll('.settings-section-title')].map((title) => title.textContent)`
+        )) || [];
+    const sectionOf = (title) => `[...document.querySelectorAll('.settings-section')].find((section) =>
+        section.querySelector('.settings-section-title')?.textContent === ${JSON.stringify(title)})`;
+    for (const title of titles)
+        await surface('settings-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-'), async (name) => {
+            await settings.evaluate(`${sectionOf(title)}.scrollIntoView({ block: 'start' })`);
+            await sleep(300);
+            await windowShot(name, 'settings');
+        });
+    await surface('menu', async (name) => {
+        const select = `${sectionOf('General')}.querySelector('.deckit-select')`;
+        await settings.evaluate(`${select}.scrollIntoView({ block: 'center' })`);
+        await sleep(200);
+        await settings.evaluate(`${select}.click()`);
+        const overlay = await presented('settings', `!!document.querySelector('.deckit-menu[data-state="open"]')`);
+        await sleep(300);
+        await windowShot(name, 'settings', { overlay: true });
+        await escape(overlay);
+    });
+    // A folder dropped on the Mods section: one whose package names a mod not installed is shown on a sheet, and one
+    // that is no mod is told on a toast.
+    const settingsId = (await windowsNow()).find(({ mod }) => mod === 'settings')?.content;
+    const drop = async (folder) => {
+        const at = await settings.evaluate(`(() => {
+            const head = document.querySelector('.settings-mods .settings-section-head');
+            head.scrollIntoView();
+            const box = head.getBoundingClientRect();
+            return { x: box.left + 20, y: box.top + 10 };
+        })()`);
+        await main(`return webkit.sendDrop(${settingsId}, ${JSON.stringify({ files: [folder], ...at })})`);
+    };
+    await surface('sheet', async (name) => {
+        const folder = path.join(app.data, 'needs-absent');
+        fs.mkdirSync(folder);
+        fs.writeFileSync(
+            path.join(folder, 'manifest.toml'),
+            'id = "needs-absent"\nname = "Needs Absent"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\n'
+        );
+        fs.writeFileSync(path.join(folder, 'main.js'), 'module.exports = class { start() {} };\n');
+        fs.writeFileSync(path.join(folder, 'package.toml'), '[dependencies]\nabsent-mod = "1.2"\n');
+        await drop(fs.realpathSync(folder));
+        const overlay = await presented('settings', `!!document.querySelector('.deckit-modal-title')`);
+        await sleep(400);
+        await windowShot(name, 'settings', { overlay: true });
+        await overlay?.evaluate(`document.querySelector('.deckit-modal-actions button')?.click()`);
+        await until(async () => !(await overlay?.evaluate(`!!document.querySelector('.deckit-modal')`)), 2000);
+    });
+    await surface('toast', async (name) => {
+        const folder = path.join(app.data, 'not-a-mod');
+        fs.mkdirSync(folder);
+        await drop(fs.realpathSync(folder));
+        await presented('settings', `!!document.querySelector('.deckit-toast')`);
+        await sleep(400);
+        await windowShot(name, 'settings', { overlay: true });
+    });
+
+    // The Browser: a tab's context menu, the question a download asks, and the downloads listed from the toolbar.
+    await show('browser');
+    const browser = await windowOf('browser');
+    await surface('context-menu', async (name) => {
+        await browser.evaluate(`(() => {
+            const row = document.querySelector('.browser-row-label');
+            const { x, y } = row.getBoundingClientRect();
+            row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x + 4, clientY: y + 4 }));
+        })()`);
+        const overlay = await presented('browser', `!!document.querySelector('.deckit-menu[data-state="open"]')`);
+        await sleep(300);
+        await windowShot(name, 'browser', { overlay: true });
+        await escape(overlay);
+        await until(async () => !(await overlay?.evaluate('document.body.childElementCount')), 2000);
+    });
+    await surface('dialog', async (name) => {
+        const shown = `[...document.querySelectorAll('[data-web-page]')].find((element) =>
+            element.style.visibility === 'visible')?.dataset.webPage`;
+        const tab = await until(() => browser.evaluate(shown), 3000);
+        await main(`return webkit.load(${tab}, ${JSON.stringify(origin + '/report.csv')})`);
+        const overlay = await presented('browser', `!!document.querySelector('.deckit-modal-title')`);
+        await sleep(400);
+        await windowShot(name, 'browser', { overlay: true });
+        await overlay?.evaluate(`[...document.querySelectorAll('.deckit-modal-actions button')]
+            .find((button) => button.textContent === 'Download')?.click()`);
+        await until(() => fs.existsSync(path.join(downloads, 'report.csv')), 5000);
+    });
+    await surface('popover', async (name) => {
+        const button = `document.querySelector('.browser-downloads-button')`;
+        await until(() => browser.evaluate(`!${button}.hidden`), 3000);
+        await browser.evaluate(`${button}.click()`);
+        const overlay = await presented('browser', `!!document.querySelector('.browser-download')`);
+        await sleep(400);
+        await windowShot(name, 'browser', { overlay: true });
+        await escape(overlay);
+    });
+
+    // The quick picks: the Editor's Go to Line and Open Quickly, and the Finder's Go to Folder.
+    const quickPick = (id, key, code, typed) => async (name) => {
+        await show(id);
+        const content = await windowOf(id);
+        if (id === 'editor') await content.press('.cm-content');
+        await sleep(300);
+        await content.key(key, code, META);
+        const overlay = await presented(id, `!!document.querySelector('.deckit-quick-pick-field')`);
+        if (typed) await overlay?.type(typed);
+        await sleep(800);
+        await windowShot(name, id, { overlay: true });
+        await escape(overlay);
+        await sleep(300);
+    };
+    await surface('quick-pick', quickPick('editor', 'l', 'KeyL'));
+    await surface('open-quickly', quickPick('editor', 'p', 'KeyP', 'greet'));
+    await surface('go-to-folder', quickPick('finder', 'l', 'KeyL'));
+    return missed;
+}
+
+const main = async () => {
+    execFileSync(path.join(__dirname, 'build'), { cwd: root, stdio: 'inherit' });
+    fs.rmSync(OUT, { recursive: true, force: true });
+    const server = site();
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const missed = [];
+    for (const look of LOOKS) {
+        const shots = path.join(OUT, look);
+        fs.mkdirSync(shots, { recursive: true });
+        const log = path.join(OUT, look + '.log');
+        const app = start({ seed: seedOf(origin), shots, log, port, limit: LIMIT });
+        try {
+            missed.push(...(await draw(app, look, shots, origin)).map((name) => `${look}/${name}`));
+        } finally {
+            app.stop();
+            await sleep(2000);
+        }
+        const drawn = fs.readdirSync(shots).filter((file) => file.endsWith('.png'));
+        console.log(`${look}: ${drawn.length} shots in ${path.relative(root, shots)}/`);
+    }
+    server.close();
+    if (!missed.length) process.exit(0);
+    console.error(`not drawn: ${missed.join(', ')}`);
+    process.exit(1);
+};
+
+main().catch((error) => {
+    console.error('[shots] ' + error.message);
+    process.exit(1);
+});
