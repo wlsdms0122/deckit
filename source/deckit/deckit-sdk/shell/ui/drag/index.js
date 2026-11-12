@@ -18,10 +18,9 @@ const STYLE = `
         box-sizing: border-box;
         overflow: hidden;
         padding: 4px 10px 4px 8px;
-        border: var(--deckit-border);
-        border-radius: 7px;
-        background: var(--deckit-lifted);
-        box-shadow: var(--deckit-shadow-lifted);
+        border-radius: var(--deckit-radius-control);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
         font: var(--deckit-type-small);
         white-space: nowrap;

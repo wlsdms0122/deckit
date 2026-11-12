@@ -22,9 +22,8 @@ const STYLE = `
         overflow-y: auto;
         padding: 18px 20px 16px;
         border-radius: var(--deckit-radius-card);
-        border: var(--deckit-border);
-        background: var(--deckit-background);
-        box-shadow: var(--deckit-shadow-modal);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
         transition: transform var(--deckit-move-base) var(--deckit-easing);
     }
@@ -37,7 +36,6 @@ const STYLE = `
         flex-direction: column;
         width: 100%;
         max-height: none;
-        border: 0;
         border-radius: 0;
         box-shadow: none;
     }
@@ -91,7 +89,7 @@ function modal(
     card.className = 'deckit-modal-card';
     if (align !== 'fill') card.style.width = width;
     if (glass !== null)
-        card.style.background = `color-mix(in srgb, var(--deckit-background) ${glass * 100}%, transparent)`;
+        card.style.background = `color-mix(in srgb, var(--deckit-elevated) ${glass * 100}%, transparent)`;
     scrim.append(card);
     let closed = false;
     const close = () => {

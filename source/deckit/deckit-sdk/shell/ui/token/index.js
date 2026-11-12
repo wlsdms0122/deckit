@@ -172,8 +172,6 @@ function tokenOf(theme, fonts = {}) {
         rim: rimOf(look.rim),
         shadow: {
             raised: '0 10px 32px rgba(0,0,0,.32)',
-            nested: '0 14px 40px rgba(0,0,0,.42), 0 2px 8px rgba(0,0,0,.28)',
-            modal: '0 18px 48px rgba(0,0,0,.4)',
             lifted: '0 8px 22px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.2)',
             // Along an edge of the content and over it, casting to every side whichever edge it is at.
             drawer: '0 0 24px rgba(0,0,0,.22)',

@@ -16,10 +16,9 @@ const STYLE = `
     box-sizing: border-box;
     max-width: min(360px, calc(100vw - 24px));
     padding: 8px 14px;
-    border: var(--deckit-border);
     border-radius: var(--deckit-radius-card);
-    background: var(--deckit-lifted);
-    box-shadow: var(--deckit-shadow-raised);
+    background: var(--deckit-elevated);
+    box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     color: var(--deckit-text);
     font: var(--deckit-type-body);
     line-height: 1.45;

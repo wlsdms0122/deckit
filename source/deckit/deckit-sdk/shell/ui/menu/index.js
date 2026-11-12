@@ -12,13 +12,11 @@ const STYLE = `
         overflow-y: auto;
         padding: 4px;
         border-radius: var(--deckit-radius-large);
-        border: var(--deckit-border);
-        background: var(--deckit-surface);
-        box-shadow: var(--deckit-shadow-raised);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
         font: var(--deckit-type-body);
     }
-    .deckit-menu[data-nested] { box-shadow: var(--deckit-shadow-nested); }
     .deckit-menu-separator { height: 1px; margin: 4px 6px; background: var(--deckit-divider); }
     .deckit-menu-row {
         display: flex;
@@ -265,7 +263,6 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     const box = tag('div', 'deckit-menu');
     box.setAttribute('role', 'menu');
     box.style.minWidth = Math.max(minWidth, WIDTH_MIN) + 'px';
-    if (beside) box.dataset.nested = '';
     const shown = withoutStraySeparators(items);
     const ticks = shown.some((item) => item !== '-' && typeof item.checked === 'boolean');
     const options = [];
