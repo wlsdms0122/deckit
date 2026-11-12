@@ -116,11 +116,11 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             outline: none;
             background: transparent;
             color: var(--deckit-text);
-            font: 800 26px var(--deckit-font);
-            letter-spacing: -0.01em;
+            font: 600 var(--deckit-type-title);
+            letter-spacing: var(--deckit-tracking-title);
         }
         .note-title-error { min-height: 0; color: var(--deckit-alert-ink); font: var(--deckit-type-small); }
-        .note-stamp { min-height: 16px; margin-top: 3px; color: var(--deckit-muted); font: 11.5px var(--deckit-font); }
+        .note-stamp { min-height: 16px; margin-top: 3px; color: var(--deckit-muted); font: var(--deckit-type-caption); }
         .note-banner {
             display: flex;
             align-items: center;
@@ -130,7 +130,7 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             padding: 7px 8px 7px 12px;
             border-radius: var(--deckit-radius-medium);
             background: ${ui.alpha(theme.color.warn, 0.16)};
-            font: 12.5px var(--deckit-font);
+            font: var(--deckit-type-small);
         }
         .note-banner[hidden] { display: none; }
         .note-banner-text { flex: 1 1 auto; }

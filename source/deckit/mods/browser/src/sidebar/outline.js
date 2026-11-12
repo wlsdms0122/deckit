@@ -62,7 +62,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         .browser-folder[data-empty] .browser-folder-caret { visibility: hidden; }
         .browser-folder-glyph { display: flex; flex: 0 0 auto; color: var(--browser-folder-ink); }
         .browser-folder-label { color: var(--browser-folder-ink); font-weight: 600; }
-        .browser-folder-count { flex: 0 0 auto; color: var(--browser-folder-ink); font: var(--deckit-type-small); opacity: 0.8; }
+        .browser-folder-count { flex: 0 0 auto; color: var(--deckit-muted); font: var(--deckit-type-small); }
     `);
     const list = ui.list({
         key: keyOf,

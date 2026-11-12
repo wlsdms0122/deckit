@@ -13,8 +13,7 @@ function startPage({ ui, onOpen }) {
         .browser-start-heading {
             margin: 0 0 14px 4px;
             color: var(--deckit-muted);
-            font: var(--deckit-type-small);
-            font-weight: 600;
+            font: var(--deckit-type-label);
         }
         .browser-start-tiles { display: grid; grid-template-columns: repeat(auto-fill, 84px); gap: 18px 14px; }
         .browser-start-tile {

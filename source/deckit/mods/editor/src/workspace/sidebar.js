@@ -26,8 +26,8 @@ const SIDEBAR_STYLE = `
         background: currentColor;
         opacity: 0.7;
     }
-    .editor-open-folder-icon { display: flex; opacity: 0.6; }
-    .editor-open-folder-label { opacity: 0.7; }
+    .editor-open-folder-icon { display: flex; color: var(--deckit-muted); }
+    .editor-open-folder-label { color: var(--deckit-muted); }
     .editor-loose-icon { display: flex; }
 `;
 

@@ -10,11 +10,11 @@ const DRAFTS_STYLE = `
         padding: 7px 8px 7px 10px;
         border-radius: var(--deckit-radius-medium);
         border: var(--deckit-border);
-        font: 12.5px var(--deckit-font);
+        font: var(--deckit-type-small);
         background: color-mix(in srgb, var(--deckit-warn) 10%, transparent);
     }
     .editor-drafts[hidden] { display: none; }
-    .editor-drafts-heading { opacity: 0.8; }
+    .editor-drafts-heading { color: var(--deckit-muted); }
     .editor-draft { display: flex; align-items: center; gap: 8px; }
     .editor-draft-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 `;

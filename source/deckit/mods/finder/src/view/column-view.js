@@ -28,7 +28,8 @@ function columnView({ ui, icons, entryAt, onResize }) {
             cursor: col-resize;
         }
         .finder-column-cell { cursor: default; transition: none; }
-        .finder-column-cell[data-hidden] { opacity: 0.55; }
+        .finder-column-cell[data-hidden] { color: var(--deckit-muted); }
+        .finder-column-cell[data-hidden] :is(.finder-icon, .finder-icon-placeholder) { opacity: 0.55; }
         .finder-column-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .finder-column-more { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
         .finder-column-message { padding: 8px 6px; color: var(--deckit-muted); }

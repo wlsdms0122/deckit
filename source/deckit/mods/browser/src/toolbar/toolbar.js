@@ -51,7 +51,7 @@ function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions,
             text-align: left;
             white-space: nowrap;
         }
-        .browser-address-place { min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+        .browser-address-place { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .browser-address-input { display: none; outline: none; }
         .browser-toolbar[data-editing] .browser-address,
         .browser-toolbar[data-editing] .browser-address-page { display: none; }

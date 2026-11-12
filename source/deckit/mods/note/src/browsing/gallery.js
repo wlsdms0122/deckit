@@ -36,7 +36,7 @@ function gallery({
             padding: 6px 24px 28px;
             outline: none;
         }
-        .note-gallery-heading { margin: 16px 2px 8px; color: var(--deckit-muted); font: 700 var(--deckit-type-small); }
+        .note-gallery-heading { margin: 16px 2px 8px; color: var(--deckit-muted); font: var(--deckit-type-label); }
         .note-gallery-status { padding: 24px 4px; color: var(--deckit-muted); }
         .note-gallery-partial { padding: 14px 4px; color: var(--deckit-muted); font: var(--deckit-type-small); }
         .note-gallery-empty { position: absolute; inset: 0; }
@@ -55,20 +55,19 @@ function gallery({
         .note-card-note { display: flex; flex-direction: column; gap: 6px; height: 156px; }
         .note-card-folder { display: flex; align-items: center; gap: 10px; height: 62px; }
         .note-card-title, .note-card-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
-        .note-card-title { -webkit-line-clamp: 2; line-height: 1.3; font: 700 13.5px var(--deckit-font); }
+        .note-card-title { -webkit-line-clamp: 2; font: 600 var(--deckit-type-body); }
         .note-card-text {
             flex: 1 1 auto;
             -webkit-line-clamp: 4;
-            line-height: 1.45;
             color: var(--deckit-muted);
-            font: 12.5px var(--deckit-font);
+            font: var(--deckit-type-small);
         }
         .note-card-footer {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             color: var(--deckit-muted);
-            font: 11.5px var(--deckit-font);
+            font: var(--deckit-type-caption);
         }
         .note-card-icon { display: flex; flex: 0 0 auto; }
         .note-card-words { flex: 1 1 auto; min-width: 0; }
@@ -76,7 +75,7 @@ function gallery({
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font: 600 13.5px var(--deckit-font);
+            font: 600 var(--deckit-type-body);
         }
         .note-card-contents { margin-top: 2px; white-space: nowrap; color: var(--deckit-muted); font: var(--deckit-type-small); }
     `;

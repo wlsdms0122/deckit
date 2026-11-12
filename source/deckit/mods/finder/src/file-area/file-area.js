@@ -33,7 +33,7 @@ function fileArea({
             padding: 5px 20px 8px;
             border-top: var(--deckit-border);
             color: var(--deckit-muted);
-            font: 11.5px var(--deckit-font);
+            font: var(--deckit-type-small);
         }
     `;
     let view = values.get('view', 'columns');
