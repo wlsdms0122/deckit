@@ -104,10 +104,14 @@ function modal(
         onConfirm?.();
     };
     const confirms = chrome && confirmLabel !== null;
+    // Enter in a text field confirms; one button alone is the default button, which Enter takes from anywhere that is
+    // no control of its own.
     const onKey = (event) => {
         if (given(event)) return true;
-        if (event.key !== 'Enter' || !confirms || event.target.tagName !== 'INPUT') return false;
-        submit();
+        if (event.key !== 'Enter') return false;
+        if (confirms && event.target.tagName === 'INPUT') submit();
+        else if (lone && !event.target.closest?.('button, input, textarea, select, [contenteditable]')) lone.click();
+        else return false;
         return true;
     };
     // A mod's own key listeners do not act on what is typed into a modal.
@@ -121,7 +125,9 @@ function modal(
         card.append(heading);
     }
     const focus = fill?.(card) || null;
-    const button = (label, onClick, variant = 'plain') => ui.button({ label, variant, onClick }).element;
+    const alone = chrome && [cancelLabel !== null, confirms, !!extraLabel].filter(Boolean).length === 1;
+    const button = (label, onClick, variant = 'plain') =>
+        ui.button({ label, variant: alone && variant === 'plain' ? 'primary' : variant, onClick }).element;
     const cancel = cancelLabel === null ? null : button(cancelLabel, close);
     const confirm = confirms ? button(confirmLabel, submit, destructive ? 'destructive' : 'primary') : null;
     const extra = extraLabel
@@ -130,7 +136,8 @@ function modal(
               onExtra?.();
           })
         : null;
-    if (extra && destructive) extra.style.color = 'var(--deckit-alert-ink)';
+    if (extra && destructive && !alone) extra.style.color = 'var(--deckit-alert-ink)';
+    const lone = alone ? cancel || confirm || extra : null;
     if (chrome) {
         const actions = document.createElement('div');
         actions.className = 'deckit-modal-actions';
@@ -144,7 +151,7 @@ function modal(
         onKey,
         onDismiss: close,
     });
-    (focus || confirm || card).focus();
+    (focus || confirm || lone || card).focus();
     focus?.select?.();
     return { close };
 }
