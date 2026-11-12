@@ -393,32 +393,33 @@ function sidebar({
         return { parent, mark: mark || section.element };
     }
 
-    function add() {
+    // `typed` is what the person typed before, given back by Try Again when it was not an address.
+    function add(typed = { title: '', url: frontTab.url }) {
         ui.dialog({
             title: 'Add bookmark',
             fields: [
-                { key: 'title', label: 'Name', placeholder: 'optional' },
-                { key: 'url', label: 'Address', value: frontTab.url },
+                { key: 'title', label: 'Name', placeholder: 'optional', value: typed.title },
+                { key: 'url', label: 'Address', value: typed.url },
             ],
             confirmLabel: 'Add',
             onConfirm: ({ title, url }) => {
                 const address = parseAddress(url);
                 if (address) bookmarks.add(address, title.trim());
-                else notAnAddress(url.trim());
+                else notAnAddress(url.trim(), () => add({ title, url }));
             },
         });
     }
 
-    function edit(bookmark) {
+    function edit(bookmark, typed = bookmark) {
         ui.dialog({
             title: 'Edit bookmark',
             fields: [
-                { key: 'title', label: 'Name', value: bookmark.title },
-                { key: 'url', label: 'Address', value: bookmark.url },
+                { key: 'title', label: 'Name', value: typed.title },
+                { key: 'url', label: 'Address', value: typed.url },
             ],
             onConfirm: ({ title, url }) => {
                 const address = parseAddress(url);
-                if (!address) return notAnAddress(url.trim());
+                if (!address) return notAnAddress(url.trim(), () => edit(bookmark, { title, url }));
                 bookmarks.edit(bookmark, { title: title.trim() || bookmark.title, url: address });
             },
         });

@@ -372,8 +372,13 @@ class Browser {
             notices.delete(notification);
         }
 
-        function notAnAddress(text) {
-            ui.dialog({ title: 'Not a web address', message: text, confirmLabel: 'OK', cancelLabel: null });
+        // What the bookmark dialog was given that is no address: it has closed, so a failure toast says so, and Try
+        // Again opens it again with what was typed.
+        function notAnAddress(text, retry) {
+            ui.toast(`“${text}” is not a web address.`, {
+                kind: 'failure',
+                action: { label: 'Try Again', run: retry },
+            });
         }
     }
 
