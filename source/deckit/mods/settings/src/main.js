@@ -66,13 +66,6 @@ class Settings {
                 color: var(--deckit-text);
                 font: var(--deckit-type-body);
             }
-            .settings-title {
-                display: flex;
-                align-items: center;
-                flex: 0 0 auto;
-                padding: 10px 14px;
-                font: 700 var(--deckit-type-large);
-            }
             .settings-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
         `);
         ui.addStyle(SECTION_STYLE + CHIP_STYLE + HANDLER_LIST_STYLE);
@@ -114,8 +107,8 @@ class Settings {
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
-        const title = ui.element('div', { className: 'settings-title', text: 'Settings' });
-        ui.titleBar(title);
+        const title = ui.element('div');
+        ui.titleBar(title, { title: 'Settings', scroller: body });
         page.append(title, body);
         // A mod's settings can be asked for by its command before the first visit draws anything.
         modSettings.draw();
