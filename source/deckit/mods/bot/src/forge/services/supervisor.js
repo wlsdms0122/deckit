@@ -106,22 +106,52 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         display: 'none',
         margin: '0 0 10px',
         padding: '8px 12px',
-        borderRadius: '8px',
+        borderRadius: 'var(--deckit-radius-medium)',
         border: 'var(--deckit-border)',
-        font: '13px var(--deckit-font)',
+        font: 'var(--deckit-type-body)',
     });
+    // What went wrong in words that say what to do, with a retry and the system's own words under Details.
+    const noticeText = document.createElement('div');
+    const noticeMore = document.createElement('details');
+    const noticeSummary = document.createElement('summary');
+    const noticeRaw = document.createElement('div');
+    noticeSummary.textContent = 'Details';
+    Object.assign(noticeMore.style, {
+        marginTop: '4px',
+        color: 'var(--deckit-muted)',
+        font: 'var(--deckit-type-small)',
+    });
+    Object.assign(noticeRaw.style, { marginTop: '2px', overflowWrap: 'anywhere' });
+    noticeMore.append(noticeSummary, noticeRaw);
+    ui.selectable(noticeRaw);
+    const noticeRetry = ui.button({ label: 'Try Again', size: 'small', onClick: () => load() });
+    noticeRetry.element.style.marginTop = '8px';
+    notice.append(noticeText, noticeMore, noticeRetry.element);
+    // The system's words for forge not found, and what they mean to the person.
+    const NOT_FOUND = /could not be run: .*ENOENT/;
+    const NOT_FOUND_TEXT =
+        'Forge is not installed, or not on the PATH this app sees. Set where it is in Settings, under Mod ' +
+        'Settings, Forge command.';
+    const tell = (text, { tone, raw = '', retry = false }) => {
+        notice.style.display = 'block';
+        notice.style.borderColor = TONE[tone];
+        noticeText.textContent = text;
+        noticeRaw.textContent = raw;
+        noticeMore.style.display = raw ? '' : 'none';
+        noticeRetry.element.style.display = retry ? '' : 'none';
+    };
 
     const tree = document.createElement('div');
 
     const rows = new Map();
 
     const empty = document.createElement('div');
-    empty.textContent = "No managed services ([service] in this session's config)";
+    empty.textContent = 'This session runs no services. Add a [service] to its config to see it here.';
     Object.assign(empty.style, {
         display: 'none',
-        padding: '10px 0 0 38px',
-        opacity: '.45',
-        font: '13px var(--deckit-font)',
+        padding: '10px 0 0 30px',
+        color: 'var(--deckit-muted)',
+        font: 'var(--deckit-type-body)',
     });
 
     logPane.append(logHead, logBody);
@@ -408,22 +438,16 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         const up = !!daemon;
 
         notice.style.display = 'none';
-        if (error) {
-            notice.style.display = 'block';
-            notice.style.borderColor = TONE.alert;
-            notice.textContent = error;
-        } else if (actionNote) {
-            notice.style.display = 'block';
-            notice.style.borderColor = TONE.warn;
-            notice.textContent = actionNote;
-        } else if (up && !authority) {
-            notice.style.display = 'block';
-            notice.style.borderColor = TONE.warn;
-            notice.textContent =
+        if (error && NOT_FOUND.test(error)) tell(NOT_FOUND_TEXT, { tone: 'alert', raw: error, retry: true });
+        else if (error) tell(error, { tone: 'alert', retry: true });
+        else if (actionNote) tell(actionNote, { tone: 'warn' });
+        else if (up && !authority)
+            tell(
                 'Started elsewhere: forge hands its boot token only to the process that started it, ' +
-                'so the services it supervises cannot be read or run from here. Stop and Restart work; ' +
-                'restart it from here and its services can be run from here too.';
-        }
+                    'so the services it supervises cannot be read or run from here. Stop and Restart work; ' +
+                    'restart it from here and its services can be run from here too.',
+                { tone: 'warn' }
+            );
 
         if (!tree.firstChild) tree.appendChild(headerRow());
 
