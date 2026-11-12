@@ -164,7 +164,7 @@ class Mods {
             });
             empty.set({
                 title: query ? `No mod named “${query}”` : 'No mods to open',
-                hint: 'Install a mod in Settings.',
+                hint: query ? 'Install more in Settings.' : 'Install a mod in Settings.',
                 actions: [settings.element],
             });
         }
