@@ -113,7 +113,6 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
 
     const tree = document.createElement('div');
 
-    Object.assign(tree.style, { display: 'flex', flexDirection: 'column' });
     const rows = new Map();
 
     const empty = document.createElement('div');
@@ -173,19 +172,23 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         return `${Math.floor(seconds / 86400)}d`;
     };
 
-    const COLUMNS = '14px minmax(90px, 1fr) 78px 84px 72px 124px 58px';
+    // The rows share the tree's columns, so a column is as wide as its widest cell: the name gives way first, and
+    // the actions keep their place at the end at any width.
+    const COLUMNS = '14px minmax(0, 1fr) auto auto auto auto';
     const CELL = { flex: '0 0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+    ui.addStyle('.bot-service-row:hover { background: var(--deckit-hover); }');
+    Object.assign(tree.style, { display: 'grid', gridTemplateColumns: COLUMNS, columnGap: '8px' });
 
     const gridRow = (extra = {}) => {
         const row = document.createElement('div');
         Object.assign(row.style, {
             display: 'grid',
-            gridTemplateColumns: COLUMNS,
+            gridColumn: '1 / -1',
+            gridTemplateColumns: 'subgrid',
             alignItems: 'center',
-            gap: '10px',
-            padding: '0 14px',
-            minHeight: '30px',
-            borderRadius: '6px',
+            padding: '0 8px',
+            minHeight: '32px',
+            borderRadius: 'var(--deckit-radius-control)',
             ...extra,
         });
         return row;
@@ -193,18 +196,12 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
 
     const headerRow = () => {
         const row = gridRow({ minHeight: '24px', borderBottom: 'var(--deckit-border)', borderRadius: '0' });
-        ['', 'NAME', 'STATE', 'PID', 'UPTIME', '', 'ACTIONS'].forEach((label) => {
+        ['', 'Name', 'State', 'PID', 'Uptime', ''].forEach((label) => {
             const heading = document.createElement('span');
             heading.textContent = label;
-            Object.assign(heading.style, {
-                ...CELL,
-                font: '600 10.5px var(--deckit-font)',
-                letterSpacing: '.06em',
-                opacity: '.4',
-            });
+            Object.assign(heading.style, { ...CELL, color: 'var(--deckit-muted)', font: 'var(--deckit-type-label)' });
             row.appendChild(heading);
         });
-        row.lastElementChild.style.textAlign = 'right';
         return row;
     };
 
@@ -238,17 +235,17 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
 
     const treeRow = (indent = false) => {
         const element = gridRow({ position: 'relative' });
+        element.classList.add('bot-service-row');
+        const muted = { color: 'var(--deckit-muted)', font: 'var(--deckit-type-small)' };
 
         const cells = ['name', 'state', 'pid', 'uptime'].map((_, index) =>
             cell(
                 '',
                 index === 0
-                    ? { font: (indent ? '400 ' : '600 ') + '13.5px var(--deckit-font)' }
-                    : index === 1
-                      ? { opacity: '.6', font: '12px var(--deckit-font)' }
-                      : index === 2
-                        ? { opacity: '.45', font: '12px ui-monospace, SFMono-Regular, Menlo, monospace' }
-                        : { opacity: '.45', font: '12px var(--deckit-font)' }
+                    ? { flex: '0 1 auto', minWidth: '0', font: (indent ? '400 ' : '600 ') + 'var(--deckit-type-body)' }
+                    : index === 2
+                      ? { ...muted, fontFamily: 'var(--deckit-mono)', fontVariantNumeric: 'tabular-nums' }
+                      : muted
             )
         );
 
@@ -282,11 +279,17 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
 
         const nameCell = document.createElement('span');
 
-        Object.assign(nameCell.style, { display: 'flex', alignItems: 'center', minWidth: '0', alignSelf: 'stretch' });
-        nameCell.append(guide, cells[0]);
-
+        Object.assign(nameCell.style, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            minWidth: '0',
+            alignSelf: 'stretch',
+        });
+        // What is said of it follows its name.
         const chipCell = document.createElement('span');
-        Object.assign(chipCell.style, { display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' });
+        Object.assign(chipCell.style, { display: 'flex', flex: '0 0 auto', alignItems: 'center', gap: '4px' });
+        nameCell.append(guide, cells[0], chipCell);
 
         const actionCell = document.createElement('span');
         Object.assign(actionCell.style, {
@@ -297,14 +300,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         });
 
         const marker = dot('idle');
-        element.append(marker, nameCell, ...cells.slice(1), chipCell, actionCell);
-
-        element.addEventListener('mouseenter', () => {
-            element.style.background = 'var(--deckit-hover)';
-        });
-        element.addEventListener('mouseleave', () => {
-            element.style.background = 'transparent';
-        });
+        element.append(marker, nameCell, ...cells.slice(1), actionCell);
 
         let actionSignature = '';
         let lastSnapshot = '';
