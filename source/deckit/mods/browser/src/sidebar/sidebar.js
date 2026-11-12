@@ -46,6 +46,8 @@ function sidebar({
         .browser-tab-indicators { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
         .browser-tab-capture { display: flex; color: var(--deckit-alert-ink); }
         .browser-tab [hidden] { display: none; }
+        .browser-bookmarks-empty { padding: 4px 8px; color: var(--deckit-muted); font: var(--deckit-type-body); }
+        .browser-bookmarks-empty[hidden] { display: none; }
     `);
     const element = ui.element('div', { className: 'browser-sidebar' });
     const tabOutline = outline({
@@ -109,7 +111,11 @@ function sidebar({
         },
     });
     tabSection.body.append(tabOutline.element);
-    bookmarkSection.body.append(bookmarkOutline.element);
+    // Where no bookmark is yet, a line says how one is made, where the first would stand.
+    const noBookmarks = ui.element('div', { className: 'browser-bookmarks-empty' });
+    noBookmarks.textContent = 'No bookmarks yet. The star in the address field adds the page you are on.';
+    noBookmarks.hidden = true;
+    bookmarkSection.body.append(bookmarkOutline.element, noBookmarks);
     element.append(tabSection.element, bookmarkSection.element);
 
     // A tab or a folder of tabs let go in the bookmarks is bookmarked there, and a bookmark or a folder of them let go
@@ -147,7 +153,10 @@ function sidebar({
             frontTab = front;
             tabOutline.set(tree, front);
         },
-        showBookmarks: (tree) => bookmarkOutline.set(tree),
+        showBookmarks(tree) {
+            bookmarkOutline.set(tree);
+            noBookmarks.hidden = tree.root.children.length > 0;
+        },
     };
 
     function tabRow(shown) {
