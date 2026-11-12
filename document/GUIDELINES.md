@@ -25,7 +25,7 @@ A person meets a mod through its window, its actions in the switcher, its keys, 
 - [ ] Lists are `ui.tree` or `ui.row`, and answer the keys under Lists.
 - [ ] Empty, loading and failed content is drawn (`ui.emptyState`, `ui.loading`, `ui.dialog`).
 - [ ] Colours, type, radii and motion come from the theme's tokens, and text the person writes follows `shell.fonts`.
-- [ ] Nothing animates with reduced motion (`theme.motion`).
+- [ ] Nothing moves with reduced motion (`theme.motion.move`); fades keep `theme.motion.fade`.
 - [ ] Switcher actions, settings and notifications are written as Words says.
 
 ## The window
@@ -137,12 +137,12 @@ A mod's keys are declared to `deckit/keys`, each running one of its commands, an
 
 Draw with the kit and its tokens (UI.md, The theme). A new theme or new fonts change every token in place, and a mod drawn with them follows.
 
-- **Type:** the `--deckit-type-*` scale, and no sizes between. Body is the default; small is for what sits beside something more important (a count, a time); heading and title are for the content's own titles.
+- **Type:** the `--deckit-type-*` scale, and no sizes between, at weight 400 or 600. Body is the default; small is for what sits beside something more important (a count, a time); heading and title are for the content's own titles, title with `--deckit-tracking-title`. What names a group or a column is `--deckit-type-label` in `--deckit-muted`, in sentence case and never in capitals.
 - **Text the person reads and writes** (a note, a file, a message being written) is in `--deckit-text-font` at `--deckit-text-size`, or `--deckit-mono` for code. A page's text is in them too where nothing chooses another. The UI around it stays on the type scale.
-- **Colour:** `text`, `muted` for what is secondary, `disabled`; `fill` for fields; `hover`, `pressed` and `selected` for state; `accent` for the one thing to press and for what is on; `ok`, `warn` and `alert` for status only. A colour of the content's own (a calendar's, a file type's) is data.
+- **Colour:** `text`, `muted` for what is secondary, `disabled`, never a lowered opacity on text; `fill` for fields; `hover`, `pressed` and `selected` for state; `accentFill` under `onAccent` for the one thing to press and for what is on, `accent` for text and glyphs in it; `ok`, `warn` and `alert` for status only, as dots and washes, and `okInk`, `warnInk` and `alertInk` for status as text or a glyph; `elevated` for what floats. A colour of the content's own (a calendar's, a file type's) is data, with `ui.onColor` for the text over it.
 - **Radius:** `--deckit-radius-*`: `control` for buttons and rows, `card` for surfaces, `round` for pills and fields in a bar.
 - **Icons:** `ui.icon`, 16px in the title bar and section headers, 15px in rows, 13px beside text in a line.
-- **Motion:** `--deckit-fast` for state (hover, press), `--deckit-base` for what moves or changes size, `--deckit-slow` for what enters, all with `--deckit-easing`. An animation in code reads `theme.motion`, which is 0 with reduced motion.
+- **Motion:** `--deckit-fade` for what fades or changes colour (hover, press, a fade in), `--deckit-move-fast`, `--deckit-move-base` and `--deckit-move-slow` for what moves or changes size, by how far, never a length written out. `--deckit-easing` for what comes and goes, `--deckit-easing-move` for what moves on screen (a sidebar, an indicator). An animation in code reads `theme.motion`: `move` is 0 with reduced motion, `fade` keeps its length.
 
 ## Words
 

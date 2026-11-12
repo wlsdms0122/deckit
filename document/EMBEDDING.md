@@ -104,7 +104,7 @@ What `controls` holds, `{ setTheme, desktop, openWindow }`:
 
 | | |
 |---|---|
-| `controls.desktop` | `glass`, the strength the desktop lays its colour over the blur at, for a surface beside it to match, and the desktop lays it under itself too, so a page of the host app's under it lays none; `place(window, { bounds, onClose })`, which puts it in one of the host app's windows as a stage's `place` does (so a mod's main process module can find the window its page is shown in); `contains(page)`, whether a page is one the desktop shows, a web page in one or the overlay over one; `show()`, `hide()`, `shown()`, `focus()`; `present({ titleBar })` |
+| `controls.desktop` | `glass`, true: the desktop is drawn as glass, its colour laid over the blur at the theme's `glass` strength under itself, so a page of the host app's under it lays none; `place(window, { bounds, onClose })`, which puts it in one of the host app's windows as a stage's `place` does (so a mod's main process module can find the window its page is shown in); `contains(page)`, whether a page is one the desktop shows, a web page in one or the overlay over one; `show()`, `hide()`, `shown()`, `focus()`; `present({ titleBar })` |
 | `controls.setTheme(theme)` | the host app's colours, for every page the shell draws. Each page takes a new one in place: no mod launches again |
 | `controls.openWindow({ title, size, page })` | a web page in a window, as the environment asks the host app's `openWindow` for one: a window on the desktop of the mod whose page shows `page`, its content, under a title bar the shell draws holding `title`, `size` the content's. Answers `{ setTitle(text), close(), on('close', listener) }`, `on` answering its off. The host app answers its `openWindow` with it |
 
