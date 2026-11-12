@@ -116,8 +116,9 @@ async function main() {
     );
     const guarded = (name) => listing.guards[`deckit-shell:dock-${kebab(name)}`];
     check(
-        "a mod with deckit.mods reads and changes the Dock, and the desktop's page sends what the person does",
-        ['list', 'icon', 'pinned', 'setPinned', 'open'].every((name) => guarded(name) === 'deckit.mods') &&
+        "a mod with deckit.mods changes the Dock, any mod reads an icon, the desktop's page sends the person's hand",
+        ['list', 'pinned', 'setPinned', 'open'].every((name) => guarded(name) === 'deckit.mods') &&
+            guarded('icon') === CHANNEL.GUARD.MOD &&
             ['click', 'quit', 'keep', 'reorder'].every((name) => guarded(name) === CHANNEL.GUARD.ANY),
         listing.guards
     );
