@@ -10,7 +10,12 @@ const MINIMAP_STYLE = `
         border-left: var(--deckit-border);
         transition: opacity var(--deckit-fade) var(--deckit-easing);
     }
-    .editor-minimap:not([data-mode='always']) { backdrop-filter: blur(12px); box-shadow: var(--deckit-shadow-drawer); }
+    /* Over the code it is glass, which turns opaque where the system asks for less transparency. */
+    .editor-minimap:not([data-mode='always']) {
+        background: color-mix(in srgb, var(--deckit-background) var(--deckit-glass), transparent);
+        backdrop-filter: var(--deckit-blur);
+        box-shadow: var(--deckit-shadow-drawer);
+    }
     .editor-minimap[data-shown] { opacity: 1; pointer-events: auto; }
     .editor-minimap-canvas { display: block; width: 100%; height: 100%; }
     .editor-minimap-frame {
