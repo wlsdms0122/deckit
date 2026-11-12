@@ -62,6 +62,7 @@ The bar along the top of the content, laid with `ui.titleBar`, which lies in the
 - Build it of `ui.section`s. A section's header holds its actions at the end: New folder, then its add action (`plus`). The section's menu holds the rest.
 - An action on the whole sidebar, not on one section, sits at its foot, a small labelled button (Note's New Folder).
 - What can nest is a `ui.tree`; what cannot is `ui.row`s.
+- A row's glyph is in the kit's slot (`ui.row({ glyph })`): `--deckit-muted`, in the row's text while it is selected. A mod does not colour it; a coloured mark (a folder, a file type, a favicon) keeps its own colours.
 - One row is selected (`--deckit-selected`): the one the content shows. While the window is not the key one, the kit draws it in `--deckit-fill`.
 - A section's heading is `--deckit-type-body` at 600 in `--deckit-muted`, never larger than the window's title.
 - A folder's colour is on the folder's row, from where it is indented, and not on what is in it.
