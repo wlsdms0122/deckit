@@ -19,9 +19,10 @@ const { section } = require('../section/section.js');
 // deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a host that runs none;
 // `packages()`, deckit/packages while it is connected, which installs, dry run too; `pins`, the Dock's pins
 // (shell.mods), or nothing under a shell that has none; `dropDestination`, `dialogs` and `reveal` the shell's;
-// `tildify(path)` a path as it is shown.
+// `tildify(path)` a path as it is shown; `icons` the mods' app icons, each drawn before its name.
 function modsSection({
     ui,
+    icons,
     mods,
     mainProcess,
     packages,
@@ -93,6 +94,7 @@ function modsSection({
             transition: transform var(--deckit-move-slow) var(--deckit-easing);
         }
         .settings-mod[data-open] .settings-caret { transform: rotate(90deg); }
+        .settings-mod-name-cell .deckit-app-icon { margin-right: 4px; }
         .settings-mod-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .settings-mod-name[data-not-loaded] { color: var(--deckit-muted); }
         .settings-mod-busy { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
@@ -249,7 +251,8 @@ function modsSection({
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
         busy.append(ui.spinner({ size: 11 }).element);
-        nameCell.append(caret, name, busy);
+        let icon = ui.appIcon('', { size: 'row' });
+        nameCell.append(caret, icon, name, busy);
         actions.append(relaunchAction.element, revealAction.element, removeAction.element, source.element);
         row.element.append(nameCell, version, contributions, actions, failure, note);
         // Selectable: this is what gets pasted into a bug report.
@@ -272,6 +275,13 @@ function modsSection({
             current = mod;
             const labels = mod.contributions;
             name.textContent = name.title = mod.name;
+            const drawn = icons.of(mod.id);
+            if (icon.dataset.drawn !== drawn) {
+                const next = ui.appIcon(drawn, { size: 'row' });
+                next.dataset.drawn = drawn;
+                icon.replaceWith(next);
+                icon = next;
+            }
             name.toggleAttribute('data-not-loaded', !!mod.notLoaded);
             busy.hidden = !mod.restarting && !BUSY.includes(mod.state);
             busy.title = mod.restarting ? 'restarting' : busy.hidden ? '' : STATE_WORDS[mod.state];

@@ -5,8 +5,9 @@ const { section } = require('../section/section.js');
 // left unset may inherit. `configuration()` is `deckit/configuration` while it is connected, and a setting is drawn
 // from the hints its entry carries beside what Configuration reads. `sources` is what each mod set, `{ list, run }`,
 // by its connection. A button gives its value to the `run` its mod set and shows under it the text that answers;
-// `nameOf(mod)` names a card that has only buttons. A change that did not apply says why on its row's answer line.
-function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
+// `nameOf(mod)` names a card that has only buttons, and `iconOf(mod)` is the app icon before each card's name. A change
+// that did not apply says why on its row's answer line.
+function modSettingsSection({ ui, theme, configuration, sources, nameOf, iconOf }) {
     const TITLE = 'Mod Settings';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
@@ -30,6 +31,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
     ui.addStyle(`
         .settings-setting-message { padding: 0 8px; color: var(--deckit-muted); font: var(--deckit-type-small); }
         .settings-setting-card { transition: background var(--deckit-fade) var(--deckit-easing); }
+        .settings-setting-title { display: flex; align-items: center; gap: 8px; }
         .settings-setting-card[data-highlighted] {
             background: color-mix(in srgb, var(--deckit-accent) 12%, transparent);
         }
@@ -132,7 +134,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
 
     function settingCard(group) {
         const card = ui.element('div', { className: 'settings-card settings-setting-card' });
-        const title = ui.element('div', { className: 'settings-card-title' });
+        const title = ui.element('div', { className: 'settings-card-title settings-setting-title' });
         const rows = ui.list({
             key: (item) => item.key,
             create: (item) => settingRow(group.id, item),
@@ -145,7 +147,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
         return card;
 
         function fill(group) {
-            title.textContent = group.name;
+            title.replaceChildren(ui.appIcon(iconOf(group.id), { size: 'row' }), group.name);
             rows.set(group.items);
         }
     }

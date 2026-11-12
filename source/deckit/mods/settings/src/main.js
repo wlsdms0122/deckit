@@ -4,6 +4,7 @@ const { activitySection } = require('./sections/activity/activity-section.js');
 const { CHIP_STYLE } = require('./chip/chip.js');
 const { generalSection } = require('./sections/general/general-section.js');
 const { HANDLER_LIST_STYLE } = require('./sections/handler-list/handler-list.js');
+const { createIcons } = require('./icons/icons.js');
 const { interfacesSection } = require('./sections/interfaces/interfaces-section.js');
 const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
 const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
@@ -71,8 +72,10 @@ class Settings {
         ui.addStyle(SECTION_STYLE + CHIP_STYLE + HANDLER_LIST_STYLE);
         const page = ui.element('div', { className: 'settings-page' });
         const body = ui.element('div', { className: 'settings-body' });
+        const icons = createIcons(shell);
         const mods = modsSection({
             ui,
+            icons,
             mods: deckit.mods,
             mainProcess,
             packages: () => services.packages,
@@ -91,10 +94,16 @@ class Settings {
             configuration: () => services.configuration,
             sources,
             nameOf: (id) => listed.list.find((entry) => entry.id === id)?.mod?.name || id,
+            iconOf: icons.of,
         });
         const urlSchemes = urlSchemesSection({ ui, urls: () => services.urls, appName: APP_NAME, onChange: redraw });
         const interfaces = interfacesSection({ ui, mods: deckit.mods });
-        const activity = activitySection({ ui, mods: deckit.mods, onInterfaces: () => contents.go(interfaces) });
+        const activity = activitySection({
+            ui,
+            mods: deckit.mods,
+            icons,
+            onInterfaces: () => contents.go(interfaces),
+        });
         const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts });
         const keyboard = keyboardSection({
             ui,
@@ -213,7 +222,7 @@ class Settings {
                 deckit.mods.interfaces(),
             ]);
             if (turn !== drawing) return;
-            const failures = await failuresOf(list);
+            const [failures] = await Promise.all([failuresOf(list), icons.read(list.map(({ id }) => id))]);
             if (turn !== drawing) return;
             listed = { list, runs, interfaces: interfaceQueues };
             const { shortcuts } = keys;

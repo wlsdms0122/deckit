@@ -8,8 +8,9 @@ const TICK_MS = 30000;
 
 // The Activity section: every mod running now, an app or not, its run's state, how long it has run and what
 // is wrong with it, with a quit and a restart; and the background list, each mod whose manifest asks to run in the
-// background, with its reason. `mods` is deckit.mods; `onInterfaces()` shows the Interfaces section.
-function activitySection({ ui, mods, onInterfaces }) {
+// background, with its reason, each row led by the mod's app icon. `mods` is deckit.mods; `icons` the mods' app icons;
+// `onInterfaces()` shows the Interfaces section.
+function activitySection({ ui, mods, icons, onInterfaces }) {
     const TITLE = 'Activity';
     const KEYWORDS = ['활동', '실행', '백그라운드', 'activity', 'running', 'quit', 'background'];
     const DESCRIPTION =
@@ -23,7 +24,7 @@ function activitySection({ ui, mods, onInterfaces }) {
     let listed = { list: [], runs: [], interfaces: [] };
 
     ui.addStyle(`
-        .settings-activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 12px; }
+        .settings-activity-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 12px; }
         .settings-activity-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 1px; min-width: 0; }
         .settings-activity-name { display: flex; align-items: center; gap: 6px; font: var(--deckit-type-body); }
         .settings-activity-why { color: var(--deckit-muted); font: var(--deckit-type-small); }
@@ -105,7 +106,7 @@ function activitySection({ ui, mods, onInterfaces }) {
         name.append(label, state.element);
         words.append(name, why, problem);
         actions.append(owns.element, relaunch.element, quit.element);
-        element.append(words, actions);
+        element.append(ui.appIcon(icons.of(mod.id), { size: 'row' }), words, actions);
         ui.selectable(problem);
         runFills.set(element, fill);
         fill(mod);
@@ -133,7 +134,7 @@ function activitySection({ ui, mods, onInterfaces }) {
         const reason = ui.element('div', { className: 'settings-activity-why' });
 
         words.append(name, reason);
-        element.append(words);
+        element.append(ui.appIcon(icons.of(mod.id), { size: 'row' }), words);
         backgroundFills.set(element, fill);
         fill(mod);
         return element;
