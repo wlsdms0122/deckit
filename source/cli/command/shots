@@ -3,10 +3,11 @@
 // .build/shots/<light|dark>/<name>.png, so one design can be held beside another. The look is the app's own, its main
 // process's `nativeTheme.themeSource`, set in memory: the machine's appearance is left as it is. Each look is a run of
 // its own of Deckit.app, put together from the archive it builds first, with data of its own that is thrown away; the
-// app's log is left beside the shots, .build/shots/<look>.log. Notifications is not drawn: what it shows while the app
-// is not the active one is the system's notification, on the real screen. What the host window's material shows, the
-// machine's screen behind it blurred, cannot be drawn into a shot, so every shot is laid over a stand-in for it: a
-// wallpaper drawn from code, blurred as the material blurs (`wallpaper`). Exits 1 naming each surface not drawn.
+// app's log is left beside the shots, .build/shots/<look>.log. Notifications' list is drawn from a record the run
+// starts with, as its bell opens it; nothing is posted, so no notification reaches the system's. What the host
+// window's material shows, the machine's screen behind it blurred, cannot be drawn into a shot, so every shot is laid
+// over a stand-in for it: a wallpaper drawn from code, blurred as the material blurs (`wallpaper`). Exits 1 naming
+// each surface not drawn.
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -171,12 +172,31 @@ function seedOf(origin) {
             { id: 2, url: origin + '/behind', title: 'Behind', icon: '' },
         ];
         write('browser/session.json', { tabs, front: 1, closed: [] });
+        const posted = Date.now();
+        write(
+            'notifications/notifications.json',
+            [
+                ['calendar', 'Calendar', 'Design review', 'In 10 minutes, Room 4', 4],
+                ['forge', 'Forge', 'Build finished', 'deckit built in 42 s, 175 checks passed', 26],
+                ['bot', 'Bot', 'Reply ready', 'The summary of the meeting notes is ready to read.', 90],
+            ].map(([id, name, title, body, minutes], at) => ({
+                id: `seeded-${at}`,
+                mod: { id, name },
+                title,
+                body,
+                silent: false,
+                command: null,
+                args: null,
+                actions: [],
+                posted: posted - minutes * 60000,
+            }))
+        );
     };
 }
 
 // Every surface in `look`, each into `shots`; the names of those not drawn.
 async function draw(app, look, shots, origin) {
-    const { page, pageById, overlayOf, compose, main } = app;
+    const { page, pages, pageById, overlayOf, compose, main } = app;
     const { desktopLaid, windowsNow, keyMod, windowOf, dockNow, show, desktopShot } = seat({
         main,
         pageById,
@@ -265,6 +285,22 @@ async function draw(app, look, shots, origin) {
     await sleep(400);
     await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
     await surface('desktop-windows', backed);
+    // The status bar at the top right of the host's bar, close, and the list of notifications its bell opens.
+    await surface('status-bar', (name) =>
+        desktopShot(name, { under, crop: { x: screen.width - 320, y: 0, width: 320, height: 52 } })
+    );
+    await surface('notifications', async (name) => {
+        await (await page('deckit://notifications.mod'))?.press('.deckit-bar-item');
+        const list = await until(async () => {
+            for (const each of await pages('about:blank'))
+                if (await each.evaluate(`!!document.querySelector('.notifications-card')`)) return each;
+            return null;
+        }, 4000);
+        await sleep(400);
+        if (list) await floatingShot(name, list);
+        await show(apps[0]);
+        await sleep(400);
+    });
 
     // The Dock slid out as the pointer comes, and the menu of one of its items.
     const dock = (event) =>
