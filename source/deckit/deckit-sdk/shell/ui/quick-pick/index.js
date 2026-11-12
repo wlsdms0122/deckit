@@ -68,7 +68,8 @@ function make(theme, ui) {
 // it. `onActive(item, index, { pointer })` hears the active option move, and `onCommandKey(held)` the Command
 // key held down in it or let go. The field keeps the focus: a press anywhere else on the card leaves it there.
 // With `fills` it is all the page draws, filling it, and with `drags` it drags the window it is in from anywhere but
-// its list, the field too, which keeps the keyboard all the same. `glass` is the modal's.
+// its list, the field too, which keeps the keyboard all the same, and `onHeight(px)` hears the height its content
+// takes, every row shown, as it changes, for a window to fit it. `glass` is the modal's.
 function quickPick(
     ui,
     {
@@ -88,6 +89,7 @@ function quickPick(
         onKey = () => false,
         onActive = () => {},
         onCommandKey = () => {},
+        onHeight = null,
         onClose,
     }
 ) {
@@ -159,6 +161,7 @@ function quickPick(
         message.replaceChildren(...(loading ? [ui.spinner().element] : []), said);
         message.toggleAttribute('data-alert', alert);
         note.textContent = noted;
+        measure();
     }
 
     // What the field searches in, shown before it: `{ icon, label }`, the icon as SVG markup, or null for none.
@@ -168,6 +171,22 @@ function quickPick(
             ? APP_ICON.appIcon(scope.icon, { size: 'small' })
             : ICON.sanitize(scope?.icon ?? '');
         chip.replaceChildren(...(scope ? [mark, scope.label] : []));
+    }
+
+    // A row that changes size, as a face or an icon comes in, changes the height too.
+    let told = 0;
+    if (fills && onHeight) new box.ownerDocument.defaultView.ResizeObserver(() => measure()).observe(box);
+
+    // What the card takes with every row shown: what is over the list and under it, and the rows in it.
+    function measure() {
+        const card = box.parentElement;
+        if (!fills || !onHeight || !card) return;
+        const outer = card.getBoundingClientRect();
+        const list = box.getBoundingClientRect();
+        const last = box.lastElementChild?.getBoundingClientRect();
+        const rows = last ? last.bottom + box.scrollTop - list.top : 0;
+        const height = Math.ceil(list.top - outer.top + rows + outer.bottom - list.bottom);
+        if (height !== told) onHeight((told = height));
     }
 
     // The text typed is the caller's to set too; one it sets is not heard as typed.
