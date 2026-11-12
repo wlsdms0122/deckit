@@ -46,18 +46,18 @@ class Mods {
             .mods-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
             .mods-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-                gap: 6px;
+                grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+                gap: 16px 8px;
             }
             .mods-item {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 6px;
+                gap: 8px;
                 min-width: 0;
-                padding: 12px 6px 10px;
+                padding: 12px 8px;
                 border: 0;
-                border-radius: var(--deckit-radius-medium);
+                border-radius: var(--deckit-radius-card);
                 background: transparent;
                 color: inherit;
                 font: var(--deckit-type-body);
@@ -65,9 +65,7 @@ class Mods {
                 transition: background-color var(--deckit-fade) var(--deckit-easing);
             }
             .mods-item:hover { background: var(--deckit-hover); }
-            .mods-item:active { background: var(--deckit-pressed); }
-            .mods-icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; }
-            .mods-icon svg { width: 24px; height: 24px; }
+            .mods-item:active .deckit-app-icon { filter: var(--deckit-shadow-icon) brightness(.85); }
             /* A name wraps to a second line before it is cut. */
             .mods-name {
                 display: -webkit-box;
@@ -176,8 +174,7 @@ class Mods {
             item.type = 'button';
             item.dataset.modId = mod.id;
             item.title = mod.name;
-            const icon = ui.element('span', { className: 'mods-icon' });
-            if (mod.icon) icon.append(ui.sanitizeIcon(mod.icon));
+            const icon = ui.appIcon(mod.icon, { size: 'grid' });
             // Whether it runs, the Dock shows.
             const name = ui.element('span', { className: 'mods-name', text: mod.name });
             item.append(icon, name);
