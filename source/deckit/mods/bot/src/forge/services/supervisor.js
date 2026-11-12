@@ -206,7 +206,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     const COLUMNS = '14px minmax(0, 1fr) auto auto auto auto';
     const CELL = { flex: '0 0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
     ui.addStyle('.bot-service-row:hover { background: var(--deckit-hover); }');
-    Object.assign(tree.style, { display: 'grid', gridTemplateColumns: COLUMNS, columnGap: '8px' });
+    Object.assign(tree.style, { display: 'grid', gridTemplateColumns: COLUMNS, columnGap: '12px' });
 
     const gridRow = (extra = {}) => {
         const row = document.createElement('div');
