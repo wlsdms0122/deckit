@@ -24,7 +24,7 @@ function goToFolder({ ui, disk, icons, tildify, homeLocation, folderInFront, onG
         let up = true; // the panel is up: one closed meanwhile goes nowhere
         let chosen = false; // the arrows chose the active suggestion since the text last changed
         const picker = ui.quickPick({
-            placeholder: 'Go to Folder',
+            placeholder: 'Go to folder',
             value: startText(),
             key: (suggestion) => suggestion.path,
             create: rowOf,
