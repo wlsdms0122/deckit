@@ -23,9 +23,13 @@ const STYLE = `
         box-sizing: border-box;
         padding: 8px 0;
         transform: translateX(-${WIDTH - SLIVER}px);
-        transition: transform var(--deckit-move-base) var(--deckit-easing-move);
+        transition: transform var(--deckit-move-fast) var(--deckit-easing-move);
     }
-    .deckit-dock[data-out] { transform: none; }
+    .deckit-dock[data-out] { transform: none; transition-duration: var(--deckit-move-base); }
+    @media (prefers-reduced-motion: reduce) {
+        .deckit-dock[data-out] .deckit-dock-card { animation: deckit-dock-in var(--deckit-fade) var(--deckit-easing); }
+    }
+    @keyframes deckit-dock-in { from { opacity: 0; } }
     .deckit-dock-card {
         display: flex;
         flex-direction: column;
@@ -91,9 +95,10 @@ const STYLE = `
 // kept there, which a drag puts in another order, then those running only, each its mod's app icon. A running item has
 // a dot under its icon, in the accent where its mod asks for attention, and the active mod's item is marked; the item
 // under the pointer has its name beside the card. It is in but for its sliver until the pointer comes, and stays out
-// while the pointer is over it, a press holds it or its menu is open; `onOut(out)` hears it slide out and back. A
-// click on an item opens its mod, and its menu, beside the item, shows it, quits it while it runs, and keeps it in the
-// Dock or takes it out, each told to main over `channels`. `ui` is the page's kit.
+// while the pointer is over it, a press holds it or its menu is open; it goes back in faster than it came out, and
+// fades in where the system asks for reduced motion; `onOut(out)` hears it slide out and back. A click on an item
+// opens its mod, and its menu, beside the item, shows it, quits it while it runs, and keeps it in the Dock or takes it
+// out, each told to main over `channels`. `ui` is the page's kit.
 function make({ ui, channels, onOut }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     ui.addStyle(STYLE);
