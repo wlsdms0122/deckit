@@ -8,7 +8,7 @@ A person meets a mod through its window, its actions in the switcher, its keys, 
 
 | What the mod has | Where it goes |
 |---|---|
-| What it shows and lets the person work in | a window's content (`shell.windows.open`), at the `overlay` level for one over every app |
+| What it shows and lets the person work in | a window's content (`shell.windows.open`), at the `overlay` level for one over every app, at the `panel` level for one in the bar across the top of the app's window |
 | The things the content can show (files, tabs, notes, calendars) | the sidebar, in sections |
 | Moving through what is shown, and acting on it | the title bar |
 | Something it does | a command with a key (`[[contributes."deckit/keys"]]`) and a switcher action; also a button in the title bar or in a section's header when it is done while looking at the window |
