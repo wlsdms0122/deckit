@@ -267,6 +267,7 @@ class Finder {
         const goTo = goToFolder({
             ui,
             disk,
+            icons,
             tildify,
             homeLocation: () => home,
             folderInFront: area.workingFolder,
