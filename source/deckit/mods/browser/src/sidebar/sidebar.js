@@ -1,5 +1,5 @@
 const { parseAddress } = require('../address/address.js');
-const { favicon } = require('../favicon/favicon.js');
+const { favicon, stillLoading } = require('../favicon/favicon.js');
 const { outline, inkOf } = require('./outline.js');
 const { tabLabel } = require('../tabs/tab-list.js');
 const { FOLDER_COLORS, isFolder, folderLabel, folderPath } = require('../tree/tree.js');
@@ -184,7 +184,7 @@ function sidebar({
 
     function updateTabRow(rowElement, { node: tab, active }) {
         const { row, icon, label, captures, mute } = tabRows.get(rowElement);
-        icon.replaceChildren(favicon({ ui, page: tab }).element);
+        if (!stillLoading(icon, tab)) icon.replaceChildren(favicon({ ui, page: tab }).element);
         label.textContent = tabLabel(tab);
         label.title = tab.url;
         for (const { kind, indicator } of captures) indicator.hidden = !tab.capture[kind];

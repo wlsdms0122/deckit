@@ -1,5 +1,5 @@
 const { isWeb, placeOf } = require('../address/address.js');
-const { favicon } = require('../favicon/favicon.js');
+const { favicon, stillLoading } = require('../favicon/favicon.js');
 const { START } = require('../tabs/tab-list.js');
 
 // The window's title bar, as the Browser's toolbar: Back and Forward, the field of the tab in front, and `trailing` at
@@ -108,10 +108,11 @@ function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions,
 
     // A page off the web has no site to give permissions to.
     function show(tab, { bookmarked }) {
+        const same = tab === shownTab;
         shownTab = tab;
         back.setEnabled(tab.canGoBack);
         forward.setEnabled(tab.canGoForward);
-        site.replaceChildren(favicon({ ui, page: tab }).element);
+        if (!same || !stillLoading(site, tab)) site.replaceChildren(favicon({ ui, page: tab }).element);
         site.disabled = !isWeb(tab.url);
         place.textContent = placeOf(tab.url);
         star.setIcon(starIcon(bookmarked));
