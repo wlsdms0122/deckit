@@ -22,7 +22,8 @@ const STYLE = `
         display: flex;
         align-items: center;
         gap: 7px;
-        height: 26px;
+        min-height: 28px;
+        height: 28px;
         padding: 0 12px 0 8px;
         border-radius: var(--deckit-radius-control);
         cursor: pointer;
@@ -35,7 +36,7 @@ const STYLE = `
     .deckit-menu-row:not([aria-checked='true']) .deckit-menu-tick { visibility: hidden; }
     .deckit-menu-icon { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
     .deckit-menu[data-icons] .deckit-menu-icon { justify-content: center; width: 16px; }
-    .deckit-menu-label { flex: 1 1 auto; }
+    .deckit-menu-label { flex: 1 1 auto; overflow: hidden; line-height: 28px; }
     .deckit-menu-more { display: flex; flex: 0 0 auto; margin: 0 -6px 0 16px; color: var(--deckit-muted); }
     .deckit-menu-hint { flex: 0 0 auto; margin-left: 16px; color: var(--deckit-muted); }
     .deckit-toolbar { display: none; gap: 1px; align-items: center; padding: 3px; max-height: none; overflow: visible; }
