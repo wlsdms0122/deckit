@@ -34,8 +34,10 @@ The shell adds these fields, among the fields it adds, as [the bundle](../DECKIT
 | field | read as | what it says |
 |---|---|---|
 | `activationPolicy` | the string `"accessory"`; any other value, and the field left out, read as `"regular"` | whether the mod is an app |
-| `icon` | a string, an SVG image; any other value read as none | the icon the mod is drawn with |
+| `icon` | a string, the path of a file of the bundle, as [the bundle](../DECKIT-2/SPEC.md) writes a path, whose text is the icon; read as none where the value is no string, the path names no file of the bundle, the file is over 32768 bytes, its root element is not `svg`, or that element has no `viewBox` or one whose width and height differ | the icon the mod is drawn with |
 | `keywords` | an array, of which the strings that are not empty are read, in order; any other value read as none | words the mod is found by beside its name |
+
+A mod's **icon** is the text of the file its `icon` names, an SVG image, or none. The shell draws an icon as an image, so what it would run or load does nothing, and draws a mod whose icon is none with an icon of its own, the same for every such mod.
 
 An **app** is a mod the system took whose `activationPolicy` reads `"regular"`. A mod whose `activationPolicy` is `"accessory"` is no app, and has no item.
 
@@ -103,6 +105,7 @@ The handle `shell` has these members, each a request as [the shell](../DECKIT-29
 | request | takes | answers |
 |---|---|---|
 | `mods.list()` | nothing | an array of the apps: those kept in the Dock, in the Dock's order, then every other app, in the catalog's order; each a table `{ id, name, icon, keywords, pinned, running }`, `id` its id, `name` the name it is listed by, as [the bundle](../DECKIT-2/SPEC.md) fixes `name`, `icon` its icon, or `""` where it has none, `keywords` an array of its keywords, empty where it has none, `pinned` whether it is kept in the Dock, and `running` whether it runs |
+| `mods.icon(id)` | `id` a string | the icon of the mod `id`, any mod the system took, app or not, or `""` where it has none or `id` names no such mod |
 | `mods.pinned()` | nothing | an array of the ids of the apps kept in the Dock, in the Dock's order |
 | `mods.setPinned(id, pinned)` | `id` a string, `pinned` a boolean | nothing, once the app `id` is kept in the Dock where `pinned` is `true`, or taken out where it is `false`, as the choice of the menu that does it does; one kept or not as asked already is left as it is |
 | `mods.open(id)` | `id` a string | nothing, once the app `id` is opened, as *Opening an app* says, and where that launches it, once its run is `running` |
