@@ -287,6 +287,7 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     let submenu = null; // { index, menu }
     let timer = 0;
     let stopFaces = () => {};
+    let resized = null;
     const closeSubmenu = () => {
         clearTimeout(timer);
         const closing = submenu;
@@ -320,6 +321,7 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
         open = false;
         closeSubmenu();
         stopFaces();
+        resized?.disconnect();
         presented.close();
         onClose?.();
     };
@@ -361,6 +363,9 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     });
     list.set(options, { active: options[active]?.disabled ? -1 : active });
     stopFaces = wearFaces(box, options);
+    // A menu that grows once placed (its rows wear their faces) is placed again, so it stays clear of the edges.
+    resized = new box.ownerDocument.defaultView.ResizeObserver(() => open && presented.place());
+    resized.observe(box);
     return { element: box, close, isOpen: () => open };
 }
 
