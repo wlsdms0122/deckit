@@ -104,18 +104,6 @@ function gallery({
             search('');
         },
     });
-    const newFolderButton = ui.iconButton({
-        icon: ui.icon('folderPlus', { size: 16 }),
-        title: 'New folder',
-        onClick: () => onNewFolder(),
-        size: 'small',
-    });
-    const newNoteButton = ui.iconButton({
-        icon: ui.iconOf(COMPOSE_SHAPES, { size: 16 }),
-        title: 'New note',
-        onClick: () => onNewNote(),
-        size: 'small',
-    });
     const body = ui.element('div', { className: 'note-gallery' });
     const resultHeading = ui.element('div', { className: 'note-gallery-heading' });
     const folderHeading = ui.element('div', { className: 'note-gallery-heading', text: 'Folders' });
@@ -162,16 +150,12 @@ function gallery({
         empty.element
     );
     element.append(navigation.element, body);
-    navigation.trailing.append(field.element, newFolderButton.element, newNoteButton.element);
+    navigation.trailing.append(field.element);
     for (const [button, text, action] of [
-        [newFolderButton.element, 'New folder', 'newFolder'],
-        [newNoteButton.element, 'New note', 'newNote'],
         [newNoteAction.element, 'New note', 'newNote'],
         [newFolderAction.element, 'New folder', 'newFolder'],
     ])
         ui.tooltip(button, { text, chord: () => chordOf(action) });
-    for (const button of [newFolderButton.element, newNoteButton.element])
-        button.addEventListener('mousedown', (event) => event.preventDefault());
     ui.edgeFade(body);
     // Delegated, so a card drawn again never loses a press.
     body.addEventListener('click', (event) => {

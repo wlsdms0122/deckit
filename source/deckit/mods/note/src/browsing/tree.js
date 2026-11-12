@@ -38,8 +38,8 @@ function tree({
         label: 'All Notes',
         icon: ui.iconOf(NOTEBOOK_SHAPES, { size: 16 }),
         actions: [
-            { icon: ui.iconOf(COMPOSE_SHAPES, { size: 16 }), title: 'New note', run: () => onNewNote() },
             { icon: ui.icon('folderPlus', { size: 16 }), title: 'New folder', run: () => onNewFolder() },
+            { icon: ui.iconOf(COMPOSE_SHAPES, { size: 16 }), title: 'New note', run: () => onNewNote() },
         ],
         onHeading: () => onShowAll(),
         onHeadingMenu: (event) => ui.menu({ items: folderMenu(''), point: { x: event.clientX, y: event.clientY } }),
@@ -49,8 +49,8 @@ function tree({
     rows.element.classList.add('note-tree');
     section.body.append(rows.element);
     element.append(section.element);
-    ui.tooltip(section.actions[0].element, { text: 'New note', chord: () => chordOf('newNote') });
-    ui.tooltip(section.actions[1].element, { text: 'New folder', chord: () => chordOf('newFolder') });
+    ui.tooltip(section.actions[0].element, { text: 'New folder', chord: () => chordOf('newFolder') });
+    ui.tooltip(section.actions[1].element, { text: 'New note', chord: () => chordOf('newNote') });
     // Delegated, so a row drawn again never loses a press.
     rows.element.addEventListener('click', (event) => {
         const row = entryAt(event.target);
