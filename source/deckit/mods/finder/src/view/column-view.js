@@ -10,7 +10,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
     const COLUMN_MAX = 640;
     const COLUMN_WIDTH = 230;
     // The size of the system's icons: drawn larger, they blur.
-    const PREVIEW_ICON_SIZE = 32;
+    const PREVIEW_ICON_SIZE = 64;
     // The view and its list of columns lend their place to what is in them: the columns and the preview lay out as
     // the file area's own flex items.
     const STYLE = `
@@ -57,8 +57,16 @@ function columnView({ ui, icons, entryAt, onResize }) {
             padding: 16px;
             text-align: center;
         }
-        .finder-preview-name { margin-top: 10px; font: 600 var(--deckit-type-body); overflow-wrap: anywhere; }
-        .finder-preview-detail { color: var(--deckit-muted); }
+        .finder-preview-name {
+            display: -webkit-box;
+            margin-top: 8px;
+            overflow: hidden;
+            font: 600 var(--deckit-type-body);
+            overflow-wrap: anywhere;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+        .finder-preview-detail { color: var(--deckit-muted); font: var(--deckit-type-small); font-variant-numeric: tabular-nums; }
         .finder-thumbnail { max-width: 100%; max-height: min(240px, 50%); object-fit: contain; border-radius: var(--deckit-radius-small); }
     `;
     // The rows a column's skeleton draws while its folder is read.
@@ -239,9 +247,12 @@ function columnView({ ui, icons, entryAt, onResize }) {
             icons.thumbnail(entry).then((url) => {
                 if (url && shown.isConnected) picture.replaceWith(thumbnailOf(url));
             });
+        // A name past two lines is cut there, whole in its tooltip.
+        const name = ui.element('div', { className: 'finder-preview-name', text: entry.name });
+        name.title = entry.name;
         shown.append(
             picture,
-            ui.element('div', { className: 'finder-preview-name', text: entry.name }),
+            name,
             ui.element('div', {
                 className: 'finder-preview-detail',
                 text: formatKind(entry) + (entry.size == null ? '' : ' · ' + formatSize(entry)),
