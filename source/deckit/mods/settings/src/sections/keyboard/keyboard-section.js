@@ -44,7 +44,8 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
     const DESCRIPTION =
         'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Of shortcuts on one chord, the first ' +
         'listed runs. A change onto a chord another uses in the same places is not applied until that chord is free.';
-    const SCOPE_NAMES = { global: 'In every app', app: 'Anywhere in the app' };
+    // Two places a key works: in the app, a mod's window in front or none, or everywhere, the app in front or not.
+    const SCOPE_NAMES = { global: 'Everywhere', app: `In ${appName}` };
     const APP = '\u0000app';
 
     let recording = null; // the key a chord is recorded for, and the end of its recording: { id, end }
@@ -57,7 +58,6 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
         .settings-chip.settings-conflicts {
             border-color: color-mix(in srgb, var(--deckit-alert) 50%, transparent);
             color: var(--deckit-alert-ink);
-            opacity: 1;
         }
         .settings-card.settings-shortcut-card { padding-bottom: 6px; }
         .settings-shortcuts {
@@ -76,29 +76,28 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
             white-space: nowrap;
             font: var(--deckit-type-body);
         }
-        .settings-shortcut-scope { flex: 0 0 auto; font: 11.5px var(--deckit-font); opacity: 0.4; }
+        .settings-shortcut-scope { flex: 0 0 auto; color: var(--deckit-muted); font: var(--deckit-type-small); }
         .settings-chord {
             flex: 0 0 auto;
             min-width: 56px;
-            height: 22px;
+            height: 24px;
             padding: 0 8px;
             border: var(--deckit-border);
-            border-radius: 5px;
+            border-radius: var(--deckit-radius-control);
             background: transparent;
             color: inherit;
             font: var(--deckit-type-small);
             cursor: pointer;
         }
-        .settings-chord[data-unset] { opacity: 0.45; }
+        .settings-chord[data-unset] { color: var(--deckit-muted); }
         .settings-chord[data-conflicts] { border: 1px solid var(--deckit-alert-ink); color: var(--deckit-alert-ink); }
-        .settings-chord[data-recording] { border-color: var(--deckit-accent); color: var(--deckit-accent); opacity: 1; }
-        .settings-shortcut-line .settings-reset { opacity: 0.6; }
+        .settings-chord[data-recording] { border-color: var(--deckit-accent); color: var(--deckit-accent); }
+        .settings-shortcut-line .settings-reset { color: var(--deckit-muted); }
         .settings-shortcut-line .settings-reset[data-unchanged] { opacity: 0; pointer-events: none; }
         .settings-issue {
             padding: 0 0 5px;
             color: var(--deckit-alert-ink);
-            font: 11.5px var(--deckit-font);
-            line-height: 1.45;
+            font: var(--deckit-type-small);
         }
     `);
     const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
@@ -235,7 +234,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
             current = shortcut;
             const defaultChord = shortcut.defaultKeystroke ? written(shortcut.defaultKeystroke) : 'none';
             name.textContent = name.title = shortcut.title;
-            scope.textContent = shortcut.shell ? 'On any mod' : SCOPE_NAMES[shortcut.scope] || '';
+            scope.textContent = shortcut.shell ? SCOPE_NAMES.app : SCOPE_NAMES[shortcut.scope] || '';
             scope.hidden = !scope.textContent;
             chord.textContent = shortcut.keystroke ? shortcut.chord : 'None';
             chord.title = shortcut.changed ? `Changed from ${defaultChord}` : 'Click to change';
