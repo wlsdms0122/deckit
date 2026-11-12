@@ -50,6 +50,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     Object.assign(body.style, {
         flex: '1 0 auto',
         maxHeight: `calc(100% - ${LOG_MIN}px)`,
+        boxSizing: 'border-box',
         overflowY: 'auto',
         padding: '16px',
     });
