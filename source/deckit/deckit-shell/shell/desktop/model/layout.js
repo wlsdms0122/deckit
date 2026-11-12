@@ -1,11 +1,11 @@
 import * as DOCK from '../../dock/model/dock.js';
 
 // MARK: - Property
-// A window's frame: the margin its shadow takes around it, the band outside its edge that resizes it, the rounding of
-// its corners, and its title bar, where the window's buttons stand at its top left, centred on its height:
-// `controlsWidth` the width they take from its start. The height is the kit's title bar's, so what a content lays in
-// it is centred on the buttons.
-const SHADOW = 32;
+// A window's frame: the margin its shadow takes around it, as far as the key window's shadow reaches below it, the
+// band outside its edge that resizes it, the rounding of its corners, and its title bar, where the window's buttons
+// stand at its top left, centred on its height: `controlsWidth` the width they take from its start. The height is the
+// kit's title bar's, so what a content lays in it is centred on the buttons.
+const SHADOW = 48;
 const EDGE = 6;
 const RADIUS = 16;
 const TITLE_BAR = Object.freeze({ height: 48, controlsWidth: 78 });

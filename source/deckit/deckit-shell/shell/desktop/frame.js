@@ -47,6 +47,7 @@ const STYLE = `
         border-bottom: 1px solid var(--deckit-divider);
     }
     .deckit-window-title[hidden] { display: none; }
+    .deckit-window-title[data-key] .deckit-window-title-text { color: var(--deckit-text); }
     .deckit-window-edge { position: fixed; }
     .deckit-window-edge[data-edge='top'] { top: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
     .deckit-window-edge[data-edge='bottom'] { bottom: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
@@ -150,6 +151,7 @@ function boot(theme, channels) {
             const { material, bar, text, buttons } = drawn.get(window.id);
             material.toggleAttribute('data-key', window.key);
             buttons.toggleAttribute('data-key', window.key);
+            bar.toggleAttribute('data-key', window.key);
             bar.hidden = window.title === null;
             text.textContent = window.title ?? '';
         }
