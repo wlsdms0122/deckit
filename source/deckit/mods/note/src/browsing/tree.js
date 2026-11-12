@@ -25,13 +25,14 @@ function tree({
         .note-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
         /* All Notes is the first row of the tree, drawn as a row is. */
         .note-sidebar .deckit-section-label { color: var(--deckit-text); font: var(--deckit-type-body); }
-        /* New Folder stays at the card's foot, 16px from its edges, over the rows that scroll under it. */
+        /* New Folder stays at the card's foot, 16px from its edges, over the rows that scroll under it; it stops 1px
+           short of the edge, which the card's rim draws. */
         .note-sidebar-foot {
             position: sticky;
-            bottom: 0;
+            bottom: 1px;
             display: flex;
             margin-top: auto;
-            padding: 8px 4px 16px;
+            padding: 8px 4px 15px;
             background: linear-gradient(var(--deckit-sidebar), var(--deckit-sidebar)), var(--deckit-background);
         }
         .note-tree { outline: none; }
