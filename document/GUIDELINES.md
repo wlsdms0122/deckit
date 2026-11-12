@@ -171,9 +171,9 @@ Two kinds of icon, by role. An **app icon** names a mod: full colour, on a tile,
 
 | Size | Where |
 |---|---|
-| `small` 16 | a menu or a chip that names a mod, a sidebar heading |
+| `small` 16 | a heading in the switcher's list, the scope chip of a quick pick |
 | `row` 20 | a row of the switcher or of Settings, a notification |
-| `lead` 32 | the switcher's top match |
+| `lead` 32 | a row of the switcher's Now strip |
 | `dock` 40 | the Dock |
 | `grid` 56 | the Mods launcher |
 
