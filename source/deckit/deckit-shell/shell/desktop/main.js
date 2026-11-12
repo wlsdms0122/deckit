@@ -600,7 +600,8 @@ export function createDesktop({
         }));
     }
 
-    // `{ windows, strip, title, dock, down }`, as the desktop's page draws it.
+    // `{ windows, strip, title, dock, down }`, as the desktop's page draws it. A window's frame is key as its content
+    // is (stateOf): not while an overlay window holds the keyboard, which update() tells as it takes or gives it back.
     function stateOfPage() {
         const key = MANAGER.keyOf(LOCAL);
         const active = windows.get(key)?.mod ?? null;
@@ -608,7 +609,7 @@ export function createDesktop({
             windows: MANAGER.viewOf(LOCAL).map(({ id, frame }) => ({
                 id,
                 frame,
-                key: id === key,
+                key: id === key && !WINDOWS.keyOverlay(),
                 minimum: LAYOUT.minimumOf(windows.get(id).minimum),
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),

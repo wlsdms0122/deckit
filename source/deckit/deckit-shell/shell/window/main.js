@@ -299,7 +299,8 @@ export function createWindows({
         showWindow(host.control, { activates });
     }
 
-    // The overlay window that has the keyboard has the active mod: the desktop hears it, and tells the pages.
+    // The overlay window that has the keyboard has the active mod, and the key window behind it is not key: the
+    // desktop hears it, and tells the pages and the frames.
     function setKey(window, on) {
         if (window.host.key === on) return;
         window.host.key = on;
