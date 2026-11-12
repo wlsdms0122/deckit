@@ -7,8 +7,11 @@ import * as DECLARED from '../../../deckit-sdk/shell/dock/protocol.js';
 const { SLIVER, WIDTH, RADIUS } = DOCK;
 // How long the Dock stays out once the pointer has left it.
 const HIDE_DELAY = 400;
-// An item: as wide as the card inside its padding, the icon 4px in from its top and sides, the running dot under it.
-const ITEM = Object.freeze({ width: 48, height: 52, inset: 4 });
+// An item: square, as wide as the card inside its padding, the icon 4px in from its edges; the running dot in the
+// card's padding beside it, its centre `dot` px from the card's edge.
+const ITEM = Object.freeze({ size: 48, inset: 4, dot: 4 });
+// The card's padding around its items.
+const CARD_PADDING = 8;
 // How far right of the card, out, the name label and the menu stand.
 const BESIDE = 8;
 const STYLE = `
@@ -38,7 +41,7 @@ const STYLE = `
         gap: 4px;
         min-height: 0;
         box-sizing: border-box;
-        padding: 8px;
+        padding: ${CARD_PADDING}px;
         overflow-y: auto;
         border-radius: 0 ${RADIUS}px ${RADIUS}px 0;
         background: var(--deckit-elevated);
@@ -50,11 +53,12 @@ const STYLE = `
     .deckit-dock-item {
         position: relative;
         display: flex;
+        align-items: center;
         justify-content: center;
-        width: ${ITEM.width}px;
-        height: ${ITEM.height}px;
+        width: ${ITEM.size}px;
+        height: ${ITEM.size}px;
         box-sizing: border-box;
-        padding: ${ITEM.inset}px 0 0;
+        padding: ${ITEM.inset}px;
         border: 0;
         border-radius: var(--deckit-radius-card);
         background: transparent;
@@ -65,8 +69,8 @@ const STYLE = `
     .deckit-dock-item[data-running]::after {
         content: '';
         position: absolute;
-        left: calc(50% - 2px);
-        bottom: 2px;
+        top: calc(50% - 2px);
+        left: ${ITEM.dot - 2 - CARD_PADDING}px;
         width: 4px;
         height: 4px;
         border-radius: var(--deckit-radius-round);
@@ -93,12 +97,12 @@ const STYLE = `
 // MARK: - Public
 // The Dock, drawn in the desktop's page at the desktop's left edge, centred down it and as tall as its items: the items
 // kept there, which a drag puts in another order, then those running only, each its mod's app icon. A running item has
-// a dot under its icon, in the accent where its mod asks for attention, and the active mod's item is marked; the item
-// under the pointer has its name beside the card. It is in but for its sliver until the pointer comes, and stays out
-// while the pointer is over it, a press holds it or its menu is open; it goes back in faster than it came out, and
-// fades in where the system asks for reduced motion; `onOut(out)` hears it slide out and back. A click on an item
-// opens its mod, and its menu, beside the item, shows it, quits it while it runs, and keeps it in the Dock or takes it
-// out, each told to main over `channels`. `ui` is the page's kit.
+// a dot at the card's edge beside its icon, in the accent where its mod asks for attention, and the active mod's item
+// is marked; the item under the pointer has its name beside the card. It is in but for its sliver until the pointer
+// comes, and stays out while the pointer is over it, a press holds it or its menu is open; it goes back in faster than
+// it came out, and fades in where the system asks for reduced motion; `onOut(out)` hears it slide out and back. A click
+// on an item opens its mod, and its menu, beside the item, shows it, quits it while it runs, and keeps it in the Dock
+// or takes it out, each told to main over `channels`. `ui` is the page's kit.
 function make({ ui, channels, onOut }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     ui.addStyle(STYLE);
