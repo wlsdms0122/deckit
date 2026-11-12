@@ -9,6 +9,8 @@ const { section } = require('../section/section.js');
 // that did not apply says why on its row's answer line.
 function modSettingsSection({ ui, theme, configuration, sources, nameOf, iconOf }) {
     const TITLE = 'Mod Settings';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'gear';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
         'Choices each mod offers. A mod declares them; what you choose is kept for it, so an update keeps it.';
@@ -49,7 +51,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf, iconOf 
 
     message.hidden = true;
     body.append(message, cards.element);
-    return { element, title: TITLE, keywords: KEYWORDS, draw, groups: () => groups, cardOf, highlight };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw, groups: () => groups, cardOf, highlight };
 
     async function draw() {
         const turn = ++drawing;

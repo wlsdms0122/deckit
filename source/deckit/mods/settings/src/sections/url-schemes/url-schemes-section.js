@@ -8,6 +8,8 @@ const { handlerRow } = require('../handler-list/handler-list.js');
 // refuses is told on its card. `onChange` hears that a choice was made here.
 function urlSchemesSection({ ui, urls, appName, onChange }) {
     const TITLE = 'URL Schemes';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'link';
     const KEYWORDS = [
         '열기',
         '링크',
@@ -72,7 +74,7 @@ function urlSchemesSection({ ui, urls, appName, onChange }) {
     });
 
     body.append(cards.element);
-    return { element, title: TITLE, keywords: KEYWORDS, read, draw };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, read, draw };
 
     // Every scheme and the entries left out, as `deckit/urls` lists them, `{ schemes, refused }`, `schemes`
     // `[{ scheme, system, chosen, mods }]`; none while it cannot be read.

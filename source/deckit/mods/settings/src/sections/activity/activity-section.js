@@ -12,6 +12,8 @@ const TICK_MS = 30000;
 // `onInterfaces()` shows the Interfaces section.
 function activitySection({ ui, mods, icons, onInterfaces }) {
     const TITLE = 'Activity';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'server';
     const KEYWORDS = ['활동', '실행', '백그라운드', 'activity', 'running', 'quit', 'background'];
     const DESCRIPTION =
         'The mods running now, apps or not, and for how long. Quit one, or restart it. Below, the mods ' +
@@ -53,7 +55,7 @@ function activitySection({ ui, mods, icons, onInterfaces }) {
     backgroundCard.element.insertBefore(backgrounds.element, backgroundCard.none);
     body.append(runCard.element, backgroundCard.element);
     setInterval(() => element.isConnected && draw(listed), TICK_MS);
-    return { element, title: TITLE, keywords: KEYWORDS, draw };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw };
 
     // `answered` is what deckit.mods.list(), runs() and interfaces() answered, as `{ list, runs, interfaces }`.
     function draw(answered) {

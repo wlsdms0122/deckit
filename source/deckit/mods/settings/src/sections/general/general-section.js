@@ -6,6 +6,8 @@ const { section } = require('../section/section.js');
 // told in a toast.
 function generalSection({ ui, theme, fonts }) {
     const TITLE = 'General';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'sliders';
     const KEYWORDS = ['일반', '글꼴', '폰트', '글자 크기', 'general', 'fonts', 'font size', 'typeface'];
     const DESCRIPTION =
         'The font and size of text in every mod, wherever a mod does not choose its own. ' +
@@ -27,7 +29,7 @@ function generalSection({ ui, theme, fonts }) {
 
     card.append(...Object.values(rows).map((row) => row.element));
     body.append(card);
-    return { element, title: TITLE, keywords: KEYWORDS, draw };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw };
 
     // The faces installed are read again, so a face installed since is offered.
     function draw() {

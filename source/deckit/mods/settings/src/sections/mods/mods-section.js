@@ -35,6 +35,8 @@ function modsSection({
     onChange,
 }) {
     const TITLE = 'Mods';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'puzzle';
     const PACKAGES = 'deckit/packages';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
     // What a mod that loads but is not running is doing, by its run's state: one starting or stopping says it by a
@@ -190,7 +192,7 @@ function modsSection({
         onDrop: dropAndInstall,
     });
     body.append(columns, rows.element, restart.element);
-    return { element, title: TITLE, keywords: KEYWORDS, draw };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw };
 
     function draw(state) {
         listed = state;

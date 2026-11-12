@@ -8,6 +8,8 @@ const { handlerRow } = require('../handler-list/handler-list.js');
 // and goes by its id. A pin deckit refuses is told on its card. `mods` is deckit.mods.
 function interfacesSection({ ui, mods }) {
     const TITLE = 'Interfaces';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'layers';
     const KEYWORDS = ['인터페이스', '주인', '고정', 'interface', 'owner', 'provider', 'pin'];
     const DESCRIPTION =
         'What mods offer each other, by name, and the mods that provide each. The mods that use one reach its ' +
@@ -52,7 +54,7 @@ function interfacesSection({ ui, mods }) {
     });
 
     body.append(cards.element);
-    return { element, title: TITLE, keywords: KEYWORDS, draw };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw };
 
     function draw(interfaceQueues) {
         cards.set(interfaceQueues);

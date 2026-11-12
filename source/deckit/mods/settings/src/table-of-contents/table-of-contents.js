@@ -1,5 +1,5 @@
-// The sidebar's table of contents: a row per section of `scroller`, marking the one being read and gliding to the one
-// pressed.
+// The sidebar's table of contents: a row per section of `scroller`, by its glyph and title, marking the one being read
+// and gliding to the one pressed.
 function tableOfContents({ ui, scroller, sections }) {
     const GLIDE_LIMIT = 1500;
 
@@ -11,6 +11,7 @@ function tableOfContents({ ui, scroller, sections }) {
     ui.addStyle(`
         /* No heading: the window's title names what the rows are of. */
         .settings-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; padding-top: 10px; }
+        .settings-contents-glyph { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
         .settings-contents-label {
             flex: 1 1 auto;
             min-width: 0;
@@ -80,7 +81,9 @@ function tableOfContents({ ui, scroller, sections }) {
 
     function contentsRow(section) {
         const row = ui.row();
-        row.element.append(ui.element('span', { className: 'settings-contents-label', text: section.title }));
+        const glyph = ui.element('span', { className: 'settings-contents-glyph' });
+        glyph.innerHTML = ui.icon(section.glyph, { size: 16 });
+        row.element.append(glyph, ui.element('span', { className: 'settings-contents-label', text: section.title }));
         row.element.addEventListener('click', () => go(section));
         rows.set(section, row);
         return row.element;

@@ -40,6 +40,8 @@ const MODIFIER_CODES = /^(Meta|Control|Alt|Shift)(Left|Right)$|^(CapsLock|Fn|OS)
 // keeps one from working. `onChange` hears that a key was set here.
 function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
     const TITLE = 'Keyboard';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'keyboard';
     const KEYWORDS = ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys'];
     const DESCRIPTION =
         'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Of shortcuts on one chord, the first ' +
@@ -112,7 +114,7 @@ function keyboardSection({ ui, keys, shellKeys, appName, onChange }) {
     conflicts.element.hidden = true;
     head.append(conflicts.element);
     body.append(cards.element);
-    return { element, title: TITLE, keywords: KEYWORDS, read, draw, stopRecording };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, read, draw, stopRecording };
 
     // Every key and the mods' entries left out, `{ shortcuts, refused }`: `shortcuts` the app's first and then the
     // mods' in the order `deckit/keys` lists them, each `{ id, shell, mod, command, title, scope, keystroke,
