@@ -17,6 +17,7 @@ const SHIPS = [
     'switcher',
     'status-bar',
     'notifications',
+    'clock',
     'commands',
     'keymap',
     'urls',
