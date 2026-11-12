@@ -211,7 +211,6 @@ class Finder {
             records,
             tildify,
             folds,
-            currentLocation: tabs.location,
             onGo: (path) => tabs.go(path),
             onOpenInNewTab: (path) => tabs.open(path),
             onDraw: drawStar,
@@ -421,12 +420,11 @@ class Finder {
                 .map(({ candidate }) => candidate);
         }
 
-        // Drawn at once: until the folder is read, the area shows it loading. The favorites are drawn here, as only a
-        // new location changes which of them is lit.
+        // Drawn at once: until the folder is read, the area shows it loading. The star follows the new location.
         function enterLocation() {
             bar.setFilter(tabs.filter().text);
             watchShown();
-            favorites.draw();
+            drawStar();
             area.draw();
             return load();
         }
