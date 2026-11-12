@@ -32,7 +32,7 @@ function tree({
             display: flex;
             margin-top: auto;
             padding: 8px 4px 16px;
-            background: var(--deckit-sidebar);
+            background: linear-gradient(var(--deckit-sidebar), var(--deckit-sidebar)), var(--deckit-background);
         }
         .note-tree { outline: none; }
         .note-tree-glyph { display: flex; color: var(--deckit-muted); }
