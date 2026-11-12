@@ -87,7 +87,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         overflow: 'hidden',
     });
 
-    const RELOAD = ui.icon('reload', { size: 15 });
+    const RELOAD = ui.icon('reload', { size: 16 });
     // Under this bar width the view switch is a pop-up button, so the title keeps its room.
     const NARROW = 560;
     const head = document.createElement('div');
@@ -122,11 +122,11 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     let spinning = false;
     head.append(
         ui.iconButton({
-            icon: ui.icon('chevronLeft', { size: 17 }),
+            icon: ui.icon('chevronLeft', { size: 16 }),
             title: 'Previous',
             onClick: () => shift(-1),
         }).element,
-        ui.iconButton({ icon: ui.icon('chevronRight', { size: 17 }), title: 'Next', onClick: () => shift(1) }).element,
+        ui.iconButton({ icon: ui.icon('chevronRight', { size: 16 }), title: 'Next', onClick: () => shift(1) }).element,
         title,
         status,
         reloadButton.element,
@@ -385,7 +385,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     function showSpinner(running) {
         if (running === spinning) return;
         spinning = running;
-        if (running) reloadButton.element.replaceChildren(ui.spinner({ size: 15 }).element);
+        if (running) reloadButton.element.replaceChildren(ui.spinner({ size: 16 }).element);
         else reloadButton.setIcon(RELOAD);
     }
 
