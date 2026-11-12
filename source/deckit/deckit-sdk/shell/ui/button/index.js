@@ -93,7 +93,7 @@ const STYLE = `
         font: 600 var(--deckit-type-small);
     }
     .deckit-segment[aria-pressed='true'] {
-        background: var(--deckit-elevated);
+        background: var(--deckit-raised);
         box-shadow: var(--deckit-shadow-control);
         color: var(--deckit-text);
     }

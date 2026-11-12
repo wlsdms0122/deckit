@@ -147,6 +147,8 @@ function tokenOf(theme, fonts = {}) {
             lifted: toward(0.1),
             // What floats over the content: a menu, a popover, a dialog's card, a toast, the Dock.
             elevated: toward(dark ? 0.1 : 0),
+            // The chosen part of a control on a filled track, lifted off it: lighter than the track in both looks.
+            raised: toward(dark ? 0.24 : 0),
             sidebar: look.sidebar,
             divider: WASH(0.22),
             fill: WASH(0.12),
