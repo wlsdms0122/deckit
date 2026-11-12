@@ -111,6 +111,7 @@ function quickPick(
     const modal = ui.modal({
         chrome: false,
         align: fills ? 'fill' : 'top',
+        clear: true,
         drags,
         glass,
         width,

@@ -35,7 +35,7 @@ const MOTION = Object.freeze({
 });
 // What differs between a light look and a dark one. `glass` is the strength a surface drawn as glass lays its colour
 // at over what is behind it, blurred through. `rim` is the hairline inside a floating surface's edge, and `float` the
-// shadow it casts. `sidebar` is the sidebar's material over the window's.
+// shadow it casts. `sidebar` is the sidebar's material over the window's. `scrim` dims the page under a dialog.
 const LOOKS = Object.freeze({
     light: {
         accent: '#2a6fdb',
@@ -44,6 +44,7 @@ const LOOKS = Object.freeze({
         alertInk: '#c4174d',
         sidebar: 'rgba(0,0,0,.022)',
         rim: 'rgba(0,0,0,.08)',
+        scrim: 'rgba(0,0,0,.3)',
         glass: 0.72,
         shadow: {
             float: '0 8px 24px rgba(0,0,0,.14), 0 1px 3px rgba(0,0,0,.1)',
@@ -58,6 +59,7 @@ const LOOKS = Object.freeze({
         alertInk: '#ff5c86',
         sidebar: 'rgba(255,255,255,.035)',
         rim: 'rgba(255,255,255,.1)',
+        scrim: 'rgba(0,0,0,.45)',
         glass: 0.85,
         shadow: {
             float: '0 8px 24px rgba(0,0,0,.4)',
@@ -165,7 +167,7 @@ function tokenOf(theme, fonts = {}) {
             focus: look.accent,
             // What a drop or a context menu is about.
             target: look.accent,
-            scrim: 'rgba(0,0,0,.45)',
+            scrim: look.scrim,
             folder: '#5aa9e6',
         },
         radius: { small: 4, control: 6, medium: 8, large: 10, card: 12, round: 999 },

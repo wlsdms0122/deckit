@@ -16,6 +16,7 @@ const STYLE = `
     }
     .deckit-modal[data-align='top'] { align-items: flex-start; padding-top: 12vh; }
     .deckit-modal[data-align='fill'] { align-items: stretch; background: transparent; }
+    .deckit-modal[data-clear] { background: transparent; }
     .deckit-modal-card {
         box-sizing: border-box;
         max-height: 80vh;
@@ -57,7 +58,8 @@ function make(theme, ui) {
 // text field confirms. `onKey` has a key first and returns whether it took it. `align` is `center`, `top`, or
 // `fill`, the card all the page draws, filling it, its edge the page's, which comes and goes at once, as its window
 // does. With `drags` the card drags the window it is in where nothing in it is pressed. With `glass` its colour is
-// laid at that strength, for a page over what blurs.
+// laid at that strength, for a page over what blurs. With `clear` the page shows through undimmed, the card still
+// holding every press, and it comes and goes at once, as a palette a key opens does.
 function modal(
     ui,
     {
@@ -70,6 +72,7 @@ function modal(
         chrome = true,
         align = 'center',
         drags = false,
+        clear = false,
         glass = null,
         width = 'min(420px, calc(100vw - 48px))',
         fill,
@@ -85,6 +88,7 @@ function modal(
     scrim.dataset.align = align;
     if (!chrome) scrim.dataset.bare = '';
     if (drags) scrim.dataset.drags = '';
+    if (clear) scrim.dataset.clear = '';
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
     if (align !== 'fill') card.style.width = width;
@@ -147,7 +151,7 @@ function modal(
     const presented = PRESENTATION.present({
         element: scrim,
         modal: true,
-        speed: align === 'fill' ? null : 'base',
+        speed: align === 'fill' || clear ? null : 'base',
         onKey,
         onDismiss: close,
     });
