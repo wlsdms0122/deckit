@@ -3,7 +3,8 @@ const { nameOf } = require('../occurrence/occurrence.js');
 const { paintPast, paintSolid, paintDot, paintText } = require('../occurrence/paint.js');
 
 // Occurrences as bars on a row of days, each bar in a lane: the month's weeks and the all-day strip of the time grid.
-const LANE_HEIGHT = 19;
+// A lane holds a 20px chip and the 2px between lanes.
+const LANE_HEIGHT = 22;
 // A filled entry brightens under the pointer; one drawn as a dot and its text takes the kit's wash.
 const STYLE = `
     .calendar-filled { transition: filter var(--deckit-fade) var(--deckit-easing); }
@@ -42,15 +43,15 @@ function rowItems(start, count, occurrences) {
         .filter(Boolean);
 }
 
-// A filled bar when `continuous`, its text in the ink that reads on its colour, or a dot, the time and the title. A
-// click opens the occurrence with `onOpen(occurrence, element)`.
-function bar(ui, occurrence, continuous, onOpen) {
+// A filled bar when `continuous`, its text in the ink that reads on its colour, led by its start time when `time`, or a
+// dot, the time and the title. A click opens the occurrence with `onOpen(occurrence, element)`.
+function bar(ui, occurrence, continuous, onOpen, { time = false } = {}) {
     const element = document.createElement('div');
     Object.assign(element.style, {
         display: 'flex',
         alignItems: 'center',
         gap: '4px',
-        height: LANE_HEIGHT - 3 + 'px',
+        height: LANE_HEIGHT - 2 + 'px',
         margin: '0 2px',
         padding: '0 5px',
         borderRadius: 'var(--deckit-radius-small)',
@@ -64,6 +65,7 @@ function bar(ui, occurrence, continuous, onOpen) {
         element.className = 'calendar-filled';
         Object.assign(element.style, { background: occurrence.color, color: ui.onColor(occurrence.color) });
         paintSolid(element, occurrence);
+        if (time) element.append(timeOf(occurrence));
     } else {
         const dot = document.createElement('span');
         Object.assign(dot.style, {
@@ -74,10 +76,9 @@ function bar(ui, occurrence, continuous, onOpen) {
             background: occurrence.color,
         });
         paintDot(dot, occurrence);
-        const time = document.createElement('span');
-        time.textContent = clockText(occurrence.start);
-        Object.assign(time.style, { flex: '0 0 auto', color: 'var(--deckit-muted)' });
-        element.append(dot, time);
+        const clock = timeOf(occurrence);
+        clock.style.color = 'var(--deckit-muted)';
+        element.append(dot, clock);
         ui.pressable(element);
     }
     const text = document.createElement('span');
@@ -92,6 +93,13 @@ function bar(ui, occurrence, continuous, onOpen) {
         onOpen(occurrence, element);
     });
     return element;
+}
+
+function timeOf(occurrence) {
+    const made = document.createElement('span');
+    made.textContent = clockText(occurrence.start);
+    Object.assign(made.style, { flex: '0 0 auto', fontVariantNumeric: 'tabular-nums' });
+    return made;
 }
 
 function laneGrid(count) {

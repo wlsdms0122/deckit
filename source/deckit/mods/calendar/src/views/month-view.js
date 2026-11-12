@@ -4,9 +4,11 @@ const { isSpanning } = require('../occurrence/occurrence.js');
 
 // Its ground is set in a rule: set inline, it would stand over the kit's pressable wash.
 const PLAIN_BUTTON = 'calendar-plain-button';
+// The height of a week's row of day numbers: a 22px number inset 4 above and 2 below.
+const NUMBER_ROW = 28;
 
 // Six weeks from `start`, the days of `month` (0 to 11) in full and the rest stepped back, and the occurrences that
-// fall in them as bars. A week shows as many lanes as its height holds, and the rest of a day behind "+n more".
+// fall in them as chips in their colour, a timed one led by its start time. A week shows as many lanes as its height holds, and the rest of a day behind "+n more".
 function monthView({ ui, detail, onOpenDay }) {
     ui.addStyle(`.${PLAIN_BUTTON} { border: 0; background: transparent; cursor: pointer; }`);
     // The weeks last drawn, and how many lanes fitted each then.
@@ -101,7 +103,8 @@ function monthView({ ui, detail, onOpenDay }) {
                 const grid = laneGrid(7);
                 for (const item of items.filter((candidate) => candidate.lane === lane)) {
                     const cell = laneCell(item.column, item.span);
-                    cell.appendChild(bar(ui, item.occurrence, item.span > 1 || item.occurrence.allDay, detail.show));
+                    const timed = item.span === 1 && !item.occurrence.allDay;
+                    cell.appendChild(bar(ui, item.occurrence, true, detail.show, { time: timed }));
                     grid.appendChild(cell);
                 }
                 stack.appendChild(grid);
@@ -125,8 +128,9 @@ function monthView({ ui, detail, onOpenDay }) {
         const cell = document.createElement('div');
         Object.assign(cell.style, {
             display: 'flex',
-            justifyContent: 'center',
-            padding: '3px 0 2px',
+            height: NUMBER_ROW + 'px',
+            boxSizing: 'border-box',
+            padding: '4px 4px 2px',
             borderRight: dayIndex === 6 ? '0' : 'var(--deckit-border)',
         });
         const number = document.createElement('button');
@@ -134,14 +138,19 @@ function monthView({ ui, detail, onOpenDay }) {
         number.className = PLAIN_BUTTON;
         number.textContent = String(day.getDate());
         number.title = 'Open this day';
-        // A day of another month steps back toward the ground: it is still a button.
+        // A day of another month steps back toward the ground: it is still a button. At the cell's top left, as wide as
+        // today's circle at least.
         Object.assign(number.style, {
-            color:
-                day.getMonth() === month
-                    ? 'var(--deckit-text)'
-                    : 'color-mix(in srgb, var(--deckit-text) 38%, var(--deckit-background))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '22px',
+            height: '22px',
+            boxSizing: 'border-box',
+            color: day.getMonth() === month ? 'var(--deckit-text)' : 'var(--deckit-disabled)',
             font: 'var(--deckit-type-small)',
-            padding: '1px 7px',
+            fontVariantNumeric: 'tabular-nums',
+            padding: '0 5px',
             borderRadius: 'var(--deckit-radius-round)',
             transition: 'background-color var(--deckit-fade) var(--deckit-easing)',
         });
@@ -173,7 +182,7 @@ function monthView({ ui, detail, onOpenDay }) {
                 Object.assign(more.style, {
                     width: 'calc(100% - 4px)',
                     margin: '0 2px',
-                    height: LANE_HEIGHT - 3 + 'px',
+                    height: LANE_HEIGHT - 2 + 'px',
                     color: 'var(--deckit-muted)',
                     font: 'var(--deckit-type-small)',
                     textAlign: 'left',
@@ -203,7 +212,7 @@ function monthView({ ui, detail, onOpenDay }) {
 // observer both read it, so they measure the same element.
 function capacityOf(weeks) {
     const rowHeight = weeks.clientHeight / 6;
-    return rowHeight > 0 ? Math.max(1, Math.floor((rowHeight - 24) / LANE_HEIGHT)) : null;
+    return rowHeight > 0 ? Math.max(1, Math.floor((rowHeight - NUMBER_ROW) / LANE_HEIGHT)) : null;
 }
 
 module.exports = { monthView };
