@@ -18,6 +18,8 @@ const STYLE = `
     .deckit-surface[data-state='closed'][data-side='top'] { transform: translateY(6px) scale(.96); }
     .deckit-surface[data-state='closed'][data-side='right'] { transform: translateX(-6px) scale(.96); }
     .deckit-surface[data-state='closed'][data-side='left'] { transform: translateX(6px) scale(.96); }
+    .deckit-surface[data-still],
+    .deckit-surface[data-still] * { transition: none; }
     .deckit-backdrop { position: fixed; inset: 0; }
 `;
 // What is presented over the page, bottom first.
@@ -26,6 +28,8 @@ const stack = [];
 // its web pages too.
 let backdrop = null;
 let overlayDocument = null;
+// What the person last acted with, `key` or `pointer`: what a key opens or closes does not move.
+let input = 'pointer';
 
 // MARK: - Initializer
 // MARK: - Public
@@ -36,6 +40,7 @@ function start() {
     const [page, overlay] = LAYER.windows();
     overlayDocument = overlay.document;
     watch(page);
+    heed(overlay);
     overlay.addEventListener('pointerdown', dismissOutside, true);
     overlay.addEventListener('keydown', route, true);
     overlay.addEventListener('blur', unfocused);
@@ -46,6 +51,7 @@ function start() {
 
 // What is presented is heard in one more document of the page's, as in the page: a window's content.
 function watch(each) {
+    heed(each);
     each.addEventListener('pointerdown', dismissOutside, true);
     each.addEventListener('keydown', route, true);
     each.addEventListener('blur', unfocused);
@@ -65,7 +71,8 @@ function watch(each) {
 // - A `transient` one is also dismissed by a scroll outside it, a resize and the keyboard leaving the page and its
 //   overlay. One that stays through a resize is placed again, against what it hangs from where that is now.
 // - Dismissing calls `onDismiss`; `close()` plays the exit, `fast` or `base` long by `speed`, or none for null, takes
-//   the element away and gives the focus back to what had it in the overlay as it was presented.
+//   the element away and gives the focus back to what had it in the overlay as it was presented. What a key presents
+//   or closes comes and goes at once, whatever its `speed`.
 function present({
     element = null,
     anchor = null,
@@ -91,10 +98,10 @@ function present({
         onKey,
         dismiss: () => onDismiss(),
         place: () => (anchor || rect || point || beside) && PLACE.place(element, { anchor, rect, point, beside, gap }),
-        close: () => close(presented, speed),
+        close: () => close(presented, input === 'key' ? null : speed),
     };
     stack.push(presented);
-    if (element) show(presented);
+    if (element) show(presented, speed === null || input === 'key');
     return presented;
 }
 
@@ -120,17 +127,21 @@ function escape() {
 }
 
 // MARK: - Private
-// The element arrives from its closed state: laid out closed first, or both states land in one style pass.
-function show(presented) {
+// The element arrives from its closed state: laid out closed first, or both states land in one style pass. A `still`
+// one is in its open state at once.
+function show(presented, still) {
     const { element } = presented;
     if (!backdrop) backdrop = LAYER.add(Object.assign(document.createElement('div'), { className: 'deckit-backdrop' }));
     element.classList.add('deckit-surface');
     if (!element.hasAttribute('tabindex')) element.tabIndex = -1;
     element.dataset.state = 'closed';
+    element.toggleAttribute('data-still', still);
     presented.layer = LAYER.add(element);
     presented.place();
     void element.offsetHeight;
     element.dataset.state = 'open';
+    void element.offsetHeight;
+    element.removeAttribute('data-still');
     presented.layer.focus();
 }
 
@@ -154,6 +165,11 @@ function close(presented, speed) {
     const length = speed ? Math.max(TOKEN.MOTION.move[speed], TOKEN.MOTION.fade) : 0;
     if (length) setTimeout(() => element.dataset.state === 'closed' && layer.remove(), length);
     else layer.remove();
+}
+
+function heed(view) {
+    view.addEventListener('keydown', () => (input = 'key'), true);
+    view.addEventListener('pointerdown', () => (input = 'pointer'), true);
 }
 
 function dismissOutside(event) {
