@@ -821,6 +821,11 @@ async function run({
             stacked && stackSeen.right === 12 && stackSeen.bottom === 12 && stackSeen.top >= titleBottom,
             JSON.stringify({ stackSeen, titleBottom })
         );
+        // A failure stays until it is closed: closed here, so its overlay is off the page for what follows.
+        await settingsOverlay?.evaluate(
+            `document.querySelectorAll('.deckit-toast button[title="Close"]').forEach((close) => close.click())`
+        );
+        await until(async () => !(await settingsOverlay?.evaluate(`!!document.querySelector('.deckit-toast')`)), 3000);
         // A folder whose package file names a mod not installed is dry run through deckit/packages: the sheet shows
         // what it depends on and why it cannot install, and offers no install.
         const needsAbsent = path.join(home, '..', 'needs-absent');
