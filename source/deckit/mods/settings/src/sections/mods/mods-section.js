@@ -39,8 +39,8 @@ function modsSection({
     const GLYPH = 'puzzle';
     const PACKAGES = 'deckit/packages';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
-    // What a mod that loads but is not running is doing, by its run's state: one starting or stopping says it by a
-    // spinner beside its name, with the word as its title.
+    // What a mod that loads but is not running is doing, by its run's state, said quietly beside its name; one starting
+    // or stopping shows a spinner besides.
     const STATE_WORDS = { launching: 'starting', terminating: 'stopping', notRunning: 'stopped' };
     const BUSY = ['launching', 'terminating'];
     // How long a restart asked here is shown at least: one that ends sooner would only flicker.
@@ -99,6 +99,14 @@ function modsSection({
         .settings-mod-name-cell .deckit-app-icon { margin-right: 4px; }
         .settings-mod-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .settings-mod-name[data-not-loaded] { color: var(--deckit-muted); }
+        .settings-mod-state {
+            flex: 0 0 auto;
+            margin-left: 4px;
+            color: var(--deckit-muted);
+            font: var(--deckit-type-small);
+            white-space: nowrap;
+        }
+        .settings-mod-state[hidden] { display: none; }
         .settings-mod-busy { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
         .settings-mod-busy[hidden] { display: none; }
         .settings-mod-version {
@@ -226,6 +234,7 @@ function modsSection({
         const row = ui.row();
         const caret = ui.element('span', { className: 'settings-caret' });
         const name = ui.element('span', { className: 'settings-mod-name' });
+        const runState = ui.element('span', { className: 'settings-mod-state' });
         const busy = ui.element('span', { className: 'settings-mod-busy' });
         const nameCell = ui.element('span', { className: 'settings-mod-name-cell' });
         const version = ui.element('span', { className: 'settings-mod-version' });
@@ -248,8 +257,7 @@ function modsSection({
         });
         const source = chip({ ui, text: 'source', muted: true });
         const failure = ui.element('div', { className: 'settings-mod-failure' });
-        // A mod that is only not running, and an interface it uses that reaches no one, stop nothing, so they are said
-        // quietly, not as a fault.
+        // An interface it uses that reaches no one stops nothing, so it is said quietly, not as a fault.
         const note = ui.element('div', { className: 'settings-mod-note' });
         const details = modDetails({ ui, mods, pins, tildify, onPinnedChange: onChange });
 
@@ -257,7 +265,7 @@ function modsSection({
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
         busy.append(ui.spinner({ size: 11 }).element);
         let icon = ui.appIcon('', { size: 'row' });
-        nameCell.append(caret, icon, name, busy);
+        nameCell.append(caret, icon, name, runState, busy);
         actions.append(relaunchAction.element, revealAction.element, removeAction.element, source.element);
         row.element.append(nameCell, version, contributions, actions, failure, note);
         // Selectable: this is what gets pasted into a bug report.
@@ -288,6 +296,8 @@ function modsSection({
                 icon = next;
             }
             name.toggleAttribute('data-not-loaded', !!mod.notLoaded);
+            runState.textContent = !mod.failed && mod.notLoaded ? mod.notLoaded : '';
+            runState.hidden = !runState.textContent;
             busy.hidden = !mod.restarting && !BUSY.includes(mod.state);
             busy.title = mod.restarting ? 'restarting' : busy.hidden ? '' : STATE_WORDS[mod.state];
             version.textContent = mod.version || NO_VALUE;
@@ -308,10 +318,8 @@ function modsSection({
                 .filter(Boolean)
                 .join('\n');
             failure.hidden = !failure.textContent;
-            note.textContent = [
-                !mod.failed && mod.notLoaded && sentence(mod.notLoaded),
-                ...(mod.uses || []).map((use) => use.problem),
-            ]
+            note.textContent = (mod.uses || [])
+                .map((use) => use.problem)
                 .filter(Boolean)
                 .join('\n');
             note.hidden = !note.textContent;
