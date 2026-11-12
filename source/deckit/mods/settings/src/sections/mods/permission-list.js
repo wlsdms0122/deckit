@@ -14,7 +14,7 @@ const PERMISSION_LIST_STYLE = `
         justify-content: center;
         width: 28px;
         height: 28px;
-        border-radius: 7px;
+        border-radius: var(--deckit-radius-medium);
         background: color-mix(in srgb, var(--deckit-accent) 16%, transparent);
         color: var(--deckit-accent);
     }
@@ -25,19 +25,19 @@ const PERMISSION_LIST_STYLE = `
         column-gap: 8px;
         line-height: 1.45;
     }
-    .settings-permission-name { font: 600 13.5px var(--deckit-font); }
-    .settings-permission-id { overflow-wrap: anywhere; font: 11.5px var(--deckit-mono); opacity: 0.5; }
-    .settings-permission-reason {
-        margin-top: 2px;
+    .settings-permission-name { font: 600 var(--deckit-type-body); }
+    .settings-permission-id {
         overflow-wrap: anywhere;
-        font: var(--deckit-type-body);
-        opacity: 0.85;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-small);
+        font-family: var(--deckit-mono);
     }
+    .settings-permission-reason { margin-top: 2px; overflow-wrap: anywhere; font: var(--deckit-type-body); }
     .settings-permission-description {
         margin-top: 4px;
         overflow-wrap: anywhere;
+        color: var(--deckit-muted);
         font: var(--deckit-type-small);
-        opacity: 0.5;
     }
     .settings-permission-unusable { margin-top: 4px; font: var(--deckit-type-small); color: var(--deckit-warn-ink); }
 `;

@@ -21,13 +21,21 @@ function interfacesSection({ ui, mods }) {
     ui.addStyle(`
         .settings-interface-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; }
         .settings-interface-name { flex: 1 1 auto; min-width: 0; font: 600 var(--deckit-type-body); }
-        .settings-interface-description { padding: 1px 12px 6px; font: var(--deckit-type-small); opacity: 0.5; }
-        .settings-interface-none { padding: 4px 12px 6px 44px; font: 12.5px var(--deckit-font); opacity: 0.4; }
+        .settings-interface-description {
+            padding: 1px 12px 6px;
+            font: var(--deckit-type-small);
+            color: var(--deckit-muted);
+        }
+        .settings-interface-none {
+            padding: 4px 12px 6px 44px;
+            font: var(--deckit-type-small);
+            color: var(--deckit-muted);
+        }
         .settings-interface-majors {
             flex: 0 0 auto;
             font: var(--deckit-type-small);
             font-variant-numeric: tabular-nums;
-            opacity: 0.45;
+            color: var(--deckit-muted);
         }
         .settings-interface-refusal {
             padding: 4px 12px 6px 44px;

@@ -38,8 +38,16 @@ function urlSchemesSection({ ui, urls, appName, onChange }) {
     ui.addStyle(`
         .settings-scheme-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; }
         .settings-scheme-name { flex: 1 1 auto; min-width: 0; font: 600 var(--deckit-type-body); }
-        .settings-scheme-description { padding: 1px 12px 6px; font: var(--deckit-type-small); opacity: 0.5; }
-        .settings-scheme-none { padding: 4px 12px 6px 44px; font: 12.5px var(--deckit-font); opacity: 0.4; }
+        .settings-scheme-description {
+            padding: 1px 12px 6px;
+            font: var(--deckit-type-small);
+            color: var(--deckit-muted);
+        }
+        .settings-scheme-none {
+            padding: 4px 12px 6px 44px;
+            font: var(--deckit-type-small);
+            color: var(--deckit-muted);
+        }
         .settings-scheme-patterns {
             flex: 0 1 auto;
             min-width: 0;
@@ -47,7 +55,7 @@ function urlSchemesSection({ ui, urls, appName, onChange }) {
             text-overflow: ellipsis;
             white-space: nowrap;
             font: var(--deckit-type-small);
-            opacity: 0.45;
+            color: var(--deckit-muted);
         }
         .settings-scheme-refusal {
             padding: 4px 12px 6px 44px;

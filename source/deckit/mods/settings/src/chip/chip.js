@@ -5,10 +5,10 @@ const CHIP_STYLE = `
         padding: 1px 7px;
         border: var(--deckit-border);
         border-radius: var(--deckit-radius-round);
-        font: 11.5px var(--deckit-font);
-        opacity: 0.75;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-caption);
     }
-    .settings-chip[data-muted] { opacity: 0.45; }
+    .settings-chip[data-muted] { color: var(--deckit-disabled); }
     .settings-status {
         display: inline-flex;
         align-items: center;
