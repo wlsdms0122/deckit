@@ -5,7 +5,7 @@ Area: shell
 
 ## Summary
 
-The person works in one window at a time, the one the keyboard goes to. This DECKIT fixes which window is **key** across the two levels [windows](../DECKIT-31/SPEC.md) fixes, one at a time; the **active mod**, the mod of the key window; which mod **may activate**, its window coming in front as the key window: the active mod, and a mod that input reached, or that a request from a mod that may activate reached, until the next input reaches another; what happens to a window of a mod that may not, held right behind the key window, and the **attention** that mod asks for; the name the strip of the host app's window holds; and `active()`, a member of [the handle `shell`](../DECKIT-29/SPEC.md), whether the app is in front.
+The person works in one window at a time, the one the keyboard goes to. This DECKIT fixes which window is **key** across the two levels [windows](../DECKIT-31/SPEC.md) fixes, one at a time; the **active mod**, the mod of the key window; which mod **may activate**, its window coming in front as the key window: the active mod, and a mod that input reached, or that a request from a mod that may activate reached, until the next input reaches another; what happens to a window of a mod that may not, held right behind the key window, and the **attention** that mod asks for; the title of the host app's window; and `active()`, a member of [the handle `shell`](../DECKIT-29/SPEC.md), whether the app is in front.
 
 ## Motivation
 
@@ -20,7 +20,7 @@ The person is typing in another mod's window. Opening a window is a request any 
 - The person presses on a mod's window, and that mod reaches another by its id, which opens a window. One implementation lets it come in front as key, as the person's press led to it, and another holds it back.
 - A mod's window is key, and its mod opens a window at the level `overlay`, which takes the keyboard. One implementation tells the normal window `didResignKey`, and another leaves both windows' `isKey` `true`, so the mod's editor in the normal window draws a caret for keys that go elsewhere.
 - A mod held back asks for the person's attention. One implementation marks it until the person comes to it, another until it closes its window, and a third never clears it.
-- The person types in the overlay window of one mod. One implementation's strip names that mod, another's the mod of the normal window behind it.
+- The person types in the overlay window of one mod. One implementation's title names that mod, another's the mod of the normal window behind it.
 - A mod's keys of the scope `app` run only while the app is in front, and a mod asks `active()` to know which of its keys runs. One implementation answers whether the app is in front, another whether that mod's window is key.
 
 ## Rules
@@ -31,7 +31,7 @@ At most one window is **key** at a time: the window whose content the keyboard g
 
 The **active mod** is the mod of the key window. Where no window is key, no mod is active.
 
-The host app's window has a **strip**, the bar across its top, which holds the name the mod of the desktop's key window is listed by, as [the bundle](../DECKIT-2/SPEC.md) fixes `name`, or the host's name, as [the embedding](../DECKIT-22/SPEC.md) fixes it, where the desktop has no key window.
+The host app's window has a **title**, the name the system lists the window by, which is the name the mod of the desktop's key window is listed by, as [the bundle](../DECKIT-2/SPEC.md) fixes `name`, or the host's name, as [the embedding](../DECKIT-22/SPEC.md) fixes it, where the desktop has no key window.
 
 ### Who may activate
 
@@ -78,7 +78,7 @@ A mod is **held back** where its window is to come in front as the key window, a
 - A mod may activate only where input reached it. A mod the person works in could not open another for them: the person presses a button for a viewer, and its window would open behind.
 - Activation handed until the next activation, not the next input. Each mod that came in front would end what the person handed the others, so a viewer a mod opened would end the hand of the mod the person works in, whose next window would open behind though the person did nothing.
 - A normal window left key while an overlay window holds the keyboard. Its content would be told it has the keyboard while its keys go elsewhere.
-- The strip naming the mod of an overlay window with the keyboard. The strip is the host app's window's, and the overlay window floats over every app outside it; the strip would change as the person types in a floating window, though the desktop under it did not.
+- The title naming the mod of an overlay window with the keyboard. The title is the host app's window's, and the overlay window floats over every app outside it; the title would change as the person types in a floating window, though the desktop under it did not.
 - `active()` answering whether the asking mod is the active mod. A mod asks it to know whether its keys of the scope `app` or of the scope `global` run, which is whether the app is in front, whatever mod is active.
 - The input parted by who gave it: a press of the host's own controls apart from the person's. No rule tells who sent an input, and a host's hand on a window, as [windows](../DECKIT-31/SPEC.md) takes it, is the person's.
 

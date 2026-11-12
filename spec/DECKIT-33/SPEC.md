@@ -74,7 +74,7 @@ Each item is marked as this table gives:
 |---|---|
 | running | the app runs |
 | attention | the app asks for attention, as [activation](../DECKIT-32/SPEC.md) fixes a mod held back |
-| active | the app is the mod of the desktop's key window, the mod the strip names, as [activation](../DECKIT-32/SPEC.md) fixes them, whether or not an overlay window holds the keyboard |
+| active | the app is the mod of the desktop's key window, the mod the host app's window's title names, as [activation](../DECKIT-32/SPEC.md) fixes them, whether or not an overlay window holds the keyboard |
 
 ### Opening an app
 
@@ -120,7 +120,7 @@ Each is refused as [the shell](../DECKIT-29/SPEC.md) refuses a request, first, e
 - A field a layer adds, and `name`: [the bundle](../DECKIT-2/SPEC.md). `deckit.mods`: [the permissions](../DECKIT-3/SPEC.md). The catalog's order, `remove` and `erase`: [the catalog](../DECKIT-4/SPEC.md). A run's states, `launch`, `quit`, a background mod and its run launched again: [the lifecycle](../DECKIT-5/SPEC.md).
 - A layer a host stacks, what it is handed, and what a layer keeps of a mod, named under `kept`: [the embedding](../DECKIT-22/SPEC.md).
 - The desktop, its zoom area, the order of the windows, `makeKeyAndOrderFront()`, a minimized window and the overlay windows: [windows](../DECKIT-31/SPEC.md).
-- Input, a request of one mod to another, who may activate, a mod held back and the attention it asks for, the key window, the active mod and the strip: [activation](../DECKIT-32/SPEC.md).
+- Input, a request of one mod to another, who may activate, a mod held back and the attention it asks for, the key window, the active mod and the title: [activation](../DECKIT-32/SPEC.md).
 - The host key `dock`, the input `dock`, the look `dock`, and the base `shell`'s Dock and the person's hand on it: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered
@@ -130,7 +130,7 @@ Each is refused as [the shell](../DECKIT-29/SPEC.md) refuses a request, first, e
 - A mod kept again at the place it held before it was taken out. The Dock would remember a place for each mod it once kept, and the shell would keep, under `kept`, mods that are in no Dock.
 - The ids a host hands filtered to the apps as the host app starts. A host may name a mod it installs later, which would then never be kept.
 - The apps that run and are not kept in the catalog's order. An app the person opens would come in among the others, not after them, where they look for it.
-- The active mark on the mod of an overlay window that has the keyboard. The Dock is drawn on the desktop, as the strip is, and would change as the person types in a window that floats outside the host app's window, though the desktop did not, as [activation](../DECKIT-32/SPEC.md) says of the strip.
+- The active mark on the mod of an overlay window that has the keyboard. The Dock is drawn on the desktop, and would change as the person types in a window that floats outside the host app's window, though the desktop did not, as [activation](../DECKIT-32/SPEC.md) says of the title.
 - A click on an app that runs with no window open doing nothing, or launching it again. A mod whose windows the person closed would be reached from the Dock only by quitting it; `reopen()` lets the mod open what it opens first.
 - `reopen()` called only of an instance with `attach`. A mod whose instance opens a window or a page of another from `reopen()` would need an `attach` that does nothing.
 - A click and `mods.open(id)` doing different things. A mod that opens an app for the person would open it otherwise than the person does from the Dock.
