@@ -38,7 +38,8 @@ const MOTION = Object.freeze({
 // shadow it casts. `sidebar` is the sidebar's material over the window's. `scrim` dims the page under a dialog. The
 // shadow `icon` is a filter, laid under an app icon drawn at 32px and up, following the tile's shape. A window's
 // shadows, `key` for the one with the keyboard and `inactive` for the rest, hold its ring: a wide ambient shadow and a
-// tight contact one in light, and in dark, where a drop shadow reads as glow, an inner light rim besides.
+// tight contact one in light, and in dark, where a drop shadow reads as glow, a light rim besides, the key window's
+// outside its edge, where the content does not cover it, and a deeper shadow.
 const LOOKS = Object.freeze({
     light: {
         accent: '#2a6fdb',
@@ -73,8 +74,8 @@ const LOOKS = Object.freeze({
             sidebar: 'inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.35)',
             icon: 'drop-shadow(0 2px 3px rgba(0,0,0,.45))',
             key:
-                '0 0 0 1px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.10), 0 12px 36px rgba(0,0,0,.5), ' +
-                '0 2px 6px rgba(0,0,0,.3)',
+                '0 0 0 1px rgba(255,255,255,.2), 0 0 0 2px rgba(0,0,0,.6), 0 16px 48px rgba(0,0,0,.65), ' +
+                '0 2px 6px rgba(0,0,0,.4)',
             inactive: '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.35)',
         },
     },
