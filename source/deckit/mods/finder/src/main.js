@@ -188,7 +188,7 @@ class Finder {
             onMade: showMade,
             onMoved: relocate,
             onChanged: listings.load,
-            onStatus: area.showStatus,
+            onFailure: area.showFailure,
         });
         const bar = toolbar({
             ui,

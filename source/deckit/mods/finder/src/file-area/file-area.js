@@ -25,7 +25,6 @@ function fileArea({
         columns: { display: 'flex', overflowX: 'auto', overflowY: 'hidden', padding: '0 0 0 6px' },
     };
     const NEAREST = { block: 'nearest', inline: 'nearest' };
-    const STATUS_DURATION = 2500; // milliseconds
     const STYLE = `
         .finder-files { position: relative; flex: 1 1 auto; min-height: 0; outline: none; }
         .finder-footer {
@@ -35,10 +34,27 @@ function fileArea({
             color: var(--deckit-muted);
             font: var(--deckit-type-small);
         }
+        .finder-footer[data-failure] {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-block: 2px 4px;
+            color: var(--deckit-alert-ink);
+        }
+        .finder-footer-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     `;
     let view = values.get('view', 'columns');
     let sortOrder = values.get('sort', { key: 'name', up: true });
     let startFailure = null;
+    // What the person asked that failed, `{ text, retry, location }`: said in the footer until it is tried again,
+    // another is asked, or another folder is in front.
+    let said = null;
 
     const element = ui.element('div', { className: 'finder-files' });
     const footer = ui.element('div', { className: 'finder-footer' });
@@ -55,7 +71,7 @@ function fileArea({
         draw,
         showSelection,
         reveal,
-        showStatus,
+        showFailure,
         filterBy,
         pickFirstMatch,
         cancelFilter,
@@ -103,7 +119,7 @@ function fileArea({
         if (element.firstChild !== shown[0]) element.replaceChildren(...shown);
         if (asColumns) drawColumns();
         else drawList(loading, failure);
-        footer.textContent = failure || loading ? '' : countText();
+        drawFooter(failure || loading);
         onDraw();
     }
 
@@ -112,7 +128,7 @@ function fileArea({
         if (view === 'columns') draw();
         else {
             list.select(tabs.selection());
-            footer.textContent = countText();
+            drawFooter(false);
         }
     }
 
@@ -121,9 +137,35 @@ function fileArea({
         if (view === 'columns') columns.endElement()?.scrollIntoView(NEAREST);
     }
 
-    function showStatus(text) {
-        footer.textContent = text;
-        setTimeout(draw, STATUS_DURATION);
+    // `text` said in the footer in alert ink, with Try Again where `retry` runs it again; null takes it away.
+    function showFailure(text, retry = null) {
+        if (!text && !said) return;
+        said = text ? { text, retry, location: tabs.location() } : null;
+        drawFooter(false);
+    }
+
+    // The count, or nothing while `blank`, or what failed while it holds.
+    function drawFooter(blank) {
+        if (said && said.location !== tabs.location()) said = null;
+        footer.toggleAttribute('data-failure', !!said);
+        if (!said) {
+            footer.textContent = blank ? '' : countText();
+            return;
+        }
+        const text = ui.element('span', { className: 'finder-footer-text', text: said.text });
+        text.title = said.text;
+        const { retry } = said;
+        const again =
+            retry &&
+            ui.button({
+                label: 'Try Again',
+                size: 'small',
+                onClick: () => {
+                    showFailure(null);
+                    retry();
+                },
+            });
+        footer.replaceChildren(text, ...(again ? [again.element] : []));
     }
 
     function filterBy(typed) {
