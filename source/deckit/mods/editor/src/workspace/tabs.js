@@ -3,16 +3,8 @@ const { iconElement } = require('../icon-element/icon-element.js');
 const { nameOf } = require('../path/path.js');
 
 const TABS_STYLE = `
-    .editor-tabs {
-        display: flex;
-        align-items: flex-end;
-        flex: 0 0 auto;
-        height: 34px;
-        padding: 8px 10px 0;
-        overflow-x: auto;
-        overflow-y: hidden;
-    }
-    .editor-tab-list { display: flex; align-items: stretch; gap: 2px; height: 26px; }
+    .editor-tabs { overflow-x: auto; overflow-y: hidden; }
+    .editor-tab-list { display: flex; align-items: stretch; gap: 2px; height: 32px; }
     .editor-tab {
         display: flex;
         align-items: center;
@@ -20,16 +12,16 @@ const TABS_STYLE = `
         flex: 0 0 auto;
         max-width: 220px;
         overflow: hidden;
-        border-radius: 7px 7px 0 0;
-        font: 12.5px var(--deckit-font);
+        border-radius: var(--deckit-radius-medium);
+        color: var(--deckit-muted);
+        font: var(--deckit-type-body);
         white-space: nowrap;
         cursor: pointer;
-        opacity: 0.65;
         --app-region: no-drag;
         transition: background-color var(--deckit-fade) var(--deckit-easing);
     }
     .editor-tab:hover { background: var(--deckit-hover); }
-    .editor-tab[data-active] { background: var(--deckit-selected); opacity: 1; }
+    .editor-tab[data-active] { background: var(--deckit-selected); color: var(--deckit-text); }
     .editor-tab-icon { display: flex; margin-left: 10px; }
     .editor-tab-label { overflow: hidden; text-overflow: ellipsis; }
     .editor-tab[data-preview] .editor-tab-label { font-style: italic; }
@@ -37,26 +29,26 @@ const TABS_STYLE = `
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 18px;
-        height: 18px;
+        width: 24px;
+        height: 24px;
         margin-right: 4px;
-        border-radius: 4px;
+        border-radius: var(--deckit-radius-control);
+        color: var(--deckit-muted);
         opacity: 0;
+        transition: background-color var(--deckit-fade) var(--deckit-easing);
     }
-    .editor-tab[data-active] .editor-tab-end { opacity: 0.5; }
-    .editor-tab[data-unsaved] .editor-tab-end { opacity: 0.8; }
-    .editor-tab:hover .editor-tab-end { opacity: 0.75; }
+    .editor-tab:is([data-active], [data-unsaved], :hover) .editor-tab-end { opacity: 1; }
+    .editor-tab-end:hover { background: var(--deckit-hover); color: var(--deckit-text); }
     .editor-tab-close { display: flex; }
     .editor-tab-dot { display: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
     .editor-tab[data-unsaved]:not(:hover) .editor-tab-close { display: none; }
     .editor-tab[data-unsaved]:not(:hover) .editor-tab-dot { display: block; }
 `;
 
-// The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab grows in and
-// a closed one folds away, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A switch
-// of workspace draws a new list, so the row is swapped whole and nothing plays. The tab's space is in its icon's and
-// its end's margins, which fold with it. The row is the view's title bar, there with no tab as well: the window is
-// dragged by it.
+// The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab fades in and
+// a closed one leaves at once, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A
+// switch of workspace draws a new list, so the row is swapped whole and nothing plays. The row is the view's title
+// bar, there with no tab as well: the window is dragged by it.
 function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
     let files = [];
     let shownFor = null; // the workspace whose tabs are drawn
