@@ -149,8 +149,8 @@ function seat({ main, pageById, compose, desktop }) {
         await dockClick(id);
         await until(async () => (await keyMod()) === id, 3000);
     };
-    // The desktop as a person sees it, its pages laid one over another from the backdrop up.
-    const desktopShot = async (name) => {
+    // The desktop as a person sees it, its pages laid one over another from the backdrop up, with `compose`'s options.
+    const desktopShot = async (name, options) => {
         const laid = ((await desktopLaid())?.pages || []).filter(({ input }) => !Array.isArray(input) || input.length);
         const from = laid.findIndex(({ name: each }) => each === 'backdrop');
         if (from < 0) return;
@@ -159,7 +159,7 @@ function seat({ main, pageById, compose, desktop }) {
             const session = await pageById(id);
             if (session) layers.push({ session, x: rect.x, y: rect.y, clips });
         }
-        await compose(name, layers);
+        await compose(name, layers, options);
     };
     return { laidNow, desktopLaid, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot };
 }

@@ -58,24 +58,27 @@ function connect({ port, shots, module }) {
 
     // Pages laid one over another, as they are in a window, drawn into one image: `layers` from the bottom, each {
     // session, x, y, clips }, its place in the window and the rounded rects `{ rect, radius }` it is cut to there. Each
-    // is taken clear where it draws nothing.
-    async function compose(name, layers) {
+    // is taken clear where it draws nothing. `crop`, the rect of the window drawn, is the bottom layer's if not given;
+    // `under`, if given, is the source of an async function `(context, scale)` drawing first, in the window's pixels.
+    async function compose(name, layers, { crop = null, under = null } = {}) {
         const images = [];
         for (const { session, x = 0, y = 0, clips = [] } of layers)
             images.push({ data: await session.capture(), x, y, clips });
         const [bottom] = layers;
-        const png = await bottom.session.evaluate(`(async (images) => {
+        const png = await bottom.session.evaluate(`(async (images, crop) => {
             const drawn = await Promise.all(images.map(async ({ data, x, y, clips }) => {
                 const image = new Image();
                 image.src = 'data:image/png;base64,' + data;
                 await image.decode();
                 return { image, x, y, clips };
             }));
-            const canvas = document.createElement('canvas');
-            canvas.width = drawn[0].image.naturalWidth;
-            canvas.height = drawn[0].image.naturalHeight;
-            const context = canvas.getContext('2d');
             const scale = devicePixelRatio;
+            const canvas = document.createElement('canvas');
+            canvas.width = crop ? Math.round(crop.width * scale) : drawn[0].image.naturalWidth;
+            canvas.height = crop ? Math.round(crop.height * scale) : drawn[0].image.naturalHeight;
+            const context = canvas.getContext('2d');
+            if (crop) context.translate(-crop.x * scale, -crop.y * scale);
+            ${under ? `await (${under})(context, scale);` : ''}
             for (const { image, x, y, clips } of drawn) {
                 context.save();
                 for (const { rect, radius } of clips) {
@@ -87,7 +90,7 @@ function connect({ port, shots, module }) {
                 context.restore();
             }
             return canvas.toDataURL('image/png').split(',')[1];
-        })(${JSON.stringify(images)})`);
+        })(${JSON.stringify(images)}, ${JSON.stringify(crop)})`);
         if (typeof png === 'string') fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(png, 'base64'));
     }
 
