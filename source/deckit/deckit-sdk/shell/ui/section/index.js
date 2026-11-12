@@ -81,6 +81,8 @@ const STYLE = `
     }
     .deckit-crumb:hover { background: var(--deckit-hover); }
     .deckit-crumb[aria-current='page'] { color: var(--deckit-text); font-weight: 600; cursor: default; background: transparent; }
+    /* In a title bar the current part is the view's title, drawn as the bar's title is. */
+    .deckit-title-bar .deckit-crumb[aria-current='page'] { font: 600 var(--deckit-type-heading); }
     .deckit-crumb[data-shrinks] { flex-shrink: 1; min-width: 30px; }
     .deckit-crumb-separator { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
     .deckit-crumb[hidden], .deckit-crumb-separator[hidden] { display: none; }
@@ -183,7 +185,8 @@ function section(
 }
 
 // Where a place is, as its path from the top. The parts that do not fit fold, from the start, into a "…" that
-// lists them; the last part is cut short only once everything before it has folded.
+// lists them; the last part is cut short only once everything before it has folded. In a title bar its current part
+// is the view's title, drawn as `titleBar`'s title is.
 function breadcrumb(ui, { onGo } = {}) {
     const bar = tag('div', 'deckit-breadcrumb');
     let parts = [];
