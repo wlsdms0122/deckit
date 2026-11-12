@@ -9,6 +9,9 @@ const USE_KEPT = 60;
 const NOW_MAX = 3;
 // How long the list waits for slow Now actions before it opens; later ones arrive on their own.
 const NOW_WAIT_MS = 150;
+// The window's width, and the height it grows to with its list, which scrolls past that.
+const WIDTH = 600;
+const TALLEST = 400;
 
 // The list of a Show item for each mod the shell can show, the actions mods set, `given`, by the connection of each,
 // and the actions mods declare to `switcher/actions`, over an overlay window of its own: `show()` opens it, and
@@ -30,10 +33,11 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
     }
 
     // The window comes once the list is drawn over it, and goes with it: the two are one thing on screen. A window that
-    // closes or resigns key where the list did not ask takes the list with it.
+    // closes or resigns key where the list did not ask takes the list with it. It is as tall as the list's content,
+    // TALLEST at most, and steps to a new height at once as the list changes, its top left staying where it is.
     async function show() {
         if (open) return;
-        const current = { list: null, window: null, about: null, submenus: new Map() };
+        const current = { list: null, window: null, about: null, submenus: new Map(), height: TALLEST };
         open = current;
         let supplied;
         try {
@@ -48,14 +52,18 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
             items: supplied.items,
             now: supplied.now,
             onQuery: (raw, submenu) => search(current, raw, submenu),
+            onHeight: (height) => {
+                current.height = Math.min(height, TALLEST);
+                current.window?.resize(WIDTH, current.height);
+            },
             onClose: () => open === current && putAway(),
         });
         current.window = shell.windows.open({
             name: 'main',
             content: document.createElement('div'),
             level: 'overlay',
-            width: 600,
-            height: 400,
+            width: WIDTH,
+            height: current.height,
             didResignKey: () => open === current && putAway(),
             didClose: () => {
                 current.window = null;
