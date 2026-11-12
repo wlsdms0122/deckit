@@ -1,0 +1,10 @@
+id = "status-item"
+name = "Status Item"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+activationPolicy = "accessory"
+view = { parent = "status-bar/items" }
+
+[interfaces]
+uses = { "status-bar/items" = 1 }

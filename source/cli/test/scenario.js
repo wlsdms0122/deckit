@@ -20,6 +20,8 @@ const FOUND = 'source/quick-open-target.js';
 const BROKEN = 'opens-everything';
 // Where the region child's next revision is, which the window probe installs over the one there.
 const NEXT_CHILD = 'region-child-next';
+// A mod that joins the status bar, which the window probe installs.
+const JOINS = 'status-item';
 // A mod removed with its data whose web sessions were not cleared then, so what deck keeps of it is erased at start.
 const REMOVED = 'removed-with-data';
 // The Browser's tabs brought back: the one in front, and the one behind it, asleep.
@@ -34,6 +36,7 @@ function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
     fs.rmSync(path.join(mods, PROBE), { recursive: true });
+    fs.renameSync(path.join(mods, JOINS), path.join(data, JOINS));
     shipProbe({ data, app });
     const next = path.join(data, NEXT_CHILD);
     fs.cpSync(path.join(__dirname, 'mods', 'region-child'), next, { recursive: true });
@@ -217,6 +220,35 @@ async function run({
         'the desktop starts with the windows of the apps that run, its strip an empty bar that drags the window',
         windowsAtLaunch.every(({ mod }) => runsAtStart(mod)) && (await stripText()) === '',
         JSON.stringify({ windows: windowsAtLaunch.map(({ mod }) => mod), strip: await stripText() })
+    );
+    // The status bar: a capsule 28 high in the host's bar, 8 in from its right end and centred on it, its children's
+    // views in a row in it, 24 high, the Notifications bell, an icon's item, then the clock, told wider.
+    const capsuleNow = async () => {
+        const stack = await stackNow();
+        const bar = stack.find(
+            ({ opener, name }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(name)
+        );
+        const item = (id) => stack.find(({ url }) => url.startsWith(`deckit://${id}.mod`))?.rect ?? null;
+        return { bar: bar?.rect ?? null, bell: item('notifications'), clock: item('clock'), joined: item(JOINS) };
+    };
+    const screenWidth = (await desktopLaid())?.rect.width;
+    const capsule =
+        (await until(async () => {
+            const now = await capsuleNow();
+            return now.bar && now.bell && now.clock && now.clock.width > 32 && now;
+        }, 8000)) || (await capsuleNow());
+    check(
+        'the status bar stands at the top right of the host bar, the bell and the clock in a row in it',
+        (({ bar, bell, clock }) =>
+            bar?.height === 28 &&
+            bar.y === 12 &&
+            bar.x + bar.width === screenWidth - 8 &&
+            [bell, clock].every((item) => item?.height === 24 && item.y === bar.y + 2) &&
+            bell.x === bar.x + 2 &&
+            bell.width === 32 &&
+            clock.x === bell.x + bell.width + 4 &&
+            clock.x + clock.width === bar.x + bar.width - 2)(capsule),
+        JSON.stringify({ ...capsule, screenWidth })
     );
     // The Dock slides out as the pointer comes to its sliver at the desktop's edge, the only part of the desktop's page
     // that takes the pointer there, and its item is pressed as a person presses it.
@@ -680,13 +712,15 @@ async function run({
         const settled = namesOf(await stackNow());
         const frames = settled.filter((name) => /^frame-/.test(name));
         check(
-            "the backdrop is under every window, each window's frame under its content and its buttons over it, and the desktop's page over them",
+            "the backdrop is under every window, each window's frame under its content and its buttons over it, and the desktop's page over them, under the panel windows alone",
             frames.length > 3 &&
                 settled.indexOf('backdrop') < settled.indexOf(frames[0]) &&
                 frames.every(
                     (name) => settled.indexOf(name.replace('frame-', 'buttons-')) > settled.indexOf(name) + 1
                 ) &&
-                settled.at(-1).startsWith('deckit://desktop'),
+                settled
+                    .slice(settled.lastIndexOf('deckit://desktop') + 1)
+                    .every((name) => !/^(frame|buttons)-/.test(name)),
             JSON.stringify(settled)
         );
         // A menu opened from a window behind the key window is drawn at that window, over all.
@@ -2223,6 +2257,43 @@ async function run({
             return typeof now === 'number' && now !== was;
         }, 8000);
         check("a shown mod's next revision loads in a page of its own", loaded, '');
+        // A mod installed that names the status bar's interface as its view's parent joins it, an icon's item at the
+        // end of the row, and the capsule grows by it and a gap.
+        const unjoined = await capsuleNow();
+        await probe.evaluate(
+            `document.dispatchEvent(new CustomEvent('test-install-from', { detail: ${JSON.stringify(path.join(home, '..', JOINS))} }))`
+        );
+        await probeWindow.press('#install');
+        const joined =
+            (await until(async () => {
+                const now = await capsuleNow();
+                return now.joined && now.bar?.width === unjoined.bar?.width + 36 && now;
+            }, 8000)) || (await capsuleNow());
+        check(
+            'a mod that joins the status bar is laid at the end of its row, and the capsule grows to hold it',
+            joined.joined?.width === 32 &&
+                joined.joined.x === joined.bar.x + joined.bar.width - 34 &&
+                joined.bar.x + joined.bar.width === unjoined.bar.x + unjoined.bar.width,
+            JSON.stringify({ unjoined, joined })
+        );
+        // A press on the bell opens the list of notifications over the app, and leaves the key window key: the press
+        // is a panel window's, and the list takes the keyboard only as the host gives it (DECKIT-31).
+        const listNow = async () =>
+            (await laidNow())
+                .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
+                .find(
+                    ({ opener, name }) =>
+                        opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
+                ) ?? null;
+        const keyBeforeBell = await keyMod();
+        await (await page('deckit://notifications.mod'))?.press('.deckit-bar-item');
+        const bellList = await until(async () => (await listNow())?.rect.height === 440 && listNow(), 4000);
+        check(
+            'a press on the bell opens the list of notifications, and the key window stays key',
+            bellList && keyBeforeBell && (await keyMod()) === keyBeforeBell,
+            JSON.stringify({ list: await listNow(), key: await keyMod(), keyBeforeBell })
+        );
+        await show('window-probe');
 
         // A folder and a file dragged in from outside the app and dropped on the probe's destination: it hears the drag
         // come and go, then the files by their paths at the point they landed.
