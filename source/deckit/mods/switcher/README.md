@@ -31,7 +31,7 @@ An action, as the first three answer it:
 | Field | What it is |
 |---|---|
 | `label`, `hint` | its text, and a line beside it. An action with no `label` is left out |
-| `icon` | a kit icon string |
+| `icon` | a kit icon string. An action with none shows no icon, but on the Now strip, where it shows its mod's |
 | `group` | the group it is listed in under the mod, whose name it is found by too |
 | `tone` | `info`, `ok`, `warn` or `alert` |
 | `attention` | asks for the eye once |

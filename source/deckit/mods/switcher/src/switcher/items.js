@@ -35,14 +35,15 @@ function listed({ actions, shown, about }) {
 }
 
 // An action of `mod` as an item in its section as `about` draws it: listed, of the Now strip, or answered under
-// `kind`, the query or the submenu it answers.
+// `kind`, the query or the submenu it answers. It shows its own icon, or none: only a row of the Now strip, which no
+// section names, shows its mod's, and its tone colours it.
 function itemOf(kind, mod, action, about) {
     const section = sectionOf(mod, about);
     return {
         ...blank(section),
         ...action,
         id: idOf(kind, mod, action.label, action.value, action.command ?? '', action.args ?? null),
-        icon: action.icon || section.icon,
+        icon: action.icon || (kind === 'now' ? section.icon : ''),
         keywords: action.keywords.join(' '),
         mod,
     };
