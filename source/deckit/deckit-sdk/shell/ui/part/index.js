@@ -12,10 +12,16 @@ const STYLE = `
     }
     :where(input, textarea, .deckit-field, .deckit-stepper) { outline-offset: -2px; }
     ::placeholder { color: var(--deckit-placeholder); opacity: 1; }
+    ::selection { background: color-mix(in srgb, var(--deckit-accent) 24%, transparent); }
+    :root {
+        caret-color: var(--deckit-accent);
+        scrollbar-color: color-mix(in srgb, var(--deckit-muted) 60%, transparent) transparent;
+        overscroll-behavior: none;
+    }
     .deckit-pressable { transition: background-color var(--deckit-fade) var(--deckit-easing); }
     .deckit-pressable:hover { background: var(--deckit-hover); }
     .deckit-pressable:active { background: var(--deckit-pressed); }
-    .deckit-pressable:disabled { background: transparent; }
+    .deckit-pressable:is(:disabled, [aria-disabled='true']) { background: transparent; }
     .deckit-title-bar {
         box-sizing: border-box;
         min-height: var(--deckit-title-bar-area-height, 0px);

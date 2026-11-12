@@ -155,7 +155,7 @@ function splitView(ui, { sidebar, content, width: given = MIN, collapsed: folded
         element.style.setProperty('--deckit-split-width', px + 'px');
         element.toggleAttribute('data-collapsed', collapsed);
         handle.setAttribute('aria-expanded', String(!collapsed));
-        handle.title = collapsed ? 'Show Sidebar' : 'Hide Sidebar · drag to resize';
+        handle.title = collapsed ? 'Show Sidebar' : 'Hide Sidebar. Drag to resize.';
         // Folded, what it holds is out of the keyboard's reach too.
         column.inert = collapsed;
     }
