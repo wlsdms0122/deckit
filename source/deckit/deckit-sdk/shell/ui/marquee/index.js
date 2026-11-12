@@ -1,6 +1,5 @@
 import * as PLACE from '../place/index.js';
 import * as GESTURE from '../gesture/index.js';
-import * as LIST from '../list/index.js';
 
 // MARK: - Property
 const STYLE = `
@@ -49,9 +48,7 @@ function marquee(area, { listAt, selection, onSelect }) {
 // drawn inside the box that scrolls the list, and scrolls it at its edges.
 function draw(area, place, down, selection, onSelect, finished) {
     const { list } = place;
-    const rows = [...list.element.children].filter(
-        (child) => !child.hasAttribute(LIST.LEAVING) && list.keyOf(child) != null
-    );
+    const rows = [...list.element.children].filter((child) => list.keyOf(child) != null);
     const keys = rows.map(list.keyOf);
     const boxes = rows.map((row) => row.getBoundingClientRect());
     const before = new Set(down.shiftKey || down.metaKey ? selection().filter((key) => keys.includes(key)) : []);
