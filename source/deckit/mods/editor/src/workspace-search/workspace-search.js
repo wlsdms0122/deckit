@@ -12,8 +12,7 @@ const WORKSPACE_SEARCH_STYLE = `
     .editor-search-gap { height: 6px; }
     .editor-search-folders { display: none; align-items: flex-start; gap: 6px; font: 12px var(--deckit-font); min-width: 0; }
     .editor-search-folders[data-shown] { display: flex; }
-    .editor-search-folders-action { opacity: 0.7; }
-    .editor-search-folders-icon { display: flex; flex: 0 0 auto; opacity: 0.6; padding-top: 3px; }
+    .editor-search-folders-icon { display: flex; flex: 0 0 auto; padding-top: 4px; color: var(--deckit-muted); }
     .editor-search-chips { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 2px 4px; min-width: 0; }
     .editor-search-chips-lead { opacity: 0.6; white-space: nowrap; }
     .editor-search-chip {
@@ -22,8 +21,8 @@ const WORKSPACE_SEARCH_STYLE = `
         gap: 2px;
         max-width: 100%;
         min-width: 0;
-        padding: 1px 2px 1px 6px;
-        border-radius: 5px;
+        padding: 0 0 0 6px;
+        border-radius: var(--deckit-radius-control);
         background: var(--deckit-hover);
     }
     .editor-search-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -146,9 +145,11 @@ function workspaceSearch({ ui, fileSystem, root, folders, onOpen, onReplaceAll }
     const folderLine = ui.element('div', { className: 'editor-search-folders', style: { paddingLeft: EDGE + 'px' } });
     const folderIcon = iconElement(ui, 'editor-search-folders-icon', ui.folderIcon({ open: false, size: 12 }));
     const chips = ui.list({ key: (item) => item.relative, create: chipOf });
-    const folderClear = ui.rowAction({
+    const folderClear = ui.iconButton({
         icon: ui.icon('x', { size: 12 }),
         title: 'Search the whole workspace',
+        size: 'small',
+        muted: true,
         onClick: () => setFolders([]),
     }).element;
     const summary = ui.element('div', { className: 'editor-search-summary' });
@@ -172,7 +173,6 @@ function workspaceSearch({ ui, fileSystem, root, folders, onOpen, onReplaceAll }
     });
     patternRows.append(includeField.element, excludeField.element);
     scopeRows.append(patternRows, ui.element('div', { className: 'editor-search-gap' }), folderField.element);
-    folderClear.classList.add('editor-search-folders-action');
     chips.element.classList.add('editor-search-chips');
     folderLine.append(folderIcon, chips.element, folderClear);
     summary.append(summaryText, filter.element);
@@ -262,12 +262,13 @@ function workspaceSearch({ ui, fileSystem, root, folders, onOpen, onReplaceAll }
         if (item.lead) return ui.element('span', { className: 'editor-search-chips-lead', text: 'Only in' });
         const chip = ui.element('span', { className: 'editor-search-chip' });
         chip.title = item.relative;
-        const remove = ui.rowAction({
+        const remove = ui.iconButton({
             icon: ui.icon('x', { size: 10 }),
             title: 'Not in ' + item.relative,
+            size: 'small',
+            muted: true,
             onClick: () => setFolders(scope.folders.filter((folder) => folder !== item.relative)),
         }).element;
-        remove.classList.add('editor-search-folders-action');
         chip.append(ui.element('span', { className: 'editor-search-chip-name', text: item.relative }), remove);
         return chip;
     }
