@@ -28,19 +28,20 @@ function fileArea({
     const STYLE = `
         .finder-files { position: relative; flex: 1 1 auto; min-height: 0; outline: none; }
         .finder-footer {
-            flex: 0 0 auto;
-            padding: 5px 20px 8px;
-            border-top: var(--deckit-border);
-            color: var(--deckit-muted);
-            font: var(--deckit-type-small);
-        }
-        .finder-footer[data-failure] {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding-block: 2px 4px;
-            color: var(--deckit-alert-ink);
+            flex: 0 0 auto;
+            height: 28px;
+            box-sizing: border-box;
+            padding: 0 16px;
+            border-top: 1px solid var(--deckit-divider);
+            color: var(--deckit-muted);
+            font: var(--deckit-type-small);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
         }
+        .finder-footer[data-failure] { color: var(--deckit-alert-ink); }
         .finder-footer-text {
             flex: 1 1 auto;
             min-width: 0;
