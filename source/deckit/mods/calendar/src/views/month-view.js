@@ -8,7 +8,8 @@ const PLAIN_BUTTON = 'calendar-plain-button';
 const NUMBER_ROW = 28;
 
 // Six weeks from `start`, the days of `month` (0 to 11) in full and the rest stepped back, and the occurrences that
-// fall in them as chips in their colour, a timed one led by its start time. A week shows as many lanes as its height holds, and the rest of a day behind "+n more".
+// fall in them as chips in their colour, a timed one led by its start time. `placeholders`, while the events are read,
+// are 42 skeleton chips, one for each day of the six weeks, drawn on the days of `month`. A week shows as many lanes as its height holds, and the rest of a day behind "+n more".
 function monthView({ ui, detail, onOpenDay }) {
     ui.addStyle(`.${PLAIN_BUTTON} { border: 0; background: transparent; cursor: pointer; }`);
     // The weeks last drawn, and how many lanes fitted each then.
@@ -17,7 +18,7 @@ function monthView({ ui, detail, onOpenDay }) {
 
     return { draw, fitsAsDrawn };
 
-    function draw(into, { start, month, occurrences }) {
+    function draw(into, { start, month, occurrences, placeholders = null }) {
         const now = new Date();
 
         const weekHead = document.createElement('div');
@@ -110,6 +111,16 @@ function monthView({ ui, detail, onOpenDay }) {
                 stack.appendChild(grid);
             }
             if (overflowing) stack.appendChild(moreRow(items, visibleLanes, weekStart));
+            if (placeholders) {
+                const grid = laneGrid(7);
+                for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                    const cell = laneCell(dayIndex, 1);
+                    const day = addDays(weekStart, dayIndex);
+                    if (day.getMonth() === month) cell.appendChild(placeholders[weekIndex * 7 + dayIndex].element);
+                    grid.appendChild(cell);
+                }
+                stack.appendChild(grid);
+            }
             lanes.appendChild(stack);
 
             week.append(numbers, lanes);

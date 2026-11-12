@@ -1,7 +1,7 @@
 const { accountEditor } = require('../accounts/account-editor.js');
 const { WEEKDAYS, MONTHS, addDays, startOfDay, startOfWeek, clockText, dayOf } = require('../date/date.js');
 const { eventDetail } = require('../event-detail/event-detail.js');
-const { STYLE: ENTRY_STYLE } = require('../views/bar.js');
+const { STYLE: ENTRY_STYLE, LANE_HEIGHT } = require('../views/bar.js');
 const { monthView } = require('../views/month-view.js');
 const { paintPastNow } = require('../occurrence/paint.js');
 const { sidebar } = require('../sidebar/sidebar.js');
@@ -167,7 +167,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     const empty = emptyState.element;
     Object.assign(empty.style, { position: 'absolute', inset: '0', display: 'none' });
 
-    // The loading over the first read, from when it starts until it has settled.
+    // The first read, from when it starts until it has settled: `chips`, a skeleton chip for each day of the month.
     let firstLoad = null;
 
     content.append(head, body, empty);
@@ -322,9 +322,9 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         }
         const firstRead = !blank && loading && feeds.all().every((feed) => !reads.has(feed));
         showFirstLoad(firstRead, blank);
-        // Hidden under the overlays, so the window's background material shows through them.
-        head.style.visibility = blank || firstLoad ? 'hidden' : '';
-        body.style.visibility = blank || firstLoad ? 'hidden' : '';
+        // Hidden under the empty state, so the window's background material shows through it.
+        head.style.visibility = blank ? 'hidden' : '';
+        body.style.visibility = blank ? 'hidden' : '';
 
         const [from, to] = rangeOf(mode, cursor);
         // Only a move to another range fades in, so a background refresh of the same range does not blink.
@@ -334,8 +334,9 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
 
         body.textContent = '';
         drawnDay = +startOfDay(new Date());
-        const occurrences = calendar.shownBetween(from, to);
-        if (mode === 'month') month.draw(body, { start: from, month: cursor.getMonth(), occurrences });
+        const occurrences = firstLoad ? [] : calendar.shownBetween(from, to);
+        const placeholders = firstLoad?.chips;
+        if (mode === 'month') month.draw(body, { start: from, month: cursor.getMonth(), occurrences, placeholders });
         else timeGrid.draw(body, { days: daysOf(from, to), occurrences });
         if (navigated) fade(body);
 
@@ -347,24 +348,23 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         });
     }
 
-    // A loading shown stays its least before the view takes its place, so it does not flash; with nothing to show it
-    // goes at once.
+    // The view shows no events while the first read lasts, the month view skeleton chips in its days, made once so they
+    // keep their wait across draws. Chips shown stay their least before the events take their place, so they do not
+    // flash; with nothing to show they go at once.
     function showFirstLoad(reading, blank) {
-        if (reading && !firstLoad) {
-            firstLoad = ui.loading({ text: 'Loading calendars…' });
-            Object.assign(firstLoad.element.style, { position: 'absolute', inset: '0' });
-            content.append(firstLoad.element);
-        }
+        if (reading && !firstLoad)
+            firstLoad = {
+                chips: Array.from({ length: 42 }, () => ui.loading.skeleton({ rows: 1, height: LANE_HEIGHT })),
+            };
         if (reading || !firstLoad) return;
         const going = firstLoad;
         const drop = () => {
-            going.element.remove();
             if (firstLoad === going) firstLoad = null;
         };
         if (blank) return drop();
         if (going.going) return;
         going.going = true;
-        going.settled().then(() => {
+        going.chips[0].settled().then(() => {
             drop();
             render();
         });
