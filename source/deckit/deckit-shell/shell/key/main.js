@@ -102,8 +102,6 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
         if (typeof read.code !== 'string' || !read.code) throw invalid('a chord names its key by its code');
         const name = nameOf(read);
         refuseTaken(name);
-        if ([...taken.values()].some((one) => one.page === page && one.id === id))
-            throw new Error(`${mod} took a chord under ${id} already`);
         let off = null;
         if (scope === 'global') {
             off = KEYS.hotkey(read, () => tell(name));
