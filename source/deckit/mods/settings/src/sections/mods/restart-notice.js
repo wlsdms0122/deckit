@@ -11,19 +11,24 @@ function restartNotice({ ui, mods, mainProcess, appName }) {
             margin: 8px 0 0;
             padding: 8px 8px 8px 10px;
             border: var(--deckit-border);
-            border-radius: 7px;
-            font: 12.5px var(--deckit-font);
-            line-height: 1.5;
+            border-radius: var(--deckit-radius-medium);
+            font: var(--deckit-type-small);
         }
         .settings-restart[hidden] { display: none; }
-        .settings-restart-text { flex: 1 1 auto; min-width: 0; opacity: 0.85; }
+        .settings-restart-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+        .settings-restart-failure { color: var(--deckit-alert-ink); }
+        .settings-restart-failure[hidden] { display: none; }
     `);
     const element = ui.element('div', { className: 'settings-restart' });
-    const text = ui.element('div', { className: 'settings-restart-text' });
+    const words = ui.element('div', { className: 'settings-restart-words' });
+    const text = ui.element('div');
+    const failure = ui.element('div', { className: 'settings-restart-failure' });
     const restart = ui.button({ label: 'Restart ' + appName, size: 'small', onClick: restartApp });
 
     element.hidden = true;
-    element.append(text, restart.element);
+    failure.hidden = true;
+    words.append(text, failure);
+    element.append(words, restart.element);
     return { element, draw };
 
     async function draw(list) {
@@ -53,12 +58,14 @@ function restartNotice({ ui, mods, mainProcess, appName }) {
     async function restartApp() {
         restart.setEnabled(false);
         restart.setLabel('Restarting…');
+        failure.hidden = true;
         try {
             await mods.restart();
         } catch (error) {
             restart.setEnabled(true);
             restart.setLabel('Restart ' + appName);
-            ui.toast('Could not restart: ' + error.message);
+            failure.textContent = 'Could not restart: ' + error.message;
+            failure.hidden = false;
         }
     }
 }

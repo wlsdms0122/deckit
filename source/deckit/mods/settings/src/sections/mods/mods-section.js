@@ -1,17 +1,25 @@
 const { chip } = require('../../chip/chip.js');
-const { NO_VALUE, contributionsOf, nameAndVersion, usageParts, listText } = require('../../format/format.js');
+const {
+    NO_VALUE,
+    contributionsOf,
+    nameAndVersion,
+    shortPath,
+    usageParts,
+    listText,
+} = require('../../format/format.js');
 const { PERMISSION_LIST_STYLE, permissionList } = require('./permission-list.js');
 const { DEPENDENCY_LIST_STYLE, dependencyList } = require('./dependency-list.js');
 const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
 const { section } = require('../section/section.js');
 
-// The Mods section: every mod found in their order, what each contributes, and installing and removing them.
-// `onChange` hears that a mod was installed, removed, restarted or pinned here. Failures and what was done are told
-// in a toast. `mods` is deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a
-// host that runs none; `packages()`, deckit/packages while it is connected, which installs, dry run too; `pins`, the
-// Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination`, `dialogs` and `reveal` the
-// shell's; `tildify(path)` a path as it is shown.
+// The Mods section: every mod found in their order, what each contributes, and installing and removing them. `onChange`
+// hears that a mod was installed, removed, restarted or pinned here. A mod installed is shown by its row, lit; what
+// failed on a row is said on it; a refusal of what was picked, and a mod removed, are told in a toast. `mods` is
+// deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a host that runs none;
+// `packages()`, deckit/packages while it is connected, which installs, dry run too; `pins`, the Dock's pins
+// (shell.mods), or nothing under a shell that has none; `dropDestination`, `dialogs` and `reveal` the shell's;
+// `tildify(path)` a path as it is shown.
 function modsSection({
     ui,
     mods,
@@ -37,9 +45,14 @@ function modsSection({
     const DESCRIPTION =
         'Install a mod from its folder, picked or dropped here, or remove one you no longer need. Open a row to see ' +
         'what it adds, what it needs and where its files are.';
-    const COLUMNS = ['NAME', 'VERSION', 'CONTRIBUTES', ''];
+    const COLUMNS = ['Name', 'Version', 'Contributes', ''];
+    // How long a row just installed stays lit.
+    const HIGHLIGHT_LENGTH = 1200;
 
     const rowFills = new WeakMap(); // row element -> its fill(mod)
+    const rowsById = new Map(); // mod id -> its row element
+    const failures = new Map(); // mod id -> why what was asked on its row did not happen, until the next ask
+    const lighting = new Set(); // the ids of the mods just installed, to light once their rows are drawn
     let listed = null; // what deckit last listed: the mods in their order, and what they do
     const restarting = new Set(); // the ids of the mods a restart asked here is bringing back
 
@@ -53,46 +66,56 @@ function modsSection({
         .settings-mod-head {
             padding: 0 8px 5px;
             border-bottom: var(--deckit-border);
-            font: 700 11px var(--deckit-font);
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            opacity: 0.35;
+            color: var(--deckit-muted);
+            font: var(--deckit-type-label);
         }
         .settings-mod { cursor: pointer; }
-        /* The cells stand at the top, on a first line as tall as a row action (22px): chips that wrap go below it.
+        /* The cells stand at the top, on a first line as tall as a row action (24px): words that wrap go below it.
            What is wrong with the mod goes under them, across the row. */
         .settings-mod-row {
             align-items: start;
             row-gap: 2px;
-            min-height: 34px;
+            min-height: 36px;
             padding-block: 6px;
             font: inherit;
             white-space: normal;
+            transition: background-color var(--deckit-fade) var(--deckit-easing);
         }
-        .settings-mod-name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; height: 22px; }
+        .settings-mod[data-highlighted] .settings-mod-row {
+            background: color-mix(in srgb, var(--deckit-accent) 12%, transparent);
+        }
+        .settings-mod-name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; height: 24px; }
         .settings-caret {
             display: flex;
             flex: 0 0 auto;
             margin-left: -4px;
-            opacity: 0.45;
+            color: var(--deckit-muted);
             transition: transform var(--deckit-move-slow) var(--deckit-easing);
         }
         .settings-mod[data-open] .settings-caret { transform: rotate(90deg); }
         .settings-mod-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .settings-mod-name[data-not-loaded] { opacity: 0.45; }
-        .settings-mod-busy { display: flex; flex: 0 0 auto; opacity: 0.6; }
+        .settings-mod-name[data-not-loaded] { color: var(--deckit-muted); }
+        .settings-mod-busy { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
         .settings-mod-busy[hidden] { display: none; }
         .settings-mod-version {
             flex: 0 0 auto;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font: 11.5px/22px var(--deckit-font);
+            color: var(--deckit-muted);
+            font: var(--deckit-type-small);
+            line-height: 24px;
             font-variant-numeric: tabular-nums;
-            opacity: 0.5;
         }
-        .settings-mod-version[data-missing] { opacity: 0.25; }
-        .settings-mod-contributions { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; padding-block: 2.5px; }
+        .settings-mod-version[data-missing] { color: var(--deckit-disabled); }
+        .settings-mod-contributions {
+            min-width: 0;
+            padding-block: 4px;
+            color: var(--deckit-muted);
+            font: var(--deckit-type-small);
+            overflow-wrap: anywhere;
+        }
+        .settings-mod-contributions[data-missing] { color: var(--deckit-disabled); }
         .settings-mod-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; }
         .settings-mod-actions > [hidden] { display: none; }
         .settings-mod-failure,
@@ -100,12 +123,11 @@ function modsSection({
             grid-column: 1 / -1;
             padding-left: 13px;
             font: var(--deckit-type-small);
-            line-height: 1.5;
             white-space: pre-line;
             word-break: break-word;
         }
         .settings-mod-failure { color: var(--deckit-alert-ink); }
-        .settings-mod-note { opacity: 0.5; }
+        .settings-mod-note { color: var(--deckit-muted); }
         .settings-install-mod { margin: 12px 0 6px; font: 600 var(--deckit-type-body); }
         .settings-install-mod:first-child { margin-top: 0; }
         /* Over the whole section while files are dragged over it, drawn inside it, so nothing of it is cut. The
@@ -132,7 +154,7 @@ function modsSection({
         }
         .settings-mods[data-targeted] .settings-drop { opacity: 1; }
         .settings-drop-icon { display: flex; color: var(--deckit-target); }
-        .settings-install-note { margin-top: 10px; font: var(--deckit-type-small); line-height: 1.5; opacity: 0.5; }
+        .settings-install-note { margin-top: 10px; color: var(--deckit-muted); font: var(--deckit-type-small); }
     `);
     ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE + DEPENDENCY_LIST_STYLE);
     const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
@@ -178,6 +200,14 @@ function modsSection({
     async function render() {
         const kept = pins ? await pins.pinned().catch(() => []) : [];
         rows.set(modRowsOf({ ...listed, pinned: new Set(kept) }));
+        for (const id of lighting) {
+            const row = rowsById.get(id);
+            if (!row?.isConnected) continue;
+            lighting.delete(id);
+            row.scrollIntoView({ block: 'nearest' });
+            row.toggleAttribute('data-highlighted', true);
+            setTimeout(() => row.toggleAttribute('data-highlighted', false), HIGHLIGHT_LENGTH);
+        }
     }
 
     // A row opens and closes by a press, and stays as it is when the list is drawn again.
@@ -232,6 +262,7 @@ function modsSection({
             showOpen(true);
         });
         rowFills.set(element, fill);
+        rowsById.set(mod.id, element);
         fill(mod);
         showOpen(false);
         return element;
@@ -245,17 +276,15 @@ function modsSection({
             busy.title = mod.restarting ? 'restarting' : busy.hidden ? '' : STATE_WORDS[mod.state];
             version.textContent = mod.version || NO_VALUE;
             version.toggleAttribute('data-missing', !mod.version);
-            contributions.replaceChildren(
-                ...(labels.length ? labels : [NO_VALUE]).map(
-                    (text) => chip({ ui, text, muted: !labels.length }).element
-                )
-            );
+            contributions.textContent = labels.length ? sentence(labels.join(', ')) : NO_VALUE;
+            contributions.toggleAttribute('data-missing', !labels.length);
             relaunchAction.element.hidden = !mod.state || mod.restarting;
             removeAction.element.hidden = !mod.installed;
             source.element.hidden = !!(mod.installed || mod.shipped);
             source.element.title =
                 `Read from ${mod.folder || 'a source folder'}, ` + 'not installed: it is removed there, not here.';
             failure.textContent = [
+                failures.get(mod.id),
                 mod.notLoaded || mod.problem,
                 ...(mod.hides || []).map((folder) => `${folder} has the same id and is not read`),
                 ...mod.refused,
@@ -287,7 +316,7 @@ function modsSection({
                 message: 'Pick the folders that have manifest.toml in them',
             });
         } catch (error) {
-            return ui.toast('Could not install: ' + error.message);
+            return ui.toast('Could not choose folders: ' + error.message, { kind: 'failure' });
         }
         askAndInstall(await Promise.all(folders.map(planOf)));
     }
@@ -312,7 +341,7 @@ function modsSection({
         const refused = picked.filter((entry) => entry.problem);
         const plans = picked.filter((entry) => !entry.problem);
         if (!plans.length) {
-            if (refused.length) ui.toast(refusalText(refused));
+            if (refused.length) refuse(refused);
             return;
         }
         const unmet = plans.filter((plan) => plan.dependencies.some((dependency) => !dependency.satisfied));
@@ -350,19 +379,34 @@ function modsSection({
         });
     }
 
+    // What installs is lit in the list; what did not is told, with a retry.
     async function installPicked(plans, refused) {
-        const done = [];
         const failed = [];
         for (const plan of plans) {
             try {
                 const installed = await service().install(plan.folder);
-                done.push(`${installed.replaces ? 'Replaced' : 'Installed'} ${nameAndVersion(installed)}.`);
+                lighting.add(installed.id);
             } catch (error) {
-                failed.push(`Could not install ${plan.name}: ${error.message}`);
+                failed.push({ plan, problem: error.message });
             }
         }
-        ui.toast([...done, ...failed, refused.length ? refusalText(refused) : ''].filter(Boolean).join(' '));
-        if (done.length) onChange();
+        if (refused.length) refuse(refused);
+        if (failed.length)
+            ui.toast(
+                failed.map(({ plan, problem }) => `Could not install ${plan.name}: ${pathsCut(problem)}`).join(' '),
+                {
+                    kind: 'failure',
+                    action: {
+                        label: 'Try Again',
+                        run: () =>
+                            installPicked(
+                                failed.map(({ plan }) => plan),
+                                []
+                            ),
+                    },
+                }
+            );
+        if (lighting.size) onChange();
     }
 
     function service() {
@@ -371,10 +415,22 @@ function modsSection({
         return connected;
     }
 
-    function refusalText(refused) {
-        return refused
-            .map(({ folder, problem }) => `Could not install ${folder.split('/').pop()}: ${problem}`)
+    // Folders picked that hold no mod, or one refused as it is: said in their words, with a way to pick again.
+    function refuse(refused) {
+        const text = refused
+            .map(({ folder, problem }) => {
+                const name = folder.split('/').pop();
+                return /^no manifest\.toml in /.test(problem)
+                    ? `${name} is not a mod folder: it has no manifest.toml.`
+                    : `Could not install ${name}: ${pathsCut(problem)}`;
+            })
             .join(' ');
+        ui.toast(text, { kind: 'failure', action: { label: 'Choose Another Folder…', run: pickAndInstall } });
+    }
+
+    // `text` with each path in it cut in the middle.
+    function pathsCut(text) {
+        return text.replace(/\/[^\s:,]+/g, (path) => shortPath(path));
     }
 
     // What each mod planned depends on and asks for, each list headed by its name.
@@ -413,10 +469,11 @@ function modsSection({
 
     async function askRemove(mod) {
         let places;
+        failed(mod, '');
         try {
             places = usageParts(await mods.usage(mod.id));
         } catch (error) {
-            return ui.toast('Could not tell what it stores: ' + error.message);
+            return failed(mod, 'Could not tell what it stores: ' + error.message);
         }
         const hasData = places.length > 0;
         ui.dialog({
@@ -441,12 +498,13 @@ function modsSection({
     // The mod restarts, its row saying so until it is back.
     async function relaunch(mod) {
         const shown = new Promise((resolve) => setTimeout(resolve, RESTART_SHOWN_MS));
+        failures.delete(mod.id);
         restarting.add(mod.id);
         render();
         try {
             await Promise.all([mods.relaunch(mod.id), shown]);
         } catch (error) {
-            return ui.toast('Could not restart: ' + error.message);
+            return failures.set(mod.id, 'Could not restart: ' + error.message);
         } finally {
             restarting.delete(mod.id);
             render();
@@ -459,10 +517,22 @@ function modsSection({
         try {
             ({ erased } = await mods.remove(mod.id, withData));
         } catch (error) {
-            return ui.toast('Could not remove: ' + error.message);
+            return failed(mod, 'Could not remove: ' + error.message);
         }
         ui.toast(`Removed ${mod.name}${erased ? ' and its data' : ''}.`);
         onChange();
+    }
+
+    // `text` on the row of `mod`, in place of what failed there before; empty clears it.
+    function failed(mod, text) {
+        if (text) failures.set(mod.id, text);
+        else failures.delete(mod.id);
+        render();
+    }
+
+    // The first letter of `text` in capitals.
+    function sentence(text) {
+        return text.charAt(0).toUpperCase() + text.slice(1);
     }
 
     // One row per mod of `list`, in the mods' order whether it loads or not, each in its place whatever its run, as

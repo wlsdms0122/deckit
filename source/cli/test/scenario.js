@@ -795,7 +795,7 @@ async function run({
         await dropping;
         const toastText = `document.querySelector('.deckit-toast')?.textContent || ''`;
         const refusedDrop = await until(
-            async () => /^Could not install not-a-mod: /.test(await settingsOverlay?.evaluate(toastText)),
+            async () => /^not-a-mod is not a mod folder: /.test(await settingsOverlay?.evaluate(toastText)),
             4000
         );
         check(
