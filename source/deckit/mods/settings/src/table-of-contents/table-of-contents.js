@@ -9,7 +9,8 @@ function tableOfContents({ ui, scroller, sections }) {
     let glideTimer = null;
 
     ui.addStyle(`
-        .settings-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+        /* No heading: the window's title names what the rows are of. */
+        .settings-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; padding-top: 10px; }
         .settings-contents-label {
             flex: 1 1 auto;
             min-width: 0;
@@ -19,13 +20,11 @@ function tableOfContents({ ui, scroller, sections }) {
         }
     `);
     const element = ui.element('div', { className: 'settings-sidebar' });
-    const contents = ui.section({ label: 'Table of Contents', icon: ui.icon('tableOfContents', { size: 16 }) });
     const rows = new Map(); // section -> its row
     const list = ui.list({ key: (section) => section.title, create: contentsRow });
 
     list.set(sections);
-    contents.body.append(list.element);
-    element.append(contents.element);
+    element.append(list.element);
     scroller.addEventListener('scrollend', () => {
         if (gliding) land();
     });
