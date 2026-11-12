@@ -5,8 +5,11 @@ function folderStatus({ ui, chordOf, onShowHidden, onReveal, onPrivacySettings }
     const STYLE = `
         .finder-status-message { padding: 18px 8px; color: var(--deckit-muted); }
         .finder-status-screen { position: absolute; inset: 0; }
+        .finder-status-screen.deckit-skeleton { padding: 4px 12px; }
     `;
 
+    // The rows the folder's skeleton draws while it is read.
+    const LOADING_ROWS = 6;
     const element = ui.element('div');
     let loading = null; // the loading screen up, { element, settled }
     let leaving = null; // its least time running out
@@ -28,7 +31,7 @@ function folderStatus({ ui, chordOf, onShowHidden, onReveal, onPrivacySettings }
     function draw({ folder, loading: waiting, failure, isEmpty, filtering, hasHidden }) {
         if (waiting) {
             if (!loading) {
-                loading = ui.loading({ text: 'Loading…' });
+                loading = ui.loading.skeleton({ rows: LOADING_ROWS, height: 28 });
                 loading.element.classList.add('finder-status-screen');
             }
             if (element.firstChild !== loading.element) element.replaceChildren(loading.element);
