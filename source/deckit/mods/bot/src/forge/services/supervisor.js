@@ -40,7 +40,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     Object.assign(bar.style, { display: 'flex', flex: '1 1 auto', minWidth: '0', alignItems: 'center', gap: '10px' });
 
     const body = document.createElement('div');
-    Object.assign(body.style, { flex: '1 1 auto', minHeight: '0', overflowY: 'auto', padding: '10px 12px' });
+    Object.assign(body.style, { flex: '1 1 auto', minHeight: '0', overflowY: 'auto', padding: '16px' });
     ui.edgeFade(body);
 
     const LOG_MIN = 90,
@@ -101,44 +101,29 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     ui.edgeFade(logBody);
     ui.selectable(logBody);
 
-    const notice = document.createElement('div');
-    Object.assign(notice.style, {
-        display: 'none',
-        margin: '0 0 10px',
-        padding: '8px 12px',
-        borderRadius: 'var(--deckit-radius-medium)',
-        border: 'var(--deckit-border)',
-        font: 'var(--deckit-type-body)',
-    });
     // What went wrong in words that say what to do, with a retry and the system's own words under Details.
-    const noticeText = document.createElement('div');
-    const noticeMore = document.createElement('details');
-    const noticeSummary = document.createElement('summary');
-    const noticeRaw = document.createElement('div');
-    noticeSummary.textContent = 'Details';
-    Object.assign(noticeMore.style, {
-        marginTop: '4px',
-        color: 'var(--deckit-muted)',
-        font: 'var(--deckit-type-small)',
-    });
-    Object.assign(noticeRaw.style, { marginTop: '2px', overflowWrap: 'anywhere' });
-    noticeMore.append(noticeSummary, noticeRaw);
-    ui.selectable(noticeRaw);
-    const noticeRetry = ui.button({ label: 'Try Again', size: 'small', onClick: () => load() });
-    noticeRetry.element.style.marginTop = '8px';
-    notice.append(noticeText, noticeMore, noticeRetry.element);
+    // Drawn anew only when what it says changes, so a refresh does not read it out again or close its Details.
+    const notice = ui.notice({});
+    let told = '';
+    notice.element.style.display = 'none';
+    notice.element.style.marginBottom = '16px';
     // The system's words for forge not found, and what they mean to the person.
     const NOT_FOUND = /could not be run: .*ENOENT/;
     const NOT_FOUND_TEXT =
         'Forge is not installed, or not on the PATH this app sees. Set where it is in Settings, under Mod ' +
         'Settings, Forge command.';
-    const tell = (text, { tone, raw = '', retry = false }) => {
-        notice.style.display = 'block';
-        notice.style.borderColor = TONE[tone];
-        noticeText.textContent = text;
-        noticeRaw.textContent = raw;
-        noticeMore.style.display = raw ? '' : 'none';
-        noticeRetry.element.style.display = retry ? '' : 'none';
+    // Nothing to tell hides it.
+    const tell = (text = '', { tone = '', raw = '', retry = false } = {}) => {
+        notice.element.style.display = text ? '' : 'none';
+        const said = [tone, text, raw, retry].join('\n');
+        if (!text || said === told) return;
+        told = said;
+        notice.set({
+            kind: tone === 'alert' ? 'failure' : 'warning',
+            text,
+            details: raw,
+            action: retry ? { label: 'Try Again', run: () => load() } : null,
+        });
     };
 
     const tree = document.createElement('div');
@@ -155,7 +140,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     });
 
     logPane.append(logHead, logBody);
-    body.append(notice, tree, empty);
+    body.append(notice.element, tree, empty);
     const pane = document.createElement('div');
     Object.assign(pane.style, { flex: '1 1 auto', minHeight: '0', display: 'flex', flexDirection: 'column' });
     pane.append(body, logPane);
@@ -439,7 +424,6 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         const error = actionError || state.error;
         const up = !!daemon;
 
-        notice.style.display = 'none';
         if (error && NOT_FOUND.test(error)) tell(NOT_FOUND_TEXT, { tone: 'alert', raw: error, retry: true });
         else if (error) tell(error, { tone: 'alert', retry: true });
         else if (actionNote) tell(actionNote, { tone: 'warn' });
@@ -450,6 +434,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
                     'restart it from here and its services can be run from here too.',
                 { tone: 'warn' }
             );
+        else tell();
 
         if (!tree.firstChild) tree.appendChild(headerRow());
 
