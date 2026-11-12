@@ -665,6 +665,24 @@ async function main() {
             (desk.page().windows.find(({ key }) => key)?.id ?? null) === keyBefore,
         { panelTold, keyBefore, windows: desk.page().windows }
     );
+    // A child of `b` shown in its panel window's region, pressed.
+    const childPage = { name: 'page-c', mod: 'c' };
+    desk.children.runs = [{ run: { mod: { id: 'c' }, state: 'running', summary: { view: true } }, page: childPage }];
+    desk.children.laid.set('b', new Map([['c', { window: 22, rect: { x: 4, y: 2, width: 32, height: 24 } }]]));
+    desk.desktop.update();
+    const keyboardAt = desk.focused.length;
+    desk.pressIn(childPage);
+    check(
+        "a press on a child's view in a panel window reaches the child's mod and leaves the key window key",
+        desk.laid().some(({ page }) => page === childPage) &&
+            desk.focused.length === keyboardAt + 1 &&
+            desk.focused.at(-1)?.name?.startsWith('content-') &&
+            desk.desktop.activation.mayActivate(desk.desktop.localSeat, 'c') &&
+            (desk.page().windows.find(({ key }) => key)?.id ?? null) === keyBefore,
+        { focused: desk.focused.at(-1), windows: desk.page().windows }
+    );
+    desk.children.runs = [];
+    desk.children.laid.clear();
     desk.desktop.closePanel(firstPanel);
     check(
         'a panel window closed leaves its place to those opened after it',
@@ -693,6 +711,8 @@ function desktopOver(createDesktop, { state = {} }) {
     const titles = [];
     const focused = [];
     const allowed = new Map(); // a surface's name -> its onOpen
+    const pressed = new Map(); // a page -> what hears it take the keyboard
+    const children = { runs: [], laid: new Map() }; // the children's runs, and where the regions lay them
     let laid = [];
     let size = { width: 1200, height: 800 };
     let resized = () => {};
@@ -722,7 +742,7 @@ function desktopOver(createDesktop, { state = {} }) {
         pages: { whenEnds() {} },
         mods: {
             list: () => mods,
-            runs: () => [],
+            runs: () => children.runs,
             fieldsOf: () => ({}),
             modOf: (page) => page?.mod ?? null,
             onRequest: (listener) => (heard.requests = listener),
@@ -737,7 +757,7 @@ function desktopOver(createDesktop, { state = {} }) {
             return desktopPage;
         },
         allowSurface: (_page, name, onOpen) => allowed.set(name, onOpen),
-        whenFocused() {},
+        whenFocused: (page, listener) => pressed.set(page, listener),
         isAlive: () => true,
         focus: (page) => focused.push(page),
         close() {},
@@ -750,7 +770,12 @@ function desktopOver(createDesktop, { state = {} }) {
     };
     let hostShown = 0;
     const desktop = createDesktop({
-        REGION: { onChange() {}, show() {}, laidOut: () => new Map(), shownElsewhere: () => false },
+        REGION: {
+            onChange() {},
+            show() {},
+            laidOut: (parent) => children.laid.get(parent) ?? new Map(),
+            shownElsewhere: () => false,
+        },
         PAGES,
         OVERLAY: { onChange() {}, withOverlays: (layers) => layers, ownerOf: (page) => page },
         KEY,
@@ -783,6 +808,8 @@ function desktopOver(createDesktop, { state = {} }) {
         hostShown: () => hostShown,
         laid: () => laid,
         frameOf,
+        children,
+        pressIn: (page) => pressed.get(page)?.(),
         resize: (next) => {
             size = next;
             resized();

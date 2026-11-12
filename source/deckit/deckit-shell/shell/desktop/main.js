@@ -44,6 +44,8 @@ export function createDesktop({
     });
     const windows = new Map(); // id -> a normal window, as WINDOWS made it, while it is open
     const panels = new Map(); // id -> a panel window, as WINDOWS made it, while it is open, in the order they opened
+    const inPanels = new Set(); // the children's pages the panel windows' regions show, as last laid
+    const heard = new WeakSet(); // the children's pages whose presses are heard
     const listeners = new Set();
     // The desktop's page, the documents it opened by name, and what it was last told.
     const desktop = { page: null, surfaces: new Map(), sent: '' };
@@ -131,6 +133,14 @@ export function createDesktop({
     function pressPanel(window) {
         if (!panels.has(window.id)) return;
         ACTIVATION.input(LOCAL, window.mod);
+        giveBack();
+    }
+
+    // The local seat pressed a child's view shown in a panel window: as a press in the panel window, its input reached
+    // the child's mod, and the keyboard stays with the key window.
+    function pressPanelChild(page) {
+        if (!inPanels.has(page)) return;
+        ACTIVATION.input(LOCAL, deckit.mods.modOf(page));
         giveBack();
     }
 
@@ -538,6 +548,7 @@ export function createDesktop({
     // anything, at its page's rect. With deckit's core down the desktop's page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
+        inPanels.clear();
         if (down) {
             stage.lay(OVERLAY.withOverlays([{ page: desktop.page, rect: full }]));
             REGION.show(stage, []);
@@ -547,6 +558,12 @@ export function createDesktop({
         const inBar = panelFrames();
         const children = childrenIn([...view, ...inBar.map(({ window, frame }) => ({ id: window.id, frame }))]);
         const laidChildren = new Set(children.map(({ page }) => page));
+        for (const { window, page } of children) {
+            if (!panels.has(window)) continue;
+            inPanels.add(page);
+            if (!heard.has(page)) PAGES.whenFocused(page, () => pressPanelChild(page));
+            heard.add(page);
+        }
         const front = new Map(); // a mod's page -> the frame of its front window on screen
         for (const { window, frame } of inBar) if (!front.has(window.page)) front.set(window.page, frame);
         for (const { id, frame } of view) front.set(windows.get(id).page, frame);
