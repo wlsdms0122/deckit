@@ -60,7 +60,7 @@ function sidebar({
     const section = ui.section({
         label: 'Workspaces',
         icon: ui.icon('folders', { size: 16 }),
-        actions: [{ title: 'Open', run: openMenu }],
+        actions: [{ icon: ui.icon('folderOpen', { size: 16 }), title: 'Open', run: openMenu }],
     });
     const workspaceRows = ui.list({ maxRows: 4, key: (item) => item.key, create: workspaceRowOf });
     const modes = ui.segmented({
