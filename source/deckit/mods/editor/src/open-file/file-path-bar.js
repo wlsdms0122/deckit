@@ -8,14 +8,17 @@ const PATH_BAR_STYLE = `
         gap: 16px;
         flex: 0 0 auto;
         height: 28px;
+        box-sizing: border-box;
         padding: 0 12px 0 7px;
-        border-top: var(--deckit-border);
-        border-bottom: var(--deckit-border);
-        background: var(--deckit-surface);
+        border-bottom: 1px solid var(--deckit-divider);
+        background: var(--deckit-background);
+        font: var(--deckit-type-small);
         white-space: nowrap;
         overflow: hidden;
     }
     .editor-path-bar[hidden] { display: none; }
+    .editor-path-bar .deckit-crumb { font: var(--deckit-type-small); }
+    .editor-path-bar .deckit-crumb[aria-current='page'] { font-weight: 600; }
     .editor-cursor { display: flex; gap: 16px; flex: 0 0 auto; color: var(--deckit-muted); font: var(--deckit-type-small); }
     .editor-cursor-position { font-variant-numeric: tabular-nums; }
 `;
