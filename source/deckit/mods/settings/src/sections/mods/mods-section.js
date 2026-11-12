@@ -241,7 +241,8 @@ function modsSection({
         });
         const source = chip({ ui, text: 'source', muted: true });
         const failure = ui.element('div', { className: 'settings-mod-failure' });
-        // An interface it uses that reaches no one stops nothing, so it is said quietly, not as a fault.
+        // A mod that is only not running, and an interface it uses that reaches no one, stop nothing, so they are said
+        // quietly, not as a fault.
         const note = ui.element('div', { className: 'settings-mod-note' });
         const details = modDetails({ ui, mods, pins, tildify, onPinnedChange: onChange });
 
@@ -285,15 +286,17 @@ function modsSection({
                 `Read from ${mod.folder || 'a source folder'}, ` + 'not installed: it is removed there, not here.';
             failure.textContent = [
                 failures.get(mod.id),
-                mod.notLoaded || mod.problem,
+                (mod.failed && mod.notLoaded) || mod.problem,
                 ...(mod.hides || []).map((folder) => `${folder} has the same id and is not read`),
                 ...mod.refused,
             ]
                 .filter(Boolean)
                 .join('\n');
             failure.hidden = !failure.textContent;
-            note.textContent = (mod.uses || [])
-                .map((use) => use.problem)
+            note.textContent = [
+                !mod.failed && mod.notLoaded && sentence(mod.notLoaded),
+                ...(mod.uses || []).map((use) => use.problem),
+            ]
                 .filter(Boolean)
                 .join('\n');
             note.hidden = !note.textContent;
@@ -537,12 +540,12 @@ function modsSection({
 
     // One row per mod of `list`, in the mods' order whether it loads or not, each in its place whatever its run, as
     // `runs` answers it, is doing: one starting or stopping shows what its run that launched contributed, and says so
-    // by its spinner. `notLoaded` is why one is not running, `problem` what went wrong with one that is. What it
-    // declares and the permissions it asks for are read from its manifest. Each interface it uses is read from
-    // `interfaces`. `shortcuts` are the keys as the Keyboard section read them, `schemes` the schemes as the URL
-    // Schemes section did, `refused` what the services of the interfaces left out of what the mods declare,
-    // `[{ interface, mod, entry, problem }]`, and `failures` why the main process modules of a mod that did not start
-    // did not, by its id.
+    // by its spinner. `notLoaded` is why one is not running, `failed` whether that is a failure rather than its state,
+    // `problem` what went wrong with one that is. What it declares and the permissions it asks for are read from its
+    // manifest. Each interface it uses is read from `interfaces`. `shortcuts` are the keys as the Keyboard section read
+    // them, `schemes` the schemes as the URL Schemes section did, `refused` what the services of the interfaces left
+    // out of what the mods declare, `[{ interface, mod, entry, problem }]`, and `failures` why the main process modules
+    // of a mod that did not start did not, by its id.
     function modRowsOf({ list, runs, interfaces, shortcuts, schemes, refused, failures, pinned }) {
         return list.map((entry) => {
             const manifest = entry.mod ?? {};
@@ -579,11 +582,11 @@ function modsSection({
                         : live.problem || null,
                 };
             // One starting for the first time, or restarting here, is not yet anything but that: its spinner says so.
-            const stopped =
-                run?.problem ||
-                run?.refusal?.message ||
-                (run?.state === 'launching' ? null : STATE_WORDS[run?.state ?? 'notRunning']);
-            return { ...row, notLoaded: entry.refusal?.message || (restarting.has(entry.id) ? null : stopped) };
+            // One that only is not running says so as a state, not as a failure.
+            const here = !restarting.has(entry.id);
+            const failed = entry.refusal?.message || (here && (run?.problem || run?.refusal?.message)) || null;
+            const state = here && run?.state !== 'launching' ? STATE_WORDS[run?.state ?? 'notRunning'] : null;
+            return { ...row, notLoaded: failed || state, failed: !!failed };
         });
     }
 
