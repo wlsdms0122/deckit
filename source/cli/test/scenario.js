@@ -351,13 +351,14 @@ async function run({
         const sizes = await desktop.evaluate(
             `[...new Set([...document.querySelectorAll('.deckit-dock-item')].map((item) => item.offsetWidth + 'x' + item.offsetHeight))].join()`
         );
-        const initial = await desktop.evaluate(
-            `document.querySelector('.deckit-dock-item[data-mod-id="region-parent"]')?.textContent`
-        );
+        const fallback = await desktop.evaluate(`(() => {
+            const src = (id) => document.querySelector('.deckit-dock-item[data-mod-id="' + id + '"] img')?.src;
+            return !!src('region-parent') && src('region-parent') !== src('finder');
+        })()`);
         check(
-            'a mod with no icon has an item as large as the others, with its initial',
-            !String(sizes).includes(',') && initial === 'R',
-            `${sizes} ${initial}`
+            'a mod with no icon has an item as large as the others, with the default icon',
+            !String(sizes).includes(',') && fallback === true,
+            `${sizes} ${fallback}`
         );
 
         // A running mod's Dock item brings its window front as the key window; the others stay open behind it.
@@ -1430,7 +1431,7 @@ async function run({
         await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);
         await show(onScreen);
         const drawn = await desktop.evaluate(
-            `[...document.querySelectorAll('.deckit-dock-item svg')].filter((svg) => svg.children.length).length`
+            `[...document.querySelectorAll('.deckit-dock-item img')].filter((img) => img.naturalWidth > 0).length`
         );
         check("every app's icon is drawn in the Dock", drawn === APPS, drawn);
         const ran = await editorPage.evaluate(`new Promise((resolve) => {

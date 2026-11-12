@@ -1,14 +1,16 @@
-import * as ICON from '../../../deckit-sdk/shell/ui/icon/index.js';
 import * as LIST from '../../../deckit-sdk/shell/ui/list/index.js';
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DOCK from './model/dock.js';
 import * as DECLARED from '../../../deckit-sdk/shell/dock/protocol.js';
 
 // MARK: - Property
-const { SLIVER, WIDTH } = DOCK;
+const { SLIVER, WIDTH, RADIUS } = DOCK;
 // How long the Dock stays out once the pointer has left it.
 const HIDE_DELAY = 400;
-const ITEM = 44;
+// An item: as wide as the card inside its padding, the icon 4px in from its top and sides, the running dot under it.
+const ITEM = Object.freeze({ width: 48, height: 52, inset: 4 });
+// How far right of the card, out, the name label and the menu stand.
+const BESIDE = 8;
 const STYLE = `
     .deckit-dock {
         position: fixed;
@@ -32,54 +34,65 @@ const STYLE = `
         gap: 4px;
         min-height: 0;
         box-sizing: border-box;
-        padding: 8px 0;
+        padding: 8px;
         overflow-y: auto;
-        border-radius: 0 var(--deckit-radius-card) var(--deckit-radius-card) 0;
+        border-radius: 0 ${RADIUS}px ${RADIUS}px 0;
         background: var(--deckit-elevated);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     }
     .deckit-dock-list { display: flex; flex-direction: column; gap: 4px; }
-    .deckit-dock-divider { flex: 0 0 auto; width: 28px; margin: 2px 0; border-top: 1px solid var(--deckit-divider); }
+    .deckit-dock-divider { flex: 0 0 auto; width: 32px; margin: 4px 0; border-top: 1px solid var(--deckit-divider); }
     .deckit-dock-divider[hidden] { display: none; }
     .deckit-dock-item {
         position: relative;
         display: flex;
-        align-items: center;
         justify-content: center;
-        width: ${ITEM}px;
-        height: ${ITEM}px;
-        padding: 0;
+        width: ${ITEM.width}px;
+        height: ${ITEM.height}px;
+        box-sizing: border-box;
+        padding: ${ITEM.inset}px 0 0;
         border: 0;
-        border-radius: var(--deckit-radius-large);
+        border-radius: var(--deckit-radius-card);
         background: transparent;
-        color: var(--deckit-text);
-        font: var(--deckit-type-heading);
         cursor: pointer;
-        transition: background-color var(--deckit-fade) var(--deckit-easing);
     }
-    .deckit-dock-item:hover { background: var(--deckit-hover); }
     .deckit-dock-item[data-active] { background: var(--deckit-selected); }
-    .deckit-dock-item svg { width: 24px; height: 24px; }
-    .deckit-dock-item[data-running]::before {
+    .deckit-dock-item:active .deckit-app-icon { filter: var(--deckit-shadow-icon) brightness(.85); }
+    .deckit-dock-item[data-running]::after {
         content: '';
         position: absolute;
-        left: -8px;
-        top: calc(50% - 2px);
+        left: calc(50% - 2px);
+        bottom: 2px;
         width: 4px;
         height: 4px;
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-muted);
     }
-    .deckit-dock-item[data-attention]::before { background: var(--deckit-accent); }
+    .deckit-dock-item[data-attention]::after { background: var(--deckit-accent); }
+    .deckit-dock-label {
+        position: fixed;
+        transform: translateY(-50%);
+        padding: 4px 8px;
+        border-radius: var(--deckit-radius-control);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
+        color: var(--deckit-text);
+        font: var(--deckit-type-body);
+        white-space: nowrap;
+        pointer-events: none;
+        animation: deckit-dock-label-in var(--deckit-fade) var(--deckit-easing);
+    }
+    @keyframes deckit-dock-label-in { from { opacity: 0; } }
 `;
 
 // MARK: - Initializer
 // MARK: - Public
 // The Dock, drawn in the desktop's page at the desktop's left edge, centred down it and as tall as its items: the items
-// kept there, which a drag puts in another order, then those running only. A running item has a dot, in the accent
-// where its mod asks for attention, and the active mod's item is marked. It is in but for its sliver until the pointer
-// comes, and stays out while the pointer is over it, a press holds it or its menu is open; `onOut(out)` hears it slide
-// out and back. A click on an item opens its mod, and its menu shows it, quits it while it runs, and keeps it in the
+// kept there, which a drag puts in another order, then those running only, each its mod's app icon. A running item has
+// a dot under its icon, in the accent where its mod asks for attention, and the active mod's item is marked; the item
+// under the pointer has its name beside the card. It is in but for its sliver until the pointer comes, and stays out
+// while the pointer is over it, a press holds it or its menu is open; `onOut(out)` hears it slide out and back. A
+// click on an item opens its mod, and its menu, beside the item, shows it, quits it while it runs, and keeps it in the
 // Dock or takes it out, each told to main over `channels`. `ui` is the page's kit.
 function make({ ui, channels, onOut }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
@@ -91,6 +104,7 @@ function make({ ui, channels, onOut }) {
     let pointed = false; // whether the pointer is over the Dock
     let holds = 0; // the presses and menus that keep it out
     let hiding = null;
+    let named = null; // the name label's layer while it shows
 
     const element = tag('nav', 'deckit-dock');
     element.setAttribute('aria-label', 'Dock');
@@ -131,9 +145,15 @@ function make({ ui, channels, onOut }) {
     });
     element.addEventListener('pointerleave', () => {
         pointed = false;
+        unname();
         settle();
     });
+    element.addEventListener('pointerover', (event) => {
+        const row = event.target.closest?.('.deckit-dock-item');
+        if (row && !holds) name(row);
+    });
     element.addEventListener('pointerdown', () => {
+        unname();
         const release = hold();
         const up = () => {
             window.removeEventListener('pointerup', up, true);
@@ -148,11 +168,12 @@ function make({ ui, channels, onOut }) {
         const item = row && items.find(({ id }) => id === row.dataset.modId);
         if (!item) return;
         event.preventDefault();
+        unname();
         const release = hold();
         row.setAttribute('data-deckit-target', '');
         ui.menu({
             items: menuOf(item),
-            point: { x: event.clientX, y: event.clientY },
+            point: { x: WIDTH + BESIDE, y: row.getBoundingClientRect().top },
             onClose: () => {
                 row.removeAttribute('data-deckit-target');
                 release();
@@ -196,13 +217,32 @@ function make({ ui, channels, onOut }) {
         row.toggleAttribute('data-active', item.id === active);
         row.toggleAttribute('data-running', item.running);
         row.toggleAttribute('data-attention', attention.has(item.id));
-        row.title = item.name;
+        row.dataset.name = item.name;
         const states = [item.running && 'running', attention.has(item.id) && 'asks for attention'].filter(Boolean);
         row.setAttribute('aria-label', [item.name, ...states].join(', '));
         const drawn = JSON.stringify([item.icon, item.name]);
         if (row.dataset.drawn === drawn) return;
         row.dataset.drawn = drawn;
-        row.replaceChildren(item.icon ? ICON.sanitize(item.icon) : initialOf(item.name));
+        row.replaceChildren(ui.appIcon(item.icon, { size: 'dock' }));
+    }
+
+    // The name of the item `row` beside the card, centred on it, at once: the Dock's one sign of the pointer over an
+    // item, shown while the Dock is out and nothing holds it.
+    function name(row) {
+        if (!out) return;
+        if (!named) {
+            named = ui.layer(tag('div', 'deckit-dock-label'));
+            named.element.setAttribute('aria-hidden', 'true');
+        }
+        const at = row.getBoundingClientRect();
+        named.element.textContent = row.dataset.name;
+        named.element.style.left = WIDTH + BESIDE + 'px';
+        named.element.style.top = at.top + at.height / 2 + 'px';
+    }
+
+    function unname() {
+        named?.remove();
+        named = null;
     }
 
     function menuOf(item) {
@@ -237,6 +277,7 @@ function make({ ui, channels, onOut }) {
     function slide(on) {
         if (out === on) return;
         out = on;
+        if (!on) unname();
         element.toggleAttribute('data-out', on);
         onOut(on);
     }
@@ -245,13 +286,6 @@ function make({ ui, channels, onOut }) {
 }
 
 // MARK: - Private
-// What a mod with no icon is drawn with: the first letter of its name.
-function initialOf(name) {
-    const initial = document.createElement('span');
-    initial.textContent = [...String(name || '?')][0].toUpperCase();
-    return initial;
-}
-
 function tag(name, className) {
     const made = document.createElement(name);
     made.className = className;

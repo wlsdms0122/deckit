@@ -2,6 +2,8 @@
 // The Dock at the desktop's left edge: the sliver of it that shows while it is in, and how wide it is out.
 const SLIVER = 6;
 const WIDTH = 64;
+// The card's outer corners: an item's corner (12) plus the card's padding (8), so the two are concentric.
+const RADIUS = 20;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -29,4 +31,4 @@ function rectOf(desktop, out) {
 
 // MARK: - Private
 
-export { SLIVER, WIDTH, items, dragged, rectOf };
+export { SLIVER, WIDTH, RADIUS, items, dragged, rectOf };
