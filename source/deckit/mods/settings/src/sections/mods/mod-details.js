@@ -56,7 +56,7 @@ const MOD_DETAILS_STYLE = `
     .settings-details-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 `;
 
-// What an opened mod row shows: the interfaces it uses, in which mod's window its view is shown, its permissions, the
+// What an opened mod row shows: all it contributes, the interfaces it uses, in which mod's window its view is shown, its permissions, the
 // addresses it opens, its keys and where it lives. `onPinnedChange` hears the person keep a mod in the Dock or take it
 // out.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the slow
@@ -90,6 +90,8 @@ function modDetails({ ui, mods, pins, tildify, onPinnedChange }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
+        const contributes = (mod.contributions ?? []).join(', ');
+        if (contributes) addPart('Contributes', detailsLine(contributes[0].toUpperCase() + contributes.slice(1)));
         if (mod.uses?.length) addPart('Interfaces', chipRow(useChips(mod.uses)));
         if (mod.view?.parent && pins) addPart('View', viewPin());
         if (mod.permissions?.length)

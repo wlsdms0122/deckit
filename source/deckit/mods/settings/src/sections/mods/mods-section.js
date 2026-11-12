@@ -73,8 +73,8 @@ function modsSection({
             font: var(--deckit-type-label);
         }
         .settings-mod { cursor: pointer; }
-        /* The cells stand at the top, on a first line as tall as a row action (24px): words that wrap go below it.
-           What is wrong with the mod goes under them, across the row. */
+        /* The cells stand on one line as tall as a row action (24px), so every row is 36 tall. What is wrong with the
+           mod goes under them, across the row. */
         .settings-mod-row {
             align-items: start;
             row-gap: 2px;
@@ -112,12 +112,15 @@ function modsSection({
             font-variant-numeric: tabular-nums;
         }
         .settings-mod-version[data-missing] { color: var(--deckit-disabled); }
+        /* One line, cut at the end: the opened row shows it whole. */
         .settings-mod-contributions {
             min-width: 0;
-            padding-block: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             color: var(--deckit-muted);
             font: var(--deckit-type-small);
-            overflow-wrap: anywhere;
+            line-height: 24px;
         }
         .settings-mod-contributions[data-missing] { color: var(--deckit-disabled); }
         .settings-mod-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; }
@@ -289,7 +292,7 @@ function modsSection({
             busy.title = mod.restarting ? 'restarting' : busy.hidden ? '' : STATE_WORDS[mod.state];
             version.textContent = mod.version || NO_VALUE;
             version.toggleAttribute('data-missing', !mod.version);
-            contributions.textContent = labels.length ? sentence(labels.join(', ')) : NO_VALUE;
+            contributions.textContent = contributions.title = labels.length ? sentence(labels.join(', ')) : NO_VALUE;
             contributions.toggleAttribute('data-missing', !labels.length);
             relaunchAction.element.hidden = !mod.state || mod.restarting;
             removeAction.element.hidden = !mod.installed;
