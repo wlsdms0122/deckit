@@ -2,6 +2,7 @@ const MINIMAP_STYLE = `
     .editor-minimap {
         position: absolute;
         right: 0;
+        /* Over the code view's own layers (gutter, scroller), inside its box: not a layer of the page. */
         z-index: 4;
         opacity: 0;
         pointer-events: none;
