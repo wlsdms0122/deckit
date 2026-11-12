@@ -23,6 +23,7 @@ function startPage({ ui, onOpen }) {
             align-items: center;
             gap: 8px;
             padding: 0;
+            border-radius: var(--deckit-radius-large);
             border: 0;
             background: none;
             color: var(--deckit-text);
@@ -44,8 +45,6 @@ function startPage({ ui, onOpen }) {
         }
         .browser-start-icon img { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; }
         .browser-start-tile:hover .browser-start-icon { background: var(--deckit-hover); }
-        .browser-start-tile:focus-visible { outline: none; }
-        .browser-start-tile:focus-visible .browser-start-icon { box-shadow: 0 0 0 2px var(--deckit-focus); }
         .browser-start-title {
             width: 100%;
             font: var(--deckit-type-small);

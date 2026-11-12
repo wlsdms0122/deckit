@@ -15,16 +15,8 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
         .browser-toolbar { display: grid; grid-template-columns: 1fr minmax(0, 640px) 1fr; }
         .browser-toolbar-side { display: flex; align-items: center; gap: 2px; }
         .browser-toolbar-side[data-trailing] { justify-content: flex-end; }
-        .browser-address-field {
-            display: flex;
-            align-items: center;
-            min-width: 0;
-            height: 32px;
-            padding: 0 2px;
-            border-radius: var(--deckit-radius-round);
-            background: var(--deckit-fill);
-        }
-        .browser-toolbar[data-editing] .browser-address-field { box-shadow: inset 0 0 0 1px var(--deckit-focus); }
+        /* A kit field, so it is drawn and ringed as one, holding buttons of its own. */
+        .browser-address-field { gap: 0; padding: 0 2px; cursor: default; }
         .browser-address-field .browser-address-page { border-radius: var(--deckit-radius-round); }
         .browser-address-site {
             flex: 0 0 auto;
@@ -76,7 +68,7 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
     const leading = ui.element('div', { className: 'browser-toolbar-side' });
     leading.append(back.element, forward.element);
 
-    const field = ui.element('div', { className: 'browser-address-field' });
+    const field = ui.element('div', { className: 'deckit-field browser-address-field' });
     const site = ui.element('button', { className: 'browser-address-site' });
     site.type = 'button';
     site.title = 'Site permissions';
