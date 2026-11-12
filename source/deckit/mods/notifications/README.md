@@ -50,6 +50,10 @@ A command a notification names is always the sender's own: Notifications runs it
 
 The `show` command opens the recent notifications in the same window, newest first, each with its sender and when it came: press one to run it, close it to take it away, or clear them all. The list goes as the keyboard leaves it.
 
+## The bell
+
+Notifications joins the status bar (the Status Bar mod's README): its view there is a bell, which opens the list as the `show` command does.
+
 ## Commands
 
 Declared in the manifest to `deckit/commands` (see the Commands mod), and run from `runCommand(id, args)` in the exports Notifications opens for its id in `start`. The window is made in `attach`, so a command run before `attach` has run, or on a host with no shell, fails, saying so.

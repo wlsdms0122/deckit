@@ -3,7 +3,7 @@ const { screen } = require('./screen/screen.js');
 
 // The owner of deckit/notifications: `start` takes what mods post, keeps it and shows it, as the system's notifications
 // with no screen; `attach` draws toasts and the list of recent notifications in a window of its own over the app, open
-// while it shows any.
+// while it shows any, and the bell in the status bar.
 class Notifications {
     // What attach has put on screen for the commands to reach, while it is attached.
     screen = null;
@@ -35,8 +35,15 @@ class Notifications {
         });
     }
 
+    // Its view is the bell in the status bar, which opens the list.
     attach(shell) {
         this.screen = screen(shell, this.center);
+        const bell = shell.ui.barItem({
+            content: shell.ui.icon('bell', { size: 16 }),
+            title: 'Notifications',
+            onClick: () => this.screen?.showList(),
+        });
+        shell.view.register({ content: bell.element });
     }
 
     detach() {

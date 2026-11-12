@@ -7,6 +7,7 @@ activationPolicy = "accessory"
 background = "Takes the notifications mods send from the start, so none is missed."
 icon = "icon.svg"
 keywords = ["notifications", "알림", "toast"]
+view = { parent = "status-bar/items" }
 
 [permissions]
 "system.notifications" = "Shows a notification as the system's while you are in another app."
@@ -15,7 +16,7 @@ keywords = ["notifications", "알림", "toast"]
 
 [interfaces]
 provides = { "deckit/notifications" = [1] }
-uses = { "deckit/commands" = 1 }
+uses = { "deckit/commands" = 1, "status-bar/items" = 1 }
 
 [[contributes."deckit/commands"]]
 id = "show"
