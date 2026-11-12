@@ -47,8 +47,8 @@ const LAYOUT = new RegExp(
 // children, from -1 to 1, or makes a layer of its own.
 const Z_OWN = 1;
 // The places a rule does not hold, each with why: those whose job is a colour written out, then the system's own
-// chrome and a loop. `selector` narrows one to its rules, `(code)` being the strings in a script's code and `(inline)`
-// what it sets on an element. Anything else draws with the token.
+// chrome, a loop, and what moves or stacks only inside itself. `selector` narrows one to its rules, `(code)` being
+// the strings in a script's code and `(inline)` what it sets on an element. Anything else draws with the token.
 const ALLOWED = [
     { file: 'deckit-sdk/shell/ui/token/index.js', why: 'the token, where the colours are' },
     { file: 'deckit-app/theme/theme.js', selector: /^\(code\)$/, why: "the host app's colours, the token's ground" },
@@ -95,6 +95,24 @@ ALLOWED.push(
         selector: /^\(inline\)$/,
         rule: 'opacity-text',
         why: 'an occurrence over fades as a whole, block and text with it, as data drawn in its own colour',
+    },
+    {
+        file: 'deckit-sdk/shell/ui/drag/index.js',
+        selector: /^\(inline\)$/,
+        rule: 'layout-motion',
+        why: 'the drag label morphs from the row it left: fixed and out of flow, it lays out nothing but itself',
+    },
+    {
+        file: 'deckit-sdk/shell/ui/sortable/index.js',
+        selector: /^\(inline\)$/,
+        rule: 'z-index',
+        why: "a held row over its siblings, inside its list's own stacking context, not a layer of the page",
+    },
+    {
+        file: 'mods/editor/src/code/code-minimap.js',
+        selector: /^\.editor-minimap$/,
+        rule: 'z-index',
+        why: "over the code engine's own layers, inside the code view's stacking context, not a layer of the page",
     }
 );
 // Engines' bundles: a mod's src/engine/engine.js, which `deckit engine` makes from the packages it bundles.
