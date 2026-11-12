@@ -6,16 +6,17 @@ const EMPTY_STATE_STYLE = `
     .editor-empty[hidden] { display: none; }
     .editor-recent { display: flex; flex-direction: column; gap: 1px; margin-top: 14px; width: min(420px, 80%); text-align: left; }
     .editor-recent[hidden] { display: none; }
-    .editor-recent-heading {
-        opacity: 0.45;
-        font: 600 11px var(--deckit-font);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        padding: 0 8px 4px;
-    }
+    .editor-recent-heading { padding: 0 8px 4px; color: var(--deckit-muted); font: var(--deckit-type-label); }
     .editor-recent-icon { display: flex; }
     .editor-recent-name { font-weight: 600; }
-    .editor-recent-path { flex: 1 1 auto; min-width: 0; opacity: 0.45; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+    .editor-recent-path {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-small);
+    }
 `;
 
 // What the editor shows with no file open: what the front workspace is, how to open something, and with no folder in
@@ -45,7 +46,7 @@ function emptyState({ ui, tildify, chordOf, onQuickOpen, onPickFolder, onPickFil
             hint: root
                 ? 'Pick a file in the navigator, or open one by name with Open Quickly'
                 : 'Open a folder to work in it as a workspace',
-            actions: root ? [quickOpenButton, folderButton, fileButton] : [folderButton, fileButton],
+            actions: root ? [quickOpenButton, folderButton] : [folderButton, fileButton],
         });
         const shown = root ? [] : recentFolders.slice(0, RECENT_SHOWN);
         recent.element.hidden = !shown.length;
