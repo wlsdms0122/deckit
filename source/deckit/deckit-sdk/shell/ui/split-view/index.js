@@ -7,7 +7,7 @@ const MIN = 240;
 const MAX = 720;
 const CONTENT_MIN = 360;
 // The card's inset from the window's edges and from the content. The divider's handle stands in the gap between them;
-// folded, it stays at the window's edge, this far in.
+// folded, it stays at the window's edge, this far in. The card's corner is the window's (16) less this inset.
 const INSET = 8;
 const HANDLE = Object.freeze({ width: 16, height: 64, folded: 3 });
 // The sidebar's material is drawn over the window's background material, which shows through the split view
@@ -36,7 +36,7 @@ const STYLE = `
         width: var(--deckit-split-drawn);
         box-sizing: border-box;
         overflow: hidden;
-        border-radius: var(--deckit-radius-card);
+        border-radius: var(--deckit-radius-medium);
         background: var(--deckit-sidebar);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-sidebar);
     }

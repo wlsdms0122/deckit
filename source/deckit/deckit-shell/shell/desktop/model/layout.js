@@ -6,7 +6,7 @@ import * as DOCK from '../../dock/model/dock.js';
 // take from its start.
 const SHADOW = 32;
 const EDGE = 6;
-const RADIUS = 10;
+const RADIUS = 16;
 const TITLE_BAR = Object.freeze({ height: 38, controlsWidth: 78 });
 // The buttons in the title bar: close, minimize and zoom, their size, the room between them and their inset.
 const BUTTONS = Object.freeze(['close', 'minimize', 'zoom']);
