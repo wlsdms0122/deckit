@@ -159,8 +159,8 @@ function modsSection({
             gap: 8px;
             border: 2px solid var(--deckit-target);
             border-radius: var(--deckit-radius-medium);
-            background: color-mix(in srgb, var(--deckit-background) 55%, transparent);
-            backdrop-filter: blur(8px);
+            background: color-mix(in srgb, var(--deckit-background) var(--deckit-glass), transparent);
+            backdrop-filter: var(--deckit-blur);
             color: var(--deckit-text);
             font: 600 var(--deckit-type-body);
             opacity: 0;
