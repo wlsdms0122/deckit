@@ -40,6 +40,8 @@ function start() {
     overlay.addEventListener('keydown', route, true);
     overlay.addEventListener('blur', unfocused);
     overlay.addEventListener('wheel', dismissWheeledOutside, true);
+    // A box placed while the overlay was not laid yet is placed again once it is.
+    overlay.addEventListener('resize', placeAgain);
 }
 
 // What is presented is heard in one more document of the page's, as in the page: a window's content.

@@ -108,6 +108,12 @@ function draws() {
     return overlay.document.body.childElementCount > 0;
 }
 
+// The window whose viewport a box drawn in `view` is laid in: the page's for the overlay, which is laid at the page's
+// rect and has no size of its own until it is.
+function viewportOf(view) {
+    return overlay && view === overlay.window ? window : view;
+}
+
 // MARK: - Private
 // Told when it changed, or `again`: whether the overlay draws anything, whether an element in it has the keyboard, and
 // where it draws what takes presses.
@@ -136,4 +142,4 @@ function report({ again = false } = {}) {
     overlay.tell(state);
 }
 
-export { start, add, take, focused, windows, activeElement, wear, dress, draws };
+export { start, add, take, focused, windows, activeElement, wear, dress, draws, viewportOf };

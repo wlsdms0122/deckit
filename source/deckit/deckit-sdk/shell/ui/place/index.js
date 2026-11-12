@@ -1,3 +1,5 @@
+import * as LAYER from '../layer/index.js';
+
 // MARK: - Property
 // What floats in the page over its own fixed things: a float (a toolbar, an autocomplete) and, above all of it, what a
 // drag draws there.
@@ -9,8 +11,8 @@ const OVERLAP = 6;
 
 // MARK: - Initializer
 // MARK: - Public
-// Places a fixed box against a target, kept MARGIN inside the window its document is in, and returns the side it went
-// to.
+// Places a fixed box against a target, kept MARGIN inside the viewport of the target's document (the box's for a
+// point or a rect; the page's for its overlay), and returns the side it went to.
 // - `anchor` (an element) or `rect`: below it, or above when only that fits. `align` is `start` or `center`.
 // - `point`: at it, or above it.
 // - `beside` (a row of a menu): right of the menu, overlapping it, or left of it when only that fits.
@@ -21,7 +23,7 @@ function place(
     { anchor = null, rect = null, point = null, beside = null, gap = 4, align = 'start', prefer = 'bottom' }
 ) {
     element.style.setProperty('--app-region', 'no-drag');
-    const view = element.ownerDocument.defaultView;
+    const view = LAYER.viewportOf((anchor ?? beside ?? element).ownerDocument.defaultView);
     const width = element.offsetWidth;
     const height = element.offsetHeight;
     let x;
