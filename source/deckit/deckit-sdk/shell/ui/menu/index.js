@@ -364,7 +364,9 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     list.set(options, { active: options[active]?.disabled ? -1 : active });
     stopFaces = wearFaces(box, options);
     // A menu that grows once placed (its rows wear their faces) is placed again, so it stays clear of the edges.
-    resized = new box.ownerDocument.defaultView.ResizeObserver(() => open && presented.place());
+    // In a frame of its own: a place that changes its size again is not one more turn of the same observation.
+    const view = box.ownerDocument.defaultView;
+    resized = new view.ResizeObserver(() => view.requestAnimationFrame(() => open && presented.place()));
     resized.observe(box);
     return { element: box, close, isOpen: () => open };
 }
