@@ -3,8 +3,8 @@ import * as DECLARED from '../../../deckit-sdk/shell/region/protocol.js';
 import * as FIELD from '../../../deckit-sdk/shell/mods/field.js';
 import * as MODS from '../mods/index.js';
 
-// `deckit` is what connect answered.
-export function createRegion({ deckit }) {
+// `deckit` is what connect answered, `ICONS` the mods' icons.
+export function createRegion({ deckit, ICONS }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     // a mod's page -> number -> { parent, interface, window, rect, child }: a place in one of the page's windows, by
@@ -25,8 +25,10 @@ export function createRegion({ deckit }) {
     function start() {
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, changed);
         deckit.mods.onChange(changed);
+        ICONS.onChange(changed);
         // What a page is answered is what it knows: a parent's new page hears every change from there.
-        PROTOCOL.children.handle((_payload, sender) => {
+        PROTOCOL.children.handle(async (_payload, sender) => {
+            await ICONS.ready();
             const parent = deckit.mods.modOf(sender);
             const children = childrenOf(parent);
             if (parent) sentChildren.set(parent, JSON.stringify(children));
@@ -188,7 +190,7 @@ export function createRegion({ deckit }) {
         for (const named of providesOf(parent))
             children[named] = mods
                 .filter(({ id }) => interfaceOf(id) === named && parentOf(id) === parent)
-                .map(({ id, name }) => ({ id, name, icon: FIELD.iconOf(deckit.mods.fieldsOf(id)) }));
+                .map(({ id, name }) => ({ id, name, icon: ICONS.of(id) }));
         return children;
     }
 

@@ -14,6 +14,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 
 async function main() {
     const { createRegion } = await import(url('deckit-shell', 'shell', 'region', 'main.js'));
+    const { createIcons } = await import(url('deckit-shell', 'shell', 'mods', 'icon.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -33,11 +34,14 @@ async function main() {
         { id: 'broken', refusal: { stage: 'read', kind: 'NOT_LOADABLE', message: 'no main.js' } },
     ];
     // The manifest fields of each: every one a view, `board`, `tool` and `idle` naming a parent; `idle` does not run.
+    // `board`'s icon is a file of its folder; `tool`'s field holds an SVG's text, which names no file.
+    const ICON = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'/>";
+    const files = { board: { 'icon.svg': ICON } };
     const fields = {
         dash: {},
         other: {},
-        board: { view: { parent: 'dash/boards' }, icon: '<svg/>' },
-        tool: { view: { parent: 'dash/tools' } },
+        board: { view: { parent: 'dash/boards' }, icon: 'icon.svg' },
+        tool: { view: { parent: 'dash/tools' }, icon: ICON },
         idle: { view: { parent: 'dash/boards' } },
     };
     const launched = [];
@@ -75,6 +79,7 @@ async function main() {
             runOf: (id) => runs[id],
             runs: () => Object.values(runs).map((run) => ({ run, page: pages[run.mod.id] })),
             fieldsOf: (id) => fields[id] ?? null,
+            readFile: async (id, file) => files[id]?.[file] ?? null,
             launch: async (id) => launched.push(id),
             modOf: (page) => page?.mod ?? null,
             observe: (name, observer) => ((observers[name] ||= []).push(observer), () => {}),
@@ -82,20 +87,23 @@ async function main() {
         },
         pages: { whenEnds() {} },
     };
-    const REGION = createRegion({ deckit });
+    const ICONS = createIcons({ deckit });
+    const REGION = createRegion({ deckit, ICONS });
+    ICONS.start();
     REGION.start();
+    await ICONS.ready();
     const channel = (name) => handlers[`deckit-shell:region-${name}`];
     const rect = { x: 0, y: 0, width: 100, height: 100 };
     channel('rect')({ region: 1, interface: 'dash/boards', window: 1, ...rect }, pages.dash);
     channel('rect')({ region: 2, interface: 'dash/tools', window: 2, ...rect }, pages.dash);
 
-    const children = channel('children')({}, pages.dash);
+    const children = await channel('children')({}, pages.dash);
     check(
         "a parent's children are listed by the interface they name",
         JSON.stringify(children) ===
             JSON.stringify({
                 'dash/boards': [
-                    { id: 'board', name: 'Board', icon: '<svg/>' },
+                    { id: 'board', name: 'Board', icon: ICON },
                     { id: 'idle', name: 'Idle', icon: '' },
                 ],
                 'dash/tools': [{ id: 'tool', name: 'Tool', icon: '' }],
@@ -112,7 +120,7 @@ async function main() {
         'a bundle that does not load is no child and has none',
         REGION.interfaceOf('broken') === null &&
             REGION.parentOf('broken') === null &&
-            JSON.stringify(channel('children')({}, pages.broken)) === '{}',
+            JSON.stringify(await channel('children')({}, pages.broken)) === '{}',
         ''
     );
 
@@ -183,7 +191,7 @@ async function main() {
         JSON.stringify(told) ===
             JSON.stringify({
                 'dash/boards': [
-                    { id: 'board', name: 'Board', icon: '<svg/>' },
+                    { id: 'board', name: 'Board', icon: ICON },
                     { id: 'idle', name: 'Idle', icon: '' },
                 ],
             }),
@@ -228,7 +236,26 @@ async function main() {
     );
     const keywords = FIELD.keywordsOf({ keywords: ['files', 3, '', 'folder'] }).join();
     check('the keywords field reads as the words among it', keywords === 'files,folder', keywords);
-    check('an icon that is no text is left out', FIELD.iconOf({ icon: 3 }) === '', '');
+    check(
+        "the icon field names a file of the mod's folder, and one that is no text names none",
+        FIELD.iconPathOf({ icon: 'art/icon.svg' }) === 'art/icon.svg' &&
+            FIELD.iconPathOf({ icon: 3 }) === null &&
+            FIELD.iconPathOf({ icon: '' }) === null,
+        ''
+    );
+    const square = "<?xml version='1.0'?>\n<!-- drawn -->\n<svg viewBox='0 0 128 128'><rect/></svg>";
+    check('an SVG with a square viewBox is the icon', FIELD.iconOf(square) === square, '');
+    check(
+        'no file, one over 32 KB, a root that is not svg, and a viewBox absent or not square read as no icon',
+        [
+            null,
+            `<svg viewBox="0 0 8 8">${' '.repeat(FIELD.ICON_BYTES)}</svg>`,
+            '<html><svg viewBox="0 0 8 8"/></html>',
+            '<svg width="8" height="8"/>',
+            '<svg viewBox="0 0 16 12"/>',
+        ].every((text) => FIELD.iconOf(text) === ''),
+        ''
+    );
     check(
         'the shell reads its manifest fields by the keys it names',
         FIELD.KEYS.join() === 'activationPolicy,view,icon,keywords',

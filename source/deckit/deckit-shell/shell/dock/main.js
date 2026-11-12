@@ -6,9 +6,9 @@ import * as FIELD from '../../../deckit-sdk/shell/mods/field.js';
 import * as MODS from '../mods/index.js';
 
 // `deckit` is what connect answered, `state` the shell's own state, `host` the app's answers, `DESKTOP` the desktop,
-// `WINDOWS` the mods' windows, and `dock` the ids of the mods the host app keeps in the Dock at the first start, or
-// null.
-export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock }) {
+// `WINDOWS` the mods' windows, `ICONS` the mods' icons, and `dock` the ids of the mods the host app keeps in the Dock at
+// the first start, or null.
+export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host, dock }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const PINNED = 'dock-pinned';
@@ -26,7 +26,8 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
         const kept = STATE.read(PINNED, null);
         pinned = kept ?? firstDock();
         if (!kept) keep(PINNED, pinned);
-        PROTOCOL.list.handle(() => listed());
+        PROTOCOL.list.handle(() => ICONS.ready().then(listed));
+        PROTOCOL.icon.handle(({ id }) => ICONS.ready().then(() => ICONS.of(id)));
         PROTOCOL.pinned.handle(() => keptApps());
         PROTOCOL.setPinned.handle(({ id, pinned: on }) => {
             refuseNoApp(id);
@@ -46,6 +47,7 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
         PROTOCOL.quit.on(bySeat(({ id }) => hand.quit(id)));
         PROTOCOL.keep.on(bySeat(({ id, pinned: on }) => hand.keep(id, on)));
         PROTOCOL.reorder.on(bySeat(({ ids }) => hand.reorder(ids)));
+        ICONS.onChange(() => DESKTOP.update());
         DESKTOP.update();
     }
 
@@ -72,7 +74,7 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
             (item) => ({
                 ...item,
                 name: names.get(item.id),
-                icon: FIELD.iconOf(deckit.mods.fieldsOf(item.id)),
+                icon: ICONS.of(item.id),
             })
         );
     }
@@ -177,7 +179,7 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock 
                 return {
                     id,
                     name,
-                    icon: FIELD.iconOf(fields),
+                    icon: ICONS.of(id),
                     keywords: FIELD.keywordsOf(fields),
                     pinned: pinned.includes(id),
                     running: running.has(id),
