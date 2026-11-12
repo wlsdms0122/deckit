@@ -27,7 +27,14 @@ const STYLE = `
         color: var(--deckit-text);
         font: var(--deckit-type-body);
     }
-    .notifications-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; }
+    .notifications-head {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 24px;
+        font: 600 var(--deckit-type-large);
+    }
     .notifications-card {
         position: relative;
         display: flex;
@@ -66,7 +73,9 @@ const STYLE = `
     }
     .notifications-actions { display: flex; gap: 6px; margin-top: 4px; }
     .notifications-close { position: absolute; top: 6px; right: 6px; }
-    .notifications-empty { margin-top: 24px; color: var(--deckit-muted); text-align: center; }
+    /* On a card, as a notification would be: the window has nothing behind its words but the desktop. */
+    .notifications-empty { padding-right: 12px; flex-direction: column; gap: 2px; color: var(--deckit-muted); }
+    .notifications-empty-hint { font: var(--deckit-type-small); }
 `;
 
 function screen(shell, center) {
@@ -186,10 +195,11 @@ function screen(shell, center) {
         }
         const head = element('div', 'notifications-head', 'Notifications');
         const notifications = center.list();
-        if (notifications.length) head.append(button('Clear', () => center.clear()));
+        if (notifications.length) head.append(button('Clear All', () => center.clear()));
         const rows = notifications.map((notification) => card(notification, { meta: true }));
-        const empty = notifications.length ? [] : [element('div', 'notifications-empty', 'No notifications')];
-        content.replaceChildren(head, ...rows, ...empty);
+        const empty = element('div', 'notifications-card notifications-empty', 'No notifications');
+        empty.append(element('div', 'notifications-empty-hint', 'What mods post shows here.'));
+        content.replaceChildren(head, ...(rows.length ? rows : [empty]));
     }
 
     // Made once per toast, coming in from the right edge, where it lives; under reduced motion it only fades in.
