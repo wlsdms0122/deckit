@@ -8,19 +8,20 @@
 // ships asks for them, and opens none of the addresses it is handed to open outside the app: it keeps each one, for the
 // look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there, and
 // presses a web page its layer showed with WebKit's input, as a person's press comes. On the base shell it shows the
-// desktop in a host window the size of a screen of its own, floats each overlay window over it and hands a person's
-// hand on a window or on the Dock as a host app hands it, nothing of either on the person's screen, and presses a key
-// in the page the shell gave the keyboard to, the app in front, never the person's keyboard, or in another app, which
-// reaches the chords the shell holds outside the app, held by the host, never with the machine. It shows none of the
-// system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no dialog of
-// folders: each answers the folders the case names. It shows no path where it lies: it keeps each one, for the look
-// revealed. It knows the app for an address of a scheme only where the case names one. Its clipboard is a file of the
-// run's, never the person's. A request fetched through a web session reaches no address but on the loopback address. On
-// the base shell it hands the shell the mods the case keeps in the Dock at the first start, and the host app's look,
-// light or dark, as the case names it, as it starts and as the look changes; it reads what a page of the shell's
-// wears, its colour scheme and the custom properties of its root. It keeps what the shell lays on the desktop and in
-// each overlay window, for the children's views laid over regions, and drops files from outside the app on the page
-// laid at a point of a window, through WebKit, as the machine drops them, never in a drag of the machine's.
+// desktop in a host window the size of a screen of its own, under the bar the case names across its top, floats each
+// overlay window over it and hands a person's hand on a window or on the Dock as a host app hands it, nothing of either
+// on the person's screen, and presses a key in the page the shell gave the keyboard to, the app in front, never the
+// person's keyboard, or in another app, which reaches the chords the shell holds outside the app, held by the host,
+// never with the machine. It shows none of the system's notifications: it keeps each one, for the look shown, and
+// presses one when asked. It shows no dialog of folders: each answers the folders the case names. It shows no path
+// where it lies: it keeps each one, for the look revealed. It knows the app for an address of a scheme only where the
+// case names one. Its clipboard is a file of the run's, never the person's. A request fetched through a web session
+// reaches no address but on the loopback address. On the base shell it hands the shell the mods the case keeps in the
+// Dock at the first start, and the host app's look, light or dark, as the case names it, as it starts and as the look
+// changes; it reads what a page of the shell's wears, its colour scheme and the custom properties of its root. It keeps
+// what the shell lays on the desktop and in each overlay window, for the children's views laid over regions, and drops
+// files from outside the app on the page laid at a point of a window, through WebKit, as the machine drops them, never
+// in a drag of the machine's.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -92,6 +93,7 @@ const HOST = Object.freeze({
         controls = given;
         given.setTheme(LOOKS[setup.appearance]);
         given.desktop.show();
+        if (setup.bar) given.desktop.present({ titleBar: { height: setup.bar, controlsWidth: 0 } });
     },
     show() {
         resignFloating();
@@ -429,8 +431,9 @@ async function told() {
             if (run.state === 'running') await quiet.invoke(page, {}).catch(() => {});
 }
 
-// The windows the person sees, back to front: those on the desktop, then those floating over every app, each
-// `{ mod, name, level, frame, key, minimized }`, `name` null for a web page's window, which has none.
+// The windows the person sees, back to front: those on the desktop, then those in the host window's bar, in the order
+// they opened, then those floating over every app, each `{ mod, name, level, frame, key, minimized }`, `name` null for
+// a web page's window, which has none.
 function windowsSeen() {
     const normal = (controls?.desktop.windows() ?? []).map(({ mod, name, frame, key, minimized }) => ({
         mod,
@@ -440,6 +443,14 @@ function windowsSeen() {
         key,
         minimized,
     }));
+    const inBar = (controls?.desktop.panels() ?? []).map(({ mod, name, frame }) => ({
+        mod,
+        name,
+        level: 'panel',
+        frame,
+        key: false,
+        minimized: false,
+    }));
     const over = floating.map(({ control, frame, key }) => ({
         mod: control.mod,
         name: control.name,
@@ -448,7 +459,7 @@ function windowsSeen() {
         key,
         minimized: false,
     }));
-    return [...normal, ...over];
+    return [...normal, ...inBar, ...over];
 }
 
 // The desktop as the person sees it: `{ active, attention, title }`, the active mod by its id, left out where there is
@@ -461,8 +472,9 @@ function desktopSeen() {
 // What a person's hand on a window comes to: `{}`, or `{ none }` where the mod has no window of the name on screen,
 // a web page's window where `name` is null. On a window on the desktop, the host window taking the keyboard from an
 // overlay window: a press in it, a click of its button `action` (`close`, `minimize`, `zoom`), a drag of its title
-// bar by `by`, a drag of its edge `edge` by `by`, or a double click on its title bar. On one floating over every app,
-// a press, or a drag by `by`, either taking it the keyboard, the shell told the frame a drag leaves it at.
+// bar by `by`, a drag of its edge `edge` by `by`, or a double click on its title bar; on one in the host window's bar,
+// a press alone. On one floating over every app, a press, or a drag by `by`, either taking it the keyboard, the shell
+// told the frame a drag leaves it at.
 function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
     if (!controls) return { none: 'the shell has not started' };
     const on = (each) => each.mod === mod && each.name === name;
@@ -471,6 +483,14 @@ function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
         .filter((each) => on(each) && !each.minimized)
         .at(-1);
     const over = floating.find(({ control }) => on(control));
+    const panel = controls.desktop.panels().find(on);
+    if (panel && action === 'press') {
+        resignFloating();
+        controls.desktop.focus();
+        controls.desktop.hand.press(panel.id);
+        return {};
+    }
+    if (panel) return { none: `a panel window has no ${action} a hand gives` };
     if (normal) {
         resignFloating();
         controls.desktop.focus();
@@ -660,10 +680,10 @@ async function worn({ mod, properties }) {
 const inside = (point, { x, y, width, height }) =>
     point.x >= x && point.x < x + width && point.y >= y && point.y < y + height;
 
-// The views of the mods laid over the regions of the windows, back to front: on the desktop, then in each overlay
-// window, each `{ mod, parent, window, frame }`: the child's id, the mod and the name of the window, and the rect it is
-// laid at on the screen, cut to the window's frame. A mod's page laid cut to a window's frame is a child's view; the
-// window's content is a page of its own.
+// The views of the mods laid over the regions of the windows, back to front: on the desktop and in its bar, then in
+// each overlay window, each `{ mod, parent, window, frame }`: the child's id, the mod and the name of the window, and
+// the rect it is laid at on the screen, cut to the window's frame. A mod's page laid cut to a window's frame is a
+// child's view; the window's content is a page of its own.
 function regionsSeen() {
     const pages = new Map(deckit.mods.runs().map(({ run, page }) => [page, run.mod.id]));
     const cut = (rect, clip) => {
@@ -673,7 +693,7 @@ function regionsSeen() {
         const height = Math.max(0, Math.min(rect.y + rect.height, clip.y + clip.height) - y);
         return { x, y, width, height };
     };
-    const windows = controls.desktop.windows();
+    const windows = [...controls.desktop.windows(), ...controls.desktop.panels()];
     const desktop = laid.flatMap(({ page, rect, clip }) => {
         const window =
             clip && windows.find(({ frame }) => ['x', 'y', 'width', 'height'].every((k) => frame[k] === clip[k]));

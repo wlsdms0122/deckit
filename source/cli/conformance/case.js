@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 22;
+const FORMAT = 23;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -237,6 +237,7 @@ const HOST_KEYS_ADDED = {
     dock: 19,
     unavailable: 20,
     appearance: 21,
+    bar: 23,
 };
 // The inputs answered with nothing.
 const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance', 'drop'];
@@ -369,6 +370,7 @@ function hostOf(host, format, refuse) {
             dock: is.strings,
             unavailable: (value) => Array.isArray(value) && value.every(is.keystroke),
             appearance: (value) => APPEARANCES.includes(value),
+            bar: (value) => is.integer(value) && value >= 0,
             owners: is.standards,
             sites: (value) => Array.isArray(value) && value.every(is.name),
             delegate: (value) =>
@@ -415,6 +417,7 @@ function hostOf(host, format, refuse) {
         dock: host.dock ?? null,
         unavailable: host.unavailable ?? [],
         appearance: host.appearance ?? 'dark',
+        bar: host.bar ?? 0,
     };
 }
 

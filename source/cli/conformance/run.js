@@ -95,6 +95,8 @@ async function run(theCase, { folder, hostApp, electron }) {
                 unavailable: host.unavailable,
                 // The host app's look, light or dark, as the case names it: dark where it names none.
                 appearance: host.appearance,
+                // The height of the bar the host window lays over the desktop's top: none where the case names none.
+                bar: host.bar,
                 fields,
                 mainProcess,
                 permissions: host.permissions,
