@@ -58,7 +58,8 @@ function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions,
         .browser-toolbar[data-editing] .browser-address-input { display: block; }
     `);
     const element = ui.element('div', { className: 'browser-toolbar' });
-    ui.titleBar(element);
+    // The page under the bar is no kit content, so a rule marks the edge the kit's fade cannot.
+    ui.titleBar(element, { hairline: true });
     const back = ui.iconButton({ icon: ui.icon('chevronLeft', { size: ICON_SIZE }), title: 'Back', onClick: onBack });
     const forward = ui.iconButton({
         icon: ui.icon('chevronRight', { size: ICON_SIZE }),
