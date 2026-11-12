@@ -90,9 +90,11 @@ function tableOfContents({ ui, scroller, sections }) {
         return target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
     }
 
-    // `margin` above the target, kept within what the scroller can scroll.
+    // `margin` above the target, past the scroller's faded edge (its `scroll-padding`), kept within what the scroller
+    // can scroll.
     function clampedTop(target, margin) {
-        return Math.min(Math.max(0, topOf(target) - margin), scroller.scrollHeight - scroller.clientHeight);
+        const edge = parseFloat(getComputedStyle(scroller).scrollPaddingTop) || 0;
+        return Math.min(Math.max(0, topOf(target) - edge - margin), scroller.scrollHeight - scroller.clientHeight);
     }
 }
 
