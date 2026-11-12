@@ -422,13 +422,17 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         store.set('note', id);
         paintSelection();
         reader.textContent = '';
-        reader.append(ui.loading().element);
+        const loading = ui.loading();
+        reader.append(loading.element);
         try {
             const note = await bot.brain.get(id);
+            // A loading shown stays its least, so it does not flash.
+            await loading.settled();
             if (mine !== reading) return;
             if (!note) throw new Error('No note ' + id);
             showNote(note, mine);
         } catch (error) {
+            await loading.settled();
             if (mine !== reading) return;
             reader.textContent = '';
             reader.append(quiet(String(error?.message || error)));
