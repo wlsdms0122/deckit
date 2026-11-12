@@ -100,7 +100,7 @@ A **click** on an item is input reaching its app, as [activation](../DECKIT-32/S
 
 ### mods
 
-The handle `shell` has these members, each a request as [the shell](../DECKIT-29/SPEC.md) fixes one, guarded by `deckit.mods`, which [the permissions](../DECKIT-3/SPEC.md) define:
+The handle `shell` has these members, each a request as [the shell](../DECKIT-29/SPEC.md) fixes one. `mods.icon` is open to every mod, since an icon names a mod and reaches nothing of it; each other is guarded by `deckit.mods`, which [the permissions](../DECKIT-3/SPEC.md) define:
 
 | request | takes | answers |
 |---|---|---|
@@ -110,7 +110,7 @@ The handle `shell` has these members, each a request as [the shell](../DECKIT-29
 | `mods.setPinned(id, pinned)` | `id` a string, `pinned` a boolean | nothing, once the app `id` is kept in the Dock where `pinned` is `true`, or taken out where it is `false`, as the choice of the menu that does it does; one kept or not as asked already is left as it is |
 | `mods.open(id)` | `id` a string | nothing, once the app `id` is opened, as *Opening an app* says, and where that launches it, once its run is `running` |
 
-Each is refused as [the shell](../DECKIT-29/SPEC.md) refuses a request, first with kind `NOT_PERMITTED` for a mod not granted `deckit.mods`, then with kind `INVALID_ARGUMENT` where its arguments do not fit what it takes; then `mods.setPinned` and `mods.open` are refused at `call` with kind `INVALID_ARGUMENT` where `id` names no app, and nothing of them is done; and `mods.open` is refused as `launch` is refused, where it launches the app. Through a cut handle each is refused as [the shell](../DECKIT-29/SPEC.md) refuses a member of one, with kind `ENDED`.
+Each is refused as [the shell](../DECKIT-29/SPEC.md) refuses a request, first, each but `mods.icon`, with kind `NOT_PERMITTED` for a mod not granted `deckit.mods`, then with kind `INVALID_ARGUMENT` where its arguments do not fit what it takes; then `mods.setPinned` and `mods.open` are refused at `call` with kind `INVALID_ARGUMENT` where `id` names no app, and nothing of them is done; and `mods.open` is refused as `launch` is refused, where it launches the app. Through a cut handle each is refused as [the shell](../DECKIT-29/SPEC.md) refuses a member of one, with kind `ENDED`.
 
 `mods.open(id)` is a request of the mod that makes it to the app `id`, as [activation](../DECKIT-32/SPEC.md) fixes one: the app may activate as the request reaches it where the mod that makes it may.
 

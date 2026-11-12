@@ -1,12 +1,11 @@
 case = 22
 name = "mods-icon-answers-the-icon-of-any-mod"
-note = "Each mod is a background mod, so each launches as the host app starts. mod-c, marked system and granted deckit.mods, asks through the handle shell. mod-a, an accessory, so no app, is answered with the text of its icon file; mod-c, which writes no icon, and mod-z, which names no mod, are each answered with no icon."
+note = "Each mod is a background mod, so each launches as the host app starts. mod-c, granted no permission, asks through the handle shell, since an icon is open to every mod. mod-a, an accessory, so no app, is answered with the text of its icon file; mod-c, which writes no icon, and mod-z, which names no mod, are each answered with no icon."
 
 [host]
 base = "shell"
 api = "1.0.0"
 ship = ["mod-a", "mod-c"]
-system = ["mod-c"]
 
 [[step]]
 input = "start"
