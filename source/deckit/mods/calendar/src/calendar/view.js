@@ -134,8 +134,9 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     });
 
     const emptyAction = ui.button({
-        label: 'Add account',
+        label: 'Add Account…',
         size: 'small',
+        variant: 'primary',
         onClick: () => {
             if (!accounts.all().length) editor.addAccount();
             else editor.openAccount(accounts.all()[0]);
@@ -296,7 +297,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
                 ? 'Add an account, then choose which of its calendars to show.'
                 : 'Choose which calendars of your account to show.',
         });
-        emptyAction.setLabel(noAccount ? 'Add account' : 'Choose calendars');
+        emptyAction.setLabel(noAccount ? 'Add Account…' : 'Choose Calendars…');
         if (empty.style.display !== (blank ? 'flex' : 'none')) {
             empty.style.display = blank ? 'flex' : 'none';
             if (blank) fade(empty);

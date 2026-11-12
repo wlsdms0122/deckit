@@ -16,7 +16,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
     const blocks = new Map(); // account id -> { element, row, list }
 
     const feedSection = foldingSection('Calendars', 'layers', 'calendars', [
-        { title: 'Add account', run: () => editor.addAccount() },
+        { title: 'Add Account…', run: () => editor.addAccount() },
     ]);
     const todaySection = foldingSection('Today', 'calendarDays', 'today');
     // Drawn whole: a row leaving means only that time moved, so it does not fold away.
