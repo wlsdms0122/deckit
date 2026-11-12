@@ -136,7 +136,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             flex: '0 0 auto',
             width: '8px',
             height: '8px',
-            borderRadius: '999px',
+            borderRadius: 'var(--deckit-radius-round)',
             background: TONE[tone],
         });
         return span;
@@ -148,11 +148,10 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         Object.assign(span.style, {
             flex: '0 0 auto',
             padding: '1px 7px',
-            borderRadius: '999px',
-            font: '11px var(--deckit-font)',
+            borderRadius: 'var(--deckit-radius-round)',
+            font: 'var(--deckit-type-caption)',
             color: INK[tone],
             border: `1px solid ${INK[tone]}`,
-            opacity: '.85',
         });
         return span;
     };
