@@ -48,7 +48,11 @@ const STYLE = `
         white-space: nowrap;
         font: 600 var(--deckit-type-heading);
     }
-    [data-deckit-key='false'] :is(.deckit-title-bar, .deckit-title-bar .deckit-button:not([data-variant])) {
+    [data-deckit-key='false'] :is(
+        .deckit-title-bar,
+        .deckit-title-bar .deckit-button:not([data-variant], :disabled, [aria-disabled='true']),
+        .deckit-title-bar .deckit-crumb[aria-current='page']
+    ) {
         color: var(--deckit-muted);
     }
     [data-deckit-key='false'] :is(.deckit-row[data-active], .deckit-section-heading[data-current]) {
@@ -86,7 +90,8 @@ function selectable(element) {
 // row centred on the window's buttons and clear of them, and dragging the window wherever nothing in it is pressed. A
 // control the kit does not know as one marks itself `--app-region: no-drag`. `title` puts the view's title first;
 // `scroller` is what scrolls under the bar, whose edges fade where there is more of it. While the page's root is
-// marked `data-deckit-key="false"`, its window not the key one, the bar's text and glyphs are muted.
+// marked `data-deckit-key="false"`, its window not the key one, the bar's text and glyphs are muted, its title a
+// breadcrumb's current part too; what is disabled stays as it is.
 function titleBar(element, { title = null, scroller = null } = {}) {
     element.classList.add('deckit-title-bar');
     const heading = title == null ? null : element.ownerDocument.createElement('div');
