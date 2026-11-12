@@ -25,6 +25,11 @@ const STYLE = `
     .deckit-desktop-down { position: fixed; inset: 0; display: flex; background: var(--deckit-background); }
     .deckit-desktop-down[hidden] { display: none; }
     .deckit-desktop-backdrop { position: fixed; inset: 0; }
+    .deckit-panel-material {
+        position: fixed;
+        border-radius: var(--deckit-radius-round);
+        background: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
+    }
     .deckit-window-material {
         position: fixed;
         inset: ${SHADOW}px;
@@ -100,15 +105,18 @@ const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-
 // The desktop, in the desktop's own page: the backdrop under every window, and each window's frame under its content
 // and its buttons over it, each a document this page opens beside itself and main lays where the window is. The page
 // itself is laid over the whole desktop, with the Dock at its left edge and the host window's bar at its top, an empty
-// strip that drags the host window, its controls in it, the backdrop showing through. It takes the pointer only there,
-// or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the desktop's
-// and the Dock's channels in the page.
+// strip that drags the host window, its controls in it, the backdrop showing through. Under each panel window in that
+// strip it draws the panel's material: the backdrop is cut away there, so the host window's own material shows
+// through the panel's tint, opaque where the person asks for less transparency. It takes the pointer only in the
+// strip, or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the
+// desktop's and the Dock's channels in the page.
 function boot(theme, channels) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const ui = KIT.make(theme, { fonts: FONTS.installed({ channels }) });
     KIT.addStyle(STYLE);
     let { state } = PROTOCOL.setup.invoke();
     const drawn = new Map(); // a window's id -> { material, buttons, off }, its frame's parts as drawn
+    const materials = new Map(); // a panel window's id -> the material drawn under it
 
     const backdrop = surface(PAGE.BACKDROP);
     const backdropRoot = element(backdrop.document, 'div', 'deckit-desktop-backdrop');
@@ -135,6 +143,7 @@ function boot(theme, channels) {
 
     function draw() {
         strip.style.height = state.strip.height + 'px';
+        drawPanels(state.panels);
         dock.setTop(state.strip.height);
         dock.update(state.dock);
         down.hidden = !state.down;
@@ -155,6 +164,44 @@ function boot(theme, channels) {
             bar.hidden = window.title === null;
             text.textContent = window.title ?? '';
         }
+    }
+
+    // Each panel window's material at its frame, rounded by half its height, and the backdrop cut away under it.
+    function drawPanels(panels) {
+        const open = new Set(panels.map(({ id }) => id));
+        for (const [id, material] of materials) {
+            if (open.has(id)) continue;
+            material.remove();
+            materials.delete(id);
+        }
+        for (const { id, frame } of panels) {
+            if (!materials.has(id)) {
+                const material = element(document, 'div', 'deckit-panel-material');
+                document.body.insertBefore(material, strip);
+                materials.set(id, material);
+            }
+            Object.assign(materials.get(id).style, {
+                left: frame.x + 'px',
+                top: frame.y + 'px',
+                width: frame.width + 'px',
+                height: frame.height + 'px',
+            });
+        }
+        const holes = panels.map(({ frame: { x, y, width, height } }) => {
+            const shape =
+                `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+                `<rect width="${width}" height="${height}" rx="${height / 2}"/></svg>`;
+            return { image: `url("data:image/svg+xml,${encodeURIComponent(shape)}")`, at: `${x}px ${y}px` };
+        });
+        const masked = holes.length > 0;
+        const { style } = backdropRoot;
+        const set = (name, values) =>
+            masked ? style.setProperty(name, values.join(', ')) : style.removeProperty(name);
+        set('mask-image', [...holes.map(({ image }) => image), 'linear-gradient(#000, #000)']);
+        set('mask-position', [...holes.map(({ at }) => at), '0 0']);
+        set('mask-size', [...panels.map(({ frame }) => `${frame.width}px ${frame.height}px`), '100% 100%']);
+        set('mask-repeat', ['no-repeat']);
+        set('mask-composite', [...holes.map(() => 'exclude'), 'add']);
     }
 
     // A window's frame and buttons, in the two documents main lets this page open for it: a titled window's frame has
