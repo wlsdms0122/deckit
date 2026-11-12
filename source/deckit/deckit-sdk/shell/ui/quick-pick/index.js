@@ -173,20 +173,25 @@ function quickPick(
         chip.replaceChildren(...(scope ? [mark, scope.label] : []));
     }
 
-    // A row that changes size, as a face or an icon comes in, changes the height too.
+    // A row that changes size, as a face or an icon comes in, changes the height too: measured in a frame of its own,
+    // as the window it tells changes the list's size again.
     let told = 0;
-    if (fills && onHeight) new box.ownerDocument.defaultView.ResizeObserver(() => measure()).observe(box);
+    if (fills && onHeight) {
+        const view = box.ownerDocument.defaultView;
+        new view.ResizeObserver(() => view.requestAnimationFrame(measure)).observe(box);
+    }
 
-    // What the card takes with every row shown: what is over the list and under it, and the rows in it.
+    // What the card takes with every row shown: what is over the list and under it, and the rows in it; nothing while
+    // it is not drawn.
     function measure() {
         const card = box.parentElement;
-        if (!fills || !onHeight || !card) return;
+        if (!fills || !onHeight || !card?.isConnected) return;
         const outer = card.getBoundingClientRect();
         const list = box.getBoundingClientRect();
         const last = box.lastElementChild?.getBoundingClientRect();
         const rows = last ? last.bottom + box.scrollTop - list.top : 0;
         const height = Math.ceil(list.top - outer.top + rows + outer.bottom - list.bottom);
-        if (height !== told) onHeight((told = height));
+        if (height > 0 && height !== told) onHeight((told = height));
     }
 
     // The text typed is the caller's to set too; one it sets is not heard as typed.
