@@ -79,6 +79,9 @@ const LOOKS = Object.freeze({
         },
     },
 });
+// The material a floating part in a page lays over what is behind it: none while the system asks for less
+// transparency or more contrast.
+const BLUR = 'blur(24px) saturate(1.6)';
 // The rim's strength while the system asks for more contrast.
 const RIM_MORE = 0.3;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -133,8 +136,8 @@ const WASH = (amount) => `rgba(128,128,128,${amount})`;
 // What every view draws with, derived once from the embedder's theme and the person's fonts. `font` and `type` are the
 // host's, the face the app's own parts are in; `textFont` and `textSize` are what a page's text is in where nothing
 // chooses another, and text a person reads and writes, the person's where they chose them; `fonts` is what the person
-// chose, `{ text, size }`, each left out for the default; `mono` is the system's fixed-width face. `glass` is read at
-// each use: 1, opaque, while the system asks for less transparency or more contrast.
+// chose, `{ text, size }`, each left out for the default; `mono` is the system's fixed-width face. `glass` and `blur`
+// are read at each use: 1 and none, opaque, while the system asks for less transparency or more contrast.
 function tokenOf(theme, fonts = {}) {
     const text = theme.contentColor;
     const background = theme.contentBg;
@@ -201,6 +204,9 @@ function tokenOf(theme, fonts = {}) {
         get glass() {
             return opaque() ? 1 : look.glass;
         },
+        get blur() {
+            return opaque() ? 'none' : BLUR;
+        },
     });
 }
 
@@ -228,6 +234,7 @@ function propertiesOf(token) {
             mapped(token.appIcon, (value) => value + 'px')
         ),
         glass: look.glass * 100 + '%',
+        blur: BLUR,
         fade: MOTION.fade + 'ms',
         ...prefixed(
             'move-',
@@ -238,7 +245,7 @@ function propertiesOf(token) {
     };
     const declarations = Object.entries(properties).map(([name, value]) => `--deckit-${kebab(name)}: ${value};`);
     const still = Object.keys(LENGTH).map((name) => `--deckit-move-${name}: 0ms;`);
-    const opaque = '--deckit-glass: 100%;';
+    const opaque = '--deckit-glass: 100%; --deckit-blur: none;';
     const more = `${opaque} --deckit-rim: ${rimOf(COLOR.alpha(look.rim, RIM_MORE))};`;
     return (
         `:root { ${declarations.join(' ')} }\n` +
