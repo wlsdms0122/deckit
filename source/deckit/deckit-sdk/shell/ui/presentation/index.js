@@ -28,8 +28,8 @@ const stack = [];
 // its web pages too.
 let backdrop = null;
 let overlayDocument = null;
-// What the person last acted with, `key` or `pointer`: what a key opens or closes does not move.
-let input = 'pointer';
+// Whether a key is being heard now: what a key opens or closes does not move.
+let keyed = false;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -98,10 +98,10 @@ function present({
         onKey,
         dismiss: () => onDismiss(),
         place: () => (anchor || rect || point || beside) && PLACE.place(element, { anchor, rect, point, beside, gap }),
-        close: () => close(presented, input === 'key' ? null : speed),
+        close: () => close(presented, keyed ? null : speed),
     };
     stack.push(presented);
-    if (element) show(presented, speed === null || input === 'key');
+    if (element) show(presented, speed === null || keyed);
     return presented;
 }
 
@@ -167,9 +167,16 @@ function close(presented, speed) {
     else layer.remove();
 }
 
+// A key is heard from its keydown until the turn after it, what its listeners did meanwhile included.
 function heed(view) {
-    view.addEventListener('keydown', () => (input = 'key'), true);
-    view.addEventListener('pointerdown', () => (input = 'pointer'), true);
+    view.addEventListener(
+        'keydown',
+        () => {
+            keyed = true;
+            setTimeout(() => (keyed = false));
+        },
+        true
+    );
 }
 
 function dismissOutside(event) {
