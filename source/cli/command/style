@@ -83,8 +83,6 @@ const ALLOWED = [
 ].map((allow) => ({ rule: 'colour-literal', ...allow }));
 // A spinner turns at a pace of its own for as long as it shows: a loop, not a change that a length of motion times.
 ALLOWED.push({ file: 'deckit-sdk/shell/ui/loading/index.js', selector: /^\(inline\)$/, rule: 'duration-literal' });
-// The Dock floats over every window as the system's own, outlined and lifted as a window's frame is.
-ALLOWED.push({ file: 'deckit-shell/shell/dock/view.js', selector: /^\.deckit-dock-card$/, rule: 'edge-and-elevation' });
 // Engines' bundles: a mod's src/engine/engine.js, which `deckit engine` makes from the packages it bundles.
 const BUNDLED = /^mods\/[^/]+\/src\/engine\/engine\.js$/;
 const NAMED_COLOURS = new Set(

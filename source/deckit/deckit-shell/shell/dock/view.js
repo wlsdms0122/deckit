@@ -14,6 +14,9 @@ const STYLE = `
         position: fixed;
         left: 0;
         bottom: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
         width: ${WIDTH}px;
         box-sizing: border-box;
         padding: 8px 0;
@@ -25,16 +28,15 @@ const STYLE = `
         display: flex;
         flex-direction: column;
         align-items: center;
+        flex: 0 1 auto;
         gap: 4px;
-        height: 100%;
+        min-height: 0;
         box-sizing: border-box;
         padding: 8px 0;
         overflow-y: auto;
-        border: 1px solid var(--deckit-divider);
-        border-left: 0;
         border-radius: 0 var(--deckit-radius-card) var(--deckit-radius-card) 0;
-        background: var(--deckit-lifted);
-        box-shadow: var(--deckit-shadow-drawer);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     }
     .deckit-dock-list { display: flex; flex-direction: column; gap: 4px; }
     .deckit-dock-divider { flex: 0 0 auto; width: 28px; margin: 2px 0; border-top: 1px solid var(--deckit-divider); }
@@ -48,7 +50,6 @@ const STYLE = `
         height: ${ITEM}px;
         padding: 0;
         border: 0;
-        outline: none;
         border-radius: var(--deckit-radius-large);
         background: transparent;
         color: var(--deckit-text);
@@ -58,30 +59,28 @@ const STYLE = `
     }
     .deckit-dock-item:hover { background: var(--deckit-hover); }
     .deckit-dock-item[data-active] { background: var(--deckit-selected); }
-    .deckit-dock-item:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-dock-item svg { width: 24px; height: 24px; }
     .deckit-dock-item[data-running]::before {
         content: '';
         position: absolute;
-        left: -1px;
+        left: -8px;
         top: calc(50% - 2px);
         width: 4px;
         height: 4px;
-        border-radius: 50%;
-        background: currentColor;
-        opacity: 0.6;
+        border-radius: var(--deckit-radius-round);
+        background: var(--deckit-muted);
     }
-    .deckit-dock-item[data-attention]::before { background: var(--deckit-accent); opacity: 1; }
+    .deckit-dock-item[data-attention]::before { background: var(--deckit-accent); }
 `;
 
 // MARK: - Initializer
 // MARK: - Public
-// The Dock, drawn in the desktop's page at the desktop's left edge: the items kept there, which a drag puts in another
-// order, then those running only. A running item has a dot, in the accent where its mod asks for attention, and the
-// active mod's item is marked. It is in but for its sliver until the pointer comes, and stays out while the pointer is
-// over it, a press holds it or its menu is open; `onOut(out)` hears it slide out and back. A click on an item opens its
-// mod, and its menu shows it, quits it while it runs, and keeps it in the Dock or takes it out, each told to main over
-// `channels`. `ui` is the page's kit.
+// The Dock, drawn in the desktop's page at the desktop's left edge, centred down it and as tall as its items: the items
+// kept there, which a drag puts in another order, then those running only. A running item has a dot, in the accent
+// where its mod asks for attention, and the active mod's item is marked. It is in but for its sliver until the pointer
+// comes, and stays out while the pointer is over it, a press holds it or its menu is open; `onOut(out)` hears it slide
+// out and back. A click on an item opens its mod, and its menu shows it, quits it while it runs, and keeps it in the
+// Dock or takes it out, each told to main over `channels`. `ui` is the page's kit.
 function make({ ui, channels, onOut }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     ui.addStyle(STYLE);
