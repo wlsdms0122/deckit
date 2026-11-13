@@ -50,7 +50,7 @@ function loadFailure({ ui, theme, values, onRetry }) {
             overflow-wrap: anywhere;
         }
         .browser-failure-actions { margin-top: 20px; }
-        .browser-failure-game { align-self: stretch; margin-top: 48px; }
+        .browser-failure-game { align-self: stretch; margin-top: 32px; }
     `);
     const element = ui.element('div', { className: 'browser-failure' });
     const body = ui.element('div', { className: 'browser-failure-body' });

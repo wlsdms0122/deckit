@@ -1,6 +1,6 @@
 const { createRun, JUMP } = require('./run.js');
 
-// The CSS px between two cable ties on the line, and between two masts behind it, which drift at a quarter of the
+// The CSS px between two cable ties on the line, and between two poles behind it, which drift at a quarter of the
 // pace.
 const TIE = 64;
 const MAST = 220;
@@ -147,14 +147,20 @@ function game({ ui, theme, values }) {
                   : `Score ${state.score}. Press Space to play again.`;
     }
 
-    // Masts along the line far behind it, which hold still with reduced motion.
-    function drawMasts(context, { distance, line }, fill, still) {
-        context.fillStyle = fill;
+    // Poles far behind the line with a wire sagging between them, which hold still with reduced motion.
+    function drawMasts(context, { distance, line }, ink, still) {
         const offset = still ? 0 : (distance * DRIFT) % MAST;
-        for (let x = MAST / 2 - offset; x < width + MAST; x += MAST) {
-            context.fillRect(x, line - 40, 2, 40);
-            context.fillRect(x - 6, line - 36, 14, 2);
+        const top = line - 40;
+        context.fillStyle = ink;
+        context.strokeStyle = ink;
+        context.lineWidth = 1;
+        context.beginPath();
+        for (let x = MAST / 2 - offset - MAST; x < width + MAST; x += MAST) {
+            context.fillRect(x, top, 2, 40);
+            context.moveTo(x + 1, top + 4);
+            context.quadraticCurveTo(x + 1 + MAST / 2, top + 18, x + 1 + MAST, top + 4);
         }
+        context.stroke();
     }
 
     // The cable, with a tie every TIE px going by.
