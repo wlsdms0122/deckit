@@ -26,12 +26,13 @@ const STYLE = `
     .deckit-surface[data-state='closed'][data-side='left'] { transform: translateX(6px) scale(.96); }
     .deckit-surface[data-still],
     .deckit-surface[data-still] * { transition: none; }
-    .deckit-backdrop { position: fixed; inset: 0; }
+    .deckit-backdrop { position: fixed; left: 0; top: 0; width: 100%; height: 100%; }
 `;
 // What is presented over the page, bottom first.
 const stack = [];
-// The layer under what is presented, while an element of it is: a press outside it lands there, over the page and
-// its web pages too.
+// The layer under what is presented, while an element of it is: a press outside it on the page lands there, over the
+// page and its web pages too. It lies over the page alone where the overlay is laid wider, so a press past the page
+// reaches what is there.
 let backdrop = null;
 let overlayDocument = null;
 // Whether a key is being heard now: what a key opens or closes does not move.
@@ -53,7 +54,10 @@ function start() {
     overlay.addEventListener('wheel', dismissWheeledOutside, true);
     // A box placed while the overlay was not laid yet, or laid elsewhere, is placed again once it is.
     overlay.addEventListener('resize', placeAgain);
-    LAYER.whenMoved(placeAgain);
+    LAYER.whenMoved(() => {
+        fitBackdrop();
+        placeAgain();
+    });
 }
 
 // What is presented is heard in one more document of the page's, as in the page: a window's content.
@@ -66,6 +70,7 @@ function watch(each) {
     each.addEventListener('scroll', dismissScrolledAway, true);
     each.addEventListener('resize', () => {
         dismissTransient();
+        fitBackdrop();
         placeAgain();
     });
 }
@@ -140,7 +145,10 @@ function escape() {
 // one is in its open state at once.
 function show(presented, still) {
     const { element } = presented;
-    if (!backdrop) backdrop = LAYER.add(Object.assign(document.createElement('div'), { className: 'deckit-backdrop' }));
+    if (!backdrop) {
+        backdrop = LAYER.add(Object.assign(document.createElement('div'), { className: 'deckit-backdrop' }));
+        fitBackdrop();
+    }
     element.classList.add('deckit-surface');
     if (!element.hasAttribute('tabindex')) element.tabIndex = -1;
     element.dataset.state = 'closed';
@@ -223,6 +231,19 @@ function dismissScrolledAway(event) {
 // The wheel turned over the overlay outside what is presented would scroll the page under it.
 function dismissWheeledOutside(event) {
     if (!stack.some((presented) => presented.element?.contains(event.target))) dismissTransient();
+}
+
+// The backdrop over the page's own rect in the overlay.
+function fitBackdrop() {
+    if (!backdrop) return;
+    const [page, overlay] = LAYER.windows();
+    const { x, y } = LAYER.viewportOf(overlay);
+    Object.assign(backdrop.element.style, {
+        left: -x + 'px',
+        top: -y + 'px',
+        width: page.innerWidth + 'px',
+        height: page.innerHeight + 'px',
+    });
 }
 
 function placeAgain() {
