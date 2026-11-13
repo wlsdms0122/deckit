@@ -34,12 +34,13 @@ function findInPage({ theme, ui, area, frontTab }) {
         onChange: change,
         onNext: () => step(false),
         onPrevious: () => step(true),
-        onCancel: close,
+        // Escape, a key, puts it away at once.
+        onCancel: () => close({ still: true }),
     });
     const closeButton = ui.iconButton({
         icon: ui.icon('x', { size: 14 }),
         title: 'Close',
-        onClick: close,
+        onClick: () => close(),
         size: 'small',
     });
     field.element.classList.add('browser-find-field');
@@ -61,29 +62,30 @@ function findInPage({ theme, ui, area, frontTab }) {
         if (state.query) step(false);
     }
 
-    function close() {
-        hide();
+    function close({ still = false } = {}) {
+        hide({ still });
         frontTab().page?.focus();
     }
 
-    // Hidden, it takes no presses and lets go of the keyboard while it fades, and the match it selected is let go.
-    function hide() {
+    // Hidden, it takes no presses and lets go of the keyboard while it fades, or with `still` is gone at once, and the
+    // match it selected is let go.
+    function hide({ still = false } = {}) {
         if (!layer || leaving) return;
         element.style.pointerEvents = 'none';
         if (element.contains(element.ownerDocument.activeElement)) element.ownerDocument.activeElement.blur();
-        leaving = element.animate(FADE, {
-            duration: theme.motion.exit.fade,
-            easing: theme.motion.exit.easing,
-            direction: 'reverse',
-            fill: 'forwards',
-        });
-        leaving.onfinish = () => {
-            leaving.cancel();
+        const gone = () => {
+            leaving?.cancel();
             leaving = null;
             element.style.pointerEvents = '';
             layer.remove();
             layer = null;
         };
+        if (still) gone();
+        else {
+            const { fade, easing } = theme.motion.exit;
+            leaving = element.animate([...FADE].reverse(), { duration: fade, easing, fill: 'forwards' });
+            leaving.onfinish = gone;
+        }
         searchedTab?.page.stopFind();
         searchedTab = null;
         field.setCount(0, 0);
