@@ -20,7 +20,7 @@ const MODES = [
 // `openWindow()` opens the window, or orders it front where it is open. `screen` is what `calendar` and the commands
 // reach it by; `end()` stops what it runs on its own and closes the questions it asked.
 function calendarView({ calendar, shell, deckit, sendTest }) {
-    const { theme, ui } = shell;
+    const { ui } = shell;
     const { values } = deckit.storage;
     const { accounts, feeds, reads, client } = calendar;
     ui.addStyle(ENTRY_STYLE);
@@ -324,7 +324,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         emptyAction.setLabel(noAccount ? 'Add Account…' : 'Choose Calendars…');
         if (empty.style.display !== (blank ? 'flex' : 'none')) {
             empty.style.display = blank ? 'flex' : 'none';
-            if (blank) fade(empty);
+            if (blank) ui.motion.appear(empty);
         }
         const firstRead = !blank && loading && feeds.all().every((feed) => !reads.has(feed));
         showFirstLoad(firstRead, blank);
@@ -333,7 +333,8 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         body.style.visibility = blank ? 'hidden' : '';
 
         const [from, to] = rangeOf(mode, cursor);
-        // Only a move to another range fades in, so a background refresh of the same range does not blink.
+        // Only a move to another range fades in, so a background refresh of the same range does not blink; one a key made
+        // is drawn at once.
         const view = mode + '@' + +from;
         const navigated = view !== drawnView;
         drawnView = view;
@@ -344,7 +345,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         const placeholders = firstLoad?.chips;
         if (mode === 'month') month.draw(body, { start: from, month: cursor.getMonth(), occurrences, placeholders });
         else timeGrid.draw(body, { days: daysOf(from, to), occurrences });
-        if (navigated) fade(body);
+        if (navigated && !ui.motion.keyed()) ui.motion.appear(body);
 
         const today = startOfDay(new Date()),
             tomorrow = addDays(today, 1);
@@ -415,13 +416,6 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         spinning = running;
         if (running) reloadButton.element.replaceChildren(ui.spinner({ size: 16 }).element);
         else reloadButton.setIcon(RELOAD);
-    }
-
-    function fade(element) {
-        element.animate([{ opacity: 0 }, { opacity: 1 }], {
-            duration: theme.motion.enter.fade,
-            easing: theme.motion.enter.easing,
-        });
     }
 
     // Calendar's window comes on screen and asks in a dialog: `{ answer, close }`, `answer` whether the person
