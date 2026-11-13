@@ -17,8 +17,12 @@ const BEST = 'game-best';
 // `setActive(true)` holds. The best score is kept in `values`.
 function game({ ui, theme, values }) {
     ui.addStyle(`
-        .browser-game { width: 100%; border-radius: var(--deckit-radius-medium); outline: none; }
-        .browser-game:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
+        .browser-game {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: var(--deckit-radius-medium);
+        }
         .browser-game canvas { display: block; width: 100%; touch-action: none; }
         .browser-game-line {
             display: flex;
