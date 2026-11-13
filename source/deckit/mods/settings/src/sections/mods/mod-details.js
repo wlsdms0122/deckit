@@ -9,9 +9,6 @@ const MOD_DETAILS_STYLE = `
         grid-template-rows: 0fr;
         opacity: 0;
         cursor: default;
-        transition:
-            grid-template-rows var(--deckit-move) var(--deckit-move-curve),
-            opacity var(--deckit-move-fade) var(--deckit-move-curve);
     }
     .settings-details[data-open] { grid-template-rows: 1fr; opacity: 1; }
     .settings-details-clip { min-height: 0; overflow: hidden; }
@@ -108,9 +105,8 @@ function modDetails({ ui, mods, pins, tildify, onPinnedChange }) {
     function setOpen(on, animate) {
         open = on;
         if (open) readUsage();
-        if (!animate) element.style.transition = 'none';
         element.toggleAttribute('data-open', open);
-        if (!animate) element.ownerDocument.defaultView?.requestAnimationFrame(() => (element.style.transition = ''));
+        if (animate) ui.motion.fold(element, open);
     }
 
     // Read when the row is open: it walks the data folder, and most rows are never opened.

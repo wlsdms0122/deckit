@@ -98,6 +98,7 @@ function modsSection({
             transition: transform var(--deckit-move) var(--deckit-move-curve);
         }
         .settings-mod[data-open] .settings-caret { transform: rotate(90deg); }
+        .settings-mod[data-still] .settings-caret { transition: none; }
         .settings-mod-name-cell .deckit-app-icon { margin-right: 4px; }
         .settings-mod-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .settings-mod-name[data-not-loaded] { color: var(--deckit-muted); }
@@ -280,11 +281,12 @@ function modsSection({
         ui.selectable(failure);
         ui.selectable(note);
         element.append(row.element, details.element);
-        // The clicks after the first of a double or triple click select words, not open or close the row.
+        // The clicks after the first of a double or triple click select words, not open or close the row. A press folds
+        // it; a key opens or closes it at once.
         row.element.addEventListener('click', (event) => {
             if (event.detail > 1) return;
             open = !open;
-            showOpen(true);
+            showOpen(event.detail > 0);
         });
         rowFills.set(element, fill);
         rowsById.set(mod.id, element);
@@ -335,6 +337,7 @@ function modsSection({
         }
 
         function showOpen(animate) {
+            element.toggleAttribute('data-still', !animate);
             element.toggleAttribute('data-open', open);
             details.setOpen(open, animate);
             row.setActionsShown(open);
