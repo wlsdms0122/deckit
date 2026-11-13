@@ -294,14 +294,11 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         const top = reader.scrollTop + heading.getBoundingClientRect().top - reader.getBoundingClientRect().top - 12;
         const still = !theme.motion.move.length;
         reader.scrollTo({ top, behavior: still ? 'auto' : 'smooth' });
-        if (still) return;
-
+        // The heading reached lights once, a fade, so it lights with reduced motion too.
         const mark = () =>
-            heading.animate([{ background: theme.color.selected }, { background: 'transparent' }], {
-                duration: theme.motion.move.fade,
-                easing: theme.motion.press.easing,
-            });
-        reader.addEventListener('scrollend', mark, { once: true });
+            ui.motion.swell(heading, { backgroundColor: 'transparent' }, { backgroundColor: theme.color.selected });
+        if (still) mark();
+        else reader.addEventListener('scrollend', mark, { once: true });
     };
     const contents = (body) => {
         const headings = [...body.querySelectorAll('[data-heading]')];

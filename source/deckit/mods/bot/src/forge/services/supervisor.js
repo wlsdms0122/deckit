@@ -1,5 +1,5 @@
 const supervisorView = ({ shell, deckit, forge, picker }) => {
-    const { theme, ui } = shell;
+    const { ui } = shell;
     const store = deckit.storage.values;
 
     let session = picker.current();
@@ -254,10 +254,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         });
         row.appendChild(wash);
         const done = () => wash.remove();
-        const play = wash.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], {
-            duration: theme.motion.move.fade,
-            easing: theme.motion.press.easing,
-        });
+        const play = ui.motion.swell(wash, { opacity: 0 }, { opacity: 1 }, { rise: 'enter', fall: 'exit' });
         play.finished.then(done, done);
     };
 
