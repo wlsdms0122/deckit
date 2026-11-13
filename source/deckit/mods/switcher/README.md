@@ -31,7 +31,7 @@ An action, as the first three answer it:
 | Field | What it is |
 |---|---|
 | `label`, `hint` | its text, and a line beside it. An action with no `label` is left out |
-| `icon` | a kit icon string. An action with none shows no icon, but on the Now strip, where it shows its mod's |
+| `icon` | a kit icon string. An action with none that runs leads with the Switcher's own action glyph, muted, under its mod's heading: the app icon means the mod, as on its Show row. On the Now strip, which lists actions across mods under no heading, it shows its mod's app icon. Inside a list an action opened, a row with none shows no icon: it is a value, not an action. A mod changes nothing of this |
 | `group` | the group it is listed in under the mod, whose name it is found by too |
 | `tone` | `info`, `ok`, `warn` or `alert` |
 | `attention` | asks for the eye once |

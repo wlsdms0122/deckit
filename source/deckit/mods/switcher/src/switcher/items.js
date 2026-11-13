@@ -5,8 +5,9 @@ const SHOWN_BY = '@shell';
 
 // MARK: - Initializer
 // MARK: - Public
-// What the list holds, before it is made runnable: `{ id, label, hint, icon, appIcon, group, section, keywords, tone,
-// attention, fallback, mod, value, opens, command, args, shows }`, `section` the one it is in, `{ id, name, icon }`. An
+// What the list holds, before it is made runnable: `{ id, label, hint, icon, appIcon, actionGlyph, group, section,
+// keywords, tone, attention, fallback, mod, value, opens, command, args, shows }`, `section` the one it is in,
+// `{ id, name, icon }`, and `actionGlyph` whether the row leads with the Switcher's own action glyph. An
 // item gives `value` to the `run` of `mod`, the mod whose action it is, or with `opens` searches inside it; one `mod`
 // declared runs its `command` with `args`; a Show item `shows` a mod; one with none of these is read only.
 
@@ -36,9 +37,11 @@ function listed({ actions, shown, about }) {
 }
 
 // An action of `mod` as an item in its section as `about` draws it: listed, of the Now strip, or answered under
-// `kind`, the query or the submenu it answers. It shows its own icon, or none: only a row of the Now strip, which no
-// section names, shows its mod's app icon, and its tone colours it.
-function itemOf(kind, mod, action, about) {
+// `kind`, the query or the submenu it answers, `inside` true for a submenu's. It shows its own icon. One with none
+// that runs leads with the Switcher's action glyph where its section names its mod; a row of the Now strip, which no
+// section names, shows its mod's app icon, and its tone colours it; a row inside a submenu, a value the action that
+// opened it takes, and one read only show none.
+function itemOf(kind, mod, action, about, inside = false) {
     const section = sectionOf(mod, about);
     return {
         ...blank(section),
@@ -46,18 +49,25 @@ function itemOf(kind, mod, action, about) {
         id: idOf(kind, mod, action.label, action.value, action.command ?? '', action.args ?? null),
         icon: action.icon || (kind === 'now' ? section.icon : ''),
         appIcon: !action.icon && kind === 'now',
+        actionGlyph: !action.icon && kind !== 'now' && !inside && runs(action),
         keywords: action.keywords.join(' '),
         mod,
     };
 }
 
 // MARK: - Private
+// Whether picking `action` does something: it gives a value, opens a list or runs a command.
+function runs(action) {
+    return (action.value !== undefined && action.value !== null) || !!action.opens || !!action.command;
+}
+
 function blank(section) {
     return {
         label: '',
         hint: '',
         icon: '',
         appIcon: false,
+        actionGlyph: false,
         group: '',
         section,
         keywords: '',

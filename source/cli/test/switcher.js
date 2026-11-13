@@ -1,7 +1,8 @@
 // The Switcher's list (mods/switcher/src/switcher/switcher.js) over a stand-in for deckit, the shell and the list it
 // draws: the actions mods declare to switcher/actions are listed under their mods beside those a run set, one with a
-// command runs it through deckit/commands and one with none is read only, and none is listed while the switcher does
-// not own the interface. Exits 1 with a line for each check that failed.
+// command runs it through deckit/commands and one with none is read only, an action with no icon that runs leads with
+// the Switcher's action glyph, and none is listed while the switcher does not own the interface. Exits 1 with a line
+// for each check that failed.
 const path = require('path');
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -77,6 +78,12 @@ async function main() {
         items[1]
     );
     check('a declared action with no command is read only', items[2]?.run === undefined, items[2]);
+    const leads = items.map((item) => `${item.label}:${item.appIcon ? 'app' : item.actionGlyph ? 'action' : 'none'}`);
+    check(
+        "an action that gives no icon and runs leads with the Switcher's action glyph, not its mod's app icon",
+        leads.join() === 'Set:action,Show Log:action,Read Only:none',
+        leads
+    );
     await items[1].run();
     await tick();
     check(

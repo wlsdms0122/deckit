@@ -1,6 +1,8 @@
 const VIEW_MODEL = require('./view-model.js');
 
 // MARK: - Property
+// The glyph an action that gives no icon leads with where its mod's section names the mod: run this.
+const ACTION_GLYPH = 'play';
 // How each tone looks on a row of the Now strip: its glyph, the row's wash and the colour it breathes when it asks for
 // attention. Only `alert` tints the row and `info` has no colour, so a colour still means something.
 const TONE_LOOK = {
@@ -50,6 +52,9 @@ const STYLE =
         height: var(--deckit-app-icon-row);
         color: var(--deckit-muted);
     }
+    /* The Switcher's own mark for an action that gives no icon: smaller than an action's own glyph, and muted
+       whatever the row's tone. */
+    .switcher-row[data-tone] .switcher-glyph[data-action] { color: var(--deckit-muted); }
     .switcher-row[data-lead] .switcher-glyph { width: var(--deckit-app-icon-lead); height: var(--deckit-app-icon-lead); }
     .switcher-stack { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
     .switcher-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -236,6 +241,7 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
         item.label,
         item.icon,
         item.appIcon,
+        item.actionGlyph,
         item.tone,
         item.attention,
         item.lead,
@@ -254,6 +260,10 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
     const glyph = element('span', 'switcher-glyph');
     if (item.appIcon) glyph.append(ui.appIcon(item.icon, { size: item.lead ? 'lead' : 'row' }));
     else if (item.icon) glyph.append(ui.sanitizeIcon(item.icon));
+    else if (item.actionGlyph) {
+        glyph.dataset.action = '';
+        glyph.innerHTML = ui.icon(ACTION_GLYPH, { size: 14 });
+    }
     const label = element('span', 'switcher-label');
     label.append(...labelOf(item.label, lit));
     const note = hintOf(hint);

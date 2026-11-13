@@ -131,7 +131,9 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
         if (!left) return answer();
         for (const [mod, source] of sources)
             actionsOf(mod, source, 'search', raw, parent ? parent.value : null)
-                .then((actions) => actions?.map((each) => ITEMS.itemOf(parent?.id ?? raw, mod, each, current.about)))
+                .then((actions) =>
+                    actions?.map((each) => ITEMS.itemOf(parent?.id ?? raw, mod, each, current.about, !!parent))
+                )
                 .then((found) => {
                     left--;
                     if (found) {

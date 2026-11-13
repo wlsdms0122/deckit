@@ -98,6 +98,7 @@ What a mod hands the switcher (the Switcher's `setActions`, MOD.md) is what it d
 - **Label:** the key's name when the action has a key; otherwise a verb first, in Title Case (New Tab, Reopen Closed Tab, Find in Page).
 - **`hint`:** the few words the label leaves out, which one (the closed tab's title) or where (In a new tab), with no full stop.
 - **`keywords`:** words a person would type for it that the label does not hold, in Korean and in English.
+- **`icon`:** a glyph only where it says something the label does not. An action with none leads with the Switcher's own action glyph in its mod's section, and with the mod's app icon on the Now strip, where the mod is the information. In its section the app icon means the mod, as on its Show row.
 - An action that needs one more thing before it acts (which tab, which bookmark) `opens` a list of those. Something typed that the mod can act on directly (an address) is answered by `search`.
 - **`now`:** what is due now, such as an event about to start or a run that failed, with `tone` for its status.
 - An action whose work is seen in a window brings the window forward (`makeKeyAndOrderFront()`) once it knows it can be done, so a refusal is read under the switcher's list, and before it waits on anything the person answers in the window. One whose work is done out of sight does not, and its row says done, or why not.
