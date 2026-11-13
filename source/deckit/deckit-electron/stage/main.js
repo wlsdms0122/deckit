@@ -53,9 +53,10 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
             if (!closed) native.showStage(id, !!on);
         }
 
-        // What is on the stage: each layer `{ page, rect, clip, input }`, laid there, drawn only inside `clip`, a
-        // rect on the stage with its corners rounded by `cornerRadius`, where it is given, and taking the pointer only
-        // inside the rects `input` names in it where it names any, or `{ page, hidden: true }`, kept out of the window,
+        // What is on the stage: each layer `{ page, rect, clip, input, opacity }`, laid there, drawn only inside
+        // `clip`, a rect on the stage with its corners rounded by `cornerRadius`, where it is given, taking the pointer
+        // only inside the rects `input` names in it where it names any, and drawn at `opacity`, 1 where it is not
+        // given, or `{ page, hidden: true }`, kept out of the window,
         // which a page in it would slow as it resizes, or `{ material, rect, cornerRadius }`, a material of the host's
         // named as a window's is, blurring what the window shows under the rect, the layers before it included, and
         // taking no clicks. The layers are in the order given, bottom to top. A page left out, or gone, is taken off.
@@ -108,20 +109,21 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                 showing.set(page, record);
                 record.shown.add(page);
             };
-            const layers = laid.flatMap(({ page, material, rect, clip, input, cornerRadius = 0 }) => {
+            const layers = laid.flatMap(({ page, material, rect, clip, input, opacity, cornerRadius = 0 }) => {
                 if (material) return [{ material, frame: rect, cornerRadius }];
                 if (page.isDestroyed()) return [];
                 if (!rect) return [{ page: page.id, hidden: true }];
                 show(page);
                 const clips = clip ? [clip] : [];
+                const seen = opacity !== undefined && opacity < 1 ? { opacity: Math.max(0, opacity) } : {};
                 const over = webPagesIn(page).map((web) => {
                     show(web.page);
                     const { x, y, width, height } = web.frame;
                     const frame = { x: rect.x + x, y: rect.y + y, width, height };
-                    return { page: web.page.id, frame, clips: [...clips, rect] };
+                    return { page: web.page.id, frame, clips: [...clips, rect], ...seen };
                 });
                 return [
-                    { page: page.id, frame: rect, ...(clip ? { clips } : {}), ...(input ? { input } : {}) },
+                    { page: page.id, frame: rect, ...(clip ? { clips } : {}), ...(input ? { input } : {}), ...seen },
                     ...over,
                 ];
             });

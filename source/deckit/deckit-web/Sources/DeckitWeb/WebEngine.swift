@@ -42,10 +42,10 @@ import CNodeAPI
 //   from outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
 //   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
-//   clips, input } | { page, hidden: true } | { material, frame, cornerRadius }])`, `clips` the rects on the stage the
-//   page is cut to, each `{ x, y, width, height, cornerRadius }`, `input` the rects in the page that take the pointer,
-//   all of it without, and a material, named as a window's is, blurring what the window shows under its frame;
-//   `showStage(id, on)`;
+//   clips, input, opacity } | { page, hidden: true } | { material, frame, cornerRadius }])`, `clips` the rects on the
+//   stage the page is cut to, each `{ x, y, width, height, cornerRadius }`, `input` the rects in the page that take the
+//   pointer, all of it without, `opacity` how much of it shows, 1 without, and a material, named as a window's is,
+//   blurring what the window shows under its frame; `showStage(id, on)`;
 //   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, a
 //   view that cuts what is in it to rounded corners with their radius, a material with its number, and the view with
 //   the window's keyboard marked.
@@ -391,12 +391,13 @@ final class WebEngine {
                 let page = try node.integer(id)
                 guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
                 if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
-                    return .page(laid, frame: nil, clips: [], input: nil)
+                    return .page(laid, frame: nil, clips: [], input: nil, opacity: 1)
                 }
                 guard let frame = try node.member(layer, "frame") else {
                     throw NodeError(message: "a layer is { page, frame, clips, input } or { page, hidden: true }")
                 }
                 let clips = try node.member(layer, "clips").map { try node.array($0) } ?? []
+                let opacity = try node.member(layer, "opacity").map { try node.number($0) } ?? 1
 
                 return .page(
                     laid,
@@ -407,7 +408,8 @@ final class WebEngine {
                             cornerRadius: try node.member(clip, "cornerRadius").map { try node.number($0) } ?? 0
                         )
                     },
-                    input: try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } }
+                    input: try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } },
+                    opacity: CGFloat(min(1, max(0, opacity)))
                 )
             })
 

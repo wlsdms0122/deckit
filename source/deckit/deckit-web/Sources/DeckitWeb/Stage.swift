@@ -20,10 +20,11 @@ final class Stage {
     }
 
     // What is laid on a stage, bottom to top: a page at its frame, cut to its clips, taking the pointer only inside its
-    // input region where it has one, or hidden; or a material at a rect, its corners rounded by `cornerRadius`, that
-    // blurs what the window shows under it, the pages laid before it included, and takes no clicks.
+    // input region where it has one, drawn at its opacity, or hidden; or a material at a rect, its corners rounded by
+    // `cornerRadius`, that blurs what the window shows under it, the pages laid before it included, and takes no
+    // clicks.
     enum Layer {
-        case page(WebPage, frame: CGRect?, clips: [Clip], input: [CGRect]?)
+        case page(WebPage, frame: CGRect?, clips: [Clip], input: [CGRect]?, opacity: CGFloat)
         case material(NSVisualEffectView.Material, rect: CGRect, cornerRadius: CGFloat)
     }
 
@@ -73,7 +74,7 @@ final class Stage {
     // the order, and those left over are taken off.
     func lay(_ layers: [Layer]) {
         let kept = Set(layers.compactMap { layer -> ObjectIdentifier? in
-            guard case let .page(page, frame?, _, _) = layer else { return nil }
+            guard case let .page(page, frame?, _, _, _) = layer else { return nil }
             return ObjectIdentifier(page)
         })
         for page in laid where !kept.contains(ObjectIdentifier(page)) {
@@ -85,10 +86,11 @@ final class Stage {
         for layer in layers {
             let item: NSView
             switch layer {
-            case let .page(page, frame, clips, input):
+            case let .page(page, frame, clips, input, opacity):
                 guard let frame else { continue }
                 page.view.inputRegion = input
                 item = holder(of: page, frame: frame, clips: clips)
+                if item.alphaValue != opacity { item.alphaValue = opacity }
                 shown.append(page)
 
             case let .material(material, rect, cornerRadius):
@@ -131,6 +133,7 @@ final class Stage {
             clips[key] = made
         }
         let cuts = clips[key] ?? []
+        if page.view.alphaValue != 1 { page.view.alphaValue = 1 }
         var origin = CGPoint.zero
         for (cut, shape) in zip(cuts, shapes) {
             let inside = shape.rect.offsetBy(dx: -origin.x, dy: -origin.y)
