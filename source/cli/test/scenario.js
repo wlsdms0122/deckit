@@ -222,31 +222,30 @@ async function run({
         JSON.stringify({ windows: windowsAtLaunch.map(({ mod }) => mod), strip: await stripText() })
     );
     // The status bar: a capsule 28 high in the host's bar, 8 in from its right end and centred on it, its children's
-    // views in a row in it, 24 high, the Notifications bell, an icon's item, then the clock, told wider.
+    // views in a row in it, 24 high, the clock first, told wider than an icon's item.
     const capsuleNow = async () => {
         const stack = await stackNow();
         const bar = stack.find(
             ({ opener, name }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(name)
         );
         const item = (id) => stack.find(({ url }) => url.startsWith(`deckit://${id}.mod`))?.rect ?? null;
-        return { bar: bar?.rect ?? null, bell: item('notifications'), clock: item('clock'), joined: item(JOINS) };
+        return { bar: bar?.rect ?? null, clock: item('clock'), joined: item(JOINS) };
     };
     const screenWidth = (await desktopLaid())?.rect.width;
     const capsule =
         (await until(async () => {
             const now = await capsuleNow();
-            return now.bar && now.bell && now.clock && now.clock.width > 32 && now;
+            return now.bar && now.clock && now.clock.width > 32 && now;
         }, 8000)) || (await capsuleNow());
     check(
-        'the status bar stands at the top right of the host bar, the bell and the clock in a row in it',
-        (({ bar, bell, clock }) =>
+        'the status bar stands at the top right of the host bar, the clock first in its row',
+        (({ bar, clock }) =>
             bar?.height === 28 &&
             bar.y === 12 &&
             bar.x + bar.width === screenWidth - 8 &&
-            [bell, clock].every((item) => item?.height === 24 && item.y === bar.y + 2) &&
-            bell.x === bar.x + 2 &&
-            bell.width === 32 &&
-            clock.x === bell.x + bell.width + 4 &&
+            clock?.height === 24 &&
+            clock.y === bar.y + 2 &&
+            clock.x === bar.x + 2 &&
             clock.x + clock.width === bar.x + bar.width - 2)(capsule),
         JSON.stringify({ ...capsule, screenWidth })
     );
@@ -2276,22 +2275,50 @@ async function run({
                 joined.bar.x + joined.bar.width === unjoined.bar.x + unjoined.bar.width,
             JSON.stringify({ unjoined, joined })
         );
-        // A press on the bell opens the list of notifications over the app, and leaves the key window key: the press
-        // is a panel window's, and the list takes the keyboard only as the host gives it (DECKIT-31).
-        const listNow = async () =>
+        // A press on the clock brings the notification center out at the desktop's right edge, 8 in from it, 8 under
+        // the bar and 8 above the bottom, and it takes the keyboard; the clock shows pressed while it is open, and a
+        // second press puts it away. A press on a normal window takes the keyboard from it, and it closes (DECKIT-31).
+        const centerNow = async () =>
             (await laidNow())
                 .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
                 .find(
                     ({ opener, name }) =>
                         opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
                 ) ?? null;
-        const keyBeforeBell = await keyMod();
-        await (await page('deckit://notifications.mod'))?.press('.deckit-bar-item');
-        const bellList = await until(async () => (await listNow())?.rect.height === 440 && listNow(), 4000);
+        const clockPage = await page('deckit://clock.mod');
+        const clockPressed = async () =>
+            (await clockPage?.evaluate(`document.querySelector('.deckit-bar-item')?.getAttribute('aria-pressed')`)) ===
+            'true';
+        const stageNow = (await desktopLaid())?.rect;
+        const centerAt = { x: stageNow?.width - 368, y: 60, width: 360, height: stageNow?.height - 68 };
+        await clockPage?.press('.deckit-bar-item');
+        const opened = await until(async () => {
+            const now = await centerNow();
+            return near(now?.rect, centerAt) && now.responder && now;
+        }, 4000);
         check(
-            'a press on the bell opens the list of notifications, and the key window stays key',
-            bellList && keyBeforeBell && (await keyMod()) === keyBeforeBell,
-            JSON.stringify({ list: await listNow(), key: await keyMod(), keyBeforeBell })
+            'a press on the clock opens the notification center at the right edge, and it takes the keyboard',
+            opened && (await until(clockPressed, 2000)),
+            JSON.stringify({ center: await centerNow(), centerAt, pressed: await clockPressed() })
+        );
+        await clockPage?.press('.deckit-bar-item');
+        const putAway = await until(async () => !(await centerNow()) && !(await clockPressed()), 4000);
+        check(
+            'a second press on the clock puts the notification center away',
+            putAway,
+            JSON.stringify({ center: await centerNow(), pressed: await clockPressed() })
+        );
+        await clockPage?.press('.deckit-bar-item');
+        const reopened = await until(async () => (await centerNow())?.responder, 4000);
+        await probeWindow.press('#drop');
+        const taken = await until(
+            async () => !(await centerNow()) && (await keyMod()) === 'window-probe' && !(await clockPressed()),
+            4000
+        );
+        check(
+            'a press on a normal window takes the keyboard from the notification center, which closes',
+            reopened && taken,
+            JSON.stringify({ reopened, center: await centerNow(), key: await keyMod(), pressed: await clockPressed() })
         );
         await show('window-probe');
 
