@@ -5,6 +5,10 @@ const { noteNameOf, isWithin } = require('../notes-folder/path.js');
 // The open note: on screen is the disk version, plus typing not yet saved, unless a question about the disk is up;
 // then nothing is written or typed until it is answered. Every write, rename and move of the open note goes through
 // `enqueue`, so a rename or a move never lands between a save's write and its answer.
+// The trouble banner's tint, and how far it rises towards the header as it comes and goes.
+const BANNER_TINT = 0.16;
+const BANNER_RISE = 4;
+
 function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRenamed, onMenu }) {
     const SAVE_DELAY_MS = 500;
     const CLOSE = {
@@ -136,7 +140,7 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             margin: 4px 16px 6px;
             padding: 7px 8px 7px 12px;
             border-radius: var(--deckit-radius-medium);
-            background: ${ui.alpha(theme.color.warn, 0.16)};
+            background: ${ui.alpha(theme.color.warn, BANNER_TINT)};
             font: var(--deckit-type-small);
         }
         .note-banner[hidden] { display: none; }
@@ -167,6 +171,7 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
     const titleError = ui.element('div', { className: 'note-title-error' });
     const stamp = ui.element('div', { className: 'note-stamp' });
     const banner = ui.element('div', { className: 'note-banner' });
+    let leaving = null; // the banner going, once trouble is over
     const menuButton = ui.iconButton({
         icon: ui.icon('ellipsis', { size: 16 }),
         title: 'More',
@@ -526,8 +531,8 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
         titleInput.disabled = !isOpen || !!note.trouble;
         stamp.textContent = isOpen && note.diskTime ? 'Edited ' + longDate(note.diskTime) : '';
         const trouble = note.trouble && TROUBLE[note.trouble.kind];
-        banner.hidden = !trouble;
-        if (!trouble) return banner.replaceChildren();
+        showBanner(!!trouble);
+        if (!trouble) return;
         const text = trouble.summary + (note.trouble.message ? ': ' + note.trouble.message : '');
         banner.replaceChildren(
             ui.element('span', { className: 'note-banner-text', text }),
@@ -539,18 +544,33 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
         );
     }
 
+    // The banner comes in by the kit's `come` as trouble starts and goes by its `go` once it is over, its words kept
+    // until it is gone.
+    function showBanner(shown) {
+        if (shown) {
+            leaving?.cancel();
+            leaving = null;
+            if (banner.hidden) {
+                banner.hidden = false;
+                ui.motion.come(banner, { y: -BANNER_RISE });
+            }
+            return;
+        }
+        if (banner.hidden || leaving) return;
+        const going = (leaving = ui.motion.go(banner, { y: -BANNER_RISE }));
+        going.finished.then(() => {
+            if (leaving !== going) return;
+            leaving.cancel();
+            leaving = null;
+            banner.hidden = true;
+            banner.replaceChildren();
+        });
+    }
+
+    // The banner deepens its tint once and eases back: what holds the person is in it.
     function nudge() {
-        const duration = theme.motion.move.length;
-        if (!duration) return;
-        banner.animate(
-            [
-                { transform: 'translateX(0)' },
-                { transform: 'translateX(-4px)' },
-                { transform: 'translateX(4px)' },
-                { transform: 'translateX(0)' },
-            ],
-            { duration, easing: theme.motion.move.easing }
-        );
+        const tint = (strength) => ({ backgroundColor: ui.alpha(theme.color.warn, strength) });
+        ui.motion.swell(banner, tint(BANNER_TINT), tint(BANNER_TINT * 2));
     }
 }
 
