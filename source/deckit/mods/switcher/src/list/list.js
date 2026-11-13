@@ -71,7 +71,7 @@ const STYLE =
     }
     .switcher-row[data-lead] .switcher-hint { max-width: none; }
     .switcher-hint[data-path] { display: flex; }
-    .switcher-path-head { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .switcher-path-head { flex: 0 1 auto; min-width: 0; overflow: hidden; }
     .switcher-path-tail { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .switcher-status {
         display: flex;
@@ -278,6 +278,7 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
             glow.animate(BREATH, { duration: BREATH_MS, easing: 'ease-in-out' });
         }
     } else made.replaceChildren(glyph, label, note);
+    if (note.dataset.path !== undefined) watchPath(made);
     if (status) made.append(statusOf(ui, status));
     if (number) {
         const badge = element('span', 'switcher-number');
@@ -285,6 +286,11 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
         made.append(badge);
     }
 }
+
+// The rows whose hint is a path, cut again to the room their row gives it as it is laid out and as it resizes. The
+// row's width is not the hint's to change, so the cut never feeds back into what it measures.
+let paths = null; // made as the first such row is
+let measure = null; // a canvas's 2D context, which measures text without laying it out
 
 // The hint, a path cut in its middle where it does not fit: its start gives way, its last two segments stay.
 function hintOf(hint) {
@@ -297,11 +303,44 @@ function hintOf(hint) {
     made.dataset.path = '';
     made.title = hint;
     const head = element('span', 'switcher-path-head');
-    head.textContent = hint.slice(0, cut);
+    head.textContent = head.dataset.whole = hint.slice(0, cut);
     const tail = element('span', 'switcher-path-tail');
     tail.textContent = hint.slice(cut);
     made.append(head, tail);
     return made;
+}
+
+function watchPath(row) {
+    paths ??= new ResizeObserver((entries) => {
+        for (const { target } of entries) {
+            if (!target.isConnected) paths.unobserve(target);
+            else cutPath(target.querySelector('.switcher-hint[data-path]'));
+        }
+    });
+    paths.observe(row);
+}
+
+// The start of the path in `hint` cut to the room it has, its own "…" right after the last letter kept, so it reads
+// on into the segments kept as one string.
+function cutPath(hint) {
+    const head = hint?.querySelector('.switcher-path-head');
+    if (!head) return;
+    const whole = head.dataset.whole;
+    head.textContent = whole;
+    const room = head.clientWidth;
+    if (head.scrollWidth <= room) return;
+    const style = getComputedStyle(head);
+    measure ??= document.createElement('canvas').getContext('2d');
+    measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    let fits = 0;
+    let over = whole.length;
+    while (over - fits > 1) {
+        const middle = (fits + over) >> 1;
+        if (measure.measureText(whole.slice(0, middle) + '…').width <= room) fits = middle;
+        else over = middle;
+    }
+    // Where not even the "…" fits, the start goes whole and the segments kept are cut at their end.
+    head.textContent = fits || measure.measureText('…').width <= room ? whole.slice(0, fits) + '…' : '';
 }
 
 // A run under way turns; one ended says how.
