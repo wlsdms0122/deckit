@@ -1,4 +1,5 @@
 import * as COLOR from '../color/index.js';
+import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
 const STYLE = `
@@ -93,6 +94,7 @@ const STYLE = `
         line-height: 1;
     }
     .deckit-segmented {
+        position: relative;
         display: flex;
         gap: 2px;
         flex: 0 0 auto;
@@ -103,6 +105,7 @@ const STYLE = `
         background: var(--deckit-fill);
     }
     .deckit-segment {
+        position: relative;
         gap: 6px;
         height: 100%;
         padding: 0 10px;
@@ -118,15 +121,26 @@ const STYLE = `
         border-radius: var(--deckit-radius-small);
         font: 600 var(--deckit-type-small);
     }
-    .deckit-segment[aria-pressed='true'] {
-        background: var(--deckit-thumb);
-        box-shadow: var(--deckit-shadow-control);
+    .deckit-segment[aria-pressed='true'],
+    .deckit-segment[aria-pressed='true']:is(:hover, :active) {
+        background: transparent;
         color: var(--deckit-text);
     }
-    .deckit-segmented[data-accent] .deckit-segment[aria-pressed='true'] {
-        background: var(--deckit-segment-on);
-        color: var(--deckit-segment-ink);
+    .deckit-segmented[data-accent] .deckit-segment[aria-pressed='true'] { color: var(--deckit-segment-ink); }
+    /* The chosen segment's lifted part, under the segments: it slides from one to the next. */
+    .deckit-segmented-thumb {
+        position: absolute;
+        top: 2px;
+        bottom: 2px;
+        left: 0;
+        border-radius: var(--deckit-radius-control);
+        background: var(--deckit-thumb);
+        box-shadow: var(--deckit-shadow-control);
+        transform-origin: left center;
+        pointer-events: none;
     }
+    .deckit-segmented[data-size='small'] .deckit-segmented-thumb { border-radius: var(--deckit-radius-small); }
+    .deckit-segmented[data-accent] .deckit-segmented-thumb { background: var(--deckit-segment-on); }
     .deckit-toggle-button {
         min-width: 24px;
         height: 24px;
@@ -237,7 +251,9 @@ function rowAction({ icon = '', label = '', title, onClick }) {
 }
 
 // One of a few choices, side by side. `items` are { key, label, title, lead }: `lead` an element before the label.
-// With `fill`, the choices share the width it is given. A press reports the choice; the caller sets it.
+// With `fill`, the choices share the width it is given. A press reports the choice; the caller sets it. The chosen one
+// sits on a thumb, which slides by the `move` spring to a choice the pointer pressed, from where it is now, and is
+// there at once for one a key or the caller chose.
 function segmented({ items, value = null, size = 'medium', accent = null, fill = false, onChange }) {
     const element = document.createElement('div');
     element.className = 'deckit-segmented';
@@ -250,13 +266,34 @@ function segmented({ items, value = null, size = 'medium', accent = null, fill =
     }
     const segments = new Map(); // key -> { button, label, lead }
     let current = value;
-    const paint = () => {
-        for (const [key, { button }] of segments) button.setAttribute('aria-pressed', String(key === current));
+    let pressed = null; // the key the pointer last pressed, until it is set
+    let sliding = null;
+    const thumb = document.createElement('span');
+    thumb.className = 'deckit-segmented-thumb';
+    element.append(thumb);
+    const place = (slides) => {
+        const button = segments.get(current)?.button;
+        thumb.hidden = !button;
+        if (!button?.offsetWidth) return;
+        const was = thumb.getBoundingClientRect();
+        sliding?.cancel();
+        Object.assign(thumb.style, { left: button.offsetLeft + 'px', width: button.offsetWidth + 'px' });
+        const { length, easing } = TOKEN.MOTION.move;
+        if (!slides || !length || !was.width) return;
+        const now = thumb.getBoundingClientRect();
+        const from = `translateX(${was.left - now.left}px) scaleX(${was.width / now.width})`;
+        sliding = thumb.animate([{ transform: from }, { transform: 'none' }], { duration: length, easing });
     };
+    const paint = (slides = false) => {
+        for (const [key, { button }] of segments) button.setAttribute('aria-pressed', String(key === current));
+        place(slides);
+    };
+    new ResizeObserver(() => place(false)).observe(element);
     const segmentOf = (key) => {
         const button = buttonOf('deckit-segment', '', size);
         const label = document.createElement('span');
         button.append(label);
+        button.addEventListener('pointerdown', () => (pressed = key));
         button.addEventListener('click', () => key !== current && onChange?.(key));
         const segment = { button, label, lead: null };
         segments.set(key, segment);
@@ -286,8 +323,10 @@ function segmented({ items, value = null, size = 'medium', accent = null, fill =
     return {
         element,
         set: (key) => {
+            const slides = key === pressed && key !== current;
+            pressed = null;
             current = key;
-            paint();
+            paint(slides);
         },
         setItems,
         elementOf: (key) => segments.get(key)?.button || null,
