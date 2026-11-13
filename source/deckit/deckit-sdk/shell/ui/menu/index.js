@@ -366,9 +366,15 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     });
     list.set(options, { active: options[active]?.disabled ? -1 : active });
     options[active]?.element.scrollIntoView({ block: 'nearest' });
-    stopFaces = wearFaces(box, options);
-    // A menu that grows once placed (its rows wear their faces) is placed again, so it stays clear of the edges.
-    // In a frame of its own: a place that changes its size again is not one more turn of the same observation.
+    // A menu that grows once placed is placed again, so it stays clear of the edges: as its rows wear their faces, at
+    // once, since an overlay off the screen draws no frame until it is shown, and on any other growth in a frame of
+    // its own, as a place that changes its size again is not one more turn of the same observation.
+    let placedWidth = box.offsetWidth;
+    stopFaces = wearFaces(box, options, () => {
+        if (!open || box.offsetWidth === placedWidth) return;
+        presented.place();
+        placedWidth = box.offsetWidth;
+    });
     const view = box.ownerDocument.defaultView;
     resized = new view.ResizeObserver(() => view.requestAnimationFrame(() => open && presented.place()));
     resized.observe(box);
@@ -376,8 +382,9 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
 }
 
 // Each row of `options` whose item has a `font` wears it as it nears the menu's view, and the others a few at a time
-// after: a face is read in as it is first drawn, and many at once hold the page up. Answers its stop.
-function wearFaces(box, options) {
+// after: a face is read in as it is first drawn, and many at once hold the page up. `worn()` hears each turn of it.
+// Answers its stop.
+function wearFaces(box, options, worn) {
     const unworn = new Map(); // row -> [its label, the face it wears]
     for (const { element, item } of options) {
         if (item.font) unworn.set(element, [element.querySelector('.deckit-menu-label'), item.font]);
@@ -392,12 +399,14 @@ function wearFaces(box, options) {
     const seen = new box.ownerDocument.defaultView.IntersectionObserver(
         (entries) => {
             for (const { target, isIntersecting } of entries) if (isIntersecting && unworn.has(target)) wear(target);
+            worn();
         },
         { root: box, rootMargin: '120px 0px' }
     );
     for (const row of unworn.keys()) seen.observe(row);
     let timer = setTimeout(function warm() {
         for (const row of [...unworn.keys()].slice(0, FACES_PER_TURN)) wear(row);
+        worn();
         timer = unworn.size ? setTimeout(warm, TURN_MS) : 0;
     }, TURN_MS);
     return () => {

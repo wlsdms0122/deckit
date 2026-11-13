@@ -650,6 +650,38 @@ async function run({
             faced && faced.worn < faced.rows / 2 && !!later,
             JSON.stringify({ faced, later })
         );
+        // The menu opened at the window's right edge stays 8 inside the window, as it opens and once its rows wore
+        // their faces and it grew.
+        const menuIn = async () => {
+            const box = await settingsOverlay?.evaluate(`(() => {
+                const { left, right, top, bottom } = document
+                    .querySelector('.deckit-menu[data-state="open"]').getBoundingClientRect();
+                return { left, right, top, bottom };
+            })()`);
+            const laid = (await desktopLaid())?.pages || [];
+            const front = (await windowsNow()).filter(({ mod }) => mod === 'settings').at(-1);
+            const opener = laid.find(({ id }) => id === front?.content)?.opener;
+            const at = laid.find(({ name, opener: each }) => name === 'deckit-overlay' && each === opener)?.rect;
+            const inside =
+                !!box &&
+                !!at &&
+                at.x + box.left >= front.rect.x + 8 &&
+                at.x + box.right <= front.rect.x + front.rect.width - 8 &&
+                at.y + box.bottom <= front.rect.y + front.rect.height - 8;
+            return { inside, box, at, window: front?.rect };
+        };
+        const openedIn = await menuIn();
+        await until(async () => {
+            const now = await facedNow();
+            return now && now.worn === now.rows;
+        }, 8000);
+        await sleep(300);
+        const grownIn = await menuIn();
+        check(
+            "a menu at a window's edge stays 8 inside it, as it opens and as it grows",
+            openedIn.inside && grownIn.inside,
+            JSON.stringify({ openedIn, grownIn })
+        );
         await settingsOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
         // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away. The
