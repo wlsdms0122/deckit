@@ -31,8 +31,12 @@ const WEB = Object.freeze({
         find: 'function',
         stopFind: 'function', // stopFind(page, { keepSelection })
         close: 'function', // close(page): a web page in a window, with its window
-        // stateOf(page) -> { url, title, icon, loading, canGoBack, canGoForward, blank, audible, muted, capture }, or
-        // null once it is gone; `capture` is `{ microphone, camera, screen }`, what the page says it captures
+        // stateOf(page) -> { url, title, icon, loading, canGoBack, canGoForward, blank, audible, muted, capture,
+        // failure }, or null once it is gone; `capture` is `{ microphone, camera, screen }`, what the page says it
+        // captures, and `failure` `{ url, kind }` from a load of its main frame that failed before anything of it was
+        // committed until a load commits, `kind` one of web/engine/model/load-failure.js, or null; a load stopped or
+        // replaced, and a certificate refused, is no failure. While it holds one, `navigate(page, 'reload')` loads
+        // `url`, and `back` goes to what the page showed, where it showed anything, and takes the failure away
         stateOf: 'function',
         clickNotification: 'function', // clickNotification(page, notification): one it showed, clicked
         sessionOf: 'function', // sessionOf(page) -> the session a web page is in, `{ mod, name }`, or null

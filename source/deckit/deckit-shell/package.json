@@ -6,6 +6,7 @@
         "./renderer.js": "./renderer.js",
         "./deckit/contract/index.js": "./deckit/contract/index.js",
         "./environment/index.js": "./environment/index.js",
+        "./web/engine/model/load-failure.js": "./web/engine/model/load-failure.js",
         "./web/engine/model/site-permission.js": "./web/engine/model/site-permission.js",
         "./web/engine/model/site.js": "./web/engine/model/site.js"
     },
