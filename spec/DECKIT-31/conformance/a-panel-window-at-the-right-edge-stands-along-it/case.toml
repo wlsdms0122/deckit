@@ -1,0 +1,18 @@
+case = 23
+name = "a-panel-window-at-the-right-edge-stands-along-it"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. The shell places a window at the level panel and the edge right along the desktop's right edge: 8 in from it, from 8 under the desktop's top to 8 above its bottom, its width its mod's and its height the shell's, whatever height it opens at. mod-a, granted deckit.panel-windows, opens r 360 by 100 at the level panel and the edge right in attach; no input has reached mod-a, which may not activate, so r opens without the keyboard."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "r", level = "panel", frame = { x = 912, y = 60, width = 360, height = 732 }, key = false, minimized = false }]

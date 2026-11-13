@@ -1,0 +1,36 @@
+case = 23
+name = "a-press-in-the-bar-leaves-the-keyboard-with-a-panel-window-at-the-right-edge"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A press on a panel window at the edge top leaves the keyboard with the panel window at the edge right that holds it: mod-a, granted deckit.panel-windows, opens main, at the level normal, and p, at the level panel, in attach; the person presses on main, mod-a opens r at the level panel and the edge right, which takes the keyboard, and the person presses on p."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "r", level = "panel", edge = "right", width = 360, height = 100 } }]
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "p"
+action = "press"
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }, { mod = "mod-a", name = "r", level = "panel", frame = { x = 912, y = 60, width = 360, height = 732 }, key = true, minimized = false }]
