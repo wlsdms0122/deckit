@@ -1,0 +1,45 @@
+case = 24
+name = "a-failure-is-taken-away-by-the-next-load-that-commits"
+note = "A page's failure holds until a load commits. The host's layer shows a page at site-a, whose connection is refused, loads index.html of site-b in it, and reads its state, which holds no failure."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a", "site-b"]
+refusing = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "failure"
+
+[step.expect]
+answers = { url = "site-a/", kind = "refused" }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "load"
+of = 2
+sites = ["site-b/index.html"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+
+[step.expect]
+answers = { url = "site-b/index.html", title = "Hello", icon = "site-b/favicon.ico", loading = false, canGoBack = false, canGoForward = false, blank = false, audible = false, muted = false, capture = { microphone = false, camera = false, screen = false } }

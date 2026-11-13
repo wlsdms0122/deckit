@@ -5,7 +5,7 @@ Area: web
 
 ## Summary
 
-The web engine shows web pages in a mod's sessions, and offers what shows them to the layer a host stacks over it, never to a mod's handle: `page({ session, url })`, a page laid in the mod's page, and `window({ session, url, title })`, a page the host shows apart from it. This DECKIT fixes that offer, the page handle each answers, its `state`, its members and how each is refused, what a page loads, `system.files` among it, a popup a page opens after a press, the delegate through which the layer is told and asked, and what a page opens outside the app.
+The web engine shows web pages in a mod's sessions, and offers what shows them to the layer a host stacks over it, never to a mod's handle: `page({ session, url })`, a page laid in the mod's page, and `window({ session, url, title })`, a page the host shows apart from it. This DECKIT fixes that offer, the page handle each answers, its `state`, a load that fails among it, its members and how each is refused, what a page loads, `system.files` among it, a popup a page opens after a press, the delegate through which the layer is told and asked, and what a page opens outside the app.
 
 ## Motivation
 
@@ -24,6 +24,7 @@ The page is the web engine's: what it loads, in which session's store, and what 
 - A site's popup at `about:blank`, which a sign-in flow writes into, is opened outside the app as an address on one implementation, which hands a person's browser an empty page, and handed to the layer as a page on another.
 - A page shows `file:///Users/a/notes.txt` for a mod granted nothing. One implementation shows the file; another refuses it, as only a mod granted `system.files` reads files in its pages.
 - A site's popup the layer does not take is dropped on one implementation, and its address opened in the browser on another.
+- A page is asked to load an address whose host refuses the connection. One implementation tells the layer nothing but that the page stopped loading, at the address it showed before, and the layer shows that page as if it were the one asked for; another tells the address that failed and why, and the layer says so in the page's place.
 - A sign-in page shown apart opens its consent step as a popup. One implementation shows the popup apart itself, and the layer holds no handle of it and is told nothing of it; another hands it to the layer as it hands the popup of a page laid in the mod's page.
 
 ## Rules
@@ -53,8 +54,8 @@ A page handle is a table of these members, each but `state` and `delegate` a mem
 | `state` | | the page's state, under *The state*, a value read; told to the delegate's `didChange` as it changes |
 | `delegate` | | the delegate, under *The delegate*: read, and written by the layer, a table or `null`; anything else written is `null` |
 | `load(url)` | `url`, a string, required | loads `url`, as *What a page loads* fixes |
-| `back()`, `forward()` | | goes to the page before, or after, in the page's history, where there is one |
-| `reload()`, `stop()` | | loads the page's address again; stops what it is loading |
+| `back()`, `forward()` | | goes to the page before, or after, in the page's history, where there is one; `back()`, while `state` holds a failure, goes to what the page showed, under *A load that fails* |
+| `reload()`, `stop()` | | loads the page's address again, or, while `state` holds a failure, the address that failed; stops what it is loading |
 | `mute(on)` | `on`, a boolean, required | mutes the page's sound, or lets it play |
 | `find(text, options)` | `text`, a string, required; `options`, a table `{ start, back, matchCase }` of booleans, each left out `false` | finds `text` in the page, from its first match where `start` is `true`, else from the match after the last found, before it where `back` is `true`; its case compared where `matchCase` is `true`; the empty string finds nothing |
 | `stopFind(options)` | `options`, a table `{ keepSelection }`, a boolean left out `false` | ends finding, leaving the match selected where `keepSelection` is `true` |
@@ -82,8 +83,27 @@ A page that has closed does nothing it is asked, and is not refused.
 | `blank` | boolean: `true` while it has shown nothing but a blank page |
 | `audible`, `muted` | boolean: whether it plays sound; whether it is muted |
 | `capture` | table `{ microphone, camera, screen }` of booleans: whether it takes each, as [what a site is let have](../DECKIT-26/SPEC.md) lets it |
+| `failure` | `null`, or a table `{ url, kind }`: how the last load of the page failed, under *A load that fails* |
 
-A page made is not loading where it is a blank page, and loading where it is not, until it is told otherwise.
+A page made is not loading where it is a blank page, and loading where it is not, until it is told otherwise, and holds no failure.
+
+### A load that fails
+
+A load **fails** where the page's main frame gets nothing it could show of the address: no answer of the address's host came before the load ended. `state.failure` then holds `url`, the address that failed, as the load asked for it, and `kind`, a string, one of:
+
+| `kind` | the load ended as |
+|---|---|
+| `no-connection` | the machine had no connection to a network to send it on |
+| `host-not-found` | no host of the address's name was found |
+| `refused` | the host refused the connection |
+| `timed-out` | the host did not answer in time |
+| `other` | any other way it ended with no answer |
+
+None of these is a failure, and none sets `failure`: an answer the site serves, of any status, which the page shows as its content; a load stopped, by `stop()`, or replaced by another load; a load that becomes a download; a load refused, which never left the page, under *What a page loads*; a certificate refused, which is [what a site is let have](../DECKIT-26/SPEC.md)'s; and a load whose document was shown and then ended before it was whole, which keeps what it showed.
+
+A failure holds until the next load of the page that shows what it gets, the page's own or one the layer asks, and is then `null`; a load asked while a failure holds, which fails too, replaces it. What the page showed before the load that failed stays the page's, and its history holds only what it showed: while a failure holds, `canGoBack` is `true` where the page showed anything but a blank page, and `back()` goes to that, which shows again as it was, and makes `failure` `null`; `reload()` loads `url`.
+
+**Note.** A failure is told in `state` and not as an event of its own, since the layer draws a page from its `state` as it changes: a layer that draws a page's place from `didChange` draws its failure the same way, and one that reads `state` later still finds it. The kinds are named by what the layer must say to the person, so a layer says the same on every implementation, whatever codes each one's web gets.
 
 ### What a page loads
 
@@ -147,7 +167,8 @@ A blank page is never opened outside the app.
 - A lifecycle and its end: [the entry](../DECKIT-6/SPEC.md).
 - The window the shell shows a page apart in: [windows](../DECKIT-31/SPEC.md).
 - The inputs `show` and `activate`, a page shown at a file of a bundle, the host's delegate and the look `delegated`: [the case format](../DECKIT-1/SPEC.md).
-- What a site is let have, an app for an address and a certificate refused: [what a site is let have](../DECKIT-26/SPEC.md). A site's notification: [notifications of a site](../DECKIT-27/SPEC.md). A download a page starts: [downloads](../DECKIT-28/SPEC.md).
+- What a site is let have, an app for an address and a certificate refused, which is no failure of a load: [what a site is let have](../DECKIT-26/SPEC.md).
+- A site that refuses a connection, which a case serves at an address of its own: [the case format](../DECKIT-1/SPEC.md). A site's notification: [notifications of a site](../DECKIT-27/SPEC.md). A download a page starts: [downloads](../DECKIT-28/SPEC.md).
 
 ## Alternatives considered
 
@@ -159,9 +180,14 @@ A blank page is never opened outside the app.
 - A popup with no press. A site would open pages a person never asked for, as browsers block.
 - A blank popup opened outside the app as its address. It hands a person's browser an empty page, and the site that writes into it loses it.
 - A popup not taken dropped. A site whose popup is its own page would lose it; its address opened outside the app reaches it.
+- A load that fails told as an event of the delegate's, `didFailLoad`. A layer that draws a page from its `state` would hold a second account of the page beside it, and one that sets the delegate after the failure would never learn of it.
+- A failure told with the code its web gives. Each implementation's web has its own codes, and the layer would say one thing on one and another on the next; the kinds are the few the layer says apart.
+- `back()` from a failure through the page's history. The page that failed is no entry of it, so `back()` would skip the page the person was on and go to the one before.
 
 ## Notes
 
 **Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The 5 seconds a press lets a popup open: no input of [the case format](../DECKIT-1/SPEC.md) waits a set time, and the cases hold only that a press opens one popup and no press none. `activates` `false`, a press that asks for the popup behind: the case format's press asks for nothing behind. A popup taken being a page laid in the mod's page: no step reaches the page handed to the delegate. A file loaded by `load(url)`, and `system.files` read at each load while a mod runs: a case hands a call no file's address, and grants no permission while a mod runs; the cases show a file as the page is made, for a mod granted `system.files` and for one granted nothing. The mod's own page opening an address outside the app: no input of the case format has the mod's page navigate. `ENDED`: the host's layer of the case format is offered the pages on the base `web` alone, where no lifecycle of a run ends while another runs. `forward()`, `reload()`, `stop()`, `find`, `stopFind`, `focus()`, `element`, `didFocus`, `didFind`, `didRequestClose`, `capture` and `audible`: the case format takes no keyboard, plays no sound and reads nothing a page draws, and the cases read `back()` and `mute(on)` of the same kind. `title` of `window`: what the host shows a page apart with is the host's. A member the delegate does not hold, or one that throws, answered its default: the host's delegate holds each member a case reads, and throws nothing.
 
-**Note.** What this costs an implementation: each load asked by the layer held to the table of *What a page loads*, read at each load; a press remembered for each page and used up by the popup it opens; every popup handed on as a page, but a file page's; a delegate whose every member may be missing or may throw; and every page closed with the lifecycle it was offered for.
+**Note.** Of a load that fails, the cases hold `refused`, at a site of the case that refuses the connection, its `url`, that a load that shows what it gets makes `failure` `null`, and `back()` from a failure. No case holds the other kinds: a case's host reaches the loopback address alone, where a name is never not found, a connection is never lost and every host answers at once or refuses. Nor a load stopped, replaced, become a download, or whose document ended before it was whole, each of which no site of the case can hold apart in time from one that loads; nor a certificate refused, which a case's sites, served over HTTP, never send; nor `reload()` of the address that failed, as a site that refuses refuses for the whole run.
+
+**Note.** What this costs an implementation: each load asked by the layer held to the table of *What a page loads*, read at each load; a press remembered for each page and used up by the popup it opens; every popup handed on as a page, but a file page's; a delegate whose every member may be missing or may throw; each load of a page's main frame that ends with no answer told as its failure, by kind, until a load shows what it gets, with what the page showed kept for `back()`; and every page closed with the lifecycle it was offered for.
