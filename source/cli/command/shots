@@ -4,7 +4,7 @@
 // process's `nativeTheme.themeSource`, set in memory: the machine's appearance is left as it is. Each look is a run of
 // its own of Deckit.app, put together from the archive it builds first, with data of its own that is thrown away; the
 // app's log is left beside the shots, .build/shots/<look>.log. Notifications' list is drawn from a record the run
-// starts with, as its bell opens it; nothing is posted, so no notification reaches the system's. What the host
+// starts with, as the clock opens it; nothing is posted, so no notification reaches the system's. What the host
 // window's material shows, the machine's screen behind it blurred, cannot be drawn into a shot, so every shot is laid
 // over a stand-in for it: a wallpaper drawn from code, blurred as the material blurs (`wallpaper`). Exits 1 naming
 // each surface not drawn.
@@ -285,19 +285,32 @@ async function draw(app, look, shots, origin) {
     await sleep(400);
     await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
     await surface('desktop-windows', backed);
-    // The status bar at the top right of the host's bar, close, and the list of notifications its bell opens.
+    // The status bar at the top right of the host's bar, close, and the desktop with the notification center the
+    // clock opens at its right edge, with the record's cards, then cleared, with none.
     await surface('status-bar', (name) =>
         desktopShot(name, { under, crop: { x: screen.width - 320, y: 0, width: 320, height: 52 } })
     );
-    await surface('notifications', async (name) => {
-        await (await page('deckit://notifications.mod'))?.press('.deckit-bar-item');
-        const list = await until(async () => {
+    const clock = await page('deckit://clock.mod');
+    const center = () =>
+        until(async () => {
             for (const each of await pages('about:blank'))
-                if (await each.evaluate(`!!document.querySelector('.notifications-card')`)) return each;
+                if (await each.evaluate(`!!document.querySelector('.notifications-head')`)) return each;
             return null;
         }, 4000);
+    await surface('notifications', async (name) => {
+        await clock?.press('.deckit-bar-item');
+        const list = await center();
+        await until(() => list?.evaluate(`!!document.querySelector('.notifications-card')`), 2000);
+        await sleep(600);
+        if (list) await backed(name);
+    });
+    await surface('notifications-empty', async (name) => {
+        const list = await center();
+        await list?.press('.notifications-head button');
+        await until(() => list?.evaluate(`!document.querySelector('.notifications-card')`), 2000);
         await sleep(400);
-        if (list) await floatingShot(name, list);
+        if (list) await backed(name);
+        await clock?.press('.deckit-bar-item');
         await show(apps[0]);
         await sleep(400);
     });
