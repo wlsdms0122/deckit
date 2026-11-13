@@ -15,9 +15,13 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
     // drop.
     const blocks = new Map(); // account id -> { element, row, list }
 
-    const feedSection = foldingSection('Calendars', 'layers', 'calendars', [
-        { title: 'Add Account…', run: () => editor.addAccount() },
-    ]);
+    const feedSection = foldingSection(
+        'Calendars',
+        'layers',
+        'calendars',
+        [{ title: 'Add Account…', run: () => editor.addAccount() }],
+        'No calendars yet. The + beside the heading adds an account.'
+    );
     const todaySection = foldingSection('Today', 'calendarDays', 'today');
     // Drawn whole: a row leaving means only that time moved, so it does not fold away.
     const todayList = document.createElement('div');
@@ -73,6 +77,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
 
     function drawAccounts() {
         const shown = accounts.all();
+        feedSection.setEmpty(shown.length === 0);
         for (const [id, block] of blocks)
             if (!shown.some((account) => account.id === id)) {
                 block.element.remove();
@@ -270,11 +275,12 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
         return row;
     }
 
-    function foldingSection(label, icon, key, actions = []) {
+    function foldingSection(label, icon, key, actions = [], empty = '') {
         const section = ui.section({
             label,
             icon: ui.icon(icon, { size: 16 }),
             actions,
+            empty,
             collapsed: !!values.get('folds', {})[key],
             onToggle: (next) => {
                 values.set('folds', { ...values.get('folds', {}), [key]: next });
