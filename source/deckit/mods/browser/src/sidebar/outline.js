@@ -33,6 +33,9 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
     let shownRows = [];
     let chosen = null; // the item chosen, as the caller last set it
     let leadKey = null; // the row the keys stand on, when it is not the chosen item's
+    // What the next draw does: `keyed`, a key folded or unfolded a folder, so its caret turns at once; `glides`, a row
+    // was closed by a press, so the rows that stay glide to where they are drawn.
+    const next = { keyed: false, glides: false };
     const folderRows = new WeakMap(); // row element -> { row, label, count }
 
     // A folder's own row is washed in its colour, and the rows in it are drawn plain, as rows outside a folder are.
@@ -64,6 +67,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             transition: transform var(--deckit-move) var(--deckit-move-curve);
         }
         .browser-folder[aria-expanded='true'] .browser-folder-caret { transform: rotate(90deg); }
+        [data-still] .browser-folder-caret { transition: none; }
         .browser-folder[data-empty] .browser-folder-caret { visibility: hidden; }
         .browser-outline-row.browser-folder .deckit-row-glyph { color: var(--browser-folder-ink); }
         .browser-folder-label { color: var(--browser-folder-ink); font-weight: 600; }
@@ -118,7 +122,9 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         onSelect: lead,
         onToggle: (key, open) => {
             const folder = rowOf(key).node;
-            if (folder.collapsed === open) onToggle(folder);
+            if (folder.collapsed !== open) return;
+            next.keyed = true;
+            onToggle(folder);
         },
         onRename: (key) => onRename(rowOf(key).node),
         onOpen: (key) => {
@@ -146,6 +152,8 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
 
     return {
         element: list.element,
+        // The next draw leaves out a row a press closed: the rows that stay glide to where they are drawn.
+        glideNext: () => (next.glides = true),
         // `active` is the item chosen: its row is marked, or the row of the folded folder it is in.
         // A new chosen item is where the keys stand from then on.
         set(tree, active = null) {
@@ -187,7 +195,14 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             leadKey = null;
             shownRows = rowsOf(shownTree, chosen);
         }
-        list.set(shownRows);
+        const { keyed, glides } = next;
+        Object.assign(next, { keyed: false, glides: false });
+        list.element.toggleAttribute('data-still', keyed);
+        if (glides) ui.motion.glide([...list.element.children], () => list.set(shownRows));
+        else list.set(shownRows);
+        // Laid out before it moves again, so what changed by a key does not turn.
+        if (keyed) void list.element.offsetHeight;
+        list.element.removeAttribute('data-still');
     }
 
     // The keys stand on `key`. An item the caller chooses becomes the chosen one, which the caller draws; a press has

@@ -177,7 +177,14 @@ function sidebar({
             muted: true,
         });
         indicators.append(...captures.map(({ indicator }) => indicator), mute.element);
-        const close = ui.rowAction({ icon: ui.icon('x'), title: 'Close tab', onClick: () => onCloseTab(tab) });
+        const close = ui.rowAction({
+            icon: ui.icon('x'),
+            title: 'Close tab',
+            onClick: () => {
+                tabOutline.glideNext();
+                onCloseTab(tab);
+            },
+        });
         row.element.append(label, indicators, close.element);
         row.element.addEventListener('click', () => onSelectTab(tab));
         tabRows.set(row.element, { row, icon, label, captures, mute });
