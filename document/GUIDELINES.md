@@ -38,10 +38,11 @@ A mod's window lays two areas with `ui.splitView`: the sidebar, and the content 
 
 ## The title bar
 
-The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room. It is 48px tall, as the window's title bar is, its row centred on the window's buttons; its `title` is `heading` at 600, and a breadcrumb that names the view is its title too, its current part drawn the same. While the window is not the key one its text and glyphs go to `muted`, and a button turned off keeps its own look. A `primary` button anywhere in such a window draws as a plain one until the window is key again: the default answer is the key window's.
+The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room. It is 48px tall, as the window's title bar is, its row centred on the window's buttons, which stand as far in from the window's left as from its top; its `title` is `heading` at 600, and a breadcrumb that names the view is its title too, its current part drawn the same. While the window is not the key one its text and glyphs go to `muted`, and a button turned off keeps its own look. A `primary` button anywhere in such a window draws as a plain one until the window is key again: the default answer is the key window's.
 
-- Every window lays one, empty if it has nothing to put there, so the window can be dragged from the top of any mod.
-- A web page, an editor, a canvas or a map starts below it. Pressed content drawn to the top edge leaves nowhere to drag the window from.
+- Every window under the default title bar lays one, empty if it has nothing to put there, so the window can be dragged from the top of any mod.
+- A web page, an editor, a canvas or a map starts at the safe area's top (`--deckit-safe-area-inset-top`). Pressed content drawn to the top edge leaves nowhere to drag the window from.
+- Every mod's window keeps the default title bar. `windows.open`'s title bar options (MOD.md) are for a role the default does not serve: a toolbar taller than one row, a window with nothing to put in a bar, which takes `'titled'` instead of an empty bar, or one that cannot be resized or closed by the person. Lay out against the safe area and the title bar area, never their numbers.
 - Leave empty room in it: a field or a strip of tabs does not run edge to edge.
 - Where the bar is narrow, what names the view is never cut: a field gives way first and then folds into a button that opens it (Finder's filter), a segmented control becomes a `ui.select` of the same height (Calendar's Day, Week, Month), and only what is said in passing (a status) is cut.
 - Lay it in three parts:
