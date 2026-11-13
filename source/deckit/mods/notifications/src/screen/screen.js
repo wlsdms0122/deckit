@@ -2,9 +2,10 @@
 // while it shows any, each as tall as what it holds, which leave the keyboard where it is; and on `showList()` the
 // notification center, the record newest first to press, remove or clear, in a panel window along the right edge of
 // the desktop, open only with the keyboard: it takes it as it opens, closes at once where it opens without it, as
-// Notifications may not activate (DECKIT-32), and goes as the keyboard leaves it or Escape is pressed. No toast
-// shows while the center is open, which holds them all. A toast with actions stays until one is pressed or it is
-// closed; any other leaves after a time. A press on a toast, a row or an action is the center's.
+// Notifications may not activate (DECKIT-32), and goes as the keyboard leaves it or Escape is pressed. Its rows are a
+// list the pointer and the arrows move along: Return runs the row's notification as a press does and Command-Delete
+// removes it. No toast shows while the center is open, which holds them all. A toast with actions stays until one is
+// pressed or it is closed; any other leaves after a time. A press on a toast, a row or an action is the center's.
 const WIDTH = 360;
 const GAP = 8;
 // Room around the cards in the window for the shadow they cast, deeper below, where the shadow falls.
@@ -50,8 +51,20 @@ const STYLE = `
         align-items: center;
         justify-content: space-between;
         min-height: 32px;
-        padding: 0 0 0 4px;
-        font: 600 var(--deckit-type-large);
+        font: 600 var(--deckit-type-heading);
+    }
+    .notifications-rows { display: flex; flex-direction: column; gap: ${GAP}px; }
+    /* A row under the pointer or the keys is washed over its card, pressed deeper, and ringed while the keys moved
+       to it. */
+    .notifications-rows .notifications-card[data-active] {
+        background: linear-gradient(var(--deckit-hover), var(--deckit-hover)), var(--deckit-elevated);
+    }
+    .notifications-rows .notifications-card:active {
+        background: linear-gradient(var(--deckit-pressed), var(--deckit-pressed)), var(--deckit-elevated);
+    }
+    .notifications-rows[data-keyed] .notifications-card[data-active] {
+        outline: 2px solid var(--deckit-focus);
+        outline-offset: 2px;
     }
     .notifications-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
     .notifications-title-row { display: flex; align-items: baseline; gap: 8px; min-height: 20px; }
@@ -77,7 +90,7 @@ const STYLE = `
         font-variant-numeric: tabular-nums;
     }
     .notifications-actions { display: flex; gap: 6px; margin-top: 4px; }
-    .notifications-close { position: absolute; top: 6px; right: 6px; }
+    .notifications-close { position: absolute; top: 10px; right: 6px; }
 `;
 
 function screen(shell, center, { onCenter = () => {} } = {}) {
@@ -88,6 +101,19 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
     const list = document.createElement('div'); // the notification center
     list.className = 'notifications notifications-center';
     shell.ui.addStyle(STYLE);
+    // The center's rows, by the notification's id, and the one the pointer or the keys are on.
+    const rows = ui.list({
+        key: (notification) => notification.id,
+        create: (notification) => card(notification, { row: true }),
+        update: (made, notification) => made.replaceChildren(...partsOf(notification, { row: true })),
+    });
+    rows.element.classList.add('notifications-rows');
+    let shown = []; // the notifications the rows show, in order
+    // A row is pressed as the press is let go, by its card's click, not as the list picks on the press.
+    const choice = ui.listbox(rows.element, {
+        onPick: () => {},
+        onActivate: (_index, { pointer }) => rows.element.toggleAttribute('data-keyed', !pointer),
+    });
     const toasts = new Map(); // id -> { notification, timer, leaving }
     const toastCards = new Map(); // id -> its toast's card, kept while it shows
     const icons = new Map(); // a sending mod's id -> its app icon, as the shell reads it
@@ -117,9 +143,16 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
         });
         panel = opened;
         list.ownerDocument.addEventListener('keydown', (event) => {
-            if (event.key !== 'Escape' || event.defaultPrevented || panel !== opened) return;
+            if (event.defaultPrevented || panel !== opened) return;
+            const row = shown[choice.active()];
+            const plain = !event.metaKey && !event.ctrlKey && !event.altKey;
+            if (event.key === 'Escape') closeList();
+            else if (plain && (event.key === 'ArrowDown' || event.key === 'ArrowUp'))
+                choice.move(event.key === 'ArrowDown' ? 1 : -1);
+            else if (plain && event.key === 'Enter' && row) center.press(row.id);
+            else if (event.metaKey && event.key === 'Backspace' && row) center.remove(row.id);
+            else return;
             event.preventDefault();
-            closeList();
         });
         toToasts();
         onCenter(true);
@@ -231,13 +264,22 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
         content.replaceChildren(...[...toasts.values()].map(({ notification }) => toastCard(notification)));
     }
 
+    // The row the pointer or the keys are on stays on its index as rows come and go.
     function drawList() {
         const head = element('div', 'notifications-head', 'Notifications');
-        const notifications = center.list();
-        if (notifications.length) head.append(button('Clear All', () => center.clear()));
-        const rows = notifications.map((notification) => card(notification, { row: true }));
-        const empty = ui.emptyState({ title: 'No notifications', hint: 'What mods post shows here.' }).element;
-        list.replaceChildren(head, ...(rows.length ? rows : [empty]));
+        shown = center.list();
+        if (shown.length) head.append(button('Clear All', () => center.clear()));
+        rows.set(shown);
+        choice.set(
+            shown.map(({ id }) => ({ element: rows.elementOf(id), disabled: false })),
+            { active: Math.min(choice.active(), shown.length - 1) }
+        );
+        const empty = ui.emptyState({
+            icon: ui.icon('bell', { size: 44 }),
+            title: 'No notifications',
+            hint: 'Notifications from your mods appear here.',
+        }).element;
+        list.replaceChildren(head, shown.length ? rows.element : empty);
     }
 
     // Made once per toast, coming in from the right edge, where it lives; under reduced motion it only fades in.
@@ -263,16 +305,24 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
     }
 
     // A press on the card runs what it names; its close button takes a toast off the screen, and a row of the center
-    // out of the record. A row tells when its notification came.
+    // out of the record.
     function card(notification, { row }) {
         const made = element('div', 'notifications-card');
+        made.append(...partsOf(notification, { row }));
+        made.addEventListener('click', () => center.press(notification.id));
+        return made;
+    }
+
+    // What a card shows: the sender's icon, the title, the body, the actions and the close button. A row tells when
+    // its notification came.
+    function partsOf(notification, { row }) {
         const words = element('div', 'notifications-words');
         const titleRow = element('div', 'notifications-title-row');
         titleRow.append(element('div', 'notifications-title', notification.title || notification.mod.name));
         if (row) titleRow.append(element('div', 'notifications-time', when(notification)));
         words.append(titleRow);
         if (notification.body) words.append(element('div', 'notifications-body', notification.body));
-        made.append(ui.appIcon(icons.get(notification.mod.id) ?? '', { alt: notification.mod.name }), words);
+        const icon = ui.appIcon(icons.get(notification.mod.id) ?? '', { alt: notification.mod.name });
         if (notification.actions.length) {
             const actions = element('div', 'notifications-actions');
             notification.actions.forEach((action, index) =>
@@ -287,10 +337,8 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
             onClick: () => (row ? center.remove(notification.id) : hideToast(notification.id)),
         }).element;
         close.classList.add('notifications-close');
-        close.addEventListener('click', (event) => event.stopPropagation());
-        made.append(close);
-        made.addEventListener('click', () => center.press(notification.id));
-        return made;
+        heldBack(close);
+        return [icon, words, close];
     }
 
     // The app icon of the mod `id` read once, and kept: '' where it has none or it is not read.
@@ -300,8 +348,13 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
 
     function button(label, pressed) {
         const made = ui.button({ label, size: 'small', onClick: pressed }).element;
-        made.addEventListener('click', (event) => event.stopPropagation());
+        heldBack(made);
         return made;
+    }
+
+    // A button in a card is pressed alone, not the card around it.
+    function heldBack(made) {
+        for (const type of ['mousedown', 'click']) made.addEventListener(type, (event) => event.stopPropagation());
     }
 
     function element(tag, className, text = '') {

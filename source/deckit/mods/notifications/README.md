@@ -48,7 +48,7 @@ A command a notification names is always the sender's own: Notifications runs it
 
 ## The notification center
 
-The recent notifications, newest first, each with its sender and when it came, in a panel window along the right edge of the app's desktop, 360 wide, from under the bar to the desktop's bottom: press one to run it, close it to take it away, or clear them all. It opens with the keyboard, and goes as the keyboard leaves it, as you press a window, the desktop or the Dock, or as you press Escape; a press in the bar leaves it open. Asked to open by a mod you did not just use, it would open without the keyboard, so it closes at once. The `show` command opens it, and `notifications/center` opens and closes it.
+The recent notifications, newest first, each with its sender and when it came, in a panel window along the right edge of the app's desktop, 360 wide, from under the bar to the desktop's bottom: press one to run it, close it to take it away, or clear them all. The arrows move along the rows, Return runs the one they are on, and Command-Delete takes it away. It opens with the keyboard, and goes as the keyboard leaves it, as you press a window, the desktop or the Dock, or as you press Escape; a press in the bar leaves it open. Asked to open by a mod you did not just use, it would open without the keyboard, so it closes at once. The `show` command opens it, and `notifications/center` opens and closes it.
 
 ## Providing `notifications/center`
 
