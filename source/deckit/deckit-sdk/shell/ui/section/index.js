@@ -40,6 +40,9 @@ const STYLE = `
             color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-section[data-foldable] .deckit-section-caret { display: flex; }
+    .deckit-section[data-still] .deckit-section-caret {
+        transition: color var(--deckit-press-fade) var(--deckit-press-curve);
+    }
     .deckit-section-icon { display: flex; flex: 0 0 auto; margin-right: 2px; color: var(--deckit-muted); }
     .deckit-section-label {
         overflow: hidden;
@@ -127,7 +130,14 @@ function section(
         heading.type = 'button';
         heading.title = foldable ? 'Collapse or expand' : headingTitle || label;
     }
-    if (foldable) heading.addEventListener('click', () => onToggle?.(!folded));
+    // A fold a key asked for is made at once.
+    let keyed = false;
+    if (foldable)
+        heading.addEventListener('click', (event) => {
+            keyed = event.detail === 0;
+            onToggle?.(!folded);
+            keyed = false;
+        });
     else if (onHeading) heading.addEventListener('click', () => onHeading());
     if (onHeadingMenu)
         heading.addEventListener('contextmenu', (event) => {
@@ -167,8 +177,9 @@ function section(
     const box = tag('div', 'deckit-section-fold');
     box.append(body);
     let folded = !!collapsed;
-    // The body unfolds and folds away along its height.
+    // The body unfolds and folds away along its height, the caret turning with it.
     const fold = (animate) => {
+        element.toggleAttribute('data-still', !animate);
         element.toggleAttribute('data-collapsed', folded);
         if (foldable) heading.setAttribute('aria-expanded', String(!folded));
         if (!folded) body.hidden = false;
@@ -186,7 +197,7 @@ function section(
         setCollapsed: (next) => {
             if (folded === !!next) return;
             folded = !!next;
-            fold(true);
+            fold(!keyed);
         },
         isCollapsed: () => folded,
         setEmpty: (on) => (emptyLine.hidden = !on || !empty),
