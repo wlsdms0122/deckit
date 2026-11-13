@@ -672,7 +672,7 @@ async function run({
             (await main(`return webkit.windows().map((id) => webkit.tree(id)).join('\\n')`))
                 .split('\n')
                 .filter((line) => /^ *MaterialView .* radius 10(\.0)? material/.test(line)).length;
-        const underMenu = await until(menuMaterials, 2000);
+        const laidUnder = await until(menuMaterials, 2000);
         const menuTinted = await settingsOverlay?.evaluate(
             `document.querySelector('.deckit-menu[data-state="open"]')?.hasAttribute('data-material')`
         );
@@ -682,8 +682,8 @@ async function run({
         const leftUnder = await menuMaterials();
         check(
             'an open menu has a material laid under it, rounded as it is, and none once it closes',
-            underMenu === 1 && menuTinted === true && leftUnder === 0,
-            { underMenu, menuTinted, leftUnder }
+            laidUnder === 1 && menuTinted === true && leftUnder === 0,
+            { laidUnder, menuTinted, leftUnder }
         );
         const after = await settings?.evaluate(`${firstSelect}?.textContent`);
         check(
