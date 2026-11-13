@@ -282,12 +282,21 @@ function fileAddress(paths, written) {
 // Each site of the case served on the loopback address, at a port of its own chosen as the run begins: each path
 // answered with what the site's file writes of it, its status (200 where it writes none and a file is at the path, 404
 // where neither), its location and headers in order, then the length of its body and `connection: close`, and the body
-// the file at the path holds, as it is. Keeps each request a site got, `{ site, method, path, headers, body }`.
+// the file at the path holds, as it is. Keeps each request a site got, `{ site, method, path, headers, body }`. A site
+// that refuses has a port of its own that nothing listens at, chosen as one is and let go, so a connection is refused.
 async function serve(sites) {
     const requests = [];
     const servers = [];
     const ports = {};
-    for (const [site, { folder, answers }] of Object.entries(sites)) {
+    for (const [site, { refusing }] of Object.entries(sites)) {
+        if (!refusing) continue;
+        const held = net.createServer();
+        await new Promise((resolve) => held.listen(0, '127.0.0.1', resolve));
+        ports[site] = held.address().port;
+        await new Promise((resolve) => held.close(resolve));
+    }
+    for (const [site, { folder, answers, refusing }] of Object.entries(sites)) {
+        if (refusing) continue;
         const server = http.createServer((request, response) => {
             const chunks = [];
             request.on('data', (chunk) => chunks.push(chunk));
