@@ -159,6 +159,7 @@ function connect({ port, shots, module }) {
         };
         const mouse = (type, { x, y }) => send('sendMouse', { type, x, y });
         const session = {
+            id: Number(id),
             url,
             evaluate: (expression, world) => evaluateIn(id, expression, world),
             async key(key, code, modifiers = 0) {

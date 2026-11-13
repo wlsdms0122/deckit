@@ -48,8 +48,10 @@ import CNodeAPI
 //   is drawn scaled, what is at p on the stage drawn at p * by + (x, y), its frame and clips laid as given, and a
 //   material, named as a window's is, blurring what the window shows under its frame; `showStage(id, on)`;
 //   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, a
-//   view that cuts what is in it to rounded corners with their radius, a material with its number, and the view with
-//   the window's keyboard marked.
+//   view that cuts what is in it to rounded corners with their radius, a material with its number, a view drawn by a
+//   layer transform marked scaled, and the view with the window's keyboard marked; `pageAt(window, { x, y }) -> id`,
+//   the page a press at a point of the window's content, from its top left, reaches as the window hit tests it, or
+//   null where it reaches none.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -432,6 +434,9 @@ final class WebEngine {
 
         case .tree:
             return try node.make(tree(of: try window(0).window.contentView ?? NSView()))
+
+        case .pageAt:
+            return try node.make(page(at: try point(try argument(1)), in: try window(0).window))
         }
 
         return node.undefined()
@@ -729,6 +734,18 @@ final class WebEngine {
         return (promise, settle)
     }
 
+    // The page whose view a press at `point` of `window`'s content, from its top left, reaches, through the views laid
+    // there, their clips and their input regions, as the window finds the view a press goes to.
+    private func page(at point: CGPoint, in window: NSWindow) -> Int? {
+        guard let content = window.contentView else { return nil }
+        let local = CGPoint(x: point.x, y: content.isFlipped ? point.y : content.bounds.height - point.y)
+        guard let hit = content.hitTest(content.superview.map { content.convert(local, to: $0) } ?? local) else {
+            return nil
+        }
+
+        return pages.first { hit.isDescendant(of: $0.value.view) }?.key
+    }
+
     private func tree(of view: NSView, depth: Int = 0) -> String {
         let cut = view.layer.flatMap { $0.masksToBounds && $0.cornerRadius > 0 ? $0.cornerRadius : nil }
         let radius = cut.map { " radius \($0)" } ?? ""
@@ -737,6 +754,7 @@ final class WebEngine {
             + "\(view.isFlipped ? " flipped" : "")"
             + "\(view.window?.firstResponder === view ? " responder" : "")"
             + radius
+            + (view.layer.map { CATransform3DIsIdentity($0.transform) ? "" : " scaled" } ?? "")
             + ((view as? NSVisualEffectView).map { " material \($0.material.rawValue)" } ?? "")
             + (pages.values.first { $0.view === view }.map { " page \($0.id)" } ?? "")
             + ((view as? WebPageView)?.inputRegion.map { " input [\($0.map(NSStringFromRect).joined(separator: "|"))]" }
