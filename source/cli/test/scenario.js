@@ -436,6 +436,23 @@ async function run({
             );
             const items = await switcher.evaluate(`document.body.innerText`);
             check('switcher lists mods', /Notes/.test(items || ''), String(items).slice(0, 200));
+            // A Show row leads with its mod's app icon; an action that gives no icon, under its mod's heading, with
+            // the Switcher's own action glyph.
+            const leads = await switcher.evaluate(`(() => {
+                const rows = [...document.querySelectorAll('.switcher-row')];
+                const bare = rows.find((row) => row.querySelector('.switcher-glyph[data-action] svg'));
+                const show = rows.find((row) => /^Show /.test(row.querySelector('.switcher-label')?.textContent));
+                const glyph = bare?.querySelector('.switcher-glyph');
+                return {
+                    bare: !!bare && !glyph.querySelector('.deckit-app-icon'),
+                    show: !!show?.querySelector('.switcher-glyph .deckit-app-icon'),
+                };
+            })()`);
+            check(
+                "an action with no icon leads with the Switcher's action glyph, a Show row with its mod's app icon",
+                leads?.bare && leads.show,
+                JSON.stringify(leads)
+            );
             await switcher.shot('switcher');
             const activeLabel = `document.querySelector('[data-active] .switcher-label')?.textContent`;
             const first = await switcher.evaluate(activeLabel);
