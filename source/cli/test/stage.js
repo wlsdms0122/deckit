@@ -129,6 +129,19 @@ async function main() {
         asked.laid[0].opacity === 0.4 && asked.laid[1].opacity === 0.4 && !('opacity' in asked.laid[2]),
         asked.laid
     );
+    const half = { by: 0.5, x: 2, y: 3 };
+    stage.lay([
+        { page: a, rect: rect(1, 1, 9, 9), scale: half },
+        { page: frame, rect: rect(0, 0, 3, 10), scale: { by: 1, x: 0, y: 0 } },
+    ]);
+    check(
+        'a page laid at a scale is drawn so at its rect, its web pages with it, and one at 1 in place is laid as any',
+        JSON.stringify(asked.laid[0].scale) === JSON.stringify(half) &&
+            JSON.stringify(asked.laid[1].scale) === JSON.stringify(half) &&
+            JSON.stringify(asked.laid[0].frame) === JSON.stringify(rect(1, 1, 9, 9)) &&
+            !('scale' in asked.laid[2]),
+        asked.laid
+    );
     stage.lay([
         { page: backdrop, rect: rect(0, 0, 10, 10) },
         { page: a, rect: rect(1, 1, 9, 9) },
