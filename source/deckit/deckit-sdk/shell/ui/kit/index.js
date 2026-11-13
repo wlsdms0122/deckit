@@ -90,7 +90,8 @@ function make(theme, { fonts }) {
         pressable: PART.pressable,
         selectable: PART.selectable,
         titleBar: PART.titleBar,
-        // The kit's motion, for a part of a page's own: what comes, goes, glides, swells or folds moves as the kit's do.
+        // The kit's motion, for a part of a page's own: what comes, goes, glides, swells or folds moves as the kit's do;
+        // `keyed()` tells whether a key is being heard now, as what a key changes is drawn at once.
         motion: {
             come: MOTION.come,
             go: MOTION.go,
@@ -98,6 +99,7 @@ function make(theme, { fonts }) {
             swell: MOTION.swell,
             fold: MOTION.fold,
             appear: MOTION.appear,
+            keyed: PRESENTATION.keyed,
         },
     });
     return deepFreeze(ui);

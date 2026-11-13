@@ -42,7 +42,7 @@ const stack = [];
 let backdrop = null;
 let overlayDocument = null;
 // Whether a key is being heard now: what a key opens or closes does not move.
-let keyed = false;
+let isKeyed = false;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -118,10 +118,10 @@ function present({
         dismiss: () => onDismiss(),
         place: () =>
             (anchor || rect || point || beside) && PLACE.place(element, { anchor, rect, point, beside, gap, fit }),
-        close: () => close(presented, still || keyed),
+        close: () => close(presented, still || isKeyed),
     };
     stack.push(presented);
-    if (element) show(presented, still || keyed);
+    if (element) show(presented, still || isKeyed);
     return presented;
 }
 
@@ -144,6 +144,11 @@ function escape() {
         new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
     );
     return true;
+}
+
+// Whether a key is being heard now, in the page or a document of its: what a key changes is drawn at once.
+function keyed() {
+    return isKeyed;
 }
 
 // MARK: - Private
@@ -195,8 +200,8 @@ function heed(view) {
     view.addEventListener(
         'keydown',
         () => {
-            keyed = true;
-            setTimeout(() => (keyed = false));
+            isKeyed = true;
+            setTimeout(() => (isKeyed = false));
         },
         true
     );
@@ -274,4 +279,4 @@ function dismissUnfocused(presented) {
     if (!LAYER.windows().some(({ document }) => document.hasFocus())) dismissTransient(presented);
 }
 
-export { STYLE, start, watch, present, top, count, escape };
+export { STYLE, start, watch, present, top, count, escape, keyed };
