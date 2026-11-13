@@ -31,6 +31,8 @@ const TABS_STYLE = `
     }
     .editor-tab:hover { background: var(--deckit-hover); }
     .editor-tab[data-active] { color: var(--deckit-text); }
+    /* The tab strip is the title bar: not key, its active tab goes to muted with the rest of it. */
+    [data-deckit-key='false'] .editor-tab[data-active] { color: var(--deckit-muted); }
     .editor-tab-list[data-many] .editor-tab[data-active] {
         background: var(--deckit-thumb);
         box-shadow: var(--deckit-shadow-control);
