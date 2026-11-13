@@ -297,6 +297,12 @@ async function draw(app, look, shots, origin) {
                 if (await each.evaluate(`!!document.querySelector('.notifications-head')`)) return each;
             return null;
         }, 4000);
+    // Whether the center is laid on the desktop or the clock shows it open.
+    const centerOpen = async () =>
+        ((await desktopLaid())?.pages || []).some(
+            ({ opener, name }) => opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
+        ) ||
+        (await clock?.evaluate(`document.querySelector('.deckit-bar-item')?.getAttribute('aria-pressed')`)) === 'true';
     await surface('notifications', async (name) => {
         await clock?.press('.deckit-bar-item');
         const list = await center();
@@ -310,7 +316,10 @@ async function draw(app, look, shots, origin) {
         await until(() => list?.evaluate(`!document.querySelector('.notifications-card')`), 2000);
         await sleep(400);
         if (list) await backed(name);
+        // The clock's press lands before the Dock's: a Dock press first takes the keyboard from the center, which
+        // closes, and the clock's then opens it again.
         await clock?.press('.deckit-bar-item');
+        await until(async () => !(await centerOpen()), 4000);
         await show(apps[0]);
         await sleep(400);
     });
