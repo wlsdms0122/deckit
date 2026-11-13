@@ -164,10 +164,10 @@ Draw with the kit and its tokens (UI.md, The theme). A new theme or new fonts ch
 
 ## App icons
 
-Two kinds of icon, by role. An **app icon** names a mod: full colour, on a tile, drawn as an image with `ui.appIcon`. A **glyph** names an action or a place inside a mod: the kit's line set, `currentColor`. An app icon never stands on a button, and a glyph never stands in for a mod.
+Two kinds of icon, by role. An **app icon** names a mod: a white symbol on a tile of the mod's colour, drawn as an image with `ui.appIcon`. A **glyph** names an action or a place inside a mod: the kit's line set, `currentColor`. An app icon never stands on a button, and a glyph never stands in for a mod.
 
 - **The file:** an SVG in the mod's folder, named by the manifest's `icon` (MOD.md), `viewBox="0 0 128 128"`, at most 32 KB. One file serves every size and look: there is no dark variant.
-- **The grid:** a tile 112 by 112 at an inset of 8, corner radius 26, one hue, about 6 percent lighter at the top than at the bottom. No shadow outside the tile: the surface lays `shadow.icon` at 32px and up. The symbol sits in the middle 72 by 72, one silhouette that reads at 16px, no line under 8 units (1px at 16). A light tile carries a faint dark edge, and a dark one a faint light edge, so it holds on a ground of its own tone.
+- **The grid:** a tile 112 by 112 at an inset of 8, corner radius 26, one flat hue, 3 percent lighter at the top than at the bottom, with no highlight, inner shadow or second colour. No shadow outside the tile: the surface lays `shadow.icon` at 32px and up. The symbol sits in the middle 72 by 72, one white symbol of two or three plain shapes that reads at 16px: lines about 10 units wide, never under 8 (1px at 16), and holes cut through to the tile. A tile as dark as the dark look's `elevated` (under 1.6:1 against it) carries a faint light edge inside it, 4 units of white at 16 percent, so it holds on the dark Dock; no tile is so light it needs a dark one.
 - **No text** in the file (a font that is not there changes it), nothing it would load, and no purple-to-blue gradient or glow.
 - **Sizes:** the token's `appIcon`, one per role.
 
@@ -179,7 +179,7 @@ Two kinds of icon, by role. An **app icon** names a mod: full colour, on a tile,
 | `dock` 40 | the Dock |
 | `grid` 56 | the Mods launcher |
 
-A mod without an icon, or with one the shell cannot draw, is drawn with the default icon, a grey tile with a cube.
+A mod without an icon, or with one the shell cannot draw, is drawn with the default icon, a grey tile with a white outlined cube.
 
 ## Words
 
