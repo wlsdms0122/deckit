@@ -56,6 +56,8 @@ const STYLE = `
     .deckit-section-body { display: flex; flex-direction: column; }
     .deckit-section[data-foldable] .deckit-section-body { padding-left: 18px; }
     .deckit-section-body[hidden] { display: none; }
+    .deckit-section-empty { padding: 4px 8px; color: var(--deckit-muted); font: var(--deckit-type-body); }
+    .deckit-section-empty[hidden] { display: none; }
     .deckit-breadcrumb {
         display: flex;
         align-items: center;
@@ -97,7 +99,8 @@ function make(theme, ui) {
 // MARK: - Private
 // A heading over a body. With `collapsed` a boolean the heading folds the body: a press reports the fold asked
 // for and the caller sets it. With `onHeading` the heading is pressed. `actions` are { icon, title, run(button) }
-// at the heading's end; `actions` of the result are their buttons.
+// at the heading's end; `actions` of the result are their buttons. `empty` is the line the body shows first while
+// `setEmpty(true)` says the section has no rows.
 function section(
     ui,
     {
@@ -110,6 +113,7 @@ function section(
         onHeading = null,
         onHeadingMenu = null,
         headingTitle = '',
+        empty = '',
     }
 ) {
     const foldable = typeof collapsed === 'boolean';
@@ -156,6 +160,10 @@ function section(
         return button;
     });
     const body = tag('div', 'deckit-section-body');
+    const emptyLine = tag('div', 'deckit-section-empty');
+    emptyLine.textContent = empty;
+    emptyLine.hidden = true;
+    body.append(emptyLine);
     const box = tag('div', 'deckit-section-fold');
     box.append(body);
     let folded = !!collapsed;
@@ -181,6 +189,7 @@ function section(
             fold(true);
         },
         isCollapsed: () => folded,
+        setEmpty: (on) => (emptyLine.hidden = !on || !empty),
     };
 }
 
