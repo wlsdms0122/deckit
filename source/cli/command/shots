@@ -18,7 +18,7 @@ const root = path.join(__dirname, '..', '..', '..');
 const { execFileSync } = require('child_process');
 const { start } = require(path.join(root, 'source', 'cli', 'test', 'start.js'));
 const { seat } = require(path.join(root, 'source', 'cli', 'test', 'seat.js'));
-const { until, sleep, ALT, META } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
+const { until, sleep, ALT, CTRL, META } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
 const OUT = path.join(root, '.build', 'shots');
 const LOOKS = ['light', 'dark'];
 const LIMIT = 600000;
@@ -289,6 +289,62 @@ async function draw(app, look, shots, origin) {
     await sleep(400);
     await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
     await surface('desktop-windows', backed);
+    // Two windows tiled side by side by the shell's keys, then each put back at its frame.
+    const tileKey = async (key) => {
+        const content = (await windowsNow()).find((window) => window.key)?.content;
+        await (await pageById(content))?.key(key, key, CTRL | ALT);
+        await sleep(800);
+    };
+    await surface('windows-tiled', async (name) => {
+        await show(apps[0]);
+        await sleep(400);
+        await tileKey('ArrowLeft');
+        await show(apps[1]);
+        await sleep(400);
+        await tileKey('ArrowRight');
+        await backed(name);
+        await tileKey('ArrowDown');
+        await show(apps[0]);
+        await sleep(400);
+        await tileKey('ArrowDown');
+    });
+    // The half the Browser's window takes, shown as it is held by its toolbar with the pointer at the zoom area's left
+    // side, then dragged back to where it was pressed and let go there.
+    await surface('window-drop', async (name) => {
+        await show('browser');
+        await sleep(600);
+        const held = (await windowsNow()).filter(({ mod }) => mod === 'browser').at(-1);
+        const from = await (
+            await pageById(held?.content)
+        )?.evaluate(`(() => {
+            const bar = document.querySelector('.browser-toolbar').getBoundingClientRect();
+            const y = Math.round(bar.top + bar.height / 2);
+            for (let x = Math.round(bar.left) + 96; x < bar.right; x += 4) {
+                const found = document.elementFromPoint(x, y);
+                if (found && getComputedStyle(found).getPropertyValue('--app-region').trim() === 'drag') return { x, y };
+            }
+            return null;
+        })()`);
+        if (!from) return;
+        const mouse = (type, { x, y }) =>
+            main(`return webkit.sendMouse(${held.content}, ${JSON.stringify({ type, x, y })})`);
+        const rectNow = async () => (await windowsNow()).find(({ id }) => id === held.id)?.rect ?? held.rect;
+        // Where the pointer at `point` on the desktop is in the window's content as it is laid now.
+        const inPage = async (point) => {
+            const rect = await rectNow();
+            return { x: point.x - rect.x, y: point.y - rect.y };
+        };
+        const top = await desktop.evaluate(`document.querySelector('.deckit-desktop-strip').offsetHeight`);
+        const pressed = { x: held.rect.x + from.x, y: held.rect.y + from.y };
+        await mouse('down', from);
+        await mouse('dragged', await inPage({ x: 6, y: Math.round(top + (screen.height - top) / 2) }));
+        await sleep(800);
+        await backed(name);
+        await mouse('dragged', await inPage(pressed));
+        await sleep(200);
+        await mouse('up', await inPage(pressed));
+        await sleep(600);
+    });
     // The status bar at the top right of the host's bar, close, and the desktop with the notification center the
     // clock opens at its right edge, with the record's cards, then cleared, with none.
     await surface('status-bar', (name) =>
