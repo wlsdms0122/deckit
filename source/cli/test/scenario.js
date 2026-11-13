@@ -1997,6 +1997,31 @@ async function run({
             const userWindows = async () => (await windowsNow()).filter(({ mod }) => mod === 'window-user');
             const toldNow = async () => (await mark(windowed, 'told')) || '';
             const keyContent = async () => pageById((await windowsNow()).find(({ key }) => key)?.content);
+            // The pages a window on the desktop is laid in, its frame's to its buttons', and those a press reaches at
+            // the middle and the corners of `rect`, 6 in.
+            const pagesOfWindow = async (id) => {
+                const stack = await stackNow();
+                const from = stack.findIndex(({ name }) => name === `frame-${id}`);
+                const to = stack.findIndex(({ name }) => name === `buttons-${id}`);
+                return from < 0 || to < from ? [] : stack.slice(from, to + 1).map((laid) => laid.id);
+            };
+            const reachedIn = async ({ x, y, width, height }) => {
+                const reached = [];
+                for (const [across, down] of [
+                    [0.5, 0.5],
+                    [0, 0],
+                    [1, 0],
+                    [0, 1],
+                    [1, 1],
+                ]) {
+                    const at = {
+                        x: Math.round(x + 6 + across * (width - 12)),
+                        y: Math.round(y + 6 + down * (height - 12)),
+                    };
+                    reached.push(await pageAt(at));
+                }
+                return reached;
+            };
             const listedWindows = async () => {
                 await windowed?.evaluate(`delete document.documentElement.dataset.windows`);
                 await send('test-windows', null);
@@ -2086,11 +2111,19 @@ async function run({
                 cycled,
                 JSON.stringify(await userWindows())
             );
+            const goingIn = (await userWindows()).find(({ id }) => id === two?.id);
+            const goingPages = await pagesOfWindow(two?.id);
             await (await keyContent())?.key('m', 'KeyM', META, 77);
             const minimized = await until(async () => {
                 const left = await userWindows();
                 return left.length === 1 && left[0].id === one?.id && left[0].key;
             }, 3000);
+            const afterIn = goingIn ? await reachedIn(goingIn.rect) : [];
+            check(
+                'a window gone into its Dock tile takes no press where it stood',
+                minimized && goingPages.length >= 3 && afterIn.length && !afterIn.some((id) => goingPages.includes(id)),
+                JSON.stringify({ goingPages, afterIn })
+            );
             check(
                 "⌘M takes the key window off the desktop, and the mod's next window becomes key",
                 minimized && (await toldNow()).includes('two didDisappear,'),
@@ -2158,10 +2191,19 @@ async function run({
                 return found?.rect.width === 500 && found.rect.height === 320 && found;
             }, 3000);
             check("a mod's page resizes its window", !!resized, JSON.stringify(await userWindows()));
+            const shut = await userWindows();
+            const shutPages = (await Promise.all(shut.map(({ id }) => pagesOfWindow(id)))).flat();
             await (await keyContent())?.key('w', 'KeyW', META, 87);
             await until(async () => (await userWindows()).length === 1, 3000);
             await (await keyContent())?.key('w', 'KeyW', META, 87);
             const allClosed = await until(async () => !(await userWindows()).length, 3000);
+            const afterClose = [];
+            for (const { rect } of shut) afterClose.push(...(await reachedIn(rect)));
+            check(
+                'a window closed takes no press where it stood, nor does any page of it',
+                allClosed && shut.length === 2 && !afterClose.some((id) => shutPages.includes(id)),
+                JSON.stringify({ shutPages, afterClose })
+            );
             check(
                 '⌘W closes the key window, and the mod runs on with none, its Dock item running',
                 allClosed &&
@@ -2171,6 +2213,26 @@ async function run({
                 JSON.stringify({ windows: await userWindows(), told: await toldNow() })
             );
             await dockClick('window-user');
+            // Opening, drawn scaled up from a little smaller, the window takes no press, even at its middle, until it
+            // rests: read scaled before and after the press is asked of the host, so it was all along.
+            const opening = [];
+            for (const end = Date.now() + 2000; Date.now() < end;) {
+                const [found] = await userWindows();
+                if (!found) continue;
+                const middle = {
+                    x: Math.round(found.rect.x + found.rect.width / 2),
+                    y: Math.round(found.rect.y + found.rect.height / 2),
+                };
+                const reached = await pageAt(middle);
+                const [after] = await userWindows();
+                opening.push({ scaled: !!(found.scaled && after?.scaled), taken: reached === found.content });
+                if (!found.scaled && !after?.scaled) break;
+            }
+            check(
+                'a window opening takes no press until it rests, then takes one at its middle',
+                opening.filter(({ scaled }) => scaled).every(({ taken }) => !taken) && opening.at(-1)?.taken,
+                JSON.stringify(opening)
+            );
             const reopened = await until(async () => {
                 const [found] = await userWindows();
                 return found?.key && found;

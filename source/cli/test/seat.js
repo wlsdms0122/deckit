@@ -119,9 +119,10 @@ function seat({ main, pageById, compose, desktop }) {
         const at = { x: laid.rect.x + x, y: laid.rect.y + y };
         return main(`return webkit.pageAt(${laid.window}, ${JSON.stringify(at)})`);
     };
-    // The windows on the desktop, back to front, as the local seat sees them: `{ id, mod, url, rect, key, content }`
-    // each, `mod` the mod whose page opened its content, `rect` its content's on the desktop, `key` whether its frame
-    // is drawn as the key window's, and `content` the page its content is.
+    // The windows on the desktop, back to front, as the local seat sees them: `{ id, mod, url, rect, key, content,
+    // scaled }` each, `mod` the mod whose page opened its content, `rect` its content's on the desktop, `key` whether
+    // its frame is drawn as the key window's, `content` the page its content is, and `scaled` whether it is drawn
+    // scaled.
     const windowsNow = async () => {
         const laid = (await desktopLaid())?.pages || [];
         const windows = [];
@@ -137,6 +138,7 @@ function seat({ main, pageById, compose, desktop }) {
                 rect: content.rect,
                 key: each.keyed,
                 content: content.id,
+                scaled: content.scaled,
             });
         });
         return windows;

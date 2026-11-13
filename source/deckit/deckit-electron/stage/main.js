@@ -1,8 +1,8 @@
 // Where a layer on deckit lays pages in a window of the app's: a stage it places in the window, and the pages on it,
 // each where it is or hidden, drawn in the order laid. Which pages, in what order and where, is the layer's; the web
 // pages a page shows are laid just over it, each over the element that holds its place and cut to the page and to
-// what the page is cut to (`webPagesIn(page)`, `[{ page, frame }]`, `frame` in the page). `idOf(window)` is a
-// window's in the module.
+// what the page is cut to (`webPagesIn(page)`, `[{ page, frame }]`, `frame` in the page), taking no pointer where the
+// page takes none. `idOf(window)` is a window's in the module.
 export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
     // MARK: - Property
     const showing = new WeakMap(); // page -> the stage it is shown on, a page of deck's or a web page
@@ -117,11 +117,12 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                 show(page);
                 const clips = clip ? [clip] : [];
                 const seen = drawnAs(opacity, scale);
+                const none = input && !input.length ? { input: [] } : {};
                 const over = webPagesIn(page).map((web) => {
                     show(web.page);
                     const { x, y, width, height } = web.frame;
                     const frame = { x: rect.x + x, y: rect.y + y, width, height };
-                    return { page: web.page.id, frame, clips: [...clips, rect], ...seen };
+                    return { page: web.page.id, frame, clips: [...clips, rect], ...none, ...seen };
                 });
                 return [
                     { page: page.id, frame: rect, ...(clip ? { clips } : {}), ...(input ? { input } : {}), ...seen },

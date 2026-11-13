@@ -120,6 +120,14 @@ async function main() {
             JSON.stringify(asked.laid[2].frame) === JSON.stringify(rect(3, 4, 4, 5)),
         asked.laid
     );
+    stage.lay([{ page: a, rect: rect(1, 1, 9, 9), input: [] }]);
+    const noneOver = asked.laid;
+    stage.lay([{ page: a, rect: rect(1, 1, 9, 9), input: [rect(0, 0, 2, 2)] }]);
+    check(
+        "a page's web pages take no pointer where the page takes none, and all of theirs where the page takes some",
+        JSON.stringify(noneOver[1].input) === '[]' && !('input' in asked.laid[1]),
+        { noneOver, some: asked.laid }
+    );
     stage.lay([
         { page: a, rect: rect(1, 1, 9, 9), opacity: 0.4 },
         { page: frame, rect: rect(0, 0, 3, 10), opacity: 1 },

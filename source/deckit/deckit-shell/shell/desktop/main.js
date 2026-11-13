@@ -771,11 +771,15 @@ export function createDesktop({
                     ];
                     const seenAs = { ...(opacity < 1 ? { opacity } : {}), ...(scale ? { scale } : {}) };
                     const laid = { ...content, x: frame.x, y: frame.y };
+                    // Drawn scaled, as it opens, closes or goes into its Dock tile and back, it is laid whole at its
+                    // frame, past where it is drawn: it takes no press until it rests.
+                    const resting = !leaving && !scale;
+                    const still = resting ? {} : { input: [] };
                     return [
                         frameSurface && {
                             page: frameSurface,
                             rect: parts.rect,
-                            input: leaving
+                            input: !resting
                                 ? []
                                 : [
                                       ...(bar.enabled.zoom ? parts.edges.map(({ rect }) => rect) : []),
@@ -787,17 +791,17 @@ export function createDesktop({
                             page: window.surface,
                             rect: LAYOUT.contentOf(laid, bar),
                             clip,
-                            ...(leaving ? { input: [] } : {}),
+                            ...still,
                             ...seenAs,
                         },
                         ...children
                             .filter(({ window }) => window === id)
-                            .map(({ page, rect }) => ({ page, rect, clip, ...seenAs })),
+                            .map(({ page, rect }) => ({ page, rect, clip, ...still, ...seenAs })),
                         buttons && {
                             page: buttons,
                             rect: parts.buttons,
                             ...(leaving ? { clip } : {}),
-                            input: leaving
+                            input: !resting
                                 ? []
                                 : LAYOUT.buttonsOf(bar).map(({ x, y, width, height }) => ({ x, y, width, height })),
                             ...seenAs,
