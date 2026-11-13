@@ -308,6 +308,7 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
     // out of the record.
     function card(notification, { row }) {
         const made = element('div', 'notifications-card');
+        made.dataset.deckitSolid = ''; // opaque on the panel's material: the plain inks
         made.append(...partsOf(notification, { row }));
         made.addEventListener('click', () => center.press(notification.id));
         return made;
