@@ -58,6 +58,7 @@ const STYLE = `
         border-radius: ${RADIUS}px;
         background: var(--deckit-background);
         box-shadow: var(--deckit-shadow-inactive);
+        transition: box-shadow var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-window-material[data-key] { box-shadow: var(--deckit-shadow-key); }
     .deckit-window-title {
