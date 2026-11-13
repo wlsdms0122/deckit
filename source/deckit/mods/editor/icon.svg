@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
 <defs><linearGradient id="edt" x1="0" y1="8" x2="0" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4a5162"/><stop offset="1" stop-color="#434a59"/></linearGradient></defs>
 <rect x="8" y="8" width="112" height="112" rx="26" fill="url(#edt)"/>
+<rect x="10" y="10" width="108" height="108" rx="24" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="4"/>
 <g fill="#fff"><path d="M46 42 L26 64 L46 86" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M82 42 L102 64 L82 86" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M71 36 L57 92" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/></g>
 </svg>

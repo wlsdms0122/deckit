@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
 <defs><linearGradient id="dkt" x1="0" y1="8" x2="0" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#344073"/><stop offset="1" stop-color="#2f3a68"/></linearGradient><mask id="dkm" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#fff"/><g fill="#000" stroke="#000"><rect x="30" y="40" width="46" height="62" rx="9" fill="none" stroke-width="16"/><rect x="30" y="40" width="46" height="62" rx="9" fill="#fff" stroke="none"/></g></mask></defs>
 <rect x="8" y="8" width="112" height="112" rx="26" fill="url(#dkt)"/>
+<rect x="10" y="10" width="108" height="108" rx="24" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="4"/>
 <g fill="#fff" mask="url(#dkm)"><rect x="50" y="24" width="46" height="62" rx="9" transform="rotate(14 73 55)"/><rect x="30" y="40" width="46" height="62" rx="9"/></g>
 </svg>
