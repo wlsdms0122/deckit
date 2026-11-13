@@ -1310,8 +1310,12 @@ async function run({
         // A link to a file that opens a tab: the tab, which shows no page, closes once the download is asked about, and
         // the tab the link is in stays.
         {
+            let goneAsked = false;
             const site = require('http').createServer((request, response) => {
-                if (request.url === '/gone.csv') return request.socket.destroy();
+                if (request.url === '/gone.csv') {
+                    goneAsked = true;
+                    return request.socket.destroy();
+                }
                 if (request.url === '/file') {
                     response.writeHead(200, {
                         'Content-Type': 'text/csv',
@@ -1359,7 +1363,13 @@ async function run({
             );
             for (const type of ['down', 'up'])
                 await main(`return webkit.sendMouse(${linkPageId}, { type: '${type}', x: 40, y: 40 })`);
-            check('the tab whose file failed stays on its page', (await shownAt()) === failingPage, await shownAt());
+            // The site is asked for the file before the tab leaves its page: a load before that drops the download.
+            const goneAskedNow = await until(() => goneAsked, 3000);
+            check(
+                'the tab whose file failed stays on its page',
+                goneAskedNow && (await shownAt()) === failingPage,
+                JSON.stringify({ asked: goneAskedNow, at: await shownAt() })
+            );
             site.close();
             await main(`return webkit.load(${linkPageId}, '${FRONT_TAB}')`);
             await until(async () => (await shownAt()) === FRONT_TAB, 5000);
