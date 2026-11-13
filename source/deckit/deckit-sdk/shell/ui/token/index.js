@@ -161,6 +161,9 @@ function tokenOf(theme, fonts = {}) {
             text,
             // Secondary text, 4.5:1 or more on `background`, `lifted` and `elevated` in both looks.
             muted: toward(0.68),
+            // A step quieter than `muted`, for a mark that only supports a row: 3:1 or more on `background` and
+            // `lifted` in both looks.
+            tertiary: toward(0.55),
             disabled: toward(0.3),
             placeholder: toward(0.68),
             background,

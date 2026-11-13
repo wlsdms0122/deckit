@@ -52,9 +52,10 @@ const STYLE =
         height: var(--deckit-app-icon-row);
         color: var(--deckit-muted);
     }
-    /* The Switcher's own mark for an action that gives no icon: smaller than an action's own glyph, and muted
-       whatever the row's tone. */
-    .switcher-row[data-tone] .switcher-glyph[data-action] { color: var(--deckit-muted); }
+    /* The Switcher's own mark for an action that gives no icon: smaller and a step quieter than an action's own
+       glyph, whatever the row's tone. */
+    .switcher-glyph[data-action],
+    .switcher-row[data-tone] .switcher-glyph[data-action] { color: var(--deckit-tertiary); }
     .switcher-row[data-lead] .switcher-glyph { width: var(--deckit-app-icon-lead); height: var(--deckit-app-icon-lead); }
     .switcher-stack { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
     .switcher-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
