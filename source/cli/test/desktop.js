@@ -551,12 +551,18 @@ async function main() {
     desk.fromPage('dock', { out: true });
     const out = inputOf();
     check(
-        "the desktop's page takes the pointer at the host's bar and the Dock's sliver, and all of the Dock while it is out",
+        "the desktop's page takes the pointer at the host's bar and the Dock's sliver down the edge, and its card too " +
+            'while it is out, never the rest of its column',
         sliver.length === 2 &&
             sliver[0].height === 28 &&
             sliver[1].width === DOCK.SLIVER &&
             sliver[1].y === 28 &&
-            out[1].width === DOCK.WIDTH,
+            out.length === 3 &&
+            out[1].width === DOCK.SLIVER &&
+            out[2].x === 0 &&
+            out[2].width === DOCK.WIDTH &&
+            out[2].y > 28 &&
+            out[2].height < sliver[1].height - 2 * DOCK.CARD.padding,
         { sliver, out }
     );
 
@@ -1035,6 +1041,14 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
         { id: 'b', pinned: false, running: true },
     ];
     const tileAt = DOCK.tileOf({ x: 0, y: 28, width: 1200, height: 772 }, items, 'b');
+    const cardAt = DOCK.cardOf({ x: 0, y: 28, width: 1200, height: 772 }, items);
+    const tall = DOCK.cardOf({ x: 0, y: 28, width: 1200, height: 100 }, items);
+    check(
+        "the Dock's card stands where its view lays it, centred down the desktop, no taller than the room in it",
+        same(cardAt, { x: 0, y: 350, width: DOCK.WIDTH, height: 129 }) &&
+            same(tall, { x: 0, y: 36, width: DOCK.WIDTH, height: 84 }),
+        { cardAt, tall }
+    );
     check(
         "a mod's Dock tile stands where the Dock's view lays it out, past the divider after the items kept",
         same(tileAt, { x: 8, y: 423, width: 48, height: 48 }) && DOCK.tileOf({ x: 0, y: 0 }, items, 'c') === null,

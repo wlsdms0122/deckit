@@ -153,7 +153,7 @@ async function run({
 }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
-    const { laidNow, desktopLaid, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = seat({
+    const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = seat({
         main,
         pageById,
         compose,
@@ -263,10 +263,11 @@ async function run({
         JSON.stringify({ ...capsule, screenWidth })
     );
     // The Dock slides out as the pointer comes to its sliver at the desktop's edge, the only part of the desktop's page
-    // that takes the pointer there, and its item is pressed as a person presses it.
+    // that takes the pointer there, then takes it at its card too, and its item is pressed as a person presses it.
     const dockInput = async () => {
         const laid = (await desktopLaid())?.pages.find(({ url }) => url.startsWith('deckit://desktop'));
-        return (laid?.input || []).find(({ x, height }) => x === 0 && height > 100)?.width ?? null;
+        const widths = (laid?.input || []).filter(({ x, y }) => x === 0 && y > 0).map(({ width }) => width);
+        return widths.length ? Math.max(...widths) : null;
     };
     const sliver = await dockInput();
     await desktop.evaluate(`document.querySelector('.deckit-dock').dispatchEvent(new PointerEvent('pointerenter'))`);
@@ -278,7 +279,7 @@ async function run({
         2000
     );
     check(
-        'the Dock is a sliver at the edge until the pointer comes, then takes the pointer whole',
+        'the Dock is a sliver at the edge until the pointer comes, then takes the pointer at its card too',
         sliver > 0 && sliver < 10 && slidOut >= 60,
         `${sliver} -> ${slidOut}`
     );
@@ -2276,6 +2277,80 @@ async function run({
             await sleep(300);
             await mouse('up', inPage((await browserFrame()) ?? before));
             const dropped = await until(async () => near(await browserFrame(), leftHalf), 3000);
+            // The Dock's column over a window at the left edge, as the host window hit tests a press: the desktop's
+            // page takes it at the Dock's sliver down the edge and, out, at its card alone, each item's middle there;
+            // the window under the rest of the column takes every other point, its close button too.
+            {
+                const desktopId = desktop.id;
+                const browser = (await windowsNow()).find(({ mod }) => mod === 'browser');
+                const stack = await stackNow();
+                const from = stack.findIndex(({ id }) => id === browser?.content);
+                const to = stack.findIndex(({ name }) => name === `buttons-${browser?.id}`);
+                const own = new Set(from < 0 || to < from ? [] : stack.slice(from, to + 1).map(({ id }) => id));
+                const buttonsLaid = stack[to];
+                const buttonsPage = await pageById(buttonsLaid?.id);
+                const close = await buttonsPage?.evaluate(
+                    `(() => { const r = document.querySelector('[data-button="close"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`
+                );
+                const closeAt = close && { x: buttonsLaid.rect.x + close.x, y: buttonsLaid.rect.y + close.y };
+                const content = browser?.rect ?? { x: 0, y: 0, width: 0, height: 0 };
+                const dockLaid = async () =>
+                    (
+                        (await desktopLaid())?.pages.find(({ url }) => url.startsWith('deckit://desktop'))?.input || []
+                    ).some(({ x, y, width }) => x === 0 && y > 0 && width > 10 && width < 100);
+                const slide = async (out) => {
+                    const type = out ? 'pointerenter' : 'pointerleave';
+                    await desktop.evaluate(
+                        `document.querySelector('.deckit-dock').dispatchEvent(new PointerEvent('${type}'))`
+                    );
+                    return until(async () => (await dockLaid()) === out, 3000);
+                };
+                const slidOut = await slide(true);
+                await sleep(400);
+                const card = await desktop.evaluate(
+                    `(() => { const r = document.querySelector('.deckit-dock-card').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, right: r.right }; })()`
+                );
+                const middles = await desktop.evaluate(
+                    `[...document.querySelectorAll('.deckit-dock-item')].map((item) => { const r = item.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }; })`
+                );
+                const column = Math.round((card?.right ?? 0) / 2);
+                const beside = [
+                    ...(card.top - content.y > 8 ? [{ x: column, y: Math.round((content.y + card.top) / 2) }] : []),
+                    ...(content.y + content.height - card.bottom > 8
+                        ? [{ x: column, y: Math.round((card.bottom + content.y + content.height) / 2) }]
+                        : []),
+                ];
+                const reached = async (points) => {
+                    const pages = [];
+                    for (const point of points) pages.push(await pageAt(point));
+                    return pages;
+                };
+                const onItems = await reached(middles.filter(({ y }) => y > card.top && y < card.bottom));
+                const outBeside = await reached(beside);
+                const outClose = closeAt ? await pageAt(closeAt) : null;
+                const slidIn = await slide(false);
+                const inBeside = await reached([...beside, { x: column, y: Math.round((card.top + card.bottom) / 2) }]);
+                const inClose = closeAt ? await pageAt(closeAt) : null;
+                const detail = JSON.stringify({ desktopId, own: [...own], card, content, beside, closeAt });
+                check(
+                    "with the Dock out, the desktop's page takes a press at the middle of each of its items",
+                    slidOut && onItems.length > 0 && onItems.every((id) => id === desktopId),
+                    `${JSON.stringify(onItems)} ${detail}`
+                );
+                check(
+                    "with the Dock out, a window under the Dock's column takes a press above and below the Dock's card",
+                    beside.length === 2 && outBeside.every((id) => own.has(id)),
+                    `${JSON.stringify(outBeside)} ${detail}`
+                );
+                check(
+                    "with the Dock in, a window under the Dock's column takes a press there, its close button's too",
+                    slidIn &&
+                        inBeside.every((id) => own.has(id)) &&
+                        inClose === buttonsLaid?.id &&
+                        (closeAt?.y < card?.top ? outClose === buttonsLaid.id : true),
+                    `${JSON.stringify({ inBeside, inClose, outClose })} ${detail}`
+                );
+            }
             await (await pageById(contentId))?.key('ArrowDown', 'ArrowDown', CTRL | ALT, 40);
             const back = await until(async () => {
                 const now = await browserFrame();

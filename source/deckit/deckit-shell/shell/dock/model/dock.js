@@ -27,9 +27,12 @@ function dragged(ids, id, to) {
     return [...rest.slice(0, at), id, ...rest.slice(at)];
 }
 
-// Where the Dock takes the pointer on `desktop`: its sliver at the left edge, or all of it while it is `out`.
-function rectOf(desktop, out) {
-    return { x: desktop.x, y: desktop.y, width: out ? WIDTH : SLIVER, height: desktop.height };
+// Where the Dock takes the pointer on `desktop` with `items`, as items() answers them, its rects: the sliver at the
+// desktop's left edge, down all of it, which brings it out and keeps it out while the pointer stays there, and while it
+// is `out` its card too, where it is drawn. A window under the rest of the column takes the pointer there.
+function inputOf(desktop, out, items) {
+    const sliver = { x: desktop.x, y: desktop.y, width: SLIVER, height: desktop.height };
+    return out ? [sliver, cardOf(desktop, items)] : [sliver];
 }
 
 // Where the item `id` of `items`, as items() answers them, stands on `desktop` with the Dock out, as its view lays it,
@@ -39,15 +42,33 @@ function tileOf(desktop, items, id) {
     if (at < 0) return null;
     const kept = items.filter(({ pinned }) => pinned).length;
     const step = CARD.item + CARD.gap;
-    const run = (count) => (count ? count * step - CARD.gap : 0);
-    const divider = kept && items.length > kept ? 1 + 3 * CARD.gap : 0;
-    const height = 2 * CARD.padding + run(kept) + CARD.gap + divider + run(items.length - kept);
-    const top = desktop.y + Math.max(CARD.padding, (desktop.height - height) / 2) + CARD.padding;
-    const y = at < kept ? top + at * step : top + run(kept) + CARD.gap + divider + (at - kept) * step;
+    const top = cardOf(desktop, items).y + CARD.padding;
+    const y = at < kept ? top + at * step : top + runOf(kept) + CARD.gap + dividerOf(items) + (at - kept) * step;
     const x = desktop.x + (WIDTH - CARD.item) / 2;
     return { x, y: Math.round(y), width: CARD.item, height: CARD.item };
 }
 
-// MARK: - Private
+// The card the Dock's `items` stand in on `desktop`, out, as its view lays it: centred down the desktop, its padding
+// clear of the desktop's top and bottom, and no taller than the room between them.
+function cardOf(desktop, items) {
+    const kept = items.filter(({ pinned }) => pinned).length;
+    const tall = 2 * CARD.padding + runOf(kept) + CARD.gap + dividerOf(items) + runOf(items.length - kept);
+    const height = Math.min(tall, Math.max(0, desktop.height - 2 * CARD.padding));
+    const y = desktop.y + Math.max(CARD.padding, (desktop.height - tall) / 2);
+    return { x: desktop.x, y: Math.round(y), width: WIDTH, height: Math.round(height) };
+}
 
-export { SLIVER, WIDTH, RADIUS, CARD, items, dragged, rectOf, tileOf };
+// MARK: - Private
+// How tall `count` items stand in a row down the card, the room between them included.
+function runOf(count) {
+    return count ? count * (CARD.item + CARD.gap) - CARD.gap : 0;
+}
+
+// How tall the hairline between the items kept and those running stands, with the room above and below it, where
+// there are both.
+function dividerOf(items) {
+    const kept = items.filter(({ pinned }) => pinned).length;
+    return kept && items.length > kept ? 1 + 3 * CARD.gap : 0;
+}
+
+export { SLIVER, WIDTH, RADIUS, CARD, items, dragged, inputOf, tileOf, cardOf };
