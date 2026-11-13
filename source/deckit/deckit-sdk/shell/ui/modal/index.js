@@ -58,7 +58,7 @@ function make(theme, ui) {
 // text field confirms. `onKey` has a key first and returns whether it took it. `align` is `center`, `top`, or
 // `fill`, the card all the page draws, filling it, its edge the page's, which comes and goes at once, as its window
 // does. With `drags` the card drags the window it is in where nothing in it is pressed. With `glass` its colour is
-// laid at that strength, for a page over what blurs, and its quieter text is in the glass inks. With `clear` the
+// laid at that strength, for a page over what blurs, and its text is in the glass inks. With `clear` the
 // page shows through undimmed, the card still holding every press, and it comes and goes at once, as a palette a key
 // opens does.
 function modal(
