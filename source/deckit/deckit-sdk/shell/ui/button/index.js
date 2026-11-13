@@ -59,6 +59,21 @@ const STYLE = `
         background: var(--deckit-disabled);
         filter: none;
     }
+    /* The primary button stands out in the key window only: in a window that is not, it draws as a plain one. */
+    [data-deckit-key='false'] .deckit-text-button[data-variant='primary']:not(:disabled, [aria-disabled='true']) {
+        border: var(--deckit-border);
+        background: transparent;
+        color: var(--deckit-text);
+        filter: none;
+    }
+    [data-deckit-key='false']
+        .deckit-text-button[data-variant='primary']:not(:disabled, [aria-disabled='true']):hover {
+        background: var(--deckit-hover);
+    }
+    [data-deckit-key='false']
+        .deckit-text-button[data-variant='primary']:not(:disabled, [aria-disabled='true']):active {
+        background: var(--deckit-pressed);
+    }
     .deckit-bar-item {
         width: max-content;
         height: 100%;

@@ -525,6 +525,40 @@ async function run({
             selectable?.failure === 'text',
             JSON.stringify(selectable)
         );
+        // The kit's primary button stands out in the key window only: off key it draws as a plain one.
+        const primaryLook = await settings?.evaluate(`(() => {
+            const root = document.documentElement;
+            const was = root.dataset.deckitKey;
+            const made = (variant) => {
+                const button = document.createElement('button');
+                button.className = 'deckit-button deckit-text-button';
+                if (variant) button.dataset.variant = variant;
+                button.style.transition = 'none';
+                document.body.append(button);
+                return button;
+            };
+            const primary = made('primary');
+            const plain = made(null);
+            const look = (button) => ['backgroundColor', 'color', 'borderTopWidth']
+                .map((name) => getComputedStyle(button)[name]).join(' ');
+            const lookAt = (key) => {
+                root.dataset.deckitKey = key;
+                return { primary: look(primary), plain: look(plain) };
+            };
+            const seen = { key: lookAt('true'), notKey: lookAt('false') };
+            if (was === undefined) delete root.dataset.deckitKey;
+            else root.dataset.deckitKey = was;
+            primary.remove();
+            plain.remove();
+            return seen;
+        })()`);
+        check(
+            'a primary button draws as a plain one in a window that is not key, and takes the accent with the key',
+            !!primaryLook &&
+                primaryLook.key.primary !== primaryLook.key.plain &&
+                primaryLook.notKey.primary === primaryLook.notKey.plain,
+            JSON.stringify(primaryLook)
+        );
         await settings?.shot('settings');
         const activity = `[...document.querySelectorAll('.settings-section')].find((section) => section.querySelector('.settings-section-title').textContent === 'Activity')`;
         await settings?.evaluate(`${activity}.scrollIntoView({ block: 'start' })`);
