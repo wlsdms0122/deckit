@@ -56,14 +56,18 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
         // What is on the stage: each layer `{ page, rect, clip, input }`, laid there, drawn only inside `clip`, a
         // rect on the stage with its corners rounded by `cornerRadius`, where it is given, and taking the pointer only
         // inside the rects `input` names in it where it names any, or `{ page, hidden: true }`, kept out of the window,
-        // which a page in it would slow as it resizes. The pages laid are in the order given, bottom to top. A page
-        // left out, or gone, is taken off. Each is clear where it draws nothing.
+        // which a page in it would slow as it resizes, or `{ material, rect, cornerRadius }`, a material of the host's
+        // named as a window's is, blurring what the window shows under the rect, the layers before it included, and
+        // taking no clicks. The layers are in the order given, bottom to top. A page left out, or gone, is taken off.
+        // Each page is clear where it draws nothing.
         function lay(layers) {
             if (closed) return;
-            for (const { page, rect = null, hidden = false } of layers)
-                if (!rect === !hidden || !page)
-                    throw new Error('[deckit] a layer is { page, rect } or { page, hidden: true }');
-            laid = layers.filter(({ page }) => !page.isDestroyed());
+            for (const { page, material = null, rect = null, hidden = false } of layers)
+                if (material ? page || !rect || typeof material !== 'string' : !rect === !hidden || !page)
+                    throw new Error(
+                        '[deckit] a layer is { page, rect }, { page, hidden: true } or { material, rect, cornerRadius }'
+                    );
+            laid = layers.filter(({ page }) => !page?.isDestroyed());
             relay();
         }
 
@@ -104,7 +108,8 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                 showing.set(page, record);
                 record.shown.add(page);
             };
-            const layers = laid.flatMap(({ page, rect, clip, input }) => {
+            const layers = laid.flatMap(({ page, material, rect, clip, input, cornerRadius = 0 }) => {
+                if (material) return [{ material, frame: rect, cornerRadius }];
                 if (page.isDestroyed()) return [];
                 if (!rect) return [{ page: page.id, hidden: true }];
                 show(page);

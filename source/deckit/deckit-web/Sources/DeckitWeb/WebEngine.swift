@@ -42,11 +42,13 @@ import CNodeAPI
 //   from outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
 //   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
-//   clips, input } | { page, hidden: true }])`, `clips` the rects on the stage the page is cut to, each
-//   `{ x, y, width, height, cornerRadius }`, `input` the rects in the page that take the pointer, all of it without;
+//   clips, input } | { page, hidden: true } | { material, frame, cornerRadius }])`, `clips` the rects on the stage the
+//   page is cut to, each `{ x, y, width, height, cornerRadius }`, `input` the rects in the page that take the pointer,
+//   all of it without, and a material, named as a window's is, blurring what the window shows under its frame;
 //   `showStage(id, on)`;
 //   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, a
-//   view that cuts what is in it to rounded corners with their radius, and the view with the window's keyboard marked.
+//   view that cuts what is in it to rounded corners with their radius, a material with its number, and the view with
+//   the window's keyboard marked.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -375,27 +377,37 @@ final class WebEngine {
 
         case .layStage:
             try stage().lay(try node.array(try argument(1)).map { layer in
+                if let material = try node.member(layer, "material") {
+                    guard let frame = try node.member(layer, "frame") else {
+                        throw NodeError(message: "a material is laid at a frame")
+                    }
+                    return .material(
+                        Self.materials[try node.string(material)] ?? .menu,
+                        rect: try node.rect(frame),
+                        cornerRadius: try node.member(layer, "cornerRadius").map { try node.number($0) } ?? 0
+                    )
+                }
                 guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
                 let page = try node.integer(id)
                 guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
                 if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
-                    return (laid, nil, [], nil)
+                    return .page(laid, frame: nil, clips: [], input: nil)
                 }
                 guard let frame = try node.member(layer, "frame") else {
                     throw NodeError(message: "a layer is { page, frame, clips, input } or { page, hidden: true }")
                 }
                 let clips = try node.member(layer, "clips").map { try node.array($0) } ?? []
 
-                return (
+                return .page(
                     laid,
-                    try node.rect(frame),
-                    try clips.map { clip in
+                    frame: try node.rect(frame),
+                    clips: try clips.map { clip in
                         Stage.Clip(
                             rect: try node.rect(clip),
                             cornerRadius: try node.member(clip, "cornerRadius").map { try node.number($0) } ?? 0
                         )
                     },
-                    try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } }
+                    input: try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } }
                 )
             })
 
@@ -714,6 +726,7 @@ final class WebEngine {
             + "\(view.isFlipped ? " flipped" : "")"
             + "\(view.window?.firstResponder === view ? " responder" : "")"
             + radius
+            + ((view as? NSVisualEffectView).map { " material \($0.material.rawValue)" } ?? "")
             + (pages.values.first { $0.view === view }.map { " page \($0.id)" } ?? "")
             + ((view as? WebPageView)?.inputRegion.map { " input [\($0.map(NSStringFromRect).joined(separator: "|"))]" }
                 ?? "")

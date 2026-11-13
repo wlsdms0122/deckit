@@ -2,8 +2,11 @@
 /**
  * A page as a stage lays it, bottom to top: at `rect`, drawn only inside `clip`, a rect on the stage with its corners
  * rounded by `cornerRadius`, where it has one, taking the pointer only inside the rects of `input`, from its top left,
- * where it has them, or hidden in the place it has.
- * @typedef {{ page: Page, rect: Rect, clip?: Clip, input?: Rect[] } | { page: Page, hidden: true }} Laid
+ * where it has them, or hidden in the place it has; or a material of the host's (`menu`, `popover`, `sidebar`, `hud`),
+ * blurring what the window shows under `rect`, the layers before it included, its corners rounded by `cornerRadius`, and
+ * taking no clicks.
+ * @typedef {{ page: Page, rect: Rect, clip?: Clip, input?: Rect[] } | { page: Page, hidden: true }
+ *     | { material: string, rect: Rect, cornerRadius?: number }} Laid
  * @typedef {{ x: number, y: number, width: number, height: number }} Rect
  * @typedef {{ x: number, y: number, width: number, height: number, cornerRadius?: number }} Clip
  */

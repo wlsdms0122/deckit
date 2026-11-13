@@ -1,6 +1,6 @@
 // The stage pages are laid on (deckit-electron/stage), checked over a stand-in for WebKit's module: what it is asked
 // to lay, in what order, where, cut to what and shown or not, each page's web pages over it, and where it is placed in
-// its window.
+// its window, and the materials laid among them.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -141,6 +141,36 @@ async function main() {
         asked.laid
     );
     webPages.set(a, []);
+
+    stage.lay([
+        { page: backdrop, rect: rect(0, 0, 10, 10) },
+        { material: 'menu', rect: rect(2, 2, 4, 3), cornerRadius: 10 },
+        { page: a, rect: rect(0, 0, 10, 10) },
+        { material: 'popover', rect: rect(1, 1, 2, 2) },
+    ]);
+    check(
+        'a material is laid at its place in the order, at its rect, its corners rounded, no radius as none',
+        JSON.stringify(asked.laid) ===
+            JSON.stringify([
+                { page: 1, frame: rect(0, 0, 10, 10) },
+                { material: 'menu', frame: rect(2, 2, 4, 3), cornerRadius: 10 },
+                { page: 2, frame: rect(0, 0, 10, 10) },
+                { material: 'popover', frame: rect(1, 1, 2, 2), cornerRadius: 0 },
+            ]),
+        asked.laid
+    );
+    stage.lay([{ page: backdrop, rect: rect(0, 0, 10, 10) }]);
+    check(
+        'a material left out is taken off',
+        JSON.stringify(asked.laid) === JSON.stringify([{ page: 1, frame: rect(0, 0, 10, 10) }]),
+        asked.laid
+    );
+    const unplaced = refusal(stage, [{ material: 'menu' }]);
+    const paged = refusal(stage, [{ material: 'menu', page: backdrop, rect: rect(0, 0, 1, 1) }]);
+    check('a material is laid at a rect, and is no page', /a layer is/.test(unplaced) && /a layer is/.test(paged), [
+        unplaced,
+        paged,
+    ]);
 
     b.gone = true;
     stage.lay([
