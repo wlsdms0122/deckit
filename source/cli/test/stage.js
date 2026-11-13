@@ -120,6 +120,20 @@ async function main() {
             JSON.stringify(asked.laid[2].frame) === JSON.stringify(rect(3, 4, 4, 5)),
         asked.laid
     );
+    stage.lay([
+        { page: a, rect: rect(1, 1, 9, 9), opacity: 0.4 },
+        { page: frame, rect: rect(0, 0, 3, 10), opacity: 1 },
+    ]);
+    check(
+        'a page laid at an opacity is drawn so, its web pages with it, and one at 1 is laid as any',
+        asked.laid[0].opacity === 0.4 && asked.laid[1].opacity === 0.4 && !('opacity' in asked.laid[2]),
+        asked.laid
+    );
+    stage.lay([
+        { page: backdrop, rect: rect(0, 0, 10, 10) },
+        { page: a, rect: rect(1, 1, 9, 9) },
+        { page: frame, rect: rect(0, 0, 3, 10) },
+    ]);
     webPages.set(a, []);
     STAGES.relayOf(web);
     STAGES.relayOf(a);
