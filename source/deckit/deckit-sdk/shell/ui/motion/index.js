@@ -73,6 +73,20 @@ function glide(staying, change) {
     }
 }
 
+// Lights `element` once: from the style `rest` it eases to `lit` by the `rise` role's fade and back by the `fall`
+// role's, each on its own spring, the `press` one unless given. A fade keeps its length while the system asks for
+// reduced motion, so the light still shows. Answers the animation.
+function swell(element, rest, lit, { rise = 'press', fall = 'press' } = {}) {
+    const [up, down] = [TOKEN.MOTION[rise], TOKEN.MOTION[fall]];
+    const duration = up.fade + down.fade;
+    const frames = [
+        { ...rest, easing: up.easing },
+        { ...lit, offset: up.fade / duration, easing: down.easing },
+        { ...rest },
+    ];
+    return element.animate(frames, { duration });
+}
+
 // MARK: - Private
 // The two animations of a coming or going: the move over the role's length, the fade over its fade length.
 function play(element, { x = 0, y = 0, scale = 1 }, { length, fade, easing }, out) {
@@ -100,4 +114,4 @@ function settle(box) {
     if (box.firstElementChild) Object.assign(box.firstElementChild.style, { minHeight: '', overflow: '' });
 }
 
-export { fold, appear, come, go, glide };
+export { fold, appear, come, go, glide, swell };

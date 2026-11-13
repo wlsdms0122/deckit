@@ -90,8 +90,15 @@ function make(theme, { fonts }) {
         pressable: PART.pressable,
         selectable: PART.selectable,
         titleBar: PART.titleBar,
-        // The kit's motion, for a part of a page's own: what comes, goes, glides or folds moves as the kit's do.
-        motion: { come: MOTION.come, go: MOTION.go, glide: MOTION.glide, fold: MOTION.fold, appear: MOTION.appear },
+        // The kit's motion, for a part of a page's own: what comes, goes, glides, swells or folds moves as the kit's do.
+        motion: {
+            come: MOTION.come,
+            go: MOTION.go,
+            glide: MOTION.glide,
+            swell: MOTION.swell,
+            fold: MOTION.fold,
+            appear: MOTION.appear,
+        },
     });
     return deepFreeze(ui);
 }
