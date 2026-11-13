@@ -67,10 +67,10 @@ final class Stage {
     }
 
     // What is on the stage, bottom to top. A page hidden is kept out of the window, which a page in it would slow as
-    // it resizes. A page with clips is drawn only inside each of them, cut there and never resized. A page with an input
-    // region takes the pointer only inside it, its rects from the page's top left. A page left out is taken off, from
-    // this stage alone: one another stage shows since stays where it is. A material is laid at its place in the order,
-    // and those left over are taken off.
+    // it resizes. A page with clips is drawn only inside each of them, cut there and never resized. A page with an
+    // input region takes the pointer only inside it, its rects from the page's top left. A page left out is taken
+    // off, from this stage alone: one another stage shows since stays where it is. A material is laid at its place in
+    // the order, and those left over are taken off.
     func lay(_ layers: [Layer]) {
         let kept = Set(layers.compactMap { layer -> ObjectIdentifier? in
             guard case let .page(page, frame?, _, _) = layer else { return nil }
