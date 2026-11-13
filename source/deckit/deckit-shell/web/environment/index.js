@@ -126,13 +126,12 @@ const WEB_CLIENT = Object.freeze({
 // What an environment gives the web engine on a mod's page.
 const WEB_PAGE = Object.freeze({
     web: {
-        // view({ sessions, session, url, page }, { closing, focused }) -> { element, id, close, focus }: a web page shown
-        // in this page, in the mod's session by that name, `sessions` what main told this page its mod's sessions are
+        // view({ sessions, session, url, page }, { closing, focused }) -> { element, id, close }: a web page shown in
+        // this page, in the mod's session by that name, `sessions` what main told this page its mod's sessions are
         // named by (`sessionsOf`, WEB), or with `page` the id of a window handed to this page (`opened`, WEB_CLIENT).
         // `element` is put where it shows, `id` a promise of its id once it has one, and `close()` ends it, in the
-        // document or never put there; the element leaving the document once in it ends it too. `focus()` gives the web
-        // page the keyboard, whether or not the document has it now. `closing()` when the web page asks to close
-        // itself, `focused()` when it takes focus
+        // document or never put there; the element leaving the document once in it ends it too. `closing()` when the
+        // web page asks to close itself, `focused()` when it takes focus
         view: 'function',
     },
 });

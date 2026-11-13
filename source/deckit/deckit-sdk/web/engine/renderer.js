@@ -525,15 +525,19 @@ export function createWeb({ sessions, web: WEB, channels }) {
     function page(name, url, owner, open, session, scope, given) {
         const { handle, know, receive, isKnown } = handleOf(owner, open, session, url, scope);
         let closed = false;
-        const { element, id, close, focus } = WEB.view(
+        const { element, id, close } = WEB.view(
             { sessions, session: name, url, ...(given === undefined ? {} : { page: given }) },
             { closing: () => !closed && receive('close'), focused: () => receive('press') }
         );
         id.then((known) => !isKnown() && !closed && know(known));
         return Object.assign(handle, {
             element,
-            // Focused anew even while it has the focus, as the keyboard may have gone to the overlay since.
-            focus: memberOf('focus', scope, () => focus()),
+            // Focused anew even while it has the focus, as the keyboard may have gone to the overlay since: focusing
+            // the element is what hands the web page the keyboard.
+            focus: memberOf('focus', scope, () => {
+                if (document.activeElement === element) element.blur();
+                element.focus();
+            }),
             close: () => {
                 closed = true;
                 close();
