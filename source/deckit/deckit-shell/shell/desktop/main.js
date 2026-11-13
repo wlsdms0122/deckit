@@ -453,8 +453,7 @@ export function createDesktop({
     // A person's hand on the window `id` that windows() answers, as the host app hands it, each gesture whole, as the
     // desktop's page tells it: a press in it; a click of a button, `close`, `minimize` or `zoom`; a drag of its title
     // bar by `dx`, `dy`; a drag of its edge `edge`, as LAYOUT.resized names one, by `dx`, `dy`; and a double click on
-    // its title bar. A window minimized takes none; a panel window takes a press alone. A click on the Dock gives the
-    // keyboard back to the desktop.
+    // its title bar. A window minimized takes none; a panel window takes a press alone.
     const hand = Object.freeze({
         press: (id) => (panels.has(id) ? pressPanel(panels.get(id)) : byHand(id, press)),
         button: (id, button) =>
@@ -485,10 +484,7 @@ export function createDesktop({
         // `pinned` says, and a drag of a kept item onto the place of the kept item `to`. A click and Quit answer a
         // promise, fulfilled once what they asked of deckit is done.
         dock: Object.freeze({
-            click: (id) => {
-                toDesktop();
-                return DOCK.hand.click(id, LOCAL);
-            },
+            click: (id) => DOCK.hand.click(id, LOCAL),
             quit: (id) => DOCK.hand.quit(id),
             keep: (id, pinned) => DOCK.hand.keep(id, pinned),
             drag: (id, to) => {
