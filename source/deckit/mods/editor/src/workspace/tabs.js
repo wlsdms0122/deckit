@@ -61,12 +61,13 @@ const TABS_STYLE = `
 `;
 
 // The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab fades in and
-// a closed one leaves at once, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A
+// a closed one leaves at once, the tabs after it gliding over where a press closed it, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A
 // switch of workspace draws a new list, so the row is swapped whole and nothing plays. The row is the view's title
 // bar, there with no tab as well: the window is dragged by it.
 function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
     let files = [];
     let shownFor = null; // the workspace whose tabs are drawn
+    let pressedShut = null; // the file whose tab a press closed, until the tabs are drawn without it
 
     const element = ui.element('div', { className: 'editor-tabs' });
     ui.titleBar(element);
@@ -91,15 +92,20 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
             element.replaceChildren(rows.element);
         }
         rows.element.toggleAttribute('data-many', list.length > 1);
-        rows.set(
-            list.map((file) => ({
-                file,
-                path: file.path,
-                active: file === current,
-                preview: file.preview,
-                unsaved: isDirty(file),
-            }))
-        );
+        const glides = !!pressedShut && !list.includes(pressedShut);
+        if (glides) pressedShut = null;
+        const draw = () =>
+            rows.set(
+                list.map((file) => ({
+                    file,
+                    path: file.path,
+                    active: file === current,
+                    preview: file.preview,
+                    unsaved: isDirty(file),
+                }))
+            );
+        if (glides) ui.motion.glide([...rows.element.children], draw);
+        else draw();
     }
 
     function tabList() {
@@ -119,12 +125,15 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
         );
         end.addEventListener('click', (event) => {
             event.stopPropagation();
+            pressedShut = file;
             onClose(file);
         });
         tab.addEventListener('click', () => onSelect(file));
         tab.addEventListener('dblclick', () => onKeep(file));
         tab.addEventListener('auxclick', (event) => {
-            if (event.button === 1) onClose(file);
+            if (event.button !== 1) return;
+            pressedShut = file;
+            onClose(file);
         });
         tab.append(iconElement(ui, 'editor-tab-icon', ''), ui.element('span', { className: 'editor-tab-label' }), end);
         refresh(tab, item);
