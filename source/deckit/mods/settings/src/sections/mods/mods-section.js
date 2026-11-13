@@ -15,10 +15,11 @@ const { section } = require('../section/section.js');
 
 // The Mods section: every mod found in their order, what each contributes, and installing and removing them. `onChange`
 // hears that a mod was installed, removed, restarted or pinned here. A mod installed is shown by its row, lit; what
-// failed on a row is said on it; a refusal of what was picked, and a mod removed, are told in a toast. `mods` is
-// deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a host that runs none;
-// `packages()`, deckit/packages while it is connected, which installs, dry run too; `pins`, the Dock's pins
-// (shell.mods), or nothing under a shell that has none; `dropDestination`, `dialogs` and `reveal` the shell's;
+// failed on a row is said on it; a folder whose dependencies are not installed is said in a notice over the list; a
+// refusal of what was picked, and a mod removed, are told in a toast. `mods` is deckit.mods; `mainProcess` what the
+// mods' main process modules come to, or nothing under a host that runs none; `packages()`, deckit/packages while it
+// is connected, which installs, dry run too; `pins`, the Dock's pins (shell.mods), or nothing under a shell that has
+// none; `dropDestination`, `dialogs` and `reveal` the shell's;
 // `tildify(path)` a path as it is shown; `icons` the mods' app icons, each drawn before its name.
 function modsSection({
     ui,
@@ -169,6 +170,8 @@ function modsSection({
         }
         .settings-mods[data-targeted] .settings-drop { opacity: 1; }
         .settings-drop-icon { display: flex; color: var(--deckit-target); }
+        .settings-unmet { margin-bottom: 12px; }
+        .settings-unmet[hidden] { display: none; }
         .settings-install-note { margin-top: 10px; color: var(--deckit-muted); font: var(--deckit-type-small); }
     `);
     ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE + DEPENDENCY_LIST_STYLE);
@@ -188,6 +191,8 @@ function modsSection({
         update: (row, mod) => rowFills.get(row)(mod),
     });
     const restart = restartNotice({ ui, mods, mainProcess, appName });
+    // The folders picked whose dependencies are not installed at versions they take, over the list until the next try.
+    const unmetNotice = ui.notice({});
     const headings = COLUMNS.map((text) => ui.element('div', { text }));
 
     // Over the name, past the caret in front of it.
@@ -202,7 +207,9 @@ function modsSection({
         onTargeted: (on) => element.toggleAttribute('data-targeted', on),
         onDrop: dropAndInstall,
     });
-    body.append(columns, rows.element, restart.element);
+    unmetNotice.element.classList.add('settings-unmet');
+    unmetNotice.element.hidden = true;
+    body.append(unmetNotice.element, columns, rows.element, restart.element);
     return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw };
 
     function draw(state) {
@@ -362,47 +369,59 @@ function modsSection({
     }
 
     // The folders picked install one after another once the person agrees to what they replace, ask for and depend
-    // on. One whose dependency is unmet is told so and left out. A folder refused is told, and the others install.
+    // on. One whose dependency is unmet is said in the notice over the list and left out. A folder refused is told,
+    // and the others install.
     function askAndInstall(picked) {
+        if (!picked.length) return;
         const refused = picked.filter((entry) => entry.problem);
         const plans = picked.filter((entry) => !entry.problem);
-        if (!plans.length) {
+        const unmet = plans.filter((plan) => plan.dependencies.some((dependency) => !dependency.satisfied));
+        const installing = plans.filter((plan) => !unmet.includes(plan));
+        showUnmet(unmet);
+        if (!installing.length) {
             if (refused.length) refuse(refused);
             return;
         }
-        const unmet = plans.filter((plan) => plan.dependencies.some((dependency) => !dependency.satisfied));
-        const installing = plans.filter((plan) => !unmet.includes(plan));
-        const asking = plans.filter(
+        const asking = installing.filter(
             (plan) => plan.permissions.length > 0 || plan.background || plan.dependencies.length
         );
         const replacing = installing.filter((plan) => plan.replaces);
-        if (!asking.length && !replacing.length) return installPicked(plans, refused);
-        const one = plans.length === 1;
-        const verb = installing.length === 1 && replacing.length ? 'Replace' : 'Install';
+        if (!asking.length && !replacing.length) return installPicked(installing, refused);
+        const one = installing.length === 1;
+        const verb = one && replacing.length ? 'Replace' : 'Install';
         const replaced = listText(replacing.map((plan) => plan.name));
-        const unmetNames = listText(unmet.map((plan) => plan.name));
         ui.dialog({
-            title: !installing.length
-                ? `Cannot install ${one ? plans[0].name : `${plans.length} mods`}`
-                : installing.length === 1
-                  ? `${verb} ${installing[0].name}?`
-                  : `Install ${installing.length} mods?`,
-            message: [
-                replacing.length
-                    ? `${one ? 'It' : 'Installing them'} replaces the installed ${replaced}. ` +
-                      `What ${replacing.length === 1 ? 'it' : 'they'} stored is kept.`
-                    : '',
-                unmet.length
-                    ? `${one ? 'It' : unmetNames} cannot be installed until the mods ` +
-                      `${unmet.length === 1 ? 'it depends' : 'they depend'} on are installed at versions ` +
-                      `${unmet.length === 1 ? 'it takes' : 'they take'}. Install them first.`
-                    : '',
-            ],
+            title: one ? `${verb} ${installing[0].name}?` : `Install ${installing.length} mods?`,
+            message: replacing.length
+                ? `${one ? 'It' : 'Installing them'} replaces the installed ${replaced}. ` +
+                  `What ${replacing.length === 1 ? 'it' : 'they'} stored is kept.`
+                : '',
             content: request(asking),
-            confirmLabel: installing.length ? verb : null,
-            cancelLabel: installing.length ? 'Cancel' : 'OK',
+            confirmLabel: verb,
+            cancelLabel: 'Cancel',
             onConfirm: () => installPicked(installing, refused),
         });
+    }
+
+    // Each mod of `plans` with the mods it depends on that are not installed at a version it takes, each with the
+    // version it needs, in the notice over the list, with a way to pick again; none hides it.
+    function showUnmet(plans) {
+        unmetNotice.element.hidden = !plans.length;
+        if (!plans.length) return;
+        const text = plans
+            .map((plan) => {
+                const missing = plan.dependencies.filter((dependency) => !dependency.satisfied);
+                const named = missing.map(({ id, requirement, installed }) =>
+                    installed === undefined
+                        ? `${nameOf(id)} ${requirement} (not installed)`
+                        : `${nameOf(id)} ${requirement} (${installed} is installed)`
+                );
+                const them = missing.length === 1 ? 'it' : 'them';
+                return `Could not install ${plan.name}: it needs ${listText(named)}. Install ${them} first.`;
+            })
+            .join(' ');
+        unmetNotice.set({ text, action: { label: 'Choose Another Folder…', run: pickAndInstall } });
+        unmetNotice.element.scrollIntoView({ block: 'nearest' });
     }
 
     // What installs is lit in the list; what did not is told, with a retry.

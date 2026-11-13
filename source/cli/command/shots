@@ -395,8 +395,9 @@ async function draw(app, look, shots, origin) {
         await windowShot(name, 'settings', { overlay: true });
         await escape(overlay);
     });
-    // A folder dropped on the Mods section: one whose package names a mod not installed is shown on a sheet, and one
-    // that is no mod is told on a toast.
+    // A folder dropped on the Mods section: one whose package names a mod not installed is said in the notice over
+    // the list, one that asks for a permission and depends on a mod installed is asked on a sheet, and one that is no
+    // mod is told on a toast.
     const settingsId = (await windowsNow()).find(({ mod }) => mod === 'settings')?.content;
     const drop = async (folder) => {
         const at = await settings.evaluate(`(() => {
@@ -407,20 +408,37 @@ async function draw(app, look, shots, origin) {
         })()`);
         await main(`return webkit.sendDrop(${settingsId}, ${JSON.stringify({ files: [folder], ...at })})`);
     };
-    await surface('sheet', async (name) => {
-        const folder = path.join(app.data, 'needs-absent');
+    const modFolder = (id, name, extra) => {
+        const folder = path.join(app.data, id);
         fs.mkdirSync(folder);
         fs.writeFileSync(
             path.join(folder, 'manifest.toml'),
-            'id = "needs-absent"\nname = "Needs Absent"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\n'
+            `id = "${id}"\nname = "${name}"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\n${extra}`
         );
         fs.writeFileSync(path.join(folder, 'main.js'), 'module.exports = class { start() {} };\n');
+        return folder;
+    };
+    await surface('settings-mods-unmet', async (name) => {
+        const folder = modFolder('needs-absent', 'Needs Absent', '');
         fs.writeFileSync(path.join(folder, 'package.toml'), '[dependencies]\nabsent-mod = "1.2"\n');
+        await drop(fs.realpathSync(folder));
+        await until(() => settings.evaluate(`!document.querySelector('.settings-unmet')?.hidden`), 4000);
+        await sleep(400);
+        await windowShot(name, 'settings');
+    });
+    await surface('sheet', async (name) => {
+        const folder = modFolder(
+            'asks-network',
+            'Weather',
+            '\n[permissions]\n"system.network" = "Reads the forecast."\n'
+        );
+        fs.writeFileSync(path.join(folder, 'package.toml'), '[dependencies]\nforge = "1.0"\n');
         await drop(fs.realpathSync(folder));
         const overlay = await presented('settings', `!!document.querySelector('.deckit-modal-title')`);
         await sleep(400);
         await windowShot(name, 'settings', { overlay: true });
-        await overlay?.evaluate(`document.querySelector('.deckit-modal-actions button')?.click()`);
+        await overlay?.evaluate(`[...document.querySelectorAll('.deckit-modal-actions button')]
+            .find((button) => button.textContent === 'Cancel')?.click()`);
         await until(async () => !(await overlay?.evaluate(`!!document.querySelector('.deckit-modal')`)), 2000);
     });
     await surface('toast', async (name) => {

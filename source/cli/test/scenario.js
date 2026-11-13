@@ -902,8 +902,8 @@ async function run({
             `document.querySelectorAll('.deckit-toast button[title="Close"]').forEach((close) => close.click())`
         );
         await until(async () => !(await settingsOverlay?.evaluate(`!!document.querySelector('.deckit-toast')`)), 3000);
-        // A folder whose package file names a mod not installed is dry run through deckit/packages: the sheet shows
-        // what it depends on and why it cannot install, and offers no install.
+        // A folder whose package file names a mod not installed is dry run through deckit/packages: the Mods section
+        // says so in place, naming each mod missing with the version it needs, with a way to pick again, and no sheet.
         const needsAbsent = path.join(home, '..', 'needs-absent');
         fs.mkdirSync(needsAbsent, { recursive: true });
         fs.writeFileSync(
@@ -914,30 +914,25 @@ async function run({
         fs.writeFileSync(path.join(needsAbsent, 'package.toml'), '[dependencies]\nabsent-mod = "1.2"\n');
         const droppedNeeds = JSON.stringify({ files: [fs.realpathSync(needsAbsent)], ...modsHead });
         await main(`return webkit.sendDrop(${settingsId}, ${droppedNeeds})`);
-        const sheetOf = `(() => {
-            const title = document.querySelector('.deckit-modal-title')?.textContent;
-            const row = document.querySelector('.settings-dependency');
-            const buttons = [...document.querySelectorAll('.deckit-modal-actions button')].map((one) => one.textContent);
-            return title && row && {
-                title,
-                row: row.textContent,
-                unmet: row.querySelector('.settings-dependency-state').hasAttribute('data-unmet'),
-                buttons,
+        const unmetOf = `(() => {
+            const notice = document.querySelector('.settings-mods .deckit-notice');
+            return notice && !notice.hidden && {
+                text: notice.querySelector('.deckit-notice-text').textContent,
+                role: notice.getAttribute('role'),
+                buttons: [...notice.querySelectorAll('button')].map((one) => one.textContent),
             };
         })()`;
-        const sheet = await until(() => settingsOverlay?.evaluate(sheetOf), 4000);
+        const unmetShown = await until(() => settings.evaluate(unmetOf), 4000);
+        const sheetShown = await settingsOverlay?.evaluate(`!!document.querySelector('.deckit-modal')`);
         check(
-            'a folder whose dependency is not installed is shown with it, and offers no install',
-            sheet?.title === 'Cannot install Needs Absent' &&
-                sheet.row === 'absent-mod1.2Not installed' &&
-                sheet.unmet &&
-                JSON.stringify(sheet.buttons) === '["OK"]',
-            JSON.stringify(sheet)
+            'a folder whose dependency is not installed is said over the list, naming it and its version, with no sheet',
+            unmetShown?.text ===
+                'Could not install Needs Absent: it needs absent-mod 1.2 (not installed). Install it first.' &&
+                unmetShown.role === 'alert' &&
+                JSON.stringify(unmetShown.buttons) === '["Choose Another Folder…"]' &&
+                !sheetShown,
+            JSON.stringify({ unmetShown, sheetShown })
         );
-        await settingsOverlay?.evaluate(
-            `[...document.querySelectorAll('.deckit-modal-actions button')].find((one) => one.textContent === 'OK')?.click()`
-        );
-        await until(async () => !(await settingsOverlay?.evaluate(`!!document.querySelector('.deckit-modal')`)), 2000);
         const browserPage = await page('deckit://browser.mod');
         const browser = await windowOf('browser');
         // A tab's page is reached through its element, which names it once main has given it its id.
