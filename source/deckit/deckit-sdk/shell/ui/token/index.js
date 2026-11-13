@@ -157,9 +157,10 @@ function tokenOf(theme, fonts = {}) {
         border: theme.border,
         color: {
             text,
-            muted: toward(0.62),
+            // Secondary text, 4.5:1 or more on `background`, `lifted` and `elevated` in both looks.
+            muted: toward(0.68),
             disabled: toward(0.3),
-            placeholder: toward(0.62),
+            placeholder: toward(0.68),
             background,
             surface: toward(0.06),
             lifted: toward(0.1),
