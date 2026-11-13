@@ -59,13 +59,7 @@ const STYLE = `
     .deckit-select:hover { background: var(--deckit-selected); }
     .deckit-select-icon { display: flex; flex: 0 0 auto; margin-left: -2px; }
     .deckit-select-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .deckit-select-caret {
-        display: flex;
-        flex: 0 0 auto;
-        color: var(--deckit-muted);
-        transition: transform var(--deckit-move-fast) var(--deckit-easing);
-    }
-    .deckit-select[aria-expanded='true'] .deckit-select-caret { transform: rotate(180deg); }
+    .deckit-select-caret { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
     [data-deckit-target] { outline: 2px solid var(--deckit-target); outline-offset: -2px; }
 `;
 // How long the pointer rests on a row before its submenu opens, and on another row before it closes.
@@ -119,7 +113,7 @@ function select({ options, value = null, size = 'medium', onChange }) {
     const glyph = tag('span', 'deckit-select-icon');
     const label = tag('span', 'deckit-select-label');
     const caret = tag('span', 'deckit-select-caret');
-    caret.innerHTML = ICON.icon('chevronDown', { size: 13 });
+    caret.innerHTML = ICON.icon('chevronsUpDown', { size: 13 });
     element.append(glyph, label, caret);
     const set = (next) => {
         current = next;
