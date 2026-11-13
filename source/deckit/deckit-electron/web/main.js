@@ -1,6 +1,7 @@
 import * as ENVIRONMENT from '../../deckit-shell/environment/index.js';
 import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 import { createPartition } from './model/partition.js';
+import { labelOf } from './model/label.js';
 import { createRegistry } from './registry.js';
 import { createCertificate } from './certificate.js';
 import { createDownload } from './download.js';
@@ -351,7 +352,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         stage.whenResized(() => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]));
         const window = WINDOWS.openForStage({ title, page, stage, focus: () => page.focus() });
         windows.set(page.id, { window, embedder: modPage });
-        LOG.guard(page, 'changed', () => window.setTitle(labelOf(page)));
+        LOG.guard(page, 'changed', () => window.setTitle(labelOf(page.getTitle(), page.getURL())));
         LOG.guard(page, 'close', () => !closing && window.close());
         window.on('close', () => {
             closing = true;
@@ -413,14 +414,4 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         sessionsOf: (mod) => PARTITION.prefixOf(mod),
         webPagesIn,
     };
-}
-
-function labelOf(page) {
-    const title = page.getTitle();
-    let site = '';
-    try {
-        const url = new URL(page.getURL());
-        if (url.protocol === 'http:' || url.protocol === 'https:') site = url.host;
-    } catch {}
-    return site && title !== site ? `${title} (${site})` : title;
 }

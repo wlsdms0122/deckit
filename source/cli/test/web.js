@@ -5,7 +5,7 @@
 // for a mod granted the clipboard permission, and only the environment's, what a mod lets sites have and the
 // certificates it trusts, each refused whole for an entry that does not fit, a fetch's refusals, a site's
 // notifications, a mod's tabs held to the mod, its downloads told to its running run, and each web page told as it is
-// adopted. Exits 1 with a line for each check that failed. The
+// adopted, and the title a window showing a web page wears. Exits 1 with a line for each check that failed. The
 // packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -866,6 +866,25 @@ async function main() {
         (await listened.shouldDownload(filesPage, 99, file)) === false,
         ''
     );
+
+    // The title a window showing a web page wears.
+    const { labelOf } = await import(url('deckit-electron', 'web', 'model', 'label.js'));
+    check(
+        'a page is titled with its site',
+        labelOf('Example', 'https://example.com/a') === 'Example (example.com)',
+        ''
+    );
+    check(
+        'a page titled as its site is the site',
+        labelOf('example.com', 'https://example.com/') === 'example.com',
+        ''
+    );
+    check(
+        'a page with no title yet is its site alone',
+        labelOf('', 'https://example.com/') === 'example.com',
+        labelOf('', 'https://example.com/')
+    );
+    check('a page that is no site is its title', labelOf('Notes', 'file:///tmp/a.html') === 'Notes', '');
 
     if (failed.length) {
         for (const line of failed) console.error(line);
