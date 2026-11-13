@@ -1,5 +1,5 @@
 // The sidebar's table of contents: a row per section of `scroller`, by its glyph and title, marking the one being read
-// and gliding to the one pressed.
+// and gliding to the one pressed or reached by the keys.
 function tableOfContents({ ui, scroller, sections }) {
     const GLIDE_LIMIT = 1500;
 
@@ -24,6 +24,13 @@ function tableOfContents({ ui, scroller, sections }) {
     const list = ui.list({ key: (section) => section.title, create: contentsRow });
 
     list.set(sections);
+    // The arrows and a name typed go from section to section, as a press on a row does.
+    ui.tree(list.element, {
+        items: () => sections,
+        lead: () => current,
+        nameOf: (section) => section.title,
+        onSelect: (section) => go(section),
+    });
     element.append(list.element);
     scroller.addEventListener('scrollend', () => {
         if (gliding) land();

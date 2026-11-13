@@ -20,6 +20,13 @@ const STYLE = `
     .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; }
     .deckit-row:hover { background: var(--deckit-hover); }
     .deckit-row[data-active] { background: var(--deckit-selected); }
+    /* A list with the keys (ui.tree) draws its chosen rows in the accent's tint, and is ringed only while none is. */
+    [data-deckit-tree] { outline: none; }
+    [data-deckit-tree]:focus-visible:not(:has(.deckit-row[data-active])) {
+        outline: 2px solid var(--deckit-focus);
+        outline-offset: -2px;
+    }
+    [data-deckit-tree]:focus-within .deckit-row[data-active] { background: var(--deckit-selected-focused); }
     .deckit-row-glyph { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
     .deckit-row[data-active] .deckit-row-glyph { color: inherit; }
     :is(.deckit-row, [data-deckit-row-actions]):not(

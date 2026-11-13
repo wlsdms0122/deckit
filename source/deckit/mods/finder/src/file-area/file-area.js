@@ -26,7 +26,7 @@ function fileArea({
     };
     const NEAREST = { block: 'nearest', inline: 'nearest' };
     const STYLE = `
-        .finder-files { position: relative; flex: 1 1 auto; min-height: 0; outline: none; }
+        .finder-files { position: relative; flex: 1 1 auto; min-height: 0; }
         .finder-footer {
             display: flex;
             align-items: center;

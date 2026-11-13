@@ -2,7 +2,7 @@ const { fileIconOf } = require('../file-type/file-type.js');
 const { parentOf, isInside, relativePath } = require('../path/path.js');
 
 const TREE_STYLE = `
-    .editor-tree { display: flex; flex-direction: column; flex: 1 0 auto; padding: 2px 0 8px; outline: none; }
+    .editor-tree { display: flex; flex-direction: column; flex: 1 0 auto; padding: 2px 0 8px; }
     .editor-tree-empty { padding: 4px 8px; color: var(--deckit-muted); font: var(--deckit-type-small); }
 `;
 

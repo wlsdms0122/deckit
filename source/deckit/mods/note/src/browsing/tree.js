@@ -35,7 +35,6 @@ function tree({
             padding: 8px 4px 15px;
             background: linear-gradient(var(--deckit-sidebar), var(--deckit-sidebar)), var(--deckit-background);
         }
-        .note-tree { outline: none; }
     `;
 
     let expanded = new Set(store.get('expanded', []));

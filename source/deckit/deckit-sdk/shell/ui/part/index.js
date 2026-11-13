@@ -56,7 +56,11 @@ const STYLE = `
     ) {
         color: var(--deckit-muted);
     }
-    [data-deckit-key='false'] :is(.deckit-row[data-active], .deckit-section-heading[data-current]) {
+    [data-deckit-key='false'] :is(
+        .deckit-row[data-active],
+        [data-deckit-tree]:focus-within .deckit-row[data-active],
+        .deckit-section-heading[data-current]
+    ) {
         background: var(--deckit-fill);
     }
     .deckit-title-bar :is(button, input, textarea, select, a[href], [role='button'], [tabindex], [contenteditable]) {

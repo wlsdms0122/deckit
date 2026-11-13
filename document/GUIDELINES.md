@@ -63,7 +63,7 @@ The bar along the top of the content, laid with `ui.titleBar`, which lies in the
 - An action on the whole sidebar, not on one section, sits at its foot, a small labelled button (Note's New Folder).
 - What can nest is a `ui.tree`; what cannot is `ui.row`s.
 - A row's glyph is in the kit's slot (`ui.row({ glyph })`): `--deckit-muted`, in the row's text while it is selected. A mod does not colour it; a coloured mark (a folder, a file type, a favicon) keeps its own colours.
-- One row is selected (`--deckit-selected`): the one the content shows. While the window is not the key one, the kit draws it in `--deckit-fill`.
+- One row is selected (`--deckit-selected`): the one the content shows. While the list has the keyboard (`ui.tree`), the kit draws it in `--deckit-selected-focused`, the accent's tint, so the person sees where the arrows go; a list with the keyboard and no row selected is ringed in `--deckit-focus`. While the window is not the key one, the kit draws it in `--deckit-fill`. A list draws no focus look of its own and never turns the kit's off.
 - A section's heading is `--deckit-type-body` at 600 in `--deckit-muted`, never larger than the window's title.
 - A folder's colour is on the folder's row, from where it is indented, and not on what is in it.
 

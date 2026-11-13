@@ -52,6 +52,11 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         .browser-outline-row.browser-folder[data-active] {
             background: linear-gradient(var(--deckit-selected), var(--deckit-selected)), var(--browser-folder-tint);
         }
+        [data-deckit-tree]:focus-within .browser-outline-row.browser-folder[data-active] {
+            background:
+                linear-gradient(var(--deckit-selected-focused), var(--deckit-selected-focused)),
+                var(--browser-folder-tint);
+        }
         .browser-folder-caret {
             display: flex;
             flex: 0 0 auto;

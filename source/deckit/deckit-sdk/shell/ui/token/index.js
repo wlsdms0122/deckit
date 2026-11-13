@@ -176,6 +176,8 @@ function tokenOf(theme, fonts = {}) {
             fill: WASH(0.12),
             hover: WASH(0.14),
             selected: WASH(0.22),
+            // The chosen rows of the list that has the keyboard: the accent's tint, so the keys' place shows.
+            selectedFocused: COLOR.alpha(look.accent, dark ? 0.32 : 0.22),
             pressed: WASH(0.3),
             // Text and glyphs in the accent, and the fill of what is on or pressed first, white over it.
             accent: look.accent,
