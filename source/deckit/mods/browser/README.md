@@ -6,6 +6,10 @@ Web pages in tabs, in folders, with bookmarks, an address bar in its title bar, 
 
 The Browser declares the `http` and `https` addresses in its manifest to `deckit/urls` (see the URLs mod), and opens one another mod asks to open from `openURL(url, { activates })` in the exports it opens for its id in `start`: in a new tab at the end, the Browser's window coming to the front unless `activates` is false. An address that comes while the Browser is not attached is passed on.
 
+## A page that does not load
+
+A page whose load fails before its site answers (no connection, a site not found, a connection refused or timed out) is shown in its tab as a page of the Browser's own: what went wrong, the address, which the tab and the address field keep, and Try Again, which loads it again. Back goes to the page the tab showed before. Under them is a small game: an envelope travels along a cable, and Space, Up or a click makes it hop over the plugs pulled out of the line and the stop signs on it, faster as it goes. It starts only on a press, pauses while its window is not the key one or the tab is not shown, and keeps the best score with the Browser's values (`game-best`). A page a site serves, of any status, is the site's and shows as it is.
+
 ## Notifications
 
 A site's notification, once you let the site have them, is posted to `deckit/notifications` (MOD.md, Standard interfaces), titled by the site and naming it. Pressing it runs the Browser's `show-notification` command with the tab it came from and the notification: the tab comes forward, and the site hears the press. While no mod owns the interface, a site's notification is dropped.
