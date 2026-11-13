@@ -31,6 +31,23 @@ const STYLE = `
         background: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     }
+    .deckit-panel-material[data-edge='right'] {
+        border-radius: ${RADIUS}px;
+        animation: deckit-panel-in var(--deckit-move-base) var(--deckit-easing-move);
+    }
+    .deckit-panel-material[data-edge='right'][data-leaving] {
+        animation: deckit-panel-out var(--deckit-move-base) var(--deckit-easing-move) forwards;
+    }
+    @keyframes deckit-panel-in { from { transform: translateX(calc(100% + ${LAYOUT.PANEL.margin}px)); } }
+    @keyframes deckit-panel-out { to { transform: translateX(calc(100% + ${LAYOUT.PANEL.margin}px)); } }
+    @keyframes deckit-panel-fade-in { from { opacity: 0; } }
+    @keyframes deckit-panel-fade-out { to { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+        .deckit-panel-material[data-edge='right'] { animation: deckit-panel-fade-in var(--deckit-fade) var(--deckit-easing); }
+        .deckit-panel-material[data-edge='right'][data-leaving] {
+            animation: deckit-panel-fade-out var(--deckit-fade) var(--deckit-easing) forwards;
+        }
+    }
     .deckit-window-material {
         position: fixed;
         inset: ${SHADOW}px;
@@ -117,7 +134,7 @@ function boot(theme, channels) {
     KIT.addStyle(STYLE);
     let { state } = PROTOCOL.setup.invoke();
     const drawn = new Map(); // a window's id -> { material, buttons, off }, its frame's parts as drawn
-    const materials = new Map(); // a panel window's id -> the material drawn under it
+    const materials = new Map(); // a panel window's id -> { element, edge, settled }, the material drawn under it
 
     const backdrop = surface(PAGE.BACKDROP);
     const backdropRoot = element(backdrop.document, 'div', 'deckit-desktop-backdrop');
@@ -167,31 +184,48 @@ function boot(theme, channels) {
         }
     }
 
-    // Each panel window's material at its frame, rounded by half its height, and the backdrop cut away under it.
+    // Each panel window's material at its frame, rounded as LAYOUT.panelRadius has it, and the backdrop cut away
+    // under it. One at the right edge slides in from past it as it opens and out as it closes, or fades where the
+    // system asks for reduced motion, the backdrop cut away only while it stands still at its frame.
     function drawPanels(panels) {
         const open = new Set(panels.map(({ id }) => id));
         for (const [id, material] of materials) {
             if (open.has(id)) continue;
-            material.remove();
             materials.delete(id);
-        }
-        for (const { id, frame } of panels) {
-            if (!materials.has(id)) {
-                const material = element(document, 'div', 'deckit-panel-material');
-                document.body.insertBefore(material, strip);
-                materials.set(id, material);
+            if (material.edge !== 'right') {
+                material.element.remove();
+                continue;
             }
-            Object.assign(materials.get(id).style, {
+            material.element.toggleAttribute('data-leaving', true);
+            finished(material.element, () => material.element.remove());
+        }
+        for (const { id, edge, frame } of panels) {
+            if (!materials.has(id)) {
+                const made = { element: element(document, 'div', 'deckit-panel-material'), edge, settled: true };
+                document.body.insertBefore(made.element, strip);
+                materials.set(id, made);
+                if (edge === 'right') {
+                    made.element.dataset.edge = edge;
+                    made.settled = false;
+                    finished(made.element, () => {
+                        made.settled = true;
+                        drawPanels(state.panels);
+                    });
+                }
+            }
+            Object.assign(materials.get(id).element.style, {
                 left: frame.x + 'px',
                 top: frame.y + 'px',
                 width: frame.width + 'px',
                 height: frame.height + 'px',
             });
         }
-        const holes = panels.map(({ frame: { x, y, width, height } }) => {
+        const still = panels.filter(({ id }) => materials.get(id).settled);
+        const holes = still.map(({ edge, frame }) => {
+            const { x, y, width, height } = frame;
             const shape =
                 `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-                `<rect width="${width}" height="${height}" rx="${height / 2}"/></svg>`;
+                `<rect width="${width}" height="${height}" rx="${LAYOUT.panelRadius(edge, frame)}"/></svg>`;
             return { image: `url("data:image/svg+xml,${encodeURIComponent(shape)}")`, at: `${x}px ${y}px` };
         });
         const masked = holes.length > 0;
@@ -200,7 +234,7 @@ function boot(theme, channels) {
             masked ? style.setProperty(name, values.join(', ')) : style.removeProperty(name);
         set('mask-image', [...holes.map(({ image }) => image), 'linear-gradient(#000, #000)']);
         set('mask-position', [...holes.map(({ at }) => at), '0 0']);
-        set('mask-size', [...panels.map(({ frame }) => `${frame.width}px ${frame.height}px`), '100% 100%']);
+        set('mask-size', [...still.map(({ frame }) => `${frame.width}px ${frame.height}px`), '100% 100%']);
         set('mask-repeat', ['no-repeat']);
         set('mask-composite', [...holes.map(() => 'exclude'), 'add']);
     }
@@ -311,6 +345,14 @@ function element(page, tag, className) {
     const made = page.createElement(tag);
     made.className = className;
     return made;
+}
+
+// `then` once each animation on `node` has run, as soon as what draws it now is done; at once where none runs.
+function finished(node, then) {
+    queueMicrotask(() => {
+        const running = node.getAnimations().map(({ finished: done }) => done.catch(() => {}));
+        Promise.all(running).then(then);
+    });
 }
 
 export { boot };

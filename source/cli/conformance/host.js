@@ -431,7 +431,7 @@ async function told() {
             if (run.state === 'running') await quiet.invoke(page, {}).catch(() => {});
 }
 
-// The windows the person sees, back to front: those on the desktop, then those in the host window's bar, in the order
+// The windows the person sees, back to front: those on the desktop, then the panel windows at its edges, in the order
 // they opened, then those floating over every app, each `{ mod, name, level, frame, key, minimized }`, `name` null for
 // a web page's window, which has none.
 function windowsSeen() {
@@ -443,12 +443,12 @@ function windowsSeen() {
         key,
         minimized,
     }));
-    const inBar = (controls?.desktop.panels() ?? []).map(({ mod, name, frame }) => ({
+    const inBar = (controls?.desktop.panels() ?? []).map(({ mod, name, frame, key }) => ({
         mod,
         name,
         level: 'panel',
         frame,
-        key: false,
+        key,
         minimized: false,
     }));
     const over = floating.map(({ control, frame, key }) => ({
@@ -472,7 +472,7 @@ function desktopSeen() {
 // What a person's hand on a window comes to: `{}`, or `{ none }` where the mod has no window of the name on screen,
 // a web page's window where `name` is null. On a window on the desktop, the host window taking the keyboard from an
 // overlay window: a press in it, a click of its button `action` (`close`, `minimize`, `zoom`), a drag of its title
-// bar by `by`, a drag of its edge `edge` by `by`, or a double click on its title bar; on one in the host window's bar,
+// bar by `by`, a drag of its edge `edge` by `by`, or a double click on its title bar; on a panel window at an edge,
 // a press alone. On one floating over every app, a press, or a drag by `by`, either taking it the keyboard, the shell
 // told the frame a drag leaves it at.
 function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {

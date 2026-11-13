@@ -55,6 +55,8 @@ export function createDesktop({
     let frames = {}; // mod id -> window name -> the frame it was left at, `{ level, x, y, width, height }`
     let moving = null; // { id, from }: the window its content's drag moves, from the frame it had at the press
     let focused = null; // the key window the keyboard was last given to
+    let focusedContent = false; // whether the keyboard was given to its content, which may open after it
+    let held = null; // the id of the panel window at the edge `right` that holds the keyboard, or null
     let shown = false;
     let titled = null; // the title the host was last told
     let down = null; // why deckit's core answers nothing more, once it does not
@@ -116,24 +118,51 @@ export function createDesktop({
         orderFront(window, { activates });
     }
 
-    // A panel window stands in the host's bar, where panelFrames() places it, in front of every normal window and never
-    // key: its content lies on the material the desktop's page draws for it, cut to its frame rounded by half its
-    // height.
-    function openPanel(window) {
+    // A panel window stands at its edge, where panelFrames() places it, in front of every normal window: its content
+    // lies on the material the desktop's page draws for it, cut to its frame rounded as LAYOUT.panelRadius has it. One
+    // in the bar is never key; one at the right edge takes the keyboard as it opens, as orderFront gives it.
+    function openPanel(window, { activates = true } = {}) {
         panels.set(window.id, window);
-        update();
+        if (!orderFrontPanel(window, { activates })) update();
     }
 
     function closePanel(window) {
-        if (panels.delete(window.id)) update();
+        if (!panels.delete(window.id)) return;
+        if (held === window.id) held = null;
+        update();
     }
 
-    // The local seat pressed in a panel window: its input reached the window's mod, and the keyboard stays with the key
-    // window.
+    // A panel window at the right edge takes the keyboard from the desktop where `activates` is true and its mod may
+    // activate for the local seat, the host window coming up; one in the bar stands where it is. Answers whether it
+    // took the keyboard.
+    function orderFrontPanel(window, { activates = true } = {}) {
+        if (!panels.has(window.id) || window.edge !== 'right' || !activates) return false;
+        if (!ACTIVATION.mayActivate(LOCAL, window.mod)) return false;
+        held = window.id;
+        update();
+        host.show();
+        return true;
+    }
+
+    // The local seat pressed in a panel window: its input reached the window's mod. One in the bar leaves the keyboard
+    // with the key window, or with the panel window that holds it; one at the right edge takes it.
     function pressPanel(window) {
         if (!panels.has(window.id)) return;
         ACTIVATION.input(LOCAL, window.mod);
-        giveBack();
+        if (window.edge !== 'right') return giveBack();
+        if (held === window.id) return;
+        held = window.id;
+        update();
+    }
+
+    // The keyboard back on the desktop, with its key window, from the panel window that holds it: as the person
+    // presses a normal window, the desktop or the Dock, or a normal window comes in front as the key window. Where an
+    // overlay window took it, `refocus` false, the desktop's page is left as it is.
+    function toDesktop({ refocus = true } = {}) {
+        if (held === null) return;
+        held = null;
+        if (!refocus) focused = keyWindow();
+        update();
     }
 
     // The local seat pressed a child's view shown in a panel window: as a press in the panel window, its input reached
@@ -167,6 +196,7 @@ export function createDesktop({
         const may = ACTIVATION.mayActivate(LOCAL, window.mod);
         if (may) MANAGER.orderFront(LOCAL, window.id, { activates });
         else holdBack(LOCAL, [window.id], window.mod, { activates });
+        if (may && activates) held = null;
         update();
         if (may && activates) host.show();
     }
@@ -177,6 +207,7 @@ export function createDesktop({
         if (!windows.has(window.id)) return;
         ACTIVATION.input(LOCAL, window.mod);
         MANAGER.orderFront(LOCAL, window.id);
+        held = null;
         update();
     }
 
@@ -231,8 +262,10 @@ export function createDesktop({
     function activate(seat, mod) {
         const ids = MANAGER.orderOf(seat).filter((id) => windows.get(id).mod === mod);
         if (!ids.length) return false;
-        if (ACTIVATION.mayActivate(seat, mod)) for (const id of ids) MANAGER.orderFront(seat, id);
-        else holdBack(seat, ids, mod);
+        if (ACTIVATION.mayActivate(seat, mod)) {
+            for (const id of ids) MANAGER.orderFront(seat, id);
+            held = null;
+        } else holdBack(seat, ids, mod);
         update();
         return true;
     }
@@ -243,26 +276,34 @@ export function createDesktop({
     }
 
     // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` some seat's
-    // key window while no overlay window holds the keyboard, its size, and where its buttons stand over its top; a
-    // panel window is never key and has no buttons.
+    // key window while neither an overlay window nor a panel window holds the keyboard, its size, and where its buttons
+    // stand over its top; a panel window is key while it holds the keyboard and has no buttons.
     function stateOf(window) {
         if (panels.has(window.id)) {
             const frame = panelFrameOf(window.id);
-            return { shown, key: false, width: frame?.width ?? 0, height: frame?.height ?? 0, titleBar: null };
+            const key = held === window.id;
+            return { shown, key, width: frame?.width ?? 0, height: frame?.height ?? 0, titleBar: null };
         }
         const frame = MANAGER.frameOf(window.id);
         return {
             shown: shown && MANAGER.isShown(window.id),
-            key: MANAGER.isKey(window.id) && !WINDOWS.keyOverlay(),
+            key: MANAGER.isKey(window.id) && !keyboardAway(),
             width: frame?.width ?? 0,
             height: frame?.height ?? 0,
             titleBar: { ...LAYOUT.TITLE_BAR },
         };
     }
 
-    // Whether the window is the local seat's key window, which an overlay window holding the keyboard gives it back to.
+    // Whether the window is the local seat's key window, which an overlay window or a panel window holding the keyboard
+    // gives it back to; or the panel window that holds it.
     function isKey(window) {
+        if (panels.has(window.id)) return held === window.id;
         return MANAGER.keyOf(LOCAL) === window.id;
+    }
+
+    // The panel window that holds the keyboard, or null.
+    function keyPanel() {
+        return panels.get(held) ?? null;
     }
 
     // The title a titled window's title bar holds now.
@@ -281,15 +322,17 @@ export function createDesktop({
     // Laid again, the desktop's page told, the keyboard given to a new key window, the host's title and each listener.
     function update() {
         if (!stage) return;
-        ACTIVATION.setActive(LOCAL, WINDOWS.keyOverlay()?.mod ?? keyWindow()?.mod ?? null);
+        ACTIVATION.setActive(LOCAL, keyPanel()?.mod ?? WINDOWS.keyOverlay()?.mod ?? keyWindow()?.mod ?? null);
         layout();
         tellPage();
-        const key = keyWindow();
-        if (key !== focused) {
+        const key = keyPanel() ?? keyWindow();
+        // A panel window's content may open after it took the keyboard.
+        if (key !== focused || (key && key === keyPanel() && !focusedContent && key.surface)) {
+            focusedContent = !!key?.surface;
             focused = key;
             if (shown) focus();
         }
-        const title = titleOf(key);
+        const title = titleOf(keyWindow());
         if (title !== titled) host.desktopTitled((titled = title));
         for (const listener of [...listeners]) listener();
     }
@@ -397,9 +440,9 @@ export function createDesktop({
     }
 
     // The normal windows, back to front, each `{ id, mod, name, frame, key, minimized }`, as the host app reads them:
-    // none is key while an overlay window holds the keyboard.
+    // none is key while an overlay window or a panel window holds the keyboard.
     function windowsNow() {
-        const key = WINDOWS.keyOverlay() ? null : MANAGER.keyOf(LOCAL);
+        const key = keyboardAway() ? null : MANAGER.keyOf(LOCAL);
         return MANAGER.orderOf(LOCAL).map((id) => {
             const { mod, name } = windows.get(id);
             const minimized = MANAGER.isMinimized(LOCAL, id);
@@ -410,7 +453,8 @@ export function createDesktop({
     // A person's hand on the window `id` that windows() answers, as the host app hands it, each gesture whole, as the
     // desktop's page tells it: a press in it; a click of a button, `close`, `minimize` or `zoom`; a drag of its title
     // bar by `dx`, `dy`; a drag of its edge `edge`, as LAYOUT.resized names one, by `dx`, `dy`; and a double click on
-    // its title bar. A window minimized takes none; a panel window takes a press alone.
+    // its title bar. A window minimized takes none; a panel window takes a press alone. A click on the Dock gives the
+    // keyboard back to the desktop.
     const hand = Object.freeze({
         press: (id) => (panels.has(id) ? pressPanel(panels.get(id)) : byHand(id, press)),
         button: (id, button) =>
@@ -441,7 +485,10 @@ export function createDesktop({
         // `pinned` says, and a drag of a kept item onto the place of the kept item `to`. A click and Quit answer a
         // promise, fulfilled once what they asked of deckit is done.
         dock: Object.freeze({
-            click: (id) => DOCK.hand.click(id, LOCAL),
+            click: (id) => {
+                toDesktop();
+                return DOCK.hand.click(id, LOCAL);
+            },
             quit: (id) => DOCK.hand.quit(id),
             keep: (id, pinned) => DOCK.hand.keep(id, pinned),
             drag: (id, to) => {
@@ -466,8 +513,9 @@ export function createDesktop({
         update();
     }
 
+    // A press on the backdrop, the desktop where no window is, gives the keyboard back to the desktop's key window.
     function openSurface(name, surface) {
-        PAGES.whenFocused(surface, giveBack);
+        PAGES.whenFocused(surface, name === PAGE.BACKDROP ? toDesktop : giveBack);
         desktop.surfaces.set(name, surface);
         update();
     }
@@ -505,14 +553,19 @@ export function createDesktop({
         return LAYOUT.desktopOf(stage.size(), strip.height);
     }
 
-    // The panel windows, in the order they opened, each `{ window, frame }`, its frame in the host's bar.
+    // The panel windows, in the order they opened, each `{ window, frame }`, its frame at its edge.
     function panelFrames() {
         const opened = [...panels.values()];
         const frames = LAYOUT.panelsIn(
-            opened.map(({ size }) => size),
-            { width: stage.size().width, bar: strip.height }
+            opened.map(({ edge, size }) => ({ edge, size })),
+            { ...stage.size(), bar: strip.height }
         );
         return opened.map((window, at) => ({ window, frame: frames[at] }));
+    }
+
+    // Whether an overlay window or a panel window holds the keyboard, away from the desktop's key window.
+    function keyboardAway() {
+        return held !== null || !!WINDOWS.keyOverlay();
     }
 
     function panelFrameOf(id) {
@@ -612,7 +665,7 @@ export function createDesktop({
                     ],
                 },
                 ...inBar.flatMap(({ window, frame }) => {
-                    const clip = { ...frame, cornerRadius: frame.height / 2 };
+                    const clip = { ...frame, cornerRadius: LAYOUT.panelRadius(window.edge, frame) };
                     return [
                         window.surface && { page: window.surface, rect: frame, clip },
                         ...children
@@ -680,11 +733,11 @@ export function createDesktop({
             windows: MANAGER.viewOf(LOCAL).map(({ id, frame }) => ({
                 id,
                 frame,
-                key: id === key && !WINDOWS.keyOverlay(),
+                key: id === key && !keyboardAway(),
                 minimum: LAYOUT.minimumOf(windows.get(id).minimum),
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),
-            panels: panelFrames().map(({ window, frame }) => ({ id: window.id, frame })),
+            panels: panelFrames().map(({ window, frame }) => ({ id: window.id, edge: window.edge, frame })),
             strip,
             dock: { items: DOCK.items(), active, attention: ACTIVATION.attentionOf(LOCAL) },
             down: down && { name: deckit.config.name, why: down },
@@ -700,15 +753,17 @@ export function createDesktop({
         PROTOCOL.state.send(desktop.page, state);
     }
 
-    // The keyboard is the key window's content's, or the desktop page's while there is none.
+    // The keyboard is the content's of the panel window that holds it or of the key window, or the desktop page's while
+    // there is none.
     function focus() {
-        const page = (!down && keyWindow()?.surface) || desktop.page;
+        const page = (!down && (keyPanel() ?? keyWindow())?.surface) || desktop.page;
         if (page) PAGES.focus(page);
     }
 
-    // A press on the desktop's page or one of its surfaces leaves the keyboard with the key window.
+    // A press on the desktop's page or one of its surfaces leaves the keyboard with the key window, or with the panel
+    // window that holds it.
     function giveBack() {
-        const content = !down && keyWindow()?.surface;
+        const content = !down && (keyPanel() ?? keyWindow())?.surface;
         if (content) PAGES.focus(content);
     }
 
@@ -774,6 +829,9 @@ export function createDesktop({
         openPanel,
         closePanel,
         pressPanel,
+        orderFrontPanel,
+        toDesktop,
+        keyPanel,
         keptFrameOf,
         remember,
         keepsFramesOf,
@@ -809,8 +867,16 @@ export function createDesktop({
             present,
             shown: () => shown,
             windows: windowsNow,
-            // The panel windows in the host's bar, in the order they opened, each `{ id, mod, name, frame }`.
-            panels: () => panelFrames().map(({ window: { id, mod, name }, frame }) => ({ id, mod, name, frame })),
+            // The panel windows, in the order they opened, each `{ id, mod, name, edge, frame, key }`.
+            panels: () =>
+                panelFrames().map(({ window: { id, mod, name, edge }, frame }) => ({
+                    id,
+                    mod,
+                    name,
+                    edge,
+                    frame,
+                    key: held === id,
+                })),
             dock: dockNow,
             hand,
             // The local seat's active mod, by its id, or null, and the mods that ask for its attention, in the order

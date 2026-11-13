@@ -8,7 +8,8 @@ import * as SURFACE from './model/surface.js';
 // lay pages on (environment: SHELL.stage);
 // `showWindow(control, { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on
 // screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it. A panel
-// window stands in the host's bar over the desktop, where DESKTOP places it.
+// window stands at its edge, in the host's bar over the desktop or along the desktop's right edge, where DESKTOP places
+// it.
 export function createWindows({
     deckit,
     web,
@@ -29,8 +30,9 @@ export function createWindows({
     // The size a window opens at where its mod gives none, and the size a web page's window opens at.
     const SIZE = Object.freeze({ width: 720, height: 480 });
     const WEB_SIZE = Object.freeze({ width: 520, height: 700 });
-    // id -> { id, mod, page, name, level, size, minimum, surface, sent, host, title, web }: `name` null for a web
-    // page's window, which has none, `surface` its content once
+    // id -> { id, mod, page, name, level, edge, size, minimum, surface, sent, host, title, web }: `name` null for a web
+    // page's window, which has none, `edge` a panel window's, 'top' or 'right', and null for any other, `surface` its
+    // content once
     // the page opened it, `sent` what the page was last told of it, `host` an overlay window's
     // `{ control, stage, key }`; and for a web page's window, `title`, what its title bar holds, and `web`,
     // `{ closed }`, the listeners of its close.
@@ -83,6 +85,7 @@ export function createWindows({
             page,
             name: null,
             level: NORMAL,
+            edge: null,
             size: { ...WEB_SIZE },
             minimum: { width: 0, height: 0 },
             surface: content,
@@ -121,7 +124,7 @@ export function createWindows({
     // the page itself while it has none.
     function keyboardOf(page) {
         const own = [...windows.values()].filter((window) => window.page === page && window.surface);
-        const key = own.find((window) => (window.level === NORMAL ? DESKTOP.isKey(window) : !!window.host?.key));
+        const key = own.find((window) => (window.level === OVERLAY_LEVEL ? !!window.host?.key : DESKTOP.isKey(window)));
         return (key ?? own[0])?.surface ?? page;
     }
 
@@ -136,7 +139,7 @@ export function createWindows({
 
     // One window of a name per run: the one open orders front. It comes up as the key window unless `activates` is
     // false.
-    function open(page, { name, level, width, height, minWidth, minHeight, activates = true }) {
+    function open(page, { name, level, edge, width, height, minWidth, minHeight, activates = true }) {
         const mod = deckit.mods.modOf(page);
         const same = [...windows.values()].find((window) => window.page === page && window.name === name);
         if (same) {
@@ -150,6 +153,7 @@ export function createWindows({
             page,
             name,
             level: [OVERLAY_LEVEL, PANEL].includes(level) ? level : NORMAL,
+            edge: level === PANEL ? (edge === 'right' ? 'right' : 'top') : null,
             size: { width: width ?? SIZE.width, height: height ?? SIZE.height },
             minimum: { width: minWidth ?? 0, height: minHeight ?? 0 },
             surface: null,
@@ -163,7 +167,7 @@ export function createWindows({
         PAGES.allowSurface(page, SURFACE.nameOf(id), (surface) => opened(window, surface));
         if (window.level === OVERLAY_LEVEL) float(window, { activates });
         else {
-            if (window.level === PANEL) DESKTOP.openPanel(window);
+            if (window.level === PANEL) DESKTOP.openPanel(window, { activates });
             else DESKTOP.open(window, { activates });
             layOverlayWindowsOf(page);
         }
@@ -172,7 +176,8 @@ export function createWindows({
 
     // The content, once the page opened it: its keys reach the keys of the app as the page's, and a press in it is the
     // person's on its window. Only a press takes the keyboard to a window that is not key, the shell giving it to the
-    // key window's content alone; a press in a panel window leaves the key window key.
+    // key window's content alone; a press in a panel window in the bar leaves the key window key. A press in the
+    // normal key window takes the keyboard back from a panel window that holds it.
     function opened(window, surface) {
         if (windows.get(window.id) !== window) return PAGES.close(surface);
         window.surface = surface;
@@ -185,8 +190,9 @@ export function createWindows({
 
     function focused(window) {
         if (windows.get(window.id) !== window) return;
-        if (window.level === PANEL) DESKTOP.pressPanel(window);
-        else if (window.level === NORMAL && !DESKTOP.isKey(window)) DESKTOP.press(window);
+        if (window.level === PANEL) {
+            if (!DESKTOP.isKey(window)) DESKTOP.pressPanel(window);
+        } else if (window.level === NORMAL && (!DESKTOP.isKey(window) || DESKTOP.keyPanel())) DESKTOP.press(window);
     }
 
     // Closed, wherever it is, and the page told, unless the page is what went, before another window takes the key
@@ -210,9 +216,13 @@ export function createWindows({
 
     // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false,
     // where the mod may activate for the local seat (DESKTOP.orderFront); an overlay window takes the keyboard only
-    // then. A panel window stands where it is, never key.
+    // then. A panel window stands where it is: one at the right edge takes the keyboard as an overlay window does, one
+    // in the bar never.
     function orderFront(window, { activates = true } = {}) {
-        if (window.level === PANEL) return;
+        if (window.level === PANEL) {
+            if (window.edge === 'right') DESKTOP.orderFrontPanel(window, { activates });
+            return;
+        }
         if (window.level === NORMAL) DESKTOP.orderFront(window, { activates });
         else showFloating(window, { activates: activates && mayActivate(window) });
     }
@@ -307,11 +317,12 @@ export function createWindows({
         showWindow(host.control, { activates });
     }
 
-    // The overlay window that has the keyboard has the active mod, and the key window behind it is not key: the
-    // desktop hears it, and tells the pages and the frames.
+    // The overlay window that has the keyboard has the active mod, and the key window behind it is not key, nor a panel
+    // window that held it: the desktop hears it, and tells the pages and the frames.
     function setKey(window, on) {
         if (window.host.key === on) return;
         window.host.key = on;
+        if (on) DESKTOP.toDesktop({ refocus: false });
         DESKTOP.update();
     }
 

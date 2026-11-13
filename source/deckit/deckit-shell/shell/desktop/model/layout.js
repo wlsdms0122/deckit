@@ -67,18 +67,28 @@ function kept({ x, y, width, height }, desktop) {
     });
 }
 
-// The frames of panel windows `sizes` big, in the order they opened, in the host's bar `bar` high across a stage
-// `width` wide: right to left from PANEL.margin in from its right end, PANEL.gap apart, each no higher than the bar
-// and centred on its height.
-function panelsIn(sizes, { width, bar }) {
-    let right = width - PANEL.margin;
-    return sizes.map((size) => {
+// The frames of panel windows, each `{ edge, size }`, in the order they opened, in a stage `width` by `height` with the
+// host's bar `bar` high across its top. Those at the edge `top` stand in the bar right to left from PANEL.margin in
+// from its right end, PANEL.gap apart, each no higher than the bar and centred on its height; those at the edge
+// `right` stand along the desktop's right edge right to left the same way, each its width wide and as tall as the
+// desktop but PANEL.margin above and below. Any other edge is `top`.
+function panelsIn(panels, { width, height, bar }) {
+    const right = { top: width - PANEL.margin, right: width - PANEL.margin };
+    const tall = Math.max(0, height - bar - 2 * PANEL.margin);
+    return panels.map(({ edge, size }) => {
+        const side = edge === 'right' ? 'right' : 'top';
         const across = Math.round(size.width);
-        const height = Math.min(Math.round(size.height), bar);
-        const frame = { x: right - across, y: Math.round((bar - height) / 2), width: across, height };
-        right = frame.x - PANEL.gap;
+        const high = side === 'right' ? tall : Math.min(Math.round(size.height), bar);
+        const y = side === 'right' ? bar + PANEL.margin : Math.round((bar - high) / 2);
+        const frame = { x: right[side] - across, y, width: across, height: high };
+        right[side] = frame.x - PANEL.gap;
         return frame;
     });
+}
+
+// The rounding of a panel window's frame at `edge`: a capsule in the bar, a window's corners along the right edge.
+function panelRadius(edge, frame) {
+    return edge === 'right' ? RADIUS : frame.height / 2;
 }
 
 // The frame as a drag leaves it while it goes, kept under the host's bar: one moved stays below it, and one whose top
@@ -171,6 +181,7 @@ export {
     placed,
     kept,
     panelsIn,
+    panelRadius,
     underBar,
     resized,
     partsOf,

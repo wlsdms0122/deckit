@@ -6,7 +6,8 @@
 // mod's page laid in that window under its content until the page has a normal window and again once it has none, the
 // children its regions show laid over its content, the content's keys and presses heard and the page told of its
 // window, a window closed by its page and with its page, the keyboard of a page going to its key window's content, a
-// panel window in the host's bar, never ordered front and pressed as no window made key, and a web page's window: on
+// panel window in the host's bar, never ordered front and pressed as no window made key, one at the right edge, which
+// the desktop gives the keyboard as it is ordered front, and a web page's window: on
 // the desktop for the mod whose page shows it, titled, with no name, closed however it closes with those who listen
 // told once. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
@@ -266,6 +267,7 @@ async function main() {
             'it is no press that makes a window key',
         inBar?.id === panel.id &&
             inBar.level === 'panel' &&
+            inBar.edge === 'top' &&
             inBar.size.width === 120 &&
             !host.shown.some(({ control }) => control.name === 'bar') &&
             desktop.fronted.length === fronted &&
@@ -278,6 +280,26 @@ async function main() {
         'a panel window closed leaves the bar',
         desktop.panelsClosed.includes(panel.id) && shell.pagesClosed.includes(panelContent),
         desktop.panelsClosed
+    );
+
+    const side = shell.fromPage('open', pages.b, { name: 'side', level: 'panel', edge: 'right', width: 360 });
+    const atSide = desktop.panels.at(-1);
+    shell.fromPage('make-key-and-order-front', pages.b, { id: side.id });
+    shell.fromPage('order-front', pages.b, { id: side.id });
+    const normalEdge = shell.fromPage('open', pages.b, { name: 'plain', edge: 'right' });
+    check(
+        'a panel window at the right edge opens at that edge, and makeKeyAndOrderFront and orderFront ask the desktop ' +
+            'to give it the keyboard as an overlay window takes it; a window at another level has no edge',
+        atSide?.id === side.id &&
+            atSide.edge === 'right' &&
+            panel.id !== side.id &&
+            JSON.stringify(desktop.panelsFronted) ===
+                JSON.stringify([
+                    { id: side.id, activates: true },
+                    { id: side.id, activates: false },
+                ]) &&
+            desktop.opened.find(({ id }) => id === normalEdge.id)?.edge === null,
+        { atSide, fronted: desktop.panelsFronted }
     );
 
     if (failed.length) {
@@ -329,6 +351,7 @@ function windowsOver(createWindows) {
         panels: [],
         panelsClosed: [],
         panelPressed: [],
+        panelsFronted: [],
         change: () => changes.forEach((listener) => listener()),
     };
     const host = { shown: [], closed: [] };
@@ -370,6 +393,10 @@ function windowsOver(createWindows) {
         openPanel: (window) => desktop.panels.push(window),
         closePanel: (window) => desktop.panelsClosed.push(window.id),
         pressPanel: (window) => desktop.panelPressed.push(window.id),
+        orderFrontPanel: (window, { activates = true } = {}) =>
+            desktop.panelsFronted.push({ id: window.id, activates }),
+        keyPanel: () => null,
+        toDesktop: () => {},
         localSeat: 'local',
         activation: {
             input: (seat, mod) => desktop.inputs.push(`${seat}:${mod}`),

@@ -6,14 +6,27 @@ import * as POINTER from '../ui/pointer/index.js';
 import * as PRESENTATION from '../ui/presentation/index.js';
 
 // MARK: - Property
-// What the content's document wears under the page's rules: clear, the content filling it.
+// What the content's document wears under the page's rules: clear, the content filling it. The content of a panel
+// window at the right edge slides in from past that edge as it first comes on screen, with the material the desktop
+// draws under it, and fades in where the system asks for reduced motion.
 const STYLE = `
     html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
     body { -webkit-user-select: none; user-select: none; font: var(--deckit-text-size) var(--deckit-text-font); }
     .deckit-window { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
     .deckit-window > * { flex: 1 1 auto; min-height: 0; }
+    .deckit-window[data-edge='right'][data-shown] {
+        animation: deckit-window-in var(--deckit-move-base) var(--deckit-easing-move);
+    }
+    @keyframes deckit-window-in { from { transform: translateX(calc(100% + 8px)); } }
+    @keyframes deckit-window-fade { from { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+        .deckit-window[data-edge='right'][data-shown] {
+            animation: deckit-window-fade var(--deckit-fade) var(--deckit-easing);
+        }
+    }
 `;
 const LEVELS = Object.freeze(['normal', 'overlay', 'panel']);
+const EDGES = Object.freeze(['top', 'right']);
 const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didResize', 'didClose']);
 
 // MARK: - Initializer
@@ -89,8 +102,8 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         const problem = problemOf(options);
         if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `windows.open: ${problem}`);
         if (scope.isCut) throw cut('windows.open');
-        const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
-        const payload = { name, level, width, height, minWidth, minHeight, activates };
+        const { name, level = 'normal', edge = 'top', width, height, minWidth, minHeight, activates = true } = options;
+        const payload = { name, level, edge, width, height, minWidth, minHeight, activates };
         const { id, surface } = PROTOCOL.open.invoke(payload);
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
@@ -100,6 +113,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         document.head.replaceChildren(style);
         const root = document.createElement('div');
         root.className = 'deckit-window';
+        if (level === 'panel' && edge === 'right') root.dataset.edge = 'right';
         root.append(options.content);
         document.body.replaceChildren(root);
         const held = {
@@ -178,6 +192,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         const was = held.state;
         held.state = { shown, key, size: { width, height } };
         guide(held.document, titleBar, key);
+        if (shown) held.document.querySelector('.deckit-window')?.toggleAttribute('data-shown', true);
         if (shown && !was.shown) tell(held, 'didAppear');
         if (was.key && !key) tell(held, 'didResignKey');
         if (!was.key && key) tell(held, 'didBecomeKey');
@@ -227,8 +242,9 @@ function problemOf(options) {
     if (CHANNEL.kindOf(options) !== 'object') return 'options is no table';
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
-        return `takes { name, content, level, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;
+        return `takes { name, content, level, edge, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.slice(0, -1).join(', ')} or ${LEVELS.at(-1)}`;
+    if (options.edge !== undefined && !EDGES.includes(options.edge)) return `takes an edge of ${EDGES.join(' or ')}`;
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
     if (options.activates !== undefined && typeof options.activates !== 'boolean') return 'takes activates a boolean';

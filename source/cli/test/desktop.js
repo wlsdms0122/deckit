@@ -14,7 +14,9 @@
 // following the desktop's size and any other kept reachable as it shrinks, and a titled window's content under the
 // title bar the shell draws, its title told and its drag, and the panel windows in the host's bar: placed right to left
 // in the order they opened, laid over the desktop's page, told no title bar, never key, pressed with the key window
-// left key. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// left key; and one at the right edge: placed along it under the bar, cut to a window's corners, taking the keyboard
+// as it opens and as it is pressed, keeping it through a press in the bar, and giving it back to the key window as a
+// normal window or the desktop is pressed and as it closes. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -691,6 +693,72 @@ async function main() {
         desk.desktop.control.panels()
     );
 
+    // A panel window at the right edge, under the bar 28 high across the stage 800 by 500, its mod one that may
+    // activate.
+    const keyId = () => desk.page().windows.find(({ key }) => key)?.id ?? null;
+    const rightPanel = { ...panelOf(31, 'a', { width: 360, height: 100 }), edge: 'right' };
+    desk.desktop.activation.input(desk.desktop.localSeat, 'a');
+    const shownAtRight = desk.hostShown();
+    desk.desktop.openPanel(rightPanel);
+    const atRight = desk.desktop.control.panels().find(({ id }) => id === 31);
+    const rightContent = desk.laid().find(({ page }) => page.name === 'content-31');
+    check(
+        'a panel window at the right edge stands 8 in from it, from 8 under the bar to 8 above the bottom, its width ' +
+            "its mod's, cut to a window's corners, and takes the keyboard as it opens, the host window coming up",
+        JSON.stringify(atRight?.frame) === JSON.stringify({ x: 432, y: 36, width: 360, height: 456 }) &&
+            atRight.key === true &&
+            keyId() === null &&
+            desk.desktop.stateOf(rightPanel).key === true &&
+            desk.desktop.stateOf(rightPanel).height === 456 &&
+            rightContent?.clip.cornerRadius === 16 &&
+            desk.page().panels.some(({ id, edge }) => id === 31 && edge === 'right') &&
+            desk.focused.at(-1)?.name === 'content-31' &&
+            desk.hostShown() === shownAtRight + 1,
+        { atRight, rightContent, focused: desk.focused.at(-1) }
+    );
+    desk.desktop.pressPanel(secondPanel);
+    check(
+        'a press in the bar leaves the keyboard with the panel window at the right edge that holds it',
+        desk.desktop.control.panels().find(({ id }) => id === 31).key === true &&
+            desk.focused.at(-1)?.name === 'content-31' &&
+            keyId() === null,
+        { focused: desk.focused.at(-1), panels: desk.desktop.control.panels() }
+    );
+    desk.desktop.control.hand.press(keyBefore);
+    check(
+        'a press on a normal window takes the keyboard back from the panel window at the right edge',
+        desk.desktop.control.panels().find(({ id }) => id === 31).key === false &&
+            keyId() === keyBefore &&
+            desk.desktop.stateOf(rightPanel).key === false,
+        { panels: desk.desktop.control.panels(), key: keyId() }
+    );
+    desk.desktop.control.hand.press(31);
+    const pressedKey = desk.desktop.control.panels().find(({ id }) => id === 31).key;
+    desk.pressIn(desk.backdrop);
+    check(
+        'a press on the panel window at the right edge gives it the keyboard, and a press on the desktop where no ' +
+            'window is gives it back to the key window',
+        pressedKey === true &&
+            desk.desktop.control.panels().find(({ id }) => id === 31).key === false &&
+            keyId() === keyBefore &&
+            desk.focused.at(-1)?.name?.startsWith('content-') &&
+            desk.focused.at(-1)?.name !== 'content-31',
+        { pressedKey, focused: desk.focused.at(-1) }
+    );
+    desk.desktop.control.hand.press(31);
+    desk.desktop.closePanel(rightPanel);
+    const heldBack = { ...panelOf(32, 'z', { width: 200, height: 10 }), edge: 'right' };
+    desk.desktop.openPanel(heldBack);
+    check(
+        'the key window is key again as the panel window at the right edge that holds the keyboard closes, and one ' +
+            'of a mod that may not activate opens without it',
+        keyId() === keyBefore &&
+            desk.desktop.control.panels().find(({ id }) => id === 32).key === false &&
+            !desk.desktop.control.panels().some(({ id }) => id === 31),
+        { key: keyId(), panels: desk.desktop.control.panels() }
+    );
+    desk.desktop.closePanel(heldBack);
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
@@ -797,7 +865,8 @@ function desktopOver(createDesktop, { state = {} }) {
         },
         DOCK: { items: () => [] },
     });
-    allowed.get('backdrop')({ name: 'backdrop' });
+    const backdrop = { name: 'backdrop' };
+    allowed.get('backdrop')(backdrop);
     const frameOf = (id) => laid.find(({ page }) => page.name === `content-${id}`)?.rect ?? null;
     return {
         desktop,
@@ -810,6 +879,7 @@ function desktopOver(createDesktop, { state = {} }) {
         frameOf,
         children,
         pressIn: (page) => pressed.get(page)?.(),
+        backdrop,
         resize: (next) => {
             size = next;
             resized();

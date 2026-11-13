@@ -7,11 +7,11 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, minimum, title }], panels: [{ id, frame }], strip, dock, down }`: the windows on the
-// screen of the seat at the host window, `frame` on the stage, `key` whether it is that seat's key window, `minimum`
+// `{ windows: [{ id, frame, key, minimum, title }], panels: [{ id, edge, frame }], strip, dock, down }`: the windows on
+// the screen of the seat at the host window, `frame` on the stage, `key` whether it is that seat's key window, `minimum`
 // the size it is never below, `title` what the title bar the shell draws over a titled window's content holds, or null
-// for a window whose content draws its own; `panels`, the panel windows in the strip, the material drawn under each at
-// its frame; `strip` `{ height, controlsWidth }`, the host window's bar over the page's top, which drags the host
+// for a window whose content draws its own; `panels`, the panel windows at their edge, 'top' in the strip or 'right',
+// the material drawn under each at its frame; `strip` `{ height, controlsWidth }`, the host window's bar over the page's top, which drags the host
 // window, and the width its controls take from its start; `dock` `{ items, active, attention }`, the Dock's items
 // (dock/main.js items), the id of the mod whose window is that seat's key window, or null, and the ids of the mods
 // that ask for that seat's attention; and `down` `{ name, why }` once deckit's core answers nothing more, or null.
