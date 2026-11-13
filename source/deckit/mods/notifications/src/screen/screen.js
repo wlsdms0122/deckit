@@ -14,6 +14,8 @@ const ROOM_BELOW = 24;
 // What a toast is drawn in at most, its title, two lines of body and a row of actions: the window's height for each
 // until they are measured.
 const TOAST_MOST = 112;
+// How far a toast slides from the right edge as it comes and goes.
+const SLIDE = 16;
 // How long a toast with no actions stays.
 const STAYS = 6000;
 
@@ -106,6 +108,7 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
         key: (notification) => notification.id,
         create: (notification) => card(notification, { row: true }),
         update: (made, notification) => made.replaceChildren(...partsOf(notification, { row: true })),
+        animated: true,
     });
     rows.element.classList.add('notifications-rows');
     let shown = []; // the notifications the rows show, in order
@@ -207,13 +210,11 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
         const gone = () => {
             toasts.delete(id);
             if (told) center.toastGone(id);
-            toToasts();
+            ui.motion.glide([...content.children], toToasts);
         };
         const card = toastCards.get(id);
         if (panel || !card?.isConnected) return gone();
-        const { fade, easing } = shell.theme.motion.exit;
-        card.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade, easing, fill: 'forwards' });
-        setTimeout(gone, fade);
+        ui.motion.go(card, { x: SLIDE }).finished.then(gone);
     }
 
     // The toasts' window, open while it shows any and the center is closed.
@@ -282,25 +283,14 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
         list.replaceChildren(head, shown.length ? rows.element : empty);
     }
 
-    // Made once per toast, coming in from the right edge, where it lives; under reduced motion it only fades in.
+    // Made once per toast, coming in from the right edge, where it lives, by the kit's `come`; it leaves by its `go`
+    // the same way, and those staying glide over its place.
     function toastCard(notification) {
         const kept = toastCards.get(notification.id);
         if (kept) return kept;
         const made = card(notification, { row: false });
         toastCards.set(notification.id, made);
-        const { length, fade, easing } = shell.theme.motion.enter;
-        if (length)
-            made.animate(
-                [
-                    { opacity: 0, transform: 'translateX(16px)' },
-                    { opacity: 1, transform: 'none' },
-                ],
-                {
-                    duration: length,
-                    easing,
-                }
-            );
-        else made.animate([{ opacity: 0 }, { opacity: 1 }], { duration: fade, easing });
+        ui.motion.come(made, { x: SLIDE });
         return made;
     }
 
