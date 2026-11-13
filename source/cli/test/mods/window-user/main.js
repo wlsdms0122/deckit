@@ -1,7 +1,7 @@
 // A mod with windows of its own, which the test opens, resizes and closes by events it sends the page, each by its
 // name, and whose Dock item calls reopen(), which opens the first again. It marks on its page what its windows are
 // told, in turn, the windows it has, the size a ResizeObserver of each window sees of its content, and the frames its
-// windows draw.
+// windows draw. A window opens with the title bar options the test gives, and takes the title it sets.
 const CALLBACKS = ['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didClose'];
 
 class WindowUser {
@@ -14,11 +14,11 @@ class WindowUser {
         };
         const told = (name, callback) => () => (marks.told = `${marks.told || ''}${name} ${callback},`);
         const windows = new Map();
-        this.open = ({ name, width, height }) => {
+        this.open = ({ name, width, height, ...style }) => {
             const content = document.createElement('div');
             content.dataset.name = name;
             const callbacks = Object.fromEntries(CALLBACKS.map((callback) => [callback, told(name, callback)]));
-            const window = shell.windows.open({ name, content, width, height, ...callbacks });
+            const window = shell.windows.open({ name, content, width, height, ...style, ...callbacks });
             if (windows.get(name) === window) return;
             windows.set(name, window);
             const view = content.ownerDocument.defaultView;
@@ -31,6 +31,9 @@ class WindowUser {
         };
         document.addEventListener('test-window-open', ({ detail }) => this.open(detail));
         document.addEventListener('test-window-close', ({ detail: name }) => windows.get(name)?.close());
+        document.addEventListener('test-window-title', ({ detail: { name, title } }) =>
+            windows.get(name)?.setTitle(title)
+        );
         document.addEventListener('test-window-resize', ({ detail: { name, width, height } }) =>
             windows.get(name)?.resize(width, height)
         );

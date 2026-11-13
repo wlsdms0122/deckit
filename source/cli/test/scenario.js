@@ -487,9 +487,14 @@ async function run({
         // The window's content is told where its buttons stand over its top, the title bar area past them.
         const guide = await note?.evaluate(`(() => {
             const style = document.documentElement.style;
-            return [document.documentElement.hasAttribute('data-deckit-title-bar'), style.getPropertyValue('--deckit-title-bar-area-height'), style.getPropertyValue('--deckit-title-bar-area-x')].join(' ');
+            const insets = ['top', 'right', 'bottom', 'left'].map((side) => style.getPropertyValue('--deckit-safe-area-inset-' + side));
+            return [document.documentElement.hasAttribute('data-deckit-title-bar'), style.getPropertyValue('--deckit-title-bar-area-height'), style.getPropertyValue('--deckit-title-bar-area-x'), ...insets].join(' ');
         })()`);
-        check("a window's content is told where its buttons stand over its top", guide === 'true 48px 78px', guide);
+        check(
+            "a window's content is told where its buttons stand over its top, and its safe area",
+            guide === 'true 48px 78px 48px 0px 0px 0px',
+            guide
+        );
         const notesKept = path.join(home, 'data', 'note');
         const notesMade = await until(() => fs.existsSync(notesKept), 3000);
         check("a main process module keeps what it keeps in its mod's data folder", notesMade, notesKept);
@@ -2039,6 +2044,68 @@ async function run({
                 await until(async () => !(await userWindows()).length, 3000),
                 JSON.stringify(await userWindows())
             );
+            // The title bar's options, as windows.open takes them: a titled window has the shell draw its bar with its
+            // title, the content below it and told no bar; a taller bar with its buttons moved and two of them off
+            // tells its content the bar's height, the area past the buttons and the safe area's top, draws the buttons
+            // where they stand, the ones off disabled, and takes no zoom.
+            const guideOf = (window) =>
+                pageById(window?.content).then((content) =>
+                    content?.evaluate(`(() => {
+                        const style = document.documentElement.style;
+                        const read = (name) => style.getPropertyValue('--deckit-' + name);
+                        const insets = ['top', 'right', 'bottom', 'left'].map((side) => read('safe-area-inset-' + side));
+                        return [document.documentElement.hasAttribute('data-deckit-title-bar'), read('title-bar-area-height'), read('title-bar-area-x'), ...insets].join(' ');
+                    })()`)
+                );
+            const frameOf = async (window) => (await stackNow()).find(({ name }) => name === `frame-${window?.id}`);
+            await send('test-window-open', { name: 'titled', titleBar: 'titled', title: 'Titled' });
+            const titled = await until(async () => (await userWindows()).at(-1), 3000);
+            await send('test-window-title', { name: 'titled', title: 'Retitled' });
+            const barText = async () =>
+                (await pageById((await frameOf(titled))?.id))?.evaluate(
+                    `document.querySelector('.deckit-window-title:not([hidden])')?.textContent`
+                );
+            const retitled = await until(async () => (await barText()) === 'Retitled', 3000);
+            const titledFrame = await frameOf(titled);
+            check(
+                'a titled window draws its bar with the title it is set, its content below it told no bar',
+                retitled &&
+                    titled.rect.y === titledFrame?.rect.y + 48 + 48 &&
+                    (await guideOf(titled)) === 'false 0px 0px 0px 0px 0px 0px',
+                JSON.stringify({
+                    title: await barText(),
+                    content: titled?.rect,
+                    frame: titledFrame?.rect,
+                    guide: await guideOf(titled),
+                })
+            );
+            await send('test-window-close', 'titled');
+            await until(async () => !(await userWindows()).length, 3000);
+            const style = { titleBarHeight: 64, controlsOrigin: { x: 30 }, minimizable: false, resizable: false };
+            await send('test-window-open', { name: 'tall', ...style });
+            const tall = await until(async () => (await userWindows()).at(-1), 3000);
+            const tallButtons = await pageById(
+                (await stackNow()).find(({ name }) => name === `buttons-${tall?.id}`)?.id
+            );
+            const drawn = await tallButtons?.evaluate(
+                `[...document.querySelectorAll('.deckit-window-button')].map((button) => button.dataset.button + ' ' + button.style.left + ' ' + button.style.top + ' ' + button.disabled).join(', ')`
+            );
+            await tallButtons?.press('[data-button="zoom"]');
+            await sleep(300);
+            check(
+                'a taller bar with its buttons moved and two off tells its content its height and area, and takes no zoom',
+                (await guideOf(tall)) === 'true 64px 90px 64px 0px 0px 0px' &&
+                    drawn === 'close 30px 26px false, minimize 50px 26px true, zoom 70px 26px true' &&
+                    near((await userWindows()).at(-1)?.rect, tall?.rect),
+                JSON.stringify({
+                    guide: await guideOf(tall),
+                    drawn,
+                    before: tall?.rect,
+                    now: (await userWindows()).at(-1)?.rect,
+                })
+            );
+            await send('test-window-close', 'tall');
+            await until(async () => !(await userWindows()).length, 3000);
         }
         // A file the active mod opens, the window probe through deckit/urls, which hands it to the Editor: the Editor
         // brings its window front as the key window.
