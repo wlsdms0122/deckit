@@ -210,6 +210,7 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
 
 function labelOf(text, icon) {
     const label = element('div', 'deckit-drag-label');
+    label.dataset.deckitSolid = ''; // an opaque card, so the plain inks over glass too
     const face = element('span', 'deckit-drag-face');
     if (icon) {
         const glyph = element('span', 'deckit-drag-icon');

@@ -45,6 +45,7 @@ function inlineEdit(label, { selectStem = false, onCommit }) {
     const look = getComputedStyle(label);
     const input = page.createElement('input');
     input.className = 'deckit-rename';
+    input.dataset.deckitSolid = ''; // its own fill, so the plain inks on glass too
     input.value = was;
     input.spellcheck = false;
     input.toggleAttribute('data-grows', parseFloat(look.flexGrow) > 0);
