@@ -48,6 +48,17 @@ function motionAt(motion, now) {
     return { value, velocity, done: false };
 }
 
+// How `frame` is drawn into `rect`: `{ by, x, y }`, what is at p drawn at p * by + (x, y), scaled alike both ways to
+// fit inside `rect` and centred in it; null where that draws it where it is.
+function scaleInto(frame, rect) {
+    if (!(frame.width > 0 && frame.height > 0)) return null;
+    const fit = Math.min(rect.width / frame.width, rect.height / frame.height);
+    const by = Math.max(0.001, Math.round(fit * 10000) / 10000);
+    const x = Math.round((rect.x + rect.width / 2 - by * (frame.x + frame.width / 2)) * 100) / 100;
+    const y = Math.round((rect.y + rect.height / 2 - by * (frame.y + frame.height / 2)) * 100) / 100;
+    return by === 1 && !x && !y ? null : { by, x, y };
+}
+
 // The rect `rect` grown or shrunk by `scale` about its middle.
 function scaled(rect, scale = SCALE) {
     const width = rect.width * scale;
@@ -63,4 +74,4 @@ function lateOpacity(opacity) {
 
 // MARK: - Private
 
-export { PARTS, SCALE, motionOf, motionAt, scaled, lateOpacity };
+export { PARTS, SCALE, motionOf, motionAt, scaleInto, scaled, lateOpacity };

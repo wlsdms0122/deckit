@@ -1023,6 +1023,13 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
             past <= 600,
         { length: motion.length, last: xs.at(-1), past, cut: cut.value.x }
     );
+    const intoTile = MOTION.scaleInto({ x: 0, y: 0, width: 400, height: 300 }, { x: 8, y: 423, width: 48, height: 48 });
+    check(
+        'a window drawn into a rect is scaled alike both ways to fit inside it, centred in it, and one drawn into its ' +
+            'own frame is drawn as it is',
+        same(intoTile, { by: 0.12, x: 8, y: 429 }) && MOTION.scaleInto(from, from) === null,
+        intoTile
+    );
     const items = [
         { id: 'a', pinned: true, running: true },
         { id: 'b', pinned: false, running: true },
@@ -1066,15 +1073,30 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const opening = { ...desk.frameOf(1) };
     const frameLayer = () => desk.laid().find(({ page: laid }) => laid.name === 'frame-1');
     const fading = frameLayer().opacity;
+    const contentLayer = () => desk.laid().find(({ page: laid }) => laid.name === 'content-1');
+    const growing = frameLayer().scale;
+    // Where the scale draws the middle of the window's frame: where it is laid, scaled about it.
+    const middleOf = ({ x, y, width, height }, { by, x: dx, y: dy }) => ({
+        x: (x + width / 2) * by + dx,
+        y: (y + height / 2) * by + dy,
+    });
+    const middle = growing && middleOf(opening, growing);
     run(400);
     check(
-        'a window opens from a little smaller about its middle and faded out, its content at its own size, and is ' +
-            'drawn at its frame once its motion is over, while the list reads that frame at once',
-        opening.width === 400 &&
+        'a window opens scaled from a little smaller about its middle and faded out, laid whole at its frame, its ' +
+            'content and frame alike, and is drawn as laid once its motion is over, while the list reads that frame ' +
+            'at once',
+        same(opening, listed()) &&
             fading < 0.5 &&
-            same(desk.frameOf(1), { ...listed(), y: listed().y }) &&
-            frameLayer().opacity === undefined,
-        { opening, fading, now: desk.frameOf(1), listed: listed() }
+            growing?.by >= 0.96 &&
+            growing.by < 1 &&
+            Math.abs(middle.x - (opening.x + 200)) < 0.1 &&
+            Math.abs(middle.y - (opening.y + 150)) < 0.1 &&
+            same(desk.frameOf(1), listed()) &&
+            frameLayer().opacity === undefined &&
+            frameLayer().scale === undefined &&
+            contentLayer().scale === undefined,
+        { opening, fading, growing, now: desk.frameOf(1), listed: listed() }
     );
     const before = listed();
     desk.press('tileLeft', one.surface);
@@ -1131,11 +1153,13 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     desk.desktop.minimize(one);
     run(40);
     const going = frameLayer();
+    const goingContent = contentLayer();
     run(400);
     check(
-        "a window minimized goes on drawn into its mod's Dock tile until it is there, then is laid no more",
-        !!going && !frameLayer(),
-        going
+        "a window minimized goes on drawn into its mod's Dock tile, or where it is with none, laid whole at its " +
+            'frame, until it is there, then is laid no more',
+        !!going && same(goingContent?.scale, going.scale) && same(goingContent.rect, leftTile) && !frameLayer(),
+        { going, goingContent }
     );
 }
 

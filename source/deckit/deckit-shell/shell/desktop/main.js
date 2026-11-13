@@ -761,7 +761,7 @@ export function createDesktop({
             OVERLAY.withOverlays([
                 ...[...pages].map((page) => ({ page, rect: front.get(page) ?? area(), input: [] })),
                 ...(backdrop ? [{ page: backdrop, rect: full }] : []),
-                ...seen.flatMap(({ id, window, frame, opacity, content, leaving, surfaces }) => {
+                ...seen.flatMap(({ id, window, frame, opacity, scale, content, leaving, surfaces }) => {
                     const { bar } = window;
                     const parts = LAYOUT.partsOf(frame, bar);
                     const clip = { ...frame, cornerRadius: LAYOUT.RADIUS };
@@ -769,7 +769,7 @@ export function createDesktop({
                         surface(PAGE.frameOf(id)),
                         surface(PAGE.buttonsOf(id)),
                     ];
-                    const seenAs = opacity < 1 ? { opacity } : {};
+                    const seenAs = { ...(opacity < 1 ? { opacity } : {}), ...(scale ? { scale } : {}) };
                     const laid = { ...content, x: frame.x, y: frame.y };
                     return [
                         frameSurface && {
@@ -828,14 +828,17 @@ export function createDesktop({
     }
 
     // What is drawn of each window on the local seat's screen, `view` as MANAGER.viewOf has it: back to front, each
-    // `{ id, window, frame, opacity, content, leaving, surfaces }`, `frame` where its frame is drawn, `opacity` how
-    // much of it shows, `content` the frame its content is laid at, its own, from the drawn frame's top left and cut to
-    // it; a window going into its Dock tile or closing comes after them, in front, `leaving`, until it is gone, with
-    // the `surfaces` its frame and buttons are drawn in. Each frame is drawn by its motion to where the window is: one
-    // the hand moves or resizes, and every one as the desktop changes size, there at once; one opening from a little
-    // smaller about its middle, faded out; one coming out of its Dock tile from there; any other by the `move` spring
-    // from where it is drawn, its speed carried over. While the system asks for reduced motion each rect is there at
-    // once, opening, closing, going into the Dock and coming out of it fading alone.
+    // `{ id, window, frame, opacity, scale, content, leaving, surfaces }`, `frame` where its frame is laid, `opacity`
+    // how much of it shows, `scale` how all of it is drawn scaled where it is, `content` the frame its content is laid
+    // at, its own, from the frame's top left and cut to it; a window going into its Dock tile or closing comes after
+    // them, in front, `leaving`, until it is gone, with the `surfaces` its frame and buttons are drawn in. Each frame is
+    // drawn by its motion to where the window is: one the hand moves or resizes, and every one as the desktop changes
+    // size, there at once; any other by the `move` spring from where it is drawn, its speed carried over, its frame
+    // moving and its content at its own size. One opening, closing, going into its Dock tile or coming out of it is
+    // laid whole at its frame and drawn scaled, content and all: opening from a little smaller about its middle,
+    // faded out, closing back so, going into its Dock tile and coming out of it from there. While the system asks for
+    // reduced motion each rect is there at once, opening, closing, going into the Dock and coming out of it fading
+    // alone.
     function drawnNow(view) {
         const now = clock.now();
         const seen = [];
@@ -847,11 +850,11 @@ export function createDesktop({
             if (!entry) {
                 entry = { window: windows.get(id), value: to, velocity: {}, motion: null, late: false, leaving: null };
                 drawn.set(id, entry);
-                go(entry, { ...MOTION.scaled(frame), opacity: 0 }, to, 'enter', now);
+                go(entry, { ...MOTION.scaled(frame), opacity: 0 }, to, 'enter', now, { scales: true });
             } else if (entry.leaving) {
                 step(entry, now);
                 entry.leaving = null;
-                go(entry, entry.value, to, 'enter', now, { late: true });
+                go(entry, entry.value, to, 'enter', now, { late: true, scales: true });
             } else if (!same(entry.motion?.to ?? entry.value, to)) {
                 step(entry, now);
                 if (handHeld.has(id) || atOnce || reduced !== false) settle(entry, to);
@@ -859,7 +862,8 @@ export function createDesktop({
             }
             step(entry, now);
             running = running || !!entry.motion;
-            seen.push({ id, window: entry.window, ...frameOf(entry), content: frame, leaving: null });
+            entry.frame = frame;
+            seen.push({ id, window: entry.window, ...frameOf(entry, frame), content: frame, leaving: null });
         }
         const shownNow = new Set(view.map(({ id }) => id));
         for (const [id, entry] of drawn) {
@@ -867,9 +871,10 @@ export function createDesktop({
             if (!entry.leaving) {
                 const closed = !windows.has(id);
                 entry.leaving = closed ? 'closed' : 'minimized';
-                entry.content = { ...entry.value };
-                const tile = closed ? MOTION.scaled(entry.value) : (dockTileOf(entry.window) ?? entry.value);
-                go(entry, entry.value, { ...tile, opacity: 0 }, closed ? 'exit' : 'move', now, { late: !closed });
+                entry.content = entry.frame ?? { ...entry.value };
+                const tile = closed ? MOTION.scaled(entry.content) : (dockTileOf(entry.window) ?? entry.content);
+                const role = closed ? 'exit' : 'move';
+                go(entry, entry.value, { ...tile, opacity: 0 }, role, now, { late: !closed, scales: true });
             }
             if (!entry.motion) continue;
             step(entry, now);
@@ -883,25 +888,27 @@ export function createDesktop({
             }
             running = true;
             const { window, content, surfaces } = entry;
-            leaving.push({ id, window, ...frameOf(entry), content, leaving: entry.leaving, surfaces });
+            leaving.push({ id, window, ...frameOf(entry, content), content, leaving: entry.leaving, surfaces });
         }
         if (running) tick();
         return [...seen, ...leaving];
     }
 
     // The motion of `entry` from `from` to `to` by the spring of `role`, from the speed it is drawn at now, its opacity
-    // seen late (MOTION.lateOpacity) where `late`; with reduced motion its rect is at `to` at once and its opacity
-    // fades by the spring alone.
-    function go(entry, from, to, role, now, { late = false } = {}) {
+    // seen late (MOTION.lateOpacity) where `late`, the window laid at its frame and drawn scaled into the rect where it
+    // `scales`; with reduced motion its rect is at `to` at once and its opacity fades by the spring alone.
+    function go(entry, from, to, role, now, { late = false, scales = false } = {}) {
         if (reduced === null) return settle(entry, to);
         const start = reduced ? { ...to, opacity: from.opacity } : from;
         entry.late = late && !reduced;
+        entry.scales = scales;
         entry.motion = MOTION.motionOf({ from: start, to, role, now, velocity: entry.velocity });
         if (same(start, to)) settle(entry, to);
     }
 
     function settle(entry, to) {
         entry.motion = null;
+        entry.scales = false;
         entry.value = to;
         entry.velocity = {};
     }
@@ -916,16 +923,20 @@ export function createDesktop({
         return !done;
     }
 
-    // What is drawn of `entry`: `{ frame, opacity }`, its rect rounded to the px.
-    function frameOf({ value, late }) {
+    // What is drawn of `entry`, its window laid at `laid`: `{ frame, opacity, scale }`, `frame` its rect rounded to
+    // the px and `scale` null, or, where its motion scales it, `frame` `laid` and `scale` drawing it into its rect.
+    function frameOf({ value, late, scales }, laid) {
+        const raw = late ? MOTION.lateOpacity(value.opacity) : value.opacity;
+        const opacity = Math.round(Math.min(1, Math.max(0, raw)) * 1000) / 1000;
+        const scale = scales ? MOTION.scaleInto(laid, value) : null;
+        if (scale) return { frame: laid, opacity, scale };
         const frame = {
             x: Math.round(value.x),
             y: Math.round(value.y),
             width: Math.max(0, Math.round(value.width)),
             height: Math.max(0, Math.round(value.height)),
         };
-        const opacity = late ? MOTION.lateOpacity(value.opacity) : value.opacity;
-        return { frame, opacity: Math.round(Math.min(1, Math.max(0, opacity)) * 1000) / 1000 };
+        return { frame, opacity, scale: null };
     }
 
     function same(one, other) {
