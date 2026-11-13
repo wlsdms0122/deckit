@@ -121,7 +121,8 @@ function activitySection({ ui, mods, icons, onInterfaces }) {
             state.element.textContent = STATE_WORDS[mod.run.state];
             state.element.hidden = mod.run.state === 'running';
             const since = mod.run.launchedAt ? elapsedText(Date.now() - mod.run.launchedAt) : '';
-            why.textContent = [mod.background ? 'In the background' : '', since].filter(Boolean).join(', ');
+            const line = [mod.background ? 'In the background' : '', since].filter(Boolean).join(', ');
+            why.textContent = line.charAt(0).toUpperCase() + line.slice(1);
             problem.textContent = problemsOf(mod, refusals.get(mod.id)).join('\n');
             owns.element.hidden = !ownsInterface(mod);
             relaunch.element.hidden = mod.run.state !== 'running';
