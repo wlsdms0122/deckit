@@ -2342,6 +2342,21 @@ async function run({
                 pressed: await clockPressed(),
             })
         );
+        // A mod no input reached toggles the center: Notifications may not activate (DECKIT-32), and the center, where
+        // the person works, is not left open without the keyboard.
+        const joinsPage = await page(`deckit://${JOINS}.mod`);
+        await joinsPage?.evaluate(`document.dispatchEvent(new CustomEvent('test-center'))`);
+        const toggled = await until(async () => await mark(joinsPage, 'center'), 4000);
+        await sleep(1000);
+        const unkeyed = await until(
+            async () => !(await centerNow()) && (await keyMod()) === 'window-probe' && !(await clockPressed()),
+            4000
+        );
+        check(
+            'a mod that may not activate toggles the notification center, which does not stay open without the keyboard',
+            toggled && unkeyed,
+            JSON.stringify({ toggled, center: await centerNow(), key: await keyMod(), pressed: await clockPressed() })
+        );
         await show('window-probe');
 
         // A folder and a file dragged in from outside the app and dropped on the probe's destination: it hears the drag

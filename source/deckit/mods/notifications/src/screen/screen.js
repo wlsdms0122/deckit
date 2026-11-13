@@ -1,7 +1,8 @@
 // The notifications on screen: the toasts `center` lets out, stacked in the mod's overlay window over every app, open
 // while it shows any, each as tall as what it holds, which leave the keyboard where it is; and on `showList()` the
 // notification center, the record newest first to press, remove or clear, in a panel window along the right edge of
-// the desktop, which takes the keyboard as it opens and goes as the keyboard leaves it or Escape is pressed. No toast
+// the desktop, open only with the keyboard: it takes it as it opens, closes at once where it opens without it, as
+// Notifications may not activate (DECKIT-32), and goes as the keyboard leaves it or Escape is pressed. No toast
 // shows while the center is open, which holds them all. A toast with actions stays until one is pressed or it is
 // closed; any other leaves after a time. A press on a toast, a row or an action is the center's.
 const WIDTH = 360;
@@ -110,6 +111,7 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
             level: 'panel',
             edge: 'right',
             width: WIDTH,
+            didAppear: () => panel === opened && !opened.isKey && closeList(),
             didResignKey: () => panel === opened && closeList(),
             didClose: () => panel === opened && closed(),
         });

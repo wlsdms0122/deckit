@@ -48,7 +48,7 @@ A command a notification names is always the sender's own: Notifications runs it
 
 ## The notification center
 
-The recent notifications, newest first, each with its sender and when it came, in a panel window along the right edge of the app's desktop, 360 wide, from under the bar to the desktop's bottom: press one to run it, close it to take it away, or clear them all. It opens with the keyboard, and goes as the keyboard leaves it, as you press a window, the desktop or the Dock, or as you press Escape; a press in the bar leaves it open. The `show` command opens it, and `notifications/center` opens and closes it.
+The recent notifications, newest first, each with its sender and when it came, in a panel window along the right edge of the app's desktop, 360 wide, from under the bar to the desktop's bottom: press one to run it, close it to take it away, or clear them all. It opens with the keyboard, and goes as the keyboard leaves it, as you press a window, the desktop or the Dock, or as you press Escape; a press in the bar leaves it open. Asked to open by a mod you did not just use, it would open without the keyboard, so it closes at once. The `show` command opens it, and `notifications/center` opens and closes it.
 
 ## Providing `notifications/center`
 
@@ -61,7 +61,7 @@ uses = { "notifications/center" = 1 }
 
 | Export or signal | What it is |
 |---|---|
-| `toggle()` | opens the notification center where it is closed, and closes it where it is open; resolves to whether it is open after. It rejects where Notifications has no screen |
+| `toggle()` | opens the notification center where it is closed, and closes it where it is open; resolves to whether it is open after, and one that opened without the keyboard closes right after, as the signal tells. It rejects where Notifications has no screen |
 | `notifications/center:changed` | the signal, `{ open }`, each time the center opens or closes, however it does, heard with `deckit.events.on` |
 
 ## Commands
