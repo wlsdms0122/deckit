@@ -125,7 +125,8 @@ const STYLE =
         `;
         })
         .join('');
-// A row that asks for attention breathes three times, fading.
+// A row that asks for attention breathes three times, fading: a loop at its own pace, each swell and each ebb on the
+// `press` spring, so it rests at every turn and never passes its peak. Still while the system asks for reduced motion.
 const BREATH = [
     { opacity: 0, offset: 0 },
     { opacity: 1, offset: 0.17 },
@@ -276,7 +277,11 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
         if (item.attention && theme.motion.move.length) {
             const glow = element('span', 'switcher-glow');
             made.append(glow);
-            glow.animate(BREATH, { duration: BREATH_MS, easing: 'ease-in-out' });
+            const { easing } = theme.motion.press;
+            glow.animate(
+                BREATH.map((frame) => ({ ...frame, easing })),
+                { duration: BREATH_MS }
+            );
         }
     } else made.replaceChildren(glyph, label, note);
     if (note.dataset.path !== undefined) watchPath(made);
