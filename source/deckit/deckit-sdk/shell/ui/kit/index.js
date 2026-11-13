@@ -31,6 +31,7 @@ import * as DIALOG from '../dialog/index.js';
 import * as TOAST from '../toast/index.js';
 import * as APP_ICON from '../app-icon/index.js';
 import * as NOTICE from '../notice/index.js';
+import * as MOTION from '../motion/index.js';
 
 const components = [
     BUTTON,
@@ -89,6 +90,8 @@ function make(theme, { fonts }) {
         pressable: PART.pressable,
         selectable: PART.selectable,
         titleBar: PART.titleBar,
+        // The kit's motion, for a part of a page's own: what comes, goes, glides or folds moves as the kit's do.
+        motion: { come: MOTION.come, go: MOTION.go, glide: MOTION.glide, fold: MOTION.fold, appear: MOTION.appear },
     });
     return deepFreeze(ui);
 }

@@ -2,6 +2,7 @@ import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
 const folding = new Map(); // box -> { timer, then }: a fold under way
+const GLIDE = 'deckit-glide';
 
 // MARK: - Initializer
 // MARK: - Public
@@ -41,7 +42,55 @@ function appear(element) {
     element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: fade, easing });
 }
 
+// Brings `element` on screen by the `enter` spring: it fades in and moves from `x`, `y` px away and `scale` to where
+// it is, the move none while the system asks for reduced motion. Answers the motion, to `cancel` or wait for
+// (`finished`).
+function come(element, way = {}) {
+    return play(element, way, TOKEN.MOTION.enter, false);
+}
+
+// Takes `element` off screen by the quicker `exit` spring along the same way, and keeps it there until the motion is
+// cancelled. Going out plays the frames backwards, not the curve, so it leaves easing out too.
+function go(element, way = {}) {
+    return play(element, way, TOKEN.MOTION.exit, true);
+}
+
+// The elements of `staying` glide from where they were to where `change` lays them, each by the `move` spring settled
+// to its own travel. A glide under way is cut and the element glides on from where it is drawn.
+function glide(staying, change) {
+    const before = new Map(staying.map((element) => [element, element.getBoundingClientRect()]));
+    for (const element of staying)
+        for (const running of element.getAnimations()) if (running.id === GLIDE) running.cancel();
+    change();
+    for (const [element, was] of before) {
+        if (!element.isConnected) continue;
+        const now = element.getBoundingClientRect();
+        const [x, y] = [was.left - now.left, was.top - now.top];
+        const { length, easing } = TOKEN.MOTION.over('move', Math.hypot(x, y));
+        if (!length || (!x && !y)) continue;
+        const frames = [{ transform: `translate(${x}px, ${y}px)` }, { transform: 'none' }];
+        element.animate(frames, { id: GLIDE, duration: length, easing });
+    }
+}
+
 // MARK: - Private
+// The two animations of a coming or going: the move over the role's length, the fade over its fade length.
+function play(element, { x = 0, y = 0, scale = 1 }, { length, fade, easing }, out) {
+    const way = (frames) => (out ? [...frames].reverse() : frames);
+    const options = { easing, ...(out ? { fill: 'forwards' } : {}) };
+    const moves = x || y || scale !== 1;
+    const from = `translate(${x}px, ${y}px) scale(${scale})`;
+    const played = [element.animate(way([{ opacity: 0 }, { opacity: 1 }]), { ...options, duration: fade })];
+    if (moves && length)
+        played.push(
+            element.animate(way([{ transform: from }, { transform: 'none' }]), { ...options, duration: length })
+        );
+    return {
+        finished: Promise.allSettled(played.map((animation) => animation.finished)),
+        cancel: () => played.forEach((animation) => animation.cancel()),
+    };
+}
+
 // A fold stops, its `then` not run, and the box and its item are as they were before it.
 function settle(box) {
     const running = folding.get(box);
@@ -51,4 +100,4 @@ function settle(box) {
     if (box.firstElementChild) Object.assign(box.firstElementChild.style, { minHeight: '', overflow: '' });
 }
 
-export { fold, appear };
+export { fold, appear, come, go, glide };

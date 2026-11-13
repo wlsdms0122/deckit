@@ -1,5 +1,5 @@
 import * as LAYER from '../layer/index.js';
-import * as TOKEN from '../token/index.js';
+import * as MOTION from '../motion/index.js';
 import * as ICON from '../icon/index.js';
 
 // MARK: - Property
@@ -49,8 +49,6 @@ const STAY = { base: 2500, perCharacter: 50, most: 8000 };
 // The most toasts shown at once: one more closes the oldest.
 const MOST = 4;
 // A toast slides in from the right as it fades in, and back as it fades out.
-const SLIDE = [{ transform: 'translateX(12px)' }, { transform: 'none' }];
-const FADE = [{ opacity: 0 }, { opacity: 1 }];
 
 // The stack on screen, `{ layer, element }`, while it holds a toast.
 let stack = null;
@@ -124,16 +122,9 @@ function toast(ui, text, { kind = 'done', action = null } = {}) {
 }
 
 // Slides and fades `element` in by the `enter` spring, or with `out` out by the quicker `exit` one, and keeps it out:
-// answers once both are over. Going out plays the frames backwards, not the curve, so it leaves easing out too.
+// answers once both are over.
 function slide(element, { out = false } = {}) {
-    const { length, fade, easing } = TOKEN.MOTION[out ? 'exit' : 'enter'];
-    const way = (frames) => (out ? [...frames].reverse() : frames);
-    const options = { easing, ...(out ? { fill: 'forwards' } : {}) };
-    const played = [
-        element.animate(way(SLIDE), { ...options, duration: length }),
-        element.animate(way(FADE), { ...options, duration: fade }),
-    ];
-    return Promise.allSettled(played.map((animation) => animation.finished));
+    return (out ? MOTION.go : MOTION.come)(element, { x: 12 }).finished;
 }
 
 function open() {
@@ -144,17 +135,10 @@ function open() {
 
 // The toasts staying glide from where they were to where `change` puts them.
 function glide(list, change) {
-    const staying = [...list.children].filter((child) => !child.dataset.leaving);
-    const before = new Map(staying.map((child) => [child, child.getBoundingClientRect().top]));
-    change();
-    for (const [child, top] of before) {
-        const by = top - child.getBoundingClientRect().top;
-        if (child.isConnected && by)
-            child.animate([{ transform: `translateY(${by}px)` }, { transform: 'none' }], {
-                duration: TOKEN.MOTION.move.length,
-                easing: TOKEN.MOTION.move.easing,
-            });
-    }
+    MOTION.glide(
+        [...list.children].filter((child) => !child.dataset.leaving),
+        change
+    );
 }
 
 export { STYLE, make };
