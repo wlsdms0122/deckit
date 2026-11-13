@@ -725,6 +725,10 @@ async function drop({ mod, name, paths, at }) {
     const { frame } = window;
     const point = { x: frame.x + at.x, y: frame.y + at.y };
     if (!inside(point, frame)) return { none: `the point is not in the window ${name}` };
+    // A window drawn scaled, as it opens or goes, takes no press until it rests, so the hand drops once it does.
+    for (let waited = 0; laid.some(({ scale }) => scale) && waited < 2000; waited += 10) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
     const hit = [...laid]
         .reverse()
         .find(
