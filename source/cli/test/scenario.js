@@ -1584,10 +1584,13 @@ async function run({
                 JSON.stringify({ found, letGo })
             );
             const back = await until(() => responderIs(tabId), 2000);
+            const responders = (await laidPages()).flatMap(({ id, url, name, responder, hidden }) =>
+                responder || id === tabId ? [{ id, url: url.slice(0, 40), name, responder, hidden }] : []
+            );
             check(
                 'closing the find bar takes its overlay off and gives the page the keyboard',
                 gone && back,
-                JSON.stringify({ gone, back })
+                JSON.stringify({ gone, back, tabId, responders })
             );
             // Shown again once its exit played out, it is drawn whole, as the first time.
             await browser?.key('f', 'KeyF', META, 70);
