@@ -2,7 +2,7 @@
 // it held, and what was seen.
 const fs = require('fs');
 const path = require('path');
-const { until, sleep, ALT, META, SHIFT } = require('./devtools.js');
+const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 const { seat } = require('./seat.js');
 
 // The mods Deckit.app ships that are apps, which the Dock keeps from the first start: every one but the accessories,
@@ -2134,6 +2134,19 @@ async function run({
                 unzoomed,
                 JSON.stringify((await userWindows()).at(-1)?.rect)
             );
+            // A shell key tiles the key window into the left half of the zoom area, flush with it; the one that
+            // restores puts it back at its frame.
+            const leftHalf = { ...zoomedIn, width: Math.round(zoomedIn.width / 2) };
+            await (await keyContent())?.key('ArrowLeft', 'ArrowLeft', CTRL | ALT, 37);
+            const tiled = await until(async () => near((await userWindows()).at(-1)?.rect, leftHalf), 3000);
+            await (await keyContent())?.key('ArrowDown', 'ArrowDown', CTRL | ALT, 40);
+            const untiled = await until(async () => near((await userWindows()).at(-1)?.rect, front?.rect), 3000);
+            check(
+                'a shell key tiles the key window into the left half of the zoom area, and the one that restores puts ' +
+                    'it back at its frame',
+                tiled && untiled,
+                JSON.stringify({ tiled, leftHalf, now: (await userWindows()).at(-1)?.rect, frame: front?.rect })
+            );
             // The frame a mod's page resizes its window to is where the window of that name opens next.
             await send('test-window-resize', { name: 'one', width: 500, height: 320 });
             const resized = await until(async () => {
@@ -2239,6 +2252,38 @@ async function run({
             );
             await send('test-window-close', 'tall');
             await until(async () => !(await userWindows()).length, 3000);
+        }
+        // The Browser's window dragged by its toolbar with the pointer to the zoom area's left side and let go there
+        // takes the left half of it, flush; the shell key that restores gives it back the size it had.
+        if (dragFrom) {
+            await show('browser');
+            const laid = await desktopLaid();
+            const top = await desktop.evaluate(`document.querySelector('.deckit-desktop-strip').offsetHeight`);
+            const zoomArea = { x: 6, y: top, width: laid?.rect.width - 6, height: laid?.rect.height - top };
+            const leftHalf = { ...zoomArea, width: Math.round(zoomArea.width / 2) };
+            const before = await settled(browserFrame);
+            const contentId = (await windowsNow()).find(({ mod }) => mod === 'browser')?.content;
+            const mouse = (type, { x, y }) =>
+                main(`return webkit.sendMouse(${contentId}, ${JSON.stringify({ type, x, y })})`);
+            // The pointer on the desktop, held still as the window moves under it: where it is in the page.
+            const pointer = { x: zoomArea.x, y: Math.round(zoomArea.y + zoomArea.height / 2) };
+            const inPage = (frame) => ({ x: pointer.x - frame.x, y: pointer.y - frame.y });
+            await mouse('down', dragFrom);
+            await mouse('dragged', inPage(before));
+            await sleep(300);
+            await mouse('up', inPage((await browserFrame()) ?? before));
+            const dropped = await until(async () => near(await browserFrame(), leftHalf), 3000);
+            await (await pageById(contentId))?.key('ArrowDown', 'ArrowDown', CTRL | ALT, 40);
+            const back = await until(async () => {
+                const now = await browserFrame();
+                return now?.width === before?.width && now.height === before.height;
+            }, 3000);
+            check(
+                "a window dragged to the zoom area's left side and let go there takes its left half, and the key " +
+                    'that restores gives it back its size',
+                dropped && back,
+                JSON.stringify({ dropped, leftHalf, before, now: await browserFrame() })
+            );
         }
         // A file the active mod opens, the window probe through deckit/urls, which hands it to the Editor: the Editor
         // brings its window front as the key window.
