@@ -1585,7 +1585,11 @@ async function run({
                 focused: await browserOverlay?.evaluate(`!!document.activeElement?.closest('.deckit-menu')`),
             };
         };
-        const presented = await presentedOver();
+        let presented = null;
+        await until(async () => {
+            presented = await presentedOver();
+            return presented.covers && presented.focused;
+        }, 3000);
         check(
             'a menu lies on a backdrop that takes every press over the page, and holds the focus in the overlay',
             presented.covers && presented.focused,
