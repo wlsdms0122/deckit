@@ -123,6 +123,8 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         const root = document.createElement('div');
         root.className = 'deckit-window';
         if (level === 'panel' && edge === 'right') root.dataset.edge = 'right';
+        // A panel's content lies on the material the desktop draws under it.
+        if (level === 'panel') root.dataset.deckitGlass = '';
         root.append(options.content);
         document.body.replaceChildren(root);
         const held = {

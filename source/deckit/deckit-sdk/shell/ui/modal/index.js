@@ -58,8 +58,9 @@ function make(theme, ui) {
 // text field confirms. `onKey` has a key first and returns whether it took it. `align` is `center`, `top`, or
 // `fill`, the card all the page draws, filling it, its edge the page's, which comes and goes at once, as its window
 // does. With `drags` the card drags the window it is in where nothing in it is pressed. With `glass` its colour is
-// laid at that strength, for a page over what blurs. With `clear` the page shows through undimmed, the card still
-// holding every press, and it comes and goes at once, as a palette a key opens does.
+// laid at that strength, for a page over what blurs, and its quieter text is in the glass inks. With `clear` the
+// page shows through undimmed, the card still holding every press, and it comes and goes at once, as a palette a key
+// opens does.
 function modal(
     ui,
     {
@@ -92,8 +93,10 @@ function modal(
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
     if (align !== 'fill') card.style.width = width;
-    if (glass !== null)
+    if (glass !== null) {
         card.style.background = `color-mix(in srgb, var(--deckit-elevated) ${glass * 100}%, transparent)`;
+        card.dataset.deckitGlass = '';
+    }
     scrim.append(card);
     let closed = false;
     const close = () => {

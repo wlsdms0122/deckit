@@ -50,6 +50,7 @@ const main = async () => {
         'host.js',
         'key.js',
         'style.js',
+        'token.js',
         'region.js',
         'forge.js',
         'commands.js',

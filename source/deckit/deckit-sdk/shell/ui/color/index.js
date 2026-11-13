@@ -38,13 +38,16 @@ function mix(foreground, background, amount) {
 // The ink to draw text or a glyph in over `color`, a colour of the content's own (a calendar's): of white and a
 // near black, the one with the greater contrast against it.
 function onColor(color) {
-    const under = luminanceOf(color);
-    if (under === null) return INKS[0];
-    const contrast = (ink) => {
-        const [lighter, darker] = [luminanceOf(ink), under].sort((a, b) => b - a);
-        return (lighter + 0.05) / (darker + 0.05);
-    };
-    return contrast(INKS[0]) >= contrast(INKS[1]) ? INKS[0] : INKS[1];
+    if (luminanceOf(color) === null) return INKS[0];
+    return contrast(INKS[0], color) >= contrast(INKS[1], color) ? INKS[0] : INKS[1];
+}
+
+// The contrast ratio of two colours, from 1 for the same to 21 for black on white, or null when one cannot be read.
+function contrast(one, other) {
+    const [first, second] = [luminanceOf(one), luminanceOf(other)];
+    if (first === null || second === null) return null;
+    const [lighter, darker] = [first, second].sort((a, b) => b - a);
+    return (lighter + 0.05) / (darker + 0.05);
 }
 
 function alpha(color, amount) {
@@ -64,4 +67,4 @@ function luminanceOf(color) {
     return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
-export { rgbOf, isDark, mix, alpha, onColor };
+export { rgbOf, isDark, mix, alpha, onColor, contrast };

@@ -128,6 +128,7 @@ function make({ ui, channels, onOut, onGlass }) {
     const element = tag('nav', 'deckit-dock');
     element.setAttribute('aria-label', 'Dock');
     const card = tag('div', 'deckit-dock-card');
+    card.dataset.deckitGlass = ''; // its material is the desktop's to lay
     const keptList = LIST.list({
         element: tag('div', 'deckit-dock-list'),
         key: (item) => item.id,

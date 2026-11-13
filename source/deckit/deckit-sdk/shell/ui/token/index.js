@@ -133,6 +133,15 @@ const TYPE = Object.freeze({
 const APP_ICON = Object.freeze({ small: 16, row: 20, lead: 32, dock: 40, grid: 56 });
 // A neutral grey over any background, light or dark.
 const WASH = (amount) => `rgba(128,128,128,${amount})`;
+// The quieter inks: how much of `text` over `background` each is, and the least contrast it keeps on glass.
+const INK = Object.freeze({
+    muted: { amount: 0.68, glass: 4.5 },
+    tertiary: { amount: 0.55, glass: 3 },
+    disabled: { amount: 0.3, glass: 3 },
+});
+// The plainest grounds glass lies over. The material only moves what is behind towards its own blur, so an ink that
+// holds on the tint laid over both holds over anything.
+const GROUNDS = Object.freeze(['#ffffff', '#000000']);
 
 // MARK: - Initializer
 // MARK: - Public
@@ -147,6 +156,15 @@ function tokenOf(theme, fonts = {}) {
     const toward = (amount) => COLOR.mix(text, background, amount);
     const dark = COLOR.isDark(background);
     const look = LOOKS[dark ? 'dark' : 'light'];
+    const elevated = toward(dark ? 0.1 : 0);
+    // An ink as it is drawn on glass: raised towards `text` until it keeps its contrast on the tint over each ground.
+    const tints = GROUNDS.map((ground) => COLOR.mix(elevated, ground, look.glass));
+    const onGlass = ({ amount, glass }) => {
+        let at = amount;
+        while (at < 1 && tints.some((tint) => COLOR.contrast(toward(at), tint) < glass))
+            at = Math.round(at * 100 + 1) / 100;
+        return toward(at);
+    };
     return deepFreeze({
         dark,
         font: theme.font,
@@ -160,17 +178,22 @@ function tokenOf(theme, fonts = {}) {
         color: {
             text,
             // Secondary text, 4.5:1 or more on `background`, `lifted` and `elevated` in both looks.
-            muted: toward(0.68),
+            muted: toward(INK.muted.amount),
             // A step quieter than `muted`, for a mark that only supports a row: 3:1 or more on `background` and
             // `lifted` in both looks.
-            tertiary: toward(0.55),
-            disabled: toward(0.3),
-            placeholder: toward(0.68),
+            tertiary: toward(INK.tertiary.amount),
+            disabled: toward(INK.disabled.amount),
+            placeholder: toward(INK.muted.amount),
+            // What is drawn as glass, marked `data-deckit-glass`, draws its quieter text and glyphs in these, raised
+            // from `muted`, `tertiary` and `disabled` until they keep 4.5:1, 3:1 and 3:1 on its tint over any ground.
+            glassMuted: onGlass(INK.muted),
+            glassTertiary: onGlass(INK.tertiary),
+            glassDisabled: onGlass(INK.disabled),
             background,
             surface: toward(0.06),
             lifted: toward(0.1),
             // What floats over the content: a menu, a popover, a dialog's card, a toast, the Dock.
-            elevated: toward(dark ? 0.1 : 0),
+            elevated,
             // The thumb of a control on a filled track, the chosen part lifted off it: lighter than the track in both
             // looks, so it clears the track's `fill` where `elevated` does not.
             thumb: toward(dark ? 0.24 : 0),
@@ -254,10 +277,19 @@ function propertiesOf(token) {
     };
     const declarations = Object.entries(properties).map(([name, value]) => `--deckit-${kebab(name)}: ${value};`);
     const still = Object.keys(LENGTH).map((name) => `--deckit-move-${name}: 0ms;`);
-    const opaque = '--deckit-glass: 100%; --deckit-blur: none;';
+    // What is marked as glass takes the glass inks, a placeholder `muted`'s; where nothing is drawn as glass they are
+    // the plain ones.
+    const inks = Object.keys(INK);
+    const glass = [
+        ...inks.map((ink) => `--deckit-${ink}: var(--deckit-glass-${ink});`),
+        '--deckit-placeholder: var(--deckit-glass-muted);',
+    ];
+    const solid = inks.map((ink) => `--deckit-glass-${ink}: ${token.color[ink]};`);
+    const opaque = `--deckit-glass: 100%; --deckit-blur: none; ${solid.join(' ')}`;
     const more = `${opaque} --deckit-rim: ${rimOf(COLOR.alpha(look.rim, RIM_MORE))};`;
     return (
         `:root { ${declarations.join(' ')} }\n` +
+        `[data-deckit-glass] { ${glass.join(' ')} }\n` +
         `@media (prefers-reduced-motion: reduce) { :root { ${still.join(' ')} } }\n` +
         `@media (prefers-reduced-transparency: reduce) { :root { ${opaque} } }\n` +
         `@media (prefers-contrast: more) { :root { ${more} } }\n`
