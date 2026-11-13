@@ -1,5 +1,6 @@
 import * as LIST from '../../../deckit-sdk/shell/ui/list/index.js';
 import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
+import * as MOTION from '../../../deckit-sdk/shell/ui/motion/index.js';
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DOCK from './model/dock.js';
 import * as DECLARED from '../../../deckit-sdk/shell/dock/protocol.js';
@@ -70,6 +71,7 @@ const STYLE = `
         border-radius: var(--deckit-radius-card);
         background: transparent;
         cursor: pointer;
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-dock-item[data-active] { background: var(--deckit-selected); }
     .deckit-dock-item:active .deckit-app-icon { filter: var(--deckit-shadow-icon) brightness(.85); }
@@ -82,6 +84,7 @@ const STYLE = `
         height: 4px;
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-muted);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-dock-item[data-attention]::after { background: var(--deckit-accent); }
     .deckit-dock-label {
@@ -136,6 +139,7 @@ function make({ ui, channels, onOut, onGlass }) {
         key: (item) => item.id,
         create: itemOf,
         update: paint,
+        animated: true,
     });
     const divider = tag('div', 'deckit-dock-divider');
     const runningList = LIST.list({
@@ -143,6 +147,7 @@ function make({ ui, channels, onOut, onGlass }) {
         key: (item) => item.id,
         create: itemOf,
         update: paint,
+        animated: true,
     });
     TOKEN.whenOpaque(glaze);
     card.append(keptList.element, divider, runningList.element);
@@ -223,10 +228,13 @@ function make({ ui, channels, onOut, onGlass }) {
     }
 
     // MARK: - Private
+    // An item that joins fades in and those that stay glide to where they are drawn; one that leaves goes at once.
     function draw(kept, running) {
-        keptList.set(kept);
-        runningList.set(running);
-        divider.hidden = !kept.length || !running.length;
+        MOTION.glide([...card.querySelectorAll('.deckit-dock-item, .deckit-dock-divider')], () => {
+            keptList.set(kept);
+            runningList.set(running);
+            divider.hidden = !kept.length || !running.length;
+        });
     }
 
     function itemOf(item) {
@@ -241,6 +249,7 @@ function make({ ui, channels, onOut, onGlass }) {
     function paint(row, item) {
         row.toggleAttribute('data-active', item.id === active);
         row.toggleAttribute('data-running', item.running);
+        if (attention.has(item.id) && !row.hasAttribute('data-attention') && row.isConnected) ask(row);
         row.toggleAttribute('data-attention', attention.has(item.id));
         row.dataset.name = item.name;
         const states = [item.running && 'running', attention.has(item.id) && 'asks for attention'].filter(Boolean);
@@ -249,6 +258,13 @@ function make({ ui, channels, onOut, onGlass }) {
         if (row.dataset.drawn === drawn) return;
         row.dataset.drawn = drawn;
         row.replaceChildren(ui.appIcon(item.icon, { size: 'dock' }));
+    }
+
+    // An item that asks for attention lights once in the selection's tint, its dot easing to the accent: no bounce.
+    function ask(row) {
+        const style = getComputedStyle(row);
+        const lit = style.getPropertyValue('--deckit-selected').trim();
+        if (lit) MOTION.swell(row, { backgroundColor: style.backgroundColor }, { backgroundColor: lit });
     }
 
     // The name of the item `row` beside the card, centred on it, at once: the Dock's one sign of the pointer over an
