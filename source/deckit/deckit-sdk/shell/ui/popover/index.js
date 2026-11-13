@@ -27,6 +27,7 @@ function make() {
 function popover({ width = '', onClose } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-popover';
+    element.dataset.deckitGlass = 'popover';
     if (width) element.style.maxWidth = width;
     let presented = null;
     const close = () => {

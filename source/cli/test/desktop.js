@@ -777,12 +777,72 @@ async function main() {
     );
     desk.desktop.closePanel(heldBack);
 
+    const { createOverlay } = await import(url('deckit-shell', 'shell', 'overlay', 'main.js'));
+    overlayChecks(createOverlay, check);
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
     }
     console.log(`ok: ${count} desktop checks`);
     process.exit(0);
+}
+
+// The overlay (overlay/main) over stand-ins: a page's overlay laid over it at its rect with a material just under it
+// where it told one, on the stage and cut to the page's rect, and none once it tells none.
+function overlayChecks(createOverlay, check) {
+    const handlers = {};
+    const page = { name: 'page' };
+    const surface = { name: 'overlay' };
+    const OVERLAY = createOverlay({
+        deckit: {
+            channels: {
+                bind: (declared) => ({
+                    handle: (handler) => (handlers[declared.channel] = handler),
+                    on: (handler) => (handlers[declared.channel] = handler),
+                    send() {},
+                }),
+            },
+            mods: { modOf: () => 'a' },
+            pages: { nameOf: () => null, whenEnds() {} },
+        },
+        web: { holdsKeyboard: () => false },
+        PAGES: { allowSurface: (_page, _name, onOpen) => onOpen(surface), isAlive: () => true, close() {}, focus() {} },
+        KEY: { listen() {} },
+    });
+    OVERLAY.start({ keyboardOf: (each) => each });
+    handlers['deckit-shell:overlay-open']({}, page);
+    const rect = { x: 100, y: 50, width: 400, height: 300 };
+    const tell = (materials) =>
+        handlers['deckit-shell:overlay-state'](
+            { shows: true, focused: false, regions: [{ x: 10, y: 20, width: 100, height: 50 }], materials },
+            page
+        );
+    tell([
+        { material: 'menu', x: 10, y: 20, width: 100, height: 50, cornerRadius: 10 },
+        { material: 'popover', x: 380, y: -5, width: 50, height: 10 },
+        { material: 'menu', x: 500, y: 0, width: 10, height: 10 },
+    ]);
+    const laid = OVERLAY.withOverlays([{ page, rect }]);
+    check(
+        "a page's overlay is laid over it with a material just under it at each it told, on the stage, cut to the " +
+            "page's rect, none for one outside it",
+        JSON.stringify(laid) ===
+            JSON.stringify([
+                { page, rect },
+                { material: 'menu', rect: { x: 110, y: 70, width: 100, height: 50 }, cornerRadius: 10 },
+                { material: 'popover', rect: { x: 480, y: 50, width: 20, height: 5 }, cornerRadius: 0 },
+                { page: surface, rect, input: [{ x: 10, y: 20, width: 100, height: 50 }] },
+            ]),
+        laid
+    );
+    tell([]);
+    const plain = OVERLAY.withOverlays([{ page, rect }]);
+    check(
+        'an overlay that tells no material, as where the system asks for less transparency, has none under it',
+        plain.length === 2 && !plain.some(({ material }) => material),
+        plain
+    );
 }
 
 // `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage

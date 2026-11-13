@@ -7,7 +7,11 @@ const STYLE = `
     .deckit-surface {
         position: fixed;
         outline: none;
-        transition: opacity var(--deckit-fade) var(--deckit-easing), transform var(--deckit-move-base) var(--deckit-easing);
+        transition: opacity var(--deckit-fade) var(--deckit-easing), transform var(--deckit-move-base) var(--deckit-easing),
+            background-color var(--deckit-fade) var(--deckit-easing);
+    }
+    .deckit-surface[data-material] {
+        background-color: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
     }
     .deckit-surface[data-side='bottom'] { transform-origin: top left; }
     .deckit-surface[data-side='top'] { transform-origin: bottom left; }

@@ -5,7 +5,8 @@ import * as SURFACE from './model/surface.js';
 // The overlay over each page the shell draws in, a mod's or its own: a document the page opens beside itself, where the
 // kit draws the page's layers, so they are over everything laid with the page, web pages too. It is the page's:
 // whatever lays the page lays its overlay at the same rect, over all it lays, while the overlay shows anything
-// (`withOverlays`), and what asks whose a page is asks `ownerOf`. It takes the pointer where it draws what takes it. It
+// (`withOverlays`), with a material just under it where what it draws is glass, and what asks whose a page is asks
+// `ownerOf`. It takes the pointer where it draws what takes it. It
 // has the keyboard while an element drawn in it has it, once the person presses there or the page gives its keyboard
 // for an element focused there; the page has it again once that is not so. Its keys reach the keys of the app as the
 // page's.
@@ -14,10 +15,10 @@ import * as SURFACE from './model/surface.js';
 export function createOverlay({ deckit, web, PAGES, KEY }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    const overlays = new Map(); // a page -> { surface, shows, focused, regions }, once the page asked for it
+    const overlays = new Map(); // a page -> { surface, shows, focused, regions, materials }, once the page asked for it
     const listeners = new Set();
     let keyboardOf = null;
-    const NOTHING = Object.freeze({ shows: false, focused: false, regions: [] });
+    const NOTHING = Object.freeze({ shows: false, focused: false, regions: [], materials: [] });
 
     // MARK: - Initializer
     // MARK: - Public
@@ -30,11 +31,13 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
     }
 
     // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect,
-    // taking the pointer where it draws what takes it.
+    // taking the pointer where it draws what takes it, each over the materials of what it draws as glass, cut to it.
     function withOverlays(laid) {
         const over = laid.flatMap(({ page, rect }) => {
-            const surface = rect && shownOver(page);
-            return surface ? [{ page: surface, rect, input: overlays.get(page).regions }] : [];
+            const surface = page && rect && shownOver(page);
+            if (!surface) return [];
+            const { regions, materials } = overlays.get(page);
+            return [...materials.flatMap((each) => materialIn(rect, each)), { page: surface, rect, input: regions }];
         });
         return [...laid, ...over];
     }
@@ -78,12 +81,17 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
         return SURFACE.NAME;
     }
 
-    function setState(page, { shows, focused, regions }) {
+    function setState(page, { shows, focused, regions, materials = [] }) {
         const held = overlays.get(page);
         if (!held) return;
-        const was = { ...held };
-        Object.assign(held, { shows, focused, regions: regions.flatMap(rectOf) });
-        if (was.shows !== shows || JSON.stringify(was.regions) !== JSON.stringify(held.regions)) tell(page);
+        const was = JSON.stringify([held.shows, held.regions, held.materials]);
+        Object.assign(held, {
+            shows,
+            focused,
+            regions: regions.flatMap(rectOf),
+            materials: materials.flatMap(materialOf),
+        });
+        if (was !== JSON.stringify([held.shows, held.regions, held.materials])) tell(page);
         giveBack(page, held);
     }
 
@@ -122,6 +130,25 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
     function rectOf(rect) {
         const { x, y, width, height } = rect || {};
         return [x, y, width, height].every(Number.isFinite) ? [{ x, y, width, height }] : [];
+    }
+
+    // A material a page told, as a material's name, a rect and a radius, or none.
+    function materialOf(told) {
+        const radius = Number.isFinite(told?.cornerRadius) ? Math.max(0, told.cornerRadius) : 0;
+        return typeof told?.material === 'string'
+            ? rectOf(told).map((rect) => ({ material: told.material, rect, cornerRadius: radius }))
+            : [];
+    }
+
+    // The material `{ material, rect, cornerRadius }` from the top left of an overlay laid at `at`, on the stage and cut
+    // to `at`, or none where nothing of it is in it.
+    function materialIn(at, { material, rect, cornerRadius }) {
+        const x = Math.max(at.x, at.x + rect.x);
+        const y = Math.max(at.y, at.y + rect.y);
+        const right = Math.min(at.x + at.width, at.x + rect.x + rect.width);
+        const bottom = Math.min(at.y + at.height, at.y + rect.y + rect.height);
+        if (right <= x || bottom <= y) return [];
+        return [{ material, rect: { x, y, width: right - x, height: bottom - y }, cornerRadius }];
     }
 
     function tell(page) {

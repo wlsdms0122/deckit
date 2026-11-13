@@ -268,6 +268,7 @@ function autocomplete({ onPick, over = null }) {
 function popMenu({ items, anchor = null, point = null, beside = null, active = -1, minWidth = 0, onClose, done }) {
     const box = tag('div', 'deckit-menu');
     box.setAttribute('role', 'menu');
+    box.dataset.deckitGlass = 'menu';
     box.style.minWidth = Math.max(minWidth, WIDTH_MIN) + 'px';
     const shown = withoutStraySeparators(items);
     const ticks = shown.some((item) => item !== '-' && typeof item.checked === 'boolean');

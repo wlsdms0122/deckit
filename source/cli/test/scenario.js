@@ -666,9 +666,25 @@ async function run({
             opened === 1,
             `${before} ${opened} ${await settingsOverlay.evaluate(`[...document.querySelectorAll('.deckit-menu')].map((m) => m.dataset.state + m.className).join()`)}`
         );
+        // Open and still, the menu is glass: the host lays a material under it, rounded as the menu is, and takes it
+        // off as the menu closes.
+        const menuMaterials = async () =>
+            (await main(`return webkit.windows().map((id) => webkit.tree(id)).join('\\n')`))
+                .split('\n')
+                .filter((line) => /^ *MaterialView .* radius 10(\.0)? material/.test(line)).length;
+        const underMenu = await until(menuMaterials, 2000);
+        const menuTinted = await settingsOverlay?.evaluate(
+            `document.querySelector('.deckit-menu[data-state="open"]')?.hasAttribute('data-material')`
+        );
         await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
         await settingsOverlay?.key('Enter', 'Enter', 0, 13);
         await sleep(400);
+        const leftUnder = await menuMaterials();
+        check(
+            'an open menu has a material laid under it, rounded as it is, and none once it closes',
+            underMenu === 1 && menuTinted === true && leftUnder === 0,
+            { underMenu, menuTinted, leftUnder }
+        );
         const after = await settings?.evaluate(`${firstSelect}?.textContent`);
         check(
             'the keys pick from it and close it',

@@ -9,13 +9,15 @@ export const open = CHANNEL.pageToMain(
 );
 // What the overlay holds: `shows`, anything drawn, so it is laid over the page; `focused`, an element drawn in it
 // having the keyboard; `regions`, the rects `{ x, y, width, height }` of what is drawn that takes presses, from the
-// page's top left.
+// overlay's top left; `materials`, `{ material, x, y, width, height, cornerRadius }`, where what is drawn is glass, a
+// material laid under the overlay there.
 export const state = CHANNEL.pageToMain(
     'deckit-shell:overlay-state',
     {
         shows: 'boolean',
         focused: 'boolean',
         regions: 'array',
+        materials: 'array',
     },
     { guard: CHANNEL.GUARD.ANY }
 );
