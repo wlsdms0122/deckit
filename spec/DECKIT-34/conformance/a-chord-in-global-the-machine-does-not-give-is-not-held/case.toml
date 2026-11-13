@@ -6,7 +6,7 @@ note = "Each mod's code opens the windows the case says in attach, and takes a c
 base = "shell"
 api = "1.0.0"
 ship = ["mod-a", "mod-b"]
-unavailable = [{ code = "KeyK", control = true, alt = true }]
+unavailable = [{ code = "KeyL", control = true, alt = true }]
 
 [[step]]
 input = "start"
@@ -15,11 +15,11 @@ input = "start"
 input = "call"
 mod = "mod-a"
 member = "events.emit"
-args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "a", scope = "global" }]
+args = ["go", { take = { code = "KeyL", control = true, alt = true }, as = "a", scope = "global" }]
 
 [[step]]
 input = "key"
-keystroke = { code = "KeyK", control = true, alt = true }
+keystroke = { code = "KeyL", control = true, alt = true }
 outside = true
 
 [[step]]
@@ -30,7 +30,7 @@ answers = [{ url = "https://said.test/take/a/held/false", activates = true }]
 
 [[step]]
 input = "key"
-keystroke = { code = "KeyK", control = true, alt = true }
+keystroke = { code = "KeyL", control = true, alt = true }
 
 [[step]]
 look = "opened"

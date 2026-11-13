@@ -14,7 +14,7 @@ input = "start"
 input = "call"
 mod = "mod-b"
 member = "events.emit"
-args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "b" }]
+args = ["go", { take = { code = "KeyL", control = true, alt = true }, as = "b" }]
 
 [[step]]
 input = "window"
@@ -30,10 +30,10 @@ args = ["go", { record = true }]
 
 [[step]]
 input = "key"
-keystroke = { code = "KeyK", control = true, alt = true }
+keystroke = { code = "KeyL", control = true, alt = true }
 
 [[step]]
 look = "opened"
 
 [step.expect]
-answers = [{ url = "https://said.test/take/b/held/true", activates = true }, { url = "https://said.test/rec/KeyK/control+alt", activates = true }]
+answers = [{ url = "https://said.test/take/b/held/true", activates = true }, { url = "https://said.test/rec/KeyL/control+alt", activates = true }]

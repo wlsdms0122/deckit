@@ -16,7 +16,7 @@ module.exports = class {
             }
         };
         this.open = open;
-        shell.keys.take({"code": "KeyK", "control": true, "alt": true}, () => say('chord/mod-b'), { scope: 'app' }).catch((error) => say('chord/threw/' + error.kind));
+        shell.keys.take({"code": "KeyL", "control": true, "alt": true}, () => say('chord/mod-b'), { scope: 'app' }).catch((error) => say('chord/threw/' + error.kind));
         for (const options of []) open(options);
         deckit.events.on('mod-b:go', (...commands) => {
             for (const command of commands) {

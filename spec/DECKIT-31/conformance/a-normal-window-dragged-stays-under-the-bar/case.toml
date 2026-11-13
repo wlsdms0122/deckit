@@ -1,6 +1,6 @@
 case = 23
 name = "a-normal-window-dragged-stays-under-the-bar"
-note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A drag of a normal window's title bar is let go with its top on the desktop, under the bar: mod-a opens main, and the person drags it by { x = 0, y = -300 }."
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A drag of a normal window's title bar is let go with its top on the desktop, under the bar: mod-a opens main, and the person drags it by { x = 0, y = -140 }, its top past the bar, the pointer short of the zoom area's top edge, where it would take the full area."
 
 [host]
 base = "shell"
@@ -16,7 +16,7 @@ input = "window"
 mod = "mod-a"
 name = "main"
 action = "move"
-by = { x = 0, y = -300 }
+by = { x = 0, y = -140 }
 
 [[step]]
 look = "windows"

@@ -15,7 +15,7 @@ A mod gives the person a chord that works wherever they are in the host app, and
 const { held, release } = await shell.keys.take({ code: 'KeyK', control: true, alt: true }, () => show(), { scope: 'global' });
 ```
 
-Without this DECKIT, one implementation hands ⌃⌥K to every mod that takes it, another to the last, a third to the first; one takes it from the page before the page has it and another after; one answers `held` false where the machine does not give the chord outside the app and another refuses the take. A mod takes ⌘W, and on one implementation the person can no longer close a window; the person sets Close Window to ⌘J, and on one host the choice is gone as the app starts again. A settings mod records the chord the person presses for a key, and on one implementation it hears nothing pressed in its own window. What a chord is, who holds it and what a press reaches are the shell's to fix, since every page of the app and the machine's keys are the shell's.
+Without this DECKIT, one implementation hands ⌃⌥L to every mod that takes it, another to the last, a third to the first; one takes it from the page before the page has it and another after; one answers `held` false where the machine does not give the chord outside the app and another refuses the take. A mod takes ⌘W, and on one implementation the person can no longer close a window; the person sets Close Window to ⌘J, and on one host the choice is gone as the app starts again. A settings mod records the chord the person presses for a key, and on one implementation it hears nothing pressed in its own window. What a chord is, who holds it and what a press reaches are the shell's to fix, since every page of the app and the machine's keys are the shell's.
 
 ## Rules
 
