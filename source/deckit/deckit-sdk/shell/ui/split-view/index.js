@@ -7,8 +7,10 @@ const MIN = 240;
 const MAX = 720;
 const CONTENT_MIN = 360;
 // The card's inset from the window's edges and from the content. The divider's handle stands in the gap between them;
-// folded, it stays at the window's edge, this far in. The card's corner is the window's (16) less this inset.
+// folded, it stays at the window's edge, this far in. The card's corner is the window's (16) less this inset. Its list
+// pads its sides by GUTTER, so the rows start under the window's buttons, as far in as they stand from the card's top.
 const INSET = 8;
+const GUTTER = 10;
 const HANDLE = Object.freeze({ width: 16, height: 64, folded: 3 });
 // The sidebar's material is drawn over the window's background material, which shows through the split view
 // everywhere it draws nothing.
@@ -46,15 +48,15 @@ const STYLE = `
         height: 100%;
         overflow-y: auto;
         box-sizing: border-box;
-        padding: max(0px, var(--deckit-title-bar-area-height, 0px) - ${INSET}px) 12px 0;
+        padding: max(0px, var(--deckit-safe-area-inset-top, 0px) - ${INSET}px) ${GUTTER}px 0;
     }
-    .deckit-split-list > * { flex-shrink: 0; }
+    .deckit-split-list > * { flex-shrink: 0; --deckit-safe-area-inset-top: 0px; }
     .deckit-split-bar {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        height: max(0px, var(--deckit-title-bar-area-height, 0px) - ${INSET}px);
+        height: max(0px, var(--deckit-safe-area-inset-top, 0px) - ${INSET}px);
     }
     [data-deckit-title-bar] .deckit-split-bar { --app-region: drag; }
     .deckit-split-content {
@@ -106,8 +108,9 @@ function make(_theme, ui) {
 
 // MARK: - Private
 // A sidebar beside the content, as a window's content or a part of it: `sidebar` in a card on the sidebar's material
-// at the start, scrolling when it is taller than its card and holding what it lists from under the window's buttons,
-// and `content` in the rest, its title bar clear of the buttons while the sidebar is folded. The divider's handle
+// at the start, scrolling when it is taller than its card and holding what it lists from the safe area's top, the
+// window's buttons over the card, and `content` in the rest, told its own title bar area: from its start while the
+// sidebar is open, past the buttons while it is folded. The divider's handle
 // sizes the sidebar by its drag, between MIN and MAX and leaving the content CONTENT_MIN, and folds or unfolds it by a
 // click. `width` and `collapsed` are how it starts; `onChange({ width, collapsed })` hears each change the person
 // makes, for the mod to keep. Answers `{ element, isCollapsed(), setCollapsed(collapsed), toggleSidebar(), width() }`.

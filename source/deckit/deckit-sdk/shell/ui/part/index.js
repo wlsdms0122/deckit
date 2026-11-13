@@ -33,7 +33,7 @@ const STYLE = `
         flex: 0 0 auto;
         box-sizing: border-box;
         min-height: ${TITLE_BAR}px;
-        padding: 0 12px;
+        padding: 0 calc(12px + var(--deckit-safe-area-inset-right, 0px)) 0 calc(12px + var(--deckit-safe-area-inset-left, 0px));
         margin-left: var(--deckit-title-bar-area-x, 0px);
     }
     .deckit-title-bar[data-hairline] { border-bottom: 1px solid var(--deckit-divider); }
@@ -91,8 +91,9 @@ function selectable(element) {
     return () => (element.style.webkitUserSelect = element.style.userSelect = '');
 }
 
-// A bar along the top of the view, where the window's title bar may lie over it: TITLE_BAR tall, what it holds in a
-// row centred on the window's buttons and clear of them, and dragging the window wherever nothing in it is pressed. A
+// A bar along the top of the view, the one thing laid in the window's title bar area where the bar lies over it: as
+// tall as the bar and TITLE_BAR at least, what it holds in a row centred on the window's buttons, from the area's
+// start, inside the safe area's sides, and dragging the window wherever nothing in it is pressed. A
 // control the kit does not know as one marks itself `--app-region: no-drag`. `title` puts the view's title first;
 // `scroller` is what scrolls under the bar, whose edges fade where there is more of it; `hairline` draws a rule under
 // the bar instead, for content the fade cannot reach, as a web page. While the page's root is
