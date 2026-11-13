@@ -740,6 +740,65 @@ async function run({
         );
         await settingsOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
+        // A switch's knob slides by the `move` spring: its running transition takes the token's length and curve and
+        // settles at the end. With reduced motion (the token's still lengths, as the system's setting lays them) it is
+        // there at once. Its state is set on the switch itself, so no setting changes. The engine writes a curve back to a
+        // hundredth.
+        const knobMotion = async (still) => {
+            const started = await settings?.evaluate(`(() => {
+                const root = document.documentElement;
+                const toggle = [...document.querySelectorAll('.deckit-toggle')].find((each) => each.getClientRects().length);
+                const knob = toggle?.querySelector('.deckit-toggle-knob');
+                if (!knob) return null;
+                const numbers = (easing) => [...easing.matchAll(/(-?[\\d.]+)(?![\\d.]*%)/g)].map((m) => Number(m[1]));
+                const token = getComputedStyle(root);
+                const curve = numbers(token.getPropertyValue('--deckit-move-curve'));
+                const length = parseFloat(token.getPropertyValue('--deckit-move'));
+                if (${still}) root.style.setProperty('--deckit-move', '0ms');
+                const was = toggle.getAttribute('aria-checked');
+                toggle.setAttribute('aria-checked', String(was !== 'true'));
+                const [running] = knob.getAnimations();
+                const timing = running?.effect.getTiming();
+                // The curve is the effect's, or its first keyframe's where the engine lays a transition's there.
+                const easings = running ? [timing.easing, ...running.effect.getKeyframes().map((frame) => frame.easing)] : [];
+                const easing = easings.find((each) => /^linear\\(/.test(each || '')) || easings.join(' | ');
+                const seen = numbers(easing);
+                window.knobTried = { toggle, knob, was };
+                return {
+                    runs: !!running,
+                    length,
+                    duration: timing?.duration ?? null,
+                    easing: easing.slice(0, 80),
+                    curve: curve.length > 8 && seen.length === curve.length &&
+                        curve.every((at, index) => Math.abs(at - seen[index]) < 0.006),
+                };
+            })()`);
+            if (!started) return started;
+            await sleep(started.length + 200);
+            const end = await settings?.evaluate(`(() => {
+                const { toggle, knob, was } = window.knobTried;
+                const settled = !knob.getAnimations().length;
+                const at = new DOMMatrix(getComputedStyle(knob).transform).m41;
+                toggle.setAttribute('aria-checked', was);
+                knob.getAnimations().forEach((animation) => animation.finish());
+                document.documentElement.style.removeProperty('--deckit-move');
+                delete window.knobTried;
+                return settled && at === (was === 'true' ? 0 : 14);
+            })()`);
+            return { ...started, end };
+        };
+        const sliding = await knobMotion(false);
+        check(
+            "a switch's knob slides by the move spring, the token's length and curve, and settles where it goes",
+            sliding?.runs && sliding.duration === sliding.length && sliding.length > 0 && sliding.curve && sliding.end,
+            JSON.stringify(sliding)
+        );
+        const stillKnob = await knobMotion(true);
+        check(
+            "with reduced motion a switch's knob is where it goes at once",
+            stillKnob && !stillKnob.runs && stillKnob.end,
+            JSON.stringify(stillKnob)
+        );
         // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away. The
         // select is a mod's setting's.
         const firstSelect = `document.querySelector('.settings-setting .deckit-select')`;
