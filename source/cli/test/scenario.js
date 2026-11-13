@@ -2292,24 +2292,24 @@ async function run({
         const stageNow = (await desktopLaid())?.rect;
         const centerAt = { x: stageNow?.width - 368, y: 60, width: 360, height: stageNow?.height - 68 };
         await clockPage?.press('.deckit-bar-item');
-        const opened = await until(async () => {
+        const centerOpened = await until(async () => {
             const now = await centerNow();
             return near(now?.rect, centerAt) && now.responder && now;
         }, 4000);
         check(
             'a press on the clock opens the notification center at the right edge, and it takes the keyboard',
-            opened && (await until(clockPressed, 2000)),
+            centerOpened && (await until(clockPressed, 2000)),
             JSON.stringify({ center: await centerNow(), centerAt, pressed: await clockPressed() })
         );
         await clockPage?.press('.deckit-bar-item');
-        const putAway = await until(async () => !(await centerNow()) && !(await clockPressed()), 4000);
+        const centerAway = await until(async () => !(await centerNow()) && !(await clockPressed()), 4000);
         check(
             'a second press on the clock puts the notification center away',
-            putAway,
+            centerAway,
             JSON.stringify({ center: await centerNow(), pressed: await clockPressed() })
         );
         await clockPage?.press('.deckit-bar-item');
-        const reopened = await until(async () => (await centerNow())?.responder, 4000);
+        const centerAgain = await until(async () => (await centerNow())?.responder, 4000);
         await probeWindow.press('#drop');
         const taken = await until(
             async () => !(await centerNow()) && (await keyMod()) === 'window-probe' && !(await clockPressed()),
@@ -2317,8 +2317,13 @@ async function run({
         );
         check(
             'a press on a normal window takes the keyboard from the notification center, which closes',
-            reopened && taken,
-            JSON.stringify({ reopened, center: await centerNow(), key: await keyMod(), pressed: await clockPressed() })
+            centerAgain && taken,
+            JSON.stringify({
+                centerAgain,
+                center: await centerNow(),
+                key: await keyMod(),
+                pressed: await clockPressed(),
+            })
         );
         await show('window-probe');
 
