@@ -14,10 +14,11 @@ const FIT = Object.freeze({ edge: 16, tallest: 480, low: 160 });
 
 // MARK: - Initializer
 // MARK: - Public
-// Places a fixed box against a target, kept MARGIN inside the viewport of the target's document (the box's for a
-// point or a rect; the page's for its overlay), and returns the side it went to.
+// Places a fixed box against a target, kept MARGIN inside where a box in its document may lie (LAYER.viewportOf: for
+// the page's overlay, where that is laid, which may reach past the page), and returns the side it went to.
 // - `anchor` (an element) or `rect`: below it, or above when only that fits. `align` is `start` or `center`.
 // - `point`: at it, or above it.
+// A `rect` and a `point` are from the page's top left, as an anchor in the page is.
 // - `beside` (a row of a menu): right of the menu, overlapping it, or left of it when only that fits.
 // `prefer` puts a box above its target first. With `fit`, a list (a menu) is as tall as the room on its side allows,
 // FIT.edge inside the window and FIT.tallest at most, scrolling inside past that, and opens above its target or point
@@ -37,7 +38,21 @@ function place(
     }
 ) {
     element.style.setProperty('--app-region', 'no-drag');
-    const view = LAYER.viewportOf((anchor ?? beside ?? element).ownerDocument.defaultView);
+    const room = LAYER.viewportOf(element.ownerDocument.defaultView);
+    const view = { innerWidth: room.width, innerHeight: room.height };
+    // A target in another document than the box's, or given from the page's top left, is moved into the box's.
+    const into = ({ left, right, top, bottom }) => ({
+        left: left - room.x,
+        right: right - room.x,
+        top: top - room.y,
+        bottom: bottom - room.y,
+    });
+    const boxOf = (target) =>
+        target.ownerDocument === element.ownerDocument
+            ? target.getBoundingClientRect()
+            : into(target.getBoundingClientRect());
+    if (rect) rect = into(rect);
+    if (point) point = { x: point.x - room.x, y: point.y - room.y };
     if (fit) element.style.maxHeight = '';
     const width = element.offsetWidth;
     let height = element.offsetHeight;
@@ -45,14 +60,14 @@ function place(
     let y;
     let side;
     if (beside) {
-        const row = beside.getBoundingClientRect();
-        const menu = beside.parentElement.getBoundingClientRect();
+        const row = boxOf(beside);
+        const menu = boxOf(beside.parentElement);
         side = menu.right - OVERLAP + width > view.innerWidth - MARGIN ? 'left' : 'right';
         x = side === 'right' ? menu.right - OVERLAP : menu.left + OVERLAP - width;
         y = row.top - 4;
         if (fit) height = fitted(element, height, view.innerHeight - 2 * FIT.edge);
     } else if (fit) {
-        const box = rect || anchor?.getBoundingClientRect() || { top: point.y, bottom: point.y };
+        const box = rect || (anchor && boxOf(anchor)) || { top: point.y, bottom: point.y };
         const start = anchor || rect ? gap : 0;
         const roomBelow = view.innerHeight - FIT.edge - (box.bottom + start);
         const roomAbove = box.top - start - FIT.edge;
@@ -61,7 +76,7 @@ function place(
         x = point ? point.x : box.left;
         y = side === 'bottom' ? box.bottom + start : box.top - start - height;
     } else if (anchor || rect) {
-        const box = rect || anchor.getBoundingClientRect();
+        const box = rect || boxOf(anchor);
         const below = box.bottom + gap;
         const above = box.top - gap - height;
         const fitsBelow = below + height <= view.innerHeight - MARGIN;

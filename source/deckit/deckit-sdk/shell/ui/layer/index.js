@@ -2,15 +2,18 @@ import * as SHEET from '../sheet/index.js';
 import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
-// The page's overlay: `{ window, document, tell({ shows, focused, regions, materials }), take() }`, a document beside
-// the page's own, laid over the page while it draws anything. Its layers are the elements in its body, each over the
-// page and the layers before it. Elements made in the page are drawn there as they are, with the page's rules copied in.
-// A layer marked `data-deckit-glass` with a material's name (`menu`, `popover`) has that material laid under it once it
-// is open and still, and is marked `data-material` while it has, so it draws its colour as a tint over it.
+// The page's overlay: `{ window, document, tell({ shows, focused, regions, materials }), take(), onFrame(listener) }`,
+// a document beside the page's own, laid over the page while it draws anything, at the page's rect or wider. Its
+// layers are the elements in its body, each over the page and the layers before it. Elements made in the page are
+// drawn there as they are, with the page's rules copied in. A layer marked `data-deckit-glass` with a material's name
+// (`menu`, `popover`) has that material laid under it once it is open and still, and is marked `data-material` while
+// it has, so it draws its colour as a tint over it.
 let overlay = null;
 let style = null; // what wears the copies in the overlay
 const worn = new Map(); // another document of the page's that wears its rules, by its window -> what wears them there
 let told = '';
+let frame = null; // where the overlay is laid, from the page's top left, once main told
+const moved = new Set(); // listener(), told where the overlay is laid
 const awaited = new WeakSet(); // the animations in the overlay whose end is told
 
 // MARK: - Initializer
@@ -38,6 +41,16 @@ function start(given) {
     for (const type of ['focus', 'blur']) overlay.window.addEventListener(type, () => setTimeout(report));
     overlay.window.addEventListener('pointerdown', () => setTimeout(() => report({ again: true })), true);
     TOKEN.whenOpaque(() => report());
+    overlay.onFrame?.((next) => {
+        frame = next;
+        for (const listener of [...moved]) listener();
+    });
+}
+
+// `listener()` hears that the overlay is laid somewhere else: answers its off.
+function whenMoved(listener) {
+    moved.add(listener);
+    return () => moved.delete(listener);
 }
 
 // Adds `element` to the page's overlay, over the page and every layer added before it, and answers the layer:
@@ -112,10 +125,13 @@ function draws() {
     return overlay.document.body.childElementCount > 0;
 }
 
-// The window whose viewport a box drawn in `view` is laid in: the page's for the overlay, which is laid at the page's
-// rect and has no size of its own until it is.
+// Where a box drawn in `view` may lie, `{ x, y, width, height }` from the page's top left: for the overlay, where it is
+// laid, the page's viewport until main tells, as it has no size of its own until it is laid; for another document, its
+// own viewport.
 function viewportOf(view) {
-    return overlay && view === overlay.window ? window : view;
+    if (overlay && view === overlay.window && frame) return { ...frame };
+    const at = overlay && view === overlay.window ? window : view;
+    return { x: 0, y: 0, width: at.innerWidth, height: at.innerHeight };
 }
 
 // MARK: - Private
@@ -166,4 +182,4 @@ function materialsOf(layers) {
     });
 }
 
-export { start, add, take, focused, windows, activeElement, wear, dress, draws, viewportOf };
+export { start, add, take, focused, windows, activeElement, wear, dress, draws, viewportOf, whenMoved };

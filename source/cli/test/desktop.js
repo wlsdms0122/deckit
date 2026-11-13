@@ -674,6 +674,11 @@ async function main() {
             JSON.stringify(desk.page().panels) === JSON.stringify(inBar.map(({ id, frame }) => ({ id, frame }))),
         { laidNames, content, panels: desk.page().panels }
     );
+    check(
+        "a panel window's content has its overlay laid over the whole stage, what it presents not cut to the panel",
+        JSON.stringify(content.spread) === JSON.stringify({ x: 0, y: 0, width: 800, height: 500 }),
+        content
+    );
     const panelTold = desk.desktop.stateOf(firstPanel);
     desk.desktop.pressPanel(firstPanel);
     check(
@@ -789,9 +794,11 @@ async function main() {
 }
 
 // The overlay (overlay/main) over stand-ins: a page's overlay laid over it at its rect with a material just under it
-// where it told one, on the stage and cut to the page's rect, and none once it tells none.
+// where it told one, on the stage and cut to the page's rect, or at a wider rect it is laid with, the page told where,
+// and none once it tells none.
 function overlayChecks(createOverlay, check) {
     const handlers = {};
+    const frames = [];
     const page = { name: 'page' };
     const surface = { name: 'overlay' };
     const OVERLAY = createOverlay({
@@ -800,7 +807,7 @@ function overlayChecks(createOverlay, check) {
                 bind: (declared) => ({
                     handle: (handler) => (handlers[declared.channel] = handler),
                     on: (handler) => (handlers[declared.channel] = handler),
-                    send() {},
+                    send: (_page, payload) => declared.channel === 'deckit-shell:overlay-frame' && frames.push(payload),
                 }),
             },
             mods: { modOf: () => 'a' },
@@ -835,6 +842,17 @@ function overlayChecks(createOverlay, check) {
                 { page: surface, rect, input: [{ x: 10, y: 20, width: 100, height: 50 }] },
             ]),
         laid
+    );
+    const full = { x: 0, y: 0, width: 1200, height: 800 };
+    const spread = OVERLAY.withOverlays([{ page, rect, spread: full }]);
+    check(
+        'a page laid with a spread has its overlay there, its materials cut to it, and hears where from its top left',
+        JSON.stringify(spread[0]) === JSON.stringify({ page, rect }) &&
+            JSON.stringify(spread[2].rect) === JSON.stringify({ x: 380, y: 0, width: 50, height: 5 }) &&
+            JSON.stringify(spread.at(-1).rect) === JSON.stringify(full) &&
+            JSON.stringify(frames.at(-1)) === JSON.stringify({ x: -100, y: -50, width: 1200, height: 800 }) &&
+            JSON.stringify(frames[0]) === JSON.stringify({ x: 0, y: 0, width: 400, height: 300 }),
+        { spread, frames }
     );
     tell([]);
     const plain = OVERLAY.withOverlays([{ page, rect }]);

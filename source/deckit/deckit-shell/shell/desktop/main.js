@@ -601,10 +601,11 @@ export function createDesktop({
     }
 
     // From the bottom: the mods' pages with a window here, but for a child's another stage shows, the backdrop, each
-    // window in the local seat's order with the children its regions show, then the desktop's page, taking the
-    // pointer only at the host's bar and the Dock, its sliver or all of it while it is out, and the panel windows in
-    // that bar with the children their regions show, the materials it draws glass over just under it. Over all of it, the overlay of each page laid that shows
-    // anything, at its page's rect. With deckit's core down the desktop's page alone covers it all.
+    // window in the local seat's order with the children its regions show, the materials the desktop's page draws
+    // glass over, then that page, taking the pointer only at the host's bar and the Dock, its sliver or all of it while
+    // it is out, and the panel windows in that bar with the children their regions show. Over all of it, the overlay of
+    // each page laid that shows anything, at its page's rect, or over the whole stage for a panel window's content, so
+    // what it presents is not cut to the panel. With deckit's core down the desktop's page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
         inPanels.clear();
@@ -674,7 +675,7 @@ export function createDesktop({
                 ...inBar.flatMap(({ window, frame }) => {
                     const clip = { ...frame, cornerRadius: LAYOUT.panelRadius(window.edge, frame) };
                     return [
-                        window.surface && { page: window.surface, rect: frame, clip },
+                        window.surface && { page: window.surface, rect: frame, clip, spread: full },
                         ...children
                             .filter(({ window: holder }) => holder === window.id)
                             .map(({ page, rect }) => ({ page, rect, clip })),

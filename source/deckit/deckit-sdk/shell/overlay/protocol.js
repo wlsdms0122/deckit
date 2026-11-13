@@ -21,5 +21,8 @@ export const state = CHANNEL.pageToMain(
     },
     { guard: CHANNEL.GUARD.ANY }
 );
+// Where the overlay is laid, `{ x, y, width, height }` from the page's top left: at the page's rect, or wider, so what
+// it draws for the page may lie past the page's edges. Told as it changes.
+export const frame = CHANNEL.mainToPage('deckit-shell:overlay-frame');
 // The overlay asks for the keyboard its page has, for an element drawn in it that holds the focus.
 export const take = CHANNEL.pageToMain('deckit-shell:overlay-take', {}, { guard: CHANNEL.GUARD.ANY });

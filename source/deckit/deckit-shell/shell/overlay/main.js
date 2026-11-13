@@ -4,18 +4,18 @@ import * as SURFACE from './model/surface.js';
 
 // The overlay over each page the shell draws in, a mod's or its own: a document the page opens beside itself, where the
 // kit draws the page's layers, so they are over everything laid with the page, web pages too. It is the page's:
-// whatever lays the page lays its overlay at the same rect, over all it lays, while the overlay shows anything
-// (`withOverlays`), with a material just under it where what it draws is glass, and what asks whose a page is asks
-// `ownerOf`. It takes the pointer where it draws what takes it. It
-// has the keyboard while an element drawn in it has it, once the person presses there or the page gives its keyboard
-// for an element focused there; the page has it again once that is not so. Its keys reach the keys of the app as the
-// page's.
+// whatever lays the page lays its overlay at the same rect, or at a wider one it names, over all it lays, while the
+// overlay shows anything (`withOverlays`), with a material just under it where what it draws is glass, and what asks
+// whose a page is asks `ownerOf`. The page hears where its overlay is laid, from its own top left. It takes the
+// pointer where it draws what takes it. It has the keyboard while an element drawn in it has it, once the person
+// presses there or the page gives its keyboard for an element focused there; the page has it again once that is not
+// so. Its keys reach the keys of the app as the page's.
 // `deckit` is what connect answered, `web` what the web engine answered (`holdsKeyboard`), `PAGES` the shell's pages,
 // and `KEY` the keys of the app.
 export function createOverlay({ deckit, web, PAGES, KEY }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    const overlays = new Map(); // a page -> { surface, shows, focused, regions, materials }, once the page asked for it
+    const overlays = new Map(); // a page -> { surface, shows, focused, regions, materials, told }, once the page asked
     const listeners = new Set();
     let keyboardOf = null;
     const NOTHING = Object.freeze({ shows: false, focused: false, regions: [], materials: [] });
@@ -30,16 +30,20 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
         PROTOCOL.take.on((_payload, sender) => take(sender));
     }
 
-    // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect,
-    // taking the pointer where it draws what takes it, each over the materials of what it draws as glass, cut to it.
+    // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect or
+    // at its `spread`, a wider rect on the stage, taking the pointer where it draws what takes it, each over the
+    // materials of what it draws as glass, cut to it. Each page laid with an overlay hears where that is.
     function withOverlays(laid) {
-        const over = laid.flatMap(({ page, rect }) => {
-            const surface = page && rect && shownOver(page);
+        const over = laid.flatMap(({ page, rect, spread }) => {
+            if (!page || !rect) return [];
+            const at = spread ?? rect;
+            tellFrame(page, { x: at.x - rect.x, y: at.y - rect.y, width: at.width, height: at.height });
+            const surface = shownOver(page);
             if (!surface) return [];
             const { regions, materials } = overlays.get(page);
-            return [...materials.flatMap((each) => materialIn(rect, each)), { page: surface, rect, input: regions }];
+            return [...materials.flatMap((each) => materialIn(at, each)), { page: surface, rect: at, input: regions }];
         });
-        return [...laid, ...over];
+        return [...laid.map(({ spread: _spread, ...each }) => each), ...over];
     }
 
     // The page `page` is: itself, or the page whose overlay it is.
@@ -66,6 +70,7 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
             overlays.set(page, held);
         }
         setState(page, NOTHING);
+        held.told = null;
         PAGES.allowSurface(page, SURFACE.NAME, (surface) => {
             if (overlays.get(page) !== held) return PAGES.close(surface);
             held.surface = surface;
@@ -126,6 +131,15 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
         if (held.surface && PAGES.isAlive(held.surface)) PAGES.focus(held.surface);
     }
 
+    // `page` hears where its overlay is laid, from its own top left, as that changes.
+    function tellFrame(page, frame) {
+        const held = overlays.get(page);
+        const written = JSON.stringify(frame);
+        if (!held || held.told === written) return;
+        held.told = written;
+        PROTOCOL.frame.send(page, frame);
+    }
+
     // A rect a page told, as numbers, or none.
     function rectOf(rect) {
         const { x, y, width, height } = rect || {};
@@ -140,8 +154,8 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
             : [];
     }
 
-    // The material `{ material, rect, cornerRadius }` from the top left of an overlay laid at `at`, on the stage and cut
-    // to `at`, or none where nothing of it is in it.
+    // The material `{ material, rect, cornerRadius }` from the top left of an overlay laid at `at`, on the stage and
+    // cut to `at`, or none where nothing of it is in it.
     function materialIn(at, { material, rect, cornerRadius }) {
         const x = Math.max(at.x, at.x + rect.x);
         const y = Math.max(at.y, at.y + rect.y);
