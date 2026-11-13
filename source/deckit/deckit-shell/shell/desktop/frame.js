@@ -210,6 +210,8 @@ function boot(theme, channels) {
         drawPanels(state.panels);
         dock.setTop(state.strip.height);
         dock.update(state.dock);
+        // The page of a desktop down fades in, a rare sign of the system's own; it goes at once once it is back.
+        if (state.down && down.hidden) ui.motion.appear(down);
         down.hidden = !state.down;
         if (state.down)
             downNote.set({ title: `${state.down.name} needs a restart`, hint: `Its core ${state.down.why}.` });
