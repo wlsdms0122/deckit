@@ -436,7 +436,7 @@ final class WebEngine {
             return try node.make(tree(of: try window(0).window.contentView ?? NSView()))
 
         case .pageAt:
-            return try node.make(page(at: try point(try argument(1)), in: try window(0).window))
+            return try node.make(pageTaking(try point(try argument(1)), in: try window(0).window))
         }
 
         return node.undefined()
@@ -736,7 +736,7 @@ final class WebEngine {
 
     // The page whose view a press at `point` of `window`'s content, from its top left, reaches, through the views laid
     // there, their clips and their input regions, as the window finds the view a press goes to.
-    private func page(at point: CGPoint, in window: NSWindow) -> Int? {
+    private func pageTaking(_ point: CGPoint, in window: NSWindow) -> Int? {
         guard let content = window.contentView else { return nil }
         let local = CGPoint(x: point.x, y: content.isFlipped ? point.y : content.bounds.height - point.y)
         guard let hit = content.hitTest(content.superview.map { content.convert(local, to: $0) } ?? local) else {
