@@ -267,15 +267,16 @@ function make({ ui, channels, onOut, onGlass }) {
         named = null;
     }
 
+    // Open or Show, then keeping it in the Dock, then Quit last and set apart.
     function menuOf(item) {
         const opens = () => PROTOCOL.click.send({ id: item.id });
         return [
             { label: item.running ? 'Show' : 'Open', run: opens },
-            ...(item.running ? [{ label: 'Quit', run: () => PROTOCOL.quit.send({ id: item.id }) }] : []),
             '-',
             item.pinned
                 ? { label: 'Remove from Dock', run: () => PROTOCOL.keep.send({ id: item.id, pinned: false }) }
                 : { label: 'Keep in Dock', run: () => PROTOCOL.keep.send({ id: item.id, pinned: true }) },
+            ...(item.running ? ['-', { label: 'Quit', run: () => PROTOCOL.quit.send({ id: item.id }) }] : []),
         ];
     }
 
