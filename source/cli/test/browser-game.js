@@ -35,7 +35,11 @@ function main() {
         const game = fresh();
         run(2, game);
         const { phase, distance, obstacles } = game.state();
-        check('a run rests until a press', phase === 'rest' && distance === 0 && !obstacles.length, game.state());
+        check(
+            'a run rests until a press, its first plug standing ahead',
+            phase === 'rest' && distance === 0 && obstacles.length === 1 && obstacles[0].x === 372,
+            game.state()
+        );
     }
     {
         const game = fresh();
@@ -112,16 +116,20 @@ function main() {
     {
         const game = createRun({ random: () => 0, width: 600 });
         game.press();
-        run(3, game);
+        for (let at = 0; at < 10 && game.state().phase === 'running'; at += FRAME) game.step(FRAME);
         game.press();
         check('a press just after a strike starts nothing', game.state().phase === 'over', game.state().phase);
         run(REST, game);
         game.press();
         const { phase, score, obstacles } = game.state();
-        check('a press once it has rested starts a new run', phase === 'running' && score === 0 && !obstacles.length, {
-            phase,
-            score,
-        });
+        check(
+            'a press once it has rested starts a new run',
+            phase === 'running' && score === 0 && obstacles.length === 1,
+            {
+                phase,
+                score,
+            }
+        );
     }
 
     for (const line of failed) console.error(line);

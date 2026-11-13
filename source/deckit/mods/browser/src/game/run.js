@@ -39,6 +39,7 @@ function createRun({ random = Math.random, width = 600 } = {}) {
     let obstacles = [];
     let next = 0; // the distance at which the next obstacle comes in at the game's end
     let view = width;
+    standFirst();
 
     return { press, step, resize, state };
 
@@ -49,10 +50,7 @@ function createRun({ random = Math.random, width = 600 } = {}) {
             if (since < REST) return;
             reset();
         }
-        if (phase === 'rest') {
-            phase = 'running';
-            next = distance + view * 0.6;
-        }
+        if (phase === 'rest') phase = 'running';
         if (air === 0 && climb === 0) climb = JUMP;
         else kept = time;
     }
@@ -81,8 +79,9 @@ function createRun({ random = Math.random, width = 600 } = {}) {
     }
 
     // A wider game shows more of the line ahead.
-    function resize(next) {
-        view = Math.max(1, next);
+    function resize(wide) {
+        view = Math.max(1, wide);
+        if (phase === 'rest') standFirst();
     }
 
     function state() {
@@ -107,7 +106,19 @@ function createRun({ random = Math.random, width = 600 } = {}) {
         time = distance = since = air = climb = 0;
         speed = SPEED.start;
         kept = null;
-        obstacles = [];
+        standFirst();
+    }
+
+    // A run at rest shows the first plug it will meet, standing still ahead on the line.
+    function standFirst() {
+        const { width: wide, height } = KINDS.plug;
+        const x = Math.max(FIGURE.x + 200, Math.round(view * 0.62));
+        obstacles = [{ kind: 'plug', x, width: wide, height }];
+        next = x + wide + speed * gapOf() - view;
+    }
+
+    function gapOf() {
+        return Math.max(GAP.floor, GAP.least + random() * (GAP.most - GAP.least));
     }
 
     // One obstacle in at the game's end, a kind the score has reached, and the gap after it.
@@ -117,8 +128,7 @@ function createRun({ random = Math.random, width = 600 } = {}) {
         const kind = open[Math.min(open.length - 1, Math.floor(random() * open.length))];
         const { width: wide, height } = KINDS[kind];
         obstacles.push({ kind, x: view + (distance - next), width: wide, height });
-        const gap = Math.max(GAP.floor, GAP.least + random() * (GAP.most - GAP.least));
-        next += wide + speed * gap;
+        next += wide + speed * gapOf();
     }
 
     function strikes(one) {
