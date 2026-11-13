@@ -10,6 +10,7 @@
 // each surface not drawn.
 const fs = require('fs');
 const http = require('http');
+const net = require('net');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -485,6 +486,23 @@ async function draw(app, look, shots, origin) {
         await sleep(400);
         await windowShot(name, 'browser', { overlay: true });
         await escape(overlay);
+    });
+
+    // The page a tab shows in place of one that failed to load, at an address nothing answers at, its game at rest.
+    await surface('load-failure', async (name) => {
+        const shown = `[...document.querySelectorAll('[data-web-page]')].find((element) =>
+            element.style.visibility === 'visible')?.dataset.webPage`;
+        const tab = await until(() => browser.evaluate(shown), 3000);
+        const held = net.createServer();
+        await new Promise((resolve) => held.listen(0, '127.0.0.1', resolve));
+        const refused = `http://127.0.0.1:${held.address().port}/`;
+        await new Promise((resolve) => held.close(resolve));
+        await main(`return webkit.load(${tab}, ${JSON.stringify(refused)})`);
+        await until(() => browser.evaluate(`!!document.querySelector('.browser-failure[data-shown]')`), 5000);
+        await sleep(400);
+        await windowShot(name, 'browser');
+        await main(`return webkit.load(${tab}, ${JSON.stringify(origin + '/')})`);
+        await until(() => browser.evaluate(`!document.querySelector('.browser-failure[data-shown]')`), 5000);
     });
 
     // The quick picks: the Editor's Go to Line and Open Quickly, and the Finder's Go to Folder.

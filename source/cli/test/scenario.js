@@ -1291,6 +1291,63 @@ async function run({
             await main(`return webkit.load(${linkPageId}, '${FRONT_TAB}')`);
             await until(async () => (await shownAt()) === FRONT_TAB, 5000);
         }
+        // A load refused at its address shows the Browser's failure page in the page's place, at the address that
+        // failed, with its game at rest; Try Again loads the address again, which shows the page once it answers.
+        {
+            const held = require('net').createServer();
+            await new Promise((resolve) => held.listen(0, '127.0.0.1', resolve));
+            const port = held.address().port;
+            await new Promise((resolve) => held.close(resolve));
+            const refused = `http://127.0.0.1:${port}/`;
+            const tabId = await browser?.evaluate(shownPage);
+            await main(`return webkit.load(${tabId}, ${JSON.stringify(refused)})`);
+            const failureOf = `(() => {
+                const page = document.querySelector('.browser-failure[data-shown]');
+                const tab = document.querySelector('[data-web-page="${tabId}"]');
+                return page && {
+                    title: page.querySelector('.browser-failure-title').textContent,
+                    address: page.querySelector('.browser-failure-address').textContent,
+                    retry: [...page.querySelectorAll('button')].map((one) => one.textContent).join(),
+                    game: !!page.querySelector('.browser-game canvas'),
+                    said: page.querySelector('.browser-game-line span').textContent,
+                    hidden: tab.style.visibility === 'hidden',
+                    place: document.querySelector('.browser-address-place')?.textContent,
+                };
+            })()`;
+            const failure = await until(() => browser?.evaluate(failureOf), 5000);
+            check(
+                "a load refused shows the Browser's failure page at the address, with Try Again and the game at rest",
+                failure?.title === 'The site refused to connect' &&
+                    failure.address === refused &&
+                    failure.retry === 'Try Again' &&
+                    failure.game &&
+                    failure.said === 'Press Space to start' &&
+                    failure.hidden &&
+                    String(failure.place).includes('127.0.0.1'),
+                JSON.stringify(failure)
+            );
+            const site = require('http').createServer((_request, response) => {
+                response.writeHead(200, { 'Content-Type': 'text/html' });
+                response.end('<title>Back</title><p>back</p>');
+            });
+            await new Promise((resolve) => site.listen(port, '127.0.0.1', resolve));
+            await browser?.evaluate(`[...document.querySelectorAll('.browser-failure button')]
+                .find((one) => one.textContent === 'Try Again')?.click()`);
+            const answered = await until(
+                async () =>
+                    (await shownAt()) === refused &&
+                    !(await browser?.evaluate(`!!document.querySelector('.browser-failure[data-shown]')`)),
+                5000
+            );
+            check(
+                'Try Again loads the address that failed, and the page shows once it answers',
+                answered,
+                JSON.stringify({ at: await shownAt(), failure: await browser?.evaluate(failureOf) })
+            );
+            site.close();
+            await main(`return webkit.load(${tabId}, '${FRONT_TAB}')`);
+            await until(async () => (await shownAt()) === FRONT_TAB, 5000);
+        }
         // A site that focuses a field of its own as it loads does not take the keyboard from the address being edited;
         // an address typed and gone to gives the page the keyboard.
         {
