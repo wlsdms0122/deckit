@@ -3,6 +3,7 @@ const { bookmarkEditor } = require('./bookmark-editor/bookmark-editor.js');
 const { itemOf } = require('./candidates/candidates.js');
 const { downloadList } = require('./downloads/downloads.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
+const { loadFailure } = require('./load-failure/load-failure.js');
 const { settingsOf } = require('./settings/settings.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
@@ -104,6 +105,7 @@ class Browser {
         });
         const find = findInPage({ theme, ui, area, frontTab: () => tabs.front() });
         const start = startPage({ ui, onOpen: (bookmark) => go(bookmark.url) });
+        const failed = loadFailure({ ui, theme, values, onRetry: reload });
         const tabs = tabList({
             web: shell.web,
             records,
@@ -153,7 +155,7 @@ class Browser {
             onEditBookmark: (tab) => editor.show(tab),
         });
 
-        area.append(start.element);
+        area.append(start.element, failed.element);
         content.append(bar.element, area);
         // What was kept is handed back whole, and one entry the session does not take refuses all of it.
         const restored = (what) => (error) =>
@@ -185,6 +187,7 @@ class Browser {
             { log: 'browser', within: content }
         );
         this.endKeys = () => keys.listen(false);
+        this.endFailure = () => failed.release();
 
         // The pages beside the sidebar's tabs and bookmarks, whose width and fold are kept as the person leaves them.
         const split = ui.splitView({
@@ -201,10 +204,17 @@ class Browser {
                     shown = true;
                     prompter.askPending(tabs.front());
                 },
-                didBecomeKey: () => keys.listen(true),
-                didResignKey: () => keys.listen(false),
+                didBecomeKey: () => {
+                    keys.listen(true);
+                    failed.setKey(true);
+                },
+                didResignKey: () => {
+                    keys.listen(false);
+                    failed.setKey(false);
+                },
                 didDisappear() {
                     shown = false;
+                    failed.setKey(false);
                 },
             });
         openWindow();
@@ -248,7 +258,9 @@ class Browser {
 
         function showTabs() {
             sidePanel.showTabs(tabs.tree(), tabs.front());
-            start.setShown(tabs.atStart(tabs.front()));
+            const front = tabs.front();
+            start.setShown(tabs.atStart(front));
+            failed.show(tabs.atStart(front) ? null : front.failure, { loading: front.loading });
             showBar();
         }
 
@@ -337,9 +349,10 @@ class Browser {
             tabs.front().page.reload();
         }
 
-        // A tab at the start has no page to find in.
+        // A tab at the start, or at a page that failed to load, has no page to find in.
         function openFind() {
-            if (!tabs.atStart(tabs.front())) find.show();
+            const front = tabs.front();
+            if (!tabs.atStart(front) && !front.failure) find.show();
         }
 
         // A site's notification, posted while an owner of deckit/notifications is connected and dropped while none is.
@@ -389,6 +402,8 @@ class Browser {
 
     detach() {
         this.screen = null;
+        this.endFailure?.();
+        this.endFailure = null;
         this.endKeys?.();
         this.endKeys = null;
     }
