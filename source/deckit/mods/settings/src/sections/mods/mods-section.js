@@ -9,6 +9,7 @@ const {
 } = require('../../format/format.js');
 const { PERMISSION_LIST_STYLE, permissionList } = require('./permission-list.js');
 const { DEPENDENCY_LIST_STYLE, dependencyList } = require('./dependency-list.js');
+const { LIST_WELL_STYLE } = require('./list-well.js');
 const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
 const { section } = require('../section/section.js');
@@ -174,7 +175,7 @@ function modsSection({
         .settings-unmet[hidden] { display: none; }
         .settings-install-note { margin-top: 10px; color: var(--deckit-muted); font: var(--deckit-type-small); }
     `);
-    ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE + DEPENDENCY_LIST_STYLE);
+    ui.addStyle(MOD_DETAILS_STYLE + LIST_WELL_STYLE + PERMISSION_LIST_STYLE + DEPENDENCY_LIST_STYLE);
     const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const drop = ui.element('div', { className: 'settings-drop' });
     const dropIcon = ui.element('div', { className: 'settings-drop-icon' });

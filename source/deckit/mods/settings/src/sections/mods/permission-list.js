@@ -1,13 +1,13 @@
-// The rules of a permission list. The Mods section adopts them once.
+const { listWell } = require('./list-well.js');
+
+// The rules of a permission list, drawn in a well. The Mods section adopts them once.
 const PERMISSION_LIST_STYLE = `
-    .settings-permissions { overflow: hidden; border: var(--deckit-border); border-radius: var(--deckit-radius-large); }
     .settings-permission {
         display: grid;
         grid-template-columns: 28px minmax(0, 1fr);
         column-gap: 11px;
         padding: 10px 12px;
     }
-    .settings-permission + .settings-permission { border-top: var(--deckit-border); }
     .settings-permission-icon {
         display: flex;
         align-items: center;
@@ -77,7 +77,7 @@ const BACKGROUND = {
 // app gives it. One this app does not give has only its id and the reason. `background`, the mod's reason to run in
 // the background, is a row first where it has one.
 function permissionList({ ui, permissions, background = null }) {
-    const element = ui.element('div', { className: 'settings-permissions' });
+    const element = listWell(ui, 'settings-permissions');
 
     if (background) element.append(row({ ...BACKGROUND, reason: background }));
     for (const permission of permissions) element.append(permissionRow(permission));
