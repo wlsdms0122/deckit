@@ -191,7 +191,14 @@ async function main() {
     let views = 0;
     let viewsClosed = 0;
     const WEB_LAYERS = layersOf({
-        web: { view: () => ({ element: {}, id: Promise.resolve(70 + ++views), close: () => viewsClosed++ }) },
+        web: {
+            view: () => ({
+                element: {},
+                id: Promise.resolve(70 + ++views),
+                close: () => viewsClosed++,
+                focus: () => {},
+            }),
+        },
     });
     const webLayerOf = (granted) =>
         WEB_LAYERS.web({ setup: { sessions: 'sessions' }, channels: IPC.layerChannels })({ mod: { id: 'a' }, granted });

@@ -127,7 +127,17 @@ function createViews() {
             remove();
         };
 
-        return { element, id, close };
+        return { element, id, close, focus };
+
+        // The element focused anew and main told at once: a document without the keyboard, as while its overlay has
+        // it, holds its focus event back until it has it again, which only this hands it.
+        function focus() {
+            if (element.ownerDocument.activeElement === element) element.blur();
+            focusing = true;
+            element.focus({ preventScroll: true });
+            focusing = false;
+            if (known !== null) post(CHANNEL.webFocus, { id: known });
+        }
     }
 
     return { view };
