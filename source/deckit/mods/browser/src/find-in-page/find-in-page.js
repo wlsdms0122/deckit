@@ -66,10 +66,11 @@ function findInPage({ theme, ui, area, frontTab }) {
         frontTab().page?.focus();
     }
 
-    // Hidden, it takes no presses while it fades, and the match it selected is let go.
+    // Hidden, it takes no presses and lets go of the keyboard while it fades, and the match it selected is let go.
     function hide() {
         if (!layer || leaving) return;
         element.style.pointerEvents = 'none';
+        if (element.contains(element.ownerDocument.activeElement)) element.ownerDocument.activeElement.blur();
         leaving = element.animate(FADE, {
             duration: theme.motion.exit.fade,
             easing: theme.motion.exit.easing,
