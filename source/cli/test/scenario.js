@@ -120,6 +120,19 @@ function near(a, b) {
     return !!a && !!b && ['x', 'y', 'width', 'height'].every((key) => Math.abs(a[key] - b[key]) <= 1);
 }
 
+// Polls `probe` until it answers something, the same twice 100 ms apart, as a window's rect does once its motion has
+// come to rest, or gives up after `ms`: answers what it answered last.
+async function settled(probe, ms = 3000) {
+    const end = Date.now() + ms;
+    let last = await probe();
+    for (;;) {
+        await sleep(100);
+        const now = await probe();
+        if ((now && JSON.stringify(now) === JSON.stringify(last)) || Date.now() > end) return now;
+        last = now;
+    }
+}
+
 // `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder; `id`
 // the id it runs under.
 async function run({
@@ -2006,7 +2019,7 @@ async function run({
                 })
             );
             await dockClick('window-user');
-            const one = await until(async () => {
+            const one = await settled(async () => {
                 const [first] = await userWindows();
                 return first?.key && first;
             }, 4000);
@@ -2030,7 +2043,7 @@ async function run({
                 await toldNow()
             );
             await send('test-window-open', { name: 'two', width: 420, height: 300 });
-            const two = await until(async () => {
+            const two = await settled(async () => {
                 const found = (await userWindows()).find(({ id }) => id !== one?.id);
                 return found?.key && found;
             }, 4000);
@@ -2091,7 +2104,7 @@ async function run({
             );
             // The zoom button fills the desktop but the Dock's sliver, and the page's ResizeObserver sees the content
             // so; pressed again it gives the window its frame back.
-            const front = (await userWindows()).at(-1);
+            const front = await settled(async () => (await userWindows()).at(-1));
             const buttons = await pageById((await stackNow()).find(({ name }) => name === `buttons-${front?.id}`)?.id);
             const area = await desktopLaid();
             const strip = await desktop.evaluate(`document.querySelector('.deckit-desktop-strip').offsetHeight`);
@@ -2179,14 +2192,14 @@ async function run({
                 );
             const frameOf = async (window) => (await stackNow()).find(({ name }) => name === `frame-${window?.id}`);
             await send('test-window-open', { name: 'titled', titleBar: 'titled', title: 'Titled' });
-            const titled = await until(async () => (await userWindows()).at(-1), 3000);
+            const titled = await settled(async () => (await userWindows()).at(-1), 3000);
             await send('test-window-title', { name: 'titled', title: 'Retitled' });
             const barText = async () =>
                 (await pageById((await frameOf(titled))?.id))?.evaluate(
                     `document.querySelector('.deckit-window-title:not([hidden])')?.textContent`
                 );
             const retitled = await until(async () => (await barText()) === 'Retitled', 3000);
-            const titledFrame = await frameOf(titled);
+            const titledFrame = await settled(() => frameOf(titled));
             check(
                 'a titled window draws its bar with the title it is set, its content below it told no bar',
                 retitled &&
@@ -2203,7 +2216,7 @@ async function run({
             await until(async () => !(await userWindows()).length, 3000);
             const style = { titleBarHeight: 64, controlsOrigin: { x: 30 }, minimizable: false, resizable: false };
             await send('test-window-open', { name: 'tall', ...style });
-            const tall = await until(async () => (await userWindows()).at(-1), 3000);
+            const tall = await settled(async () => (await userWindows()).at(-1), 3000);
             const tallButtons = await pageById(
                 (await stackNow()).find(({ name }) => name === `buttons-${tall?.id}`)?.id
             );
