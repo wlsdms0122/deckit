@@ -1,7 +1,8 @@
 // Find in the page of the tab in front, in a bar at the top right of `area`, on a layer over the page and its web
-// pages: it stays while the person uses the page, fading in as it shows and out as it hides, in place: a key opens it.
-// Closing it gives the page the keyboard back.
-function findInPage({ theme, ui, area, frontTab }) {
+// pages: it stays while the person uses the page. A key shows it, and it is there at once; its close button puts it
+// away by the kit's `go`, fading as it rises towards its edge, and Escape at once. Closing it gives the page the
+// keyboard back.
+function findInPage({ ui, area, frontTab }) {
     let searchedTab = null;
     let state = { query: '', caseSensitive: false };
 
@@ -54,10 +55,7 @@ function findInPage({ theme, ui, area, frontTab }) {
             leaving.cancel();
             leaving = null;
             element.style.pointerEvents = '';
-        } else if (!layer) {
-            layer = ui.layer(element);
-            element.animate(FADE, { duration: theme.motion.enter.fade, easing: theme.motion.enter.easing });
-        }
+        } else if (!layer) layer = ui.layer(element);
         layer.focus(field);
         if (state.query) step(false);
     }
@@ -82,9 +80,8 @@ function findInPage({ theme, ui, area, frontTab }) {
         };
         if (still) gone();
         else {
-            const { fade, easing } = theme.motion.exit;
-            leaving = element.animate([...FADE].reverse(), { duration: fade, easing, fill: 'forwards' });
-            leaving.onfinish = gone;
+            const going = (leaving = ui.motion.go(element, { y: -RISE }));
+            going.finished.then(() => leaving === going && gone());
         }
         searchedTab?.page.stopFind();
         searchedTab = null;
@@ -121,6 +118,7 @@ function findInPage({ theme, ui, area, frontTab }) {
     }
 }
 
-const FADE = [{ opacity: 0 }, { opacity: 1 }];
+// How far the bar rises towards its edge as it goes.
+const RISE = 4;
 
 module.exports = { findInPage };
