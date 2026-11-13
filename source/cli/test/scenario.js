@@ -1987,9 +1987,10 @@ async function run({
             (await pageById((await webWindow())?.frame.id))?.evaluate(
                 `document.querySelector('.deckit-window-title:not([hidden])')?.textContent`
             );
+        // The site shows at once; the page's title once it has read it.
         const webTitle = await until(
-            async () => /\(example\.com\)$/.test((await titleNow()) || '') && titleNow(),
-            3000
+            async () => /^\S.* \(example\.com\)$/.test((await titleNow()) || '') && titleNow(),
+            5000
         );
         // The frame's surface is the window grown by its shadow.
         const SHADOW = 48;
