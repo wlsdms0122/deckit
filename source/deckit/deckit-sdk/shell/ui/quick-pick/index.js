@@ -20,7 +20,7 @@ const STYLE = `
         white-space: nowrap;
     }
     .deckit-quick-pick-chip[hidden] { display: none; }
-    .deckit-quick-pick-chip svg { width: 15px; height: 15px; opacity: 0.85; }
+    .deckit-quick-pick-chip svg { width: 15px; height: 15px; color: var(--deckit-muted); }
     .deckit-quick-pick-field {
         flex: 1 1 auto;
         min-width: 0;

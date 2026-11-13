@@ -6,10 +6,11 @@ const STYLE = `
     display: flex;
     flex: 0 0 12px;
     justify-content: center;
+    color: var(--deckit-muted);
     opacity: 0;
     transition: transform var(--deckit-move-fast) var(--deckit-easing);
 }
-.deckit-tree-row[data-folds] .deckit-tree-caret { opacity: 0.55; }
+.deckit-tree-row[data-folds] .deckit-tree-caret { opacity: 1; }
 .deckit-tree-row[aria-expanded='true'] .deckit-tree-caret { transform: rotate(90deg); }
 .deckit-tree-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     `;

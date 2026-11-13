@@ -18,7 +18,7 @@ const STYLE = `
         .deckit-field[data-size='small'] { height: 24px; padding-left: 10px; }
         .deckit-field[data-icon] { padding-left: 10px; }
         .deckit-field[data-size='small'][data-icon] { padding-left: 8px; }
-        .deckit-field-icon { display: flex; flex: 0 0 auto; opacity: 0.5; }
+        .deckit-field-icon { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
         .deckit-field-input,
         .deckit-stepper-input {
             height: 100%;

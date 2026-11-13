@@ -34,7 +34,7 @@ const WORKSPACE_SEARCH_STYLE = `
     .editor-search-caret {
         display: flex;
         flex: 0 0 12px;
-        opacity: 0.5;
+        color: var(--deckit-muted);
         transform: rotate(90deg);
         transition: transform var(--deckit-move-fast) var(--deckit-easing);
     }
