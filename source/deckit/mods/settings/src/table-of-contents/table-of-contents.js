@@ -1,6 +1,6 @@
 // The sidebar's table of contents: a row per section of `scroller`, by its glyph and title, marking the one being read
-// and gliding to the one pressed or reached by the keys.
-function tableOfContents({ ui, scroller, sections }) {
+// and gliding to the one pressed or reached by the keys, at once while the system asks for reduced motion.
+function tableOfContents({ ui, theme, scroller, sections }) {
     const GLIDE_LIMIT = 1500;
 
     let current = sections[0];
@@ -72,7 +72,7 @@ function tableOfContents({ ui, scroller, sections }) {
         gliding = true;
         clearTimeout(glideTimer);
         glideTimer = setTimeout(land, GLIDE_LIMIT);
-        scroller.scrollTo({ top, behavior: 'smooth' });
+        scroller.scrollTo({ top, behavior: theme.motion.move.base ? 'smooth' : 'auto' });
     }
 
     function land() {

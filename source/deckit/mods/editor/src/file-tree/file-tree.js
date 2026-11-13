@@ -8,7 +8,7 @@ const TREE_STYLE = `
 
 // A workspace's folder as a tree, read a folder at a time. The folders expanded are kept per folder in `store`. A row
 // being renamed or dragged keeps its place until it is done.
-function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, onRename, menu }) {
+function fileTree({ ui, theme, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, onRename, menu }) {
     let root = null;
     const entriesByFolder = new Map(); // folder path -> its entries, once read
     let expanded = new Set();
@@ -112,7 +112,8 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         saveExpanded();
         draw();
         const row = rowAt(path);
-        if (row && !ui.isFullyVisible(row)) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        if (row && !ui.isFullyVisible(row))
+            row.scrollIntoView({ block: 'center', behavior: theme.motion.move.base ? 'smooth' : 'auto' });
     }
 
     // The folder is read again first: the entry may be new.

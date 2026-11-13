@@ -113,7 +113,7 @@ class Settings {
             onChange: redraw,
         });
         const sections = [mods, activity, general, modSettings, urlSchemes, interfaces, keyboard];
-        const contents = tableOfContents({ ui, scroller: body, sections });
+        const contents = tableOfContents({ ui, theme: shell.theme, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
         const title = ui.element('div');
