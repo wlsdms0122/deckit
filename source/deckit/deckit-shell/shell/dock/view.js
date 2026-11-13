@@ -1,4 +1,5 @@
 import * as LIST from '../../../deckit-sdk/shell/ui/list/index.js';
+import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DOCK from './model/dock.js';
 import * as DECLARED from '../../../deckit-sdk/shell/dock/protocol.js';
@@ -33,6 +34,9 @@ const STYLE = `
         .deckit-dock[data-out] .deckit-dock-card { animation: deckit-dock-in var(--deckit-fade) var(--deckit-easing); }
     }
     @keyframes deckit-dock-in { from { opacity: 0; } }
+    .deckit-dock-card[data-material] {
+        background-color: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
+    }
     .deckit-dock-card {
         display: flex;
         flex-direction: column;
@@ -44,7 +48,8 @@ const STYLE = `
         padding: ${CARD_PADDING}px;
         overflow-y: auto;
         border-radius: 0 ${RADIUS}px ${RADIUS}px 0;
-        background: var(--deckit-elevated);
+        background-color: var(--deckit-elevated);
+        transition: background-color var(--deckit-fade) var(--deckit-easing);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     }
     .deckit-dock-list { display: flex; flex-direction: column; gap: 4px; }
@@ -100,10 +105,13 @@ const STYLE = `
 // a dot at the card's edge beside its icon, in the accent where its mod asks for attention, and the active mod's item
 // is marked; the item under the pointer has its name beside the card. It is in but for its sliver until the pointer
 // comes, and stays out while the pointer is over it, a press holds it or its menu is open; it goes back in faster than
-// it came out, and fades in where the system asks for reduced motion; `onOut(out)` hears it slide out and back. A click
+// it came out, and fades in where the system asks for reduced motion; `onOut(out)` hears it slide out and back. Out
+// and still, the card is glass, its colour a tint over a material laid under it, where the system does not ask for less
+// transparency: `onGlass(material)` hears `{ material, x, y, width, height, cornerRadius }`, rounded at every corner
+// and reaching past the desktop's left edge by its radius so its square corners stay so, or null as it slides. A click
 // on an item opens its mod, and its menu, beside the item, shows it, quits it while it runs, and keeps it in the Dock
 // or takes it out, each told to main over `channels`. `ui` is the page's kit.
-function make({ ui, channels, onOut }) {
+function make({ ui, channels, onOut, onGlass }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     ui.addStyle(STYLE);
     let items = [];
@@ -114,6 +122,8 @@ function make({ ui, channels, onOut }) {
     let holds = 0; // the presses and menus that keep it out
     let hiding = null;
     let named = null; // the name label's layer while it shows
+    let slides = 0; // the slides begun, so one that ends late is told apart
+    let still = false; // whether it is out and done sliding
 
     const element = tag('nav', 'deckit-dock');
     element.setAttribute('aria-label', 'Dock');
@@ -131,6 +141,7 @@ function make({ ui, channels, onOut }) {
         create: itemOf,
         update: paint,
     });
+    TOKEN.whenOpaque(glaze);
     card.append(keptList.element, divider, runningList.element);
     element.append(card);
     // The new order is drawn here at once, and main, hearing it, tells it back.
@@ -199,11 +210,13 @@ function make({ ui, channels, onOut }) {
             items.filter(({ pinned }) => pinned),
             items.filter(({ pinned }) => !pinned)
         );
+        glaze();
     }
 
     // `top` px from the page's top, where the desktop starts.
     function setTop(top) {
         element.style.top = top + 'px';
+        glaze();
     }
 
     // MARK: - Private
@@ -289,12 +302,36 @@ function make({ ui, channels, onOut }) {
         if (!on) unname();
         element.toggleAttribute('data-out', on);
         onOut(on);
+        still = false;
+        glaze();
+        const slide = ++slides;
+        if (on) moved(() => slide === slides && ((still = true), glaze()));
+    }
+
+    // Once what moves it, out or fading in, is over.
+    function moved(then) {
+        const running = element.getAnimations({ subtree: true }).filter(isMove);
+        Promise.all(running.map(({ finished }) => finished.catch(() => {}))).then(then);
+    }
+
+    // The card as glass while it is still, opaque otherwise, and main told where.
+    function glaze() {
+        const glass = still && !TOKEN.opaque();
+        card.toggleAttribute('data-material', glass);
+        if (!glass) return onGlass(null);
+        const { x, y, width, height } = card.getBoundingClientRect();
+        onGlass({ material: 'popover', x: x - RADIUS, y, width: width + RADIUS, height, cornerRadius: RADIUS });
     }
 
     return { element, update, setTop };
 }
 
 // MARK: - Private
+// A slide or a fade, not the card's tint easing in or out.
+function isMove({ transitionProperty }) {
+    return transitionProperty !== 'background-color';
+}
+
 function tag(name, className) {
     const made = document.createElement(name);
     made.className = className;

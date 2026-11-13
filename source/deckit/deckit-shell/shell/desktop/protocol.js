@@ -56,5 +56,13 @@ export const doubleClick = CHANNEL.pageToMain(
 );
 // The Dock slid `out` as the pointer came near, or back in to its sliver: where it takes the pointer.
 export const dock = CHANNEL.pageToMain('deckit-shell:desktop-dock', { out: 'boolean' }, { guard: CHANNEL.GUARD.ANY });
+// Where the page draws glass, a material laid just under it at each: `materials`, `[{ material, x, y, width, height,
+// cornerRadius }]` on the stage, the Dock's card while it is out and still and each panel window's material standing
+// still at its frame, none where the system asks for less transparency.
+export const glass = CHANNEL.pageToMain(
+    'deckit-shell:desktop-glass',
+    { materials: 'array' },
+    { guard: CHANNEL.GUARD.ANY }
+);
 // The person asks for the app to restart, deckit's core having gone down.
 export const restart = CHANNEL.pageToMain('deckit-shell:desktop-restart', {}, { guard: CHANNEL.GUARD.ANY });

@@ -529,6 +529,24 @@ async function main() {
         { sliver, out }
     );
 
+    const materials = () => desk.laid().filter(({ material }) => material);
+    const card = { material: 'popover', x: -20, y: 300, width: 84, height: 200, cornerRadius: 20 };
+    desk.fromPage('glass', { materials: [card, { material: 'menu', x: 'left' }] });
+    const desktopAt = desk.laid().findIndex(({ page }) => page === desk.desktopPage);
+    check(
+        "a material the desktop's page tells is laid just under it at its rect and radius, one that is no rect dropped",
+        materials().length === 1 &&
+            JSON.stringify(desk.laid()[desktopAt - 1]) ===
+                JSON.stringify({
+                    material: 'popover',
+                    rect: { x: -20, y: 300, width: 84, height: 200 },
+                    cornerRadius: 20,
+                }),
+        materials()
+    );
+    desk.fromPage('glass', { materials: [] });
+    check("the desktop's page telling no material takes them off", materials().length === 0, materials());
+
     desk.desktop.zoom(two);
     desk.resize({ width: 1400, height: 900 });
     check(

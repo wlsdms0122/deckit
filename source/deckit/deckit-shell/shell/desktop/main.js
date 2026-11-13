@@ -62,6 +62,7 @@ export function createDesktop({
     let down = null; // why deckit's core answers nothing more, once it does not
     let strip = { height: 0, controlsWidth: 0 }; // the host's bar over the desktop's top
     let dockOut = false; // whether the Dock is out, as the desktop's page last told
+    let glass = []; // the materials laid under the desktop's page, as it last told
 
     // MARK: - Initializer
     // MARK: - Public
@@ -413,6 +414,14 @@ export function createDesktop({
                 layout();
             })
         );
+        PROTOCOL.glass.on(
+            fromPage(({ materials }) => {
+                const next = materials.flatMap(materialOf);
+                if (JSON.stringify(next) === JSON.stringify(glass)) return;
+                glass = next;
+                layout();
+            })
+        );
         PROTOCOL.restart.on(fromPage(() => down && deckit.restart()));
     }
 
@@ -521,6 +530,7 @@ export function createDesktop({
     function pageEnded({ replaced }) {
         moving = null;
         dockOut = false;
+        glass = [];
         if (replaced) return;
         const dropped = [...desktop.surfaces.values()];
         desktop.surfaces.clear();
@@ -593,7 +603,7 @@ export function createDesktop({
     // From the bottom: the mods' pages with a window here, but for a child's another stage shows, the backdrop, each
     // window in the local seat's order with the children its regions show, then the desktop's page, taking the
     // pointer only at the host's bar and the Dock, its sliver or all of it while it is out, and the panel windows in
-    // that bar with the children their regions show. Over all of it, the overlay of each page laid that shows
+    // that bar with the children their regions show, the materials it draws glass over just under it. Over all of it, the overlay of each page laid that shows
     // anything, at its page's rect. With deckit's core down the desktop's page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
@@ -652,6 +662,7 @@ export function createDesktop({
                         },
                     ].filter(Boolean);
                 }),
+                ...glass,
                 {
                     page: desktop.page,
                     rect: full,
@@ -672,6 +683,13 @@ export function createDesktop({
             ])
         );
         REGION.show(stage, shown ? [...laidChildren] : []);
+    }
+
+    // A material the desktop's page told, `{ material, rect, cornerRadius }`, or none.
+    function materialOf({ material, x, y, width, height, cornerRadius } = {}) {
+        const rect = { x, y, width, height };
+        if (typeof material !== 'string' || ![x, y, width, height].every(Number.isFinite)) return [];
+        return [{ material, rect, cornerRadius: Number.isFinite(cornerRadius) ? Math.max(0, cornerRadius) : 0 }];
     }
 
     // `[{ window, page, rect }]`: the children the windows on screen show in their regions, each page on the stage once

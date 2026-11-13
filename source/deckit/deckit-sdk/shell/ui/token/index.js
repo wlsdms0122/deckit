@@ -83,6 +83,8 @@ const LOOKS = Object.freeze({
 // The material a floating part in a page lays over what is behind it: none while the system asks for less
 // transparency or more contrast.
 const BLUR = 'blur(24px) saturate(1.6)';
+// What the system asks for where nothing is drawn as glass.
+const OPAQUE = '(prefers-reduced-transparency: reduce), (prefers-contrast: more)';
 // The rim's strength while the system asks for more contrast.
 const RIM_MORE = 0.3;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -283,8 +285,14 @@ function reducedMotion() {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+// Whether the system asks for less transparency or more contrast, so nothing is drawn as glass.
 function opaque() {
-    return window.matchMedia('(prefers-reduced-transparency: reduce), (prefers-contrast: more)').matches;
+    return window.matchMedia(OPAQUE).matches;
+}
+
+// `listener()` hears the system start or stop asking for less transparency or more contrast.
+function whenOpaque(listener) {
+    window.matchMedia(OPAQUE).addEventListener('change', () => listener());
 }
 
 function deepFreeze(value) {
@@ -293,4 +301,4 @@ function deepFreeze(value) {
     return Object.freeze(value);
 }
 
-export { FALLBACK_THEME, LENGTH, MOTION, APP_ICON, tokenOf, propertiesOf };
+export { FALLBACK_THEME, LENGTH, MOTION, APP_ICON, tokenOf, propertiesOf, opaque, whenOpaque };

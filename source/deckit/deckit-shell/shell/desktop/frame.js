@@ -1,6 +1,7 @@
 import * as KIT from '../../../deckit-sdk/shell/ui/kit/index.js';
 import * as FONTS from '../../../deckit-sdk/shell/fonts/renderer.js';
 import * as LAYER from '../../../deckit-sdk/shell/ui/layer/index.js';
+import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as MOD_STYLE from '../../../deckit-sdk/shell/style/renderer.js';
 import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
@@ -125,7 +126,10 @@ const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-
 // itself is laid over the whole desktop, with the Dock at its left edge and the host window's bar at its top, an empty
 // strip that drags the host window, its controls in it, the backdrop showing through. Under each panel window in that
 // strip it draws the panel's material: the backdrop is cut away there, so the host window's own material shows
-// through the panel's tint, opaque where the person asks for less transparency. It takes the pointer only in the
+// through the panel's tint, opaque where the person asks for less transparency. Main lays a material under the page
+// where it draws glass: the Dock's card while it is out and still, and each panel's material while it stands still at
+// its frame, so what lies under them in the host window is blurred too, none where the person asks for less
+// transparency. It takes the pointer only in the
 // strip, or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the
 // desktop's and the Dock's channels in the page.
 function boot(theme, channels) {
@@ -135,13 +139,23 @@ function boot(theme, channels) {
     let { state } = PROTOCOL.setup.invoke();
     const drawn = new Map(); // a window's id -> { material, buttons, off }, its frame's parts as drawn
     const materials = new Map(); // a panel window's id -> { element, edge, settled }, the material drawn under it
+    const glass = { dock: null, panels: [] }; // where the page draws glass: the Dock's card, the panels standing still
+    let toldGlass = '[]';
 
     const backdrop = surface(PAGE.BACKDROP);
     const backdropRoot = element(backdrop.document, 'div', 'deckit-desktop-backdrop');
     backdropRoot.style.background = 'color-mix(in srgb, var(--deckit-background) var(--deckit-glass), transparent)';
     backdrop.document.body.append(backdropRoot);
 
-    const dock = DOCK.make({ ui, channels, onOut: (out) => PROTOCOL.dock.send({ out }) });
+    const dock = DOCK.make({
+        ui,
+        channels,
+        onOut: (out) => PROTOCOL.dock.send({ out }),
+        onGlass: (material) => {
+            glass.dock = material;
+            tellGlass();
+        },
+    });
     const strip = element(document, 'div', 'deckit-desktop-strip');
     const down = element(document, 'div', 'deckit-desktop-down');
     const downNote = ui.emptyState({
@@ -153,6 +167,7 @@ function boot(theme, channels) {
     document.body.append(dock.element, strip, down);
 
     MOD_STYLE.wear({ channels, onChange: () => LAYER.dress() });
+    TOKEN.whenOpaque(tellGlass);
     draw();
     PROTOCOL.state.on((next) => {
         state = next;
@@ -228,6 +243,12 @@ function boot(theme, channels) {
                 `<rect width="${width}" height="${height}" rx="${LAYOUT.panelRadius(edge, frame)}"/></svg>`;
             return { image: `url("data:image/svg+xml,${encodeURIComponent(shape)}")`, at: `${x}px ${y}px` };
         });
+        glass.panels = still.map(({ edge, frame }) => ({
+            material: 'popover',
+            ...frame,
+            cornerRadius: LAYOUT.panelRadius(edge, frame),
+        }));
+        tellGlass();
         const masked = holes.length > 0;
         const { style } = backdropRoot;
         const set = (name, values) =>
@@ -237,6 +258,15 @@ function boot(theme, channels) {
         set('mask-size', [...still.map(({ frame }) => `${frame.width}px ${frame.height}px`), '100% 100%']);
         set('mask-repeat', ['no-repeat']);
         set('mask-composite', [...holes.map(() => 'exclude'), 'add']);
+    }
+
+    // Main hears where the page draws glass as it changes, none where the person asks for less transparency.
+    function tellGlass() {
+        const materials = TOKEN.opaque() ? [] : [...(glass.dock ? [glass.dock] : []), ...glass.panels];
+        const written = JSON.stringify(materials);
+        if (written === toldGlass) return;
+        toldGlass = written;
+        PROTOCOL.glass.send({ materials });
     }
 
     // A window's frame and buttons, in the two documents main lets this page open for it: a titled window's frame has
