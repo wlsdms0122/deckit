@@ -113,7 +113,7 @@ function fileTree({ ui, theme, store, fileSystem, isUnsaved, onOpen, onFindIn, o
         draw();
         const row = rowAt(path);
         if (row && !ui.isFullyVisible(row))
-            row.scrollIntoView({ block: 'center', behavior: theme.motion.move.base ? 'smooth' : 'auto' });
+            row.scrollIntoView({ block: 'center', behavior: theme.motion.move.length ? 'smooth' : 'auto' });
     }
 
     // The folder is read again first: the entry may be new.

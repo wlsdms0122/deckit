@@ -36,7 +36,7 @@ const WORKSPACE_SEARCH_STYLE = `
         flex: 0 0 12px;
         color: var(--deckit-muted);
         transform: rotate(90deg);
-        transition: transform var(--deckit-move-fast) var(--deckit-easing);
+        transition: transform var(--deckit-move) var(--deckit-move-curve);
     }
     .editor-search-file[data-collapsed] .editor-search-caret { transform: none; }
     .editor-search-icon { display: flex; flex: 0 0 auto; }

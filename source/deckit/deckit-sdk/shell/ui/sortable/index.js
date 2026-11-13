@@ -56,7 +56,7 @@ function sortable(theme, list, { onReorder, depth = null, movesInto = null, onMo
 // The row lifted, the others sliding aside as it passes them. The rows are the caller's items as laid out: one that
 // is not laid out has no place to move to or from, and one folding away is no longer an item.
 function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto, describe }, finished) {
-    const { move, easingMove } = TOKEN.MOTION;
+    const { move } = TOKEN.MOTION;
     const { element: list, keyOf } = keyed;
     const key = keyOf(row);
     const axis = LIST.across(list) ? 'x' : 'y';
@@ -95,7 +95,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         boxShadow: row.style.boxShadow,
         opacity: row.style.opacity,
     };
-    const slide = `transform ${move.base}ms ${easingMove}`;
+    const slide = `transform ${move.length}ms ${move.easing}`;
     rows.forEach((child, index) => index !== from && (child.style.transition = slide));
     // The fill is an inset shadow, not a background: the background is the hover's, which repaints as the
     // pointer comes and goes during the drag.
@@ -216,7 +216,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         row.style.transition = slide;
         place(target - held[start], 1);
         then = after;
-        if (move.base) timer = setTimeout(runThen, move.base);
+        if (move.length) timer = setTimeout(runThen, move.length);
         else runThen();
     };
     return {

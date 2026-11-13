@@ -72,7 +72,7 @@ function tableOfContents({ ui, theme, scroller, sections }) {
         gliding = true;
         clearTimeout(glideTimer);
         glideTimer = setTimeout(land, GLIDE_LIMIT);
-        scroller.scrollTo({ top, behavior: theme.motion.move.base ? 'smooth' : 'auto' });
+        scroller.scrollTo({ top, behavior: theme.motion.move.length ? 'smooth' : 'auto' });
     }
 
     function land() {

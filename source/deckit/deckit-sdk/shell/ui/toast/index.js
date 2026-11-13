@@ -123,13 +123,15 @@ function toast(ui, text, { kind = 'done', action = null } = {}) {
     }
 }
 
-// Slides and fades `element` in, or with `out` out, faster, and keeps it out: answers once both are over.
+// Slides and fades `element` in by the `enter` spring, or with `out` out by the quicker `exit` one, and keeps it out:
+// answers once both are over. Going out plays the frames backwards, not the curve, so it leaves easing out too.
 function slide(element, { out = false } = {}) {
-    const options = { easing: TOKEN.MOTION.easing, ...(out ? { direction: 'reverse', fill: 'forwards' } : {}) };
-    const moved = TOKEN.MOTION.move[out ? 'base' : 'slow'];
+    const { length, fade, easing } = TOKEN.MOTION[out ? 'exit' : 'enter'];
+    const way = (frames) => (out ? [...frames].reverse() : frames);
+    const options = { easing, ...(out ? { fill: 'forwards' } : {}) };
     const played = [
-        element.animate(SLIDE, { ...options, duration: moved }),
-        element.animate(FADE, { ...options, duration: TOKEN.MOTION.fade }),
+        element.animate(way(SLIDE), { ...options, duration: length }),
+        element.animate(way(FADE), { ...options, duration: fade }),
     ];
     return Promise.allSettled(played.map((animation) => animation.finished));
 }
@@ -149,8 +151,8 @@ function glide(list, change) {
         const by = top - child.getBoundingClientRect().top;
         if (child.isConnected && by)
             child.animate([{ transform: `translateY(${by}px)` }, { transform: 'none' }], {
-                duration: TOKEN.MOTION.move.base,
-                easing: TOKEN.MOTION.easingMove,
+                duration: TOKEN.MOTION.move.length,
+                easing: TOKEN.MOTION.move.easing,
             });
     }
 }

@@ -10,8 +10,8 @@ const MOD_DETAILS_STYLE = `
         opacity: 0;
         cursor: default;
         transition:
-            grid-template-rows var(--deckit-move-slow) var(--deckit-easing),
-            opacity var(--deckit-fade) var(--deckit-easing);
+            grid-template-rows var(--deckit-move) var(--deckit-move-curve),
+            opacity var(--deckit-move-fade) var(--deckit-move-curve);
     }
     .settings-details[data-open] { grid-template-rows: 1fr; opacity: 1; }
     .settings-details-clip { min-height: 0; overflow: hidden; }

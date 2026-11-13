@@ -12,7 +12,7 @@ const STYLE = `
         box-sizing: border-box;
         background: var(--deckit-scrim);
         font: var(--deckit-type-body);
-        transition: opacity var(--deckit-fade) var(--deckit-easing);
+        transition: opacity var(--deckit-enter-fade) var(--deckit-enter-curve);
     }
     .deckit-modal[data-align='top'] { align-items: flex-start; padding-top: 12vh; }
     .deckit-modal[data-align='fill'] { align-items: stretch; background: transparent; }
@@ -26,10 +26,14 @@ const STYLE = `
         background: var(--deckit-elevated);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
-        transition: transform var(--deckit-move-base) var(--deckit-easing);
+        transition: transform var(--deckit-enter) var(--deckit-enter-curve);
     }
     .deckit-modal[data-bare] .deckit-modal-card { padding: 8px; }
-    .deckit-modal[data-state='closed'] .deckit-modal-card { transform: translateY(6px) scale(.99); }
+    .deckit-modal[data-state='closed'] { transition: opacity var(--deckit-exit-fade) var(--deckit-exit-curve); }
+    .deckit-modal[data-state='closed'] .deckit-modal-card {
+        transform: scale(.96);
+        transition: transform var(--deckit-exit) var(--deckit-exit-curve);
+    }
     .deckit-modal[data-align='fill'],
     .deckit-modal[data-align='fill'] .deckit-modal-card { transition: none; }
     .deckit-modal[data-align='fill'] .deckit-modal-card {
@@ -154,7 +158,7 @@ function modal(
     const presented = PRESENTATION.present({
         element: scrim,
         modal: true,
-        speed: align === 'fill' || clear ? null : 'base',
+        still: align === 'fill' || clear,
         onKey,
         onDismiss: close,
     });

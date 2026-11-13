@@ -49,7 +49,7 @@ function gallery({
             border-radius: var(--deckit-radius-large);
             background: var(--deckit-fill);
             cursor: default;
-            transition: background-color var(--deckit-fade) var(--deckit-easing);
+            transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
         }
         .note-card:hover { background: var(--deckit-hover); }
         .note-card-note { display: flex; flex-direction: column; gap: 6px; height: 156px; }

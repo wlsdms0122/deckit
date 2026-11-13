@@ -91,7 +91,7 @@ const STYLE = `
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-muted);
         opacity: 0;
-        transition: opacity var(--deckit-fade) var(--deckit-easing);
+        transition: opacity var(--deckit-press-fade) var(--deckit-press-curve);
     }
     :is(.deckit-split-handle:hover, .deckit-split-handle:focus-visible, .deckit-split[data-dragging] .deckit-split-handle)::before {
         opacity: 1;
@@ -171,14 +171,14 @@ function splitView(ui, { sidebar, content, width: given = MIN, collapsed: folded
         settle();
         collapsed = !!on;
         draw(width);
-        const length = TOKEN.MOTION.move.base;
-        if (!slides || !length) return;
+        if (!slides || !TOKEN.MOTION.move.length) return;
         const span = card.offsetWidth + 2 * INSET;
+        const { length, easing } = TOKEN.MOTION.over('move', span);
         if (!collapsed) room.style.marginRight = -span + 'px';
         column.style.overflow = 'visible';
         const shift = (part) => before.get(part) - part.getBoundingClientRect().left;
         const by = new Map(moving.map((part) => [part, shift(part)]));
-        const timing = { duration: length, easing: TOKEN.MOTION.easingMove, fill: 'both' };
+        const timing = { duration: length, easing, fill: 'both' };
         const across = (from, to) => [{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }];
         sliding = moving.map((part) => {
             if (part === card) return part.animate(across(by.get(card), collapsed ? -span : 0), timing);

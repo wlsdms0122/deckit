@@ -7,7 +7,7 @@ const { paintPast, paintSolid, paintDot, paintText } = require('../occurrence/pa
 const LANE_HEIGHT = 22;
 // A filled entry brightens under the pointer; one drawn as a dot and its text takes the kit's wash.
 const STYLE = `
-    .calendar-filled { transition: filter var(--deckit-fade) var(--deckit-easing); }
+    .calendar-filled { transition: filter var(--deckit-press-fade) var(--deckit-press-curve); }
     .calendar-filled:hover { filter: brightness(1.12); }
 `;
 

@@ -62,7 +62,7 @@ class Mods {
                 color: inherit;
                 font: var(--deckit-type-body);
                 cursor: pointer;
-                transition: background-color var(--deckit-fade) var(--deckit-easing);
+                transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
             }
             .mods-item:hover { background: var(--deckit-hover); }
             .mods-item:active .deckit-app-icon { filter: var(--deckit-shadow-icon) brightness(.85); }

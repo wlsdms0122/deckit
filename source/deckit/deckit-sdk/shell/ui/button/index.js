@@ -16,10 +16,10 @@ const STYLE = `
         font: var(--deckit-type-body);
         cursor: pointer;
         transition:
-            background-color var(--deckit-fade) var(--deckit-easing),
-            color var(--deckit-fade) var(--deckit-easing),
-            opacity var(--deckit-fade) var(--deckit-easing),
-            filter var(--deckit-fade) var(--deckit-easing);
+            background-color var(--deckit-press-fade) var(--deckit-press-curve),
+            color var(--deckit-press-fade) var(--deckit-press-curve),
+            opacity var(--deckit-press-fade) var(--deckit-press-curve),
+            filter var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-button:hover { background: var(--deckit-hover); }
     .deckit-button:active { background: var(--deckit-pressed); }
@@ -166,7 +166,7 @@ const STYLE = `
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-on-accent);
         box-shadow: var(--deckit-shadow-control);
-        transition: transform var(--deckit-move-fast) var(--deckit-easing-move);
+        transition: transform var(--deckit-move) var(--deckit-move-curve);
     }
     .deckit-toggle[aria-checked='true'] .deckit-toggle-knob { transform: translateX(14px); }
 `;

@@ -3,7 +3,7 @@
 function codeTheme({ engine, theme, ui }) {
     const { tags } = engine;
     const { syntax } = theme;
-    const fade = (property) => `${property} ${theme.motion.fade}ms ${theme.motion.easing}`;
+    const fade = (property) => `${property} ${theme.motion.press.fade}ms ${theme.motion.press.easing}`;
     const highlights = [
         {
             tag: [

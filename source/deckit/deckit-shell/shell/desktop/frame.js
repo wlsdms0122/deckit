@@ -34,19 +34,21 @@ const STYLE = `
     }
     .deckit-panel-material[data-edge='right'] {
         border-radius: ${RADIUS}px;
-        animation: deckit-panel-in var(--deckit-move-base) var(--deckit-easing-move);
+        animation: deckit-panel-in var(--deckit-enter) var(--deckit-enter-curve);
     }
     .deckit-panel-material[data-edge='right'][data-leaving] {
-        animation: deckit-panel-out var(--deckit-move-base) var(--deckit-easing-move) forwards;
+        animation: deckit-panel-out var(--deckit-exit) var(--deckit-exit-curve) forwards;
     }
     @keyframes deckit-panel-in { from { transform: translateX(calc(100% + ${LAYOUT.PANEL.margin}px)); } }
     @keyframes deckit-panel-out { to { transform: translateX(calc(100% + ${LAYOUT.PANEL.margin}px)); } }
     @keyframes deckit-panel-fade-in { from { opacity: 0; } }
     @keyframes deckit-panel-fade-out { to { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) {
-        .deckit-panel-material[data-edge='right'] { animation: deckit-panel-fade-in var(--deckit-fade) var(--deckit-easing); }
+        .deckit-panel-material[data-edge='right'] {
+            animation: deckit-panel-fade-in var(--deckit-enter-fade) var(--deckit-enter-curve);
+        }
         .deckit-panel-material[data-edge='right'][data-leaving] {
-            animation: deckit-panel-fade-out var(--deckit-fade) var(--deckit-easing) forwards;
+            animation: deckit-panel-fade-out var(--deckit-exit-fade) var(--deckit-exit-curve) forwards;
         }
     }
     .deckit-window-material {

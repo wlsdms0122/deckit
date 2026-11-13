@@ -2,21 +2,18 @@ import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
 const folding = new Map(); // box -> { timer, then }: a fold under way
-// How long a fold takes for each px it opens or closes by, within the base and slow lengths.
-const MS_PER_PX = 2;
 
 // MARK: - Initializer
 // MARK: - Public
 // Opens or closes `box`, a grid of one item, along its rows: the item grows from nothing to its height or folds away
-// to nothing, longer the taller it is, and fades as it goes. `then` runs once it is over. A fold under way is turned
-// back from where it stands.
+// to nothing by the `move` spring settled to its height, so a taller one takes longer, and fades as it goes. `then`
+// runs once it is over. A fold under way is turned back from where it stands.
 function fold(box, open, then = null) {
     const item = box.firstElementChild;
     const running = folding.get(box);
     if (running) clearTimeout(running.timer);
-    const { move, fade, easing } = TOKEN.MOTION;
     const height = item?.scrollHeight ?? 0;
-    const length = move.fast && Math.min(move.slow, Math.max(move.base, height * MS_PER_PX));
+    const { length, fade, easing } = TOKEN.MOTION.over('move', height);
     if (!length || !height) {
         settle(box);
         return then?.();
@@ -40,7 +37,8 @@ function fold(box, open, then = null) {
 
 // Fades `element` in, as a row that joins a list does.
 function appear(element) {
-    element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TOKEN.MOTION.fade, easing: TOKEN.MOTION.easing });
+    const { fade, easing } = TOKEN.MOTION.enter;
+    element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: fade, easing });
 }
 
 // MARK: - Private

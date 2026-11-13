@@ -163,7 +163,7 @@ function monthView({ ui, detail, onOpenDay }) {
             fontVariantNumeric: 'tabular-nums',
             padding: '0 5px',
             borderRadius: 'var(--deckit-radius-round)',
-            transition: 'background-color var(--deckit-fade) var(--deckit-easing)',
+            transition: 'background-color var(--deckit-press-fade) var(--deckit-press-curve)',
         });
         if (sameDay(day, now)) {
             number.style.background = 'var(--deckit-accent-fill)';

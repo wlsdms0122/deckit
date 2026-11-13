@@ -55,7 +55,7 @@ function findInPage({ theme, ui, area, frontTab }) {
             element.style.pointerEvents = '';
         } else if (!layer) {
             layer = ui.layer(element);
-            element.animate(FADE, { duration: theme.motion.fade, easing: theme.motion.easing });
+            element.animate(FADE, { duration: theme.motion.enter.fade, easing: theme.motion.enter.easing });
         }
         layer.focus(field);
         if (state.query) step(false);
@@ -71,8 +71,8 @@ function findInPage({ theme, ui, area, frontTab }) {
         if (!layer || leaving) return;
         element.style.pointerEvents = 'none';
         leaving = element.animate(FADE, {
-            duration: theme.motion.fade,
-            easing: theme.motion.easing,
+            duration: theme.motion.exit.fade,
+            easing: theme.motion.exit.easing,
             direction: 'reverse',
             fill: 'forwards',
         });

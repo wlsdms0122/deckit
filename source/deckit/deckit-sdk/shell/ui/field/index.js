@@ -74,7 +74,7 @@ const STYLE = `
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
         }
-        .deckit-find-caret { transition: transform var(--deckit-move-fast) var(--deckit-easing); }
+        .deckit-find-caret { transition: transform var(--deckit-move) var(--deckit-move-curve); }
         .deckit-find-caret[aria-expanded='true'] { transform: rotate(90deg); }
         .deckit-find-indent { flex: 0 0 auto; width: 24px; }
     `;

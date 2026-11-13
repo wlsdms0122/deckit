@@ -828,7 +828,8 @@ function radiusLiteral({ name, value, at }, tell) {
         tell('radius-literal', at, `${name}: ${value}`);
 }
 
-// A length of motion in ms or s but none, where `--deckit-fade`, `--deckit-move-*` or `theme.motion` is meant.
+// A length of motion in ms or s but none, where a role's `--deckit-<role>` or `--deckit-<role>-fade`, or
+// `theme.motion`, is meant.
 function durationLiteral({ name, value, at }, tell) {
     if (!/^(?:transition|animation)(?:-duration|-delay)?$/.test(name)) return;
     for (const match of value.matchAll(/(?<![\w.$-])((?:\d*\.)?\d+)(ms|s)\b/g))

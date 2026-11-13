@@ -110,13 +110,16 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     // while the label follows the pointer at once.
     const morph = (length, { follows = false } = {}) => {
         label.style.transition = [...(follows ? [] : ['transform']), 'translate', 'width', 'height', 'border-radius']
-            .map((property) => `${property} ${length}ms ${MOTION.easing}`)
+            .map((property) => `${property} ${length}ms ${MOTION.move.easing}`)
             .join(', ');
-        face.style.transition = `opacity ${length}ms ${MOTION.easing}`;
+        face.style.transition = `opacity ${length}ms ${MOTION.move.easing}`;
     };
-    // A fade on top of whatever is moving it now, so a lift still under way is not cut short.
-    const fade = (length, easing) => {
-        label.style.transition = [label.style.transition, `opacity ${length}ms ${easing}`].filter(Boolean).join(', ');
+    // A fade by the `exit` spring on top of whatever is moving it now, so a lift still under way is not cut short,
+    // begun `after` ms.
+    const fade = (after = 0) => {
+        const { fade: length, easing } = MOTION.exit;
+        const faded = `opacity ${length}ms ${easing} ${after}ms`;
+        label.style.transition = [label.style.transition, faded].filter(Boolean).join(', ');
         label.style.opacity = '0';
     };
     label.style.maxWidth = 'none';
@@ -151,39 +154,39 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     const landIn = () => {
         unlight();
         clearTimeout(lifting);
-        fade(MOTION.fade, MOTION.easing);
-        ending = setTimeout(end, MOTION.fade);
+        fade();
+        ending = setTimeout(end, MOTION.exit.fade);
     };
     const goBack = () => {
         unlight();
         // With no motion it fades where it is.
-        const to = MOTION.move.base ? home() : null;
-        const length = to ? MOTION.move.base : MOTION.fade;
+        const to = MOTION.move.length ? home() : null;
+        const length = to ? MOTION.move.length : MOTION.exit.fade;
         clearTimeout(lifting);
         if (to) {
             morph(length);
             moveTo(to.x, to.y);
             shape(to, false);
             // Faded late, so it is seen arriving in the thing's place and shape before it is gone.
-            fade(length, 'ease-in');
-        } else fade(length, MOTION.easing);
+            fade(Math.max(0, length - MOTION.exit.fade));
+        } else fade();
         restoring = item.animate([{ opacity: LIFTED_OPACITY }, { opacity: shownOpacity }], {
             duration: length,
-            easing: MOTION.easing,
+            easing: MOTION.move.easing,
             fill: 'forwards',
         });
         ending = setTimeout(end, length);
     };
     hangAt(down.clientX, down.clientY);
     const from = home();
-    if (from && MOTION.move.base) {
+    if (from && MOTION.move.length) {
         label.style.translate = `${from.x - down.clientX + GRAB.x}px ${from.y - down.clientY + GRAB.y}px`;
         shape(from, false);
         void label.offsetHeight;
-        morph(MOTION.move.base, { follows: true });
+        morph(MOTION.move.length, { follows: true });
         label.style.translate = '0px 0px';
         shape(chip, true);
-        lifting = setTimeout(() => (label.style.transition = ''), MOTION.move.base);
+        lifting = setTimeout(() => (label.style.transition = ''), MOTION.move.length);
     }
     return {
         follow: (x, y) => {

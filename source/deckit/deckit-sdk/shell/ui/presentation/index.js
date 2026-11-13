@@ -8,9 +8,9 @@ const STYLE = `
         position: fixed;
         outline: none;
         transition:
-            opacity var(--deckit-fade) var(--deckit-easing),
-            transform var(--deckit-move-base) var(--deckit-easing),
-            background-color var(--deckit-fade) var(--deckit-easing);
+            opacity var(--deckit-enter-fade) var(--deckit-enter-curve),
+            transform var(--deckit-enter) var(--deckit-enter-curve),
+            background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-surface[data-material] {
         background-color: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
@@ -19,7 +19,13 @@ const STYLE = `
     .deckit-surface[data-side='top'] { transform-origin: bottom left; }
     .deckit-surface[data-side='right'] { transform-origin: top left; }
     .deckit-surface[data-side='left'] { transform-origin: top right; }
-    .deckit-surface[data-state='closed'] { opacity: 0; pointer-events: none; }
+    .deckit-surface[data-state='closed'] {
+        opacity: 0;
+        pointer-events: none;
+        transition:
+            opacity var(--deckit-exit-fade) var(--deckit-exit-curve),
+            transform var(--deckit-exit) var(--deckit-exit-curve);
+    }
     .deckit-surface[data-state='closed'][data-side='bottom'] { transform: translateY(-6px) scale(.96); }
     .deckit-surface[data-state='closed'][data-side='top'] { transform: translateY(6px) scale(.96); }
     .deckit-surface[data-state='closed'][data-side='right'] { transform: translateX(-6px) scale(.96); }
@@ -82,9 +88,9 @@ function watch(each) {
 // - A key goes to `onKey` first; one it does not take (it returns falsy) that is Escape dismisses it.
 // - A `transient` one is also dismissed by a scroll outside it, a resize and the keyboard leaving the page and its
 //   overlay. One that stays through a resize is placed again, against what it hangs from where that is now.
-// - Dismissing calls `onDismiss`; `close()` plays the exit, `fast` or `base` long by `speed`, or none for null, takes
-//   the element away and gives the focus back to what had it in the overlay as it was presented. What a key presents
-//   or closes comes and goes at once, whatever its `speed`.
+// - Dismissing calls `onDismiss`; `close()` plays the exit, none where it is `still`, takes the element away and
+//   gives the focus back to what had it in the overlay as it was presented. It comes in by the `enter` spring and
+//   leaves by the `exit` one. What a key presents or closes comes and goes at once.
 function present({
     element = null,
     anchor = null,
@@ -96,7 +102,7 @@ function present({
     modal = false,
     transient = false,
     contains = () => false,
-    speed = 'fast',
+    still = false,
     onKey = () => false,
     onDismiss,
 }) {
@@ -112,10 +118,10 @@ function present({
         dismiss: () => onDismiss(),
         place: () =>
             (anchor || rect || point || beside) && PLACE.place(element, { anchor, rect, point, beside, gap, fit }),
-        close: () => close(presented, keyed ? null : speed),
+        close: () => close(presented, still || keyed),
     };
     stack.push(presented);
-    if (element) show(presented, speed === null || keyed);
+    if (element) show(presented, still || keyed);
     return presented;
 }
 
@@ -162,7 +168,7 @@ function show(presented, still) {
     presented.layer.focus();
 }
 
-function close(presented, speed) {
+function close(presented, still) {
     const index = stack.indexOf(presented);
     if (index < 0) return;
     stack.splice(index, 1);
@@ -178,8 +184,8 @@ function close(presented, speed) {
         else active.blur();
     }
     element.dataset.state = 'closed';
-    // It fades out as it moves away, so it is gone once the longer of the two is over.
-    const length = speed ? Math.max(TOKEN.MOTION.move[speed], TOKEN.MOTION.fade) : 0;
+    // It fades out as it moves away, both by the `exit` spring, so it is gone once its fade is over.
+    const length = still ? 0 : TOKEN.MOTION.exit.fade;
     if (length) setTimeout(() => element.dataset.state === 'closed' && layer.remove(), length);
     else layer.remove();
 }

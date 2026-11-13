@@ -141,7 +141,7 @@ function game({ ui, theme, values }) {
         context.setTransform(scale, 0, 0, scale, 0, 0);
         context.clearRect(0, 0, width, height);
         const { color, motion } = theme;
-        const still = motion.move.base === 0;
+        const still = motion.move.length === 0;
         drawMasts(context, state, color.divider, still);
         drawLine(context, state, color.tertiary);
         for (const one of state.obstacles) drawObstacle(context, one, state.line, color);

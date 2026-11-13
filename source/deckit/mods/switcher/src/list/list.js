@@ -30,7 +30,7 @@ const STYLE =
         min-width: 0;
         padding: 7px 10px;
         border-radius: var(--deckit-radius-medium);
-        transition: background-color var(--deckit-fade) var(--deckit-easing);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .switcher-row[data-actionable] { cursor: pointer; }
     .switcher-row[data-lead] {
@@ -273,7 +273,7 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
         stack.append(label, note);
         made.replaceChildren(glyph, stack);
         // Its own layer behind the text: the row's background is the active wash's.
-        if (item.attention && theme.motion.move.fast) {
+        if (item.attention && theme.motion.move.length) {
             const glow = element('span', 'switcher-glow');
             made.append(glow);
             glow.animate(BREATH, { duration: BREATH_MS, easing: 'ease-in-out' });

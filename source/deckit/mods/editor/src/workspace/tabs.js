@@ -27,7 +27,7 @@ const TABS_STYLE = `
         white-space: nowrap;
         cursor: pointer;
         --app-region: no-drag;
-        transition: background-color var(--deckit-fade) var(--deckit-easing);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .editor-tab:hover { background: var(--deckit-hover); }
     .editor-tab[data-active] { color: var(--deckit-text); }
@@ -50,7 +50,7 @@ const TABS_STYLE = `
         border-radius: var(--deckit-radius-control);
         color: var(--deckit-muted);
         opacity: 0;
-        transition: background-color var(--deckit-fade) var(--deckit-easing);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .editor-tab:is([data-active], [data-unsaved], :hover) .editor-tab-end { opacity: 1; }
     .editor-tab-end:hover { background: var(--deckit-hover); color: var(--deckit-text); }

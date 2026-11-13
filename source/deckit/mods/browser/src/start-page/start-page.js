@@ -40,7 +40,7 @@ function startPage({ ui, onOpen }) {
             color: var(--deckit-muted);
             font: var(--deckit-type-large);
             font-weight: 600;
-            transition: background var(--deckit-fade) var(--deckit-easing);
+            transition: background var(--deckit-press-fade) var(--deckit-press-curve);
         }
         .browser-start-icon img { width: 32px; height: 32px; object-fit: contain; border-radius: var(--deckit-radius-control); }
         .browser-start-tile:hover .browser-start-icon { background: var(--deckit-hover); }

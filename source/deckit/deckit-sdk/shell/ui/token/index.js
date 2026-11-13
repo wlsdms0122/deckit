@@ -9,27 +9,29 @@ const FALLBACK_THEME = Object.freeze({
     contentColor: '#d1d2d3',
     font: '-apple-system, system-ui, sans-serif',
 });
-// Lengths in ms, as long as each can take: read as they are where nothing knows the system's settings.
-const LENGTH = Object.freeze({ fast: 110, base: 170, slow: 260 });
-// Lengths in ms, read at each use. `move`, for what moves or changes size, is 0 while the system asks for reduced
-// motion; `fade`, for what fades or changes colour, keeps its length then, so a state never jumps.
+// The springs every motion is drawn from, one for each role, each with damping 1, so it comes to rest without going
+// past where it is going. `response` is its period in s, how soon it answers; `rest` is how much of its way is left
+// when it counts as arrived, where its length ends.
+const SPRING = Object.freeze({
+    // What comes on screen: answers at once and eases a long way in, so it lands softly.
+    enter: Object.freeze({ response: 0.2, rest: 0.002 }),
+    // What leaves: quicker and done sooner, as what goes is not watched to its end.
+    exit: Object.freeze({ response: 0.16, rest: 0.01 }),
+    // What is on screen and moves to another place there, landing on its pixel: a sidebar, a knob, a thumb.
+    move: Object.freeze({ response: 0.19, rest: 0.001 }),
+    // What follows a press or the pointer: a tint, a colour, a hover.
+    press: Object.freeze({ response: 0.12, rest: 0.01 }),
+});
+// A curve as CSS has a point for each frame at this many a second.
+const FRAMES = 120;
+// What a travel of known px settles to, within these: half a px of it.
+const REST = Object.freeze({ least: 0.0005, most: 0.05 });
+// Each role's motion, read at each use: `length` in ms, for what moves or changes size, is 0 while the system asks for
+// reduced motion; `fade` in ms, for what fades or changes colour, keeps its length then, so a state never jumps;
+// `easing` is the spring as a CSS easing. `over(role, px)` is the role's spring settled to half a px of that travel.
 const MOTION = Object.freeze({
-    move: Object.freeze({
-        get fast() {
-            return reducedMotion() ? 0 : LENGTH.fast;
-        },
-        get base() {
-            return reducedMotion() ? 0 : LENGTH.base;
-        },
-        get slow() {
-            return reducedMotion() ? 0 : LENGTH.slow;
-        },
-    }),
-    fade: LENGTH.fast,
-    // What comes on screen and leaves it.
-    easing: 'cubic-bezier(.2,.7,.3,1)',
-    // What is on screen and moves to another place there: a sidebar, the Dock, an indicator.
-    easingMove: 'cubic-bezier(.65,0,.35,1)',
+    ...Object.fromEntries(Object.entries(SPRING).map(([role, spring]) => [role, motionOf(spring)])),
+    over: (role, px) => motionOf({ ...SPRING[role], rest: Math.min(REST.most, Math.max(REST.least, 0.5 / px)) }),
     // Where a surface that slides in arrives from and leaves to.
     entrance: 'translateY(6px) scale(.99)',
 });
@@ -264,16 +266,16 @@ function propertiesOf(token) {
         ),
         glass: look.glass * 100 + '%',
         blur: BLUR,
-        fade: MOTION.fade + 'ms',
-        ...prefixed(
-            'move-',
-            mapped(LENGTH, (value) => value + 'ms')
+        ...Object.fromEntries(
+            Object.keys(SPRING).flatMap((role) => [
+                [role, lengthOf(SPRING[role]) + 'ms'],
+                [role + 'Fade', lengthOf(SPRING[role]) + 'ms'],
+                [role + 'Curve', MOTION[role].easing],
+            ])
         ),
-        easing: MOTION.easing,
-        easingMove: MOTION.easingMove,
     };
     const declarations = Object.entries(properties).map(([name, value]) => `--deckit-${kebab(name)}: ${value};`);
-    const still = Object.keys(LENGTH).map((name) => `--deckit-move-${name}: 0ms;`);
+    const still = Object.keys(SPRING).map((role) => `--deckit-${role}: 0ms;`);
     // What is marked as glass takes the glass inks, a placeholder `muted`'s; where nothing is drawn as glass they are
     // the plain ones. An opaque part in it, marked `data-deckit-solid` (a card, a field with a fill of its own), is
     // not glass and takes the plain ones again.
@@ -355,6 +357,46 @@ function rimOf(colour) {
     return `inset 0 0 0 1px ${colour}`;
 }
 
+// A role's motion as `MOTION` has it.
+function motionOf(spring) {
+    const length = lengthOf(spring);
+    const easing = easingOf(spring);
+    return Object.freeze({
+        ...spring,
+        get length() {
+            return reducedMotion() ? 0 : length;
+        },
+        fade: length,
+        easing,
+    });
+}
+
+// Where a spring with damping 1, started from rest, is `t` s after it starts, from 0 to 1, never past it.
+function springAt({ response }, t) {
+    const w = (2 * Math.PI) / response;
+    return 1 - (1 + w * t) * Math.exp(-w * t);
+}
+
+// How long in ms the spring takes until what is left of its way is `rest`: (1 + u) e^-u = rest, u = w t, found by
+// halving, as what is left only falls.
+function lengthOf({ response, rest }) {
+    let [low, high] = [0, 64];
+    while (high - low > 1e-6) {
+        const u = (low + high) / 2;
+        if ((1 + u) * Math.exp(-u) > rest) low = u;
+        else high = u;
+    }
+    return Math.round(((high * response) / (2 * Math.PI)) * 1000);
+}
+
+// The spring over its length as a CSS `linear()` easing: a point for each frame, to a thousandth, arriving at 1.
+function easingOf(spring) {
+    const length = lengthOf(spring) / 1000;
+    const steps = Math.max(2, Math.ceil(length * FRAMES));
+    const points = Array.from({ length: steps }, (_, step) => springAt(spring, (length * step) / steps).toFixed(3));
+    return `linear(${points.map(Number).join(', ')}, 1)`;
+}
+
 function reducedMotion() {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -375,4 +417,4 @@ function deepFreeze(value) {
     return Object.freeze(value);
 }
 
-export { FALLBACK_THEME, LENGTH, MOTION, APP_ICON, tokenOf, propertiesOf, opaque, whenOpaque };
+export { FALLBACK_THEME, SPRING, MOTION, APP_ICON, tokenOf, propertiesOf, springAt, lengthOf, opaque, whenOpaque };

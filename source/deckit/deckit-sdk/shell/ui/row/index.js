@@ -15,7 +15,7 @@ const STYLE = `
         font: var(--deckit-type-body);
         white-space: nowrap;
         cursor: pointer;
-        transition: background-color var(--deckit-fade) var(--deckit-easing);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; }
     .deckit-row:hover { background: var(--deckit-hover); }

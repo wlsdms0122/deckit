@@ -32,7 +32,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf, iconOf 
 
     ui.addStyle(`
         .settings-setting-message { padding: 0 8px; color: var(--deckit-muted); font: var(--deckit-type-small); }
-        .settings-setting-card { transition: background var(--deckit-fade) var(--deckit-easing); }
+        .settings-setting-card { transition: background var(--deckit-press-fade) var(--deckit-press-curve); }
         .settings-setting-title { display: flex; align-items: center; gap: 8px; }
         .settings-setting-card[data-highlighted] {
             background: color-mix(in srgb, var(--deckit-accent) 12%, transparent);

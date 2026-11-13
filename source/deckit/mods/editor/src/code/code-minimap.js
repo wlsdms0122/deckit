@@ -8,7 +8,7 @@ const MINIMAP_STYLE = `
         pointer-events: none;
         background: transparent;
         border-left: var(--deckit-border);
-        transition: opacity var(--deckit-fade) var(--deckit-easing);
+        transition: opacity var(--deckit-press-fade) var(--deckit-press-curve);
     }
     /* Over the code it is glass, which turns opaque where the system asks for less transparency. */
     .editor-minimap:not([data-mode='always']) {

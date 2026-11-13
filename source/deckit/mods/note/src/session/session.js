@@ -540,7 +540,7 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
     }
 
     function nudge() {
-        const duration = theme.motion.move.slow;
+        const duration = theme.motion.move.length;
         if (!duration) return;
         banner.animate(
             [
@@ -549,7 +549,7 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
                 { transform: 'translateX(4px)' },
                 { transform: 'translateX(0)' },
             ],
-            { duration, easing: theme.motion.easingMove }
+            { duration, easing: theme.motion.move.easing }
         );
     }
 }

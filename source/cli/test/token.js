@@ -4,6 +4,9 @@
 // `tertiary` and above the tint itself; the hued inks keep 4.5:1; none is quieter than its plain ink but `disabled`.
 // The custom properties have a part marked `data-deckit-glass` draw in them, a part marked `data-deckit-solid` in the
 // plain ones, and the plain ones are the glass inks while the system asks for less transparency or more contrast.
+// Each role's motion is its spring sampled: the curve only rises, never past 1, arrives at 1 and is within `rest` of it
+// at its length; the same spring gives the same curve; the custom properties hold the same lengths and curves, the
+// movement lengths 0 while the system asks for reduced motion, the fades kept; what leaves is quicker than what comes.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -78,6 +81,60 @@ async function main() {
             opaque
         );
     }
+
+    const { MOTION, SPRING } = TOKEN;
+    const pointsOf = (easing) => /^linear\((.*)\)$/.exec(easing)?.[1].split(', ').map(Number) || [];
+    const properties = TOKEN.propertiesOf(TOKEN.tokenOf(LOOKS.dark));
+    const root = /:root \{([^}]*)\}/.exec(properties)?.[1] || '';
+    const still = /prefers-reduced-motion: reduce\) \{ :root \{([^}]*)\}/.exec(properties)?.[1] || '';
+    for (const role of Object.keys(SPRING)) {
+        const motion = MOTION[role];
+        const points = pointsOf(motion.easing);
+        check(`${role}: the curve has a point for each frame`, points.length > (motion.length / 1000) * 120, points);
+        check(
+            `${role}: the curve only rises`,
+            points.every((at, index) => !index || at >= points[index - 1]),
+            points
+        );
+        check(
+            `${role}: the curve starts at 0 and ends at 1, never past it`,
+            points[0] === 0 && points.at(-1) === 1 && points.every((at) => at <= 1),
+            points
+        );
+        const left = 1 - TOKEN.springAt(SPRING[role], motion.length / 1000);
+        check(`${role}: the spring is within its rest at its length`, left <= SPRING[role].rest * 1.01, left);
+        const again = MOTION.over(role, 0.5 / SPRING[role].rest);
+        check(
+            `${role}: the same spring draws the same curve`,
+            again.easing === motion.easing && again.length === motion.length,
+            again
+        );
+        check(
+            `${role}: the custom properties hold its length and curve`,
+            root.includes(`--deckit-${role}: ${motion.length}ms;`) &&
+                root.includes(`--deckit-${role}-fade: ${motion.fade}ms;`) &&
+                root.includes(`--deckit-${role}-curve: ${motion.easing};`),
+            root
+        );
+        check(
+            `${role}: it does not move with reduced motion, and keeps its fade`,
+            still.includes(`--deckit-${role}: 0ms;`) && !still.includes(`--deckit-${role}-fade`),
+            still
+        );
+    }
+    check('what leaves is quicker than what comes', MOTION.exit.length < MOTION.enter.length * 0.75, [
+        MOTION.exit.length,
+        MOTION.enter.length,
+    ]);
+    const near = MOTION.over('move', 8).length;
+    const far = MOTION.over('move', 800).length;
+    check('a farther travel takes longer', near < far, [near, far]);
+    globalThis.window = { matchMedia: (query) => ({ matches: /reduced-motion/.test(query) }) };
+    check(
+        'with reduced motion nothing moves and fades keep their length',
+        Object.keys(SPRING).every((role) => MOTION[role].length === 0 && MOTION[role].fade > 0),
+        Object.keys(SPRING).map((role) => [MOTION[role].length, MOTION[role].fade])
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);

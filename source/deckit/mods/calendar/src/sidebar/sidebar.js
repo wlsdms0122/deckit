@@ -187,7 +187,8 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             border: '1.5px solid ' + feed.color,
             boxSizing: 'border-box',
             transition:
-                'background-color var(--deckit-fade) var(--deckit-easing), border-color var(--deckit-fade) var(--deckit-easing)',
+                'background-color var(--deckit-press-fade) var(--deckit-press-curve), ' +
+                'border-color var(--deckit-press-fade) var(--deckit-press-curve)',
         });
         const label = document.createElement('span');
         label.textContent = feed.label || feed.calendar;

@@ -255,8 +255,8 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         row.appendChild(wash);
         const done = () => wash.remove();
         const play = wash.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], {
-            duration: Math.max(theme.motion.move.slow, theme.motion.fade),
-            easing: theme.motion.easing,
+            duration: theme.motion.move.fade,
+            easing: theme.motion.press.easing,
         });
         play.finished.then(done, done);
     };

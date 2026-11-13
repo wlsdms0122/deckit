@@ -418,7 +418,10 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     }
 
     function fade(element) {
-        element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: theme.motion.fade, easing: theme.motion.easing });
+        element.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: theme.motion.enter.fade,
+            easing: theme.motion.enter.easing,
+        });
     }
 
     // Calendar's window comes on screen and asks in a dialog: `{ answer, close }`, `answer` whether the person

@@ -104,8 +104,10 @@ function resizer(
 }
 
 // Through `resize`, so it is drawn the way a drag is, in `page`, a document: one not being drawn is put there at once.
+// It follows the `move` spring itself, settled to half a px of the way.
 function springTo(resize, from, to, page, then) {
-    const length = TOKEN.MOTION.move.base;
+    const spring = TOKEN.MOTION.over('move', Math.abs(to - from));
+    const { length } = spring;
     if (from === to || !length || page.hidden) {
         resize(to);
         then();
@@ -115,9 +117,9 @@ function springTo(resize, from, to, page, then) {
     const view = page.defaultView;
     let frame = 0;
     const step = (now) => {
-        const progress = Math.min(1, (now - start) / length);
-        resize(from + (to - from) * (1 - Math.pow(1 - progress, 3)));
-        if (progress < 1) frame = view.requestAnimationFrame(step);
+        const since = now - start;
+        resize(since < length ? from + (to - from) * TOKEN.springAt(spring, since / 1000) : to);
+        if (since < length) frame = view.requestAnimationFrame(step);
         else then();
     };
     frame = view.requestAnimationFrame(step);

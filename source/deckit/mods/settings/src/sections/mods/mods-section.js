@@ -84,7 +84,7 @@ function modsSection({
             padding-block: 6px;
             font: inherit;
             white-space: normal;
-            transition: background-color var(--deckit-fade) var(--deckit-easing);
+            transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
         }
         .settings-mod[data-highlighted] .settings-mod-row {
             background: color-mix(in srgb, var(--deckit-accent) 12%, transparent);
@@ -95,7 +95,7 @@ function modsSection({
             flex: 0 0 auto;
             margin-left: -4px;
             color: var(--deckit-muted);
-            transition: transform var(--deckit-move-slow) var(--deckit-easing);
+            transition: transform var(--deckit-move) var(--deckit-move-curve);
         }
         .settings-mod[data-open] .settings-caret { transform: rotate(90deg); }
         .settings-mod-name-cell .deckit-app-icon { margin-right: 4px; }
@@ -167,7 +167,7 @@ function modsSection({
             font: 600 var(--deckit-type-body);
             opacity: 0;
             pointer-events: none;
-            transition: opacity var(--deckit-fade) var(--deckit-easing);
+            transition: opacity var(--deckit-press-fade) var(--deckit-press-curve);
         }
         .settings-mods[data-targeted] .settings-drop { opacity: 1; }
         .settings-drop-icon { display: flex; color: var(--deckit-target); }

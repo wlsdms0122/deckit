@@ -211,7 +211,7 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
         };
         const card = toastCards.get(id);
         if (panel || !card?.isConnected) return gone();
-        const { fade, easing } = shell.theme.motion;
+        const { fade, easing } = shell.theme.motion.exit;
         card.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade, easing, fill: 'forwards' });
         setTimeout(gone, fade);
     }
@@ -288,15 +288,15 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
         if (kept) return kept;
         const made = card(notification, { row: false });
         toastCards.set(notification.id, made);
-        const { move, fade, easing } = shell.theme.motion;
-        if (move.base)
+        const { length, fade, easing } = shell.theme.motion.enter;
+        if (length)
             made.animate(
                 [
                     { opacity: 0, transform: 'translateX(16px)' },
                     { opacity: 1, transform: 'none' },
                 ],
                 {
-                    duration: move.base,
+                    duration: length,
                     easing,
                 }
             );

@@ -15,13 +15,13 @@ const STYLE = `
     .deckit-window { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
     .deckit-window > * { flex: 1 1 auto; min-height: 0; }
     .deckit-window[data-edge='right'][data-shown] {
-        animation: deckit-window-in var(--deckit-move-base) var(--deckit-easing-move);
+        animation: deckit-window-in var(--deckit-enter) var(--deckit-enter-curve);
     }
     @keyframes deckit-window-in { from { transform: translateX(calc(100% + 8px)); } }
     @keyframes deckit-window-fade { from { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) {
         .deckit-window[data-edge='right'][data-shown] {
-            animation: deckit-window-fade var(--deckit-fade) var(--deckit-easing);
+            animation: deckit-window-fade var(--deckit-enter-fade) var(--deckit-enter-curve);
         }
     }
 `;

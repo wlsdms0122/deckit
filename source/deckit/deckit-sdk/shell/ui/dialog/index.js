@@ -41,8 +41,8 @@ const STYLE = `
         border-radius: var(--deckit-radius-control);
         cursor: pointer;
         transition:
-            box-shadow var(--deckit-fade) var(--deckit-easing),
-            transform var(--deckit-move-fast) var(--deckit-easing);
+            box-shadow var(--deckit-press-fade) var(--deckit-press-curve),
+            transform var(--deckit-press) var(--deckit-press-curve);
     }
     .deckit-swatch[aria-pressed='true'] {
         box-shadow: 0 0 0 2px var(--deckit-background), 0 0 0 4px var(--deckit-swatch);

@@ -37,7 +37,7 @@ const STYLE = `
         font: var(--deckit-type-small);
         cursor: pointer;
     }
-    .deckit-notice-more svg { transition: transform var(--deckit-move-fast) var(--deckit-easing); }
+    .deckit-notice-more svg { transition: transform var(--deckit-move) var(--deckit-move-curve); }
     .deckit-notice-more[data-still] svg { transition: none; }
     .deckit-notice-more[aria-expanded='true'] svg { transform: rotate(90deg); }
     .deckit-notice-details {

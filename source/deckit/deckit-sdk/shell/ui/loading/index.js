@@ -46,7 +46,7 @@ function spinner({ size = 14, wait = false } = {}) {
     const made = document.createElement('span');
     made.className = 'deckit-spinner';
     made.style.width = made.style.height = size + 'px';
-    if (TOKEN.MOTION.move.base)
+    if (TOKEN.MOTION.move.length)
         made.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], {
             duration: TURN_MS,
             iterations: Infinity,
@@ -94,7 +94,8 @@ function shown(box) {
     const made = performance.now();
     box.animate([{ opacity: 0, offset: 0 }], {
         delay: WAIT_MS,
-        duration: TOKEN.MOTION.fade,
+        duration: TOKEN.MOTION.enter.fade,
+        easing: TOKEN.MOTION.enter.easing,
         fill: 'backwards',
     });
     const settled = () => {
