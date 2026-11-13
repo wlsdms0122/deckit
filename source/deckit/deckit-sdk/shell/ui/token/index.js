@@ -134,11 +134,18 @@ const APP_ICON = Object.freeze({ small: 16, row: 20, lead: 32, dock: 40, grid: 5
 // A neutral grey over any background, light or dark.
 const WASH = (amount) => `rgba(128,128,128,${amount})`;
 // The quieter inks: how much of `text` over `background` each is, and the least contrast it keeps on glass.
+// `disabled` has no floor: an inactive control is exempt from the text minimum.
 const INK = Object.freeze({
     muted: { amount: 0.68, glass: 4.5 },
     tertiary: { amount: 0.55, glass: 3 },
-    disabled: { amount: 0.3, glass: 3 },
+    disabled: { amount: 0.3, glass: null },
 });
+// The inks in a hue, read as text and glyphs: on glass each keeps the text minimum, as `muted` does.
+const HUED = Object.freeze(['accent', 'okInk', 'warnInk', 'alertInk']);
+// On glass the inks are a ladder, `text`, `muted`, `tertiary`, `disabled`: each keeps at least this many times the
+// contrast of the one below it on the tint over the worst ground. It is the ratio of the text minimum to the glyph
+// one (4.5 to 3), so the steps read as evenly as those two do, and `disabled`, a step below 3:1, still shows.
+const STEP = 1.5;
 // The plainest grounds glass lies over. The material only moves what is behind towards its own blur, so an ink that
 // holds on the tint laid over both holds over anything.
 const GROUNDS = Object.freeze(['#ffffff', '#000000']);
@@ -157,14 +164,7 @@ function tokenOf(theme, fonts = {}) {
     const dark = COLOR.isDark(background);
     const look = LOOKS[dark ? 'dark' : 'light'];
     const elevated = toward(dark ? 0.1 : 0);
-    // An ink as it is drawn on glass: raised towards `text` until it keeps its contrast on the tint over each ground.
-    const tints = GROUNDS.map((ground) => COLOR.mix(elevated, ground, look.glass));
-    const onGlass = ({ amount, glass }) => {
-        let at = amount;
-        while (at < 1 && tints.some((tint) => COLOR.contrast(toward(at), tint) < glass))
-            at = Math.round(at * 100 + 1) / 100;
-        return toward(at);
-    };
+    const glass = glassInks({ text, background, elevated, look, dark });
     return deepFreeze({
         dark,
         font: theme.font,
@@ -184,11 +184,8 @@ function tokenOf(theme, fonts = {}) {
             tertiary: toward(INK.tertiary.amount),
             disabled: toward(INK.disabled.amount),
             placeholder: toward(INK.muted.amount),
-            // What is drawn as glass, marked `data-deckit-glass`, draws its quieter text and glyphs in these, raised
-            // from `muted`, `tertiary` and `disabled` until they keep 4.5:1, 3:1 and 3:1 on its tint over any ground.
-            glassMuted: onGlass(INK.muted),
-            glassTertiary: onGlass(INK.tertiary),
-            glassDisabled: onGlass(INK.disabled),
+            // What is drawn as glass, marked `data-deckit-glass`, draws its text and glyphs in these (glassInks).
+            ...glass,
             background,
             surface: toward(0.06),
             lifted: toward(0.1),
@@ -278,18 +275,25 @@ function propertiesOf(token) {
     const declarations = Object.entries(properties).map(([name, value]) => `--deckit-${kebab(name)}: ${value};`);
     const still = Object.keys(LENGTH).map((name) => `--deckit-move-${name}: 0ms;`);
     // What is marked as glass takes the glass inks, a placeholder `muted`'s; where nothing is drawn as glass they are
-    // the plain ones.
-    const inks = Object.keys(INK);
+    // the plain ones. An opaque part in it, marked `data-deckit-solid` (a card, a field with a fill of its own), is
+    // not glass and takes the plain ones again.
+    const inks = ['text', ...Object.keys(INK), ...HUED];
+    const glassOf = (ink) => `--deckit-glass-${kebab(ink)}`;
     const glass = [
-        ...inks.map((ink) => `--deckit-${ink}: var(--deckit-glass-${ink});`),
-        '--deckit-placeholder: var(--deckit-glass-muted);',
+        ...inks.map((ink) => `--deckit-${kebab(ink)}: var(${glassOf(ink)});`),
+        `--deckit-placeholder: var(${glassOf('muted')});`,
     ];
-    const solid = inks.map((ink) => `--deckit-glass-${ink}: ${token.color[ink]};`);
+    const plain = [
+        ...inks.map((ink) => `--deckit-${kebab(ink)}: ${token.color[ink]};`),
+        `--deckit-placeholder: ${token.color.placeholder};`,
+    ];
+    const solid = inks.map((ink) => `${glassOf(ink)}: ${token.color[ink]};`);
     const opaque = `--deckit-glass: 100%; --deckit-blur: none; ${solid.join(' ')}`;
     const more = `${opaque} --deckit-rim: ${rimOf(COLOR.alpha(look.rim, RIM_MORE))};`;
     return (
         `:root { ${declarations.join(' ')} }\n` +
         `[data-deckit-glass] { ${glass.join(' ')} }\n` +
+        `[data-deckit-solid] { ${plain.join(' ')} }\n` +
         `@media (prefers-reduced-motion: reduce) { :root { ${still.join(' ')} } }\n` +
         `@media (prefers-reduced-transparency: reduce) { :root { ${opaque} } }\n` +
         `@media (prefers-contrast: more) { :root { ${more} } }\n`
@@ -297,6 +301,39 @@ function propertiesOf(token) {
 }
 
 // MARK: - Private
+// The inks on glass, one rule for all: each is the quietest point on its scale that keeps its floor on the glass tint
+// (`elevated` at the look's strength) over the worst ground, and STEP over the ink below it. The scale of `muted`,
+// `tertiary` and `text` runs from `background` through `text` on to the pole `text` leans to, so `text` moves
+// towards the pole where `muted` needs the room. `disabled` is the loudest a step below `tertiary`. A hued ink runs
+// from itself to the pole and keeps the text minimum.
+function glassInks({ text, background, elevated, look, dark }) {
+    const pole = dark ? '#ffffff' : '#000000';
+    const tints = GROUNDS.map((ground) => COLOR.mix(elevated, ground, look.glass));
+    const worst = (ink) => Math.min(...tints.map((tint) => COLOR.contrast(ink, tint)));
+    const scale = (at) => (at <= 1 ? COLOR.mix(text, background, at) : COLOR.mix(pole, text, at - 1));
+    const by = (at, delta) => Math.round(at * 100 + delta) / 100;
+    const lift = (path, at, least, end) => {
+        while (at < end && worst(path(at)) < least) at = by(at, 1);
+        return at;
+    };
+    const tertiary = lift(scale, INK.tertiary.amount, INK.tertiary.glass, 2);
+    const muted = lift(scale, INK.muted.amount, Math.max(INK.muted.glass, worst(scale(tertiary)) * STEP), 2);
+    const lead = lift(scale, 1, worst(scale(muted)) * STEP, 2);
+    let disabled = tertiary;
+    while (disabled > 0 && worst(scale(disabled)) * STEP > worst(scale(tertiary))) disabled = by(disabled, -1);
+    const hued = HUED.map((name) => {
+        const path = (at) => COLOR.mix(pole, look[name], at);
+        return [`glass${name[0].toUpperCase()}${name.slice(1)}`, path(lift(path, 0, INK.muted.glass, 1))];
+    });
+    return {
+        glassText: scale(lead),
+        glassMuted: scale(muted),
+        glassTertiary: scale(tertiary),
+        glassDisabled: scale(disabled),
+        ...Object.fromEntries(hued),
+    };
+}
+
 function prefixed(prefix, values) {
     return Object.fromEntries(Object.entries(values).map(([name, value]) => [prefix + name, value]));
 }
