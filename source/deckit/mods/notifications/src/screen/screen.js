@@ -1,13 +1,14 @@
-// The notifications on screen, in the mod's overlay window, open while it shows any: the toasts `center` lets out,
-// stacked, each as tall as what it holds, which leave the keyboard where it is, and on `showList()` the record,
-// newest first, to press, remove or clear, until the keyboard leaves it. A toast with actions stays until one is
-// pressed or it is closed; any other leaves after a time. A press on a toast, a row or an action is the center's.
+// The notifications on screen: the toasts `center` lets out, stacked in the mod's overlay window over every app, open
+// while it shows any, each as tall as what it holds, which leave the keyboard where it is; and on `showList()` the
+// notification center, the record newest first to press, remove or clear, in a panel window along the right edge of
+// the desktop, which takes the keyboard as it opens and goes as the keyboard leaves it or Escape is pressed. No toast
+// shows while the center is open, which holds them all. A toast with actions stays until one is pressed or it is
+// closed; any other leaves after a time. A press on a toast, a row or an action is the center's.
 const WIDTH = 360;
 const GAP = 8;
 // Room around the cards in the window for the shadow they cast, deeper below, where the shadow falls.
 const ROOM = 16;
 const ROOM_BELOW = 24;
-const LIST_HEIGHT = 440;
 // What a toast is drawn in at most, its title, two lines of body and a row of actions: the window's height for each
 // until they are measured.
 const TOAST_MOST = 112;
@@ -40,12 +41,15 @@ const STYLE = `
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         cursor: default;
     }
-    /* The head and the empty record on a card too: the window has nothing behind its words but the desktop. */
+    /* The center lies on the panel window's material: its head and the empty record on it, the rows on cards. */
+    .notifications-center { padding-bottom: ${ROOM}px; }
     .notifications-head {
+        display: flex;
+        flex: 0 0 auto;
         align-items: center;
         justify-content: space-between;
-        min-height: 44px;
-        padding: 8px 8px 8px 12px;
+        min-height: 32px;
+        padding: 0 0 0 4px;
         font: 600 var(--deckit-type-large);
     }
     .notifications-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
@@ -73,35 +77,60 @@ const STYLE = `
     }
     .notifications-actions { display: flex; gap: 6px; margin-top: 4px; }
     .notifications-close { position: absolute; top: 6px; right: 6px; }
-    .notifications-empty { padding-right: 12px; flex-direction: column; gap: 2px; color: var(--deckit-muted); }
-    .notifications-empty-hint { font: var(--deckit-type-small); }
 `;
 
-function screen(shell, center) {
+function screen(shell, center, { onCenter = () => {} } = {}) {
     // MARK: - Property
     const { ui } = shell;
-    const content = document.createElement('div');
+    const content = document.createElement('div'); // the toasts
     content.className = 'notifications';
+    const list = document.createElement('div'); // the notification center
+    list.className = 'notifications notifications-center';
     shell.ui.addStyle(STYLE);
     const toasts = new Map(); // id -> { notification, timer, leaving }
     const toastCards = new Map(); // id -> its toast's card, kept while it shows
     const icons = new Map(); // a sending mod's id -> its app icon, as the shell reads it
-    let face = 'toasts';
-    let window = null; // the window, while it is open
+    let window = null; // the toasts' window, while it is open
+    let panel = null; // the center's window, while it is open
     const offs = [
         center.drawWith({ show: showToast, hide: (id) => hideToast(id, { told: false }), active: shell.active }),
-        center.onChange(() => face === 'list' && draw()),
+        center.onChange(() => panel && drawList()),
     ];
 
     // MARK: - Initializer
     // MARK: - Public
+    // The center opened, or made key where it is open; `onCenter(open)` hears it open and close.
     async function showList() {
         await Promise.all(center.list().map((notification) => iconRead(notification.mod.id)));
-        face = 'list';
-        draw();
-        if (!window) return open(LIST_HEIGHT);
-        window.resize(WIDTH, LIST_HEIGHT);
-        window.makeKeyAndOrderFront();
+        if (panel) return panel.makeKeyAndOrderFront();
+        drawList();
+        const opened = shell.windows.open({
+            name: 'center',
+            content: list,
+            level: 'panel',
+            edge: 'right',
+            width: WIDTH,
+            didResignKey: () => panel === opened && closeList(),
+            didClose: () => panel === opened && closed(),
+        });
+        panel = opened;
+        list.ownerDocument.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape' || event.defaultPrevented || panel !== opened) return;
+            event.preventDefault();
+            closeList();
+        });
+        toToasts();
+        onCenter(true);
+    }
+
+    // The center opened where it is closed, or closed where it is open: answers whether it is open after.
+    async function toggle() {
+        if (panel) {
+            closeList();
+            return false;
+        }
+        await showList();
+        return true;
     }
 
     function end() {
@@ -111,12 +140,26 @@ function screen(shell, center) {
     }
 
     // MARK: - Private
+    function closeList() {
+        const was = panel;
+        if (!was) return;
+        closed();
+        was.close();
+    }
+
+    // The toasts held back while the center was open show again.
+    function closed() {
+        panel = null;
+        toToasts();
+        onCenter(false);
+    }
+
     // A toast shows once its sender's icon is read, so the default icon never stands in for it first.
     async function showToast(notification) {
         await iconRead(notification.mod.id);
         const timer = notification.actions.length ? 0 : setTimeout(() => hideToast(notification.id), STAYS);
         toasts.set(notification.id, { notification, timer });
-        if (face === 'toasts') toToasts();
+        toToasts();
     }
 
     // `told`: the center is told the toast is gone, unless it is the one that took it away. A toast on screen fades
@@ -129,24 +172,24 @@ function screen(shell, center) {
         const gone = () => {
             toasts.delete(id);
             if (told) center.toastGone(id);
-            if (face === 'toasts') toToasts();
+            toToasts();
         };
         const card = toastCards.get(id);
-        if (face !== 'toasts' || !card?.isConnected) return gone();
+        if (panel || !card?.isConnected) return gone();
         const { fade, easing } = shell.theme.motion;
         card.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade, easing, fill: 'forwards' });
         setTimeout(gone, fade);
     }
 
+    // The toasts' window, open while it shows any and the center is closed.
     function toToasts() {
-        face = 'toasts';
-        draw();
-        if (!toasts.size) {
+        drawToasts();
+        if (!toasts.size || panel) {
             window?.close();
             window = null;
             return;
         }
-        if (!window) open(around(toasts.size * TOAST_MOST, toasts.size), { activates: false });
+        if (!window) open(around(toasts.size * TOAST_MOST, toasts.size));
         fit();
     }
 
@@ -154,7 +197,7 @@ function screen(shell, center) {
     function fit() {
         const view = content.ownerDocument.defaultView;
         view.requestAnimationFrame(() => {
-            if (face !== 'toasts' || !window || !content.isConnected) return;
+            if (panel || !window || !content.isConnected) return;
             const cards = [...content.children];
             const height = cards.reduce((sum, card) => sum + card.getBoundingClientRect().height, 0);
             window.resize(WIDTH, Math.ceil(around(height, cards.length)));
@@ -166,46 +209,40 @@ function screen(shell, center) {
         return height + Math.max(0, cards - 1) * GAP + ROOM + ROOM_BELOW;
     }
 
-    // The window opened `height` tall, taking the keyboard unless `activates` is false. One closed where the screen did
-    // not ask opens again with the next toast or list.
-    function open(height, { activates = true } = {}) {
+    // The toasts' window opened `height` tall, leaving the keyboard where it is. One closed where the screen did not
+    // ask opens again with the next toast.
+    function open(height) {
         const opened = shell.windows.open({
             name: 'main',
             content,
             level: 'overlay',
             width: WIDTH,
             height,
-            activates,
-            didResignKey: () => face === 'list' && window === opened && toToasts(),
-            didClose: () => {
-                if (window !== opened) return;
-                window = null;
-                face = 'toasts';
-            },
+            activates: false,
+            didClose: () => window === opened && (window = null),
         });
         window = opened;
     }
 
-    function draw() {
-        if (face === 'toasts') {
-            for (const id of toastCards.keys()) if (!toasts.has(id)) toastCards.delete(id);
-            content.replaceChildren(...[...toasts.values()].map(({ notification }) => toastCard(notification)));
-            return;
-        }
-        const head = element('div', 'notifications-card notifications-head', 'Notifications');
+    function drawToasts() {
+        for (const id of toastCards.keys()) if (!toasts.has(id)) toastCards.delete(id);
+        content.replaceChildren(...[...toasts.values()].map(({ notification }) => toastCard(notification)));
+    }
+
+    function drawList() {
+        const head = element('div', 'notifications-head', 'Notifications');
         const notifications = center.list();
         if (notifications.length) head.append(button('Clear All', () => center.clear()));
-        const rows = notifications.map((notification) => card(notification, { meta: true }));
-        const empty = element('div', 'notifications-card notifications-empty', 'No notifications');
-        empty.append(element('div', 'notifications-empty-hint', 'What mods post shows here.'));
-        content.replaceChildren(head, ...(rows.length ? rows : [empty]));
+        const rows = notifications.map((notification) => card(notification, { row: true }));
+        const empty = ui.emptyState({ title: 'No notifications', hint: 'What mods post shows here.' }).element;
+        list.replaceChildren(head, ...(rows.length ? rows : [empty]));
     }
 
     // Made once per toast, coming in from the right edge, where it lives; under reduced motion it only fades in.
     function toastCard(notification) {
         const kept = toastCards.get(notification.id);
         if (kept) return kept;
-        const made = card(notification, { meta: false });
+        const made = card(notification, { row: false });
         toastCards.set(notification.id, made);
         const { move, fade, easing } = shell.theme.motion;
         if (move.base)
@@ -223,14 +260,14 @@ function screen(shell, center) {
         return made;
     }
 
-    // A press on the card runs what it names; its close button takes a toast off the screen, and a row out of the
-    // record.
-    function card(notification, { meta }) {
+    // A press on the card runs what it names; its close button takes a toast off the screen, and a row of the center
+    // out of the record. A row tells when its notification came.
+    function card(notification, { row }) {
         const made = element('div', 'notifications-card');
         const words = element('div', 'notifications-words');
         const titleRow = element('div', 'notifications-title-row');
         titleRow.append(element('div', 'notifications-title', notification.title || notification.mod.name));
-        if (meta) titleRow.append(element('div', 'notifications-time', when(notification)));
+        if (row) titleRow.append(element('div', 'notifications-time', when(notification)));
         words.append(titleRow);
         if (notification.body) words.append(element('div', 'notifications-body', notification.body));
         made.append(ui.appIcon(icons.get(notification.mod.id) ?? '', { alt: notification.mod.name }), words);
@@ -243,9 +280,9 @@ function screen(shell, center) {
         }
         const close = ui.iconButton({
             icon: ui.icon('x', { size: 14 }),
-            title: face === 'list' ? 'Remove' : 'Close',
+            title: row ? 'Remove' : 'Close',
             size: 'small',
-            onClick: () => (face === 'list' ? center.remove(notification.id) : hideToast(notification.id)),
+            onClick: () => (row ? center.remove(notification.id) : hideToast(notification.id)),
         }).element;
         close.classList.add('notifications-close');
         close.addEventListener('click', (event) => event.stopPropagation());
@@ -272,7 +309,7 @@ function screen(shell, center) {
         return made;
     }
 
-    return Object.freeze({ showList, end });
+    return Object.freeze({ showList, toggle, end });
 }
 
 // When a notification was posted, as much as the clock beside it does not already say: the time for today, the

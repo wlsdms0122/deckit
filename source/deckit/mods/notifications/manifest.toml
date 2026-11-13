@@ -7,16 +7,16 @@ activationPolicy = "accessory"
 background = "Takes the notifications mods send from the start, so none is missed."
 icon = "icon.svg"
 keywords = ["notifications", "알림", "toast"]
-view = { parent = "status-bar/items" }
 
 [permissions]
 "system.notifications" = "Shows a notification as the system's while you are in another app."
-"system.overlay-windows" = "Shows notifications over the app, and the recent ones when you ask."
+"system.overlay-windows" = "Shows notifications over the app as they come."
+"deckit.panel-windows" = "Shows the recent notifications along the right edge of the app's window when you ask."
 "deckit.system-services" = "Runs the command of a notification you press, which launches its sender if it does not run."
 
 [interfaces]
-provides = { "deckit/notifications" = [1] }
-uses = { "deckit/commands" = 1, "status-bar/items" = 1 }
+provides = { "deckit/notifications" = [1], "notifications/center" = [1] }
+uses = { "deckit/commands" = 1 }
 
 [[contributes."deckit/commands"]]
 id = "show"
