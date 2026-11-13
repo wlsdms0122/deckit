@@ -9,4 +9,4 @@ keywords = ["clock", "time", "date", "시계"]
 view = { parent = "status-bar/items" }
 
 [interfaces]
-uses = { "status-bar/items" = 1 }
+uses = { "status-bar/items" = 1, "notifications/center" = 1 }
