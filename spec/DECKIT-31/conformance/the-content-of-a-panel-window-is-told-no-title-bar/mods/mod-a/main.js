@@ -21,7 +21,7 @@ module.exports = class {
                 else if (command.list) say('list/' + shell.windows.list().map((one) => one.name).join(','));
                 else if (command.guide) {
                     const root = held.get(command.guide).content?.ownerDocument?.documentElement;
-                    say(command.guide + '/guide/' + String(root?.hasAttribute('data-deckit-title-bar')) + '/' + root?.style.getPropertyValue('--deckit-title-bar-area-height') + '/' + root?.style.getPropertyValue('--deckit-title-bar-area-x'));
+                    say(command.guide + '/guide/' + String(root?.hasAttribute('data-deckit-title-bar')) + '/' + root?.style.getPropertyValue('--deckit-title-bar-area-height') + '/' + root?.style.getPropertyValue('--deckit-title-bar-area-x') + '/' + ['top', 'right', 'bottom', 'left'].map((side) => root?.style.getPropertyValue('--deckit-safe-area-inset-' + side)).join('/'));
                 } else if (command.web) {
                     try {
                         const page = shell.web.window({ session: frameworks.web.session('main'), ...command.web });

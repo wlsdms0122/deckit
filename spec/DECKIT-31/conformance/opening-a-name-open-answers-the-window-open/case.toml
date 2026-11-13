@@ -23,4 +23,4 @@ member = "windows.list"
 handle = "shell"
 
 [step.expect]
-answers = [{ name = "main", isKey = false }]
+answers = [{ name = "main", isKey = false, title = "" }]
