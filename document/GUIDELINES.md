@@ -8,7 +8,7 @@ A person meets a mod through its window, its actions in the switcher, its keys, 
 
 | What the mod has | Where it goes |
 |---|---|
-| What it shows and lets the person work in | a window's content (`shell.windows.open`), at the `overlay` level for one over every app, at the `panel` level for one in the bar across the top of the app's window |
+| What it shows and lets the person work in | a window's content (`shell.windows.open`), at the `overlay` level for one over every app, at the `panel` level for one at an edge of the app's window: in the bar across its top, or along its right edge for what the person reads and clears for a while, as the notification center |
 | The things the content can show (files, tabs, notes, calendars) | the sidebar, in sections |
 | Moving through what is shown, and acting on it | the title bar |
 | Something it does | a command with a key (`[[contributes."deckit/keys"]]`) and a switcher action; also a button in the title bar or in a section's header when it is done while looking at the window |
@@ -121,7 +121,7 @@ A post to `deckit/notifications` (MOD.md, Standard interfaces) tells the person 
 
 ## The status bar
 
-A mod joins the status bar, the capsule at the top right of the app, by naming its interface as its view's parent: its view is then an item there, in the mods' order, and the bar launches the mod to show it. The view draws the item with `ui.barItem`, a 16px glyph by default; a wider one, as text, tells its width with `setWidth` once connected ([README](../source/deckit/mods/status-bar/README.md)). An item takes a press only where it does something, and what it opens comes up in a window of the mod's.
+A mod joins the status bar, the capsule at the top right of the app, by naming its interface as its view's parent: its view is then an item there, in the mods' order, and the bar launches the mod to show it. The view draws the item with `ui.barItem`, a 16px glyph by default; a wider one, as text, tells its width with `setWidth` once connected ([README](../source/deckit/mods/status-bar/README.md)). An item takes a press only where it does something, and what it opens comes up in a window of the mod's: the clock opens the notification center, a panel window at the right edge, and shows pressed while it is open (`setPressed`).
 
 ```toml
 view = { parent = "status-bar/items" }
@@ -159,7 +159,7 @@ Draw with the kit and its tokens (UI.md, The theme). A new theme or new fonts ch
 - **Colour:** `text`, `muted` for what is secondary, `disabled`, never a lowered opacity on text; `fill` for fields; `hover`, `pressed` and `selected` for state; `accentFill` under `onAccent` for the one thing to press and for what is on, `accent` for text and glyphs in it; `ok`, `warn` and `alert` for status only, as dots and washes, and `okInk`, `warnInk` and `alertInk` for status as text or a glyph; `elevated` for what floats, edged by `--deckit-rim` under `--deckit-shadow-float` and no border. A colour of the content's own (a calendar's, a file type's) is data, with `ui.onColor` for the text over it.
 - **Radius:** `--deckit-radius-*`: `control` for rows and `small` controls, `medium` for `medium` controls and the sidebar's card, `large` for a menu and a popover, `card` for a dialog's card and a toast, `round` for fields and pills. An inner corner is the outer one less the room between them.
 - **Icons:** `ui.icon`, 16px in the title bar, section headers and sidebar rows, 15px in other rows, 13px beside text in a line. These are glyphs, for actions and places; a mod is drawn with its app icon (App icons, below).
-- **Material:** glass is for navigation and controls over a real backdrop: the desktop, the status bar's capsule, the switcher. What is read or worked in stays opaque: window bodies, sidebars, dialogs, toasts, and menus and the Dock, which have only other views behind them. A part in a page that floats over the page's own content (a minimap, a drop target) lays its colour at `--deckit-glass` over `--deckit-blur`, both opaque while the system asks for less transparency.
+- **Material:** glass is for navigation and controls over a real backdrop: the desktop, the panel windows' material (the status bar's capsule, the notification center, whose rows lie on cards), the switcher. What is read or worked in stays opaque: window bodies, sidebars, dialogs, toasts, and menus and the Dock, which have only other views behind them. A part in a page that floats over the page's own content (a minimap, a drop target) lays its colour at `--deckit-glass` over `--deckit-blur`, both opaque while the system asks for less transparency.
 - **Motion:** `--deckit-fade` for what fades or changes colour (hover, press, a fade in), `--deckit-move-fast`, `--deckit-move-base` and `--deckit-move-slow` for what moves or changes size, by how far, never a length written out. `--deckit-easing` for what comes and goes, `--deckit-easing-move` for what moves on screen (a sidebar, an indicator). An animation in code reads `theme.motion`: `move` is 0 with reduced motion, `fade` keeps its length. What a key opens or toggles comes and goes at once.
 
 ## App icons
