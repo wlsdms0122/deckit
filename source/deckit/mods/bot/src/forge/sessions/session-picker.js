@@ -7,7 +7,7 @@ const CURRENT_MS = 3000;
 const LIST_MS = 15000;
 
 const sessionPicker = ({ shell, deckit, forge, onChange }) => {
-    const { theme, ui } = shell;
+    const { ui } = shell;
     const store = deckit.storage.values;
     let session = store.get('session', null) || 'default';
     let sessions = [{ name: session, checking: true }]; // until the first answer
@@ -16,12 +16,14 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
 
     const stateOf = (entry) =>
         entry.checking ? 'checking' : !entry.up ? 'stopped' : entry.authority ? 'running' : 'started elsewhere';
-    const dot = (entry) =>
-        ui.iconOf('<circle cx="12" cy="12" r="5"/>', {
+    // Drawn in the ink's custom property, so it follows the surface it is on (glass in the select's menu).
+    const dot = (entry) => {
+        const ink = entry.checking ? 'muted' : entry.up ? 'ok-ink' : 'alert-ink';
+        return ui.iconOf(`<circle cx="12" cy="12" r="5" style="fill: var(--deckit-${ink})"/>`, {
             size: 14,
-            fill: entry.checking ? theme.color.muted : entry.up ? theme.color.okInk : theme.color.alertInk,
             color: 'none',
         });
+    };
     const button = ui.select({ options: [], value: session, onChange: (name) => choose(name) });
     button.element.title = 'Forge session';
     const paint = () => {
@@ -30,7 +32,6 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
         );
         button.set(session);
     };
-    theme.onChange(paint);
 
     const choose = (name) => {
         if (name === session) return;
