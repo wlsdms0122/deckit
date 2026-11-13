@@ -35,7 +35,9 @@ async function main() {
             opened.mod === 'a' &&
             opened.size.width === 720 &&
             opened.size.height === 480 &&
-            opened.title === null,
+            opened.bar.style === 'unified' &&
+            opened.bar.height === 48 &&
+            opened.title === '',
         opened
     );
     const again = shell.fromPage('open', pages.a, { name: 'main', width: 300, height: 200 });
@@ -205,7 +207,8 @@ async function main() {
             webWindow.title === 'Example' &&
             webWindow.name === null &&
             webWindow.size.width === 520 &&
-            webWindow.size.height === 700,
+            webWindow.size.height === 748 &&
+            webWindow.bar.style === 'titled',
         webWindow
     );
     web.setTitle('Example, again');

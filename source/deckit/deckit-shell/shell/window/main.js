@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from '../../../deckit-sdk/shell/window/protocol.js';
 import * as SURFACE from './model/surface.js';
+import * as LAYOUT from '../desktop/model/layout.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `PAGES` the shell's pages,
 // `OVERLAY` their overlays, `REGION` the regions mods give their children, `DESKTOP` where normal windows are, the
@@ -30,12 +31,11 @@ export function createWindows({
     // The size a window opens at where its mod gives none, and the size a web page's window opens at.
     const SIZE = Object.freeze({ width: 720, height: 480 });
     const WEB_SIZE = Object.freeze({ width: 520, height: 700 });
-    // id -> { id, mod, page, name, level, edge, size, minimum, surface, sent, host, title, web }: `name` null for a web
-    // page's window, which has none, `edge` a panel window's, 'top' or 'right', and null for any other, `surface` its
-    // content once
-    // the page opened it, `sent` what the page was last told of it, `host` an overlay window's
-    // `{ control, stage, key }`; and for a web page's window, `title`, what its title bar holds, and `web`,
-    // `{ closed }`, the listeners of its close.
+    // id -> { id, mod, page, name, level, edge, size, minimum, bar, surface, sent, host, title, web }: `name` null for
+    // a web page's window, which has none, `edge` a panel window's, 'top' or 'right', and null for any other, `bar` a
+    // normal window's title bar (LAYOUT.barOf), `surface` its content once the page opened it, `sent` what the page was
+    // last told of it, `host` an overlay window's `{ control, stage, key }`, `title` what a titled window's bar holds;
+    // and for a web page's window `web`, `{ closed }`, the listeners of its close.
     const windows = new Map();
     const heard = new Set(); // the pages whose end closes their windows
     let count = 0;
@@ -53,6 +53,7 @@ export function createWindows({
         PROTOCOL.orderFront.on(bySender((window) => orderFront(window, { activates: false })));
         PROTOCOL.makeKeyAndOrderFront.on(bySender((window) => orderFront(window)));
         PROTOCOL.resize.on(bySender(resize));
+        PROTOCOL.setTitle.on(bySender((window, { title }) => retitle(window, title)));
         PROTOCOL.move.on(
             bySender((window, { phase, dx, dy }) => window.level === NORMAL && DESKTOP.move(window, phase, dx, dy))
         );
@@ -71,14 +72,15 @@ export function createWindows({
     }
 
     // A web page in a window of the app's, as the environment asks the host app for one (`openWindow({ title, page })`):
-    // a normal window of the mod whose page shows the web page, its content, WEB_SIZE big under the title bar the shell
-    // draws. Answers what the environment drives of it: `setTitle(text)`, `close()`, and `on('close', listener)`, its
-    // off answered, heard once as the window closes, however it closes.
+    // a normal window of the mod whose page shows the web page, titled, its content WEB_SIZE big under the title bar
+    // the shell draws. Answers what the environment drives of it: `setTitle(text)`, `close()`, and
+    // `on('close', listener)`, its off answered, heard once as the window closes, however it closes.
     function openWeb({ title = '', page: content }) {
         const page = web.pageFor(content);
         const mod = page && deckit.mods.modOf(page);
         if (!mod) throw new Error('only a web page a mod shows opens a window');
         const id = ++count;
+        const bar = LAYOUT.barOf({ style: 'titled' });
         const window = {
             id,
             mod,
@@ -86,8 +88,9 @@ export function createWindows({
             name: null,
             level: NORMAL,
             edge: null,
-            size: { ...WEB_SIZE },
+            size: LAYOUT.framedSize(WEB_SIZE, bar),
             minimum: { width: 0, height: 0 },
+            bar,
             surface: content,
             sent: '',
             host: null,
@@ -138,8 +141,9 @@ export function createWindows({
     }
 
     // One window of a name per run: the one open orders front. It comes up as the key window unless `activates` is
-    // false.
-    function open(page, { name, level, edge, width, height, minWidth, minHeight, activates = true }) {
+    // false. A normal window's title bar is as its style options say, read here once.
+    function open(page, options) {
+        const { name, level, edge, width, height, minWidth, minHeight, activates = true, title } = options;
         const mod = deckit.mods.modOf(page);
         const same = [...windows.values()].find((window) => window.page === page && window.name === name);
         if (same) {
@@ -156,10 +160,11 @@ export function createWindows({
             edge: level === PANEL ? (edge === 'right' ? 'right' : 'top') : null,
             size: { width: width ?? SIZE.width, height: height ?? SIZE.height },
             minimum: { width: minWidth ?? 0, height: minHeight ?? 0 },
+            bar: barOf(options),
             surface: null,
             sent: '',
             host: null,
-            title: null,
+            title: title ?? '',
             web: null,
         };
         windows.set(id, window);
@@ -249,6 +254,12 @@ export function createWindows({
             showFloating(window, { activates: false });
             tell();
         }
+    }
+
+    // A normal window's bar shows its title; at another level the title is kept, and nothing shows it.
+    function retitle(window, title) {
+        if (window.level === NORMAL) DESKTOP.setTitle(window, title);
+        else window.title = String(title);
     }
 
     // A page's document that ends takes its windows with it.
@@ -427,4 +438,16 @@ export function createWindows({
     }
 
     return { start, openWeb, pageOf, keyOverlay, forward, reopen, keyboardOf, close };
+}
+
+// MARK: - Private
+// The title bar a window's options give it: its style, its height, where its buttons stand and which act, the zoom
+// button where it is resizable.
+function barOf({ titleBar, titleBarHeight, controlsX, controlsY, closable, minimizable, resizable }) {
+    return LAYOUT.barOf({
+        style: titleBar === 'titled' ? 'titled' : 'unified',
+        height: titleBarHeight ?? LAYOUT.TITLE_BAR.height,
+        origin: { x: controlsX ?? undefined, y: controlsY ?? undefined },
+        enabled: { close: closable !== false, minimize: minimizable !== false, zoom: resizable !== false },
+    });
 }

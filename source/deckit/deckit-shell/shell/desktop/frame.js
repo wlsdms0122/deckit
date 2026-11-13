@@ -12,7 +12,7 @@ import * as DECLARED from './protocol.js';
 // MARK: - Property
 // Each frame's surface is the window grown by its shadow: the window's material at its middle, the title bar of a
 // titled window at its top, the edges that resize it just outside it, as model/layout.js partsOf has them.
-const { SHADOW, EDGE, RADIUS, BUTTON, TITLE_BAR } = LAYOUT;
+const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
 const STYLE = `
     .deckit-desktop-strip { position: fixed; top: 0; left: 0; right: 0; --app-region: drag; }
     .deckit-window-title-text {
@@ -65,14 +65,13 @@ const STYLE = `
         display: flex;
         align-items: center;
         justify-content: center;
-        height: ${TITLE_BAR.height}px;
         box-sizing: border-box;
-        padding: 0 ${TITLE_BAR.controlsWidth}px;
         border-bottom: 1px solid var(--deckit-divider);
     }
     .deckit-window-title[hidden] { display: none; }
     .deckit-window-title[data-key] .deckit-window-title-text { color: var(--deckit-text); }
     .deckit-window-edge { position: fixed; }
+    .deckit-window-edge[hidden] { display: none; }
     .deckit-window-edge[data-edge='top'] { top: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
     .deckit-window-edge[data-edge='bottom'] { bottom: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
     .deckit-window-edge[data-edge='left'] { left: ${SHADOW - EDGE}px; top: ${SHADOW}px; bottom: ${SHADOW}px; width: ${EDGE}px; cursor: ew-resize; }
@@ -86,7 +85,6 @@ const STYLE = `
     .deckit-window-edge[data-edge='top-right'], .deckit-window-edge[data-edge='bottom-left'] { cursor: nesw-resize; }
     .deckit-window-button {
         position: fixed;
-        top: ${(TITLE_BAR.height - BUTTON.size) / 2}px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -102,12 +100,14 @@ const STYLE = `
     .deckit-window-button[data-button='close'] { --deckit-window-light: #ff5f57; }
     .deckit-window-button[data-button='minimize'] { --deckit-window-light: #febc2e; }
     .deckit-window-button[data-button='zoom'] { --deckit-window-light: #28c840; }
-    [data-key] > .deckit-window-button, .deckit-window-buttons:hover > .deckit-window-button {
+    :is([data-key], .deckit-window-buttons:hover) > .deckit-window-button:enabled {
         background: var(--deckit-window-light);
     }
-    .deckit-window-button:active { filter: brightness(0.85); }
+    .deckit-window-button:enabled:active { filter: brightness(0.85); }
     .deckit-window-button svg { width: 8px; height: 8px; opacity: 0; }
-    .deckit-window-buttons:hover .deckit-window-button svg, .deckit-window-button:focus-visible svg { opacity: 1; }
+    :is(.deckit-window-buttons:hover .deckit-window-button, .deckit-window-button:focus-visible):enabled svg {
+        opacity: 1;
+    }
     .deckit-window-buttons { position: fixed; inset: 0; }
 `;
 const LABELS = Object.freeze({ close: 'Close', minimize: 'Minimize', zoom: 'Zoom' });
@@ -190,12 +190,21 @@ function boot(theme, channels) {
         }
         for (const window of state.windows) {
             if (!drawn.has(window.id)) drawn.set(window.id, frameOf(window.id));
-            const { material, bar, text, buttons } = drawn.get(window.id);
+            const { material, bar, text, buttons, edges } = drawn.get(window.id);
+            const laid = window.bar;
             material.toggleAttribute('data-key', window.key);
             buttons.toggleAttribute('data-key', window.key);
             bar.toggleAttribute('data-key', window.key);
             bar.hidden = window.title === null;
+            bar.style.height = laid.height + 'px';
+            bar.style.padding = `0 ${laid.areaX}px`;
             text.textContent = window.title ?? '';
+            for (const edge of edges) edge.hidden = !laid.enabled.zoom;
+            for (const { name, x, y } of LAYOUT.buttonsOf(laid)) {
+                const button = buttons.querySelector(`[data-button='${name}']`);
+                Object.assign(button.style, { left: x + 'px', top: y + 'px' });
+                button.disabled = !laid.enabled[name];
+            }
         }
     }
 
@@ -289,13 +298,12 @@ function boot(theme, channels) {
         const held = surface(PAGE.buttonsOf(id));
         const buttons = element(held.document, 'div', 'deckit-window-buttons');
         buttons.addEventListener('pointerdown', () => PROTOCOL.press.send({ id }));
-        LAYOUT.BUTTONS.forEach((name, at) => {
+        LAYOUT.BUTTONS.forEach((name) => {
             const button = element(held.document, 'button', 'deckit-window-button');
             button.type = 'button';
             button.dataset.button = name;
             button.title = LABELS[name];
             button.setAttribute('aria-label', LABELS[name]);
-            button.style.left = BUTTON.inset + at * (BUTTON.size + BUTTON.gap) + 'px';
             button.innerHTML =
                 '<svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">' +
                 `<path d="${GLYPHS[name]}"/></svg>`;
@@ -303,7 +311,7 @@ function boot(theme, channels) {
             buttons.append(button);
         });
         held.document.body.append(buttons);
-        return { material, bar, text, buttons, off: [frame.off, held.off] };
+        return { material, bar, text, buttons, edges, off: [frame.off, held.off] };
     }
 
     // A drag of a titled window's title bar, read on the screen, as the surface moves with the frame. The second press

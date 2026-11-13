@@ -4,7 +4,9 @@ import * as WINDOW_PERMISSION from './model/permission.js';
 
 // A window opens, or the one of that name open orders front: answers `{ id, surface }` at once, `surface` the name
 // the page opens its content by (window.open('', surface)). `level` is 'normal', 'overlay' or 'panel', `edge` a panel
-// window's, 'top' or 'right'; `activates` false leaves the key window where it is.
+// window's, 'top' or 'right'; `activates` false leaves the key window where it is. A normal window's title bar:
+// `titleBar` 'unified' or 'titled', `titleBarHeight`, `controlsX` and `controlsY` where its buttons stand from the
+// frame's top left, `closable`, `minimizable` and `resizable` which of them act; and its `title`.
 export const open = CHANNEL.pageToMain(
     'deckit-shell:window-open',
     {
@@ -16,6 +18,14 @@ export const open = CHANNEL.pageToMain(
         minWidth: 'number?',
         minHeight: 'number?',
         activates: 'boolean?',
+        titleBar: 'string?',
+        titleBarHeight: 'number?',
+        controlsX: 'number?',
+        controlsY: 'number?',
+        closable: 'boolean?',
+        minimizable: 'boolean?',
+        resizable: 'boolean?',
+        title: 'string?',
     },
     { reply: true, sync: true, guard: WINDOW_PERMISSION.permissionOf }
 );
@@ -49,6 +59,12 @@ export const resize = CHANNEL.pageToMain(
     },
     { guard: CHANNEL.GUARD.ANY }
 );
+// The title a titled window's bar holds.
+export const setTitle = CHANNEL.pageToMain(
+    'deckit-shell:window-set-title',
+    { id: 'number', title: 'string' },
+    { guard: CHANNEL.GUARD.ANY }
+);
 // A press in the content's drag regions moves the window: `phase` 'began' at the press, then 'changed' and 'ended',
 // `dx`, `dy` how far the pointer went since the press, on the screen.
 export const move = CHANNEL.pageToMain(
@@ -69,8 +85,8 @@ export const doubleClick = CHANNEL.pageToMain(
 );
 
 // `{ id, shown, key, width, height, titleBar }`, each time any of it changes: `shown` whether it is on some seat's
-// screen, `key` whether it is some seat's key window, `titleBar` `{ height, controlsWidth }`, where the window's
-// buttons stand over its top, or null.
+// screen, `key` whether it is some seat's key window, `titleBar` `{ height, controlsWidth }`, the title bar over the
+// content's top and where its area starts past the buttons, or null for content under no bar of the shell's.
 export const state = CHANNEL.mainToPage('deckit-shell:window-state');
 // `{ id }`: the window closed.
 export const closed = CHANNEL.mainToPage('deckit-shell:window-closed');

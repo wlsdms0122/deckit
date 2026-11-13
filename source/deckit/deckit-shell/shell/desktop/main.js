@@ -32,8 +32,8 @@ export function createDesktop({
     const ACTIVATION = ACTIVATION_MODEL.createActivation();
     // What each of the shell's keys does, by its id, to the local seat's key window.
     const KEY_ACTIONS = Object.freeze({
-        closeWindow: () => keyWindow() && WINDOWS.close(keyWindow()),
-        minimizeWindow: () => keyWindow() && minimize(keyWindow()),
+        closeWindow: () => keyWindow() && clicked(keyWindow(), 'close'),
+        minimizeWindow: () => keyWindow() && clicked(keyWindow(), 'minimize'),
         cycleWindows,
     });
     // Which mods may activate for a seat, as its input and the requests mods make of one another hand it on.
@@ -101,17 +101,19 @@ export function createDesktop({
 
     // A normal window opens where its mod last left a normal window of its name, or cascaded from the key window, or
     // the front window on screen while none is key, where it left none or one of that name is open, placed at its size
-    // no smaller than its minimum, brought forward as orderFront brings it. A window with a `title` is titled: the
-    // shell draws its title bar, holding the title, over its content.
+    // no smaller than its minimum, brought forward as orderFront brings it. Its `bar` is its title bar (LAYOUT.barOf):
+    // the shell draws the bar of a titled one, holding its `title`, over its content.
     function open(window, { activates = true } = {}) {
         const desktopNow = area();
         const after = keyWindow() ? MANAGER.frameOf(keyWindow().id) : (MANAGER.viewOf(LOCAL).at(-1)?.frame ?? null);
         const twin = [...windows.values()].some(({ mod, name }) => mod === window.mod && name === window.name);
         const restored = (!twin && keptFrameOf(window)) || null;
-        const minimum = LAYOUT.minimumOf(window.minimum);
-        const framed = LAYOUT.framedSize(window.size, isTitled(window));
-        const size = { width: Math.max(framed.width, minimum.width), height: Math.max(framed.height, minimum.height) };
-        const frame = LAYOUT.placed({ size, restored, after, desktop: desktopNow });
+        const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
+        const size = {
+            width: Math.max(window.size.width, minimum.width),
+            height: Math.max(window.size.height, minimum.height),
+        };
+        const frame = LAYOUT.placed({ size, restored, after, desktop: desktopNow, bar: window.bar.height });
         windows.set(window.id, window);
         for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)])
             PAGES.allowSurface(desktop.page, name, (surface) => openSurface(name, surface));
@@ -242,7 +244,7 @@ export function createDesktop({
         const frame = LAYOUT.underBar({ ...moving.from, x: moving.from.x + dx, y: moving.from.y + dy }, area(), {
             moved: true,
         });
-        MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(frame, area()) : frame);
+        MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(frame, area(), window.bar.height) : frame);
         if (phase === 'ended') {
             moving = null;
             remember(window);
@@ -250,11 +252,10 @@ export function createDesktop({
         update();
     }
 
-    // A double click on the title bar does what the person set it to.
+    // A double click on the title bar does what the person set it to, where the window's button for it is enabled.
     function doubleClick(window) {
         const action = actionOnDoubleClick();
-        if (action === 'zoom') zoom(window);
-        else if (action === 'minimize') minimize(window);
+        if (action === 'zoom' || action === 'minimize') clicked(window, action);
     }
 
     // Each of the mod's windows brought forward for `seat`, in the order it had them, those it minimized too, as
@@ -291,7 +292,7 @@ export function createDesktop({
             key: MANAGER.isKey(window.id) && !keyboardAway(),
             width: frame?.width ?? 0,
             height: frame?.height ?? 0,
-            titleBar: { ...LAYOUT.TITLE_BAR },
+            titleBar: LAYOUT.guideOf(window.bar),
         };
     }
 
@@ -433,17 +434,21 @@ export function createDesktop({
         handler(window);
     }
 
+    // The person's click of a button, or the key or double click that does what it does: nothing where the window
+    // has it disabled.
     function clicked(window, button) {
+        if (!window.bar.enabled[button]) return;
         if (button === 'close') WINDOWS.close(window);
         else if (button === 'minimize') minimize(window);
         else if (button === 'zoom') zoom(window);
     }
 
     // The frame a drag of an edge draws, under the host's bar, kept where its title bar can be reached and remembered
-    // as the drag ends.
+    // as the drag ends. A window that is not resizable takes none.
     function framed(window, phase, frame) {
+        if (!window.bar.enabled.zoom) return;
         const next = LAYOUT.underBar(frame, area(), { moved: false });
-        MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(next, area()) : next);
+        MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(next, area(), window.bar.height) : next);
         if (phase === 'ended') remember(window);
         update();
     }
@@ -479,7 +484,7 @@ export function createDesktop({
         resize: (id, edge, dx, dy) =>
             byHand(id, (window) => {
                 press(window);
-                const minimum = LAYOUT.minimumOf(window.minimum);
+                const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
                 const frame = LAYOUT.resized(MANAGER.frameOf(id), edge, dx, dy, minimum);
                 framed(window, 'changed', frame);
                 framed(window, 'ended', frame);
@@ -539,7 +544,7 @@ export function createDesktop({
     }
 
     function isTitled(window) {
-        return typeof window.title === 'string';
+        return window.bar.style === 'titled';
     }
 
     // The mod whose page a page of the app is, the content of its window, a web page it shows or an overlay of one,
@@ -586,7 +591,7 @@ export function createDesktop({
         if (desktopNow.width && desktopNow.height) {
             for (const id of windows.keys()) {
                 const frame = MANAGER.frameOf(id);
-                const kept = LAYOUT.kept(frame, desktopNow);
+                const kept = LAYOUT.kept(frame, desktopNow, windows.get(id).bar.height);
                 if (!MANAGER.isZoomed(id) && (kept.x !== frame.x || kept.y !== frame.y))
                     MANAGER.setFrame(LOCAL, id, kept);
             }
@@ -640,26 +645,26 @@ export function createDesktop({
                 ...(backdrop ? [{ page: backdrop, rect: full }] : []),
                 ...view.flatMap(({ id, frame }) => {
                     const window = windows.get(id);
-                    const titled = isTitled(window);
-                    const parts = LAYOUT.partsOf(frame);
+                    const { bar } = window;
+                    const parts = LAYOUT.partsOf(frame, bar);
                     const clip = { ...frame, cornerRadius: LAYOUT.RADIUS };
                     return [
                         surface(PAGE.frameOf(id)) && {
                             page: surface(PAGE.frameOf(id)),
                             rect: parts.rect,
                             input: [
-                                ...parts.edges.map(({ rect }) => rect),
-                                ...(titled ? [LAYOUT.titleBarOf(frame)] : []),
+                                ...(bar.enabled.zoom ? parts.edges.map(({ rect }) => rect) : []),
+                                ...(isTitled(window) ? [LAYOUT.titleBarOf(frame, bar)] : []),
                             ],
                         },
-                        window.surface && { page: window.surface, rect: LAYOUT.contentOf(frame, titled), clip },
+                        window.surface && { page: window.surface, rect: LAYOUT.contentOf(frame, bar), clip },
                         ...children
                             .filter(({ window }) => window === id)
                             .map(({ page, rect }) => ({ page, rect, clip })),
                         surface(PAGE.buttonsOf(id)) && {
                             page: surface(PAGE.buttonsOf(id)),
                             rect: parts.buttons,
-                            input: buttonRects(),
+                            input: LAYOUT.buttonsOf(bar).map(({ x, y, width, height }) => ({ x, y, width, height })),
                         },
                     ].filter(Boolean);
                 }),
@@ -719,13 +724,6 @@ export function createDesktop({
         );
     }
 
-    // Where the buttons take presses in their surface: between them a press is the title bar's, under them.
-    function buttonRects() {
-        const { size, gap, inset } = LAYOUT.BUTTON;
-        const y = Math.round((LAYOUT.TITLE_BAR.height - size) / 2);
-        return LAYOUT.BUTTONS.map((_button, at) => ({ x: inset + at * (size + gap), y, width: size, height: size }));
-    }
-
     // The Dock's items as the desktop's page draws them, `{ id, pinned, running, attention, active }`: `attention`
     // where the mod asks for the local seat's attention, and `active` for the mod of the desktop's key window.
     function dockNow() {
@@ -749,7 +747,8 @@ export function createDesktop({
                 id,
                 frame,
                 key: id === key && !keyboardAway(),
-                minimum: LAYOUT.minimumOf(windows.get(id).minimum),
+                minimum: LAYOUT.minimumOf(windows.get(id).minimum, windows.get(id).bar),
+                bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),
             panels: panelFrames().map(({ window, frame }) => ({ id: window.id, edge: window.edge, frame })),

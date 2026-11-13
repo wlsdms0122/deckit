@@ -291,8 +291,38 @@ async function main() {
             right.x === LAYOUT.SHADOW + 300 &&
             right.width === LAYOUT.EDGE &&
             parts.buttons.x === 100 &&
-            parts.buttons.width === LAYOUT.TITLE_BAR.controlsWidth,
+            parts.buttons.width === 78,
         parts
+    );
+    const bar = LAYOUT.DEFAULT_BAR;
+    const close = LAYOUT.buttonsOf(bar)[0];
+    check(
+        "a window's buttons stand centred on its 48 bar, as far in as down, its title bar area 78 in",
+        bar.height === 48 && close.x === 18 && close.y === 18 && bar.areaX === 78 && LAYOUT.MINIMUM.width === 120,
+        { bar, close }
+    );
+    const tall = LAYOUT.barOf({ height: 64 });
+    const moved = LAYOUT.barOf({ origin: { x: 30, y: 400 } });
+    const wide = LAYOUT.minimumOf({}, LAYOUT.barOf({ origin: { x: 200 } }));
+    check(
+        "a taller bar keeps its buttons centred; an origin moves them and the area, one past the bar's bottom stands there",
+        tall.y === 26 &&
+            tall.x === 18 &&
+            LAYOUT.minimumOf({}, tall).height === 64 &&
+            moved.x === 30 &&
+            moved.y === 36 &&
+            moved.areaX === 90 &&
+            wide.width === 302,
+        { tall, moved, wide }
+    );
+    const titled = LAYOUT.barOf({ style: 'titled' });
+    check(
+        'a titled window tells its content no bar and lays it below its own; a unified one tells its bar',
+        LAYOUT.guideOf(titled) === null &&
+            JSON.stringify(LAYOUT.guideOf(bar)) === JSON.stringify({ height: 48, controlsWidth: 78 }) &&
+            LAYOUT.contentOf({ x: 0, y: 0, width: 100, height: 200 }, titled).y === 48 &&
+            LAYOUT.framedSize({ width: 520, height: 700 }, titled).height === 748,
+        LAYOUT.guideOf(titled)
     );
 
     // Mods `a` and `b`; windows 1 and 2 of `a`, 3 of `b`, each a stand-in for what the shell's windows make.
@@ -309,6 +339,7 @@ async function main() {
         surface: { name: `content-${id}`, of: pages[mod] },
         size: { width: 300, height: 200 },
         minimum: { width: 0, height: 0 },
+        bar: LAYOUT.DEFAULT_BAR,
     });
     const one = windowOf(1, 'a', 'main');
     const two = windowOf(2, 'a', 'other');
@@ -567,7 +598,9 @@ async function main() {
         [desk.frameOf(3), desk.frameOf(2)]
     );
 
-    const four = { ...windowOf(4, 'b', 'web'), title: 'Site' };
+    const web = LAYOUT.barOf({ style: 'titled' });
+    const four = { ...windowOf(4, 'b', 'web'), size: LAYOUT.framedSize({ width: 300, height: 200 }, web), bar: web };
+    four.title = 'Site';
     desk.desktop.open(four);
     desk.openSurfaces(4);
     const framed = desk.laid().find(({ page }) => page.name === 'frame-4');
@@ -580,7 +613,7 @@ async function main() {
         "a titled window's content is laid under the title bar the shell draws, which takes the pointer in its frame",
         framed.rect.y + LAYOUT.SHADOW + LAYOUT.TITLE_BAR.height === desk.frameOf(4).y &&
             desk.frameOf(4).height === 200 &&
-            JSON.stringify(framed.input.at(-1)) === JSON.stringify(LAYOUT.titleBarOf(titledFrame)),
+            JSON.stringify(framed.input.at(-1)) === JSON.stringify(LAYOUT.titleBarOf(titledFrame, web)),
         { framed, content: desk.frameOf(4) }
     );
     desk.desktop.setTitle(four, 'Other');

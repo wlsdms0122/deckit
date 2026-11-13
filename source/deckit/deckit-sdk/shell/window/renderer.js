@@ -28,6 +28,12 @@ const STYLE = `
 const LEVELS = Object.freeze(['normal', 'overlay', 'panel']);
 const EDGES = Object.freeze(['top', 'right']);
 const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didResize', 'didClose']);
+// A normal window's title bar: its styles, the height it is never below, and the flags that say which buttons act.
+const TITLE_BARS = Object.freeze(['unified', 'titled']);
+const TITLE_BAR_HEIGHT = 48;
+const FLAGS = Object.freeze(['closable', 'minimizable', 'resizable']);
+// The safe area's insets, set on the content's root as custom properties.
+const INSETS = Object.freeze(['top', 'right', 'bottom', 'left']);
 
 // MARK: - Initializer
 // MARK: - Public
@@ -103,7 +109,10 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `windows.open: ${problem}`);
         if (scope.isCut) throw cut('windows.open');
         const { name, level = 'normal', edge = 'top', width, height, minWidth, minHeight, activates = true } = options;
-        const payload = { name, level, edge, width, height, minWidth, minHeight, activates };
+        const { titleBar, titleBarHeight, controlsOrigin, closable, minimizable, resizable, title = '' } = options;
+        const bar = { titleBar, titleBarHeight, controlsX: controlsOrigin?.x, controlsY: controlsOrigin?.y };
+        const flags = { closable, minimizable, resizable };
+        const payload = { name, level, edge, width, height, minWidth, minHeight, activates, ...bar, ...flags, title };
         const { id, surface } = PROTOCOL.open.invoke(payload);
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
@@ -122,6 +131,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             document,
             scope,
             state: { shown: false, key: false, size: null },
+            title,
             off: [],
         };
         held.off.push(
@@ -153,6 +163,17 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             name: held.options.name,
             get isKey() {
                 return held.state.key;
+            },
+            get title() {
+                return held.title;
+            },
+            setTitle(title) {
+                if (typeof title !== 'string')
+                    throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'setTitle takes a title, a text');
+                sent('setTitle', () => {
+                    held.title = title;
+                    PROTOCOL.setTitle.send({ id, title });
+                })();
             },
             close: sent('close', () => PROTOCOL.close.send({ id })),
             minimize: sent('minimize', () => PROTOCOL.minimize.send({ id })),
@@ -200,14 +221,17 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         if (was.size && (was.size.width !== width || was.size.height !== height)) tell(held, 'didResize');
     }
 
-    // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons. The root says
-    // whether the window is key (`data-deckit-key`), which the kit's title bar and selection read.
+    // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons. Its safe area
+    // is the frame less what the shell covers: the bar across its top. The root says whether the window is key
+    // (`data-deckit-key`), which the kit's title bar and selection read.
     function guide(document, titleBar, key) {
         const root = document.documentElement;
+        const inset = { top: titleBar?.height ?? 0, right: 0, bottom: 0, left: 0 };
         root.dataset.deckitKey = String(key);
         root.toggleAttribute('data-deckit-title-bar', !!titleBar);
         root.style.setProperty('--deckit-title-bar-area-height', (titleBar?.height ?? 0) + 'px');
         root.style.setProperty('--deckit-title-bar-area-x', (titleBar?.controlsWidth ?? 0) + 'px');
+        for (const side of INSETS) root.style.setProperty(`--deckit-safe-area-inset-${side}`, inset[side] + 'px');
     }
 
     function ended(id, held) {
@@ -242,12 +266,24 @@ function problemOf(options) {
     if (CHANNEL.kindOf(options) !== 'object') return 'options is no table';
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
-        return `takes { name, content, level, edge, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;
+        return `takes { name, content, level, edge, width, height, minWidth, minHeight, activates, titleBar, titleBarHeight, controlsOrigin, ${FLAGS.join(', ')}, title, ${CALLBACKS.join(', ')} }, name a text and content an element`;
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.slice(0, -1).join(', ')} or ${LEVELS.at(-1)}`;
     if (options.edge !== undefined && !EDGES.includes(options.edge)) return `takes an edge of ${EDGES.join(' or ')}`;
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
     if (options.activates !== undefined && typeof options.activates !== 'boolean') return 'takes activates a boolean';
+    if (options.titleBar !== undefined && !TITLE_BARS.includes(options.titleBar))
+        return `takes a titleBar of ${TITLE_BARS.join(' or ')}`;
+    const { titleBarHeight, controlsOrigin, title } = options;
+    if (titleBarHeight !== undefined && !(Number.isFinite(titleBarHeight) && titleBarHeight >= TITLE_BAR_HEIGHT))
+        return `takes a titleBarHeight of ${TITLE_BAR_HEIGHT} or more`;
+    const origin = controlsOrigin === undefined || CHANNEL.kindOf(controlsOrigin) === 'object';
+    const at = (axis) =>
+        controlsOrigin?.[axis] === undefined || (Number.isFinite(controlsOrigin[axis]) && controlsOrigin[axis] >= 0);
+    if (!origin || !at('x') || !at('y')) return 'takes a controlsOrigin { x, y }, each a number 0 or more';
+    const flags = FLAGS.filter((key) => options[key] !== undefined && typeof options[key] !== 'boolean');
+    if (flags.length) return `takes ${flags.join(', ')} a boolean`;
+    if (title !== undefined && typeof title !== 'string') return 'takes a title, a text';
     const told = CALLBACKS.filter((key) => options[key] !== undefined && typeof options[key] !== 'function');
     if (told.length) return `takes ${told.join(', ')} a function`;
     return '';
