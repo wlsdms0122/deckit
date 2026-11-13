@@ -55,7 +55,10 @@ export function createWindows({
         PROTOCOL.resize.on(bySender(resize));
         PROTOCOL.setTitle.on(bySender((window, { title }) => retitle(window, title)));
         PROTOCOL.move.on(
-            bySender((window, { phase, dx, dy }) => window.level === NORMAL && DESKTOP.move(window, phase, dx, dy))
+            bySender(
+                (window, { phase, dx, dy, x, y }) =>
+                    window.level === NORMAL && DESKTOP.move(window, phase, dx, dy, grabOf(window, x, y))
+            )
         );
         PROTOCOL.doubleClick.on(bySender((window) => window.level === NORMAL && DESKTOP.doubleClick(window)));
         // An overlay window's children are laid again as the desktop's are: as runs, regions and the order change.
@@ -64,6 +67,13 @@ export function createWindows({
             for (const window of windows.values()) if (window.host?.stage) lay(window);
         });
         OVERLAY.onChange(relay);
+    }
+
+    // Where a press in a window's content was in its frame, the content of a titled one under its title bar; or null
+    // where the page did not tell.
+    function grabOf(window, x, y) {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x, y: y + (window.bar?.style === 'titled' ? window.bar.height : 0) };
     }
 
     // The page a page is: the mod's page whose window's content it is, or itself.

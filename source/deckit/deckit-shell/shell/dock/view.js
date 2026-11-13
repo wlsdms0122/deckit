@@ -5,14 +5,14 @@ import * as DOCK from './model/dock.js';
 import * as DECLARED from '../../../deckit-sdk/shell/dock/protocol.js';
 
 // MARK: - Property
-const { SLIVER, WIDTH, RADIUS } = DOCK;
+const { SLIVER, WIDTH, RADIUS, CARD } = DOCK;
 // How long the Dock stays out once the pointer has left it.
 const HIDE_DELAY = 400;
 // An item: square, as wide as the card inside its padding, the icon 4px in from its edges; the running dot in the
 // card's padding beside it, its centre `dot` px from the card's edge.
-const ITEM = Object.freeze({ size: 48, inset: 4, dot: 4 });
+const ITEM = Object.freeze({ size: CARD.item, inset: 4, dot: 4 });
 // The card's padding around its items.
-const CARD_PADDING = 8;
+const CARD_PADDING = CARD.padding;
 // How far right of the card, out, the name label and the menu stand.
 const BESIDE = 8;
 const STYLE = `
@@ -44,7 +44,7 @@ const STYLE = `
         flex-direction: column;
         align-items: center;
         flex: 0 1 auto;
-        gap: 4px;
+        gap: ${CARD.gap}px;
         min-height: 0;
         box-sizing: border-box;
         padding: ${CARD_PADDING}px;
@@ -54,8 +54,8 @@ const STYLE = `
         transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     }
-    .deckit-dock-list { display: flex; flex-direction: column; gap: 4px; }
-    .deckit-dock-divider { flex: 0 0 auto; width: 32px; margin: 4px 0; border-top: 1px solid var(--deckit-divider); }
+    .deckit-dock-list { display: flex; flex-direction: column; gap: ${CARD.gap}px; }
+    .deckit-dock-divider { flex: 0 0 auto; width: 32px; margin: ${CARD.gap}px 0; border-top: 1px solid var(--deckit-divider); }
     .deckit-dock-divider[hidden] { display: none; }
     .deckit-dock-item {
         position: relative;

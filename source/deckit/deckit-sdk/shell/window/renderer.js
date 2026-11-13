@@ -191,7 +191,8 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     }
 
     // A press in a drag region of the content: its moves and release are the content's, on the screen, so the
-    // window moving under the pointer does not move the press. The second press of a double click is the title bar's.
+    // window moving under the pointer does not move the press, told where it pressed in the content as it begins. The
+    // second press of a double click is the title bar's.
     function moved(id, down) {
         if (down.detail === 2) return PROTOCOL.doubleClick.send({ id });
         const document = down.target.ownerDocument;
@@ -206,7 +207,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         };
         document.addEventListener('mousemove', move, true);
         document.addEventListener('mouseup', up, true);
-        send('began', down);
+        PROTOCOL.move.send({ id, phase: 'began', dx: 0, dy: 0, x: down.clientX, y: down.clientY });
     }
 
     // What main tells of the window, each part told as it changes: it appears before it becomes key, and resigns key

@@ -4,6 +4,7 @@ import * as LAYER from '../../../deckit-sdk/shell/ui/layer/index.js';
 import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as MOD_STYLE from '../../../deckit-sdk/shell/style/renderer.js';
 import * as LAYOUT from './model/layout.js';
+import * as MOTION from './model/motion.js';
 import * as PAGE from './model/page-name.js';
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DOCK from '../dock/view.js';
@@ -111,6 +112,26 @@ const STYLE = `
         opacity: 1;
     }
     .deckit-window-buttons { position: fixed; inset: 0; }
+    .deckit-drop {
+        position: fixed;
+        box-sizing: border-box;
+        border-radius: ${RADIUS}px;
+        background: color-mix(in srgb, var(--deckit-accent) 16%, transparent);
+        box-shadow: var(--deckit-rim), inset 0 0 0 1px color-mix(in srgb, var(--deckit-accent) 48%, transparent);
+        opacity: 0;
+        transform: scale(${MOTION.SCALE});
+        pointer-events: none;
+        transition:
+            opacity var(--deckit-exit-fade) var(--deckit-exit-curve),
+            transform var(--deckit-exit) var(--deckit-exit-curve);
+    }
+    .deckit-drop[data-shown] {
+        opacity: 1;
+        transform: none;
+        transition:
+            opacity var(--deckit-enter-fade) var(--deckit-enter-curve),
+            transform var(--deckit-enter) var(--deckit-enter-curve);
+    }
 `;
 const LABELS = Object.freeze({ close: 'Close', minimize: 'Minimize', zoom: 'Zoom' });
 // The glyph each button shows while the pointer is over them.
@@ -166,7 +187,13 @@ function boot(theme, channels) {
         ],
     });
     down.append(downNote.element);
-    document.body.append(dock.element, strip, down);
+    const drop = element(document, 'div', 'deckit-drop');
+    document.body.append(drop, dock.element, strip, down);
+    let dropped = null; // the tile the drop shows, or null
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const tellMotion = () => PROTOCOL.motion.send({ reduced: reduced.matches });
+    reduced.addEventListener('change', tellMotion);
+    tellMotion();
 
     MOD_STYLE.wear({ channels, onChange: () => LAYER.dress() });
     TOKEN.whenOpaque(tellGlass);
@@ -178,6 +205,7 @@ function boot(theme, channels) {
 
     function draw() {
         strip.style.height = state.strip.height + 'px';
+        drawDrop(state.drop);
         drawPanels(state.panels);
         dock.setTop(state.strip.height);
         dock.update(state.dock);
@@ -271,6 +299,44 @@ function boot(theme, channels) {
         set('mask-composite', [...holes.map(() => 'exclude'), 'add']);
     }
 
+    // The tile a window dragged by its title bar takes let go now, drawn at its frame over the windows: it grows in
+    // from a little smaller at the side the pointer is at as it comes, goes from one tile to the next by the `move`
+    // spring from where it stands, and shrinks back out as the pointer leaves the side or the drag ends.
+    function drawDrop(next) {
+        const tile = next?.tile ?? null;
+        if (tile === dropped) return;
+        const was = dropped && drop.getBoundingClientRect();
+        dropped = tile;
+        drop.toggleAttribute('data-shown', !!tile);
+        if (!tile) return;
+        const { x, y, width, height } = next.frame;
+        const sides = tile.split('-');
+        const across = sides.includes('left') ? 'left' : sides.includes('right') ? 'right' : 'center';
+        const down = sides.includes('top') || tile === 'fill' ? 'top' : sides.includes('bottom') ? 'bottom' : 'center';
+        Object.assign(drop.style, {
+            left: x + 'px',
+            top: y + 'px',
+            width: width + 'px',
+            height: height + 'px',
+            transformOrigin: `${across} ${down}`,
+        });
+        if (!was) return;
+        const { length, easing } = TOKEN.MOTION.over('move', Math.hypot(was.left - x, was.top - y, was.width - width));
+        if (!length) return;
+        const from =
+            `translate(${was.left - x}px, ${was.top - y}px) ` + `scale(${was.width / width}, ${was.height / height})`;
+        drop.animate(
+            [
+                { transformOrigin: '0 0', transform: from },
+                { transformOrigin: '0 0', transform: 'none' },
+            ],
+            {
+                duration: length,
+                easing,
+            }
+        );
+    }
+
     // Main hears where the page draws glass as it changes, none where the person asks for less transparency.
     function tellGlass() {
         const materials = TOKEN.opaque() ? [] : [...(glass.dock ? [glass.dock] : []), ...glass.panels];
@@ -326,6 +392,7 @@ function boot(theme, channels) {
         bar.setPointerCapture(down.pointerId);
         const send = (phase, event) =>
             PROTOCOL.move.send({ id, phase, dx: event.screenX - down.screenX, dy: event.screenY - down.screenY });
+        const grab = { x: down.clientX - SHADOW, y: down.clientY - SHADOW };
         const moved = (event) => send('changed', event);
         const up = (event) => {
             bar.removeEventListener('pointermove', moved);
@@ -336,7 +403,7 @@ function boot(theme, channels) {
         bar.addEventListener('pointermove', moved);
         bar.addEventListener('pointerup', up);
         bar.addEventListener('pointercancel', up);
-        send('began', down);
+        PROTOCOL.move.send({ id, phase: 'began', dx: 0, dy: 0, ...grab });
     }
 
     // A drag of an edge, read on the screen, as the surface moves with the frame: the frame main is told as it goes,
@@ -357,13 +424,13 @@ function boot(theme, channels) {
                 event.screenY - down.screenY,
                 window.minimum
             );
-            PROTOCOL.resize.send({ id, phase: 'changed', ...frame });
+            PROTOCOL.resize.send({ id, phase: 'changed', edge, ...frame });
         };
         const up = () => {
             band.removeEventListener('pointermove', move);
             band.removeEventListener('pointerup', up);
             band.removeEventListener('pointercancel', up);
-            PROTOCOL.resize.send({ id, phase: 'ended', ...frame });
+            PROTOCOL.resize.send({ id, phase: 'ended', edge, ...frame });
         };
         band.addEventListener('pointermove', move);
         band.addEventListener('pointerup', up);

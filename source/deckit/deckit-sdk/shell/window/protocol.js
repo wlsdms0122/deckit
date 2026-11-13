@@ -66,7 +66,7 @@ export const setTitle = CHANNEL.pageToMain(
     { guard: CHANNEL.GUARD.ANY }
 );
 // A press in the content's drag regions moves the window: `phase` 'began' at the press, then 'changed' and 'ended',
-// `dx`, `dy` how far the pointer went since the press, on the screen.
+// `dx`, `dy` how far the pointer went since the press, on the screen, `x`, `y` where it pressed in the content.
 export const move = CHANNEL.pageToMain(
     'deckit-shell:window-move',
     {
@@ -74,6 +74,8 @@ export const move = CHANNEL.pageToMain(
         phase: 'string',
         dx: 'number',
         dy: 'number',
+        x: 'number?',
+        y: 'number?',
     },
     { guard: CHANNEL.GUARD.ANY }
 );

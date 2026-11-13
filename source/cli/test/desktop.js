@@ -818,6 +818,9 @@ async function main() {
     const { createOverlay } = await import(url('deckit-shell', 'shell', 'overlay', 'main.js'));
     overlayChecks(createOverlay, check);
 
+    const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
+    tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
@@ -896,13 +899,253 @@ function overlayChecks(createOverlay, check) {
     );
 }
 
+// Tiles, edge snapping, the drop a drag shows and the motion a window's frame is drawn by.
+function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
+    const same = (one, other) => JSON.stringify(one) === JSON.stringify(other);
+    const area = { x: 6, y: 28, width: 1195, height: 773 };
+    const tiles = Object.fromEntries(LAYOUT.TILES.map((name) => [name, LAYOUT.tileOf(name, area)]));
+    check(
+        'the halves and the quarters split the zoom area flush, the left and top taking half rounded, the rest the ' +
+            'other, and the whole tile is the zoom area',
+        same(tiles.left, { x: 6, y: 28, width: 598, height: 773 }) &&
+            same(tiles.right, { x: 604, y: 28, width: 597, height: 773 }) &&
+            same(tiles['top-left'], { x: 6, y: 28, width: 598, height: 387 }) &&
+            same(tiles['bottom-right'], { x: 604, y: 415, width: 597, height: 386 }) &&
+            tiles['top-right'].x === tiles.right.x &&
+            tiles['bottom-left'].y + tiles['bottom-left'].height === area.y + area.height &&
+            same(tiles.fill, area),
+        tiles
+    );
+    const drops = [
+        [{ x: 6, y: 400 }, 'left'],
+        [{ x: -40, y: 400 }, 'left'],
+        [{ x: 1200, y: 400 }, 'right'],
+        [{ x: 8, y: 40 }, 'top-left'],
+        [{ x: 1199, y: 790 }, 'bottom-right'],
+        [{ x: 600, y: 28 }, 'fill'],
+        [{ x: 600, y: 10 }, 'fill'],
+        [{ x: 30, y: 400 }, null],
+        [{ x: 600, y: 60 }, null],
+    ];
+    const dropped = drops.map(([point]) => LAYOUT.dropAt(point, area));
+    check(
+        "a drag let go with the pointer at the zoom area's left or right side, or past it, takes that half, at a " +
+            'corner along it that quarter, at its top the whole of it, and anywhere else none',
+        drops.every(([, tile], at) => dropped[at] === tile),
+        dropped
+    );
+    const all = ['top', 'bottom', 'left', 'right'];
+    const other = { x: 400, y: 100, width: 300, height: 300 };
+    const near = LAYOUT.snapped({ x: 95, y: 150, width: 300, height: 200 }, all, [other], area);
+    const far = LAYOUT.snapped({ x: 85, y: 150, width: 300, height: 200 }, all, [other], area);
+    const overlap = LAYOUT.snapped({ x: 106, y: 150, width: 300, height: 200 }, all, [other], area);
+    check(
+        "a window moved within LAYOUT.SNAP of a neighbour's facing edge lands on it, from either side, and further " +
+            'away it follows as it is',
+        LAYOUT.SNAP === 8 && near.x === 100 && overlap.x === 100 && far.x === 85 && near.y === 150,
+        { near, far, overlap }
+    );
+    const aligned = LAYOUT.snapped({ x: 404, y: 405, width: 200, height: 100 }, all, [other], area);
+    const edge = LAYOUT.snapped({ x: 10, y: 33, width: 200, height: 100 }, all, [], area);
+    const apart = LAYOUT.snapped({ x: 95, y: 600, width: 300, height: 100 }, all, [other], area);
+    check(
+        "a window lines up with the side alike of one it meets across a gap, lands on the zoom area's edges, and " +
+            'meets no window it is not beside',
+        same(aligned, { x: 400, y: 400, width: 200, height: 100 }) &&
+            same(edge, { x: 6, y: 28, width: 200, height: 100 }) &&
+            apart.x === 95,
+        { aligned, edge, apart }
+    );
+    const grown = LAYOUT.snapped({ x: 100, y: 150, width: 296, height: 200 }, ['right'], [other], area);
+    const held = LAYOUT.snapped({ x: 100, y: 150, width: 296, height: 200 }, ['left'], [other], area);
+    const least = LAYOUT.snapped({ x: 395, y: 150, width: 125, height: 200 }, ['left'], [other], area, {
+        width: 130,
+        height: 48,
+    });
+    check(
+        'a resize moves only the sides it drags onto an edge they come near, the others where they are, never below ' +
+            'the minimum',
+        same(grown, { x: 100, y: 150, width: 300, height: 200 }) &&
+            same(held, { x: 100, y: 150, width: 296, height: 200 }) &&
+            least.x === 395,
+        { grown, held, least }
+    );
+
+    const manager = WM.createWindowManager();
+    manager.addSeat('me');
+    const own = { x: 100, y: 100, width: 500, height: 400 };
+    manager.open('me', 1, { frame: own, minimum: { width: 100, height: 50 } });
+    manager.tile('me', 1, 'left', tiles.left);
+    manager.tile('me', 1, 'top-right', tiles['top-right']);
+    const tiled = manager.frameOf(1);
+    manager.zoom('me', 1, area);
+    const filled = manager.frameOf(1);
+    manager.zoom('me', 1, area);
+    check(
+        'a tiled window is not zoomed, keeps the frame it had before its first tile, fills the zoom area as it ' +
+            'zooms and goes back to its tile zoomed again',
+        same(tiled, tiles['top-right']) &&
+            same(filled, area) &&
+            same(manager.frameOf(1), tiles['top-right']) &&
+            manager.tileNameOf(1) === 'top-right' &&
+            same(manager.standardFrameOf(1), own),
+        { tiled, filled, back: manager.frameOf(1), kept: manager.standardFrameOf(1) }
+    );
+    const wider = { ...area, width: 1395 };
+    manager.fitZoomed(wider, (name) => LAYOUT.tileOf(name, wider));
+    const refit = manager.frameOf(1);
+    manager.untile('me', 1);
+    check(
+        'a tiled window takes its tile again as the zoom area changes size, and leaves it for the frame it had',
+        same(refit, LAYOUT.tileOf('top-right', wider)) && same(manager.frameOf(1), own) && !manager.tileNameOf(1),
+        { refit, back: manager.frameOf(1) }
+    );
+
+    const from = { x: 0, y: 0, width: 400, height: 300, opacity: 1 };
+    const to = { x: 600, y: 200, width: 800, height: 600, opacity: 1 };
+    const motion = MOTION.motionOf({ from, to, role: 'move', now: 0 });
+    const xs = [];
+    for (let t = 0; t <= motion.length + 16; t += 4) xs.push(MOTION.motionAt(motion, t).value.x);
+    const cut = MOTION.motionAt(motion, 60);
+    const back = MOTION.motionOf({ from: cut.value, to: from, role: 'move', now: 60, velocity: cut.velocity });
+    const onward = MOTION.motionOf({ from: cut.value, to, role: 'move', now: 60, velocity: cut.velocity });
+    let past = 0;
+    for (let t = 60; t <= 60 + onward.length; t += 2) past = Math.max(past, MOTION.motionAt(onward, t).value.x);
+    check(
+        "a window's frame moves by the move spring for its way, never past where it goes, and a motion cut short " +
+            'starts the next from where it is drawn, its speed carried on',
+        xs.every((x, at) => at === 0 || x >= xs[at - 1]) &&
+            Math.max(...xs) <= 600 &&
+            xs.at(-1) === 600 &&
+            motion.length > 279 &&
+            Math.abs(MOTION.motionAt(back, 60).value.x - cut.value.x) < 1e-9 &&
+            MOTION.motionAt(back, 68).value.x > cut.value.x &&
+            past <= 600,
+        { length: motion.length, last: xs.at(-1), past, cut: cut.value.x }
+    );
+    const items = [
+        { id: 'a', pinned: true, running: true },
+        { id: 'b', pinned: false, running: true },
+    ];
+    const tileAt = DOCK.tileOf({ x: 0, y: 28, width: 1200, height: 772 }, items, 'b');
+    check(
+        "a mod's Dock tile stands where the Dock's view lays it out, past the divider after the items kept",
+        same(tileAt, { x: 8, y: 423, width: 48, height: 48 }) && DOCK.tileOf({ x: 0, y: 0 }, items, 'c') === null,
+        tileAt
+    );
+
+    // The desktop over a clock of its own, the desktop's page telling it the system asks for no reduced motion.
+    let now = 0;
+    const due = [];
+    const desk = desktopOver(createDesktop, { clock: { now: () => now, later: (next) => due.push(next) } });
+    const run = (ms) => {
+        for (let t = 0; t < ms; t += 8) {
+            now += 8;
+            due.splice(0).forEach((next) => next());
+        }
+    };
+    const page = { name: 'page-a', mod: 'a' };
+    const windowOf = (id) => ({
+        id,
+        mod: 'a',
+        name: `w${id}`,
+        level: 'normal',
+        page,
+        surface: { name: `content-${id}`, of: page },
+        size: { width: 400, height: 300 },
+        minimum: { width: 0, height: 0 },
+        bar: LAYOUT.DEFAULT_BAR,
+    });
+    desk.fromPage('motion', { reduced: false });
+    desk.desktop.control.show();
+    const one = windowOf(1);
+    desk.desktop.open(one);
+    desk.openSurfaces(1);
+    desk.desktop.press(one);
+    const listed = () => desk.desktop.control.windows()[0].frame;
+    const opening = { ...desk.frameOf(1) };
+    const frameLayer = () => desk.laid().find(({ page: laid }) => laid.name === 'frame-1');
+    const fading = frameLayer().opacity;
+    run(400);
+    check(
+        'a window opens from a little smaller about its middle and faded out, its content at its own size, and is ' +
+            'drawn at its frame once its motion is over, while the list reads that frame at once',
+        opening.width === 400 &&
+            fading < 0.5 &&
+            same(desk.frameOf(1), { ...listed(), y: listed().y }) &&
+            frameLayer().opacity === undefined,
+        { opening, fading, now: desk.frameOf(1), listed: listed() }
+    );
+    const before = listed();
+    desk.press('tileLeft', one.surface);
+    const zone = LAYOUT.zoomedIn(LAYOUT.desktopOf({ width: 1200, height: 800 }, 0));
+    const leftTile = LAYOUT.tileOf('left', zone);
+    const midway = () => desk.frameOf(1);
+    run(40);
+    const between = { ...midway() };
+    run(400);
+    check(
+        'a shell key tiles the key window: the list has the tile at once, and its frame is drawn there by its motion',
+        same(listed(), leftTile) &&
+            between.x !== before.x &&
+            between.x !== leftTile.x &&
+            same(desk.frameOf(1), { ...leftTile }),
+        { listed: listed(), between, drawn: desk.frameOf(1), leftTile }
+    );
+    desk.press('restoreWindow', one.surface);
+    run(400);
+    check('the restore key puts a tiled window back at its frame', same(listed(), before), listed());
+    desk.press('tileRight', one.surface);
+    run(400);
+    const tileWidth = listed().width;
+    desk.fromPage('move', { id: 1, phase: 'began', dx: 0, dy: 0, x: 300, y: 20 });
+    desk.fromPage('move', { id: 1, phase: 'changed', dx: -50, dy: 30 });
+    const pulled = listed();
+    const grabbed = Math.round((300 * before.width) / tileWidth);
+    check(
+        'a tiled window dragged away is back at its size before, under the pointer where it was grabbed, drawn there ' +
+            'at once',
+        pulled.width === before.width &&
+            pulled.height === before.height &&
+            pulled.x + grabbed === LAYOUT.tileOf('right', zone).x + 300 - 50 &&
+            same(desk.frameOf(1), pulled),
+        { pulled, drawn: desk.frameOf(1) }
+    );
+    const pointer = LAYOUT.tileOf('right', zone).x + 300;
+    desk.fromPage('move', { id: 1, phase: 'changed', dx: zone.x - pointer, dy: 300 });
+    const shown = desk.page().drop;
+    desk.fromPage('move', { id: 1, phase: 'changed', dx: zone.x - pointer + 200, dy: 300 });
+    const hidden = desk.page().drop;
+    desk.fromPage('move', { id: 1, phase: 'changed', dx: zone.x - pointer - 30, dy: 300 });
+    desk.fromPage('move', { id: 1, phase: 'ended', dx: zone.x - pointer - 30, dy: 300 });
+    check(
+        "a window dragged with the pointer at the zoom area's left side shows the half it takes there, none away " +
+            'from it, and takes it as it is let go',
+        same(shown, { tile: 'left', frame: leftTile }) &&
+            hidden === null &&
+            desk.page().drop === null &&
+            same(listed(), leftTile),
+        { shown, hidden, now: desk.page().drop, listed: listed() }
+    );
+    run(400);
+    desk.desktop.minimize(one);
+    run(40);
+    const going = frameLayer();
+    run(400);
+    check(
+        "a window minimized goes on drawn into its mod's Dock tile until it is there, then is laid no more",
+        !!going && !frameLayer(),
+        going
+    );
+}
+
 // `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage
 // 1200 by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
 // desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that
 // page, `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in `page`, which
 // the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it, `key(page)` a
 // key pressed in a page and `chord(mod)` a chord told to a mod.
-function desktopOver(createDesktop, { state = {} }) {
+function desktopOver(createDesktop, { state = {}, clock }) {
     const handlers = {};
     const sent = [];
     const titles = [];
@@ -985,6 +1228,7 @@ function desktopOver(createDesktop, { state = {} }) {
         },
         web: { pageFor: () => null },
         host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
+        ...(clock ? { clock } : {}),
     });
     desktop.start({
         WINDOWS: {

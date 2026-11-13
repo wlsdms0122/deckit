@@ -1,10 +1,20 @@
 // MARK: - Property
 // The shell's own keys, in the order a person reads them: `id`, `name` as a person reads it, and `keystroke`, its
-// default chord, `{ code, meta, control, alt, shift }` with `code` as a keyboard event names the key.
+// default chord, `{ code, meta, control, alt, shift }` with `code` as a keyboard event names the key. The tiles' keys
+// are Control and Option, under one hand, with an arrow for a half, the whole and the way back, and for a quarter the
+// letter at its corner of the square U, I, J, K.
 const KEYS = Object.freeze([
     key('closeWindow', 'Close Window', { code: 'KeyW', meta: true }),
     key('minimizeWindow', 'Minimize Window', { code: 'KeyM', meta: true }),
     key('cycleWindows', 'Cycle Through Windows', { code: 'Backquote', meta: true }),
+    key('tileLeft', 'Tile Window to Left Half', tiling('ArrowLeft')),
+    key('tileRight', 'Tile Window to Right Half', tiling('ArrowRight')),
+    key('tileFill', 'Tile Window to Fill', tiling('ArrowUp')),
+    key('tileTopLeft', 'Tile Window to Top Left Quarter', tiling('KeyU')),
+    key('tileTopRight', 'Tile Window to Top Right Quarter', tiling('KeyI')),
+    key('tileBottomLeft', 'Tile Window to Bottom Left Quarter', tiling('KeyJ')),
+    key('tileBottomRight', 'Tile Window to Bottom Right Quarter', tiling('KeyK')),
+    key('restoreWindow', 'Restore Window', tiling('ArrowDown')),
 ]);
 // The modifiers as a chord is written, in the order it writes them.
 const MODIFIERS = Object.freeze([
@@ -76,6 +86,10 @@ function keptOf(read) {
 // MARK: - Private
 function key(id, name, keystroke) {
     return Object.freeze({ id, name, keystroke: keystrokeOf(keystroke) });
+}
+
+function tiling(code) {
+    return { code, control: true, alt: true };
 }
 
 export { KEYS, keystrokeOf, same, written, keptOf };

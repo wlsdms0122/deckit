@@ -26,6 +26,14 @@ const CASCADE = 24;
 const KEPT = 64;
 // Where panel windows stand in the host's bar: in from its right end, and apart.
 const PANEL = Object.freeze({ margin: 8, gap: 8 });
+// The tiles a window takes in the zoom area: its halves, its quarters and the whole of it, which split it flush.
+const TILES = Object.freeze(['left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'fill']);
+// Where a window dragged by its title bar is let go to take a tile: the pointer this near a side of the zoom area or
+// past it, the Dock's sliver and a hand's slack, and a corner as far along a side as a title bar may be kept across.
+const DROP = Object.freeze({ edge: 8, corner: KEPT });
+// How near an edge of a window the hand moves or resizes comes to an edge it can meet before it lands there: as far as
+// a hand aiming at a line falls short or long of it, so it never holds a side the hand pulls on past that.
+const SNAP = 8;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -192,6 +200,79 @@ function titleBarOf(frame, bar = DEFAULT_BAR) {
     return { x: SHADOW, y: SHADOW, width: frame.width, height: bar.height };
 }
 
+// The frame of the tile `name`, one of TILES, in the zoom area `area`: the left half takes half its width rounded,
+// the right half what is left, the top quarters half its height rounded and the bottom ones what is left.
+function tileOf(name, area) {
+    if (name === 'fill') return rounded(area);
+    const sides = new Set(name.split('-'));
+    const half = { width: Math.round(area.width / 2), height: Math.round(area.height / 2) };
+    const left = sides.has('left');
+    const quarter = sides.has('top') || sides.has('bottom');
+    const top = !sides.has('bottom');
+    return rounded({
+        x: left ? area.x : area.x + half.width,
+        y: quarter && !top ? area.y + half.height : area.y,
+        width: left ? half.width : area.width - half.width,
+        height: quarter ? (top ? half.height : area.height - half.height) : area.height,
+    });
+}
+
+// The tile a window dragged by its title bar takes let go with the pointer at `point` on the stage, or null: a half
+// at the zoom area's left or right side, a quarter at its corner along that side, and the whole of it at its top.
+function dropAt({ x, y }, area) {
+    const left = x <= area.x + DROP.edge;
+    const right = x >= area.x + area.width - DROP.edge;
+    if (left || right) {
+        const side = left ? 'left' : 'right';
+        if (y <= area.y + DROP.corner) return `top-${side}`;
+        if (y >= area.y + area.height - DROP.corner) return `bottom-${side}`;
+        return side;
+    }
+    return y <= area.y + DROP.edge ? 'fill' : null;
+}
+
+// The frame a hand moves or resizes with each of its `sides` that comes within SNAP of an edge it can meet landing on
+// the nearest: a side of the zoom area `area`, or a side of a window in `others` beside it, one across a gap no wider
+// than SNAP, met by the side facing it or lined up with the side alike. A move names all four sides and moves the
+// frame whole; a resize moves the sides it names, never below `minimum`. Between the edges it follows as it is.
+function snapped(frame, sides, others, area, minimum = MINIMUM) {
+    const beside = (from, length, at, size) => from < at + size + SNAP && at < from + length + SNAP;
+    const across = others.filter((other) => beside(frame.y, frame.height, other.y, other.height));
+    const along = others.filter((other) => beside(frame.x, frame.width, other.x, other.width));
+    const xs = [area.x, area.x + area.width, ...across.flatMap(({ x, width }) => [x, x + width])];
+    const ys = [area.y, area.y + area.height, ...along.flatMap(({ y, height }) => [y, y + height])];
+    const nearest = (at, lines) =>
+        lines.reduce((best, line) => (Math.abs(line - at) <= Math.abs(best - at) ? line : best), Infinity);
+    const pull = (at, lines) => {
+        const line = nearest(at, lines);
+        return Math.abs(line - at) <= SNAP ? line - at : null;
+    };
+    const has = new Set(sides);
+    let { x, y, width, height } = frame;
+    if (has.size === 4) {
+        const dx = [pull(x, xs), pull(x + width, xs)].filter((d) => d !== null);
+        const dy = [pull(y, ys), pull(y + height, ys)].filter((d) => d !== null);
+        const least = (ds) => ds.reduce((best, d) => (Math.abs(d) < Math.abs(best) ? d : best), ds[0] ?? 0);
+        return rounded({ x: x + least(dx), y: y + least(dy), width, height });
+    }
+    const right = x + width;
+    const bottom = y + height;
+    const fits = (size, least) => size >= least;
+    if (has.has('left') && pull(x, xs) !== null && fits(right - (x + pull(x, xs)), minimum.width)) {
+        x += pull(x, xs);
+        width = right - x;
+    }
+    if (has.has('right') && pull(right, xs) !== null && fits(right + pull(right, xs) - x, minimum.width))
+        width = right + pull(right, xs) - x;
+    if (has.has('top') && pull(y, ys) !== null && fits(bottom - (y + pull(y, ys)), minimum.height)) {
+        y += pull(y, ys);
+        height = bottom - y;
+    }
+    if (has.has('bottom') && pull(bottom, ys) !== null && fits(bottom + pull(bottom, ys) - y, minimum.height))
+        height = bottom + pull(bottom, ys) - y;
+    return rounded({ x, y, width, height });
+}
+
 // MARK: - Private
 function rounded({ x, y, width, height }) {
     return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
@@ -207,6 +288,9 @@ export {
     DEFAULT_BAR,
     MINIMUM,
     PANEL,
+    TILES,
+    DROP,
+    SNAP,
     barOf,
     buttonsOf,
     guideOf,
@@ -223,4 +307,7 @@ export {
     framedSize,
     contentOf,
     titleBarOf,
+    tileOf,
+    dropAt,
+    snapped,
 };
