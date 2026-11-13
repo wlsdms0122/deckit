@@ -35,6 +35,7 @@ A mod's window lays two areas with `ui.splitView`: the sidebar, and the content 
 
 - The sidebar lists what the content can show (files, tabs, notes, calendars) and lets the person pick, add, rename and arrange them. Controls for what is shown go in the content's title bar.
 - What the sidebar does has a key or a switcher action too, so the window works with the sidebar folded.
+- The shell moves the window: the person tiles it into a half, a quarter or the whole desktop by dragging its title bar to an edge or by a key, its edges meet the desktop's and other windows' as it is dragged near them, and its frame glides to each new place. The content is laid at the window's new size at once and shown through the frame as it goes, so a layout that follows its size (`ResizeObserver`, CSS) is all a mod needs; it never animates its own window.
 
 ## The title bar
 
@@ -150,7 +151,7 @@ A mod's keys are declared to `deckit/keys`, each running one of its commands, an
 
 - Use the key in the table for its action, and no other key for it.
 - A key is shown only where typing it works: in the tooltip of the button that does the same (`ui.tooltip(element, { text, chord: () => keys.chordOf(command) })`, `keys` the Keymap's exports), not in a list of actions from elsewhere such as the switcher.
-- The shell's keys (⌘W, ⌘M and ⌘` on the key window) and the Switcher's (⌥Space) are not taken by another mod.
+- The shell's keys (⌘W, ⌘M and ⌘` on the key window, ⌃⌥ with an arrow or U, I, J, K to tile it, ⌃⌥↓ to put it back) and the Switcher's (⌥Space) are not taken by another mod.
 
 ## The theme
 
