@@ -14,7 +14,7 @@ const WORDS = {
 
 // What a tab whose page failed to load shows in the area of pages in its place (tab-list.js): what went wrong and the
 // address, Try Again (`onRetry()`), which loads it again, and under them a game to pass the time with. The game runs
-// only while the page is shown and its window is the key one (`setKey`).
+// only while the page is shown and its window is the key one (`setKey`); Space or Up on the page plays it.
 function loadFailure({ ui, theme, values, onRetry }) {
     ui.addStyle(`
         .browser-failure {
@@ -23,6 +23,7 @@ function loadFailure({ ui, theme, values, onRetry }) {
             overflow-y: auto;
             display: none;
             background: var(--deckit-background);
+            outline: none;
         }
         .browser-failure[data-shown] { display: block; }
         .browser-failure-body {
@@ -53,6 +54,10 @@ function loadFailure({ ui, theme, values, onRetry }) {
         .browser-failure-game { align-self: stretch; margin-top: 32px; }
     `);
     const element = ui.element('div', { className: 'browser-failure' });
+    element.tabIndex = -1;
+    element.addEventListener('keydown', (event) => {
+        if (event.target === element && play.key(event)) event.stopPropagation();
+    });
     const body = ui.element('div', { className: 'browser-failure-body' });
     const title = ui.element('h1', { className: 'browser-failure-title' });
     const hint = ui.element('p', { className: 'browser-failure-hint' });
@@ -71,7 +76,7 @@ function loadFailure({ ui, theme, values, onRetry }) {
     return { element, show, setKey, release: () => play.release() };
 
     // The failure of the tab in front, `{ url, kind }`, while it is `loading` again, or null where it has none. Shown
-    // where the tab's page had the keyboard, the game takes it.
+    // where the tab's page had the keyboard, the failure page takes it.
     function show(failure, { loading = false } = {}) {
         const was = shown;
         shown = !!failure;
@@ -83,7 +88,7 @@ function loadFailure({ ui, theme, values, onRetry }) {
             address.textContent = failure.url;
             retry.setEnabled(!loading);
             const held = document.activeElement;
-            if (!was && (!held || held === document.body || element.parentElement?.contains(held))) play.focus();
+            if (!was && (!held || held === document.body || element.parentElement?.contains(held))) element.focus();
         }
         play.setActive(shown && key);
     }

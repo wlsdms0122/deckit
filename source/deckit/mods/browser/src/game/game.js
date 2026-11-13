@@ -13,8 +13,8 @@ const BEST = 'game-best';
 
 // The game the load-failure page plays (run.js), drawn on a canvas as wide as its place and crisp at any pixel ratio,
 // in the theme's colours, the score and the best in the page's type under it. A press of Space or Up while it has the
-// keyboard, or of the pointer on it, starts a run and jumps; it never starts by itself, and runs only while
-// `setActive(true)` holds. The best score is kept in `values`.
+// keyboard (or one its holder hands to `key(event)`), or of the pointer on it, starts a run and jumps; it never starts
+// by itself, and runs only while `setActive(true)` holds. The best score is kept in `values`.
 function game({ ui, theme, values }) {
     ui.addStyle(`
         .browser-game {
@@ -57,11 +57,7 @@ function game({ ui, theme, values }) {
     sizes.observe(element);
 
     element.addEventListener('keydown', (event) => {
-        if (event.metaKey || event.ctrlKey || event.altKey) return;
-        if (event.key !== ' ' && event.key !== 'ArrowUp') return;
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) press();
+        if (key(event)) event.stopPropagation();
     });
     canvas.addEventListener('pointerdown', (event) => {
         if (event.button !== 0) return;
@@ -71,7 +67,16 @@ function game({ ui, theme, values }) {
     });
     fit();
 
-    return { element, setActive, focus: () => element.focus(), release };
+    return { element, setActive, key, release };
+
+    // Plays a key pressed, Space or Up, and answers whether it was one.
+    function key(event) {
+        if (event.metaKey || event.ctrlKey || event.altKey) return false;
+        if (event.key !== ' ' && event.key !== 'ArrowUp') return false;
+        event.preventDefault();
+        if (!event.repeat) press();
+        return true;
+    }
 
     function setActive(on) {
         if (active === on) return;
