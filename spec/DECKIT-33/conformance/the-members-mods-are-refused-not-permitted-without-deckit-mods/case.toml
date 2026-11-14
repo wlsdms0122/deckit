@@ -1,6 +1,6 @@
 case = 15
 name = "the-members-mods-are-refused-not-permitted-without-deckit-mods"
-note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-a is granted nothing, so each member of shell.mods is refused before its arguments are read."
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-a is granted nothing, so each member of shell.mods that deckit.mods guards is refused before its arguments are read."
 
 [host]
 base = "shell"

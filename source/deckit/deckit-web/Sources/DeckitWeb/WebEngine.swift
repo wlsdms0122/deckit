@@ -27,10 +27,10 @@ import CNodeAPI
 //   are fixed-width.
 // - Downloads a page started (WebDownload): `cancelDownload(id)`, nothing for one that ended.
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
-//   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
-//   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
-//   `windowState(id) -> { fullScreen, zoomed }`; `windowSize(id)`, `setWindowSize(id, size)`, its content's;
-//   `setTitle(id, title)`; `setColor(id, color)`; `keyWindow()`, the window with the keyboard, or null;
+//   `{ red, green, blue }` and `material` one of `hud`, `window`, `sidebar`, `menu`, `popover`;
+//   `showWindow(id, { focus })`; `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`,
+//   in the screen's space; `windowState(id) -> { fullScreen, zoomed }`; `windowSize(id)`, `setWindowSize(id, size)`,
+//   its content's; `setTitle(id, title)`; `setColor(id, color)`; `keyWindow()`, the window with the keyboard, or null;
 //   `doubleClickTitleBar(id)`, as `actionOnDoubleClick()` says, what the person set a double click on a title bar to
 //   do: `zoom`, `minimize` or `none`; `drag(id)`, moved by the press of the mouse under way, false where none is;
 //   `previewFile(id, file, title)` and `closeFilePreview(id)`, Quick Look's panel over the window;
@@ -41,12 +41,17 @@ import CNodeAPI
 //   `dragged`, `up` or `moved`, at a point from the page's top left; `sendDrop(id, { files, x, y }) -> Promise`, files
 //   from outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
 //   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
-// - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
-//   clips, input } | { page, hidden: true }])`, `clips` the rects on the stage the page is cut to, each
-//   `{ x, y, width, height, cornerRadius }`, `input` the rects in the page that take the pointer, all of it without;
-//   `showStage(id, on)`;
-//   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, and
-//   the view with the window's keyboard marked.
+// - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page,
+//   frame, clips, input, opacity, scale } | { page, hidden: true } | { material, frame, cornerRadius }])`, `clips` the
+//   rects on the stage the page is cut to, each `{ x, y, width, height, cornerRadius }`, `input` the rects in the page
+//   that take the pointer, all of it without, `opacity` how much of it shows, 1 without, `scale` `{ by, x, y }` how it
+//   is drawn scaled, what is at p on the stage drawn at p * by + (x, y), its frame and clips laid as given, and a
+//   material, named as a window's is, blurring what the window shows under its frame; `showStage(id, on)`;
+//   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, a
+//   view that cuts what is in it to rounded corners with their radius, a material with its number, a view drawn by a
+//   layer transform marked scaled, and the view with the window's keyboard marked; `pageAt(window, { x, y }) -> id`,
+//   the page a press at a point of the window's content, from its top left, reaches as the window hit tests it, or
+//   null where it reaches none.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -375,27 +380,47 @@ final class WebEngine {
 
         case .layStage:
             try stage().lay(try node.array(try argument(1)).map { layer in
+                if let material = try node.member(layer, "material") {
+                    guard let frame = try node.member(layer, "frame") else {
+                        throw NodeError(message: "a material is laid at a frame")
+                    }
+                    return .material(
+                        Self.materials[try node.string(material)] ?? .menu,
+                        rect: try node.rect(frame),
+                        cornerRadius: try node.member(layer, "cornerRadius").map { try node.number($0) } ?? 0
+                    )
+                }
                 guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
                 let page = try node.integer(id)
                 guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
                 if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
-                    return (laid, nil, [], nil)
+                    return .page(laid, frame: nil, clips: [], input: nil, opacity: 1, scale: nil)
                 }
                 guard let frame = try node.member(layer, "frame") else {
                     throw NodeError(message: "a layer is { page, frame, clips, input } or { page, hidden: true }")
                 }
                 let clips = try node.member(layer, "clips").map { try node.array($0) } ?? []
+                let opacity = try node.member(layer, "opacity").map { try node.number($0) } ?? 1
+                let scale = try node.member(layer, "scale").map { scale in
+                    Stage.Scale(
+                        by: CGFloat(max(0.001, try node.member(scale, "by").map { try node.number($0) } ?? 1)),
+                        x: CGFloat(try node.member(scale, "x").map { try node.number($0) } ?? 0),
+                        y: CGFloat(try node.member(scale, "y").map { try node.number($0) } ?? 0)
+                    )
+                }
 
-                return (
+                return .page(
                     laid,
-                    try node.rect(frame),
-                    try clips.map { clip in
+                    frame: try node.rect(frame),
+                    clips: try clips.map { clip in
                         Stage.Clip(
                             rect: try node.rect(clip),
                             cornerRadius: try node.member(clip, "cornerRadius").map { try node.number($0) } ?? 0
                         )
                     },
-                    try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } }
+                    input: try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } },
+                    opacity: CGFloat(min(1, max(0, opacity))),
+                    scale: scale
                 )
             })
 
@@ -409,6 +434,9 @@ final class WebEngine {
 
         case .tree:
             return try node.make(tree(of: try window(0).window.contentView ?? NSView()))
+
+        case .pageAt:
+            return try node.make(pageTaking(try point(try argument(1)), in: try window(0).window))
         }
 
         return node.undefined()
@@ -591,6 +619,7 @@ final class WebEngine {
 
     private static let materials: [String: NSVisualEffectView.Material] = [
         "hud": .hudWindow,
+        "window": .underWindowBackground,
         "sidebar": .sidebar,
         "menu": .menu,
         "popover": .popover
@@ -705,11 +734,28 @@ final class WebEngine {
         return (promise, settle)
     }
 
+    // The page whose view a press at `point` of `window`'s content, from its top left, reaches, through the views laid
+    // there, their clips and their input regions, as the window finds the view a press goes to.
+    private func pageTaking(_ point: CGPoint, in window: NSWindow) -> Int? {
+        guard let content = window.contentView else { return nil }
+        let local = CGPoint(x: point.x, y: content.isFlipped ? point.y : content.bounds.height - point.y)
+        guard let hit = content.hitTest(content.superview.map { content.convert(local, to: $0) } ?? local) else {
+            return nil
+        }
+
+        return pages.first { hit.isDescendant(of: $0.value.view) }?.key
+    }
+
     private func tree(of view: NSView, depth: Int = 0) -> String {
+        let cut = view.layer.flatMap { $0.masksToBounds && $0.cornerRadius > 0 ? $0.cornerRadius : nil }
+        let radius = cut.map { " radius \($0)" } ?? ""
         let line = String(repeating: "  ", count: depth)
             + "\(type(of: view)) \(NSStringFromRect(view.frame))\(view.isHidden ? " hidden" : "")"
             + "\(view.isFlipped ? " flipped" : "")"
             + "\(view.window?.firstResponder === view ? " responder" : "")"
+            + radius
+            + (view.layer.map { CATransform3DIsIdentity($0.transform) ? "" : " scaled" } ?? "")
+            + ((view as? NSVisualEffectView).map { " material \($0.material.rawValue)" } ?? "")
             + (pages.values.first { $0.view === view }.map { " page \($0.id)" } ?? "")
             + ((view as? WebPageView)?.inputRegion.map { " input [\($0.map(NSStringFromRect).joined(separator: "|"))]" }
                 ?? "")

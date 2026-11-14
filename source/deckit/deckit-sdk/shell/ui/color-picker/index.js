@@ -17,7 +17,7 @@ const STYLE = `
         position: relative;
         height: 14px;
         margin-bottom: 12px;
-        border-radius: 7px;
+        border-radius: var(--deckit-radius-round);
         background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
         cursor: ew-resize;
         touch-action: none;

@@ -25,29 +25,44 @@ function fileArea({
         columns: { display: 'flex', overflowX: 'auto', overflowY: 'hidden', padding: '0 0 0 6px' },
     };
     const NEAREST = { block: 'nearest', inline: 'nearest' };
-    const STATUS_DURATION = 2500; // milliseconds
     const STYLE = `
-        .finder-files { position: relative; flex: 1 1 auto; min-height: 0; outline: none; }
+        .finder-files { position: relative; flex: 1 1 auto; min-height: 0; }
         .finder-footer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             flex: 0 0 auto;
-            padding: 5px 20px 8px;
-            border-top: var(--deckit-border);
+            height: 28px;
+            box-sizing: border-box;
+            padding: 0 16px;
+            border-top: 1px solid var(--deckit-divider);
             color: var(--deckit-muted);
-            font: 11.5px var(--deckit-font);
+            font: var(--deckit-type-small);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
         }
+        .finder-failure { flex: 0 0 auto; padding: 0 12px 8px; }
+        .finder-failure[hidden] { display: none; }
     `;
     let view = values.get('view', 'columns');
     let sortOrder = values.get('sort', { key: 'name', up: true });
     let startFailure = null;
+    // What the person asked that failed, `{ text, retry, details, location }`: said over the footer until it is tried
+    // again, another is asked, or another folder is in front.
+    let said = null;
+    let drawnSaid = null; // the one the notice shows, kept as drawn, its Details open or not, until another is said
 
     const element = ui.element('div', { className: 'finder-files' });
     const footer = ui.element('div', { className: 'finder-footer' });
+    const failure = ui.element('div', { className: 'finder-failure' });
+    failure.hidden = true;
 
     ui.addStyle(STYLE);
 
     return {
         element,
         footer,
+        failure,
         view: () => view,
         setView,
         sortBy,
@@ -55,7 +70,7 @@ function fileArea({
         draw,
         showSelection,
         reveal,
-        showStatus,
+        showFailure,
         filterBy,
         pickFirstMatch,
         cancelFilter,
@@ -94,7 +109,7 @@ function fileArea({
     // While the tab's folder loads or fails, either view shows the list's place with the status in it.
     function draw() {
         if (tabs.location()) holdSelection();
-        const loading = isLoading();
+        const loading = isLoading() || status.holds(draw);
         const failure = loading ? null : listings.of(tabs.location())?.failure || startFailure;
         const asColumns = view === 'columns' && !loading && !failure;
         const shown = asColumns ? [columns.element] : [list.element, status.element];
@@ -103,7 +118,7 @@ function fileArea({
         if (element.firstChild !== shown[0]) element.replaceChildren(...shown);
         if (asColumns) drawColumns();
         else drawList(loading, failure);
-        footer.textContent = failure || loading ? '' : countText();
+        drawFooter(failure || loading);
         onDraw();
     }
 
@@ -112,7 +127,7 @@ function fileArea({
         if (view === 'columns') draw();
         else {
             list.select(tabs.selection());
-            footer.textContent = countText();
+            drawFooter(false);
         }
     }
 
@@ -121,9 +136,31 @@ function fileArea({
         if (view === 'columns') columns.endElement()?.scrollIntoView(NEAREST);
     }
 
-    function showStatus(text) {
-        footer.textContent = text;
-        setTimeout(draw, STATUS_DURATION);
+    // `text` said in a failure notice over the footer, with `details` behind its disclosure and Try Again where
+    // `retry` runs it again; null takes it away.
+    function showFailure(text, retry = null, details = '') {
+        if (!text && !said) return;
+        said = text ? { text, retry, details, location: tabs.location() } : null;
+        drawFooter(false);
+    }
+
+    // The count, or nothing while `blank`; and what failed, while it holds.
+    function drawFooter(blank) {
+        if (said && said.location !== tabs.location()) said = null;
+        footer.textContent = blank ? '' : countText();
+        failure.hidden = !said;
+        if (said === drawnSaid) return;
+        drawnSaid = said;
+        if (!said) return failure.replaceChildren();
+        const { text, retry, details } = said;
+        const again = retry && {
+            label: 'Try Again',
+            run: () => {
+                showFailure(null);
+                retry();
+            },
+        };
+        failure.replaceChildren(ui.notice({ kind: 'failure', text, details, action: again }).element);
     }
 
     function filterBy(typed) {

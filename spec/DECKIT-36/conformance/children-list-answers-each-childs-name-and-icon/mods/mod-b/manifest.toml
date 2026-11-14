@@ -5,7 +5,7 @@ main = "main.js"
 background = "Runs."
 name = "Bee"
 view = { parent = "case/view" }
-icon = "<svg/>"
+icon = "icon.svg"
 
 [interfaces]
 uses = { "case/view" = 1 }

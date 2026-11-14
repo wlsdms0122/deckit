@@ -1,24 +1,20 @@
 import * as SCROLL from '../scroll/index.js';
+import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
 // The sidebar's width: a generous ceiling, as sidebar lists want width, and room left beside it for the content.
 const MIN = 240;
 const MAX = 720;
 const CONTENT_MIN = 360;
-// The card's inset from the window's edges and from the content, and how far the divider's handle stands past it,
-// over the content's edge; folded, the handle stays at the window's edge, this far in.
+// The card's inset from the window's edges and from the content. The divider's handle stands in the gap between them;
+// folded, it stays at the window's edge, this far in. The card's corner is the window's (16) less this inset. Its list
+// pads its sides by GUTTER, so the rows start under the window's buttons, as far in as they stand from the card's top.
 const INSET = 8;
-const HANDLE = Object.freeze({ width: 16, height: 64, out: 6, folded: 3 });
-// The sidebar's material is drawn in the content's ink over the window's background material, which shows through
-// the split view everywhere it draws nothing.
+const GUTTER = 10;
+const HANDLE = Object.freeze({ width: 16, height: 64, folded: 3 });
+// The sidebar's material is drawn over the window's background material, which shows through the split view
+// everywhere it draws nothing.
 const STYLE = `
-    :root {
-        --deckit-sidebar-top: light-dark(rgba(0,0,0,.03), rgba(255,255,255,.045));
-        --deckit-sidebar-bottom: light-dark(rgba(0,0,0,.015), rgba(255,255,255,.025));
-        --deckit-sidebar-rim: light-dark(rgba(0,0,0,.08), rgba(255,255,255,.1));
-        --deckit-sidebar-shadow: inset 0 1px 0 light-dark(rgba(255,255,255,.8), rgba(255,255,255,.09)),
-            0 1px 2px light-dark(rgba(0,0,0,.08), rgba(0,0,0,.35)), 0 10px 28px light-dark(rgba(0,0,0,.1), rgba(0,0,0,.32));
-    }
     .deckit-split {
         --deckit-split-drawn: min(var(--deckit-split-width), max(${MIN}px, 100cqw - ${CONTENT_MIN}px));
         position: relative;
@@ -33,7 +29,6 @@ const STYLE = `
         flex: 0 0 auto;
         width: calc(var(--deckit-split-drawn) + ${2 * INSET}px);
         overflow: hidden;
-        transition: width var(--deckit-base) var(--deckit-easing);
     }
     .deckit-split-card {
         position: absolute;
@@ -43,10 +38,9 @@ const STYLE = `
         width: var(--deckit-split-drawn);
         box-sizing: border-box;
         overflow: hidden;
-        border: 1px solid var(--deckit-sidebar-rim);
-        border-radius: var(--deckit-radius-card);
-        background: linear-gradient(180deg, var(--deckit-sidebar-top), var(--deckit-sidebar-bottom));
-        box-shadow: var(--deckit-sidebar-shadow);
+        border-radius: var(--deckit-radius-medium);
+        background: var(--deckit-sidebar);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-sidebar);
     }
     .deckit-split-list {
         display: flex;
@@ -54,15 +48,15 @@ const STYLE = `
         height: 100%;
         overflow-y: auto;
         box-sizing: border-box;
-        padding: max(0px, var(--deckit-title-bar-area-height, 0px) - ${INSET}px) 12px 0;
+        padding: max(0px, var(--deckit-safe-area-inset-top, 0px) - ${INSET}px) ${GUTTER}px 0;
     }
-    .deckit-split-list > * { flex-shrink: 0; }
+    .deckit-split-list > * { flex-shrink: 0; --deckit-safe-area-inset-top: 0px; }
     .deckit-split-bar {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        height: max(0px, var(--deckit-title-bar-area-height, 0px) - ${INSET}px);
+        height: max(0px, var(--deckit-safe-area-inset-top, 0px) - ${INSET}px);
     }
     [data-deckit-title-bar] .deckit-split-bar { --app-region: drag; }
     .deckit-split-content {
@@ -78,7 +72,7 @@ const STYLE = `
     .deckit-split-handle {
         position: absolute;
         top: calc(50% - ${HANDLE.height / 2}px);
-        left: calc(var(--deckit-split-drawn) + ${2 * INSET + HANDLE.out - HANDLE.width / 2}px);
+        left: calc(var(--deckit-split-drawn) + ${1.5 * INSET - HANDLE.width / 2}px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -89,24 +83,21 @@ const STYLE = `
         background: transparent;
         cursor: col-resize;
         --app-region: no-drag;
-        transition: left var(--deckit-base) var(--deckit-easing);
     }
     .deckit-split-handle::before {
         content: '';
         width: 4px;
         height: 36px;
         border-radius: var(--deckit-radius-round);
-        background: var(--deckit-disabled);
-        transition:
-            background-color var(--deckit-fast) var(--deckit-easing),
-            height var(--deckit-fast) var(--deckit-easing),
-            width var(--deckit-fast) var(--deckit-easing);
+        background: var(--deckit-muted);
+        opacity: 0;
+        transition: opacity var(--deckit-press-fade) var(--deckit-press-curve);
     }
-    .deckit-split-handle:hover::before,
-    .deckit-split[data-dragging] .deckit-split-handle::before { width: 5px; height: 48px; background: var(--deckit-muted); }
+    :is(.deckit-split-handle:hover, .deckit-split-handle:focus-visible, .deckit-split[data-dragging] .deckit-split-handle)::before {
+        opacity: 1;
+    }
     .deckit-split[data-collapsed] > .deckit-split-sidebar { width: 0; }
     .deckit-split[data-collapsed] > .deckit-split-handle { left: ${HANDLE.folded}px; cursor: pointer; }
-    .deckit-split[data-dragging] > * { transition: none; }
 `;
 
 // MARK: - Initializer
@@ -117,14 +108,16 @@ function make(_theme, ui) {
 
 // MARK: - Private
 // A sidebar beside the content, as a window's content or a part of it: `sidebar` in a card on the sidebar's material
-// at the start, scrolling when it is taller than its card and holding what it lists from under the window's buttons,
-// and `content` in the rest, its title bar clear of the buttons while the sidebar is folded. The divider's handle
+// at the start, scrolling when it is taller than its card and holding what it lists from the safe area's top, the
+// window's buttons over the card, and `content` in the rest, told its own title bar area: from its start while the
+// sidebar is open, past the buttons while it is folded. The divider's handle
 // sizes the sidebar by its drag, between MIN and MAX and leaving the content CONTENT_MIN, and folds or unfolds it by a
 // click. `width` and `collapsed` are how it starts; `onChange({ width, collapsed })` hears each change the person
 // makes, for the mod to keep. Answers `{ element, isCollapsed(), setCollapsed(collapsed), toggleSidebar(), width() }`.
 function splitView(ui, { sidebar, content, width: given = MIN, collapsed: folded = false, onChange = null }) {
     let width = clamped(given);
     let collapsed = !!folded;
+    let sliding = []; // the animations of a slide under way
     const element = tag('div', 'deckit-split');
     const column = tag('div', 'deckit-split-sidebar');
     const card = tag('div', 'deckit-split-card');
@@ -151,8 +144,9 @@ function splitView(ui, { sidebar, content, width: given = MIN, collapsed: folded
             draw(width);
             onChange?.({ width, collapsed });
         },
-        onClick: () => {
-            toggleSidebar();
+        // A click of the pointer slides the sidebar; Enter or Space on the handle folds it at once.
+        onClick: (event) => {
+            fold(!collapsed, { slides: event.detail > 0 });
             onChange?.({ width, collapsed });
         },
         onDrag: (on) => element.toggleAttribute('data-dragging', on),
@@ -163,18 +157,51 @@ function splitView(ui, { sidebar, content, width: given = MIN, collapsed: folded
         element.style.setProperty('--deckit-split-width', px + 'px');
         element.toggleAttribute('data-collapsed', collapsed);
         handle.setAttribute('aria-expanded', String(!collapsed));
-        handle.title = collapsed ? 'Show Sidebar' : 'Hide Sidebar · drag to resize';
+        handle.title = collapsed ? 'Show Sidebar' : 'Hide Sidebar. Drag to resize.';
         // Folded, what it holds is out of the keyboard's reach too.
         column.inert = collapsed;
     }
 
-    function setCollapsed(on) {
+    // With `slides`, the card slides out of the window or into it, and the content, its title bars with it, slides
+    // beside it; the content keeps the wider of its two widths until it is still, so no gap opens at its far edge.
+    // Without, as for what a key does, it changes at once.
+    function fold(on, { slides = false } = {}) {
+        const moving = [card, room, handle, ...room.querySelectorAll('.deckit-title-bar')];
+        const before = new Map(moving.map((part) => [part, part.getBoundingClientRect().left]));
+        settle();
         collapsed = !!on;
         draw(width);
+        if (!slides || !TOKEN.MOTION.move.length) return;
+        const span = card.offsetWidth + 2 * INSET;
+        const { length, easing } = TOKEN.MOTION.over('move', span);
+        if (!collapsed) room.style.marginRight = -span + 'px';
+        column.style.overflow = 'visible';
+        const shift = (part) => before.get(part) - part.getBoundingClientRect().left;
+        const by = new Map(moving.map((part) => [part, shift(part)]));
+        const timing = { duration: length, easing, fill: 'both' };
+        const across = (from, to) => [{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }];
+        sliding = moving.map((part) => {
+            if (part === card) return part.animate(across(by.get(card), collapsed ? -span : 0), timing);
+            const own = by.get(part) - (part === room || part === handle ? 0 : by.get(room));
+            return part.animate(across(own, 0), timing);
+        });
+        sliding[0].finished.then(settle, () => {});
+    }
+
+    // A slide under way stops where it is going.
+    function settle() {
+        for (const animation of sliding) animation.cancel();
+        sliding = [];
+        room.style.marginRight = '';
+        column.style.overflow = '';
+    }
+
+    function setCollapsed(on) {
+        fold(on);
     }
 
     function toggleSidebar() {
-        setCollapsed(!collapsed);
+        fold(!collapsed);
     }
 
     return Object.freeze({

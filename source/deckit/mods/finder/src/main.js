@@ -54,7 +54,7 @@ class Finder {
     }
 
     async attach(shell, deckit, { mainProcess }) {
-        const { theme, ui } = shell;
+        const { ui } = shell;
         const { storage } = deckit;
         const { values, records } = storage;
         const about = deckit.about();
@@ -188,11 +188,10 @@ class Finder {
             onMade: showMade,
             onMoved: relocate,
             onChanged: listings.load,
-            onStatus: area.showStatus,
+            onFailure: area.showFailure,
         });
         const bar = toolbar({
             ui,
-            theme,
             chordOf: (name) => keys.chordOf(name),
             tildify,
             homeLocation: () => home,
@@ -212,7 +211,6 @@ class Finder {
             records,
             tildify,
             folds,
-            currentLocation: tabs.location,
             onGo: (path) => tabs.go(path),
             onOpenInNewTab: (path) => tabs.open(path),
             onDraw: drawStar,
@@ -269,6 +267,7 @@ class Finder {
         const goTo = goToFolder({
             ui,
             disk,
+            icons,
             tildify,
             homeLocation: () => home,
             folderInFront: area.workingFolder,
@@ -277,7 +276,7 @@ class Finder {
 
         ui.addStyle(STYLE);
         bar.setView(area.view());
-        content.append(bar.element, list.header, area.element, area.footer);
+        content.append(bar.element, list.header, area.element, area.failure, area.footer);
         sidebar.append(tabs.element, favorites.element);
         // The content's size is observed in the window it is shown in, from each time it appears.
         const fit = () => {
@@ -422,12 +421,11 @@ class Finder {
                 .map(({ candidate }) => candidate);
         }
 
-        // Drawn at once: until the folder is read, the area shows it loading. The favorites are drawn here, as only a
-        // new location changes which of them is lit.
+        // Drawn at once: until the folder is read, the area shows it loading. The star follows the new location.
         function enterLocation() {
             bar.setFilter(tabs.filter().text);
             watchShown();
-            favorites.draw();
+            drawStar();
             area.draw();
             return load();
         }
@@ -578,10 +576,9 @@ class Finder {
 
         function toggleFavorite() {
             const location = tabs.location();
-            if (!location) return false;
+            if (!location) return;
             if (favorites.has(location)) favorites.remove(location);
             else favorites.add(location);
-            return true;
         }
 
         function drawStar() {

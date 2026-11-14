@@ -1,6 +1,6 @@
-// The sidebar's table of contents: a row per section of `scroller`, marking the one being read and gliding to the one
-// pressed.
-function tableOfContents({ ui, scroller, sections }) {
+// The sidebar's table of contents: a row per section of `scroller`, by its glyph and title, marking the one being read
+// and gliding to the one pressed or reached by the keys, at once while the system asks for reduced motion.
+function tableOfContents({ ui, theme, scroller, sections }) {
     const GLIDE_LIMIT = 1500;
 
     let current = sections[0];
@@ -9,7 +9,8 @@ function tableOfContents({ ui, scroller, sections }) {
     let glideTimer = null;
 
     ui.addStyle(`
-        .settings-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+        /* No heading: the window's title names what the rows are of. */
+        .settings-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; padding-top: 10px; }
         .settings-contents-label {
             flex: 1 1 auto;
             min-width: 0;
@@ -19,13 +20,18 @@ function tableOfContents({ ui, scroller, sections }) {
         }
     `);
     const element = ui.element('div', { className: 'settings-sidebar' });
-    const contents = ui.section({ label: 'Table of Contents', icon: ui.icon('tableOfContents', { size: 16 }) });
     const rows = new Map(); // section -> its row
     const list = ui.list({ key: (section) => section.title, create: contentsRow });
 
     list.set(sections);
-    contents.body.append(list.element);
-    element.append(contents.element);
+    // The arrows and a name typed go from section to section, as a press on a row does.
+    ui.tree(list.element, {
+        items: () => sections,
+        lead: () => current,
+        nameOf: (section) => section.title,
+        onSelect: (section) => go(section),
+    });
+    element.append(list.element);
     scroller.addEventListener('scrollend', () => {
         if (gliding) land();
     });
@@ -66,7 +72,7 @@ function tableOfContents({ ui, scroller, sections }) {
         gliding = true;
         clearTimeout(glideTimer);
         glideTimer = setTimeout(land, GLIDE_LIMIT);
-        scroller.scrollTo({ top, behavior: 'smooth' });
+        scroller.scrollTo({ top, behavior: theme.motion.move.length ? 'smooth' : 'auto' });
     }
 
     function land() {
@@ -80,7 +86,7 @@ function tableOfContents({ ui, scroller, sections }) {
     }
 
     function contentsRow(section) {
-        const row = ui.row();
+        const row = ui.row({ glyph: ui.icon(section.glyph, { size: 16 }) });
         row.element.append(ui.element('span', { className: 'settings-contents-label', text: section.title }));
         row.element.addEventListener('click', () => go(section));
         rows.set(section, row);
@@ -91,9 +97,11 @@ function tableOfContents({ ui, scroller, sections }) {
         return target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
     }
 
-    // `margin` above the target, kept within what the scroller can scroll.
+    // `margin` above the target, past the scroller's faded edge (its `scroll-padding`), kept within what the scroller
+    // can scroll.
     function clampedTop(target, margin) {
-        return Math.min(Math.max(0, topOf(target) - margin), scroller.scrollHeight - scroller.clientHeight);
+        const edge = parseFloat(getComputedStyle(scroller).scrollPaddingTop) || 0;
+        return Math.min(Math.max(0, topOf(target) - edge - margin), scroller.scrollHeight - scroller.clientHeight);
     }
 }
 

@@ -9,9 +9,6 @@ const MOD_DETAILS_STYLE = `
         grid-template-rows: 0fr;
         opacity: 0;
         cursor: default;
-        transition:
-            grid-template-rows var(--deckit-slow) var(--deckit-easing),
-            opacity var(--deckit-slow) var(--deckit-easing);
     }
     .settings-details[data-open] { grid-template-rows: 1fr; opacity: 1; }
     .settings-details-clip { min-height: 0; overflow: hidden; }
@@ -23,15 +20,10 @@ const MOD_DETAILS_STYLE = `
         padding: 10px 12px;
         border-radius: var(--deckit-radius-medium);
         background: var(--deckit-fill);
-        font: 12.5px var(--deckit-font);
+        font: var(--deckit-type-small);
     }
     .settings-details-part { display: flex; flex-direction: column; gap: 5px; }
-    .settings-details-heading {
-        font: 700 10.5px var(--deckit-font);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        opacity: 0.4;
-    }
+    .settings-details-heading { color: var(--deckit-muted); font: var(--deckit-type-label); }
     .settings-details-chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .settings-details-keys {
         display: grid;
@@ -45,25 +37,23 @@ const MOD_DETAILS_STYLE = `
         padding: 0 5px;
         border: var(--deckit-border);
         border-radius: var(--deckit-radius-small);
-        font: 11.5px var(--deckit-font);
+        font: var(--deckit-type-caption);
         line-height: 18px;
         text-align: center;
-        opacity: 0.8;
     }
     .settings-details-label {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        opacity: 0.85;
     }
     .settings-details-location { display: flex; flex-direction: column; gap: 2px; }
-    .settings-details-line { overflow-wrap: anywhere; font: 12.5px var(--deckit-font); opacity: 0.85; }
-    .settings-details-line[data-muted] { font: var(--deckit-type-small); opacity: 0.45; }
+    .settings-details-line { overflow-wrap: anywhere; font: var(--deckit-type-small); }
+    .settings-details-line[data-muted] { color: var(--deckit-muted); }
     .settings-details-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 `;
 
-// What an opened mod row shows: the interfaces it uses, in which mod's window its view is shown, its permissions, the
+// What an opened mod row shows: all it contributes, the interfaces it uses, in which mod's window its view is shown, its permissions, the
 // addresses it opens, its keys and where it lives. `onPinnedChange` hears the person keep a mod in the Dock or take it
 // out.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the slow
@@ -97,6 +87,8 @@ function modDetails({ ui, mods, pins, tildify, onPinnedChange }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
+        const contributes = (mod.contributions ?? []).join(', ');
+        if (contributes) addPart('Contributes', detailsLine(contributes[0].toUpperCase() + contributes.slice(1)));
         if (mod.uses?.length) addPart('Interfaces', chipRow(useChips(mod.uses)));
         if (mod.view?.parent && pins) addPart('View', viewPin());
         if (mod.permissions?.length)
@@ -113,9 +105,8 @@ function modDetails({ ui, mods, pins, tildify, onPinnedChange }) {
     function setOpen(on, animate) {
         open = on;
         if (open) readUsage();
-        if (!animate) element.style.transition = 'none';
         element.toggleAttribute('data-open', open);
-        if (!animate) element.ownerDocument.defaultView?.requestAnimationFrame(() => (element.style.transition = ''));
+        if (animate) ui.motion.fold(element, open);
     }
 
     // Read when the row is open: it walks the data folder, and most rows are never opened.

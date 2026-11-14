@@ -12,9 +12,10 @@ export function createWindows({ LOG, WEBKIT, openWindow }) {
     // where no `buttons` are given, or `floating`, with no bar, over every app and on every workspace, taking the
     // keyboard without bringing the app forward; `size` its content's; `frame` where it is on screen, `{ x, y, width,
     // height }` from the top left of the main display as Electron's screen gives it; `color` `{ red, green, blue }`
-    // under what it shows, or `material` (`hud`, `sidebar`, `menu`, `popover`) blurring what is behind it instead. It
-    // tells `resize` ({ width, height }, its content's size), `moving`, before the person moves it, `moved`, `key` and
-    // `resign`, as it takes and loses the keyboard, and `close`, once, as it closes.
+    // under what it shows, or `material` blurring what is behind it instead: `hud`, always dark, or `window`,
+    // `sidebar`, `menu`, `popover`, light or dark as the system's appearance is. It tells `resize` ({ width, height },
+    // its content's size), `moving`, before the person moves it, `moved`, `key` and `resign`, as it takes and loses the
+    // keyboard, and `close`, once, as it closes.
     function open({
         kind = 'titled',
         size,

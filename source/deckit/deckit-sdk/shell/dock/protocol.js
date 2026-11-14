@@ -6,6 +6,13 @@ import * as MOD_PERMISSION from '../../deckit/permission/index.js';
 // Every app mod, asked by a mod with deckit.mods, `[{ id, name, icon, keywords, pinned, running }]` in the Dock's
 // order: `pinned` whether the person keeps it in the Dock, `running` whether it runs now.
 export const list = CHANNEL.pageToMain('deckit-shell:dock-list', {}, { reply: true, guard: MOD_PERMISSION.MODS });
+// The icon of any mod that loads, app or not, asked by any mod, since an icon names a mod and grants nothing: as `list`
+// answers an app's, '' for one with none or an id that names no mod that loads.
+export const icon = CHANNEL.pageToMain(
+    'deckit-shell:dock-icon',
+    { id: 'string' },
+    { reply: true, guard: CHANNEL.GUARD.MOD }
+);
 // The mods the person keeps in the Dock, asked by a mod with deckit.mods; and keeping one there or taking it out,
 // refused for a mod that is no app.
 export const pinned = CHANNEL.pageToMain('deckit-shell:dock-pinned', {}, { reply: true, guard: MOD_PERMISSION.MODS });

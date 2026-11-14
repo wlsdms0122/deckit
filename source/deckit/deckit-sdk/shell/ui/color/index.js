@@ -1,5 +1,7 @@
 // MARK: - Property
 const DARK_LUMA = 140;
+// The inks text is drawn in over a colour of the content's own: the one that stands out from it more.
+const INKS = Object.freeze(['#ffffff', '#1d1c1d']);
 
 // MARK: - Initializer
 // MARK: - Public
@@ -33,10 +35,36 @@ function mix(foreground, background, amount) {
     return `rgb(${channels.join(', ')})`;
 }
 
+// The ink to draw text or a glyph in over `color`, a colour of the content's own (a calendar's): of white and a
+// near black, the one with the greater contrast against it.
+function onColor(color) {
+    if (luminanceOf(color) === null) return INKS[0];
+    return contrast(INKS[0], color) >= contrast(INKS[1], color) ? INKS[0] : INKS[1];
+}
+
+// The contrast ratio of two colours, from 1 for the same to 21 for black on white, or null when one cannot be read.
+function contrast(one, other) {
+    const [first, second] = [luminanceOf(one), luminanceOf(other)];
+    if (first === null || second === null) return null;
+    const [lighter, darker] = [first, second].sort((a, b) => b - a);
+    return (lighter + 0.05) / (darker + 0.05);
+}
+
 function alpha(color, amount) {
     const channels = rgbOf(color);
     return channels ? `rgba(${channels.join(', ')}, ${amount})` : color;
 }
 
 // MARK: - Private
-export { rgbOf, isDark, mix, alpha };
+// The relative luminance of a colour, from 0 for black to 1 for white, or null when it cannot be read.
+function luminanceOf(color) {
+    const channels = rgbOf(color);
+    if (!channels) return null;
+    const [red, green, blue] = channels.map((channel) => {
+        const value = channel / 255;
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+export { rgbOf, isDark, mix, alpha, onColor, contrast };

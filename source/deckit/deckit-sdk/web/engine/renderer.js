@@ -386,6 +386,7 @@ export function createWeb({ sessions, web: WEB, channels }) {
             audible: false,
             muted: false,
             capture: { microphone: false, camera: false, screen: false },
+            failure: null,
         };
         const tell = (method, ...args) => {
             const listener = delegate?.[method];

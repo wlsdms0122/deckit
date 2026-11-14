@@ -14,13 +14,13 @@ input = "start"
 input = "call"
 mod = "mod-a"
 member = "events.emit"
-args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "a" }]
+args = ["go", { take = { code = "KeyL", control = true, alt = true }, as = "a" }]
 
 [[step]]
 input = "call"
 mod = "mod-a"
 member = "events.emit"
-args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "c" }]
+args = ["go", { take = { code = "KeyL", control = true, alt = true }, as = "c" }]
 
 [[step]]
 look = "opened"

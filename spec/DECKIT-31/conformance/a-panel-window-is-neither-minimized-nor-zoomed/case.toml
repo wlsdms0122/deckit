@@ -1,0 +1,24 @@
+case = 23
+name = "a-panel-window-is-neither-minimized-nor-zoomed"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. minimize() and zoom() do nothing to a panel window: mod-a, granted deckit.panel-windows, opens p, then calls its minimize() and its zoom()."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { name = "p", do = "minimize" }, { name = "p", do = "zoom" }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }]

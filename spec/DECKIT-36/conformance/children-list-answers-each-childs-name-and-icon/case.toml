@@ -1,6 +1,6 @@
 case = 22
 name = "children-list-answers-each-childs-name-and-icon"
-note = "Each child children.list answers is { id, name, icon }: mod-b, named Bee with an icon <svg/>, is answered with both."
+note = "Each child children.list answers is { id, name, icon }: mod-b, named Bee with an icon, the file icon.svg of its bundle, is answered with its name and that file's text."
 
 [host]
 base = "shell"
@@ -18,4 +18,4 @@ handle = "shell"
 args = ["case/view"]
 
 [step.expect]
-answers = [{ id = "mod-b", name = "Bee", icon = "<svg/>" }]
+answers = [{ id = "mod-b", name = "Bee", icon = "<svg viewBox=\"0 0 8 8\"/>" }]

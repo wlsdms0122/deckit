@@ -1,6 +1,6 @@
 const { movePath } = require('deckit-sdk/path');
 const { entryAt, labelIn, markEntry, entryOf } = require('./entry.js');
-const { COMPOSE_SHAPES, NOTEBOOK_SHAPES } = require('../icons/icons.js');
+const { NOTEBOOK_SHAPES } = require('../icons/icons.js');
 const { parentOf } = require('../notes-folder/path.js');
 
 // The sidebar: every folder and note under All Notes, folded as the person left them. The keys move through the rows
@@ -18,29 +18,34 @@ function tree({
     renameNote,
     renameFolder,
     onShowAll,
-    onNewNote,
     onNewFolder,
     onToggle,
 }) {
     const STYLE = `
         .note-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-        .note-tree { outline: none; }
-        .note-tree-glyph { display: flex; color: var(--deckit-muted); }
+        /* All Notes is the first row of the tree, drawn as a row is. */
+        .note-sidebar .deckit-section-label { color: var(--deckit-text); font: var(--deckit-type-body); }
+        /* New Folder stays at the card's foot, 16px from its edges, over the rows that scroll under it; it stops 1px
+           short of the edge, which the card's rim draws. */
+        .note-sidebar-foot {
+            position: sticky;
+            bottom: 1px;
+            display: flex;
+            margin-top: auto;
+            padding: 8px 4px 15px;
+            background: linear-gradient(var(--deckit-sidebar), var(--deckit-sidebar)), var(--deckit-background);
+        }
     `;
 
     let expanded = new Set(store.get('expanded', []));
     let shown = []; // the rows drawn, in order
 
     ui.addStyle(STYLE);
-    const noteGlyph = `<span class="note-tree-glyph">${ui.icon('fileText', { size: 16 })}</span>`;
+    const noteGlyph = ui.icon('fileText', { size: 16 });
     const element = ui.element('div', { className: 'note-sidebar' });
     const section = ui.section({
         label: 'All Notes',
         icon: ui.iconOf(NOTEBOOK_SHAPES, { size: 16 }),
-        actions: [
-            { icon: ui.iconOf(COMPOSE_SHAPES, { size: 16 }), title: 'New note', run: () => onNewNote() },
-            { icon: ui.icon('folderPlus', { size: 16 }), title: 'New folder', run: () => onNewFolder() },
-        ],
         onHeading: () => onShowAll(),
         onHeadingMenu: (event) => ui.menu({ items: folderMenu(''), point: { x: event.clientX, y: event.clientY } }),
     });
@@ -48,9 +53,11 @@ function tree({
 
     rows.element.classList.add('note-tree');
     section.body.append(rows.element);
-    element.append(section.element);
-    ui.tooltip(section.actions[0].element, { text: 'New note', chord: () => chordOf('newNote') });
-    ui.tooltip(section.actions[1].element, { text: 'New folder', chord: () => chordOf('newFolder') });
+    const newFolder = ui.button({ label: 'New Folder', title: '', size: 'small', onClick: () => onNewFolder() });
+    ui.tooltip(newFolder.element, { text: 'New folder', chord: () => chordOf('newFolder') });
+    const foot = ui.element('div', { className: 'note-sidebar-foot' });
+    foot.append(newFolder.element);
+    element.append(section.element, foot);
     // Delegated, so a row drawn again never loses a press.
     rows.element.addEventListener('click', (event) => {
         const row = entryAt(event.target);

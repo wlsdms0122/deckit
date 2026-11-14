@@ -43,4 +43,4 @@ args = ["go", { web = { title = "T" } }]
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", level = "normal", frame = { x = 30, y = 24, width = 520, height = 738 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", level = "normal", frame = { x = 30, y = 24, width = 520, height = 748 }, key = true, minimized = false }]

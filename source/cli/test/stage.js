@@ -1,6 +1,6 @@
 // The stage pages are laid on (deckit-electron/stage), checked over a stand-in for WebKit's module: what it is asked
 // to lay, in what order, where, cut to what and shown or not, each page's web pages over it, and where it is placed in
-// its window.
+// its window, and the materials laid among them.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -120,6 +120,41 @@ async function main() {
             JSON.stringify(asked.laid[2].frame) === JSON.stringify(rect(3, 4, 4, 5)),
         asked.laid
     );
+    stage.lay([{ page: a, rect: rect(1, 1, 9, 9), input: [] }]);
+    const noneOver = asked.laid;
+    stage.lay([{ page: a, rect: rect(1, 1, 9, 9), input: [rect(0, 0, 2, 2)] }]);
+    check(
+        "a page's web pages take no pointer where the page takes none, and all of theirs where the page takes some",
+        JSON.stringify(noneOver[1].input) === '[]' && !('input' in asked.laid[1]),
+        { noneOver, some: asked.laid }
+    );
+    stage.lay([
+        { page: a, rect: rect(1, 1, 9, 9), opacity: 0.4 },
+        { page: frame, rect: rect(0, 0, 3, 10), opacity: 1 },
+    ]);
+    check(
+        'a page laid at an opacity is drawn so, its web pages with it, and one at 1 is laid as any',
+        asked.laid[0].opacity === 0.4 && asked.laid[1].opacity === 0.4 && !('opacity' in asked.laid[2]),
+        asked.laid
+    );
+    const half = { by: 0.5, x: 2, y: 3 };
+    stage.lay([
+        { page: a, rect: rect(1, 1, 9, 9), scale: half },
+        { page: frame, rect: rect(0, 0, 3, 10), scale: { by: 1, x: 0, y: 0 } },
+    ]);
+    check(
+        'a page laid at a scale is drawn so at its rect, its web pages with it, and one at 1 in place is laid as any',
+        JSON.stringify(asked.laid[0].scale) === JSON.stringify(half) &&
+            JSON.stringify(asked.laid[1].scale) === JSON.stringify(half) &&
+            JSON.stringify(asked.laid[0].frame) === JSON.stringify(rect(1, 1, 9, 9)) &&
+            !('scale' in asked.laid[2]),
+        asked.laid
+    );
+    stage.lay([
+        { page: backdrop, rect: rect(0, 0, 10, 10) },
+        { page: a, rect: rect(1, 1, 9, 9) },
+        { page: frame, rect: rect(0, 0, 3, 10) },
+    ]);
     webPages.set(a, []);
     STAGES.relayOf(web);
     STAGES.relayOf(a);
@@ -141,6 +176,36 @@ async function main() {
         asked.laid
     );
     webPages.set(a, []);
+
+    stage.lay([
+        { page: backdrop, rect: rect(0, 0, 10, 10) },
+        { material: 'menu', rect: rect(2, 2, 4, 3), cornerRadius: 10 },
+        { page: a, rect: rect(0, 0, 10, 10) },
+        { material: 'popover', rect: rect(1, 1, 2, 2) },
+    ]);
+    check(
+        'a material is laid at its place in the order, at its rect, its corners rounded, no radius as none',
+        JSON.stringify(asked.laid) ===
+            JSON.stringify([
+                { page: 1, frame: rect(0, 0, 10, 10) },
+                { material: 'menu', frame: rect(2, 2, 4, 3), cornerRadius: 10 },
+                { page: 2, frame: rect(0, 0, 10, 10) },
+                { material: 'popover', frame: rect(1, 1, 2, 2), cornerRadius: 0 },
+            ]),
+        asked.laid
+    );
+    stage.lay([{ page: backdrop, rect: rect(0, 0, 10, 10) }]);
+    check(
+        'a material left out is taken off',
+        JSON.stringify(asked.laid) === JSON.stringify([{ page: 1, frame: rect(0, 0, 10, 10) }]),
+        asked.laid
+    );
+    const unplaced = refusal(stage, [{ material: 'menu' }]);
+    const paged = refusal(stage, [{ material: 'menu', page: backdrop, rect: rect(0, 0, 1, 1) }]);
+    check('a material is laid at a rect, and is no page', /a layer is/.test(unplaced) && /a layer is/.test(paged), [
+        unplaced,
+        paged,
+    ]);
 
     b.gone = true;
     stage.lay([

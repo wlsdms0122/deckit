@@ -2,13 +2,13 @@ const { fileIconOf } = require('../file-type/file-type.js');
 const { parentOf, isInside, relativePath } = require('../path/path.js');
 
 const TREE_STYLE = `
-    .editor-tree { display: flex; flex-direction: column; flex: 1 0 auto; padding: 2px 0 8px; outline: none; }
-    .editor-tree-empty { padding: 4px 8px; opacity: 0.4; font: 12.5px var(--deckit-font); }
+    .editor-tree { display: flex; flex-direction: column; flex: 1 0 auto; padding: 2px 0 8px; }
+    .editor-tree-empty { padding: 4px 8px; color: var(--deckit-muted); font: var(--deckit-type-small); }
 `;
 
 // A workspace's folder as a tree, read a folder at a time. The folders expanded are kept per folder in `store`. A row
 // being renamed or dragged keeps its place until it is done.
-function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, onRename, menu }) {
+function fileTree({ ui, theme, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, onRename, menu }) {
     let root = null;
     const entriesByFolder = new Map(); // folder path -> its entries, once read
     let expanded = new Set();
@@ -112,7 +112,8 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         saveExpanded();
         draw();
         const row = rowAt(path);
-        if (row && !ui.isFullyVisible(row)) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        if (row && !ui.isFullyVisible(row))
+            row.scrollIntoView({ block: 'center', behavior: theme.motion.move.length ? 'smooth' : 'auto' });
     }
 
     // The folder is read again first: the entry may be new.

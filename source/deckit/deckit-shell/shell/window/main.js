@@ -1,13 +1,16 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from '../../../deckit-sdk/shell/window/protocol.js';
 import * as SURFACE from './model/surface.js';
+import * as LAYOUT from '../desktop/model/layout.js';
 
 // `deckit` is what connect answered, `web` what the web engine answered (`pageFor`), `PAGES` the shell's pages,
 // `OVERLAY` their overlays, `REGION` the regions mods give their children, `DESKTOP` where normal windows are, the
 // frames windows were left at and which mods may activate, `KEY` the keys of the app, and `makeStage()` a stage to
 // lay pages on (environment: SHELL.stage);
 // `showWindow(control, { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on
-// screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it.
+// screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it. A panel
+// window stands at its edge, in the host's bar over the desktop or along the desktop's right edge, where DESKTOP places
+// it.
 export function createWindows({
     deckit,
     web,
@@ -24,14 +27,15 @@ export function createWindows({
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const NORMAL = 'normal';
     const OVERLAY_LEVEL = 'overlay';
+    const PANEL = 'panel';
     // The size a window opens at where its mod gives none, and the size a web page's window opens at.
     const SIZE = Object.freeze({ width: 720, height: 480 });
     const WEB_SIZE = Object.freeze({ width: 520, height: 700 });
-    // id -> { id, mod, page, name, level, size, minimum, surface, sent, host, title, web }: `name` null for a web
-    // page's window, which has none, `surface` its content once
-    // the page opened it, `sent` what the page was last told of it, `host` an overlay window's
-    // `{ control, stage, key }`; and for a web page's window, `title`, what its title bar holds, and `web`,
-    // `{ closed }`, the listeners of its close.
+    // id -> { id, mod, page, name, level, edge, size, minimum, bar, surface, sent, host, title, web }: `name` null for
+    // a web page's window, which has none, `edge` a panel window's, 'top' or 'right', and null for any other, `bar` a
+    // normal window's title bar (LAYOUT.barOf), `surface` its content once the page opened it, `sent` what the page was
+    // last told of it, `host` an overlay window's `{ control, stage, key }`, `title` what a titled window's bar holds;
+    // and for a web page's window `web`, `{ closed }`, the listeners of its close.
     const windows = new Map();
     const heard = new Set(); // the pages whose end closes their windows
     let count = 0;
@@ -39,7 +43,8 @@ export function createWindows({
     // MARK: - Initializer
     // MARK: - Public
     // The windows mods open, each a run's: a normal one on the desktop, an overlay one in a floating window of the host
-    // app's. A window's content is a document its mod's page opens; it closes with the page's document.
+    // app's, a panel one in the host's bar over the desktop. A window's content is a document its mod's page opens; it
+    // closes with the page's document.
     function start() {
         PROTOCOL.open.handle((options, sender) => open(sender, options));
         PROTOCOL.close.on(bySender(close));
@@ -48,8 +53,12 @@ export function createWindows({
         PROTOCOL.orderFront.on(bySender((window) => orderFront(window, { activates: false })));
         PROTOCOL.makeKeyAndOrderFront.on(bySender((window) => orderFront(window)));
         PROTOCOL.resize.on(bySender(resize));
+        PROTOCOL.setTitle.on(bySender((window, { title }) => retitle(window, title)));
         PROTOCOL.move.on(
-            bySender((window, { phase, dx, dy }) => window.level === NORMAL && DESKTOP.move(window, phase, dx, dy))
+            bySender(
+                (window, { phase, dx, dy, x, y }) =>
+                    window.level === NORMAL && DESKTOP.move(window, phase, dx, dy, grabOf(window, x, y))
+            )
         );
         PROTOCOL.doubleClick.on(bySender((window) => window.level === NORMAL && DESKTOP.doubleClick(window)));
         // An overlay window's children are laid again as the desktop's are: as runs, regions and the order change.
@@ -60,28 +69,38 @@ export function createWindows({
         OVERLAY.onChange(relay);
     }
 
+    // Where a press in a window's content was in its frame, the content of a titled one under its title bar; or null
+    // where the page did not tell.
+    function grabOf(window, x, y) {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x, y: y + (window.bar?.style === 'titled' ? window.bar.height : 0) };
+    }
+
     // The page a page is: the mod's page whose window's content it is, or itself.
     function pageOf(page) {
         return [...windows.values()].find((window) => window.surface === page)?.page ?? page;
     }
 
     // A web page in a window of the app's, as the environment asks the host app for one (`openWindow({ title, page })`):
-    // a normal window of the mod whose page shows the web page, its content, WEB_SIZE big under the title bar the shell
-    // draws. Answers what the environment drives of it: `setTitle(text)`, `close()`, and `on('close', listener)`, its
-    // off answered, heard once as the window closes, however it closes.
+    // a normal window of the mod whose page shows the web page, titled, its content WEB_SIZE big under the title bar
+    // the shell draws. Answers what the environment drives of it: `setTitle(text)`, `close()`, and
+    // `on('close', listener)`, its off answered, heard once as the window closes, however it closes.
     function openWeb({ title = '', page: content }) {
         const page = web.pageFor(content);
         const mod = page && deckit.mods.modOf(page);
         if (!mod) throw new Error('only a web page a mod shows opens a window');
         const id = ++count;
+        const bar = LAYOUT.barOf({ style: 'titled' });
         const window = {
             id,
             mod,
             page,
             name: null,
             level: NORMAL,
-            size: { ...WEB_SIZE },
+            edge: null,
+            size: LAYOUT.framedSize(WEB_SIZE, bar),
             minimum: { width: 0, height: 0 },
+            bar,
             surface: content,
             sent: '',
             host: null,
@@ -118,7 +137,7 @@ export function createWindows({
     // the page itself while it has none.
     function keyboardOf(page) {
         const own = [...windows.values()].filter((window) => window.page === page && window.surface);
-        const key = own.find((window) => (window.level === NORMAL ? DESKTOP.isKey(window) : window.host.key));
+        const key = own.find((window) => (window.level === OVERLAY_LEVEL ? !!window.host?.key : DESKTOP.isKey(window)));
         return (key ?? own[0])?.surface ?? page;
     }
 
@@ -132,36 +151,39 @@ export function createWindows({
     }
 
     // One window of a name per run: the one open orders front. It comes up as the key window unless `activates` is
-    // false.
-    function open(page, { name, level, width, height, minWidth, minHeight, activates = true }) {
+    // false. A normal window's title bar is as its style options say, read here once.
+    function open(page, options) {
+        const { name, level, edge, width, height, minWidth, minHeight, activates = true, title } = options;
         const mod = deckit.mods.modOf(page);
         const same = [...windows.values()].find((window) => window.page === page && window.name === name);
         if (same) {
             orderFront(same, { activates });
             return { id: same.id, surface: SURFACE.nameOf(same.id) };
         }
-        const overlay = level === OVERLAY_LEVEL;
         const id = ++count;
         const window = {
             id,
             mod,
             page,
             name,
-            level: overlay ? OVERLAY_LEVEL : NORMAL,
+            level: [OVERLAY_LEVEL, PANEL].includes(level) ? level : NORMAL,
+            edge: level === PANEL ? (edge === 'right' ? 'right' : 'top') : null,
             size: { width: width ?? SIZE.width, height: height ?? SIZE.height },
             minimum: { width: minWidth ?? 0, height: minHeight ?? 0 },
+            bar: barOf(options),
             surface: null,
             sent: '',
             host: null,
-            title: null,
+            title: title ?? '',
             web: null,
         };
         windows.set(id, window);
         closesWith(page);
         PAGES.allowSurface(page, SURFACE.nameOf(id), (surface) => opened(window, surface));
-        if (overlay) float(window, { activates });
+        if (window.level === OVERLAY_LEVEL) float(window, { activates });
         else {
-            DESKTOP.open(window, { activates });
+            if (window.level === PANEL) DESKTOP.openPanel(window, { activates });
+            else DESKTOP.open(window, { activates });
             layOverlayWindowsOf(page);
         }
         return { id, surface: SURFACE.nameOf(id) };
@@ -169,20 +191,23 @@ export function createWindows({
 
     // The content, once the page opened it: its keys reach the keys of the app as the page's, and a press in it is the
     // person's on its window. Only a press takes the keyboard to a window that is not key, the shell giving it to the
-    // key window's content alone.
+    // key window's content alone; a press in a panel window in the bar leaves the key window key. A press in the
+    // normal key window takes the keyboard back from a panel window that holds it.
     function opened(window, surface) {
         if (windows.get(window.id) !== window) return PAGES.close(surface);
         window.surface = surface;
         KEY.listen(surface, window.page);
         PAGES.whenFocused(surface, () => focused(window));
-        if (window.level === NORMAL) DESKTOP.update();
-        else lay(window);
+        if (window.level === OVERLAY_LEVEL) lay(window);
+        else DESKTOP.update();
         tell();
     }
 
     function focused(window) {
         if (windows.get(window.id) !== window) return;
-        if (window.level === NORMAL && !DESKTOP.isKey(window)) DESKTOP.press(window);
+        if (window.level === PANEL) {
+            if (!DESKTOP.isKey(window)) DESKTOP.pressPanel(window);
+        } else if (window.level === NORMAL && (!DESKTOP.isKey(window) || DESKTOP.keyPanel())) DESKTOP.press(window);
     }
 
     // Closed, wherever it is, and the page told, unless the page is what went, before another window takes the key
@@ -191,10 +216,12 @@ export function createWindows({
         if (windows.get(window.id) !== window) return;
         windows.delete(window.id);
         if (!window.web && PAGES.isAlive(window.page)) PROTOCOL.closed.send(window.page, { id: window.id });
-        if (window.level === NORMAL) {
-            DESKTOP.close(window);
+        if (window.level === OVERLAY_LEVEL) sink(window);
+        else {
+            if (window.level === PANEL) DESKTOP.closePanel(window);
+            else DESKTOP.close(window);
             layOverlayWindowsOf(window.page);
-        } else sink(window);
+        }
         if (window.web) {
             for (const listener of [...window.web.closed]) listener();
             return;
@@ -204,8 +231,13 @@ export function createWindows({
 
     // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false,
     // where the mod may activate for the local seat (DESKTOP.orderFront); an overlay window takes the keyboard only
-    // then.
+    // then. A panel window stands where it is: one at the right edge takes the keyboard as an overlay window does, one
+    // in the bar never.
     function orderFront(window, { activates = true } = {}) {
+        if (window.level === PANEL) {
+            if (window.edge === 'right') DESKTOP.orderFrontPanel(window, { activates });
+            return;
+        }
         if (window.level === NORMAL) DESKTOP.orderFront(window, { activates });
         else showFloating(window, { activates: activates && mayActivate(window) });
     }
@@ -227,10 +259,17 @@ export function createWindows({
     function resize(window, size) {
         window.size = size;
         if (window.level === NORMAL) DESKTOP.resize(window, size);
+        else if (window.level === PANEL) DESKTOP.update();
         else {
             showFloating(window, { activates: false });
             tell();
         }
+    }
+
+    // A normal window's bar shows its title; at another level the title is kept, and nothing shows it.
+    function retitle(window, title) {
+        if (window.level === NORMAL) DESKTOP.setTitle(window, title);
+        else window.title = String(title);
     }
 
     // A page's document that ends takes its windows with it.
@@ -299,10 +338,12 @@ export function createWindows({
         showWindow(host.control, { activates });
     }
 
-    // The overlay window that has the keyboard has the active mod: the desktop hears it, and tells the pages.
+    // The overlay window that has the keyboard has the active mod, and the key window behind it is not key, nor a panel
+    // window that held it: the desktop hears it, and tells the pages and the frames.
     function setKey(window, on) {
         if (window.host.key === on) return;
         window.host.key = on;
+        if (on) DESKTOP.toDesktop({ refocus: false });
         DESKTOP.update();
     }
 
@@ -380,9 +421,9 @@ export function createWindows({
         for (const window of windows.values()) {
             if (window.web || !window.surface) continue;
             const state =
-                window.level === NORMAL
-                    ? DESKTOP.stateOf(window)
-                    : { shown: true, key: window.host.key, ...window.size, titleBar: null };
+                window.level === OVERLAY_LEVEL
+                    ? { shown: true, key: window.host.key, ...window.size, titleBar: null }
+                    : DESKTOP.stateOf(window);
             const written = JSON.stringify(state);
             if (written === window.sent) continue;
             const resigns = !state.key && !!window.sent && JSON.parse(window.sent).key;
@@ -392,11 +433,11 @@ export function createWindows({
         for (const { window, state } of told) PROTOCOL.state.send(window.page, { id: window.id, ...state });
     }
 
-    // The overlay window a mod's page is laid in, under its content: the first open of a page with no normal window
-    // open, so what its overlay draws is over that window; or null, where the page is laid on the desktop.
+    // The overlay window a mod's page is laid in, under its content: the first open of a page with no normal or panel
+    // window open, so what its overlay draws is over that window; or null, where the page is laid on the desktop.
     function holderOf(page) {
         const own = [...windows.values()].filter((window) => window.page === page);
-        if (own.some(({ level }) => level === NORMAL)) return null;
+        if (own.some(({ level }) => level !== OVERLAY_LEVEL)) return null;
         return own.find(({ host }) => host?.stage) ?? null;
     }
 
@@ -407,4 +448,16 @@ export function createWindows({
     }
 
     return { start, openWeb, pageOf, keyOverlay, forward, reopen, keyboardOf, close };
+}
+
+// MARK: - Private
+// The title bar a window's options give it: its style, its height, where its buttons stand and which act, the zoom
+// button where it is resizable.
+function barOf({ titleBar, titleBarHeight, controlsX, controlsY, closable, minimizable, resizable }) {
+    return LAYOUT.barOf({
+        style: titleBar === 'titled' ? 'titled' : 'unified',
+        height: titleBarHeight ?? LAYOUT.TITLE_BAR.height,
+        origin: { x: controlsX ?? undefined, y: controlsY ?? undefined },
+        enabled: { close: closable !== false, minimize: minimizable !== false, zoom: resizable !== false },
+    });
 }

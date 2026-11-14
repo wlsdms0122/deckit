@@ -1,0 +1,12 @@
+id = "clock"
+name = "Clock"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+activationPolicy = "accessory"
+icon = "icon.svg"
+keywords = ["clock", "time", "date", "시계"]
+view = { parent = "status-bar/items" }
+
+[interfaces]
+uses = { "status-bar/items" = 1, "notifications/center" = 1 }

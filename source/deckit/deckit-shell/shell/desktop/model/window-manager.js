@@ -12,7 +12,9 @@ const HELD = 'held';
 // Frames are `{ x, y, width, height }`, never below the window's `minimum` `{ width, height }`.
 function createWindowManager() {
     // MARK: - Property
-    const windows = new Map(); // id -> { frame, minimum, zoomed, holders }, `zoomed` the frame zoom left, or null
+    // id -> { frame, minimum, zoomed, tiled, holders }: `zoomed` the frame zoom left, or null; `tiled`
+    // `{ name, before }`, the tile it is in and the frame it had before, or null
+    const windows = new Map();
     const seats = new Map(); // seat -> { order, key, minimized }
 
     // MARK: - Public
@@ -31,7 +33,7 @@ function createWindowManager() {
     // A window opens, `by` a seat: right behind each seat's key window, or in front for a seat with none. A seat it is
     // brought forward for orders it front.
     function open(_by, id, { frame, minimum }) {
-        windows.set(id, { frame: fitted(frame, minimum), minimum, zoomed: null, holders: new Set() });
+        windows.set(id, { frame: fitted(frame, minimum), minimum, zoomed: null, tiled: null, holders: new Set() });
         for (const seat of seats.values()) seat.order = behindKey(seat, id);
     }
 
@@ -91,15 +93,16 @@ function createWindowManager() {
         next(by);
     }
 
-    // The frame every seat sees, no smaller than the window's minimum: a frame set ends a zoom.
+    // The frame every seat sees, no smaller than the window's minimum: a frame set ends a zoom and a tile.
     function setFrame(_by, id, frame) {
         const window = windows.get(id);
         if (!window) return;
         window.frame = fitted(frame, window.minimum);
         window.zoomed = null;
+        window.tiled = null;
     }
 
-    // Zoomed to `area`, or back to the frame it had before.
+    // Zoomed to `area`, or back to the frame it had before: a tiled window fills it and goes back to its tile.
     function zoom(_by, id, area) {
         const window = windows.get(id);
         if (!window) return;
@@ -108,9 +111,35 @@ function createWindowManager() {
         window.frame = back ?? fitted(area, window.minimum);
     }
 
-    // Every zoomed window fills `area`, as the desktop it fills changes size.
-    function fitZoomed(area) {
-        for (const window of windows.values()) if (window.zoomed) window.frame = fitted(area, window.minimum);
+    // In the tile `name` at `frame`, not zoomed: the frame it had before it took a tile is kept for its return.
+    function tile(_by, id, name, frame) {
+        const window = windows.get(id);
+        if (!window) return;
+        const before = window.tiled?.before ?? window.zoomed ?? window.frame;
+        window.tiled = { name, before };
+        window.zoomed = null;
+        window.frame = fitted(frame, window.minimum);
+    }
+
+    // Out of its tile, at the frame it had before it took one, or at `frame` where it is given.
+    function untile(_by, id, frame = null) {
+        const window = windows.get(id);
+        if (!window?.tiled) return;
+        window.frame = fitted(frame ?? window.tiled.before, window.minimum);
+        window.tiled = null;
+        window.zoomed = null;
+    }
+
+    // Every zoomed window fills `area`, and every tiled one takes its tile's frame of `tileOf(name)`, as the desktop
+    // they fill changes size.
+    function fitZoomed(area, tileOf) {
+        for (const window of windows.values()) {
+            const tiled = window.tiled && fitted(tileOf(window.tiled.name), window.minimum);
+            if (window.zoomed) {
+                window.frame = fitted(area, window.minimum);
+                if (tiled) window.zoomed = tiled;
+            } else if (tiled) window.frame = tiled;
+        }
     }
 
     // The windows on `seat`'s screen, back to front, without those it minimized: `[{ id, frame }]`.
@@ -151,10 +180,16 @@ function createWindowManager() {
         return !!windows.get(id)?.zoomed;
     }
 
-    // The frame zoom left, while zoomed, or the frame: what a seat set it to.
+    // The tile it is in, zoomed or not, or null.
+    function tileNameOf(id) {
+        return windows.get(id)?.tiled?.name ?? null;
+    }
+
+    // The frame a seat set it to: the one it had before it took a tile, while tiled, the one zoom left, while zoomed,
+    // or the frame.
     function standardFrameOf(id) {
         const window = windows.get(id);
-        return window ? (window.zoomed ?? window.frame) : null;
+        return window ? (window.tiled?.before ?? window.zoomed ?? window.frame) : null;
     }
 
     // MARK: - Private
@@ -189,6 +224,8 @@ function createWindowManager() {
         minimize,
         setFrame,
         zoom,
+        tile,
+        untile,
         fitZoomed,
         viewOf,
         keyOf,
@@ -198,6 +235,7 @@ function createWindowManager() {
         isKey,
         isZoomed,
         frameOf,
+        tileNameOf,
         standardFrameOf,
     };
 }

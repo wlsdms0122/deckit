@@ -6,20 +6,21 @@ const EMPTY_STATE_STYLE = `
     .editor-empty[hidden] { display: none; }
     .editor-recent { display: flex; flex-direction: column; gap: 1px; margin-top: 14px; width: min(420px, 80%); text-align: left; }
     .editor-recent[hidden] { display: none; }
-    .editor-recent-heading {
-        opacity: 0.45;
-        font: 600 11px var(--deckit-font);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        padding: 0 8px 4px;
-    }
+    .editor-recent-heading { padding: 0 8px 4px; color: var(--deckit-muted); font: var(--deckit-type-label); }
     .editor-recent-icon { display: flex; }
     .editor-recent-name { font-weight: 600; }
-    .editor-recent-path { flex: 1 1 auto; min-width: 0; opacity: 0.45; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+    .editor-recent-path {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-small);
+    }
 `;
 
-// What the editor shows with no file open: what the front workspace is, how to open something, and with no folder in
-// front, the recent folders.
+// What the editor shows with no file open: in a folder, that no file is and the one way to open one by name; with no
+// folder in front, how to open something and the recent folders.
 function emptyState({ ui, tildify, chordOf, onQuickOpen, onPickFolder, onPickFiles, onOpenFolder }) {
     const RECENT_SHOWN = 6;
 
@@ -40,13 +41,15 @@ function emptyState({ ui, tildify, chordOf, onQuickOpen, onPickFolder, onPickFil
     // `workspace` is the one in front, if any; `recentFolders` are those not open.
     function show(workspace, recentFolders) {
         const root = workspace?.root;
-        state.set({
-            title: root ? nameOf(root) : workspace ? 'Files' : 'Editor',
-            hint: root
-                ? 'Pick a file in the navigator, or open one by name with Open Quickly'
-                : 'Open a folder to work in it as a workspace',
-            actions: root ? [quickOpenButton, folderButton, fileButton] : [folderButton, fileButton],
-        });
+        state.set(
+            root
+                ? { title: 'No file open', hint: 'Pick a file in the sidebar.', actions: [quickOpenButton] }
+                : {
+                      title: workspace ? 'Files' : 'Editor',
+                      hint: 'Open a folder to work in it as a workspace',
+                      actions: [folderButton, fileButton],
+                  }
+        );
         const shown = root ? [] : recentFolders.slice(0, RECENT_SHOWN);
         recent.element.hidden = !shown.length;
         recent.set(shown.length ? [{ path: '', heading: true }, ...shown.map((path) => ({ path }))] : []);

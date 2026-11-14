@@ -1,36 +1,21 @@
 const VIEW_MODEL = require('./view-model.js');
 
 // MARK: - Property
-// How each tone looks on a row of the Now strip: its mark, its glyph, the row's wash and the colour it breathes
-// when it asks for attention. Only `alert` tints the row and `info` has no colour, so a colour still means
-// something.
+// The glyph an action that gives no icon leads with where its mod's section names the mod: run this.
+const ACTION_GLYPH = 'play';
+// How each tone looks on a row of the Now strip: its glyph, the row's wash and the colour it breathes when it asks for
+// attention. Only `alert` tints the row and `info` has no colour, so a colour still means something.
 const TONE_LOOK = {
-    info: {
-        mark: 'rgba(128,128,128,.45)',
-        glyph: '',
-        wash: '',
-        attention: 'rgba(128,128,128,.9)',
-        peak: 'rgba(128,128,128,.26)',
-    },
-    ok: {
-        mark: 'var(--deckit-ok)',
-        glyph: 'var(--deckit-ok)',
-        wash: '',
-        attention: '',
-        peak: 'color-mix(in srgb, var(--deckit-ok) 20%, transparent)',
-    },
+    info: { glyph: '', wash: '', peak: 'var(--deckit-selected)' },
+    ok: { glyph: 'var(--deckit-ok-ink)', wash: '', peak: 'color-mix(in srgb, var(--deckit-ok) 20%, transparent)' },
     warn: {
-        mark: 'var(--deckit-warn)',
-        glyph: 'var(--deckit-warn)',
+        glyph: 'var(--deckit-warn-ink)',
         wash: '',
-        attention: '',
         peak: 'color-mix(in srgb, var(--deckit-warn) 20%, transparent)',
     },
     alert: {
-        mark: 'var(--deckit-alert)',
-        glyph: 'var(--deckit-alert)',
+        glyph: 'var(--deckit-alert-ink)',
         wash: 'color-mix(in srgb, var(--deckit-alert) 10%, transparent)',
-        attention: '',
         peak: 'color-mix(in srgb, var(--deckit-alert) 24%, transparent)',
     },
 };
@@ -45,7 +30,7 @@ const STYLE =
         min-width: 0;
         padding: 7px 10px;
         border-radius: var(--deckit-radius-medium);
-        transition: background-color var(--deckit-fast) var(--deckit-easing);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .switcher-row[data-actionable] { cursor: pointer; }
     .switcher-row[data-lead] {
@@ -53,7 +38,7 @@ const STYLE =
         margin-bottom: 4px;
         padding: 9px 11px;
         border-radius: var(--deckit-radius-large);
-        background: var(--switcher-wash, rgba(128, 128, 128, 0.1));
+        background: var(--switcher-wash, var(--deckit-fill));
     }
     .switcher-row[data-active],
     .switcher-row[data-lead][data-active] { background: var(--deckit-selected); }
@@ -63,21 +48,18 @@ const STYLE =
         flex: 0 0 auto;
         align-items: center;
         justify-content: center;
-        width: 18px;
-        height: 18px;
-        opacity: 0.8;
+        width: var(--deckit-app-icon-row);
+        height: var(--deckit-app-icon-row);
+        color: var(--deckit-muted);
     }
-    .switcher-row[data-lead] .switcher-glyph { width: 22px; height: 22px; opacity: 0.75; }
-    .switcher-mark {
-        flex: 0 0 auto;
-        align-self: stretch;
-        width: 3px;
-        border-radius: 2px;
-        background: var(--switcher-mark);
-    }
+    /* The Switcher's own mark for an action that gives no icon: smaller and a step quieter than an action's own
+       glyph, whatever the row's tone. */
+    .switcher-glyph[data-action],
+    .switcher-row[data-tone] .switcher-glyph[data-action] { color: var(--deckit-tertiary); }
+    .switcher-row[data-lead] .switcher-glyph { width: var(--deckit-app-icon-lead); height: var(--deckit-app-icon-lead); }
     .switcher-stack { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
     .switcher-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .switcher-label b { font-weight: 800; }
+    .switcher-label b { font-weight: 600; }
     .switcher-row[data-lead] .switcher-label { font: 600 var(--deckit-type-large); }
     .switcher-hint {
         flex: 0 0 auto;
@@ -85,23 +67,26 @@ const STYLE =
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        opacity: 0.45;
+        color: var(--deckit-muted);
         font: var(--deckit-type-small);
     }
-    .switcher-row[data-lead] .switcher-hint { max-width: none; opacity: 0.6; }
+    .switcher-row[data-lead] .switcher-hint { max-width: none; }
+    .switcher-hint[data-path] { display: flex; }
+    .switcher-path-head { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+    .switcher-path-tail { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .switcher-status {
         display: flex;
         flex: 0 0 auto;
         margin-left: 10px;
-        opacity: 0.55;
+        color: var(--deckit-muted);
     }
-    .switcher-status[data-status='done'] { color: var(--deckit-ok); opacity: 1; }
-    .switcher-status[data-status='failed'] { color: var(--deckit-alert); opacity: 1; }
+    .switcher-status[data-status='done'] { color: var(--deckit-ok-ink); }
+    .switcher-status[data-status='failed'] { color: var(--deckit-alert-ink); }
     .switcher-number {
         display: none;
         flex: 0 0 auto;
         margin-left: 10px;
-        opacity: 0.55;
+        color: var(--deckit-muted);
         font: var(--deckit-type-small);
         font-variant-numeric: tabular-nums;
     }
@@ -116,10 +101,8 @@ const STYLE =
     }
     .switcher-heading {
         padding: 12px 12px 4px;
-        opacity: 0.45;
-        font: 700 var(--deckit-type-caption);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-label);
     }
     .switcher-heading[data-kind='group'] { padding: 8px 12px 3px; }
     .switcher-heading[data-kind='section'] {
@@ -129,26 +112,21 @@ const STYLE =
         margin-top: 6px;
         padding: 10px 12px 4px;
         border-top: var(--deckit-border);
-        opacity: 0.55;
-        font: 600 var(--deckit-type-small);
-        letter-spacing: normal;
-        text-transform: none;
     }
     .switcher-heading[data-first] { margin-top: 0; padding: 4px 12px 4px; border-top: 0; }
-    .switcher-heading svg { width: 13px; height: 13px; }
 ` +
     Object.entries(TONE_LOOK)
         .map(([tone, look]) => {
             const row = `.switcher-row[data-tone='${tone}']`;
             return `
-            ${row} { --switcher-mark: ${look.mark}; --switcher-peak: ${look.peak}; }
+            ${row} { --switcher-peak: ${look.peak}; }
             ${look.wash ? `${row} { --switcher-wash: ${look.wash}; }` : ''}
-            ${look.glyph ? `${row} .switcher-glyph { color: ${look.glyph}; opacity: 1; }` : ''}
-            ${look.attention ? `${row}[data-attention] { --switcher-mark: ${look.attention}; }` : ''}
+            ${look.glyph ? `${row} .switcher-glyph { color: ${look.glyph}; }` : ''}
         `;
         })
         .join('');
-// A row that asks for attention breathes three times, fading.
+// A row that asks for attention breathes three times, fading: a loop at its own pace, each swell and each ebb on the
+// `press` spring, so it rests at every turn and never passes its peak. Still while the system asks for reduced motion.
 const BREATH = [
     { opacity: 0, offset: 0 },
     { opacity: 1, offset: 0.17 },
@@ -163,8 +141,8 @@ const BREATH_MS = 2700;
 // MARK: - Public
 // The switcher on screen: the kit's quick pick, filling the window, drawn from its view model. `ui` and `theme` are the
 // shell's; `items` are what the list holds and `now` the rows of the Now strip, `onQuery(raw, submenuId)` asks for
-// answers and `onClose()` hears it start to go.
-function open({ ui, theme }, { placeholder, items, now, onQuery, onClose }) {
+// answers, `onHeight(px)` hears the height its content takes, and `onClose()` hears it start to go.
+function open({ ui, theme }, { placeholder, items, now, onQuery, onHeight, onClose }) {
     ui.addStyle(STYLE);
     const model = VIEW_MODEL.make({
         placeholder,
@@ -202,6 +180,7 @@ function open({ ui, theme }, { placeholder, items, now, onQuery, onClose }) {
         onActive: (_entry, index, { pointer }) => pointer && model.point(index),
         onCommandKey: numbers,
         onKey,
+        onHeight,
         onClose,
     });
     let submenuShown;
@@ -228,7 +207,8 @@ function open({ ui, theme }, { placeholder, items, now, onQuery, onClose }) {
             submenuShown = state.submenu?.id ?? null;
             picker.setText('');
             picker.setPlaceholder(state.placeholder);
-            picker.setScope(state.submenu ? { icon: state.submenu.icon, label: state.submenu.label } : null);
+            const scope = state.submenu;
+            picker.setScope(scope ? { icon: scope.icon, appIcon: scope.appIcon, label: scope.label } : null);
             picker.focus();
         }
         const entries = state.rows.flatMap((row, index) => [
@@ -252,7 +232,7 @@ function headingOf(ui, { heading, first }) {
     if (heading.kind === 'section') {
         const title = element('span', '');
         title.textContent = heading.label;
-        made.append(ui.sanitizeIcon(heading.icon), title);
+        made.append(ui.appIcon(heading.icon, { size: 'small' }), title);
     } else made.textContent = heading.label;
     return made;
 }
@@ -262,6 +242,8 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
     const drawn = JSON.stringify([
         item.label,
         item.icon,
+        item.appIcon,
+        item.actionGlyph,
         item.tone,
         item.attention,
         item.lead,
@@ -278,28 +260,93 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
     made.toggleAttribute('data-attention', !!(item.lead && item.attention));
     made.dataset.tone = item.tone;
     const glyph = element('span', 'switcher-glyph');
-    if (item.icon) glyph.append(ui.sanitizeIcon(item.icon));
+    if (item.appIcon) glyph.append(ui.appIcon(item.icon, { size: item.lead ? 'lead' : 'row' }));
+    else if (item.icon) glyph.append(ui.sanitizeIcon(item.icon));
+    else if (item.actionGlyph) {
+        glyph.dataset.action = '';
+        glyph.innerHTML = ui.icon(ACTION_GLYPH, { size: 14 });
+    }
     const label = element('span', 'switcher-label');
     label.append(...labelOf(item.label, lit));
-    const note = element('span', 'switcher-hint');
-    note.textContent = hint;
+    const note = hintOf(hint);
     if (item.lead) {
         const stack = element('div', 'switcher-stack');
         stack.append(label, note);
-        made.replaceChildren(element('span', 'switcher-mark'), glyph, stack);
+        made.replaceChildren(glyph, stack);
         // Its own layer behind the text: the row's background is the active wash's.
-        if (item.attention && theme.motion.fast) {
+        if (item.attention && theme.motion.move.length) {
             const glow = element('span', 'switcher-glow');
             made.append(glow);
-            glow.animate(BREATH, { duration: BREATH_MS, easing: 'ease-in-out' });
+            const { easing } = theme.motion.press;
+            glow.animate(
+                BREATH.map((frame) => ({ ...frame, easing })),
+                { duration: BREATH_MS }
+            );
         }
     } else made.replaceChildren(glyph, label, note);
+    if (note.dataset.path !== undefined) watchPath(made);
     if (status) made.append(statusOf(ui, status));
     if (number) {
         const badge = element('span', 'switcher-number');
         badge.textContent = '⌘' + number;
         made.append(badge);
     }
+}
+
+// The rows whose hint is a path, cut again to the room their row gives it as it is laid out and as it resizes. The
+// row's width is not the hint's to change, so the cut never feeds back into what it measures.
+let paths = null; // made as the first such row is
+let measure = null; // a canvas's 2D context, which measures text without laying it out
+
+// The hint, a path cut in its middle where it does not fit: its start gives way, its last two segments stay.
+function hintOf(hint) {
+    const made = element('span', 'switcher-hint');
+    const cut = /^[/~]/.test(hint) ? hint.lastIndexOf('/', hint.lastIndexOf('/') - 1) : -1;
+    if (cut <= 0) {
+        made.textContent = hint;
+        return made;
+    }
+    made.dataset.path = '';
+    made.title = hint;
+    const head = element('span', 'switcher-path-head');
+    head.textContent = head.dataset.whole = hint.slice(0, cut);
+    const tail = element('span', 'switcher-path-tail');
+    tail.textContent = hint.slice(cut);
+    made.append(head, tail);
+    return made;
+}
+
+function watchPath(row) {
+    paths ??= new ResizeObserver((entries) => {
+        for (const { target } of entries) {
+            if (!target.isConnected) paths.unobserve(target);
+            else cutPath(target.querySelector('.switcher-hint[data-path]'));
+        }
+    });
+    paths.observe(row);
+}
+
+// The start of the path in `hint` cut to the room it has, its own "…" right after the last letter kept, so it reads
+// on into the segments kept as one string.
+function cutPath(hint) {
+    const head = hint?.querySelector('.switcher-path-head');
+    if (!head) return;
+    const whole = head.dataset.whole;
+    head.textContent = whole;
+    const room = head.clientWidth;
+    if (head.scrollWidth <= room) return;
+    const style = getComputedStyle(head);
+    measure ??= document.createElement('canvas').getContext('2d');
+    measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    let fits = 0;
+    let over = whole.length;
+    while (over - fits > 1) {
+        const middle = (fits + over) >> 1;
+        if (measure.measureText(whole.slice(0, middle) + '…').width <= room) fits = middle;
+        else over = middle;
+    }
+    // Where not even the "…" fits, the start goes whole and the segments kept are cut at their end.
+    head.textContent = fits || measure.measureText('…').width <= room ? whole.slice(0, fits) + '…' : '';
 }
 
 // A run under way turns; one ended says how.

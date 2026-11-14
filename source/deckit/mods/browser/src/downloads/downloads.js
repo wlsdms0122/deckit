@@ -1,8 +1,8 @@
 // The Browser's downloads (`web.downloads`): a button at the toolbar's end, there once anything was downloaded,
 // that opens them newest first. A row is a file and how far it got, and a press on a finished one opens it in its
 // app. Its action stops one under way, shows a finished one where it lies (`reveal`, the shell's), or forgets one
-// that did not finish; Clear forgets every one that ended. The button bounces as a download starts.
-function downloadList({ theme, ui, downloads, reveal }) {
+// that did not finish; Clear forgets every one that ended. The button is in the accent while a download runs.
+function downloadList({ ui, downloads, reveal }) {
     const ICON_SIZE = 16;
     const MAX_ROWS = 8;
     const UNITS = ['bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -13,14 +13,14 @@ function downloadList({ theme, ui, downloads, reveal }) {
         .browser-downloads-button[hidden] { display: none; }
         .browser-downloads-button[data-active] { color: var(--deckit-accent); }
         .browser-downloads { display: flex; flex-direction: column; gap: 6px; width: 320px; }
-        .browser-downloads-heading { display: flex; align-items: center; justify-content: space-between; }
-        .browser-downloads-title { font: var(--deckit-type-heading); }
+        .browser-downloads-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
+        .browser-downloads-title { font: 600 var(--deckit-type-body); }
         .browser-download { min-height: 44px; }
         .browser-download-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
         .browser-download-name { overflow: hidden; text-overflow: ellipsis; }
         .browser-download-status { color: var(--deckit-muted); font: var(--deckit-type-small); }
-        .browser-download[data-state='failed'] .browser-download-status { color: var(--deckit-alert); }
-        .browser-download-bar { height: 3px; border-radius: 2px; background: var(--deckit-fill); overflow: hidden; }
+        .browser-download[data-state='failed'] .browser-download-status { color: var(--deckit-alert-ink); }
+        .browser-download-bar { height: 3px; border-radius: var(--deckit-radius-round); background: var(--deckit-fill); overflow: hidden; }
         .browser-download-bar > div { height: 100%; background: var(--deckit-accent); }
         .browser-download:not([data-state='downloading']) .browser-download-bar { display: none; }
     `);
@@ -57,7 +57,6 @@ function downloadList({ theme, ui, downloads, reveal }) {
     function changed(download) {
         const known = items.some(({ id }) => id === download.id);
         items = known ? items.map((item) => (item.id === download.id ? download : item)) : [download, ...items];
-        if (!known) bounce();
         draw();
     }
 
@@ -133,7 +132,7 @@ function downloadList({ theme, ui, downloads, reveal }) {
             });
         if (state === 'finished')
             return ui.rowAction({
-                icon: ui.icon('search', { size: ICON_SIZE }),
+                icon: ui.icon('folder', { size: ICON_SIZE }),
                 title: 'Show in Folder',
                 onClick: () => reveal(path),
             });
@@ -160,14 +159,6 @@ function downloadList({ theme, ui, downloads, reveal }) {
             unit++;
         }
         return unit ? `${value.toFixed(value < 10 ? 1 : 0)} ${UNITS[unit]}` : `${value} ${UNITS[0]}`;
-    }
-
-    function bounce() {
-        if (!theme.motion.fast) return;
-        button.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
-            duration: 220,
-            easing: theme.motion.easing,
-        });
     }
 }
 

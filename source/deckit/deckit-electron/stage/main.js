@@ -1,8 +1,8 @@
 // Where a layer on deckit lays pages in a window of the app's: a stage it places in the window, and the pages on it,
 // each where it is or hidden, drawn in the order laid. Which pages, in what order and where, is the layer's; the web
 // pages a page shows are laid just over it, each over the element that holds its place and cut to the page and to
-// what the page is cut to (`webPagesIn(page)`, `[{ page, frame }]`, `frame` in the page). `idOf(window)` is a
-// window's in the module.
+// what the page is cut to (`webPagesIn(page)`, `[{ page, frame }]`, `frame` in the page), taking no pointer where the
+// page takes none. `idOf(window)` is a window's in the module.
 export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
     // MARK: - Property
     const showing = new WeakMap(); // page -> the stage it is shown on, a page of deck's or a web page
@@ -53,17 +53,23 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
             if (!closed) native.showStage(id, !!on);
         }
 
-        // What is on the stage: each layer `{ page, rect, clip, input }`, laid there, drawn only inside `clip`, a
-        // rect on the stage with its corners rounded by `cornerRadius`, where it is given, and taking the pointer only
-        // inside the rects `input` names in it where it names any, or `{ page, hidden: true }`, kept out of the window,
-        // which a page in it would slow as it resizes. The pages laid are in the order given, bottom to top. A page
-        // left out, or gone, is taken off. Each is clear where it draws nothing.
+        // What is on the stage: each layer `{ page, rect, clip, input, opacity, scale }`, laid there, drawn only
+        // inside `clip`, a rect on the stage with its corners rounded by `cornerRadius`, where it is given, taking the
+        // pointer only inside the rects `input` names in it where it names any, drawn at `opacity`, 1 where it is not
+        // given, and drawn scaled as `scale`, `{ by, x, y }`, has it where it is given, what is at p on the stage
+        // drawn at p * by + (x, y), the page laid at its rect all the same, or `{ page, hidden: true }`, kept out of
+        // the window, which a page in it would slow as it resizes, or `{ material, rect, cornerRadius }`, a material of
+        // the host's named as a window's is, blurring what the window shows under the rect, the layers before it
+        // included, and taking no clicks. The layers are in the order given, bottom to top. A page left out, or gone,
+        // is taken off. Each page is clear where it draws nothing.
         function lay(layers) {
             if (closed) return;
-            for (const { page, rect = null, hidden = false } of layers)
-                if (!rect === !hidden || !page)
-                    throw new Error('[deckit] a layer is { page, rect } or { page, hidden: true }');
-            laid = layers.filter(({ page }) => !page.isDestroyed());
+            for (const { page, material = null, rect = null, hidden = false } of layers)
+                if (material ? page || !rect || typeof material !== 'string' : !rect === !hidden || !page)
+                    throw new Error(
+                        '[deckit] a layer is { page, rect }, { page, hidden: true } or { material, rect, cornerRadius }'
+                    );
+            laid = layers.filter(({ page }) => !page?.isDestroyed());
             relay();
         }
 
@@ -104,23 +110,34 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                 showing.set(page, record);
                 record.shown.add(page);
             };
-            const layers = laid.flatMap(({ page, rect, clip, input }) => {
+            const layers = laid.flatMap(({ page, material, rect, clip, input, opacity, scale, cornerRadius = 0 }) => {
+                if (material) return [{ material, frame: rect, cornerRadius }];
                 if (page.isDestroyed()) return [];
                 if (!rect) return [{ page: page.id, hidden: true }];
                 show(page);
                 const clips = clip ? [clip] : [];
+                const seen = drawnAs(opacity, scale);
+                const none = input && !input.length ? { input: [] } : {};
                 const over = webPagesIn(page).map((web) => {
                     show(web.page);
                     const { x, y, width, height } = web.frame;
                     const frame = { x: rect.x + x, y: rect.y + y, width, height };
-                    return { page: web.page.id, frame, clips: [...clips, rect] };
+                    return { page: web.page.id, frame, clips: [...clips, rect], ...none, ...seen };
                 });
                 return [
-                    { page: page.id, frame: rect, ...(clip ? { clips } : {}), ...(input ? { input } : {}) },
+                    { page: page.id, frame: rect, ...(clip ? { clips } : {}), ...(input ? { input } : {}), ...seen },
                     ...over,
                 ];
             });
             native.layStage(id, layers);
+        }
+
+        // How a page laid at `opacity` and `scale` is told to the native side: each left out where it draws it as laid.
+        function drawnAs(opacity, scale) {
+            const seen = opacity !== undefined && opacity < 1 ? { opacity: Math.max(0, opacity) } : {};
+            if (!scale || ![scale.by, scale.x, scale.y].every(Number.isFinite) || scale.by <= 0) return seen;
+            const { by, x, y } = scale;
+            return by === 1 && !x && !y ? seen : { ...seen, scale: { by, x, y } };
         }
 
         const record = { relay, window: () => at?.window || null, shown: new Set() };

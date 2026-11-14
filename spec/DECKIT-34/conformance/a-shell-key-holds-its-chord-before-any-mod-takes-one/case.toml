@@ -21,7 +21,7 @@ input = "call"
 mod = "mod-a"
 member = "keys.set"
 handle = "shell"
-args = ["closeWindow", { code = "KeyK", control = true, alt = true }]
+args = ["closeWindow", { code = "KeyL", control = true, alt = true }]
 
 [[step]]
 input = "quit"

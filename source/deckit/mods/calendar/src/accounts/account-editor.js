@@ -162,7 +162,7 @@ function accountEditor({ ui, accounts, feeds, reads, client, onChange, onRefresh
                 Object.assign(remove.style, {
                     display: 'inline-flex',
                     margin: '14px 0 6px',
-                    color: 'var(--deckit-alert)',
+                    color: 'var(--deckit-alert-ink)',
                 });
                 card.append(who, heading, list, remove);
 
@@ -184,7 +184,7 @@ function accountEditor({ ui, accounts, feeds, reads, client, onChange, onRefresh
                             list.textContent = '';
                             list.appendChild(
                                 sheetText(String(error.message || error), {
-                                    color: 'var(--deckit-alert)',
+                                    color: 'var(--deckit-alert-ink)',
                                     marginBottom: '8px',
                                 })
                             );

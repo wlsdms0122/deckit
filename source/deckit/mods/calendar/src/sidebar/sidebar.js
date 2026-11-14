@@ -15,9 +15,13 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
     // drop.
     const blocks = new Map(); // account id -> { element, row, list }
 
-    const feedSection = foldingSection('Calendars', 'layers', 'calendars', [
-        { title: 'Add account', run: () => editor.addAccount() },
-    ]);
+    const feedSection = foldingSection(
+        'Calendars',
+        'layers',
+        'calendars',
+        [{ title: 'Add Account…', run: () => editor.addAccount() }],
+        'No calendars yet. The + beside the heading adds an account.'
+    );
     const todaySection = foldingSection('Today', 'calendarDays', 'today');
     // Drawn whole: a row leaving means only that time moved, so it does not fold away.
     const todayList = document.createElement('div');
@@ -73,6 +77,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
 
     function drawAccounts() {
         const shown = accounts.all();
+        feedSection.setEmpty(shown.length === 0);
         for (const [id, block] of blocks)
             if (!shown.some((account) => account.id === id)) {
                 block.element.remove();
@@ -129,7 +134,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
 
     function accountRow(account) {
         const row = ui.row().element;
-        Object.assign(row.style, { minHeight: '24px', font: '12.5px var(--deckit-font)' });
+        Object.assign(row.style, { minHeight: '24px', font: 'var(--deckit-type-small)' });
         const who = document.createElement('span');
         who.textContent = account.email;
         const provider = client.providerOf(account);
@@ -139,7 +144,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            opacity: '.6',
+            color: 'var(--deckit-muted)',
         });
         row.append(providerIcon(ui, provider ? provider.icon : ui.icon('info'), 13), who);
         const reading = reads.isReading(account.id);
@@ -155,7 +160,10 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
                     editor.signInAgain(account);
                 },
             }).element;
-            Object.assign(signInButton.style, { color: 'var(--deckit-alert)', borderColor: 'var(--deckit-alert)' });
+            Object.assign(signInButton.style, {
+                color: 'var(--deckit-alert-ink)',
+                borderColor: 'var(--deckit-alert-ink)',
+            });
             row.appendChild(signInButton);
         }
         row.appendChild(
@@ -174,12 +182,13 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             flex: '0 0 auto',
             width: '10px',
             height: '10px',
-            borderRadius: '3px',
+            borderRadius: 'var(--deckit-radius-small)',
             background: feed.hidden ? 'transparent' : feed.color,
             border: '1.5px solid ' + feed.color,
             boxSizing: 'border-box',
             transition:
-                'background-color var(--deckit-base) var(--deckit-easing), border-color var(--deckit-base) var(--deckit-easing)',
+                'background-color var(--deckit-press-fade) var(--deckit-press-curve), ' +
+                'border-color var(--deckit-press-fade) var(--deckit-press-curve)',
         });
         const label = document.createElement('span');
         label.textContent = feed.label || feed.calendar;
@@ -189,8 +198,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            opacity: feed.hidden ? '.45' : '1',
-            color: feed.error ? 'var(--deckit-alert)' : 'inherit',
+            color: feed.error ? 'var(--deckit-alert-ink)' : feed.hidden ? 'var(--deckit-muted)' : 'inherit',
         });
         row.append(
             swatch,
@@ -231,8 +239,8 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
             Object.assign(date.style, {
                 flex: '0 0 auto',
                 width: '76px',
-                opacity: '.55',
-                font: '13px var(--deckit-font)',
+                color: 'var(--deckit-muted)',
+                font: 'var(--deckit-type-body)',
             });
             row.appendChild(date);
         }
@@ -242,8 +250,8 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
         Object.assign(time.style, {
             flex: '0 0 auto',
             width: '52px',
-            opacity: spanning ? '.45' : '.6',
-            font: (spanning ? '12px' : '13px') + ' var(--deckit-font)',
+            color: 'var(--deckit-muted)',
+            font: spanning ? 'var(--deckit-type-small)' : 'var(--deckit-type-body)',
         });
         const name = document.createElement('span');
         name.textContent = nameOf(occurrence);
@@ -264,15 +272,16 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
     function emptyRow(text) {
         const row = ui.row().element;
         row.textContent = text;
-        Object.assign(row.style, { opacity: '.45', cursor: 'default', font: '13px var(--deckit-font)' });
+        Object.assign(row.style, { color: 'var(--deckit-muted)', cursor: 'default', font: 'var(--deckit-type-body)' });
         return row;
     }
 
-    function foldingSection(label, icon, key, actions = []) {
+    function foldingSection(label, icon, key, actions = [], empty = '') {
         const section = ui.section({
             label,
             icon: ui.icon(icon, { size: 16 }),
             actions,
+            empty,
             collapsed: !!values.get('folds', {})[key],
             onToggle: (next) => {
                 values.set('folds', { ...values.get('folds', {}), [key]: next });

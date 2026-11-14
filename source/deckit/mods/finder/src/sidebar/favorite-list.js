@@ -2,9 +2,9 @@ const { nameOf } = require('../path/path.js');
 const { sidebarRow } = require('./sidebar-row.js');
 
 // Favorites, the folders the person keeps at hand in the sidebar. They start as the system's places (Home, Desktop and
-// the rest) and are the person's to add to, remove and order. The row of `currentLocation()` is lit; `onDraw()`
-// hears the favorites drawn.
-function favoriteList({ ui, reveal, records, tildify, folds, currentLocation, onGo, onOpenInNewTab, onDraw }) {
+// the rest) and are the person's to add to, remove and order. None is lit: the tab in front is the row the content
+// shows. `onDraw()` hears the favorites drawn.
+function favoriteList({ ui, reveal, records, tildify, folds, onGo, onOpenInNewTab, onDraw }) {
     const PLACE_ICONS = {
         home: 'home',
         desktop: 'monitor',
@@ -161,7 +161,6 @@ function favoriteList({ ui, reveal, records, tildify, folds, currentLocation, on
     function updateRow(element, path) {
         const row = rowParts.get(element);
         row.set({ icon: iconNameOf(path), label: labelOf(path), title: tildify(path) });
-        row.setActive(path === currentLocation());
     }
 }
 

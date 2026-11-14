@@ -6,12 +6,12 @@ const STYLE = `
     display: flex;
     flex: 0 0 12px;
     justify-content: center;
+    color: var(--deckit-muted);
     opacity: 0;
-    transition: transform var(--deckit-fast) var(--deckit-easing);
+    transition: transform var(--deckit-move) var(--deckit-move-curve);
 }
-.deckit-tree-row[data-folds] .deckit-tree-caret { opacity: 0.55; }
+.deckit-tree-row[data-folds] .deckit-tree-caret { opacity: 1; }
 .deckit-tree-row[aria-expanded='true'] .deckit-tree-caret { transform: rotate(90deg); }
-.deckit-tree-mark { display: flex; flex: 0 0 auto; }
 .deckit-tree-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     `;
 const DEPTH_INDENT = 14;
@@ -40,7 +40,7 @@ function treeRow(
     folderIcon,
     { depth = 0, folder = false, folds = folder, open = false, glyph = '', name = '', size = 'medium' } = {}
 ) {
-    const row = ui.row({ size });
+    const row = ui.row({ size, glyph: folder ? '' : glyph });
     const { element } = row;
     element.classList.add('deckit-tree-row');
     element.style.paddingLeft = 4 + depth * DEPTH_INDENT + 'px';
@@ -49,17 +49,15 @@ function treeRow(
     caret.className = 'deckit-tree-caret';
     caret.dataset.caret = '';
     caret.innerHTML = ICON.icon('chevronRight', { size: 12 });
-    const mark = document.createElement('span');
-    mark.className = 'deckit-tree-mark';
-    if (!folder) mark.innerHTML = glyph;
     const label = document.createElement('span');
     label.className = 'deckit-tree-name';
     label.dataset.name = '';
     label.textContent = name;
-    element.append(caret, mark, label);
+    element.prepend(caret);
+    element.append(label);
     const setOpen = (next) => {
         if (folds) element.setAttribute('aria-expanded', String(next));
-        if (folder) mark.innerHTML = folderIcon({ open: next, size: size === 'small' ? 14 : 16 });
+        if (folder) row.setGlyph(folderIcon({ open: next, size: size === 'small' ? 14 : 16 }));
     };
     setOpen(open);
     return { ...row, setOpen };

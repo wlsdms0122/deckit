@@ -9,14 +9,17 @@ const USE_KEPT = 60;
 const NOW_MAX = 3;
 // How long the list waits for slow Now actions before it opens; later ones arrive on their own.
 const NOW_WAIT_MS = 150;
+// The window's width, and the height it grows to with its list, which scrolls past that.
+const WIDTH = 600;
+const TALLEST = 400;
 
 // The list of a Show item for each mod the shell can show, the actions mods set, `given`, by the connection of each,
 // and the actions mods declare to `switcher/actions`, over an overlay window of its own: `show()` opens it, and
 // `toggle()` opens it or puts it away when it is open. Each open reads the mods and their actions anew. It stays until
 // the keyboard goes elsewhere: Escape, a mod coming on screen, another app. `end()` drops the list.
 // `notifications()` and `commands()` are the owners of deckit/notifications and deckit/commands while one is
-// connected, or null. The mods to show, their names and icons are read with deckit.mods: `shell.mods.list()` and
-// `open(id)`, and `deckit.mods.list()`, whose bundles' fields give each mod's icon.
+// connected, or null. The mods to show, their names and icons are read with deckit.mods: `shell.mods.list()`,
+// `icon(id)` and `open(id)`, and `deckit.mods.list()`, whose bundles give each mod's name.
 function switcher(shell, deckit, given, { notifications = () => null, commands = () => null } = {}) {
     const records = deckit.storage.records;
     const drawing = { ui: shell.ui, theme: shell.theme }; // what the list is drawn with
@@ -30,10 +33,11 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
     }
 
     // The window comes once the list is drawn over it, and goes with it: the two are one thing on screen. A window that
-    // closes or resigns key where the list did not ask takes the list with it.
+    // closes or resigns key where the list did not ask takes the list with it. It is as tall as the list's content,
+    // TALLEST at most, and steps to a new height at once as the list changes, its top left staying where it is.
     async function show() {
         if (open) return;
-        const current = { list: null, window: null, about: null, submenus: new Map() };
+        const current = { list: null, window: null, about: null, submenus: new Map(), height: TALLEST };
         open = current;
         let supplied;
         try {
@@ -48,14 +52,18 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
             items: supplied.items,
             now: supplied.now,
             onQuery: (raw, submenu) => search(current, raw, submenu),
+            onHeight: (height) => {
+                current.height = Math.min(height, TALLEST);
+                current.window?.resize(WIDTH, current.height);
+            },
             onClose: () => open === current && putAway(),
         });
         current.window = shell.windows.open({
             name: 'main',
             content: document.createElement('div'),
             level: 'overlay',
-            width: 600,
-            height: 400,
+            width: WIDTH,
+            height: current.height,
             didResignKey: () => open === current && putAway(),
             didClose: () => {
                 current.window = null;
@@ -86,10 +94,13 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
         );
         const [shown, bundles] = await Promise.all([shell.mods.list(), deckit.mods.list()]);
         const actions = [...(await listing), ...(await declared())];
-        const icons = new Map(bundles.map(({ id, mod }) => [id, mod?.fields?.icon]));
+        const icons = new Map(shown.map(({ id, icon }) => [id, icon]));
+        const others = [...new Set(actions.map(([mod]) => mod))].filter((mod) => !icons.has(mod));
+        for (const [index, icon] of (await Promise.all(others.map((mod) => shell.mods.icon(mod)))).entries())
+            icons.set(others[index], icon);
         current.about = {
             names: new Map(bundles.map(({ id, mod }) => [id, mod?.name])),
-            iconOf: (id) => (typeof icons.get(id) === 'string' ? icons.get(id) : ''),
+            iconOf: (id) => icons.get(id) ?? '',
         };
         const used = records.get(USE, {});
         const listed = ITEMS.listed({ actions, shown, about: current.about });
@@ -120,7 +131,9 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
         if (!left) return answer();
         for (const [mod, source] of sources)
             actionsOf(mod, source, 'search', raw, parent ? parent.value : null)
-                .then((actions) => actions?.map((each) => ITEMS.itemOf(parent?.id ?? raw, mod, each, current.about)))
+                .then((actions) =>
+                    actions?.map((each) => ITEMS.itemOf(parent?.id ?? raw, mod, each, current.about, !!parent))
+                )
                 .then((found) => {
                     left--;
                     if (found) {
@@ -136,7 +149,11 @@ function switcher(shell, deckit, given, { notifications = () => null, commands =
     function hydrate(current, item, remembers = false) {
         if (item.opens) {
             current.submenus.set(item.id, item);
-            return { ...item, run: () => remembers && remember(item), submenu: { icon: item.icon } };
+            return {
+                ...item,
+                run: () => remembers && remember(item),
+                submenu: { icon: item.icon, appIcon: item.appIcon },
+            };
         }
         if (item.shows || item.command || item.value !== null)
             return { ...item, run: () => go(current, item, remembers) };

@@ -1,0 +1,51 @@
+case = 24
+name = "going-back-from-a-failure-shows-the-page-it-showed"
+note = "back() from a failure goes to what the page showed and takes the failure away. The host's layer shows index.html of site-b, loads site-a in it, whose connection is refused, goes back, and reads its state."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a", "site-b"]
+refusing = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-b/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "load"
+of = 2
+sites = ["site-a/"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "canGoBack"
+
+[step.expect]
+answers = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "back"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+
+[step.expect]
+answers = { url = "site-b/index.html", title = "Hello", icon = "site-b/favicon.ico", loading = false, canGoBack = false, canGoForward = false, blank = false, audible = false, muted = false, capture = { microphone = false, camera = false, screen = false } }

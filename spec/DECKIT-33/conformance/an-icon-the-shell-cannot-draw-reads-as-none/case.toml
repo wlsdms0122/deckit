@@ -1,0 +1,21 @@
+case = 22
+name = "an-icon-the-shell-cannot-draw-reads-as-none"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-d's icon names no file of its bundle, mod-e's a file over 32768 bytes, mod-f's an SVG whose viewBox is not square, and mod-g's is an SVG's text, which names no file: each is answered with no icon."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-d", "mod-e", "mod-f", "mod-g", "mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "mod-d", name = "mod-d", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-e", name = "mod-e", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-f", name = "mod-f", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-g", name = "mod-g", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-c", name = "mod-c", icon = "", keywords = [], pinned = true, running = true }]

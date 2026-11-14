@@ -1,0 +1,18 @@
+case = 23
+name = "panel-windows-stand-right-to-left-in-the-order-they-opened"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. Panel windows stand right to left in the order they opened, 8 apart, each no higher than the bar: mod-a, granted deckit.panel-windows, opens p 120 by 32, then q 60 by 80, at the level panel in attach."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }, { mod = "mod-a", name = "q", level = "panel", frame = { x = 1084, y = 0, width = 60, height = 52 }, key = false, minimized = false }]

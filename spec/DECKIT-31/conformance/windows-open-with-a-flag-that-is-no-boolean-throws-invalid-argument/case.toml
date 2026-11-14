@@ -1,0 +1,29 @@
+case = 23
+name = "windows-open-with-a-flag-that-is-no-boolean-throws-invalid-argument"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-a reads, of the root element of the document main's content is in, whether it has the attribute data-deckit-title-bar and the properties --deckit-title-bar-area-height, --deckit-title-bar-area-x, --deckit-safe-area-inset-top, --deckit-safe-area-inset-right, --deckit-safe-area-inset-bottom and --deckit-safe-area-inset-left, which it says. windows.open with resizable a string throws INVALID_ARGUMENT and opens nothing."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "w", resizable = "no" } }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/w/threw/INVALID_ARGUMENT", activates = true }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]

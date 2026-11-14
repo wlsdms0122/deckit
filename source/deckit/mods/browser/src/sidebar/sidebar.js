@@ -1,5 +1,5 @@
 const { parseAddress } = require('../address/address.js');
-const { favicon } = require('../favicon/favicon.js');
+const { favicon, stillLoading } = require('../favicon/favicon.js');
 const { outline, inkOf } = require('./outline.js');
 const { tabLabel } = require('../tabs/tab-list.js');
 const { FOLDER_COLORS, isFolder, folderLabel, folderPath } = require('../tree/tree.js');
@@ -42,9 +42,8 @@ function sidebar({
 
     ui.addStyle(`
         .browser-sidebar { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
-        .browser-tab-icon { display: flex; flex: 0 0 auto; }
         .browser-tab-indicators { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
-        .browser-tab-capture { display: flex; color: var(--deckit-alert); }
+        .browser-tab-capture { display: flex; color: var(--deckit-alert-ink); }
         .browser-tab [hidden] { display: none; }
     `);
     const element = ui.element('div', { className: 'browser-sidebar' });
@@ -102,6 +101,7 @@ function sidebar({
             { icon: ui.icon('folderPlus', { size: 16 }), title: 'New folder', run: () => newBookmarkFolder() },
             { title: 'Add bookmark', run: () => add() },
         ],
+        empty: 'No bookmarks yet. The star in the address field adds the page you are on.',
         collapsed: !!values.get('folds', {}).bookmarks,
         onToggle: (on) => {
             bookmarkSection.setCollapsed(on);
@@ -147,14 +147,17 @@ function sidebar({
             frontTab = front;
             tabOutline.set(tree, front);
         },
-        showBookmarks: (tree) => bookmarkOutline.set(tree),
+        showBookmarks(tree) {
+            bookmarkOutline.set(tree);
+            bookmarkSection.setEmpty(tree.root.children.length === 0);
+        },
     };
 
     function tabRow(shown) {
         const { node: tab } = shown;
-        const row = ui.row();
+        const row = ui.row({ glyph: '' });
         row.element.classList.add('browser-tab');
-        const icon = ui.element('span', { className: 'browser-tab-icon' });
+        const icon = row.glyph;
         const label = ui.element('span', { className: 'browser-row-label' });
         const indicators = ui.element('span', { className: 'browser-tab-indicators' });
         const captures = CAPTURES.map(([kind, name, title]) => {
@@ -174,8 +177,15 @@ function sidebar({
             muted: true,
         });
         indicators.append(...captures.map(({ indicator }) => indicator), mute.element);
-        const close = ui.rowAction({ icon: ui.icon('x'), title: 'Close tab', onClick: () => onCloseTab(tab) });
-        row.element.append(icon, label, indicators, close.element);
+        const close = ui.rowAction({
+            icon: ui.icon('x'),
+            title: 'Close tab',
+            onClick: () => {
+                tabOutline.glideNext();
+                onCloseTab(tab);
+            },
+        });
+        row.element.append(label, indicators, close.element);
         row.element.addEventListener('click', () => onSelectTab(tab));
         tabRows.set(row.element, { row, icon, label, captures, mute });
         updateTabRow(row.element, shown);
@@ -184,7 +194,7 @@ function sidebar({
 
     function updateTabRow(rowElement, { node: tab, active }) {
         const { row, icon, label, captures, mute } = tabRows.get(rowElement);
-        icon.replaceChildren(favicon({ ui, page: tab }).element);
+        if (!stillLoading(icon, tab)) icon.replaceChildren(favicon({ ui, page: tab }).element);
         label.textContent = tabLabel(tab);
         label.title = tab.url;
         for (const { kind, indicator } of captures) indicator.hidden = !tab.capture[kind];
@@ -196,7 +206,7 @@ function sidebar({
 
     function bookmarkRow(shown) {
         const { node: bookmark } = shown;
-        const row = ui.row();
+        const row = ui.row({ glyph: favicon({ ui, page: bookmark }).element });
         row.element.classList.add('browser-bookmark');
         const label = ui.element('span', { className: 'browser-row-label' });
         const editAction = ui.rowAction({
@@ -209,7 +219,7 @@ function sidebar({
             title: 'Remove',
             onClick: () => bookmarks.remove(bookmark),
         });
-        row.element.append(favicon({ ui, page: bookmark }).element, label, editAction.element, removeAction.element);
+        row.element.append(label, editAction.element, removeAction.element);
         row.element.addEventListener('click', () => onOpenBookmark(bookmark));
         bookmarkRows.set(row.element, { row, label });
         updateBookmarkRow(row.element, shown);
@@ -393,32 +403,33 @@ function sidebar({
         return { parent, mark: mark || section.element };
     }
 
-    function add() {
+    // `typed` is what the person typed before, given back by Try Again when it was not an address.
+    function add(typed = { title: '', url: frontTab.url }) {
         ui.dialog({
             title: 'Add bookmark',
             fields: [
-                { key: 'title', label: 'Name', placeholder: 'optional' },
-                { key: 'url', label: 'Address', value: frontTab.url },
+                { key: 'title', label: 'Name', placeholder: 'optional', value: typed.title },
+                { key: 'url', label: 'Address', value: typed.url },
             ],
             confirmLabel: 'Add',
             onConfirm: ({ title, url }) => {
                 const address = parseAddress(url);
                 if (address) bookmarks.add(address, title.trim());
-                else notAnAddress(url.trim());
+                else notAnAddress(url.trim(), () => add({ title, url }));
             },
         });
     }
 
-    function edit(bookmark) {
+    function edit(bookmark, typed = bookmark) {
         ui.dialog({
             title: 'Edit bookmark',
             fields: [
-                { key: 'title', label: 'Name', value: bookmark.title },
-                { key: 'url', label: 'Address', value: bookmark.url },
+                { key: 'title', label: 'Name', value: typed.title },
+                { key: 'url', label: 'Address', value: typed.url },
             ],
             onConfirm: ({ title, url }) => {
                 const address = parseAddress(url);
-                if (!address) return notAnAddress(url.trim());
+                if (!address) return notAnAddress(url.trim(), () => edit(bookmark, { title, url }));
                 bookmarks.edit(bookmark, { title: title.trim() || bookmark.title, url: address });
             },
         });

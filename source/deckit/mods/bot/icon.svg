@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+<defs><linearGradient id="bot" x1="0" y1="8" x2="0" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#10a894"/><stop offset="1" stop-color="#0f9a88"/></linearGradient><mask id="bom" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#fff"/><g fill="#000" stroke="#000"><circle cx="49" cy="72" r="7"/><circle cx="79" cy="72" r="7"/></g></mask></defs>
+<rect x="8" y="8" width="112" height="112" rx="26" fill="url(#bot)"/>
+<g fill="#fff" mask="url(#bom)"><rect x="28" y="46" width="72" height="52" rx="18"/><circle cx="64" cy="28" r="7"/><rect x="59" y="28" width="10" height="20"/></g>
+</svg>

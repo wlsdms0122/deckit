@@ -61,20 +61,11 @@ class Bot {
             display: 'flex',
             flexDirection: 'column',
             color: 'var(--deckit-text)',
-            font: '14px var(--deckit-font)',
+            font: 'var(--deckit-type-body)',
             overflow: 'hidden',
         });
-        // One height for every view, room for its tallest control (or the window's title bar, where taller), so
-        // nothing in it moves when the view changes.
+        // The kit's title bar, one height for every view, so nothing in it moves when the view changes.
         const head = document.createElement('div');
-        Object.assign(head.style, {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            flex: '0 0 auto',
-            padding: '10px 14px 8px',
-            height: '48px',
-        });
         ui.titleBar(head);
 
         const picker = sessionPicker({
@@ -117,7 +108,7 @@ class Bot {
                 key: 'brain',
                 system: 'LLMemory',
                 label: 'Brain',
-                icon: 'search',
+                icon: 'brain',
                 view: brainView({ shell, deckit, bot, settings, openURL }),
             },
         ];
@@ -131,14 +122,7 @@ class Bot {
         const setFold = (key, on) => store.set('folds', { ...folds(), [key]: on });
         const navRows = new Map();
         const navRow = (entry) => {
-            const row = ui.row();
-            const glyph = document.createElement('span');
-            glyph.innerHTML = ui.icon(entry.icon, { size: 16 });
-            Object.assign(glyph.style, {
-                display: 'flex',
-                flex: '0 0 auto',
-                color: `color-mix(in srgb, var(--deckit-text) 75%, var(--deckit-background))`,
-            });
+            const row = ui.row({ glyph: ui.icon(entry.icon, { size: 16 }) });
             const label = document.createElement('span');
             label.textContent = entry.label;
             Object.assign(label.style, {
@@ -147,7 +131,7 @@ class Bot {
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
             });
-            row.element.append(glyph, label);
+            row.element.append(label);
             row.element.addEventListener('click', () => setMode(entry.key));
             navRows.set(entry.key, row);
             return row.element;
@@ -175,7 +159,8 @@ class Bot {
         // Every view's name in one cell, the one shown over the others, so the title is as wide as the longest and
         // what follows it starts at one place.
         const title = document.createElement('div');
-        Object.assign(title.style, { flex: '0 0 auto', display: 'grid', font: '700 15px var(--deckit-font)' });
+        title.className = 'deckit-title-bar-title';
+        Object.assign(title.style, { flex: '0 0 auto', display: 'grid', marginRight: '8px' });
         const names = new Map(
             MODES.map((entry) => {
                 const name = document.createElement('span');

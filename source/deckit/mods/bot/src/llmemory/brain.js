@@ -10,12 +10,12 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
     const SEARCH_DELAY_MS = 160;
 
     ui.addStyle(`
-    .bot-pressable { transition: background-color var(--deckit-fast) var(--deckit-easing); }
+    .bot-pressable { transition: background-color var(--deckit-press-fade) var(--deckit-press-curve); }
     .bot-pressable:hover { background: var(--deckit-hover); }
     .bot-pressable[data-active] { background: var(--deckit-selected); }
   `);
     const quiet = (text) =>
-        styled('div', { padding: '14px 10px', opacity: '.45', font: '13px var(--deckit-font)' }, text);
+        styled('div', { padding: '14px 10px', color: 'var(--deckit-muted)', font: 'var(--deckit-type-body)' }, text);
     const markdown = renderMarkdown({
         ui,
         onNote: (id) => open(id, true),
@@ -56,8 +56,8 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
     const input = field.input;
     const count = styled('span', {
         flex: '0 0 auto',
-        opacity: '.5',
-        font: '12px var(--deckit-font)',
+        color: 'var(--deckit-muted)',
+        font: 'var(--deckit-type-small)',
         whiteSpace: 'nowrap',
     });
     bar.append(field.element, count);
@@ -90,7 +90,11 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
             });
-            const countLabel = styled('span', { flex: '0 0 auto', opacity: '.45', font: '12px var(--deckit-font)' });
+            const countLabel = styled('span', {
+                flex: '0 0 auto',
+                color: 'var(--deckit-muted)',
+                font: 'var(--deckit-type-small)',
+            });
             row.element.append(label, countLabel);
             row.element.addEventListener('click', () => chooseAxis(entry.name));
             axisParts.set(row.element, { row, label, count: countLabel });
@@ -164,7 +168,8 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         background: LINE_IDLE,
         opacity: '0',
         transition:
-            'opacity var(--deckit-fast) var(--deckit-easing), background-color var(--deckit-fast) var(--deckit-easing)',
+            'opacity var(--deckit-press-fade) var(--deckit-press-curve), ' +
+            'background-color var(--deckit-press-fade) var(--deckit-press-curve)',
     });
     hit.title = 'Drag to resize';
     divider.append(line, hit);
@@ -205,9 +210,9 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
             'span',
             {
                 padding: '1px 8px',
-                borderRadius: '999px',
+                borderRadius: 'var(--deckit-radius-round)',
                 border: 'var(--deckit-border)',
-                font: '11.5px var(--deckit-font)',
+                font: 'var(--deckit-type-small)',
                 whiteSpace: 'nowrap',
                 ...style,
             },
@@ -246,9 +251,7 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
             else if (typeof item === 'string' && /^https?:\/\/\S+$/.test(item))
                 box.append(markdown.link(item, item, { font: '12px ' + MONO }));
             else if (key === 'source')
-                box.append(
-                    styled('span', { font: '12px ' + MONO, opacity: '.8', wordBreak: 'break-all' }, String(item))
-                );
+                box.append(styled('span', { font: '12px ' + MONO, wordBreak: 'break-all' }, String(item)));
             else if (Array.isArray(given)) box.append(chip(String(item)));
             else if (typeof item === 'boolean') box.append(styled('span', {}, item ? 'yes' : 'no'));
             else if (item && typeof item === 'object')
@@ -270,37 +273,38 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         if (note.path)
             rows.push([
                 'path',
-                styled('span', { font: '12px ' + MONO, opacity: '.7', wordBreak: 'break-all' }, note.path),
+                styled(
+                    'span',
+                    { font: '12px ' + MONO, color: 'var(--deckit-muted)', wordBreak: 'break-all' },
+                    note.path
+                ),
             ]);
         const grid = styled('div', {
             display: 'grid',
             gridTemplateColumns: '96px minmax(0, 1fr)',
             gap: '5px 12px',
             margin: '10px 0 0',
-            font: '12.5px/1.5 var(--deckit-font)',
+            font: 'var(--deckit-type-small)',
         });
-        for (const [key, shown] of rows) grid.append(styled('span', { opacity: '.45' }, key), shown);
+        for (const [key, shown] of rows) grid.append(styled('span', { color: 'var(--deckit-muted)' }, key), shown);
         return grid;
     };
 
     const glideTo = (heading) => {
         const top = reader.scrollTop + heading.getBoundingClientRect().top - reader.getBoundingClientRect().top - 12;
-        const still = !theme.motion.base;
+        const still = !theme.motion.move.length;
         reader.scrollTo({ top, behavior: still ? 'auto' : 'smooth' });
-        if (still) return;
-
+        // The heading reached lights once, a fade, so it lights with reduced motion too.
         const mark = () =>
-            heading.animate([{ background: 'rgba(128,128,128,.24)' }, { background: 'transparent' }], {
-                duration: 1100,
-                easing: theme.motion.easing,
-            });
-        reader.addEventListener('scrollend', mark, { once: true });
+            ui.motion.swell(heading, { backgroundColor: 'transparent' }, { backgroundColor: theme.color.selected });
+        if (still) mark();
+        else reader.addEventListener('scrollend', mark, { once: true });
     };
     const contents = (body) => {
         const headings = [...body.querySelectorAll('[data-heading]')];
         if (headings.length < 2) return null;
-        const box = styled('div', { margin: '14px 0 0', font: '12.5px/1.5 var(--deckit-font)' });
-        box.append(styled('div', { opacity: '.45', margin: '0 0 4px' }, 'Contents'));
+        const box = styled('div', { margin: '14px 0 0', font: 'var(--deckit-type-small)' });
+        box.append(styled('div', { color: 'var(--deckit-muted)', margin: '0 0 4px' }, 'Contents'));
         const top = Math.min(...headings.map((heading) => Number(heading.dataset.level)));
         for (const heading of headings) {
             const entry = styled(
@@ -308,7 +312,7 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
                 {
                     padding: '2px 8px',
                     paddingLeft: (Number(heading.dataset.level) - top) * 14 + 8 + 'px',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--deckit-radius-control)',
                     cursor: 'pointer',
                     color: `color-mix(in srgb, var(--deckit-text) 80%, var(--deckit-background))`,
                     overflow: 'hidden',
@@ -328,14 +332,24 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         const found = await bot.brain.related(id).catch(() => []);
         if (mine !== reading || !found.length) return;
         const box = styled('div', { margin: '28px 0 0', paddingTop: '14px', borderTop: 'var(--deckit-border)' });
-        box.append(styled('div', { font: '700 13px var(--deckit-font)', opacity: '.7', margin: '0 0 8px' }, 'Related'));
+        box.append(
+            styled(
+                'div',
+                { font: '600 var(--deckit-type-body)', color: 'var(--deckit-muted)', margin: '0 0 8px' },
+                'Related'
+            )
+        );
         for (const result of found) {
-            const item = styled('div', { padding: '6px 8px', borderRadius: '7px', cursor: 'pointer' });
+            const item = styled('div', {
+                padding: '6px 8px',
+                borderRadius: 'var(--deckit-radius-control)',
+                cursor: 'pointer',
+            });
             item.append(
                 styled(
                     'div',
                     {
-                        font: '600 13px/1.4 var(--deckit-font)',
+                        font: '600 var(--deckit-type-body)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -345,8 +359,8 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
                 styled(
                     'div',
                     {
-                        font: '12px/1.45 var(--deckit-font)',
-                        opacity: '.55',
+                        font: 'var(--deckit-type-small)',
+                        color: 'var(--deckit-muted)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -378,11 +392,11 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
             reader.append(back.element);
         }
         reader.append(
-            styled('div', { font: '700 20px/1.35 var(--deckit-font)', margin: '0 0 4px' }, frontmatter.title || note.id)
+            styled('div', { font: '600 var(--deckit-type-title)', margin: '0 0 4px' }, frontmatter.title || note.id)
         );
         const meta = styled('div', {
-            opacity: '.5',
-            font: '12px var(--deckit-font)',
+            color: 'var(--deckit-muted)',
+            font: 'var(--deckit-type-small)',
             margin: '0 0 8px',
             minWidth: '0',
             overflow: 'hidden',
@@ -395,14 +409,14 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
             reader.append(
                 styled(
                     'div',
-                    { opacity: '.7', font: '13.5px/1.55 var(--deckit-font)', margin: '0 0 8px' },
+                    { color: 'var(--deckit-muted)', font: 'var(--deckit-type-body)', margin: '0 0 8px' },
                     frontmatter.summary
                 )
             );
         const tags = Array.isArray(frontmatter.tags) ? frontmatter.tags : [];
         if (tags.length) {
             const row = styled('div', { display: 'flex', flexWrap: 'wrap', gap: '5px', margin: '0 0 4px' });
-            for (const tag of tags) row.append(chip('#' + tag, { opacity: '.7' }));
+            for (const tag of tags) row.append(chip('#' + tag, { color: 'var(--deckit-muted)' }));
             reader.append(row);
         }
         reader.append(properties(note));
@@ -422,13 +436,17 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
         store.set('note', id);
         paintSelection();
         reader.textContent = '';
-        reader.append(ui.loading().element);
+        const loading = ui.loading();
+        reader.append(loading.element);
         try {
             const note = await bot.brain.get(id);
+            // A loading shown stays its least, so it does not flash.
+            await loading.settled();
             if (mine !== reading) return;
             if (!note) throw new Error('No note ' + id);
             showNote(note, mine);
         } catch (error) {
+            await loading.settled();
             if (mine !== reading) return;
             reader.textContent = '';
             reader.append(quiet(String(error?.message || error)));
@@ -447,12 +465,16 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
     };
 
     const resultRow = (row, index) => {
-        const rowElement = styled('div', { padding: '7px 10px', borderRadius: '7px', cursor: 'pointer' });
+        const rowElement = styled('div', {
+            padding: '7px 10px',
+            borderRadius: 'var(--deckit-radius-control)',
+            cursor: 'pointer',
+        });
         rowElement.append(
             styled(
                 'div',
                 {
-                    font: '600 13px/1.4 var(--deckit-font)',
+                    font: '600 var(--deckit-type-body)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -465,8 +487,8 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
                 styled(
                     'div',
                     {
-                        font: '12px/1.45 var(--deckit-font)',
-                        opacity: '.6',
+                        font: 'var(--deckit-type-small)',
+                        color: 'var(--deckit-muted)',
                         margin: '2px 0 0',
                         overflow: 'hidden',
                         display: '-webkit-box',
@@ -488,8 +510,8 @@ const brainView = ({ shell, deckit, bot, settings, openURL }) => {
             styled(
                 'div',
                 {
-                    font: '11px var(--deckit-font)',
-                    opacity: '.42',
+                    font: 'var(--deckit-type-caption)',
+                    color: 'var(--deckit-muted)',
                     margin: '3px 0 0',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',

@@ -5,7 +5,9 @@ const { nameOf, parentOf } = require('../path/path.js');
 // Opening and the Trash take the entries given; a drag from one of several selected (`selection()`) carries them all.
 // `labelOf(path)` finds the name an entry shows, which a rename types over. `onMade(path)` shows a folder just made and
 // answers whether it is in sight, to be named. `onMoved(from, to)` hears a path go elsewhere, `to` null when it went to
-// the Trash; `onChanged(folder)` hears a folder whose contents changed.
+// the Trash; `onChanged(folder)` hears a folder whose contents changed. `onFailure(text, retry, details)` says what
+// failed in the view, with `retry` to try it again and the system's words in `details`, and `onFailure(null)` takes
+// it away as another is asked.
 function fileOperator({
     ui,
     openURL,
@@ -22,7 +24,7 @@ function fileOperator({
     onMade,
     onMoved,
     onChanged,
-    onStatus,
+    onFailure,
 }) {
     const MOVE = 'finder-entry';
 
@@ -47,6 +49,7 @@ function fileOperator({
 
     // One folder is gone into; with more than one entry, each folder opens in a tab of its own.
     async function open(entries, { usesDefaultApp = false } = {}) {
+        onFailure(null);
         if (entries.length === 1 && entries[0].kind === 'folder') return onGo(entries[0].path);
         for (const entry of entries) {
             if (entry.kind === 'folder') {
@@ -54,7 +57,7 @@ function fileOperator({
                 continue;
             }
             const opened = await openURL(fileURL(entry.path), { usesDefaultApp }).catch(() => false);
-            if (!opened) onStatus('Could not open “' + entry.name + '”');
+            if (!opened) onFailure('Could not open “' + entry.name + '”', () => open([entry], { usesDefaultApp }));
         }
     }
 
@@ -64,11 +67,12 @@ function fileOperator({
 
     async function newFolder(into) {
         if (!into) return;
+        onFailure(null);
         let made;
         try {
             made = await disk.mkdir(into);
         } catch (error) {
-            onStatus('Could not make a folder: ' + error.message);
+            onFailure('Could not make a folder: ' + error.message, () => newFolder(into));
             return;
         }
         if (!(await onMade(made))) return;
@@ -115,9 +119,10 @@ function fileOperator({
         });
     }
 
-    // A failure is told in the footer when nothing went, or else in a dialog: the folder read again draws the footer
+    // What did not go is said in the footer, with Try Again for it alone.
     // anew.
     async function moveToTrash(entries) {
+        onFailure(null);
         const failures = [];
         for (const entry of entries) {
             try {
@@ -132,21 +137,19 @@ function fileOperator({
             failures.length === 1
                 ? 'Could not move “' + failures[0].entry.name + '” to the Trash'
                 : `Could not move ${failures.length} items to the Trash`;
-        if (failures.length === entries.length)
-            return onStatus(failures.length === 1 ? title + ': ' + failures[0].error.message : title);
-        onChanged(parentOf(entries[0].path));
-        ui.dialog({
+        if (failures.length < entries.length) onChanged(parentOf(entries[0].path));
+        onFailure(
             title,
-            message: failures.map(({ error }) => error.message),
-            confirmLabel: 'OK',
-            cancelLabel: null,
-        });
+            () => moveToTrash(failures.map(({ entry }) => entry)),
+            wordsOf(failures.map(({ entry, error }) => [entry.name, error]))
+        );
     }
 
-    // Each one that can go into `into`; one that fails does not keep the others. A failure is told in a dialog: the
-    // footer is drawn again right after a drag ends, which would take a status message away.
+    // Each one that can go into `into`; one that fails does not keep the others. What did not move is said over the
+    // footer, with Try Again for it alone.
     async function move(paths, into) {
         const moving = paths.filter((from) => ui.movesInto(from, into));
+        if (moving.length) onFailure(null);
         const failures = [];
         for (const from of moving) {
             try {
@@ -159,15 +162,22 @@ function fileOperator({
         onChanged(parentOf(moving[0]));
         onChanged(into);
         if (!failures.length) return;
-        ui.dialog({
-            title:
-                failures.length === 1
-                    ? 'Could not move “' + nameOf(failures[0].from) + '”'
-                    : `Could not move ${failures.length} items`,
-            message: failures.map(({ error }) => error.message),
-            confirmLabel: 'OK',
-            cancelLabel: null,
-        });
+        onFailure(
+            failures.length === 1
+                ? 'Could not move “' + nameOf(failures[0].from) + '”'
+                : `Could not move ${failures.length} items`,
+            () =>
+                move(
+                    failures.map(({ from }) => from),
+                    into
+                ),
+            wordsOf(failures.map(({ from, error }) => [nameOf(from), error]))
+        );
+    }
+
+    // What the system said of each `[name, error]`, a line each.
+    function wordsOf(failed) {
+        return failed.map(([name, error]) => `${name}: ${error.message}`).join('\n');
     }
 }
 

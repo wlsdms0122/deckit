@@ -1,6 +1,7 @@
 const { accountEditor } = require('../accounts/account-editor.js');
 const { WEEKDAYS, MONTHS, addDays, startOfDay, startOfWeek, clockText, dayOf } = require('../date/date.js');
 const { eventDetail } = require('../event-detail/event-detail.js');
+const { STYLE: ENTRY_STYLE, LANE_HEIGHT } = require('../views/bar.js');
 const { monthView } = require('../views/month-view.js');
 const { paintPastNow } = require('../occurrence/paint.js');
 const { sidebar } = require('../sidebar/sidebar.js');
@@ -19,9 +20,10 @@ const MODES = [
 // `openWindow()` opens the window, or orders it front where it is open. `screen` is what `calendar` and the commands
 // reach it by; `end()` stops what it runs on its own and closes the questions it asked.
 function calendarView({ calendar, shell, deckit, sendTest }) {
-    const { theme, ui } = shell;
+    const { ui } = shell;
     const { values } = deckit.storage;
     const { accounts, feeds, reads, client } = calendar;
+    ui.addStyle(ENTRY_STYLE);
 
     let mode = MODES.some(([key]) => key === values.get('mode', '')) ? values.get('mode') : 'month';
     let cursor = startOfDay(new Date());
@@ -52,7 +54,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         onRefresh: () => calendar.read(true),
     });
     const month = monthView({ ui, detail, onOpenDay: (day) => goTo(day, 'day') });
-    const timeGrid = timeGridView({ detail });
+    const timeGrid = timeGridView({ ui, detail });
     const side = sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, onChange: render });
     const actions = switcher({
         ui,
@@ -80,33 +82,39 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         display: 'flex',
         flexDirection: 'column',
         color: 'var(--deckit-text)',
-        font: '14px var(--deckit-font)',
+        font: 'var(--deckit-type-body)',
         position: 'relative',
         overflow: 'hidden',
     });
 
-    const RELOAD = ui.icon('reload', { size: 15 });
+    const RELOAD = ui.icon('reload', { size: 16 });
+    // Under this bar width the view switch is a pop-up button, so the title keeps its room.
+    const NARROW = 560;
     const head = document.createElement('div');
-    Object.assign(head.style, {
-        flex: '0 0 auto',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-        padding: '9px 12px',
-        borderBottom: 'var(--deckit-border)',
-    });
+    head.style.borderBottom = 'var(--deckit-border)';
     ui.titleBar(head);
     const title = document.createElement('div');
-    Object.assign(title.style, { font: '700 16px var(--deckit-font)', padding: '0 8px', whiteSpace: 'nowrap' });
+    title.className = 'deckit-title-bar-title';
+    Object.assign(title.style, { flex: '0 0 auto', padding: '0 4px' });
+    // The status takes only the room left and is all that gives way: a date is never cut.
     const status = document.createElement('span');
     Object.assign(status.style, {
-        flex: '1 1 auto',
-        opacity: '.55',
-        font: '12.5px var(--deckit-font)',
-        paddingLeft: '6px',
+        flex: '1 1 0',
+        minWidth: '0',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        color: 'var(--deckit-muted)',
+        font: 'var(--deckit-type-small)',
+        paddingLeft: '4px',
     });
     const modeBar = ui.segmented({
         items: MODES.map(([key, label]) => ({ key, label, title: label + ' view' })),
+        value: mode,
+        onChange: (key) => setMode(key),
+    });
+    const modeSelect = ui.select({
+        options: MODES.map(([value, label]) => ({ value, label })),
         value: mode,
         onChange: (key) => setMode(key),
     });
@@ -114,17 +122,24 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     let spinning = false;
     head.append(
         ui.iconButton({
-            icon: ui.icon('chevronLeft', { size: 17 }),
+            icon: ui.icon('chevronLeft', { size: 16 }),
             title: 'Previous',
             onClick: () => shift(-1),
         }).element,
-        ui.iconButton({ icon: ui.icon('chevronRight', { size: 17 }), title: 'Next', onClick: () => shift(1) }).element,
+        ui.iconButton({ icon: ui.icon('chevronRight', { size: 16 }), title: 'Next', onClick: () => shift(1) }).element,
         title,
         status,
         reloadButton.element,
         ui.button({ label: 'Today', title: 'Jump to today', onClick: () => goTo(new Date()) }).element,
-        modeBar.element
+        modeBar.element,
+        modeSelect.element
     );
+    modeSelect.element.style.display = 'none';
+    new ResizeObserver(() => {
+        const narrow = head.clientWidth < NARROW;
+        modeBar.element.style.display = narrow ? 'none' : '';
+        modeSelect.element.style.display = narrow ? '' : 'none';
+    }).observe(head);
 
     const body = document.createElement('div');
     Object.assign(body.style, {
@@ -136,8 +151,9 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     });
 
     const emptyAction = ui.button({
-        label: 'Add account',
+        label: 'Add Account…',
         size: 'small',
+        variant: 'primary',
         onClick: () => {
             if (!accounts.all().length) editor.addAccount();
             else editor.openAccount(accounts.all()[0]);
@@ -151,10 +167,15 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     const empty = emptyState.element;
     Object.assign(empty.style, { position: 'absolute', inset: '0', display: 'none' });
 
-    const firstLoad = ui.loading({ text: 'Loading calendars…' }).element;
-    Object.assign(firstLoad.style, { position: 'absolute', inset: '0', display: 'none' });
+    // The first read, from when it starts until it has settled: `chips`, a skeleton chip for each day of the month.
+    let firstLoad = null;
 
-    content.append(head, body, firstLoad, empty);
+    // Calendars that could not be read, above the view, with a retry. Drawn anew only when what it says changes.
+    const failure = ui.notice({});
+    let failureSaid = '';
+    Object.assign(failure.element.style, { display: 'none', flex: '0 0 auto', margin: '16px 16px 8px' });
+
+    content.append(head, failure.element, body, empty);
 
     // The body's size is observed in the window it is shown in, from each time it appears.
     let resizing = null;
@@ -287,8 +308,10 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         const loading = reads.isLoading();
         title.textContent = titleOf(mode, cursor);
         modeBar.set(mode);
+        modeSelect.set(mode);
         showSpinner(loading);
         status.textContent = statusText(loading);
+        showFailure();
 
         const noAccount = !accounts.all().length,
             blank = !feeds.all().length;
@@ -298,35 +321,81 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
                 ? 'Add an account, then choose which of its calendars to show.'
                 : 'Choose which calendars of your account to show.',
         });
-        emptyAction.setLabel(noAccount ? 'Add account' : 'Choose calendars');
+        emptyAction.setLabel(noAccount ? 'Add Account…' : 'Choose Calendars…');
         if (empty.style.display !== (blank ? 'flex' : 'none')) {
             empty.style.display = blank ? 'flex' : 'none';
-            if (blank) fade(empty, theme.motion.base);
+            if (blank) ui.motion.appear(empty);
         }
         const firstRead = !blank && loading && feeds.all().every((feed) => !reads.has(feed));
-        firstLoad.style.display = firstRead ? 'flex' : 'none';
-        // Hidden under the overlays, so the window's background material shows through them.
-        head.style.visibility = blank || firstRead ? 'hidden' : '';
-        body.style.visibility = blank || firstRead ? 'hidden' : '';
+        showFirstLoad(firstRead, blank);
+        // Hidden under the empty state, so the window's background material shows through it.
+        head.style.visibility = blank ? 'hidden' : '';
+        body.style.visibility = blank ? 'hidden' : '';
 
         const [from, to] = rangeOf(mode, cursor);
-        // Only a move to another range fades in, so a background refresh of the same range does not blink.
+        // Only a move to another range fades in, so a background refresh of the same range does not blink; one a key made
+        // is drawn at once.
         const view = mode + '@' + +from;
         const navigated = view !== drawnView;
         drawnView = view;
 
         body.textContent = '';
         drawnDay = +startOfDay(new Date());
-        const occurrences = calendar.shownBetween(from, to);
-        if (mode === 'month') month.draw(body, { start: from, month: cursor.getMonth(), occurrences });
+        const occurrences = firstLoad ? [] : calendar.shownBetween(from, to);
+        const placeholders = firstLoad?.chips;
+        if (mode === 'month') month.draw(body, { start: from, month: cursor.getMonth(), occurrences, placeholders });
         else timeGrid.draw(body, { days: daysOf(from, to), occurrences });
-        if (navigated) fade(body, theme.motion.fast);
+        if (navigated && !ui.motion.keyed()) ui.motion.appear(body);
 
         const today = startOfDay(new Date()),
             tomorrow = addDays(today, 1);
         side.draw({
             today: calendar.shownBetween(today, tomorrow),
             upcoming: calendar.shownBetween(tomorrow, addDays(tomorrow, 14)).slice(0, 10),
+        });
+    }
+
+    // The view shows no events while the first read lasts, the month view skeleton chips in its days, made once so they
+    // keep their wait across draws. Chips shown stay their least before the events take their place, so they do not
+    // flash; with nothing to show they go at once.
+    function showFirstLoad(reading, blank) {
+        if (reading && !firstLoad)
+            firstLoad = {
+                chips: Array.from({ length: 42 }, () => ui.loading.skeleton({ rows: 1, height: LANE_HEIGHT })),
+            };
+        if (reading || !firstLoad) return;
+        const going = firstLoad;
+        const drop = () => {
+            if (firstLoad === going) firstLoad = null;
+        };
+        if (blank) return drop();
+        if (going.going) return;
+        going.going = true;
+        going.chips[0].settled().then(() => {
+            drop();
+            render();
+        });
+    }
+
+    function showFailure() {
+        // An account waiting for its provider is said in the status, not as a calendar's failure.
+        const provided = (feed) => {
+            const account = accounts.all().find((each) => each.id === feed.account);
+            return account && client.providerOf(account);
+        };
+        const broken = feeds.all().filter((feed) => reads.of(feed)?.error && provided(feed));
+        const nameOf = (feed) => feed.label || feed.calendar;
+        const said = broken.map((feed) => `${nameOf(feed)}: ${reads.of(feed).error}`).join('\n');
+        failure.element.style.display = said ? '' : 'none';
+        if (!said || said === failureSaid) return;
+        failureSaid = said;
+        failure.set({
+            text:
+                broken.length === 1
+                    ? `${nameOf(broken[0])} could not be read.`
+                    : `${broken.length} calendars could not be read.`,
+            details: said,
+            action: { label: 'Try Again', run: () => calendar.read(true) },
         });
     }
 
@@ -345,12 +414,8 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     function showSpinner(running) {
         if (running === spinning) return;
         spinning = running;
-        if (running) reloadButton.element.replaceChildren(ui.spinner({ size: 15 }).element);
+        if (running) reloadButton.element.replaceChildren(ui.spinner({ size: 16 }).element);
         else reloadButton.setIcon(RELOAD);
-    }
-
-    function fade(element, length) {
-        element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: length, easing: theme.motion.easing });
     }
 
     // Calendar's window comes on screen and asks in a dialog: `{ answer, close }`, `answer` whether the person

@@ -30,9 +30,12 @@ function isFullyVisible(element) {
 }
 
 // The scrolling box's own edges fade where there is more to scroll to. A mask, so it fades into whatever is behind
-// the box, a translucent surface included. Returns the dispose.
+// the box, a translucent surface included. What is scrolled into view lands clear of the fade, its size the box's
+// `scroll-padding`. Returns the dispose.
 function edgeFade(element, { size = 18 } = {}) {
     let frame = 0;
+    const padding = element.style.scrollPaddingBlock;
+    element.style.scrollPaddingBlock = size + 'px';
     let view = null; // the window of the document whose frame is asked for
     const paint = () => {
         frame = 0;
@@ -60,6 +63,7 @@ function edgeFade(element, { size = 18 } = {}) {
     paint();
     return () => {
         view?.cancelAnimationFrame(frame);
+        element.style.scrollPaddingBlock = padding;
         element.removeEventListener('scroll', soon);
         resized.disconnect();
         changed.disconnect();

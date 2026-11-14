@@ -1,0 +1,15 @@
+id = "status-bar"
+name = "Status Bar"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+activationPolicy = "accessory"
+background = "Stands at the top right of the app from the start, holding what other mods show there."
+icon = "icon.svg"
+keywords = ["status bar", "menu bar", "상태 막대"]
+
+[permissions]
+"deckit.panel-windows" = "Stands in the bar across the top of the app's window, holding what other mods show there."
+
+[interfaces]
+provides = { "status-bar/items" = [1] }

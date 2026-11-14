@@ -1,14 +1,12 @@
-const { kindIconOf } = require('../icon/icon-cache.js');
 const { parentOf } = require('../path/path.js');
 
 // Go to Folder: a path typed, `~` for the home folder and relative to the folder in front, with all that is in the
 // folder typed so far listed under it. Tab completes to the suggestion, the arrows move through them, Enter goes. A
-// file goes to its folder, selected there: `onGo(folder, file)`.
-function goToFolder({ ui, disk, tildify, homeLocation, folderInFront, onGo }) {
+// file goes to its folder, selected there: `onGo(folder, file)`. Each is drawn with its icon in the list's `icons`.
+function goToFolder({ ui, disk, icons, tildify, homeLocation, folderInFront, onGo }) {
     // A wait shorter than this shows nothing, so a quick answer does not flash the spinner.
     const WAIT_SHOWN_AFTER = 120; // milliseconds
     const STYLE = `
-        .finder-goto-icon { display: flex; flex: 0 0 auto; }
         .finder-goto-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     `;
 
@@ -26,7 +24,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, folderInFront, onGo }) {
         let up = true; // the panel is up: one closed meanwhile goes nowhere
         let chosen = false; // the arrows chose the active suggestion since the text last changed
         const picker = ui.quickPick({
-            placeholder: 'Go to Folder',
+            placeholder: 'Go to folder',
             value: startText(),
             key: (suggestion) => suggestion.path,
             create: rowOf,
@@ -74,6 +72,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, folderInFront, onGo }) {
                 .filter((entry) => start.startsWith('.') || !entry.name.startsWith('.'))
                 .sort((a, b) => (b.kind === 'folder') - (a.kind === 'folder') || a.name.localeCompare(b.name))
                 .map((entry) => ({ path: entry.path, name: entry.name, folder: entry.kind === 'folder', entry }));
+            icons.request(suggestions.map(({ entry }) => entry));
             const where = folder && `“${tildify(folder)}”`;
             unsuggested = !folder
                 ? 'Type a path'
@@ -137,11 +136,9 @@ function goToFolder({ ui, disk, tildify, homeLocation, folderInFront, onGo }) {
         }
     }
 
-    function rowOf({ name, folder, entry }) {
+    function rowOf({ name, entry }) {
         const row = ui.row({ size: 'small' });
-        const icon = ui.element('span', { className: 'finder-goto-icon' });
-        icon.innerHTML = folder ? ui.folderIcon({ open: false, size: 14 }) : ui.icon(kindIconOf(entry), { size: 14 });
-        row.element.append(icon, ui.element('span', { className: 'finder-goto-name', text: name }));
+        row.element.append(icons.imageOf(entry), ui.element('span', { className: 'finder-goto-name', text: name }));
         return row.element;
     }
 

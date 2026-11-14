@@ -1,5 +1,4 @@
 import * as TOKEN from '../token/index.js';
-import * as MOTION from '../motion/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as GESTURE from '../gesture/index.js';
 import * as LIST from '../list/index.js';
@@ -57,7 +56,7 @@ function sortable(theme, list, { onReorder, depth = null, movesInto = null, onMo
 // The row lifted, the others sliding aside as it passes them. The rows are the caller's items as laid out: one that
 // is not laid out has no place to move to or from, and one folding away is no longer an item.
 function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto, describe }, finished) {
-    const { base, easing } = TOKEN.MOTION;
+    const { move } = TOKEN.MOTION;
     const { element: list, keyOf } = keyed;
     const key = keyOf(row);
     const axis = LIST.across(list) ? 'x' : 'y';
@@ -69,11 +68,8 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     const keptDisplay = carried.map((child) => child.style.display);
     const putAway = (away) =>
         carried.forEach((child, index) => (child.style.display = away ? 'none' : keptDisplay[index]));
-    carried.forEach((child) => MOTION.finish(child));
     putAway(true);
-    const rows = [...list.children].filter(
-        (child) => child.getClientRects().length && !child.hasAttribute(LIST.LEAVING)
-    );
+    const rows = [...list.children].filter((child) => child.getClientRects().length);
     const from = rows.indexOf(row);
     // A lone row has nowhere in the list to go, and is lifted only to be carried out of it.
     const described = describe?.(key) || null;
@@ -81,8 +77,6 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         putAway(false);
         return null;
     }
-    // A row still unfolding is taken at its own size.
-    rows.forEach((child) => MOTION.finish(child));
     // Places are read once, as they stood at the lift; a scroll since is added to the pointer instead.
     const boxes = rows.map((child) => child.getBoundingClientRect());
     const held = boxes[from];
@@ -101,7 +95,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         boxShadow: row.style.boxShadow,
         opacity: row.style.opacity,
     };
-    const slide = `transform ${base}ms ${easing}`;
+    const slide = `transform ${move.length}ms ${move.easing}`;
     rows.forEach((child, index) => index !== from && (child.style.transition = slide));
     // The fill is an inset shadow, not a background: the background is the hover's, which repaints as the
     // pointer comes and goes during the drag.
@@ -222,7 +216,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         row.style.transition = slide;
         place(target - held[start], 1);
         then = after;
-        if (base) timer = setTimeout(runThen, base);
+        if (move.length) timer = setTimeout(runThen, move.length);
         else runThen();
     };
     return {

@@ -8,23 +8,22 @@ const STYLE = `
     .deckit-menu {
         position: fixed;
         box-sizing: border-box;
-        max-height: 320px;
         overflow-y: auto;
+        overscroll-behavior: contain;
         padding: 4px;
         border-radius: var(--deckit-radius-large);
-        border: var(--deckit-border);
-        background: var(--deckit-surface);
-        box-shadow: var(--deckit-shadow-raised);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
         font: var(--deckit-type-body);
     }
-    .deckit-menu[data-nested] { box-shadow: var(--deckit-shadow-nested); }
     .deckit-menu-separator { height: 1px; margin: 4px 6px; background: var(--deckit-divider); }
     .deckit-menu-row {
         display: flex;
         align-items: center;
         gap: 7px;
-        height: 26px;
+        min-height: 28px;
+        height: 28px;
         padding: 0 12px 0 8px;
         border-radius: var(--deckit-radius-control);
         cursor: pointer;
@@ -36,7 +35,8 @@ const STYLE = `
     .deckit-menu-tick { display: flex; flex: 0 0 14px; color: var(--deckit-accent); }
     .deckit-menu-row:not([aria-checked='true']) .deckit-menu-tick { visibility: hidden; }
     .deckit-menu-icon { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
-    .deckit-menu-label { flex: 1 1 auto; }
+    .deckit-menu[data-icons] .deckit-menu-icon { justify-content: center; width: 16px; }
+    .deckit-menu-label { flex: 1 1 auto; overflow: hidden; line-height: 28px; }
     .deckit-menu-more { display: flex; flex: 0 0 auto; margin: 0 -6px 0 16px; color: var(--deckit-muted); }
     .deckit-menu-hint { flex: 0 0 auto; margin-left: 16px; color: var(--deckit-muted); }
     .deckit-toolbar { display: none; gap: 1px; align-items: center; padding: 3px; max-height: none; overflow: visible; }
@@ -46,27 +46,20 @@ const STYLE = `
         gap: 6px;
         flex: 0 0 auto;
         max-width: 240px;
-        height: 26px;
+        height: 32px;
         padding: 0 8px 0 12px;
         border: 0;
-        outline: none;
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-fill);
         color: var(--deckit-text);
         font: var(--deckit-type-body);
         cursor: pointer;
     }
+    .deckit-select[data-size='small'] { height: 24px; padding: 0 6px 0 10px; font: var(--deckit-type-small); }
     .deckit-select:hover { background: var(--deckit-selected); }
-    .deckit-select:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-select-icon { display: flex; flex: 0 0 auto; margin-left: -2px; }
     .deckit-select-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .deckit-select-caret {
-        display: flex;
-        flex: 0 0 auto;
-        color: var(--deckit-muted);
-        transition: transform var(--deckit-fast) var(--deckit-easing);
-    }
-    .deckit-select[aria-expanded='true'] .deckit-select-caret { transform: rotate(180deg); }
+    .deckit-select-caret { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
     [data-deckit-target] { outline: 2px solid var(--deckit-target); outline-offset: -2px; }
 `;
 // How long the pointer rests on a row before its submenu opens, and on another row before it closes.
@@ -108,18 +101,19 @@ function menu({ items, anchor = null, point = null, onClose }) {
 }
 
 // One of `options` ({ value, label, font, icon, hint }), chosen from a menu. A choice is reported; the caller sets it.
-function select({ options, value = null, onChange }) {
+function select({ options, value = null, size = 'medium', onChange }) {
     let current = value;
     let choices = options;
     let shown = null;
     const element = tag('button', 'deckit-select');
     element.type = 'button';
+    element.dataset.size = size;
     element.setAttribute('aria-haspopup', 'listbox');
     element.setAttribute('aria-expanded', 'false');
     const glyph = tag('span', 'deckit-select-icon');
     const label = tag('span', 'deckit-select-label');
     const caret = tag('span', 'deckit-select-caret');
-    caret.innerHTML = ICON.icon('chevronDown', { size: 13 });
+    caret.innerHTML = ICON.icon('chevronsUpDown', { size: 13 });
     element.append(glyph, label, caret);
     const set = (next) => {
         current = next;
@@ -231,7 +225,7 @@ function autocomplete({ onPick, over = null }) {
     let items = [];
     let open = false;
     const list = LISTBOX.listbox(box, { onPick: (index) => pick(index) });
-    const place = (rect) => open && rect && PLACE.place(box, { rect, gap: 6 });
+    const place = (rect) => open && rect && PLACE.place(box, { rect, gap: 6, fit: true });
     const close = () => {
         open = false;
         items = [];
@@ -247,7 +241,9 @@ function autocomplete({ onPick, over = null }) {
     };
     const show = (next, rect) => {
         items = next;
-        const rows = items.map((item) => rowOf(item, false));
+        const icons = items.some((item) => item.icon);
+        box.toggleAttribute('data-icons', icons);
+        const rows = items.map((item) => rowOf(item, false, icons));
         box.replaceChildren(...rows);
         list.set(
             rows.map((row) => ({ element: row, disabled: false })),
@@ -266,17 +262,20 @@ function autocomplete({ onPick, over = null }) {
 function popMenu({ items, anchor = null, point = null, beside = null, active = -1, minWidth = 0, onClose, done }) {
     const box = tag('div', 'deckit-menu');
     box.setAttribute('role', 'menu');
+    box.dataset.deckitGlass = 'menu';
     box.style.minWidth = Math.max(minWidth, WIDTH_MIN) + 'px';
-    if (beside) box.dataset.nested = '';
     const shown = withoutStraySeparators(items);
     const ticks = shown.some((item) => item !== '-' && typeof item.checked === 'boolean');
+    // One label column: when any row has an icon, a row without one keeps its room.
+    const icons = shown.some((item) => item !== '-' && item.icon);
+    box.toggleAttribute('data-icons', icons);
     const options = [];
     for (const item of shown) {
         if (item === '-') {
             box.append(tag('div', 'deckit-menu-separator'));
             continue;
         }
-        const row = rowOf(item, ticks);
+        const row = rowOf(item, ticks, icons);
         options.push({ element: row, disabled: !!item.disabled, item });
         box.append(row);
     }
@@ -284,6 +283,7 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     let submenu = null; // { index, menu }
     let timer = 0;
     let stopFaces = () => {};
+    let resized = null;
     const closeSubmenu = () => {
         clearTimeout(timer);
         const closing = submenu;
@@ -317,6 +317,7 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
         open = false;
         closeSubmenu();
         stopFaces();
+        resized?.disconnect();
         presented.close();
         onClose?.();
     };
@@ -352,18 +353,32 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
         anchor,
         point,
         beside,
+        fit: true,
         transient: true,
         onKey,
         onDismiss: close,
     });
     list.set(options, { active: options[active]?.disabled ? -1 : active });
-    stopFaces = wearFaces(box, options);
+    options[active]?.element.scrollIntoView({ block: 'nearest' });
+    // A menu that grows once placed is placed again, so it stays clear of the edges: as its rows wear their faces, at
+    // once, since an overlay off the screen draws no frame until it is shown, and on any other growth in a frame of
+    // its own, as a place that changes its size again is not one more turn of the same observation.
+    let placedWidth = box.offsetWidth;
+    stopFaces = wearFaces(box, options, () => {
+        if (!open || box.offsetWidth === placedWidth) return;
+        presented.place();
+        placedWidth = box.offsetWidth;
+    });
+    const view = box.ownerDocument.defaultView;
+    resized = new view.ResizeObserver(() => view.requestAnimationFrame(() => open && presented.place()));
+    resized.observe(box);
     return { element: box, close, isOpen: () => open };
 }
 
 // Each row of `options` whose item has a `font` wears it as it nears the menu's view, and the others a few at a time
-// after: a face is read in as it is first drawn, and many at once hold the page up. Answers its stop.
-function wearFaces(box, options) {
+// after: a face is read in as it is first drawn, and many at once hold the page up. `worn()` hears each turn of it.
+// Answers its stop.
+function wearFaces(box, options, worn) {
     const unworn = new Map(); // row -> [its label, the face it wears]
     for (const { element, item } of options) {
         if (item.font) unworn.set(element, [element.querySelector('.deckit-menu-label'), item.font]);
@@ -378,12 +393,14 @@ function wearFaces(box, options) {
     const seen = new box.ownerDocument.defaultView.IntersectionObserver(
         (entries) => {
             for (const { target, isIntersecting } of entries) if (isIntersecting && unworn.has(target)) wear(target);
+            worn();
         },
         { root: box, rootMargin: '120px 0px' }
     );
     for (const row of unworn.keys()) seen.observe(row);
     let timer = setTimeout(function warm() {
         for (const row of [...unworn.keys()].slice(0, FACES_PER_TURN)) wear(row);
+        worn();
         timer = unworn.size ? setTimeout(warm, TURN_MS) : 0;
     }, TURN_MS);
     return () => {
@@ -392,7 +409,7 @@ function wearFaces(box, options) {
     };
 }
 
-function rowOf(item, ticks) {
+function rowOf(item, ticks, icons) {
     const row = tag('div', 'deckit-menu-row');
     row.setAttribute('role', ticks ? 'menuitemcheckbox' : 'menuitem');
     if (ticks) {
@@ -403,9 +420,9 @@ function rowOf(item, ticks) {
         row.append(tick);
     }
     if (item.disabled) row.setAttribute('aria-disabled', 'true');
-    if (item.icon) {
+    if (icons) {
         const glyph = tag('span', 'deckit-menu-icon');
-        glyph.innerHTML = iconMarkup(item.icon);
+        if (item.icon) glyph.innerHTML = iconMarkup(item.icon);
         row.append(glyph);
     }
     const label = tag('span', 'deckit-menu-label');

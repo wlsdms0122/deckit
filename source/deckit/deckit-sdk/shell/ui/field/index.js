@@ -9,18 +9,16 @@ const STYLE = `
             flex: 1 1 auto;
             min-width: 0;
             box-sizing: border-box;
-            height: 28px;
-            padding: 0 4px 0 11px;
+            height: 32px;
+            padding: 0 4px 0 12px;
             border-radius: var(--deckit-radius-round);
             background: var(--deckit-fill);
-            box-shadow: inset 0 0 0 1px transparent;
             cursor: text;
-            transition: box-shadow var(--deckit-fast) var(--deckit-easing);
         }
-        .deckit-field[data-size='small'] { height: 26px; }
-        .deckit-field[data-icon] { padding-left: 9px; }
-        .deckit-field:focus-within { box-shadow: inset 0 0 0 1px var(--deckit-focus); }
-        .deckit-field-icon { display: flex; flex: 0 0 auto; opacity: 0.5; }
+        .deckit-field[data-size='small'] { height: 24px; padding-left: 10px; }
+        .deckit-field[data-icon] { padding-left: 10px; }
+        .deckit-field[data-size='small'][data-icon] { padding-left: 8px; }
+        .deckit-field-icon { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
         .deckit-field-input,
         .deckit-stepper-input {
             height: 100%;
@@ -41,16 +39,20 @@ const STYLE = `
             display: flex;
             align-items: center;
             flex: 0 0 auto;
-            height: 26px;
-            padding: 0 2px;
+            box-sizing: border-box;
+            height: 32px;
+            padding: 0 4px;
             border-radius: var(--deckit-radius-round);
             background: var(--deckit-fill);
         }
         .deckit-stepper-input { width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
         .deckit-stepper[data-unset] .deckit-stepper-input { width: 56px; }
+        .deckit-stepper-input::placeholder { color: var(--deckit-text); }
+        .deckit-stepper[data-size='small'] { height: 24px; padding: 0; }
+        .deckit-stepper[data-size='small'] .deckit-stepper-input { font: var(--deckit-type-small); }
         .deckit-stepper-button {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             border-radius: var(--deckit-radius-round);
             color: var(--deckit-muted);
         }
@@ -58,7 +60,7 @@ const STYLE = `
         .deckit-find-line { display: flex; align-items: center; gap: 2px; min-width: 0; }
         .deckit-find-line[hidden] { display: none; }
         .deckit-find .deckit-field { max-width: 460px; }
-        .deckit-find-option { font: 600 11.5px var(--deckit-mono); line-height: 20px; }
+        .deckit-find-option { font: 600 12px/20px var(--deckit-mono); }
         .deckit-find-option[data-option='word'] {
             text-decoration: underline;
             text-underline-offset: 3px;
@@ -72,7 +74,7 @@ const STYLE = `
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
         }
-        .deckit-find-caret { transition: transform var(--deckit-fast) var(--deckit-easing); }
+        .deckit-find-caret { transition: transform var(--deckit-move) var(--deckit-move-curve); }
         .deckit-find-caret[aria-expanded='true'] { transform: rotate(90deg); }
         .deckit-find-indent { flex: 0 0 auto; width: 24px; }
     `;
@@ -170,9 +172,19 @@ function field({
 // A number typed or stepped, drawn as the caller sets it. Enter and leaving the field commit what is typed; Escape
 // puts the value back. With `unset`, `{ label, value }`, it may hold no number, null: it shows `label` then, steps from
 // `value`, and what is typed cleared commits null.
-function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = '', unset = null, onChange } = {}) {
+function stepper({
+    value = 0,
+    min = -Infinity,
+    max = Infinity,
+    step = 1,
+    unit = '',
+    unset = null,
+    size = 'medium',
+    onChange,
+} = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-stepper';
+    element.dataset.size = size;
     let current = value;
     const clamp = (number) => Math.min(max, Math.max(min, Math.round(number / step) * step));
     const input = document.createElement('input');

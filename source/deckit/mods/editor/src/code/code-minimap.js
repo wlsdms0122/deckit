@@ -2,14 +2,20 @@ const MINIMAP_STYLE = `
     .editor-minimap {
         position: absolute;
         right: 0;
+        /* Over the code view's own layers (gutter, scroller), inside its box: not a layer of the page. */
         z-index: 4;
         opacity: 0;
         pointer-events: none;
         background: transparent;
         border-left: var(--deckit-border);
-        transition: opacity var(--deckit-fast) var(--deckit-easing);
+        transition: opacity var(--deckit-press-fade) var(--deckit-press-curve);
     }
-    .editor-minimap:not([data-mode='always']) { backdrop-filter: blur(12px); box-shadow: var(--deckit-shadow-drawer); }
+    /* Over the code it is glass, which turns opaque where the system asks for less transparency. */
+    .editor-minimap:not([data-mode='always']) {
+        background: color-mix(in srgb, var(--deckit-background) var(--deckit-glass), transparent);
+        backdrop-filter: var(--deckit-blur);
+        box-shadow: var(--deckit-shadow-drawer);
+    }
     .editor-minimap[data-shown] { opacity: 1; pointer-events: auto; }
     .editor-minimap-canvas { display: block; width: 100%; height: 100%; }
     .editor-minimap-frame {
@@ -280,7 +286,7 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
                 const line = content.line(fileLineOf(shownLine, folds));
                 const text = line.text;
                 const y = (shownLine - 1) * LINE_HEIGHT - offset;
-                for (let index = 0, x = 0; index < text.length && x < WIDTH; ) {
+                for (let index = 0, x = 0; index < text.length && x < WIDTH;) {
                     if (text[index] === ' ' || text[index] === '\t') {
                         x += text[index] === '\t' ? TAB_CHARACTERS * CHARACTER_WIDTH : CHARACTER_WIDTH;
                         index++;

@@ -11,25 +11,29 @@ const STYLE = `
         justify-content: center;
         box-sizing: border-box;
         background: var(--deckit-scrim);
-        font: var(--deckit-type-medium);
-        transition: opacity var(--deckit-base) var(--deckit-easing);
+        font: var(--deckit-type-body);
+        transition: opacity var(--deckit-enter-fade) var(--deckit-enter-curve);
     }
     .deckit-modal[data-align='top'] { align-items: flex-start; padding-top: 12vh; }
     .deckit-modal[data-align='fill'] { align-items: stretch; background: transparent; }
+    .deckit-modal[data-clear] { background: transparent; }
     .deckit-modal-card {
         box-sizing: border-box;
         max-height: 80vh;
         overflow-y: auto;
         padding: 18px 20px 16px;
         border-radius: var(--deckit-radius-card);
-        border: var(--deckit-border);
-        background: var(--deckit-background);
-        box-shadow: var(--deckit-shadow-modal);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
-        transition: transform var(--deckit-base) var(--deckit-easing);
+        transition: transform var(--deckit-enter) var(--deckit-enter-curve);
     }
     .deckit-modal[data-bare] .deckit-modal-card { padding: 8px; }
-    .deckit-modal[data-state='closed'] .deckit-modal-card { transform: translateY(6px) scale(.99); }
+    .deckit-modal[data-state='closed'] { transition: opacity var(--deckit-exit-fade) var(--deckit-exit-curve); }
+    .deckit-modal[data-state='closed'] .deckit-modal-card {
+        transform: scale(.96);
+        transition: transform var(--deckit-exit) var(--deckit-exit-curve);
+    }
     .deckit-modal[data-align='fill'],
     .deckit-modal[data-align='fill'] .deckit-modal-card { transition: none; }
     .deckit-modal[data-align='fill'] .deckit-modal-card {
@@ -37,13 +41,12 @@ const STYLE = `
         flex-direction: column;
         width: 100%;
         max-height: none;
-        border: 0;
         border-radius: 0;
         box-shadow: none;
     }
     .deckit-modal[data-drags] .deckit-modal-card { --app-region: drag; }
     .deckit-modal[data-drags] :is(input, textarea, select, button, a) { --app-region: no-drag; }
-    .deckit-modal-title { font: 700 var(--deckit-type-heading); margin-bottom: 12px; }
+    .deckit-modal-title { font: 600 var(--deckit-type-heading); margin-bottom: 12px; }
     .deckit-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 `;
 
@@ -59,7 +62,9 @@ function make(theme, ui) {
 // text field confirms. `onKey` has a key first and returns whether it took it. `align` is `center`, `top`, or
 // `fill`, the card all the page draws, filling it, its edge the page's, which comes and goes at once, as its window
 // does. With `drags` the card drags the window it is in where nothing in it is pressed. With `glass` its colour is
-// laid at that strength, for a page over what blurs.
+// laid at that strength, for a page over what blurs, and its text is in the glass inks. With `clear` the
+// page shows through undimmed, the card still holding every press, and it comes and goes at once, as a palette a key
+// opens does.
 function modal(
     ui,
     {
@@ -72,6 +77,7 @@ function modal(
         chrome = true,
         align = 'center',
         drags = false,
+        clear = false,
         glass = null,
         width = 'min(420px, calc(100vw - 48px))',
         fill,
@@ -87,11 +93,14 @@ function modal(
     scrim.dataset.align = align;
     if (!chrome) scrim.dataset.bare = '';
     if (drags) scrim.dataset.drags = '';
+    if (clear) scrim.dataset.clear = '';
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
     if (align !== 'fill') card.style.width = width;
-    if (glass !== null)
-        card.style.background = `color-mix(in srgb, var(--deckit-background) ${glass * 100}%, transparent)`;
+    if (glass !== null) {
+        card.style.background = `color-mix(in srgb, var(--deckit-elevated) ${glass * 100}%, transparent)`;
+        card.dataset.deckitGlass = '';
+    }
     scrim.append(card);
     let closed = false;
     const close = () => {
@@ -106,10 +115,14 @@ function modal(
         onConfirm?.();
     };
     const confirms = chrome && confirmLabel !== null;
+    // Enter in a text field confirms; one button alone is the default button, which Enter takes from anywhere that is
+    // no control of its own.
     const onKey = (event) => {
         if (given(event)) return true;
-        if (event.key !== 'Enter' || !confirms || event.target.tagName !== 'INPUT') return false;
-        submit();
+        if (event.key !== 'Enter') return false;
+        if (confirms && event.target.tagName === 'INPUT') submit();
+        else if (lone && !event.target.closest?.('button, input, textarea, select, [contenteditable]')) lone.click();
+        else return false;
         return true;
     };
     // A mod's own key listeners do not act on what is typed into a modal.
@@ -123,7 +136,9 @@ function modal(
         card.append(heading);
     }
     const focus = fill?.(card) || null;
-    const button = (label, onClick, variant = 'plain') => ui.button({ label, variant, onClick }).element;
+    const alone = chrome && [cancelLabel !== null, confirms, !!extraLabel].filter(Boolean).length === 1;
+    const button = (label, onClick, variant = 'plain') =>
+        ui.button({ label, variant: alone && variant === 'plain' ? 'primary' : variant, onClick }).element;
     const cancel = cancelLabel === null ? null : button(cancelLabel, close);
     const confirm = confirms ? button(confirmLabel, submit, destructive ? 'destructive' : 'primary') : null;
     const extra = extraLabel
@@ -132,7 +147,8 @@ function modal(
               onExtra?.();
           })
         : null;
-    if (extra && destructive) extra.style.color = 'var(--deckit-alert)';
+    if (extra && destructive && !alone) extra.style.color = 'var(--deckit-alert-ink)';
+    const lone = alone ? cancel || confirm || extra : null;
     if (chrome) {
         const actions = document.createElement('div');
         actions.className = 'deckit-modal-actions';
@@ -142,11 +158,11 @@ function modal(
     const presented = PRESENTATION.present({
         element: scrim,
         modal: true,
-        speed: align === 'fill' ? null : 'base',
+        still: align === 'fill' || clear,
         onKey,
         onDismiss: close,
     });
-    (focus || confirm || card).focus();
+    (focus || confirm || lone || card).focus();
     focus?.select?.();
     return { close };
 }

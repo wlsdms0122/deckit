@@ -7,7 +7,7 @@ const CURRENT_MS = 3000;
 const LIST_MS = 15000;
 
 const sessionPicker = ({ shell, deckit, forge, onChange }) => {
-    const { theme, ui } = shell;
+    const { ui } = shell;
     const store = deckit.storage.values;
     let session = store.get('session', null) || 'default';
     let sessions = [{ name: session, checking: true }]; // until the first answer
@@ -16,12 +16,14 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
 
     const stateOf = (entry) =>
         entry.checking ? 'checking' : !entry.up ? 'stopped' : entry.authority ? 'running' : 'started elsewhere';
-    const dot = (entry) =>
-        ui.iconOf('<circle cx="12" cy="12" r="5"/>', {
+    // Drawn in the ink's custom property, so it follows the surface it is on (glass in the select's menu).
+    const dot = (entry) => {
+        const ink = entry.checking ? 'muted' : entry.up ? 'ok-ink' : 'alert-ink';
+        return ui.iconOf(`<circle cx="12" cy="12" r="5" style="fill: var(--deckit-${ink})"/>`, {
             size: 14,
-            fill: entry.checking ? theme.color.muted : entry.up ? theme.color.ok : theme.color.alert,
             color: 'none',
         });
+    };
     const button = ui.select({ options: [], value: session, onChange: (name) => choose(name) });
     button.element.title = 'Forge session';
     const paint = () => {
@@ -30,7 +32,6 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
         );
         button.set(session);
     };
-    theme.onChange(paint);
 
     const choose = (name) => {
         if (name === session) return;
@@ -40,11 +41,23 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
         onChange(name);
     };
 
+    // What a session is now, as asked here or by a view that showed it, so the two never disagree.
+    const told = (entry) => {
+        sessions = sessions.map((each) => (each.name === entry.name ? entry : each));
+        paint();
+    };
+    // A session that could not be asked about is not running, as the views say.
+    const unknown = (name) => ({ name, up: false, authority: false });
+
     // The sessions there are now; one chosen that is gone gives way to the main one.
     const load = async () => {
         const mine = ++asked;
         const answer = await forge.sessions().catch(() => null);
-        if (!answer || mine !== asked) return sessions;
+        if (mine !== asked) return sessions;
+        if (!answer) {
+            for (const entry of sessions) if (entry.checking) told(unknown(entry.name));
+            return sessions;
+        }
         sessions = answer.sessions || [];
         if (!sessions.some((entry) => entry.name === session)) choose(answer.main);
         paint();
@@ -53,10 +66,9 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
     const loadCurrent = async () => {
         const mine = asked;
         const name = session;
-        const entry = await forge.session(name).catch(() => null);
-        if (!entry || mine !== asked || name !== session) return;
-        sessions = sessions.map((each) => (each.name === name ? entry : each));
-        paint();
+        const entry = await forge.session(name).catch(() => unknown(name));
+        if (mine !== asked || name !== session) return;
+        told(entry);
     };
     paint();
 
@@ -64,6 +76,7 @@ const sessionPicker = ({ shell, deckit, forge, onChange }) => {
         element: button.element,
         current: () => session,
         choose,
+        told,
         show: () => {
             load();
             for (const timer of timers) clearInterval(timer);

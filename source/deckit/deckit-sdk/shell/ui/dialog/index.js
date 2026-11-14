@@ -3,7 +3,7 @@ import * as PART from '../part/index.js';
 
 // MARK: - Property
 const STYLE = `
-    .deckit-dialog-message { opacity: 0.7; line-height: 1.6; overflow-wrap: anywhere; margin-bottom: 8px; }
+    .deckit-dialog-message { color: var(--deckit-muted); line-height: 1.6; overflow-wrap: anywhere; margin-bottom: 8px; }
     .deckit-dialog-message[data-last],
     .deckit-dialog-content { margin-bottom: 18px; }
     .deckit-dialog[data-fields] .deckit-dialog-message[data-last],
@@ -19,7 +19,7 @@ const STYLE = `
         cursor: pointer;
     }
     .deckit-dialog-field { display: block; margin-bottom: 14px; }
-    .deckit-dialog-label { margin-bottom: 6px; opacity: 0.55; font: 700 var(--deckit-type-small); letter-spacing: 0.02em; }
+    .deckit-dialog-label { margin-bottom: 6px; color: var(--deckit-muted); font: var(--deckit-type-label); }
     .deckit-input {
         width: 100%;
         box-sizing: border-box;
@@ -27,12 +27,10 @@ const STYLE = `
         padding: 0 10px;
         border: var(--deckit-border);
         border-radius: var(--deckit-radius-medium);
-        outline: none;
         background: var(--deckit-fill);
         color: inherit;
-        font: var(--deckit-type-medium);
+        font: var(--deckit-type-body);
     }
-    .deckit-input:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .deckit-swatch {
         flex: 0 0 auto;
@@ -43,8 +41,8 @@ const STYLE = `
         border-radius: var(--deckit-radius-control);
         cursor: pointer;
         transition:
-            box-shadow var(--deckit-fast) var(--deckit-easing),
-            transform var(--deckit-fast) var(--deckit-easing);
+            box-shadow var(--deckit-press-fade) var(--deckit-press-curve),
+            transform var(--deckit-press) var(--deckit-press-curve);
     }
     .deckit-swatch[aria-pressed='true'] {
         box-shadow: 0 0 0 2px var(--deckit-background), 0 0 0 4px var(--deckit-swatch);

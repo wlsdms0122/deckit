@@ -1,0 +1,24 @@
+case = 23
+name = "a-panel-window-without-deckit-panel-windows-throws-not-permitted"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. windows.open of the level panel throws NOT_PERMITTED at call where the mod is not granted deckit.panel-windows, and opens nothing: mod-a, granted nothing, opens p at the level panel."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/p/threw/NOT_PERMITTED", activates = true }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = []

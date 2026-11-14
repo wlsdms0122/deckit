@@ -7,6 +7,7 @@ const TYPE_AHEAD_MS = 800;
 // The keys of a list or a tree of items, which takes the focus. Its caller keeps the selection and is told where the
 // keys move it: `items()` are the keys of the items the arrows move among, in order, and `lead()` the one they move
 // from, or null. A list is a tree whose items do not nest. Keys typed into something inside it (a rename) are its own.
+// It is marked `data-deckit-tree`: while the focus is in it, its chosen rows draw in `selectedFocused` (row/index.js).
 function tree(
     element,
     {
@@ -33,9 +34,11 @@ function tree(
     };
     const tabIndexBefore = element.getAttribute('tabindex');
     element.tabIndex = 0;
+    element.dataset.deckitTree = '';
     element.addEventListener('keydown', onKey);
     return () => {
         element.removeEventListener('keydown', onKey);
+        delete element.dataset.deckitTree;
         if (tabIndexBefore === null) element.removeAttribute('tabindex');
         else element.setAttribute('tabindex', tabIndexBefore);
     };

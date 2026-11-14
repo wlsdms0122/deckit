@@ -8,9 +8,12 @@ const TICK_MS = 30000;
 
 // The Activity section: every mod running now, an app or not, its run's state, how long it has run and what
 // is wrong with it, with a quit and a restart; and the background list, each mod whose manifest asks to run in the
-// background, with its reason. `mods` is deckit.mods; `onInterfaces()` shows the Interfaces section.
-function activitySection({ ui, mods, onInterfaces }) {
+// background, with its reason, each row led by the mod's app icon. `mods` is deckit.mods; `icons` the mods' app icons;
+// `onInterfaces()` shows the Interfaces section.
+function activitySection({ ui, mods, icons, onInterfaces }) {
     const TITLE = 'Activity';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'server';
     const KEYWORDS = ['활동', '실행', '백그라운드', 'activity', 'running', 'quit', 'background'];
     const DESCRIPTION =
         'The mods running now, apps or not, and for how long. Quit one, or restart it. Below, the mods ' +
@@ -23,21 +26,20 @@ function activitySection({ ui, mods, onInterfaces }) {
     let listed = { list: [], runs: [], interfaces: [] };
 
     ui.addStyle(`
-        .settings-activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 12px; }
+        .settings-activity-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 12px; }
         .settings-activity-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 1px; min-width: 0; }
         .settings-activity-name { display: flex; align-items: center; gap: 6px; font: var(--deckit-type-body); }
-        .settings-activity-why { font: var(--deckit-type-small); line-height: 1.45; opacity: 0.5; }
+        .settings-activity-why { color: var(--deckit-muted); font: var(--deckit-type-small); }
         .settings-activity-problem {
-            color: var(--deckit-alert);
+            color: var(--deckit-alert-ink);
             font: var(--deckit-type-small);
-            line-height: 1.45;
             white-space: pre-line;
             word-break: break-word;
         }
         .settings-activity-problem:empty { display: none; }
-        .settings-activity-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; min-height: 22px; }
+        .settings-activity-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; min-height: 24px; }
         .settings-activity-actions > [hidden] { display: none; }
-        .settings-activity-none { padding: 4px 12px 6px; font: 12.5px var(--deckit-font); opacity: 0.4; }
+        .settings-activity-none { padding: 4px 12px 6px; color: var(--deckit-muted); font: var(--deckit-type-small); }
         .settings-activity-none[hidden] { display: none; }
     `);
     const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
@@ -53,7 +55,7 @@ function activitySection({ ui, mods, onInterfaces }) {
     backgroundCard.element.insertBefore(backgrounds.element, backgroundCard.none);
     body.append(runCard.element, backgroundCard.element);
     setInterval(() => element.isConnected && draw(listed), TICK_MS);
-    return { element, title: TITLE, keywords: KEYWORDS, draw };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw };
 
     // `answered` is what deckit.mods.list(), runs() and interfaces() answered, as `{ list, runs, interfaces }`.
     function draw(answered) {
@@ -81,6 +83,8 @@ function activitySection({ ui, mods, onInterfaces }) {
         const words = ui.element('div', { className: 'settings-activity-words' });
         const name = ui.element('div', { className: 'settings-activity-name' });
         const label = ui.element('span');
+        // Its actions show while the row is under the pointer or holds the focus, as a list row's do.
+        element.dataset.deckitRowActions = '';
         const state = chip({ ui, text: '' });
         const why = ui.element('div', { className: 'settings-activity-why' });
         const problem = ui.element('div', { className: 'settings-activity-problem' });
@@ -104,7 +108,7 @@ function activitySection({ ui, mods, onInterfaces }) {
         name.append(label, state.element);
         words.append(name, why, problem);
         actions.append(owns.element, relaunch.element, quit.element);
-        element.append(words, actions);
+        element.append(ui.appIcon(icons.of(mod.id), { size: 'row' }), words, actions);
         ui.selectable(problem);
         runFills.set(element, fill);
         fill(mod);
@@ -113,9 +117,12 @@ function activitySection({ ui, mods, onInterfaces }) {
         function fill(mod) {
             current = mod;
             label.textContent = mod.name;
+            // Under the Running card, only a run starting or stopping says its state.
             state.element.textContent = STATE_WORDS[mod.run.state];
+            state.element.hidden = mod.run.state === 'running';
             const since = mod.run.launchedAt ? elapsedText(Date.now() - mod.run.launchedAt) : '';
-            why.textContent = [mod.background ? 'In the background' : '', since].filter(Boolean).join(' · ');
+            const line = [mod.background ? 'In the background' : '', since].filter(Boolean).join(', ');
+            why.textContent = line.charAt(0).toUpperCase() + line.slice(1);
             problem.textContent = problemsOf(mod, refusals.get(mod.id)).join('\n');
             owns.element.hidden = !ownsInterface(mod);
             relaunch.element.hidden = mod.run.state !== 'running';
@@ -130,7 +137,7 @@ function activitySection({ ui, mods, onInterfaces }) {
         const reason = ui.element('div', { className: 'settings-activity-why' });
 
         words.append(name, reason);
-        element.append(words);
+        element.append(ui.appIcon(icons.of(mod.id), { size: 'row' }), words);
         backgroundFills.set(element, fill);
         fill(mod);
         return element;

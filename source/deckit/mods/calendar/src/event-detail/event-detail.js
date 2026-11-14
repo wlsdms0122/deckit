@@ -21,14 +21,14 @@ function eventDetail({ ui, onAnswer, onClose }) {
         popover.element.textContent = '';
         const name = document.createElement('div');
         name.textContent = nameOf(occurrence);
-        Object.assign(name.style, { font: '700 14.5px var(--deckit-font)', marginBottom: '4px' });
+        Object.assign(name.style, { font: '600 var(--deckit-type-large)', marginBottom: '4px' });
         const when = document.createElement('div');
         when.textContent = occurrence.allDay
             ? dayDelta(new Date(+occurrence.end - 1), occurrence.start) > 0
                 ? `All day · ${occurrence.start.toDateString()} – ${new Date(+occurrence.end - 1).toDateString()}`
                 : 'All day · ' + occurrence.start.toDateString()
             : `${occurrence.start.toDateString()} · ${clockText(occurrence.start)}–${clockText(occurrence.end)}`;
-        when.style.opacity = '.65';
+        when.style.color = 'var(--deckit-muted)';
         popover.element.append(name, when);
 
         // An answer that cannot be changed here is said, unless it is the plain "going".
@@ -39,8 +39,8 @@ function eventDetail({ ui, onAnswer, onClose }) {
                 display: 'inline-block',
                 marginTop: '6px',
                 padding: '1px 8px',
-                borderRadius: '10px',
-                font: '11.5px var(--deckit-font)',
+                borderRadius: 'var(--deckit-radius-round)',
+                font: 'var(--deckit-type-small)',
                 border: '1px solid ' + occurrence.color,
                 color: occurrence.color,
             });
@@ -57,11 +57,11 @@ function eventDetail({ ui, onAnswer, onClose }) {
             Object.assign(join.style, {
                 display: 'inline-block',
                 padding: '3px 10px',
-                borderRadius: '7px',
-                background: 'var(--deckit-accent)',
-                color: '#fff',
+                borderRadius: 'var(--deckit-radius-control)',
+                background: 'var(--deckit-accent-fill)',
+                color: 'var(--deckit-on-accent)',
                 textDecoration: 'none',
-                font: '600 12.5px var(--deckit-font)',
+                font: '600 var(--deckit-type-small)',
             });
             popover.element.appendChild(detailLine('video', join));
         }
@@ -71,7 +71,6 @@ function eventDetail({ ui, onAnswer, onClose }) {
         if (occurrence.description) {
             const box = linkify(occurrence.description.slice(0, 1200));
             Object.assign(box.style, {
-                opacity: '.8',
                 whiteSpace: 'pre-wrap',
                 maxHeight: '180px',
                 overflowY: 'auto',
@@ -97,7 +96,7 @@ function eventDetail({ ui, onAnswer, onClose }) {
         popover.element.textContent = '';
         const name = document.createElement('div');
         name.textContent = `${MONTHS[day.getMonth()]} ${day.getDate()}`;
-        Object.assign(name.style, { font: '700 14.5px var(--deckit-font)', marginBottom: '8px' });
+        Object.assign(name.style, { font: '600 var(--deckit-type-large)', marginBottom: '8px' });
         popover.element.appendChild(name);
         for (const occurrence of occurrences) {
             const line = document.createElement('div');
@@ -121,8 +120,8 @@ function eventDetail({ ui, onAnswer, onClose }) {
             Object.assign(time.style, {
                 flex: '0 0 auto',
                 minWidth: '50px',
-                opacity: '.55',
-                font: '12px var(--deckit-font)',
+                color: 'var(--deckit-muted)',
+                font: 'var(--deckit-type-small)',
             });
             paintDot(dot, occurrence);
             const text = document.createElement('span');
@@ -146,13 +145,13 @@ function eventDetail({ ui, onAnswer, onClose }) {
         Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '8px' });
         const question = document.createElement('span');
         question.textContent = 'Going?';
-        Object.assign(question.style, { opacity: '.65', font: '12.5px var(--deckit-font)' });
+        Object.assign(question.style, { color: 'var(--deckit-muted)', font: 'var(--deckit-type-small)' });
         const note = document.createElement('div');
         Object.assign(note.style, {
             display: 'none',
             marginTop: '6px',
-            color: 'var(--deckit-alert)',
-            font: '12px var(--deckit-font)',
+            color: 'var(--deckit-alert-ink)',
+            font: 'var(--deckit-type-small)',
         });
         let answering = false;
         const answers = ui.segmented({
@@ -193,7 +192,7 @@ function eventDetail({ ui, onAnswer, onClose }) {
         Object.assign(line.style, { display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '6px' });
         const icon = document.createElement('span');
         icon.innerHTML = ui.icon(iconName, { size: 14 });
-        Object.assign(icon.style, { flex: '0 0 auto', marginTop: '2px', opacity: '.6' });
+        Object.assign(icon.style, { flex: '0 0 auto', marginTop: '2px', color: 'var(--deckit-muted)' });
         if (typeof value === 'string') {
             const text = document.createElement('span');
             text.textContent = value;

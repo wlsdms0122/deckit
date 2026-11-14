@@ -16,7 +16,7 @@ const HANDLER_LIST_STYLE = `
         font: var(--deckit-type-small);
         font-variant-numeric: tabular-nums;
         text-align: right;
-        opacity: 0.4;
+        color: var(--deckit-muted);
     }
     .settings-handler-name {
         flex: 1 1 auto;
@@ -26,7 +26,7 @@ const HANDLER_LIST_STYLE = `
         white-space: nowrap;
         font: var(--deckit-type-body);
     }
-    .settings-handler[data-muted] .settings-handler-name { opacity: 0.55; }
+    .settings-handler[data-muted] .settings-handler-name { color: var(--deckit-muted); }
 `;
 
 // A line of such a list: its position, its name, then `trailing`.

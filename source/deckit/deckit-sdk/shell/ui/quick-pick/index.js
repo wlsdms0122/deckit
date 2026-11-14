@@ -1,4 +1,5 @@
 import * as ICON from '../icon/index.js';
+import * as APP_ICON from '../app-icon/index.js';
 import * as LIST from '../list/index.js';
 import * as LISTBOX from '../list/listbox.js';
 
@@ -15,11 +16,11 @@ const STYLE = `
         padding: 0 10px;
         border-radius: var(--deckit-radius-control);
         background: var(--deckit-selected);
-        font: 600 var(--deckit-type-medium);
+        font: 600 var(--deckit-type-body);
         white-space: nowrap;
     }
     .deckit-quick-pick-chip[hidden] { display: none; }
-    .deckit-quick-pick-chip svg { width: 15px; height: 15px; opacity: 0.85; }
+    .deckit-quick-pick-chip svg { width: 15px; height: 15px; color: var(--deckit-muted); }
     .deckit-quick-pick-field {
         flex: 1 1 auto;
         min-width: 0;
@@ -39,14 +40,14 @@ const STYLE = `
     .deckit-modal[data-align='fill'] .deckit-quick-pick-list { flex: 1 1 auto; min-height: 0; max-height: none; }
     .deckit-modal[data-drags] .deckit-quick-pick-field { --app-region: drag; }
     .deckit-modal[data-drags] .deckit-quick-pick-list { --app-region: no-drag; }
-    .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; opacity: 0.45; }
+    .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: var(--deckit-muted); }
     .deckit-quick-pick-message:empty { display: none; }
-    .deckit-quick-pick-message[data-alert] { opacity: 1; color: var(--deckit-alert); }
+    .deckit-quick-pick-message[data-alert] { color: var(--deckit-alert-ink); }
     .deckit-quick-pick-note {
         margin-top: 4px;
         padding: 6px 12px 2px;
         border-top: var(--deckit-border);
-        opacity: 0.5;
+        color: var(--deckit-muted);
         font: var(--deckit-type-small);
     }
     .deckit-quick-pick-note:empty { display: none; }
@@ -67,7 +68,8 @@ function make(theme, ui) {
 // it. `onActive(item, index, { pointer })` hears the active option move, and `onCommandKey(held)` the Command
 // key held down in it or let go. The field keeps the focus: a press anywhere else on the card leaves it there.
 // With `fills` it is all the page draws, filling it, and with `drags` it drags the window it is in from anywhere but
-// its list, the field too, which keeps the keyboard all the same. `glass` is the modal's.
+// its list, the field too, which keeps the keyboard all the same, and `onHeight(px)` hears the height its content
+// takes, every row shown, as it changes, for a window to fit it. `glass` is the modal's.
 function quickPick(
     ui,
     {
@@ -87,6 +89,7 @@ function quickPick(
         onKey = () => false,
         onActive = () => {},
         onCommandKey = () => {},
+        onHeight = null,
         onClose,
     }
 ) {
@@ -111,6 +114,7 @@ function quickPick(
     const modal = ui.modal({
         chrome: false,
         align: fills ? 'fill' : 'top',
+        clear: true,
         drags,
         glass,
         width,
@@ -157,12 +161,37 @@ function quickPick(
         message.replaceChildren(...(loading ? [ui.spinner().element] : []), said);
         message.toggleAttribute('data-alert', alert);
         note.textContent = noted;
+        measure();
     }
 
     // What the field searches in, shown before it: `{ icon, label }`, the icon as SVG markup, or null for none.
     function setScope(scope) {
         chip.hidden = !scope;
-        chip.replaceChildren(...(scope ? [ICON.sanitize(scope.icon), scope.label] : []));
+        const mark = scope?.appIcon
+            ? APP_ICON.appIcon(scope.icon, { size: 'small' })
+            : ICON.sanitize(scope?.icon ?? '');
+        chip.replaceChildren(...(scope ? [mark, scope.label] : []));
+    }
+
+    // A row that changes size, as a face or an icon comes in, changes the height too: measured in a frame of its own,
+    // as the window it tells changes the list's size again.
+    let told = 0;
+    if (fills && onHeight) {
+        const view = box.ownerDocument.defaultView;
+        new view.ResizeObserver(() => view.requestAnimationFrame(measure)).observe(box);
+    }
+
+    // What the card takes with every row shown: what is over the list and under it, and the rows in it; nothing while
+    // it is not drawn.
+    function measure() {
+        const card = box.parentElement;
+        if (!fills || !onHeight || !card?.isConnected) return;
+        const outer = card.getBoundingClientRect();
+        const list = box.getBoundingClientRect();
+        const last = box.lastElementChild?.getBoundingClientRect();
+        const rows = last ? last.bottom + box.scrollTop - list.top : 0;
+        const height = Math.ceil(list.top - outer.top + rows + outer.bottom - list.bottom);
+        if (height > 0 && height !== told) onHeight((told = height));
     }
 
     // The text typed is the caller's to set too; one it sets is not heard as typed.

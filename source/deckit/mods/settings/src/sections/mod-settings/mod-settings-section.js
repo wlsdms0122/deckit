@@ -5,9 +5,12 @@ const { section } = require('../section/section.js');
 // left unset may inherit. `configuration()` is `deckit/configuration` while it is connected, and a setting is drawn
 // from the hints its entry carries beside what Configuration reads. `sources` is what each mod set, `{ list, run }`,
 // by its connection. A button gives its value to the `run` its mod set and shows under it the text that answers;
-// `nameOf(mod)` names a card that has only buttons. A change that did not apply is told in a toast.
-function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
+// `nameOf(mod)` names a card that has only buttons, and `iconOf(mod)` is the app icon before each card's name. A change
+// that did not apply says why on its row's answer line.
+function modSettingsSection({ ui, theme, configuration, sources, nameOf, iconOf }) {
     const TITLE = 'Mod Settings';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'gear';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
         'Choices each mod offers. A mod declares them; what you choose is kept for it, so an update keeps it.';
@@ -18,6 +21,8 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
     const INHERITABLE = ['textSize'];
     // What a number left unset shows.
     const UNSET = 'Default';
+    // The most characters a setting's choices may have, all labels together, to be drawn side by side.
+    const SEGMENTED_LENGTH = 24;
 
     // As last drawn, for the commands, which cannot wait for a drawing.
     let groups = [];
@@ -26,12 +31,14 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
     const rowFills = new WeakMap(); // setting row -> its fill(item)
 
     ui.addStyle(`
-        .settings-setting-message { padding: 0 8px; font: 12.5px var(--deckit-font); opacity: 0.45; }
-        .settings-setting-card { transition: background var(--deckit-slow) var(--deckit-easing); }
+        .settings-setting-message { padding: 0 8px; color: var(--deckit-muted); font: var(--deckit-type-small); }
+        .settings-setting-card { transition: background var(--deckit-press-fade) var(--deckit-press-curve); }
+        .settings-setting-title { display: flex; align-items: center; gap: 8px; }
         .settings-setting-card[data-highlighted] {
             background: color-mix(in srgb, var(--deckit-accent) 12%, transparent);
         }
-        .settings-setting-answer { font: var(--deckit-type-small); line-height: 1.45; opacity: 0.6; }
+        .settings-setting-answer { color: var(--deckit-muted); font: var(--deckit-type-small); }
+        .settings-setting-answer[data-failed] { color: var(--deckit-alert-ink); }
         .settings-setting-field { flex: 0 0 220px; }
     `);
     const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
@@ -44,7 +51,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
 
     message.hidden = true;
     body.append(message, cards.element);
-    return { element, title: TITLE, keywords: KEYWORDS, draw, groups: () => groups, cardOf, highlight };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw, groups: () => groups, cardOf, highlight };
 
     async function draw() {
         const turn = ++drawing;
@@ -129,7 +136,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
 
     function settingCard(group) {
         const card = ui.element('div', { className: 'settings-card settings-setting-card' });
-        const title = ui.element('div', { className: 'settings-card-title' });
+        const title = ui.element('div', { className: 'settings-card-title settings-setting-title' });
         const rows = ui.list({
             key: (item) => item.key,
             create: (item) => settingRow(group.id, item),
@@ -142,7 +149,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
         return card;
 
         function fill(group) {
-            title.textContent = group.name;
+            title.replaceChildren(ui.appIcon(iconOf(group.id), { size: 'row' }), group.name);
             rows.set(group.items);
         }
     }
@@ -188,22 +195,32 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
         }
 
         // The control shows what was kept: a number is kept within its bounds, and a refused value is not kept.
+        // A refusal stays on the answer line until the next change.
         async function change(value) {
             control.set(value);
+            tell('');
             try {
                 if (!configuration()) throw new Error('the Configuration mod is not running');
                 control.set(await configuration().setOf(modId, current.key, value));
             } catch (error) {
                 control.set(valueOf(current));
-                ui.toast('Could not change the setting: ' + error.message);
+                tell(`Not changed: ${error.message.replace(/\.$/, '')}.`, true);
             }
+        }
+
+        function tell(text, failed = false) {
+            answer.textContent = text;
+            answer.hidden = !text;
+            answer.toggleAttribute('data-failed', failed);
         }
     }
 
     function controlOf(item, change) {
         const value = valueOf(item);
         if (item.type === 'boolean') return ui.toggle({ value, onChange: change });
-        if (item.options.length && !item.listed && item.options.length <= 4)
+        // Choices whose labels together are long take a select: side by side they would crowd out the words.
+        const short = item.options.reduce((length, option) => length + option.label.length, 0) <= SEGMENTED_LENGTH;
+        if (item.options.length && !item.listed && item.options.length <= 4 && short)
             return ui.segmented({
                 items: item.options.map((option) => ({ key: option.value, label: option.label })),
                 value,
@@ -240,6 +257,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
             onClick: async () => {
                 answer.hidden = true;
                 let text = '';
+                let failed = false;
                 try {
                     const source = [...sources].find(([connection]) => connection.credential.mod === mod)?.[1];
                     if (typeof source?.run !== 'function') throw new Error(`${nameOf(mod)} is not running`);
@@ -247,9 +265,11 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
                     text = typeof said === 'string' ? said : '';
                 } catch (error) {
                     text = 'Did not work: ' + error.message;
+                    failed = true;
                 }
                 answer.textContent = text;
                 answer.hidden = !text;
+                answer.toggleAttribute('data-failed', failed);
             },
         });
     }

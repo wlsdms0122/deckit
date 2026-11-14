@@ -10,7 +10,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
     const COLUMN_MAX = 640;
     const COLUMN_WIDTH = 230;
     // The size of the system's icons: drawn larger, they blur.
-    const PREVIEW_ICON_SIZE = 32;
+    const PREVIEW_ICON_SIZE = 64;
     // The view and its list of columns lend their place to what is in them: the columns and the preview lay out as
     // the file area's own flex items.
     const STYLE = `
@@ -28,11 +28,23 @@ function columnView({ ui, icons, entryAt, onResize }) {
             cursor: col-resize;
         }
         .finder-column-cell { cursor: default; transition: none; }
-        .finder-column-cell[data-hidden] { opacity: 0.55; }
+        .finder-column-cell[data-hidden] { color: var(--deckit-muted); }
+        .finder-column-cell[data-hidden] :is(.finder-icon, .finder-icon-placeholder) { opacity: 0.55; }
         .finder-column-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .finder-column-more { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
-        .finder-column-message { padding: 8px 6px; color: var(--deckit-muted); }
+        .finder-column-message { color: var(--deckit-muted); font: var(--deckit-type-body); }
         .finder-column-message:empty { display: none; }
+        /* What a column says in place of rows stands in its middle; its skeleton stands where the rows would. */
+        .finder-column-message[data-said] {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            text-align: center;
+            pointer-events: none;
+        }
         .finder-preview {
             display: flex;
             flex: 1 0 240px;
@@ -45,10 +57,20 @@ function columnView({ ui, icons, entryAt, onResize }) {
             padding: 16px;
             text-align: center;
         }
-        .finder-preview-name { margin-top: 10px; font: 600 var(--deckit-type-body); overflow-wrap: anywhere; }
-        .finder-preview-detail { color: var(--deckit-muted); }
-        .finder-thumbnail { max-width: 100%; max-height: min(240px, 50%); object-fit: contain; border-radius: 4px; }
+        .finder-preview-name {
+            display: -webkit-box;
+            margin-top: 8px;
+            overflow: hidden;
+            font: 600 var(--deckit-type-body);
+            overflow-wrap: anywhere;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+        .finder-preview-detail { color: var(--deckit-muted); font: var(--deckit-type-small); font-variant-numeric: tabular-nums; }
+        .finder-thumbnail { max-width: 100%; max-height: min(240px, 50%); object-fit: contain; border-radius: var(--deckit-radius-small); }
     `;
+    // The rows a column's skeleton draws while its folder is read.
+    const LOADING_ROWS = 4;
     const columnParts = new WeakMap(); // column element -> { rows, message, loading }
     const cellParts = new WeakMap(); // cell element -> its row
     let drawn = { tab: null, widths: {}, folders: new Map(), selected: null, selection: [] };
@@ -127,7 +149,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
         const body = ui.element('div', { className: 'finder-column-body' });
         const rows = ui.list({ key: (entry) => entry.path, create: createCell, update: updateCell });
         const message = ui.element('div', { className: 'finder-column-message' });
-        const loading = ui.loading({ text: 'Loading…' }).element;
+        const loading = ui.loading.skeleton({ rows: LOADING_ROWS, height: 28 }).element;
         body.append(rows.element, message);
         column.append(body, edgeOf(column, folder));
         columnParts.set(column, { rows, message, loading });
@@ -145,9 +167,10 @@ function columnView({ ui, icons, entryAt, onResize }) {
         const { listing, entries, filtering } = drawn.folders.get(folder);
         const { rows, message, loading } = columnParts.get(column);
         rows.set(listing && !listing.failure ? entries : []);
+        message.toggleAttribute('data-said', !!listing && (!!listing.failure || !entries.length));
         if (!listing) message.replaceChildren(loading);
         else if (listing.failure) message.textContent = listing.failure.title;
-        else if (!entries.length) message.textContent = filtering ? 'Nothing here matches' : 'Empty';
+        else if (!entries.length) message.textContent = filtering ? 'Nothing here matches' : 'Empty folder';
         else message.textContent = '';
     }
 
@@ -224,9 +247,12 @@ function columnView({ ui, icons, entryAt, onResize }) {
             icons.thumbnail(entry).then((url) => {
                 if (url && shown.isConnected) picture.replaceWith(thumbnailOf(url));
             });
+        // A name past two lines is cut there, whole in its tooltip.
+        const name = ui.element('div', { className: 'finder-preview-name', text: entry.name });
+        name.title = entry.name;
         shown.append(
             picture,
-            ui.element('div', { className: 'finder-preview-name', text: entry.name }),
+            name,
             ui.element('div', {
                 className: 'finder-preview-detail',
                 text: formatKind(entry) + (entry.size == null ? '' : ' · ' + formatSize(entry)),

@@ -1,8 +1,10 @@
 import * as KIT from '../../../deckit-sdk/shell/ui/kit/index.js';
 import * as FONTS from '../../../deckit-sdk/shell/fonts/renderer.js';
 import * as LAYER from '../../../deckit-sdk/shell/ui/layer/index.js';
+import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as MOD_STYLE from '../../../deckit-sdk/shell/style/renderer.js';
 import * as LAYOUT from './model/layout.js';
+import * as MOTION from './model/motion.js';
 import * as PAGE from './model/page-name.js';
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DOCK from '../dock/view.js';
@@ -11,20 +13,10 @@ import * as DECLARED from './protocol.js';
 // MARK: - Property
 // Each frame's surface is the window grown by its shadow: the window's material at its middle, the title bar of a
 // titled window at its top, the edges that resize it just outside it, as model/layout.js partsOf has them.
-const { SHADOW, EDGE, RADIUS, BUTTON, TITLE_BAR } = LAYOUT;
+const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
 const STYLE = `
-    .deckit-desktop-strip {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-        --app-region: drag;
-    }
-    .deckit-desktop-title {
+    .deckit-desktop-strip { position: fixed; top: 0; left: 0; right: 0; --app-region: drag; }
+    .deckit-window-title-text {
         overflow: hidden;
         color: var(--deckit-muted);
         font: var(--deckit-type-body);
@@ -35,14 +27,40 @@ const STYLE = `
     .deckit-desktop-down { position: fixed; inset: 0; display: flex; background: var(--deckit-background); }
     .deckit-desktop-down[hidden] { display: none; }
     .deckit-desktop-backdrop { position: fixed; inset: 0; }
+    .deckit-panel-material {
+        position: fixed;
+        border-radius: var(--deckit-radius-round);
+        background: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
+    }
+    .deckit-panel-material[data-edge='right'] {
+        border-radius: ${RADIUS}px;
+        animation: deckit-panel-in var(--deckit-enter) var(--deckit-enter-curve);
+    }
+    .deckit-panel-material[data-edge='right'][data-leaving] {
+        animation: deckit-panel-out var(--deckit-exit) var(--deckit-exit-curve) forwards;
+    }
+    @keyframes deckit-panel-in { from { transform: translateX(calc(100% + ${LAYOUT.PANEL.margin}px)); } }
+    @keyframes deckit-panel-out { to { transform: translateX(calc(100% + ${LAYOUT.PANEL.margin}px)); } }
+    @keyframes deckit-panel-fade-in { from { opacity: 0; } }
+    @keyframes deckit-panel-fade-out { to { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+        .deckit-panel-material[data-edge='right'] {
+            animation: deckit-panel-fade-in var(--deckit-enter-fade) var(--deckit-enter-curve);
+        }
+        .deckit-panel-material[data-edge='right'][data-leaving] {
+            animation: deckit-panel-fade-out var(--deckit-exit-fade) var(--deckit-exit-curve) forwards;
+        }
+    }
     .deckit-window-material {
         position: fixed;
         inset: ${SHADOW}px;
         border-radius: ${RADIUS}px;
         background: var(--deckit-background);
-        box-shadow: 0 0 0 1px var(--deckit-divider), var(--deckit-shadow-lifted);
+        box-shadow: var(--deckit-shadow-inactive);
+        transition: box-shadow var(--deckit-press-fade) var(--deckit-press-curve);
     }
-    .deckit-window-material[data-key] { box-shadow: 0 0 0 1px var(--deckit-divider), var(--deckit-shadow-raised); }
+    .deckit-window-material[data-key] { box-shadow: var(--deckit-shadow-key); }
     .deckit-window-title {
         position: fixed;
         top: ${SHADOW}px;
@@ -51,13 +69,13 @@ const STYLE = `
         display: flex;
         align-items: center;
         justify-content: center;
-        height: ${TITLE_BAR.height}px;
         box-sizing: border-box;
-        padding: 0 ${TITLE_BAR.controlsWidth}px;
         border-bottom: 1px solid var(--deckit-divider);
     }
     .deckit-window-title[hidden] { display: none; }
+    .deckit-window-title[data-key] .deckit-window-title-text { color: var(--deckit-text); }
     .deckit-window-edge { position: fixed; }
+    .deckit-window-edge[hidden] { display: none; }
     .deckit-window-edge[data-edge='top'] { top: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
     .deckit-window-edge[data-edge='bottom'] { bottom: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
     .deckit-window-edge[data-edge='left'] { left: ${SHADOW - EDGE}px; top: ${SHADOW}px; bottom: ${SHADOW}px; width: ${EDGE}px; cursor: ew-resize; }
@@ -71,47 +89,98 @@ const STYLE = `
     .deckit-window-edge[data-edge='top-right'], .deckit-window-edge[data-edge='bottom-left'] { cursor: nesw-resize; }
     .deckit-window-button {
         position: fixed;
-        top: ${(TITLE_BAR.height - BUTTON.size) / 2}px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: ${BUTTON.size}px;
         height: ${BUTTON.size}px;
         padding: 0;
         border: 0;
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-disabled);
+        box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+        color: rgba(0, 0, 0, 0.5);
     }
-    [data-key] > .deckit-window-button[data-button='close'], .deckit-window-buttons:hover > [data-button='close'] { background: var(--deckit-alert); }
-    [data-key] > .deckit-window-button[data-button='minimize'], .deckit-window-buttons:hover > [data-button='minimize'] { background: var(--deckit-warn); }
-    [data-key] > .deckit-window-button[data-button='zoom'], .deckit-window-buttons:hover > [data-button='zoom'] { background: var(--deckit-ok); }
+    .deckit-window-button[data-button='close'] { --deckit-window-light: #ff5f57; }
+    .deckit-window-button[data-button='minimize'] { --deckit-window-light: #febc2e; }
+    .deckit-window-button[data-button='zoom'] { --deckit-window-light: #28c840; }
+    :is([data-key], .deckit-window-buttons:hover) > .deckit-window-button:enabled {
+        background: var(--deckit-window-light);
+    }
+    .deckit-window-button:enabled:active { filter: brightness(0.85); }
+    .deckit-window-button svg { width: 8px; height: 8px; opacity: 0; }
+    :is(.deckit-window-buttons:hover .deckit-window-button, .deckit-window-button:focus-visible):enabled svg {
+        opacity: 1;
+    }
     .deckit-window-buttons { position: fixed; inset: 0; }
+    .deckit-drop {
+        position: fixed;
+        box-sizing: border-box;
+        border-radius: ${RADIUS}px;
+        background: color-mix(in srgb, var(--deckit-accent) 16%, transparent);
+        box-shadow: var(--deckit-rim), inset 0 0 0 1px color-mix(in srgb, var(--deckit-accent) 48%, transparent);
+        opacity: 0;
+        transform: scale(${MOTION.SCALE});
+        pointer-events: none;
+        transition:
+            opacity var(--deckit-exit-fade) var(--deckit-exit-curve),
+            transform var(--deckit-exit) var(--deckit-exit-curve);
+    }
+    .deckit-drop[data-shown] {
+        opacity: 1;
+        transform: none;
+        transition:
+            opacity var(--deckit-enter-fade) var(--deckit-enter-curve),
+            transform var(--deckit-enter) var(--deckit-enter-curve);
+    }
 `;
 const LABELS = Object.freeze({ close: 'Close', minimize: 'Minimize', zoom: 'Zoom' });
+// The glyph each button shows while the pointer is over them.
+const GLYPHS = Object.freeze({
+    close: 'M2 2l4 4M6 2L2 6',
+    minimize: 'M1.5 4h5',
+    zoom: 'M4 1.5v5M1.5 4h5',
+});
 const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right']);
 
 // MARK: - Initializer
 // MARK: - Public
 // The desktop, in the desktop's own page: the backdrop under every window, and each window's frame under its content
 // and its buttons over it, each a document this page opens beside itself and main lays where the window is. The page
-// itself is laid over the whole desktop, with the Dock at its left edge and the host window's bar at its top, which
-// drags the host window and holds the active mod's name, clear of the host's controls. It takes the pointer only there,
-// or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the desktop's
-// and the Dock's channels in the page.
+// itself is laid over the whole desktop, with the Dock at its left edge and the host window's bar at its top, an empty
+// strip that drags the host window, its controls in it, the backdrop showing through. Under each panel window in that
+// strip it draws the panel's material: the backdrop is cut away there, so the host window's own material shows
+// through the panel's tint, opaque where the person asks for less transparency. Main lays a material under the page
+// where it draws glass: the Dock's card while it is out and still, and each panel's material while it stands still at
+// its frame, so what lies under them in the host window is blurred too, none where the person asks for less
+// transparency. It takes the pointer only in the
+// strip, or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the
+// desktop's and the Dock's channels in the page.
 function boot(theme, channels) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const ui = KIT.make(theme, { fonts: FONTS.installed({ channels }) });
     KIT.addStyle(STYLE);
-    const setup = PROTOCOL.setup.invoke();
-    let { state } = setup;
+    let { state } = PROTOCOL.setup.invoke();
     const drawn = new Map(); // a window's id -> { material, buttons, off }, its frame's parts as drawn
+    const materials = new Map(); // a panel window's id -> { element, edge, settled }, the material drawn under it
+    const glass = { dock: null, panels: [] }; // where the page draws glass: the Dock's card, the panels standing still
+    let toldGlass = '[]';
 
     const backdrop = surface(PAGE.BACKDROP);
     const backdropRoot = element(backdrop.document, 'div', 'deckit-desktop-backdrop');
-    backdropRoot.style.background = `color-mix(in srgb, var(--deckit-background) ${setup.glass * 100}%, transparent)`;
+    backdropRoot.style.background = 'color-mix(in srgb, var(--deckit-background) var(--deckit-glass), transparent)';
     backdrop.document.body.append(backdropRoot);
 
-    const dock = DOCK.make({ ui, channels, onOut: (out) => PROTOCOL.dock.send({ out }) });
+    const dock = DOCK.make({
+        ui,
+        channels,
+        onOut: (out) => PROTOCOL.dock.send({ out }),
+        onGlass: (material) => {
+            glass.dock = material;
+            tellGlass();
+        },
+    });
     const strip = element(document, 'div', 'deckit-desktop-strip');
-    const title = element(document, 'span', 'deckit-desktop-title');
-    strip.append(title);
     const down = element(document, 'div', 'deckit-desktop-down');
     const downNote = ui.emptyState({
         actions: [
@@ -119,9 +188,16 @@ function boot(theme, channels) {
         ],
     });
     down.append(downNote.element);
-    document.body.append(dock.element, strip, down);
+    const drop = element(document, 'div', 'deckit-drop');
+    document.body.append(drop, dock.element, strip, down);
+    let dropped = null; // the tile the drop shows, or null
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const tellMotion = () => PROTOCOL.motion.send({ reduced: reduced.matches });
+    reduced.addEventListener('change', tellMotion);
+    tellMotion();
 
     MOD_STYLE.wear({ channels, onChange: () => LAYER.dress() });
+    TOKEN.whenOpaque(tellGlass);
     draw();
     PROTOCOL.state.on((next) => {
         state = next;
@@ -130,10 +206,12 @@ function boot(theme, channels) {
 
     function draw() {
         strip.style.height = state.strip.height + 'px';
-        strip.style.padding = `0 ${state.strip.controlsWidth}px`;
-        title.textContent = state.title;
+        drawDrop(state.drop);
+        drawPanels(state.panels);
         dock.setTop(state.strip.height);
         dock.update(state.dock);
+        // The page of a desktop down fades in, a rare sign of the system's own; it goes at once once it is back.
+        if (state.down && down.hidden) ui.motion.appear(down);
         down.hidden = !state.down;
         if (state.down)
             downNote.set({ title: `${state.down.name} needs a restart`, hint: `Its core ${state.down.why}.` });
@@ -145,12 +223,130 @@ function boot(theme, channels) {
         }
         for (const window of state.windows) {
             if (!drawn.has(window.id)) drawn.set(window.id, frameOf(window.id));
-            const { material, bar, text, buttons } = drawn.get(window.id);
+            const { material, bar, text, buttons, edges } = drawn.get(window.id);
+            const laid = window.bar;
             material.toggleAttribute('data-key', window.key);
             buttons.toggleAttribute('data-key', window.key);
+            bar.toggleAttribute('data-key', window.key);
             bar.hidden = window.title === null;
+            bar.style.height = laid.height + 'px';
+            bar.style.padding = `0 ${laid.areaX}px`;
             text.textContent = window.title ?? '';
+            for (const edge of edges) edge.hidden = !laid.enabled.zoom;
+            for (const { name, x, y } of LAYOUT.buttonsOf(laid)) {
+                const button = buttons.querySelector(`[data-button='${name}']`);
+                Object.assign(button.style, { left: x + 'px', top: y + 'px' });
+                button.disabled = !laid.enabled[name];
+            }
         }
+    }
+
+    // Each panel window's material at its frame, rounded as LAYOUT.panelRadius has it, and the backdrop cut away
+    // under it. One at the right edge slides in from past it as it opens and out as it closes, or fades where the
+    // system asks for reduced motion, the backdrop cut away only while it stands still at its frame.
+    function drawPanels(panels) {
+        const open = new Set(panels.map(({ id }) => id));
+        for (const [id, material] of materials) {
+            if (open.has(id)) continue;
+            materials.delete(id);
+            if (material.edge !== 'right') {
+                material.element.remove();
+                continue;
+            }
+            material.element.toggleAttribute('data-leaving', true);
+            finished(material.element, () => material.element.remove());
+        }
+        for (const { id, edge, frame } of panels) {
+            if (!materials.has(id)) {
+                const made = { element: element(document, 'div', 'deckit-panel-material'), edge, settled: true };
+                document.body.insertBefore(made.element, strip);
+                materials.set(id, made);
+                if (edge === 'right') {
+                    made.element.dataset.edge = edge;
+                    made.settled = false;
+                    finished(made.element, () => {
+                        made.settled = true;
+                        drawPanels(state.panels);
+                    });
+                }
+            }
+            Object.assign(materials.get(id).element.style, {
+                left: frame.x + 'px',
+                top: frame.y + 'px',
+                width: frame.width + 'px',
+                height: frame.height + 'px',
+            });
+        }
+        const still = panels.filter(({ id }) => materials.get(id).settled);
+        const holes = still.map(({ edge, frame }) => {
+            const { x, y, width, height } = frame;
+            const shape =
+                `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+                `<rect width="${width}" height="${height}" rx="${LAYOUT.panelRadius(edge, frame)}"/></svg>`;
+            return { image: `url("data:image/svg+xml,${encodeURIComponent(shape)}")`, at: `${x}px ${y}px` };
+        });
+        glass.panels = still.map(({ edge, frame }) => ({
+            material: 'popover',
+            ...frame,
+            cornerRadius: LAYOUT.panelRadius(edge, frame),
+        }));
+        tellGlass();
+        const masked = holes.length > 0;
+        const { style } = backdropRoot;
+        const set = (name, values) =>
+            masked ? style.setProperty(name, values.join(', ')) : style.removeProperty(name);
+        set('mask-image', [...holes.map(({ image }) => image), 'linear-gradient(#000, #000)']);
+        set('mask-position', [...holes.map(({ at }) => at), '0 0']);
+        set('mask-size', [...still.map(({ frame }) => `${frame.width}px ${frame.height}px`), '100% 100%']);
+        set('mask-repeat', ['no-repeat']);
+        set('mask-composite', [...holes.map(() => 'exclude'), 'add']);
+    }
+
+    // The tile a window dragged by its title bar takes let go now, drawn at its frame over the windows: it grows in
+    // from a little smaller at the side the pointer is at as it comes, goes from one tile to the next by the `move`
+    // spring from where it stands, and shrinks back out as the pointer leaves the side or the drag ends.
+    function drawDrop(next) {
+        const tile = next?.tile ?? null;
+        if (tile === dropped) return;
+        const was = dropped && drop.getBoundingClientRect();
+        dropped = tile;
+        drop.toggleAttribute('data-shown', !!tile);
+        if (!tile) return;
+        const { x, y, width, height } = next.frame;
+        const sides = tile.split('-');
+        const across = sides.includes('left') ? 'left' : sides.includes('right') ? 'right' : 'center';
+        const down = sides.includes('top') || tile === 'fill' ? 'top' : sides.includes('bottom') ? 'bottom' : 'center';
+        Object.assign(drop.style, {
+            left: x + 'px',
+            top: y + 'px',
+            width: width + 'px',
+            height: height + 'px',
+            transformOrigin: `${across} ${down}`,
+        });
+        if (!was) return;
+        const { length, easing } = TOKEN.MOTION.over('move', Math.hypot(was.left - x, was.top - y, was.width - width));
+        if (!length) return;
+        const from =
+            `translate(${was.left - x}px, ${was.top - y}px) ` + `scale(${was.width / width}, ${was.height / height})`;
+        drop.animate(
+            [
+                { transformOrigin: '0 0', transform: from },
+                { transformOrigin: '0 0', transform: 'none' },
+            ],
+            {
+                duration: length,
+                easing,
+            }
+        );
+    }
+
+    // Main hears where the page draws glass as it changes, none where the person asks for less transparency.
+    function tellGlass() {
+        const materials = TOKEN.opaque() ? [] : [...(glass.dock ? [glass.dock] : []), ...glass.panels];
+        const written = JSON.stringify(materials);
+        if (written === toldGlass) return;
+        toldGlass = written;
+        PROTOCOL.glass.send({ materials });
     }
 
     // A window's frame and buttons, in the two documents main lets this page open for it: a titled window's frame has
@@ -159,7 +355,7 @@ function boot(theme, channels) {
         const frame = surface(PAGE.frameOf(id));
         const material = element(frame.document, 'div', 'deckit-window-material');
         const bar = element(frame.document, 'div', 'deckit-window-title');
-        const text = element(frame.document, 'span', 'deckit-desktop-title');
+        const text = element(frame.document, 'span', 'deckit-window-title-text');
         bar.append(text);
         bar.addEventListener('pointerdown', (down) => move(id, bar, down));
         const edges = EDGES.map((edge) => {
@@ -173,18 +369,20 @@ function boot(theme, channels) {
         const held = surface(PAGE.buttonsOf(id));
         const buttons = element(held.document, 'div', 'deckit-window-buttons');
         buttons.addEventListener('pointerdown', () => PROTOCOL.press.send({ id }));
-        LAYOUT.BUTTONS.forEach((name, at) => {
+        LAYOUT.BUTTONS.forEach((name) => {
             const button = element(held.document, 'button', 'deckit-window-button');
             button.type = 'button';
             button.dataset.button = name;
             button.title = LABELS[name];
             button.setAttribute('aria-label', LABELS[name]);
-            button.style.left = BUTTON.inset + at * (BUTTON.size + BUTTON.gap) + 'px';
+            button.innerHTML =
+                '<svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">' +
+                `<path d="${GLYPHS[name]}"/></svg>`;
             button.addEventListener('click', () => PROTOCOL.button.send({ id, button: name }));
             buttons.append(button);
         });
         held.document.body.append(buttons);
-        return { material, bar, text, buttons, off: [frame.off, held.off] };
+        return { material, bar, text, buttons, edges, off: [frame.off, held.off] };
     }
 
     // A drag of a titled window's title bar, read on the screen, as the surface moves with the frame. The second press
@@ -197,6 +395,7 @@ function boot(theme, channels) {
         bar.setPointerCapture(down.pointerId);
         const send = (phase, event) =>
             PROTOCOL.move.send({ id, phase, dx: event.screenX - down.screenX, dy: event.screenY - down.screenY });
+        const grab = { x: down.clientX - SHADOW, y: down.clientY - SHADOW };
         const moved = (event) => send('changed', event);
         const up = (event) => {
             bar.removeEventListener('pointermove', moved);
@@ -207,7 +406,7 @@ function boot(theme, channels) {
         bar.addEventListener('pointermove', moved);
         bar.addEventListener('pointerup', up);
         bar.addEventListener('pointercancel', up);
-        send('began', down);
+        PROTOCOL.move.send({ id, phase: 'began', dx: 0, dy: 0, ...grab });
     }
 
     // A drag of an edge, read on the screen, as the surface moves with the frame: the frame main is told as it goes,
@@ -228,13 +427,13 @@ function boot(theme, channels) {
                 event.screenY - down.screenY,
                 window.minimum
             );
-            PROTOCOL.resize.send({ id, phase: 'changed', ...frame });
+            PROTOCOL.resize.send({ id, phase: 'changed', edge, ...frame });
         };
         const up = () => {
             band.removeEventListener('pointermove', move);
             band.removeEventListener('pointerup', up);
             band.removeEventListener('pointercancel', up);
-            PROTOCOL.resize.send({ id, phase: 'ended', ...frame });
+            PROTOCOL.resize.send({ id, phase: 'ended', edge, ...frame });
         };
         band.addEventListener('pointermove', move);
         band.addEventListener('pointerup', up);
@@ -256,6 +455,14 @@ function element(page, tag, className) {
     const made = page.createElement(tag);
     made.className = className;
     return made;
+}
+
+// `then` once each animation on `node` has run, as soon as what draws it now is done; at once where none runs.
+function finished(node, then) {
+    queueMicrotask(() => {
+        const running = node.getAnimations().map(({ finished: done }) => done.catch(() => {}));
+        Promise.all(running).then(then);
+    });
 }
 
 export { boot };

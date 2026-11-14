@@ -22,7 +22,7 @@ function listView({ ui, icons, onSort }) {
             padding: 0 8px;
             border-bottom: var(--deckit-border);
             color: var(--deckit-muted);
-            font: 600 11.5px var(--deckit-font);
+            font: var(--deckit-type-label);
         }
         .finder-list-header[hidden] { display: none; }
         .finder-sort {
@@ -49,7 +49,8 @@ function listView({ ui, icons, onSort }) {
             cursor: default;
             transition: none;
         }
-        .finder-list-row[data-hidden] { opacity: 0.55; }
+        .finder-list-row[data-hidden] { color: var(--deckit-muted); }
+        .finder-list-row[data-hidden] :is(.finder-icon, .finder-icon-placeholder) { opacity: 0.55; }
         .finder-list-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
         .finder-list-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .finder-alias { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }

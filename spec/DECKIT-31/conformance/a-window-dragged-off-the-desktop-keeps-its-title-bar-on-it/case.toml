@@ -1,6 +1,6 @@
 case = 17
 name = "a-window-dragged-off-the-desktop-keeps-its-title-bar-on-it"
-note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. The person presses on main, so mod-a may activate. A window is left where 64 of its title bar's width and its whole height are on the desktop: the person drags main 2000 right and 2000 down."
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. The person presses on main, so mod-a may activate. A window is left where 64 of its title bar's width and its whole height are on the desktop: the person drags main 2000 down, past the bottom edge, which no tile is taken at."
 
 [host]
 base = "shell"
@@ -21,10 +21,10 @@ input = "window"
 mod = "mod-a"
 name = "main"
 action = "move"
-by = { x = 2000, y = 2000 }
+by = { x = 0, y = 2000 }
 
 [[step]]
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 1216, y = 762, width = 720, height = 480 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 752, width = 720, height = 480 }, key = true, minimized = false }]

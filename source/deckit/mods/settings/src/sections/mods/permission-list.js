@@ -1,20 +1,20 @@
-// The rules of a permission list. The Mods section adopts them once.
+const { listWell } = require('./list-well.js');
+
+// The rules of a permission list, drawn in a well. The Mods section adopts them once.
 const PERMISSION_LIST_STYLE = `
-    .settings-permissions { overflow: hidden; border: var(--deckit-border); border-radius: var(--deckit-radius-large); }
     .settings-permission {
         display: grid;
         grid-template-columns: 28px minmax(0, 1fr);
         column-gap: 11px;
         padding: 10px 12px;
     }
-    .settings-permission + .settings-permission { border-top: var(--deckit-border); }
     .settings-permission-icon {
         display: flex;
         align-items: center;
         justify-content: center;
         width: 28px;
         height: 28px;
-        border-radius: 7px;
+        border-radius: var(--deckit-radius-medium);
         background: color-mix(in srgb, var(--deckit-accent) 16%, transparent);
         color: var(--deckit-accent);
     }
@@ -25,21 +25,21 @@ const PERMISSION_LIST_STYLE = `
         column-gap: 8px;
         line-height: 1.45;
     }
-    .settings-permission-name { font: 600 13.5px var(--deckit-font); }
-    .settings-permission-id { overflow-wrap: anywhere; font: 11.5px var(--deckit-mono); opacity: 0.5; }
-    .settings-permission-reason {
-        margin-top: 2px;
+    .settings-permission-name { font: 600 var(--deckit-type-body); }
+    .settings-permission-id {
         overflow-wrap: anywhere;
-        font: var(--deckit-type-body);
-        opacity: 0.85;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-small);
+        font-family: var(--deckit-mono);
     }
+    .settings-permission-reason { margin-top: 2px; overflow-wrap: anywhere; font: var(--deckit-type-body); }
     .settings-permission-description {
         margin-top: 4px;
         overflow-wrap: anywhere;
+        color: var(--deckit-muted);
         font: var(--deckit-type-small);
-        opacity: 0.5;
     }
-    .settings-permission-unusable { margin-top: 4px; font: var(--deckit-type-small); color: var(--deckit-warn); }
+    .settings-permission-unusable { margin-top: 4px; font: var(--deckit-type-small); color: var(--deckit-warn-ink); }
 `;
 
 // The glyph each permission is drawn with, by its id; one Settings does not know is drawn as a permission.
@@ -53,6 +53,7 @@ const PERMISSION_ICONS = {
     'system.clipboard-write': 'copy',
     'system.file-handlers': 'externalWindow',
     'system.overlay-windows': 'dockWindow',
+    'deckit.panel-windows': 'panelTop',
     'system.notifications': 'bell',
     'system.global-keys': 'monitor',
     'deckit.mods': 'puzzle',
@@ -76,7 +77,7 @@ const BACKGROUND = {
 // app gives it. One this app does not give has only its id and the reason. `background`, the mod's reason to run in
 // the background, is a row first where it has one.
 function permissionList({ ui, permissions, background = null }) {
-    const element = ui.element('div', { className: 'settings-permissions' });
+    const element = listWell(ui, 'settings-permissions');
 
     if (background) element.append(row({ ...BACKGROUND, reason: background }));
     for (const permission of permissions) element.append(permissionRow(permission));

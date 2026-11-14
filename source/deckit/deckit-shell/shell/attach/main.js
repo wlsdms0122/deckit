@@ -18,6 +18,7 @@ import { createWindows } from '../window/main.js';
 import { createOverlay } from '../overlay/main.js';
 import { createKey } from '../key/main.js';
 import { createFiles } from '../files/main.js';
+import { createIcons } from '../mods/icon.js';
 import * as FIELD from '../../../deckit-sdk/shell/mods/field.js';
 
 // MARK: - Property
@@ -57,7 +58,8 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
     const OVERLAY = createOverlay({ deckit, web, PAGES, KEY });
     // A stage, held to what a stage is as the environment makes it.
     const makeStage = () => checked(ENV.stage(), ENVIRONMENT.STAGE, 'a stage');
-    const REGION = createRegion({ deckit });
+    const ICONS = createIcons({ deckit });
+    const REGION = createRegion({ deckit, ICONS });
     const DROP = createDrop({ deckit, PAGES });
     const DESKTOP = createDesktop({
         REGION,
@@ -83,7 +85,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         showWindow: (control, options) => host.showWindow(control, options),
         closeWindow: (control) => host.closeWindow(control),
     });
-    const DOCK = createDock({ deckit, state: STATE, DESKTOP, WINDOWS, host, dock });
+    const DOCK = createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host, dock });
     // What the shell keeps of a mod: the frames its windows were left at, and its place in the Dock.
     deckit.stack(SHELL_LAYER.LAYER, {
         keeps: Object.freeze({
@@ -99,6 +101,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         FONTS.start({ onChange: THEME.setFonts });
         STYLE.start();
+        ICONS.start();
         OVERLAY.start({ keyboardOf: WINDOWS.keyboardOf });
         REGION.start();
         DROP.start();

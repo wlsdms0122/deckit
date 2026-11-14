@@ -1,14 +1,15 @@
 // The windows mods open (deckit-shell/shell/window/main), over stand-ins for what connect answers, the shell's pages,
 // their overlays, the desktop and the host app: a normal window opened on the desktop at its size, one of a name per
 // run, a window opened or ordered front without taking the keyboard and one made key and ordered front, an overlay
-// window guarded by its permission, picked by its level, and in a floating window of the host app's, taking the
-// keyboard only where its mod may activate, and its taking it the local seat's input, the mod's page laid in that
-// window under its content until the page has a normal window and again once it has none, the children its regions
-// show laid over its content, the content's keys and presses heard and the page told of its window, a window closed
-// by its page and with its page, the keyboard of a page going to its key window's content, and a web page's window: on
+// window and a panel window guarded by each one's permission, picked by its level, an overlay one in a floating window
+// of the host app's, taking the keyboard only where its mod may activate, and its taking it the local seat's input, the
+// mod's page laid in that window under its content until the page has a normal window and again once it has none, the
+// children its regions show laid over its content, the content's keys and presses heard and the page told of its
+// window, a window closed by its page and with its page, the keyboard of a page going to its key window's content, a
+// panel window in the host's bar, never ordered front and pressed as no window made key, one at the right edge, which
+// the desktop gives the keyboard as it is ordered front, and a web page's window: on
 // the desktop for the mod whose page shows it, titled, with no name, closed however it closes with those who listen
-// told once. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as
-// such.
+// told once. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -34,7 +35,9 @@ async function main() {
             opened.mod === 'a' &&
             opened.size.width === 720 &&
             opened.size.height === 480 &&
-            opened.title === null,
+            opened.bar.style === 'unified' &&
+            opened.bar.height === 48 &&
+            opened.title === '',
         opened
     );
     const again = shell.fromPage('open', pages.a, { name: 'main', width: 300, height: 200 });
@@ -64,12 +67,12 @@ async function main() {
     );
     shell.fromPage('close', pages.a, { id: quiet.id });
 
-    const picked = [{ level: 'overlay' }, { level: 'normal' }, { level: 5 }, {}, null, 'overlay'].map(
-        shell.guards['deckit-shell:window-open']
-    );
+    const levels = [{ level: 'overlay' }, { level: 'panel' }, { level: 'normal' }, { level: 'constructor' }];
+    const picked = [...levels, { level: 5 }, {}, null, 'overlay'].map(shell.guards['deckit-shell:window-open']);
     check(
-        'an overlay window is guarded by its permission, picked by its level, and any other window by none',
-        JSON.stringify(picked) === '["system.overlay-windows",null,null,null,null,null]',
+        'an overlay window and a panel window are each guarded by its permission, picked by its level, and any other ' +
+            'window by none',
+        JSON.stringify(picked) === '["system.overlay-windows","deckit.panel-windows",null,null,null,null,null,null]',
         picked
     );
 
@@ -204,7 +207,8 @@ async function main() {
             webWindow.title === 'Example' &&
             webWindow.name === null &&
             webWindow.size.width === 520 &&
-            webWindow.size.height === 700,
+            webWindow.size.height === 748 &&
+            webWindow.bar.style === 'titled',
         webWindow
     );
     web.setTitle('Example, again');
@@ -253,6 +257,54 @@ async function main() {
         { closed: desktop.closed, closedWithPage }
     );
 
+    const panel = shell.fromPage('open', pages.b, { name: 'bar', level: 'panel', width: 120, height: 30 });
+    const inBar = desktop.panels.at(-1);
+    const panelContent = { name: 'content-panel' };
+    shell.openSurface(panel.surface, panelContent);
+    const fronted = desktop.fronted.length;
+    shell.fromPage('make-key-and-order-front', pages.b, { id: panel.id });
+    shell.fromPage('open', pages.b, { name: 'bar', level: 'panel' });
+    shell.focus(panelContent);
+    check(
+        "a panel window stands in the host's bar, as the desktop places it, ordered front by nothing, and a press in " +
+            'it is no press that makes a window key',
+        inBar?.id === panel.id &&
+            inBar.level === 'panel' &&
+            inBar.edge === 'top' &&
+            inBar.size.width === 120 &&
+            !host.shown.some(({ control }) => control.name === 'bar') &&
+            desktop.fronted.length === fronted &&
+            desktop.panelPressed.at(-1) === panel.id &&
+            !desktop.pressed.includes(panel.id),
+        { inBar, panelPressed: desktop.panelPressed }
+    );
+    shell.fromPage('close', pages.b, { id: panel.id });
+    check(
+        'a panel window closed leaves the bar',
+        desktop.panelsClosed.includes(panel.id) && shell.pagesClosed.includes(panelContent),
+        desktop.panelsClosed
+    );
+
+    const side = shell.fromPage('open', pages.b, { name: 'side', level: 'panel', edge: 'right', width: 360 });
+    const atSide = desktop.panels.at(-1);
+    shell.fromPage('make-key-and-order-front', pages.b, { id: side.id });
+    shell.fromPage('order-front', pages.b, { id: side.id });
+    const normalEdge = shell.fromPage('open', pages.b, { name: 'plain', edge: 'right' });
+    check(
+        'a panel window at the right edge opens at that edge, and makeKeyAndOrderFront and orderFront ask the desktop ' +
+            'to give it the keyboard as an overlay window takes it; a window at another level has no edge',
+        atSide?.id === side.id &&
+            atSide.edge === 'right' &&
+            panel.id !== side.id &&
+            JSON.stringify(desktop.panelsFronted) ===
+                JSON.stringify([
+                    { id: side.id, activates: true },
+                    { id: side.id, activates: false },
+                ]) &&
+            desktop.opened.find(({ id }) => id === normalEdge.id)?.edge === null,
+        { atSide, fronted: desktop.panelsFronted }
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
@@ -299,6 +351,10 @@ function windowsOver(createWindows) {
         titles: [],
         key: null,
         frames: new Map(),
+        panels: [],
+        panelsClosed: [],
+        panelPressed: [],
+        panelsFronted: [],
         change: () => changes.forEach((listener) => listener()),
     };
     const host = { shown: [], closed: [] };
@@ -337,6 +393,13 @@ function windowsOver(createWindows) {
         orderFront: (window, { activates = true } = {}) =>
             desktop.fronted.push({ id: window.id, key: activates, activates }),
         press: (window) => desktop.pressed.push(window.id),
+        openPanel: (window) => desktop.panels.push(window),
+        closePanel: (window) => desktop.panelsClosed.push(window.id),
+        pressPanel: (window) => desktop.panelPressed.push(window.id),
+        orderFrontPanel: (window, { activates = true } = {}) =>
+            desktop.panelsFronted.push({ id: window.id, activates }),
+        keyPanel: () => null,
+        toDesktop: () => {},
         localSeat: 'local',
         activation: {
             input: (seat, mod) => desktop.inputs.push(`${seat}:${mod}`),
@@ -356,7 +419,7 @@ function windowsOver(createWindows) {
             shown: true,
             key: window.id === desktop.key,
             ...window.size,
-            titleBar: { height: 38, controlsWidth: 78 },
+            titleBar: { height: 48, controlsWidth: 78 },
         }),
         onChange: (listener) => changes.push(listener),
     };

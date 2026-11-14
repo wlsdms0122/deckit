@@ -6,15 +6,34 @@ import * as POINTER from '../ui/pointer/index.js';
 import * as PRESENTATION from '../ui/presentation/index.js';
 
 // MARK: - Property
-// What the content's document wears under the page's rules: clear, the content filling it.
+// What the content's document wears under the page's rules: clear, the content filling it. The content of a panel
+// window at the right edge slides in from past that edge as it first comes on screen, with the material the desktop
+// draws under it, and fades in where the system asks for reduced motion.
 const STYLE = `
     html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
     body { -webkit-user-select: none; user-select: none; font: var(--deckit-text-size) var(--deckit-text-font); }
     .deckit-window { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
     .deckit-window > * { flex: 1 1 auto; min-height: 0; }
+    .deckit-window[data-edge='right'][data-shown] {
+        animation: deckit-window-in var(--deckit-enter) var(--deckit-enter-curve);
+    }
+    @keyframes deckit-window-in { from { transform: translateX(calc(100% + 8px)); } }
+    @keyframes deckit-window-fade { from { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+        .deckit-window[data-edge='right'][data-shown] {
+            animation: deckit-window-fade var(--deckit-enter-fade) var(--deckit-enter-curve);
+        }
+    }
 `;
-const LEVELS = Object.freeze(['normal', 'overlay']);
+const LEVELS = Object.freeze(['normal', 'overlay', 'panel']);
+const EDGES = Object.freeze(['top', 'right']);
 const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didResize', 'didClose']);
+// A normal window's title bar: its styles, the height it is never below, and the flags that say which buttons act.
+const TITLE_BARS = Object.freeze(['unified', 'titled']);
+const TITLE_BAR_HEIGHT = 48;
+const FLAGS = Object.freeze(['closable', 'minimizable', 'resizable']);
+// The safe area's insets, set on the content's root as custom properties.
+const INSETS = Object.freeze(['top', 'right', 'bottom', 'left']);
 
 // MARK: - Initializer
 // MARK: - Public
@@ -51,9 +70,10 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     // MARK: - Public
     // `open(options)` opens a window, or orders front the one of its name open, and answers it: the key window, as
     // `makeKeyAndOrderFront()` puts it, or with `activates` false in front as `orderFront()` puts it, the keyboard left
-    // where it is. It throws its refusal: NOT_PERMITTED for the level `overlay` without system.overlay-windows, then
-    // INVALID_ARGUMENT for options that are no window's, then ENDED once `scope` is cut. `list()` answers the windows
-    // open, in the order they opened, and throws ENDED once `scope` is cut.
+    // where it is. It throws its refusal: NOT_PERMITTED for the level `overlay` without system.overlay-windows, or
+    // `panel` without deckit.panel-windows, then INVALID_ARGUMENT for options that are no window's, then ENDED once
+    // `scope` is cut. `list()` answers the windows open, in the order they opened, and throws ENDED once `scope` is
+    // cut.
     function forScope(scope) {
         scope.add(() => {
             for (const [id, held] of open) if (held.scope === scope) PROTOCOL.close.send({ id });
@@ -88,8 +108,11 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         const problem = problemOf(options);
         if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `windows.open: ${problem}`);
         if (scope.isCut) throw cut('windows.open');
-        const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
-        const payload = { name, level, width, height, minWidth, minHeight, activates };
+        const { name, level = 'normal', edge = 'top', width, height, minWidth, minHeight, activates = true } = options;
+        const { titleBar, titleBarHeight, controlsOrigin, closable, minimizable, resizable, title = '' } = options;
+        const bar = { titleBar, titleBarHeight, controlsX: controlsOrigin?.x, controlsY: controlsOrigin?.y };
+        const flags = { closable, minimizable, resizable };
+        const payload = { name, level, edge, width, height, minWidth, minHeight, activates, ...bar, ...flags, title };
         const { id, surface } = PROTOCOL.open.invoke(payload);
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
@@ -99,6 +122,9 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         document.head.replaceChildren(style);
         const root = document.createElement('div');
         root.className = 'deckit-window';
+        if (level === 'panel' && edge === 'right') root.dataset.edge = 'right';
+        // A panel's content lies on the material the desktop draws under it.
+        if (level === 'panel') root.dataset.deckitGlass = '';
         root.append(options.content);
         document.body.replaceChildren(root);
         const held = {
@@ -107,6 +133,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             document,
             scope,
             state: { shown: false, key: false, size: null },
+            title,
             off: [],
         };
         held.off.push(
@@ -139,6 +166,17 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             get isKey() {
                 return held.state.key;
             },
+            get title() {
+                return held.title;
+            },
+            setTitle(title) {
+                if (typeof title !== 'string')
+                    throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'setTitle takes a title, a text');
+                sent('setTitle', () => {
+                    held.title = title;
+                    PROTOCOL.setTitle.send({ id, title });
+                })();
+            },
             close: sent('close', () => PROTOCOL.close.send({ id })),
             minimize: sent('minimize', () => PROTOCOL.minimize.send({ id })),
             zoom: sent('zoom', () => PROTOCOL.zoom.send({ id })),
@@ -153,7 +191,8 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     }
 
     // A press in a drag region of the content: its moves and release are the content's, on the screen, so the
-    // window moving under the pointer does not move the press. The second press of a double click is the title bar's.
+    // window moving under the pointer does not move the press, told where it pressed in the content as it begins. The
+    // second press of a double click is the title bar's.
     function moved(id, down) {
         if (down.detail === 2) return PROTOCOL.doubleClick.send({ id });
         const document = down.target.ownerDocument;
@@ -168,7 +207,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         };
         document.addEventListener('mousemove', move, true);
         document.addEventListener('mouseup', up, true);
-        send('began', down);
+        PROTOCOL.move.send({ id, phase: 'began', dx: 0, dy: 0, x: down.clientX, y: down.clientY });
     }
 
     // What main tells of the window, each part told as it changes: it appears before it becomes key, and resigns key
@@ -176,7 +215,8 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     function told(held, { shown, key, width, height, titleBar }) {
         const was = held.state;
         held.state = { shown, key, size: { width, height } };
-        guide(held.document, titleBar);
+        guide(held.document, titleBar, key);
+        if (shown) held.document.querySelector('.deckit-window')?.toggleAttribute('data-shown', true);
         if (shown && !was.shown) tell(held, 'didAppear');
         if (was.key && !key) tell(held, 'didResignKey');
         if (!was.key && key) tell(held, 'didBecomeKey');
@@ -184,12 +224,17 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         if (was.size && (was.size.width !== width || was.size.height !== height)) tell(held, 'didResize');
     }
 
-    // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons.
-    function guide(document, titleBar) {
+    // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons. Its safe area
+    // is the frame less what the shell covers: the bar across its top. The root says whether the window is key
+    // (`data-deckit-key`), which the kit's title bar and selection read.
+    function guide(document, titleBar, key) {
         const root = document.documentElement;
+        const inset = { top: titleBar?.height ?? 0, right: 0, bottom: 0, left: 0 };
+        root.dataset.deckitKey = String(key);
         root.toggleAttribute('data-deckit-title-bar', !!titleBar);
         root.style.setProperty('--deckit-title-bar-area-height', (titleBar?.height ?? 0) + 'px');
         root.style.setProperty('--deckit-title-bar-area-x', (titleBar?.controlsWidth ?? 0) + 'px');
+        for (const side of INSETS) root.style.setProperty(`--deckit-safe-area-inset-${side}`, inset[side] + 'px');
     }
 
     function ended(id, held) {
@@ -224,11 +269,24 @@ function problemOf(options) {
     if (CHANNEL.kindOf(options) !== 'object') return 'options is no table';
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
-        return `takes { name, content, level, width, height, minWidth, minHeight, activates, ${CALLBACKS.join(', ')} }, name a text and content an element`;
-    if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.join(' or ')}`;
+        return `takes { name, content, level, edge, width, height, minWidth, minHeight, activates, titleBar, titleBarHeight, controlsOrigin, ${FLAGS.join(', ')}, title, ${CALLBACKS.join(', ')} }, name a text and content an element`;
+    if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.slice(0, -1).join(', ')} or ${LEVELS.at(-1)}`;
+    if (options.edge !== undefined && !EDGES.includes(options.edge)) return `takes an edge of ${EDGES.join(' or ')}`;
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
     if (options.activates !== undefined && typeof options.activates !== 'boolean') return 'takes activates a boolean';
+    if (options.titleBar !== undefined && !TITLE_BARS.includes(options.titleBar))
+        return `takes a titleBar of ${TITLE_BARS.join(' or ')}`;
+    const { titleBarHeight, controlsOrigin, title } = options;
+    if (titleBarHeight !== undefined && !(Number.isFinite(titleBarHeight) && titleBarHeight >= TITLE_BAR_HEIGHT))
+        return `takes a titleBarHeight of ${TITLE_BAR_HEIGHT} or more`;
+    const origin = controlsOrigin === undefined || CHANNEL.kindOf(controlsOrigin) === 'object';
+    const at = (axis) =>
+        controlsOrigin?.[axis] === undefined || (Number.isFinite(controlsOrigin[axis]) && controlsOrigin[axis] >= 0);
+    if (!origin || !at('x') || !at('y')) return 'takes a controlsOrigin { x, y }, each a number 0 or more';
+    const flags = FLAGS.filter((key) => options[key] !== undefined && typeof options[key] !== 'boolean');
+    if (flags.length) return `takes ${flags.join(', ')} a boolean`;
+    if (title !== undefined && typeof title !== 'string') return 'takes a title, a text';
     const told = CALLBACKS.filter((key) => options[key] !== undefined && typeof options[key] !== 'function');
     if (told.length) return `takes ${told.join(', ')} a function`;
     return '';

@@ -8,6 +8,8 @@ const { handlerRow } = require('../handler-list/handler-list.js');
 // and goes by its id. A pin deckit refuses is told on its card. `mods` is deckit.mods.
 function interfacesSection({ ui, mods }) {
     const TITLE = 'Interfaces';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'layers';
     const KEYWORDS = ['인터페이스', '주인', '고정', 'interface', 'owner', 'provider', 'pin'];
     const DESCRIPTION =
         'What mods offer each other, by name, and the mods that provide each. The mods that use one reach its ' +
@@ -21,17 +23,25 @@ function interfacesSection({ ui, mods }) {
     ui.addStyle(`
         .settings-interface-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; }
         .settings-interface-name { flex: 1 1 auto; min-width: 0; font: 600 var(--deckit-type-body); }
-        .settings-interface-description { padding: 1px 12px 6px; font: var(--deckit-type-small); opacity: 0.5; }
-        .settings-interface-none { padding: 4px 12px 6px 44px; font: 12.5px var(--deckit-font); opacity: 0.4; }
+        .settings-interface-description {
+            padding: 1px 12px 6px;
+            font: var(--deckit-type-small);
+            color: var(--deckit-muted);
+        }
+        .settings-interface-none {
+            padding: 4px 12px 6px 44px;
+            font: var(--deckit-type-small);
+            color: var(--deckit-muted);
+        }
         .settings-interface-majors {
             flex: 0 0 auto;
             font: var(--deckit-type-small);
             font-variant-numeric: tabular-nums;
-            opacity: 0.45;
+            color: var(--deckit-muted);
         }
         .settings-interface-refusal {
             padding: 4px 12px 6px 44px;
-            color: var(--deckit-alert);
+            color: var(--deckit-alert-ink);
             font: var(--deckit-type-small);
             white-space: pre-wrap;
         }
@@ -44,7 +54,7 @@ function interfacesSection({ ui, mods }) {
     });
 
     body.append(cards.element);
-    return { element, title: TITLE, keywords: KEYWORDS, draw };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, draw };
 
     function draw(interfaceQueues) {
         cards.set(interfaceQueues);

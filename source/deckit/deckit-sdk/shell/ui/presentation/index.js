@@ -7,25 +7,42 @@ const STYLE = `
     .deckit-surface {
         position: fixed;
         outline: none;
-        transition: opacity var(--deckit-fast) var(--deckit-easing), transform var(--deckit-base) var(--deckit-easing);
+        transition:
+            opacity var(--deckit-enter-fade) var(--deckit-enter-curve),
+            transform var(--deckit-enter) var(--deckit-enter-curve),
+            background-color var(--deckit-press-fade) var(--deckit-press-curve);
+    }
+    .deckit-surface[data-material] {
+        background-color: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
     }
     .deckit-surface[data-side='bottom'] { transform-origin: top left; }
     .deckit-surface[data-side='top'] { transform-origin: bottom left; }
     .deckit-surface[data-side='right'] { transform-origin: top left; }
     .deckit-surface[data-side='left'] { transform-origin: top right; }
-    .deckit-surface[data-state='closed'] { opacity: 0; pointer-events: none; }
+    .deckit-surface[data-state='closed'] {
+        opacity: 0;
+        pointer-events: none;
+        transition:
+            opacity var(--deckit-exit-fade) var(--deckit-exit-curve),
+            transform var(--deckit-exit) var(--deckit-exit-curve);
+    }
     .deckit-surface[data-state='closed'][data-side='bottom'] { transform: translateY(-6px) scale(.96); }
     .deckit-surface[data-state='closed'][data-side='top'] { transform: translateY(6px) scale(.96); }
     .deckit-surface[data-state='closed'][data-side='right'] { transform: translateX(-6px) scale(.96); }
     .deckit-surface[data-state='closed'][data-side='left'] { transform: translateX(6px) scale(.96); }
-    .deckit-backdrop { position: fixed; inset: 0; }
+    .deckit-surface[data-still],
+    .deckit-surface[data-still] * { transition: none; }
+    .deckit-backdrop { position: fixed; left: 0; top: 0; width: 100%; height: 100%; }
 `;
 // What is presented over the page, bottom first.
 const stack = [];
-// The layer under what is presented, while an element of it is: a press outside it lands there, over the page and
-// its web pages too.
+// The layer under what is presented, while an element of it is: a press outside it on the page lands there, over the
+// page and its web pages too. It lies over the page alone where the overlay is laid wider, so a press past the page
+// reaches what is there.
 let backdrop = null;
 let overlayDocument = null;
+// Whether a key is being heard now: what a key opens or closes does not move.
+let isKeyed = false;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -36,14 +53,22 @@ function start() {
     const [page, overlay] = LAYER.windows();
     overlayDocument = overlay.document;
     watch(page);
+    heed(overlay);
     overlay.addEventListener('pointerdown', dismissOutside, true);
     overlay.addEventListener('keydown', route, true);
     overlay.addEventListener('blur', unfocused);
     overlay.addEventListener('wheel', dismissWheeledOutside, true);
+    // A box placed while the overlay was not laid yet, or laid elsewhere, is placed again once it is.
+    overlay.addEventListener('resize', placeAgain);
+    LAYER.whenMoved(() => {
+        fitBackdrop();
+        placeAgain();
+    });
 }
 
 // What is presented is heard in one more document of the page's, as in the page: a window's content.
 function watch(each) {
+    heed(each);
     each.addEventListener('pointerdown', dismissOutside, true);
     each.addEventListener('keydown', route, true);
     each.addEventListener('blur', unfocused);
@@ -51,19 +76,21 @@ function watch(each) {
     each.addEventListener('scroll', dismissScrolledAway, true);
     each.addEventListener('resize', () => {
         dismissTransient();
+        fitBackdrop();
         placeAgain();
     });
 }
 
-// Presents over the page: `element` (optional) on a layer of its own, placed by `anchor`, `rect`, `point` or `beside`,
-// with the focus and the keyboard the page has.
+// Presents over the page: `element` (optional) on a layer of its own, placed by `anchor`, `rect`, `point` or `beside`
+// (`fit` as PLACE.place has it), with the focus and the keyboard the page has.
 // - A press outside it and what it hangs from dismisses it, then the next one down, until one holds the press. A
 //   `modal` one holds every press.
 // - A key goes to `onKey` first; one it does not take (it returns falsy) that is Escape dismisses it.
 // - A `transient` one is also dismissed by a scroll outside it, a resize and the keyboard leaving the page and its
 //   overlay. One that stays through a resize is placed again, against what it hangs from where that is now.
-// - Dismissing calls `onDismiss`; `close()` plays the exit, `fast` or `base` long by `speed`, or none for null, takes
-//   the element away and gives the focus back to what had it in the overlay as it was presented.
+// - Dismissing calls `onDismiss`; `close()` plays the exit, none where it is `still`, takes the element away and
+//   gives the focus back to what had it in the overlay as it was presented. It comes in by the `enter` spring and
+//   leaves by the `exit` one. What a key presents or closes comes and goes at once.
 function present({
     element = null,
     anchor = null,
@@ -71,10 +98,11 @@ function present({
     point = null,
     beside = null,
     gap = 4,
+    fit = false,
     modal = false,
     transient = false,
     contains = () => false,
-    speed = 'fast',
+    still = false,
     onKey = () => false,
     onDismiss,
 }) {
@@ -88,11 +116,12 @@ function present({
             !!element?.contains(target) || !!anchor?.contains(target) || !!beside?.contains(target) || contains(target),
         onKey,
         dismiss: () => onDismiss(),
-        place: () => (anchor || rect || point || beside) && PLACE.place(element, { anchor, rect, point, beside, gap }),
-        close: () => close(presented, speed),
+        place: () =>
+            (anchor || rect || point || beside) && PLACE.place(element, { anchor, rect, point, beside, gap, fit }),
+        close: () => close(presented, still || isKeyed),
     };
     stack.push(presented);
-    if (element) show(presented);
+    if (element) show(presented, still || isKeyed);
     return presented;
 }
 
@@ -117,22 +146,34 @@ function escape() {
     return true;
 }
 
+// Whether a key is being heard now, in the page or a document of its: what a key changes is drawn at once.
+function keyed() {
+    return isKeyed;
+}
+
 // MARK: - Private
-// The element arrives from its closed state: laid out closed first, or both states land in one style pass.
-function show(presented) {
+// The element arrives from its closed state: laid out closed first, or both states land in one style pass. A `still`
+// one is in its open state at once.
+function show(presented, still) {
     const { element } = presented;
-    if (!backdrop) backdrop = LAYER.add(Object.assign(document.createElement('div'), { className: 'deckit-backdrop' }));
+    if (!backdrop) {
+        backdrop = LAYER.add(Object.assign(document.createElement('div'), { className: 'deckit-backdrop' }));
+        fitBackdrop();
+    }
     element.classList.add('deckit-surface');
     if (!element.hasAttribute('tabindex')) element.tabIndex = -1;
     element.dataset.state = 'closed';
+    element.toggleAttribute('data-still', still);
     presented.layer = LAYER.add(element);
     presented.place();
     void element.offsetHeight;
     element.dataset.state = 'open';
+    void element.offsetHeight;
+    element.removeAttribute('data-still');
     presented.layer.focus();
 }
 
-function close(presented, speed) {
+function close(presented, still) {
     const index = stack.indexOf(presented);
     if (index < 0) return;
     stack.splice(index, 1);
@@ -148,9 +189,22 @@ function close(presented, speed) {
         else active.blur();
     }
     element.dataset.state = 'closed';
-    const length = TOKEN.MOTION[speed];
+    // It fades out as it moves away, both by the `exit` spring, so it is gone once its fade is over.
+    const length = still ? 0 : TOKEN.MOTION.exit.fade;
     if (length) setTimeout(() => element.dataset.state === 'closed' && layer.remove(), length);
     else layer.remove();
+}
+
+// A key is heard from its keydown until the turn after it, what its listeners did meanwhile included.
+function heed(view) {
+    view.addEventListener(
+        'keydown',
+        () => {
+            isKeyed = true;
+            setTimeout(() => (isKeyed = false));
+        },
+        true
+    );
 }
 
 function dismissOutside(event) {
@@ -190,22 +244,39 @@ function dismissWheeledOutside(event) {
     if (!stack.some((presented) => presented.element?.contains(event.target))) dismissTransient();
 }
 
+// The backdrop over the page's own rect in the overlay.
+function fitBackdrop() {
+    if (!backdrop) return;
+    const [page, overlay] = LAYER.windows();
+    const { x, y } = LAYER.viewportOf(overlay);
+    Object.assign(backdrop.element.style, {
+        left: -x + 'px',
+        top: -y + 'px',
+        width: page.innerWidth + 'px',
+        height: page.innerHeight + 'px',
+    });
+}
+
 function placeAgain() {
     for (const presented of stack) if (presented.element) presented.place();
 }
 
-function dismissTransient() {
-    for (const presented of [...stack].reverse()) if (presented.transient) presented.dismiss();
+// Those of `among` still presented, all of it unless given.
+function dismissTransient(among = [...stack]) {
+    for (const presented of [...stack].reverse())
+        if (presented.transient && among.includes(presented)) presented.dismiss();
 }
 
-// After a frame of the window that lost the keyboard.
+// After a frame of the window that lost the keyboard, what was presented as it lost it. An overlay taken off the
+// screen draws its next frame once it is laid again, for what is presented then.
 function unfocused({ currentTarget: view }) {
-    view.requestAnimationFrame(() => setTimeout(dismissUnfocused));
+    const presented = [...stack];
+    view.requestAnimationFrame(() => setTimeout(() => dismissUnfocused(presented)));
 }
 
 // Once none of the page's documents has the keyboard: it went to another page or another app.
-function dismissUnfocused() {
-    if (!LAYER.windows().some(({ document }) => document.hasFocus())) dismissTransient();
+function dismissUnfocused(presented) {
+    if (!LAYER.windows().some(({ document }) => document.hasFocus())) dismissTransient(presented);
 }
 
-export { STYLE, start, watch, present, top, count, escape };
+export { STYLE, start, watch, present, top, count, escape, keyed };

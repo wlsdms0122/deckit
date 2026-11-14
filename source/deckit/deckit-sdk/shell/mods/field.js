@@ -4,6 +4,8 @@ const KEYS = Object.freeze(['activationPolicy', 'view', 'icon', 'keywords']);
 // What a mod is on the desktop: an app the Dock shows while it runs, or one it never shows.
 const REGULAR = 'regular';
 const ACCESSORY = 'accessory';
+// The most an icon's file holds, in bytes.
+const ICON_BYTES = 32768;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -21,9 +23,25 @@ function parentOf(fields, mod) {
     return typeof parent === 'string' && Object.hasOwn(mod?.uses ?? {}, parent) ? parent : null;
 }
 
-// The icon the mod is listed with, an SVG, or ''.
-function iconOf(fields) {
-    return typeof fields?.icon === 'string' ? fields.icon : '';
+// The path of the mod's icon file in its folder, `/` separated as a manifest writes a path, or null.
+function iconPathOf(fields) {
+    return typeof fields?.icon === 'string' && fields.icon ? fields.icon : null;
+}
+
+// The icon a mod is listed with, of `text`, its icon file's text, or null for no file: that text where it is an SVG
+// image the shell draws, at most ICON_BYTES, its root `<svg>` with a square `viewBox`; else ''.
+function iconOf(text) {
+    if (typeof text !== 'string' || new TextEncoder().encode(text).length > ICON_BYTES) return '';
+    const root = /^(?:\s|<\?[^]*?\?>|<!--[^]*?-->|<!DOCTYPE[^>]*>)*<svg(?=[\s/>])([^>]*)>/i.exec(text);
+    const viewBox = root && /\sviewBox\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(root[1]);
+    const box =
+        viewBox &&
+        (viewBox[1] ?? viewBox[2])
+            .trim()
+            .split(/[\s,]+/)
+            .map(Number);
+    const square = box?.length === 4 && box.every(Number.isFinite) && box[2] > 0 && box[2] === box[3];
+    return square ? text : '';
 }
 
 // The words the mod is found by beside its name.
@@ -34,4 +52,4 @@ function keywordsOf(fields) {
 
 // MARK: - Private
 
-export { KEYS, REGULAR, ACCESSORY, activationPolicyOf, parentOf, iconOf, keywordsOf };
+export { KEYS, REGULAR, ACCESSORY, ICON_BYTES, activationPolicyOf, parentOf, iconPathOf, iconOf, keywordsOf };

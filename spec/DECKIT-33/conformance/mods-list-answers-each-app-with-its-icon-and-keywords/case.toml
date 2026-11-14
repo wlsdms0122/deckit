@@ -1,6 +1,6 @@
 case = 15
 name = "mods-list-answers-each-app-with-its-icon-and-keywords"
-note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-a writes an icon and keywords, mod-b writes an icon that is no string and keywords that are no array, so each reads as none, and mod-c writes neither; every keyword of mod-a's that is not empty is answered, in order."
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-a writes an icon, a file of its bundle, and keywords, and is answered with that file's text; mod-b writes an icon that is no string and keywords that are no array, so each reads as none, and mod-c writes neither; every keyword of mod-a's that is not empty is answered, in order."
 
 [host]
 base = "shell"

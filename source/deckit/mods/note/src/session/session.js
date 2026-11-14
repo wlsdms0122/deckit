@@ -5,6 +5,10 @@ const { noteNameOf, isWithin } = require('../notes-folder/path.js');
 // The open note: on screen is the disk version, plus typing not yet saved, unless a question about the disk is up;
 // then nothing is written or typed until it is answered. Every write, rename and move of the open note goes through
 // `enqueue`, so a rename or a move never lands between a save's write and its answer.
+// The trouble banner's tint, and how far it rises towards the header as it comes and goes.
+const BANNER_TINT = 0.16;
+const BANNER_RISE = 4;
+
 function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRenamed, onMenu }) {
     const SAVE_DELAY_MS = 500;
     const CLOSE = {
@@ -107,7 +111,14 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
     };
     const STYLE = `
         .note-session { display: contents; }
-        .note-header { flex: 0 0 auto; width: 100%; box-sizing: border-box; padding: 6px 28px 6px; }
+        /* As wide as the body's measure, in the body's face and size, so the title stands over the text. */
+        .note-header {
+            flex: 0 0 auto;
+            width: min(100%, calc(72ch + 64px));
+            box-sizing: border-box;
+            margin: 0 auto;
+            padding: 6px 32px;
+        }
         .note-title {
             width: 100%;
             box-sizing: border-box;
@@ -116,11 +127,11 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             outline: none;
             background: transparent;
             color: var(--deckit-text);
-            font: 800 26px var(--deckit-font);
-            letter-spacing: -0.01em;
+            font: 600 var(--deckit-type-title);
+            letter-spacing: var(--deckit-tracking-title);
         }
-        .note-title-error { min-height: 0; color: var(--deckit-alert); font: var(--deckit-type-small); }
-        .note-stamp { min-height: 16px; margin-top: 3px; color: var(--deckit-muted); font: 11.5px var(--deckit-font); }
+        .note-title-error { min-height: 0; color: var(--deckit-alert-ink); font: var(--deckit-type-small); }
+        .note-stamp { min-height: 16px; margin-top: 3px; color: var(--deckit-muted); font: var(--deckit-type-caption); }
         .note-banner {
             display: flex;
             align-items: center;
@@ -129,8 +140,8 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             margin: 4px 16px 6px;
             padding: 7px 8px 7px 12px;
             border-radius: var(--deckit-radius-medium);
-            background: ${ui.alpha(theme.color.warn, 0.16)};
-            font: 12.5px var(--deckit-font);
+            background: ${ui.alpha(theme.color.warn, BANNER_TINT)};
+            font: var(--deckit-type-small);
         }
         .note-banner[hidden] { display: none; }
         .note-banner-text { flex: 1 1 auto; }
@@ -160,6 +171,7 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
     const titleError = ui.element('div', { className: 'note-title-error' });
     const stamp = ui.element('div', { className: 'note-stamp' });
     const banner = ui.element('div', { className: 'note-banner' });
+    let leaving = null; // the banner going, once trouble is over
     const menuButton = ui.iconButton({
         icon: ui.icon('ellipsis', { size: 16 }),
         title: 'More',
@@ -224,8 +236,10 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             titleInput.focus();
             titleInput.select();
         },
-        setFont: (font) => {
+        setTypeface: ({ font, size }) => {
             titleInput.style.fontFamily = font;
+            header.style.fontFamily = font;
+            header.style.fontSize = size + 'px';
         },
     };
 
@@ -244,7 +258,10 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
             read = await notesFolder.read(path);
         } catch (error) {
             if (!quiet)
-                ui.dialog({ title: 'Could not open ' + noteNameOf(path), message: error.message, confirmLabel: 'OK' });
+                ui.toast(`Could not open ${noteNameOf(path)}: ${error.message}`, {
+                    kind: 'failure',
+                    action: { label: 'Try Again', run: () => open(path, { focus }) },
+                });
             return 'gone';
         }
         if (attempt !== opening) return 'blocked';
@@ -422,7 +439,10 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
         try {
             await enqueue(() => notesFolder.restore(path));
         } catch (error) {
-            ui.dialog({ title: 'Could not restore ' + noteNameOf(path), message: error.message, confirmLabel: 'OK' });
+            ui.toast(`Could not restore ${noteNameOf(path)}: ${error.message}`, {
+                kind: 'failure',
+                action: { label: 'Try Again', run: () => note.path === path && restoreBackup() },
+            });
             return;
         }
         note.unsaved = false;
@@ -511,8 +531,8 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
         titleInput.disabled = !isOpen || !!note.trouble;
         stamp.textContent = isOpen && note.diskTime ? 'Edited ' + longDate(note.diskTime) : '';
         const trouble = note.trouble && TROUBLE[note.trouble.kind];
-        banner.hidden = !trouble;
-        if (!trouble) return banner.replaceChildren();
+        showBanner(!!trouble);
+        if (!trouble) return;
         const text = trouble.summary + (note.trouble.message ? ': ' + note.trouble.message : '');
         banner.replaceChildren(
             ui.element('span', { className: 'note-banner-text', text }),
@@ -524,17 +544,33 @@ function session({ theme, ui, notesFolder, editor, onLeave, onRelocate, onRename
         );
     }
 
+    // The banner comes in by the kit's `come` as trouble starts and goes by its `go` once it is over, its words kept
+    // until it is gone.
+    function showBanner(shown) {
+        if (shown) {
+            leaving?.cancel();
+            leaving = null;
+            if (banner.hidden) {
+                banner.hidden = false;
+                ui.motion.come(banner, { y: -BANNER_RISE });
+            }
+            return;
+        }
+        if (banner.hidden || leaving) return;
+        const going = (leaving = ui.motion.go(banner, { y: -BANNER_RISE }));
+        going.finished.then(() => {
+            if (leaving !== going) return;
+            leaving.cancel();
+            leaving = null;
+            banner.hidden = true;
+            banner.replaceChildren();
+        });
+    }
+
+    // The banner deepens its tint once and eases back: what holds the person is in it.
     function nudge() {
-        if (!theme.motion.fast) return;
-        banner.animate(
-            [
-                { transform: 'translateX(0)' },
-                { transform: 'translateX(-4px)' },
-                { transform: 'translateX(4px)' },
-                { transform: 'translateX(0)' },
-            ],
-            { duration: 240, easing: theme.motion.easing }
-        );
+        const tint = (strength) => ({ backgroundColor: ui.alpha(theme.color.warn, strength) });
+        ui.motion.swell(banner, tint(BANNER_TINT), tint(BANNER_TINT * 2));
     }
 }
 

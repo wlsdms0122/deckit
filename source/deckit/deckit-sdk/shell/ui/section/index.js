@@ -17,18 +17,16 @@ const STYLE = `
         height: 28px;
         padding: 0 6px 0 8px;
         border: 0;
-        outline: none;
         border-radius: var(--deckit-radius-control);
         background: transparent;
         color: inherit;
         font: inherit;
         text-align: left;
-        transition: background-color var(--deckit-fast) var(--deckit-easing);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     button.deckit-section-heading { cursor: pointer; }
     button.deckit-section-heading:hover { background: var(--deckit-hover); }
     button.deckit-section-heading:active { background: var(--deckit-pressed); }
-    button.deckit-section-heading:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-section-heading[data-current] { background: var(--deckit-selected); }
     .deckit-section[data-foldable] .deckit-section-heading { padding-left: 0; }
     .deckit-section-caret {
@@ -38,26 +36,31 @@ const STYLE = `
         width: 20px;
         color: var(--deckit-muted);
         transition:
-            transform var(--deckit-base) var(--deckit-easing),
-            color var(--deckit-fast) var(--deckit-easing);
+            transform var(--deckit-move) var(--deckit-move-curve),
+            color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-section[data-foldable] .deckit-section-caret { display: flex; }
+    .deckit-section[data-still] .deckit-section-caret {
+        transition: color var(--deckit-press-fade) var(--deckit-press-curve);
+    }
     .deckit-section-icon { display: flex; flex: 0 0 auto; margin-right: 2px; color: var(--deckit-muted); }
     .deckit-section-label {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: var(--deckit-text);
-        font: 700 var(--deckit-type-heading);
-        letter-spacing: 0.08px;
+        color: var(--deckit-muted);
+        font: 600 var(--deckit-type-body);
     }
-    .deckit-section[data-title] .deckit-section-label { font: 800 var(--deckit-type-title); letter-spacing: -0.1px; }
+    .deckit-section[data-title] .deckit-section-label { color: var(--deckit-text); font: 600 var(--deckit-type-heading); }
     .deckit-section[data-collapsed] .deckit-section-caret { transform: rotate(-90deg); color: var(--deckit-disabled); }
     .deckit-section[data-collapsed] .deckit-section-icon { color: var(--deckit-disabled); }
     .deckit-section[data-collapsed] .deckit-section-label { color: var(--deckit-muted); }
-    .deckit-section-body { display: flex; flex-direction: column; flex: 0 0 auto; }
+    .deckit-section-fold { display: grid; grid-template-columns: minmax(0, 1fr); flex: 0 0 auto; }
+    .deckit-section-body { display: flex; flex-direction: column; }
     .deckit-section[data-foldable] .deckit-section-body { padding-left: 18px; }
     .deckit-section-body[hidden] { display: none; }
+    .deckit-section-empty { padding: 4px 8px; color: var(--deckit-muted); font: var(--deckit-type-body); }
+    .deckit-section-empty[hidden] { display: none; }
     .deckit-breadcrumb {
         display: flex;
         align-items: center;
@@ -83,6 +86,8 @@ const STYLE = `
     }
     .deckit-crumb:hover { background: var(--deckit-hover); }
     .deckit-crumb[aria-current='page'] { color: var(--deckit-text); font-weight: 600; cursor: default; background: transparent; }
+    /* In a title bar the current part is the view's title, drawn as the bar's title is. */
+    .deckit-title-bar .deckit-crumb[aria-current='page'] { font: 600 var(--deckit-type-heading); }
     .deckit-crumb[data-shrinks] { flex-shrink: 1; min-width: 30px; }
     .deckit-crumb-separator { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
     .deckit-crumb[hidden], .deckit-crumb-separator[hidden] { display: none; }
@@ -97,7 +102,8 @@ function make(theme, ui) {
 // MARK: - Private
 // A heading over a body. With `collapsed` a boolean the heading folds the body: a press reports the fold asked
 // for and the caller sets it. With `onHeading` the heading is pressed. `actions` are { icon, title, run(button) }
-// at the heading's end; `actions` of the result are their buttons.
+// at the heading's end; `actions` of the result are their buttons. `empty` is the line the body shows first while
+// `setEmpty(true)` says the section has no rows.
 function section(
     ui,
     {
@@ -110,6 +116,7 @@ function section(
         onHeading = null,
         onHeadingMenu = null,
         headingTitle = '',
+        empty = '',
     }
 ) {
     const foldable = typeof collapsed === 'boolean';
@@ -123,7 +130,14 @@ function section(
         heading.type = 'button';
         heading.title = foldable ? 'Collapse or expand' : headingTitle || label;
     }
-    if (foldable) heading.addEventListener('click', () => onToggle?.(!folded));
+    // A fold a key asked for is made at once.
+    let keyed = false;
+    if (foldable)
+        heading.addEventListener('click', (event) => {
+            keyed = event.detail === 0;
+            onToggle?.(!folded);
+            keyed = false;
+        });
     else if (onHeading) heading.addEventListener('click', () => onHeading());
     if (onHeadingMenu)
         heading.addEventListener('contextmenu', (event) => {
@@ -156,19 +170,24 @@ function section(
         return button;
     });
     const body = tag('div', 'deckit-section-body');
+    const emptyLine = tag('div', 'deckit-section-empty');
+    emptyLine.textContent = empty;
+    emptyLine.hidden = true;
+    body.append(emptyLine);
+    const box = tag('div', 'deckit-section-fold');
+    box.append(body);
     let folded = !!collapsed;
-    // The body unfolds and folds away as a list's rows come and go.
+    // The body unfolds and folds away along its height, the caret turning with it.
     const fold = (animate) => {
+        element.toggleAttribute('data-still', !animate);
         element.toggleAttribute('data-collapsed', folded);
         if (foldable) heading.setAttribute('aria-expanded', String(!folded));
-        if (!folded) {
-            body.hidden = false;
-            if (animate) MOTION.expand(body);
-        } else if (animate) MOTION.collapse(body, {}, () => (body.hidden = true));
-        else body.hidden = true;
+        if (!folded) body.hidden = false;
+        if (animate) MOTION.fold(box, !folded, () => (body.hidden = folded));
+        else body.hidden = folded;
     };
     fold(false);
-    element.append(head, body);
+    element.append(head, box);
     return {
         element,
         body,
@@ -178,14 +197,16 @@ function section(
         setCollapsed: (next) => {
             if (folded === !!next) return;
             folded = !!next;
-            fold(true);
+            fold(!keyed);
         },
         isCollapsed: () => folded,
+        setEmpty: (on) => (emptyLine.hidden = !on || !empty),
     };
 }
 
 // Where a place is, as its path from the top. The parts that do not fit fold, from the start, into a "…" that
-// lists them; the last part is cut short only once everything before it has folded.
+// lists them; the last part is cut short only once everything before it has folded. In a title bar its current part
+// is the view's title, drawn as `titleBar`'s title is.
 function breadcrumb(ui, { onGo } = {}) {
     const bar = tag('div', 'deckit-breadcrumb');
     let parts = [];

@@ -1,7 +1,8 @@
 // Find in the page of the tab in front, in a bar at the top right of `area`, on a layer over the page and its web
-// pages: it stays while the person uses the page, fading in as it shows and out as it hides. Closing it gives the page
-// the keyboard back.
-function findInPage({ theme, ui, area, frontTab }) {
+// pages: it stays while the person uses the page. A key shows it, and it is there at once; its close button puts it
+// away by the kit's `go`, fading as it rises towards its edge, and Escape at once. Closing it gives the page the
+// keyboard back.
+function findInPage({ ui, area, frontTab }) {
     let searchedTab = null;
     let state = { query: '', caseSensitive: false };
 
@@ -15,11 +16,9 @@ function findInPage({ theme, ui, area, frontTab }) {
             padding: 4px;
             box-sizing: border-box;
             border-radius: var(--deckit-radius-round);
-            border: var(--deckit-border);
-            background: var(--deckit-background);
-            box-shadow: var(--deckit-shadow-raised);
+            background: var(--deckit-elevated);
+            box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
             color: var(--deckit-text);
-            transform-origin: top right;
         }
         .browser-find-field { flex: 0 1 auto; width: 300px; min-width: 0; margin: 0 2px; }
         .browser-find .deckit-icon-button,
@@ -36,12 +35,13 @@ function findInPage({ theme, ui, area, frontTab }) {
         onChange: change,
         onNext: () => step(false),
         onPrevious: () => step(true),
-        onCancel: close,
+        // Escape, a key, puts it away at once.
+        onCancel: () => close({ still: true }),
     });
     const closeButton = ui.iconButton({
         icon: ui.icon('x', { size: 14 }),
         title: 'Close',
-        onClick: close,
+        onClick: () => close(),
         size: 'small',
     });
     field.element.classList.add('browser-find-field');
@@ -55,36 +55,34 @@ function findInPage({ theme, ui, area, frontTab }) {
             leaving.cancel();
             leaving = null;
             element.style.pointerEvents = '';
-        } else if (!layer) {
-            layer = ui.layer(element);
-            element.animate(FADE, { duration: theme.motion.fast, easing: theme.motion.easing });
-        }
+        } else if (!layer) layer = ui.layer(element);
         layer.focus(field);
         if (state.query) step(false);
     }
 
-    function close() {
-        hide();
+    function close({ still = false } = {}) {
+        hide({ still });
         frontTab().page?.focus();
     }
 
-    // Hidden, it takes no presses while it fades, and the match it selected is let go.
-    function hide() {
+    // Hidden, it takes no presses and lets go of the keyboard while it fades, or with `still` is gone at once, and the
+    // match it selected is let go.
+    function hide({ still = false } = {}) {
         if (!layer || leaving) return;
         element.style.pointerEvents = 'none';
-        leaving = element.animate(FADE, {
-            duration: theme.motion.fast,
-            easing: theme.motion.easing,
-            direction: 'reverse',
-            fill: 'forwards',
-        });
-        leaving.onfinish = () => {
-            leaving.cancel();
+        if (element.contains(element.ownerDocument.activeElement)) element.ownerDocument.activeElement.blur();
+        const gone = () => {
+            leaving?.cancel();
             leaving = null;
             element.style.pointerEvents = '';
             layer.remove();
             layer = null;
         };
+        if (still) gone();
+        else {
+            const going = (leaving = ui.motion.go(element, { y: -RISE }));
+            going.finished.then(() => leaving === going && gone());
+        }
         searchedTab?.page.stopFind();
         searchedTab = null;
         field.setCount(0, 0);
@@ -120,9 +118,7 @@ function findInPage({ theme, ui, area, frontTab }) {
     }
 }
 
-const FADE = [
-    { opacity: 0, transform: 'translateY(-6px) scale(.96)' },
-    { opacity: 1, transform: 'none' },
-];
+// How far the bar rises towards its edge as it goes.
+const RISE = 4;
 
 module.exports = { findInPage };

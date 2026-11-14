@@ -7,7 +7,7 @@ function goToLine({ ui, scrollEffect }) {
 
     function show(view) {
         const picker = ui.quickPick({
-            placeholder: 'Go to Line',
+            placeholder: 'Go to line',
             key: () => '',
             create: () => null,
             onInput: draw,

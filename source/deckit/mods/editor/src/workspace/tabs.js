@@ -3,16 +3,17 @@ const { iconElement } = require('../icon-element/icon-element.js');
 const { nameOf } = require('../path/path.js');
 
 const TABS_STYLE = `
-    .editor-tabs {
+    .editor-tabs { overflow-x: auto; overflow-y: hidden; }
+    /* Two tabs or more sit on a track, the chosen one lifted off it; a lone tab has nothing to be chosen from. */
+    .editor-tab-list {
         display: flex;
-        align-items: flex-end;
-        flex: 0 0 auto;
-        height: 34px;
-        padding: 8px 10px 0;
-        overflow-x: auto;
-        overflow-y: hidden;
+        align-items: stretch;
+        gap: 2px;
+        height: 32px;
+        box-sizing: border-box;
+        border-radius: var(--deckit-radius-medium);
     }
-    .editor-tab-list { display: flex; align-items: stretch; gap: 2px; height: 26px; }
+    .editor-tab-list[data-many] { padding: 2px; background: var(--deckit-fill); }
     .editor-tab {
         display: flex;
         align-items: center;
@@ -20,16 +21,22 @@ const TABS_STYLE = `
         flex: 0 0 auto;
         max-width: 220px;
         overflow: hidden;
-        border-radius: 7px 7px 0 0;
-        font: 12.5px var(--deckit-font);
+        border-radius: var(--deckit-radius-control);
+        color: var(--deckit-muted);
+        font: var(--deckit-type-body);
         white-space: nowrap;
         cursor: pointer;
-        opacity: 0.65;
         --app-region: no-drag;
-        transition: background-color var(--deckit-fast) var(--deckit-easing);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .editor-tab:hover { background: var(--deckit-hover); }
-    .editor-tab[data-active] { background: var(--deckit-selected); opacity: 1; }
+    .editor-tab[data-active] { color: var(--deckit-text); }
+    /* The tab strip is the title bar: not key, its active tab goes to muted with the rest of it. */
+    [data-deckit-key='false'] .editor-tab[data-active] { color: var(--deckit-muted); }
+    .editor-tab-list[data-many] .editor-tab[data-active] {
+        background: var(--deckit-thumb);
+        box-shadow: var(--deckit-shadow-control);
+    }
     .editor-tab-icon { display: flex; margin-left: 10px; }
     .editor-tab-label { overflow: hidden; text-overflow: ellipsis; }
     .editor-tab[data-preview] .editor-tab-label { font-style: italic; }
@@ -37,29 +44,30 @@ const TABS_STYLE = `
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 18px;
-        height: 18px;
+        width: 24px;
+        height: 24px;
         margin-right: 4px;
-        border-radius: 4px;
+        border-radius: var(--deckit-radius-control);
+        color: var(--deckit-muted);
         opacity: 0;
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
-    .editor-tab[data-active] .editor-tab-end { opacity: 0.5; }
-    .editor-tab[data-unsaved] .editor-tab-end { opacity: 0.8; }
-    .editor-tab:hover .editor-tab-end { opacity: 0.75; }
+    .editor-tab:is([data-active], [data-unsaved], :hover) .editor-tab-end { opacity: 1; }
+    .editor-tab-end:hover { background: var(--deckit-hover); color: var(--deckit-text); }
     .editor-tab-close { display: flex; }
     .editor-tab-dot { display: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
     .editor-tab[data-unsaved]:not(:hover) .editor-tab-close { display: none; }
     .editor-tab[data-unsaved]:not(:hover) .editor-tab-dot { display: block; }
 `;
 
-// The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab grows in and
-// a closed one folds away, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A switch
-// of workspace draws a new list, so the row is swapped whole and nothing plays. The tab's space is in its icon's and
-// its end's margins, which fold with it. The row is the view's title bar, there with no tab as well: the window is
-// dragged by it.
+// The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab fades in and
+// a closed one leaves at once, the tabs after it gliding over where a press closed it, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A
+// switch of workspace draws a new list, so the row is swapped whole and nothing plays. The row is the view's title
+// bar, there with no tab as well: the window is dragged by it.
 function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
     let files = [];
     let shownFor = null; // the workspace whose tabs are drawn
+    let pressedShut = null; // the file whose tab a press closed, until the tabs are drawn without it
 
     const element = ui.element('div', { className: 'editor-tabs' });
     ui.titleBar(element);
@@ -83,15 +91,21 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
             rows = tabList();
             element.replaceChildren(rows.element);
         }
-        rows.set(
-            list.map((file) => ({
-                file,
-                path: file.path,
-                active: file === current,
-                preview: file.preview,
-                unsaved: isDirty(file),
-            }))
-        );
+        rows.element.toggleAttribute('data-many', list.length > 1);
+        const glides = !!pressedShut && !list.includes(pressedShut);
+        if (glides) pressedShut = null;
+        const draw = () =>
+            rows.set(
+                list.map((file) => ({
+                    file,
+                    path: file.path,
+                    active: file === current,
+                    preview: file.preview,
+                    unsaved: isDirty(file),
+                }))
+            );
+        if (glides) ui.motion.glide([...rows.element.children], draw);
+        else draw();
     }
 
     function tabList() {
@@ -111,12 +125,15 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
         );
         end.addEventListener('click', (event) => {
             event.stopPropagation();
+            pressedShut = file;
             onClose(file);
         });
         tab.addEventListener('click', () => onSelect(file));
         tab.addEventListener('dblclick', () => onKeep(file));
         tab.addEventListener('auxclick', (event) => {
-            if (event.button === 1) onClose(file);
+            if (event.button !== 1) return;
+            pressedShut = file;
+            onClose(file);
         });
         tab.append(iconElement(ui, 'editor-tab-icon', ''), ui.element('span', { className: 'editor-tab-label' }), end);
         refresh(tab, item);

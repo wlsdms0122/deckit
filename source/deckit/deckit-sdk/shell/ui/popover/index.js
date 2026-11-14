@@ -8,9 +8,8 @@ const STYLE = `
         max-width: 340px;
         padding: 12px 14px;
         border-radius: var(--deckit-radius-large);
-        border: var(--deckit-border);
-        background: var(--deckit-background);
-        box-shadow: var(--deckit-shadow-raised);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
         font: var(--deckit-type-body);
         line-height: 1.5;
@@ -28,6 +27,7 @@ function make() {
 function popover({ width = '', onClose } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-popover';
+    element.dataset.deckitGlass = 'popover';
     if (width) element.style.maxWidth = width;
     let presented = null;
     const close = () => {

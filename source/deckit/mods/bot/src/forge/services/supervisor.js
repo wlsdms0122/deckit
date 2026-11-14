@@ -1,5 +1,5 @@
 const supervisorView = ({ shell, deckit, forge, picker }) => {
-    const { theme, ui } = shell;
+    const { ui } = shell;
     const store = deckit.storage.values;
 
     let session = picker.current();
@@ -18,6 +18,15 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         warn: 'var(--deckit-warn)',
         alert: 'var(--deckit-alert)',
         idle: `color-mix(in srgb, var(--deckit-text) 45%, var(--deckit-background))`,
+        // Not running, and not because it failed.
+        off: 'var(--deckit-disabled)',
+    };
+    // A tone as text, where it is read.
+    const INK = {
+        ...TONE,
+        ok: 'var(--deckit-ok-ink)',
+        warn: 'var(--deckit-warn-ink)',
+        alert: 'var(--deckit-alert-ink)',
     };
 
     const CALLS_FORGE = new Set(['runner']);
@@ -32,17 +41,25 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     const bar = document.createElement('div');
     Object.assign(bar.style, { display: 'flex', flex: '1 1 auto', minWidth: '0', alignItems: 'center', gap: '10px' });
 
-    const body = document.createElement('div');
-    Object.assign(body.style, { flex: '1 1 auto', minHeight: '0', overflowY: 'auto', padding: '10px 12px' });
-    ui.edgeFade(body);
-
     const LOG_MIN = 90,
         LOG_DEFAULT = 240,
         LOG_KEY = 'log-height';
+    // The table keeps the height of what it shows and the log gives way to it, down to its least; past that the table
+    // scrolls.
+    const body = document.createElement('div');
+    Object.assign(body.style, {
+        flex: '1 0 auto',
+        maxHeight: `calc(100% - ${LOG_MIN}px)`,
+        boxSizing: 'border-box',
+        overflowY: 'auto',
+        padding: '16px',
+    });
+    ui.edgeFade(body);
+
     const logPane = document.createElement('div');
     Object.assign(logPane.style, {
-        flex: '0 0 auto',
-        minHeight: '0',
+        flex: '0 1 auto',
+        minHeight: LOG_MIN + 'px',
         display: 'flex',
         flexDirection: 'column',
         height: Math.max(LOG_MIN, store.get(LOG_KEY, LOG_DEFAULT)) + 'px',
@@ -58,10 +75,10 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         alignItems: 'center',
         gap: '8px',
         flex: '0 0 auto',
-        padding: '7px 14px',
-        color: `color-mix(in srgb, var(--deckit-text) 55%, var(--deckit-background))`,
-        font: '12px var(--deckit-font)',
-        borderTop: 'var(--deckit-border)',
+        // 24 under what is above it, with the body's own 16.
+        padding: '8px 16px',
+        color: 'var(--deckit-muted)',
+        font: 'var(--deckit-type-label)',
         cursor: 'row-resize',
     });
     const logTitle = document.createElement('span');
@@ -87,39 +104,57 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         flex: '1 1 auto',
         minHeight: '0',
         overflow: 'auto',
-        padding: '8px 14px 10px',
-        background: '#12141a',
-        color: '#c8ccd4',
+        margin: '0 16px 16px',
+        padding: '12px',
+        borderRadius: 'var(--deckit-radius-medium)',
+        background: 'var(--deckit-surface)',
+        color: 'var(--deckit-text)',
     });
     ui.edgeFade(logBody);
     ui.selectable(logBody);
 
-    const notice = document.createElement('div');
-    Object.assign(notice.style, {
-        display: 'none',
-        margin: '0 0 10px',
-        padding: '8px 12px',
-        borderRadius: '8px',
-        border: 'var(--deckit-border)',
-        font: '13px var(--deckit-font)',
-    });
+    // What went wrong in words that say what to do, with a retry and the system's own words under Details.
+    // Drawn anew only when what it says changes, so a refresh does not read it out again or close its Details.
+    const notice = ui.notice({});
+    let told = '';
+    notice.element.style.display = 'none';
+    notice.element.style.marginBottom = '16px';
+    // The system's words for forge not found, and what they mean to the person.
+    const NOT_FOUND = /could not be run: .*ENOENT/;
+    const NOT_FOUND_TEXT =
+        'Forge is not installed, or not on the PATH this app sees. Set where it is in Settings, under Mod ' +
+        'Settings, Forge command.';
+    // Nothing to tell hides it.
+    const tell = (text = '', { tone = '', raw = '', retry = false } = {}) => {
+        notice.element.style.display = text ? '' : 'none';
+        const said = [tone, text, raw, retry].join('\n');
+        if (!text || said === told) return;
+        told = said;
+        notice.set({
+            kind: tone === 'alert' ? 'failure' : 'warning',
+            text,
+            details: raw,
+            action: retry ? { label: 'Try Again', run: () => load() } : null,
+        });
+    };
 
     const tree = document.createElement('div');
+    // Rows in the shape of the table while the first answer is on its way.
+    let skeleton = null;
 
-    Object.assign(tree.style, { display: 'flex', flexDirection: 'column' });
     const rows = new Map();
 
     const empty = document.createElement('div');
-    empty.textContent = "No managed services ([service] in this session's config)";
+    empty.textContent = 'This session runs no services. Add a [service] to its config to see it here.';
     Object.assign(empty.style, {
         display: 'none',
-        padding: '10px 0 0 38px',
-        opacity: '.45',
-        font: '13px var(--deckit-font)',
+        padding: '10px 0 0 30px',
+        color: 'var(--deckit-muted)',
+        font: 'var(--deckit-type-body)',
     });
 
     logPane.append(logHead, logBody);
-    body.append(notice, tree, empty);
+    body.append(notice.element, tree, empty);
     const pane = document.createElement('div');
     Object.assign(pane.style, { flex: '1 1 auto', minHeight: '0', display: 'flex', flexDirection: 'column' });
     pane.append(body, logPane);
@@ -130,7 +165,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             flex: '0 0 auto',
             width: '8px',
             height: '8px',
-            borderRadius: '999px',
+            borderRadius: 'var(--deckit-radius-round)',
             background: TONE[tone],
         });
         return span;
@@ -142,11 +177,10 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         Object.assign(span.style, {
             flex: '0 0 auto',
             padding: '1px 7px',
-            borderRadius: '999px',
-            font: '11px var(--deckit-font)',
-            color: TONE[tone],
-            border: `1px solid ${TONE[tone]}`,
-            opacity: '.85',
+            borderRadius: 'var(--deckit-radius-round)',
+            font: 'var(--deckit-type-caption)',
+            color: INK[tone],
+            border: `1px solid ${INK[tone]}`,
         });
         return span;
     };
@@ -166,19 +200,23 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         return `${Math.floor(seconds / 86400)}d`;
     };
 
-    const COLUMNS = '14px minmax(90px, 1fr) 78px 84px 72px 124px 58px';
+    // The rows share the tree's columns, so a column is as wide as its widest cell: the name gives way first, and
+    // the actions keep their place at the end at any width.
+    const COLUMNS = '14px minmax(0, 1fr) auto auto auto auto';
     const CELL = { flex: '0 0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+    ui.addStyle('.bot-service-row:hover { background: var(--deckit-hover); }');
+    Object.assign(tree.style, { display: 'grid', gridTemplateColumns: COLUMNS, columnGap: '12px' });
 
     const gridRow = (extra = {}) => {
         const row = document.createElement('div');
         Object.assign(row.style, {
             display: 'grid',
-            gridTemplateColumns: COLUMNS,
+            gridColumn: '1 / -1',
+            gridTemplateColumns: 'subgrid',
             alignItems: 'center',
-            gap: '10px',
-            padding: '0 14px',
-            minHeight: '30px',
-            borderRadius: '6px',
+            padding: '0 8px',
+            minHeight: '36px',
+            borderRadius: 'var(--deckit-radius-control)',
             ...extra,
         });
         return row;
@@ -186,18 +224,12 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
 
     const headerRow = () => {
         const row = gridRow({ minHeight: '24px', borderBottom: 'var(--deckit-border)', borderRadius: '0' });
-        ['', 'NAME', 'STATE', 'PID', 'UPTIME', '', 'ACTIONS'].forEach((label) => {
+        ['', 'Name', 'State', 'PID', 'Uptime', ''].forEach((label) => {
             const heading = document.createElement('span');
             heading.textContent = label;
-            Object.assign(heading.style, {
-                ...CELL,
-                font: '600 10.5px var(--deckit-font)',
-                letterSpacing: '.06em',
-                opacity: '.4',
-            });
+            Object.assign(heading.style, { ...CELL, color: 'var(--deckit-muted)', font: 'var(--deckit-type-label)' });
             row.appendChild(heading);
         });
-        row.lastElementChild.style.textAlign = 'right';
         return row;
     };
 
@@ -205,44 +237,40 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         const span = document.createElement('span');
         span.textContent = text == null ? '' : String(text);
         if (span.textContent) span.title = span.textContent;
-        Object.assign(span.style, { ...CELL, font: '13px var(--deckit-font)', ...style });
+        Object.assign(span.style, { ...CELL, font: 'var(--deckit-type-body)', ...style });
         return span;
     };
 
-    const FLASH_MS = 850;
-    const flash = (row, tone) => {
-        if (!theme.motion.base) return;
+    // A row whose state changed lights once: its tone is on its dot.
+    const flash = (row) => {
         const wash = document.createElement('span');
         Object.assign(wash.style, {
             position: 'absolute',
             inset: '0',
-            borderRadius: '6px',
+            borderRadius: 'var(--deckit-radius-control)',
             pointerEvents: 'none',
-            background: TONE[tone] || TONE.idle,
+            background: 'var(--deckit-selected)',
             opacity: '0',
         });
         row.appendChild(wash);
         const done = () => wash.remove();
-        const play = wash.animate([{ opacity: 0 }, { opacity: 0.22, offset: 0.18 }, { opacity: 0 }], {
-            duration: FLASH_MS,
-            easing: theme.motion.easing,
-        });
+        const play = ui.motion.swell(wash, { opacity: 0 }, { opacity: 1 }, { rise: 'enter', fall: 'exit' });
         play.finished.then(done, done);
     };
 
     const treeRow = (indent = false) => {
         const element = gridRow({ position: 'relative' });
+        element.classList.add('bot-service-row');
+        const muted = { color: 'var(--deckit-muted)', font: 'var(--deckit-type-small)' };
 
         const cells = ['name', 'state', 'pid', 'uptime'].map((_, index) =>
             cell(
                 '',
                 index === 0
-                    ? { font: (indent ? '400 ' : '600 ') + '13.5px var(--deckit-font)' }
-                    : index === 1
-                      ? { opacity: '.6', font: '12px var(--deckit-font)' }
-                      : index === 2
-                        ? { opacity: '.45', font: '12px ui-monospace, SFMono-Regular, Menlo, monospace' }
-                        : { opacity: '.45', font: '12px var(--deckit-font)' }
+                    ? { flex: '0 1 auto', minWidth: '0', font: (indent ? '400 ' : '600 ') + 'var(--deckit-type-body)' }
+                    : index === 2
+                      ? { ...muted, fontFamily: 'var(--deckit-mono)', fontVariantNumeric: 'tabular-nums' }
+                      : muted
             )
         );
 
@@ -261,7 +289,6 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             top: '0',
             bottom: '0',
             borderLeft: 'var(--deckit-border)',
-            opacity: '.8',
         });
         const elbow = document.createElement('span');
         Object.assign(elbow.style, {
@@ -270,17 +297,22 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             top: '50%',
             width: '9px',
             borderTop: 'var(--deckit-border)',
-            opacity: '.8',
         });
         guide.append(stem, elbow);
 
         const nameCell = document.createElement('span');
 
-        Object.assign(nameCell.style, { display: 'flex', alignItems: 'center', minWidth: '0', alignSelf: 'stretch' });
-        nameCell.append(guide, cells[0]);
-
+        Object.assign(nameCell.style, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            minWidth: '0',
+            alignSelf: 'stretch',
+        });
+        // What is said of it follows its name.
         const chipCell = document.createElement('span');
-        Object.assign(chipCell.style, { display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' });
+        Object.assign(chipCell.style, { display: 'flex', flex: '0 0 auto', alignItems: 'center', gap: '4px' });
+        nameCell.append(guide, cells[0], chipCell);
 
         const actionCell = document.createElement('span');
         Object.assign(actionCell.style, {
@@ -291,14 +323,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         });
 
         const marker = dot('idle');
-        element.append(marker, nameCell, ...cells.slice(1), chipCell, actionCell);
-
-        element.addEventListener('mouseenter', () => {
-            element.style.background = 'var(--deckit-hover)';
-        });
-        element.addEventListener('mouseleave', () => {
-            element.style.background = 'transparent';
-        });
+        element.append(marker, nameCell, ...cells.slice(1), actionCell);
 
         let actionSignature = '';
         let lastSnapshot = '';
@@ -314,7 +339,7 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             last = false,
         }) => {
             const snapshot = [tone, stateText || '', pid || ''].join('|');
-            if (lastSnapshot && snapshot !== lastSnapshot) flash(element, tone);
+            if (lastSnapshot && snapshot !== lastSnapshot) flash(element);
             lastSnapshot = snapshot;
 
             stem.style.bottom = last ? '50%' : '0';
@@ -358,14 +383,20 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
     let generation = 0;
     const load = async () => {
         const mine = ++generation;
+        const asked = session;
+        let entry, next;
         try {
-            const next = await snapshot(await forge.session(session));
-            if (mine !== generation) return;
-            state = { ...next, loading: false };
+            entry = await forge.session(asked);
+            next = { ...(await snapshot(entry)), loading: false };
         } catch (error) {
-            if (mine !== generation) return;
-            state = { ...state, error: String(error?.message || error), loading: false };
+            entry = { name: asked, up: false, authority: false };
+            next = { ...state, error: String(error?.message || error), loading: false };
         }
+        // A skeleton that showed stays its least, so it does not flash.
+        await skeleton?.settled();
+        if (mine !== generation) return;
+        picker.told(entry);
+        state = next;
         render();
     };
 
@@ -406,23 +437,27 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         const error = actionError || state.error;
         const up = !!daemon;
 
-        notice.style.display = 'none';
-        if (error) {
-            notice.style.display = 'block';
-            notice.style.borderColor = TONE.alert;
-            notice.textContent = error;
-        } else if (actionNote) {
-            notice.style.display = 'block';
-            notice.style.borderColor = TONE.warn;
-            notice.textContent = actionNote;
-        } else if (up && !authority) {
-            notice.style.display = 'block';
-            notice.style.borderColor = TONE.warn;
-            notice.textContent =
+        if (error && NOT_FOUND.test(error)) tell(NOT_FOUND_TEXT, { tone: 'alert', raw: error, retry: true });
+        else if (error) tell(error, { tone: 'alert', retry: true });
+        else if (actionNote) tell(actionNote, { tone: 'warn' });
+        else if (up && !authority)
+            tell(
                 'Started elsewhere: forge hands its boot token only to the process that started it, ' +
-                'so the services it supervises cannot be read or run from here. Stop and Restart work; ' +
-                'restart it from here and its services can be run from here too.';
+                    'so the services it supervises cannot be read or run from here. Stop and Restart work; ' +
+                    'restart it from here and its services can be run from here too.',
+                { tone: 'warn' }
+            );
+        else tell();
+
+        tree.style.display = loading ? 'none' : 'grid';
+        if (loading && !skeleton) {
+            skeleton = ui.loading.skeleton({ rows: 3, height: 36 });
+            body.insertBefore(skeleton.element, tree);
         }
+        empty.style.display = 'none';
+        if (loading) return;
+        skeleton?.element.remove();
+        skeleton = null;
 
         if (!tree.firstChild) tree.appendChild(headerRow());
 
@@ -448,34 +483,32 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         }
 
         rows.get('forge').update({
-            tone: loading ? 'idle' : up ? 'ok' : 'alert',
+            tone: up ? 'ok' : error ? 'alert' : 'off',
             name: 'forge',
-            state: loading ? 'checking' : up ? 'running' : 'stopped',
+            state: up ? 'running' : 'stopped',
             pid: daemon?.pid,
             uptime: up ? since(daemon.started_at) : '',
             chips: up && !authority ? [chip('started elsewhere', 'warn')] : [],
-            signature: loading ? 'loading' : `${up}|${authority}|${controls.stop}`,
+            signature: `${up}|${authority}|${controls.stop}`,
             actions: () =>
-                loading
-                    ? []
-                    : up
-                      ? [
-                            button(
-                                'reload',
-                                authority
-                                    ? 'Restart forge: the services it supervises come with it'
-                                    : 'Restart: launching it from here puts it under control from here',
-                                () => act((forge) => forge.restart()),
-                                controls.restart
-                            ),
-                            button(
-                                'square',
-                                'Stop forge: the services it supervises go down with it',
-                                () => act((forge) => forge.stop()),
-                                controls.stop
-                            ),
-                        ]
-                      : [button('play', 'Start forge', () => act((forge) => forge.start()), controls.start)],
+                up
+                    ? [
+                          button(
+                              'reload',
+                              authority
+                                  ? 'Restart forge: the services it supervises come with it'
+                                  : 'Restart: launching it from here puts it under control from here',
+                              () => act((forge) => forge.restart()),
+                              controls.restart
+                          ),
+                          button(
+                              'square',
+                              'Stop forge: the services it supervises go down with it',
+                              () => act((forge) => forge.stop()),
+                              controls.stop
+                          ),
+                      ]
+                    : [button('play', 'Start forge', () => act((forge) => forge.start()), controls.start)],
         });
 
         empty.style.display = up && authority && state.services && !services.length ? 'block' : 'none';
@@ -491,7 +524,9 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
                     : 'ok'
                 : service.state === 'backoff'
                   ? 'warn'
-                  : 'alert';
+                  : service.state === 'failed'
+                    ? 'alert'
+                    : 'off';
 
             const chips = [];
             if (running && expectsHandler)
@@ -538,11 +573,10 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
         row.textContent = line;
         Object.assign(row.style, {
             padding: '1px 0',
-            font: '11.5px ui-monospace, SFMono-Regular, Menlo, monospace',
-            opacity: '.82',
+            font: 'var(--deckit-type-small)',
+            fontFamily: 'var(--deckit-mono)',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
-            lineHeight: '1.55',
         });
         return row;
     };
@@ -570,7 +604,10 @@ const supervisorView = ({ shell, deckit, forge, picker }) => {
             logBody.textContent = '';
             const nothing = document.createElement('div');
             nothing.textContent = 'No log output';
-            Object.assign(nothing.style, { padding: '4px 0', opacity: '.4', font: '12px var(--deckit-font)' });
+            Object.assign(nothing.style, {
+                color: 'var(--deckit-muted)',
+                font: 'var(--deckit-type-small)',
+            });
             logBody.appendChild(nothing);
             return;
         }

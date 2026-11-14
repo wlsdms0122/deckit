@@ -12,17 +12,35 @@ const STYLE = `
         box-sizing: border-box;
         padding: 0 8px;
         border-radius: var(--deckit-radius-control);
-        font: var(--deckit-type-large);
+        font: var(--deckit-type-body);
         white-space: nowrap;
         cursor: pointer;
-        transition: background-color var(--deckit-fast) var(--deckit-easing);
+        transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
-    .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; font: var(--deckit-type-body); }
+    .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; }
     .deckit-row:hover { background: var(--deckit-hover); }
     .deckit-row[data-active] { background: var(--deckit-selected); }
-    .deckit-row:hover .deckit-row-action,
-    .deckit-row:focus-within .deckit-row-action,
-    .deckit-row[data-actions-shown] .deckit-row-action { opacity: 1; }
+    /* A list with the keys (ui.tree) draws its chosen rows in the accent's tint, and is ringed only while none is. */
+    [data-deckit-tree] { outline: none; }
+    [data-deckit-tree]:focus-visible:not(:has(.deckit-row[data-active])) {
+        outline: 2px solid var(--deckit-focus);
+        outline-offset: -2px;
+    }
+    [data-deckit-tree]:focus-within .deckit-row[data-active] { background: var(--deckit-selected-focused); }
+    .deckit-row-glyph { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
+    .deckit-row[data-active] .deckit-row-glyph { color: inherit; }
+    :is(.deckit-row, [data-deckit-row-actions]):not(
+            :hover,
+            :focus-within,
+            [data-actions-shown],
+            [data-deckit-row-actions='shown']
+        )
+        .deckit-row-action {
+        position: absolute;
+        width: 0;
+        overflow: hidden;
+        opacity: 0;
+    }
     .deckit-list { flex: 0 0 auto; }
     .deckit-list[data-scrolls] { overflow-y: auto; overscroll-behavior: contain; }
 `;
@@ -35,14 +53,28 @@ function make() {
 }
 
 // MARK: - Private
-// A row of a list, washed under the pointer. `setActive` marks it chosen; `setActionsShown` keeps its actions
-// shown.
-function row({ size = 'medium' } = {}) {
+// A row of a list, washed under the pointer. `glyph`, an svg or an element, leads it in its slot (`glyph`), in
+// `muted`, and in the row's own ink while it is chosen; `setGlyph` shows another there. `setActive` marks it chosen;
+// `setActionsShown` keeps its actions shown. Its actions take no room while they are hidden, as in any element marked
+// `data-deckit-row-actions`, which shows them as a row does, and keeps them shown while the mark is `shown`.
+function row({ size = 'medium', glyph = null } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-row';
     element.dataset.size = size;
+    const slot = glyph === null ? null : document.createElement('span');
+    const setGlyph = (next) => {
+        if (typeof next === 'string') slot.innerHTML = next;
+        else slot.replaceChildren(...(next ? [next] : []));
+    };
+    if (slot) {
+        slot.className = 'deckit-row-glyph';
+        element.append(slot);
+        setGlyph(glyph);
+    }
     return {
         element,
+        glyph: slot,
+        setGlyph: slot ? setGlyph : () => {},
         setActive: (on) => element.toggleAttribute('data-active', !!on),
         setActionsShown: (on) => element.toggleAttribute('data-actions-shown', !!on),
     };

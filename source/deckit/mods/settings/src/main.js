@@ -4,6 +4,7 @@ const { activitySection } = require('./sections/activity/activity-section.js');
 const { CHIP_STYLE } = require('./chip/chip.js');
 const { generalSection } = require('./sections/general/general-section.js');
 const { HANDLER_LIST_STYLE } = require('./sections/handler-list/handler-list.js');
+const { createIcons } = require('./icons/icons.js');
 const { interfacesSection } = require('./sections/interfaces/interfaces-section.js');
 const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
 const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
@@ -64,22 +65,17 @@ class Settings {
                 height: 100%;
                 overflow: hidden;
                 color: var(--deckit-text);
-                font: var(--deckit-type-medium);
-            }
-            .settings-title {
-                display: flex;
-                align-items: center;
-                flex: 0 0 auto;
-                padding: 10px 14px;
-                font: 700 var(--deckit-type-large);
+                font: var(--deckit-type-body);
             }
             .settings-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
         `);
         ui.addStyle(SECTION_STYLE + CHIP_STYLE + HANDLER_LIST_STYLE);
         const page = ui.element('div', { className: 'settings-page' });
         const body = ui.element('div', { className: 'settings-body' });
+        const icons = createIcons(shell);
         const mods = modsSection({
             ui,
+            icons,
             mods: deckit.mods,
             mainProcess,
             packages: () => services.packages,
@@ -98,10 +94,16 @@ class Settings {
             configuration: () => services.configuration,
             sources,
             nameOf: (id) => listed.list.find((entry) => entry.id === id)?.mod?.name || id,
+            iconOf: icons.of,
         });
         const urlSchemes = urlSchemesSection({ ui, urls: () => services.urls, appName: APP_NAME, onChange: redraw });
         const interfaces = interfacesSection({ ui, mods: deckit.mods });
-        const activity = activitySection({ ui, mods: deckit.mods, onInterfaces: () => contents.go(interfaces) });
+        const activity = activitySection({
+            ui,
+            mods: deckit.mods,
+            icons,
+            onInterfaces: () => contents.go(interfaces),
+        });
         const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts });
         const keyboard = keyboardSection({
             ui,
@@ -111,11 +113,11 @@ class Settings {
             onChange: redraw,
         });
         const sections = [mods, activity, general, modSettings, urlSchemes, interfaces, keyboard];
-        const contents = tableOfContents({ ui, scroller: body, sections });
+        const contents = tableOfContents({ ui, theme: shell.theme, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
-        const title = ui.element('div', { className: 'settings-title', text: 'Settings' });
-        ui.titleBar(title);
+        const title = ui.element('div');
+        ui.titleBar(title, { title: 'Settings', scroller: body });
         page.append(title, body);
         // A mod's settings can be asked for by its command before the first visit draws anything.
         modSettings.draw();
@@ -220,7 +222,7 @@ class Settings {
                 deckit.mods.interfaces(),
             ]);
             if (turn !== drawing) return;
-            const failures = await failuresOf(list);
+            const [failures] = await Promise.all([failuresOf(list), icons.read(list.map(({ id }) => id))]);
             if (turn !== drawing) return;
             listed = { list, runs, interfaces: interfaceQueues };
             const { shortcuts } = keys;

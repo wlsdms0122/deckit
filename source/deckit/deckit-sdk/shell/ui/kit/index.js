@@ -29,6 +29,9 @@ import * as QUICK_PICK from '../quick-pick/index.js';
 import * as COLOR_PICKER from '../color-picker/index.js';
 import * as DIALOG from '../dialog/index.js';
 import * as TOAST from '../toast/index.js';
+import * as APP_ICON from '../app-icon/index.js';
+import * as NOTICE from '../notice/index.js';
+import * as MOTION from '../motion/index.js';
 
 const components = [
     BUTTON,
@@ -51,6 +54,8 @@ const components = [
     COLOR_PICKER,
     DIALOG,
     TOAST,
+    APP_ICON,
+    NOTICE,
 ];
 // MARK: - Property
 let installed = false;
@@ -75,6 +80,7 @@ function make(theme, { fonts }) {
         tree: TREE.tree,
         alpha: COLOR.alpha,
         mix: COLOR.mix,
+        onColor: COLOR.onColor,
         capturePointer: POINTER.capture,
         edgeFade: SCROLL.edgeFade,
         installedFonts: FONTS.installedFonts,
@@ -84,6 +90,17 @@ function make(theme, { fonts }) {
         pressable: PART.pressable,
         selectable: PART.selectable,
         titleBar: PART.titleBar,
+        // The kit's motion, for a part of a page's own: what comes, goes, glides, swells or folds moves as the kit's do;
+        // `keyed()` tells whether a key is being heard now, as what a key changes is drawn at once.
+        motion: {
+            come: MOTION.come,
+            go: MOTION.go,
+            glide: MOTION.glide,
+            swell: MOTION.swell,
+            fold: MOTION.fold,
+            appear: MOTION.appear,
+            keyed: PRESENTATION.keyed,
+        },
     });
     return deepFreeze(ui);
 }
@@ -99,7 +116,7 @@ function addStyle(rules) {
 function install() {
     if (installed) return;
     installed = true;
-    const rules = [PRESENTATION, PART, ...components].map((part) => part.STYLE);
+    const rules = [PART, PRESENTATION, ...components].map((part) => part.STYLE);
     addStyle(rules.join('\n'));
 }
 

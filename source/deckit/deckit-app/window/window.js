@@ -39,7 +39,7 @@ function createWindow({ CONFIG, THEME, windows }) {
             frame: (key && savedFrame(key)) || overFront(windowSize),
             title: title || CONFIG.name,
             showsTitle: !fullSize,
-            ...(glass !== null ? { material: 'hud' } : { color: colourOf(THEME.now().bar.background) }),
+            ...(glass !== null ? { material: 'window' } : { color: colourOf(THEME.now().bar.background) }),
             ...(fullSize ? { buttons: FULL_SIZE_BAR.buttons } : {}),
         });
         if (glass === null) {
@@ -61,7 +61,7 @@ function createWindow({ CONFIG, THEME, windows }) {
     // `blur` hears it lose it, and `didMove(frame)` hears each frame a move by the person leaves it at. It opens
     // hidden: `float(window, { activates, kept })` shows it, taking the keyboard unless `activates` is false.
     function openFloating({ size, place, focus, blur, didMove }) {
-        const window = windows().open({ kind: 'floating', size, material: 'hud' });
+        const window = windows().open({ kind: 'floating', size, material: 'popover' });
         place(window);
         keepMoves(window, didMove);
         window.on('key', () => setImmediate(() => window.isKey() && focus()));

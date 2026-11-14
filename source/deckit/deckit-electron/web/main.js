@@ -1,6 +1,8 @@
 import * as ENVIRONMENT from '../../deckit-shell/environment/index.js';
 import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 import { createPartition } from './model/partition.js';
+import { kindOf } from './model/failure.js';
+import { labelOf } from './model/label.js';
 import { createRegistry } from './registry.js';
 import { createCertificate } from './certificate.js';
 import { createDownload } from './download.js';
@@ -26,6 +28,9 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     const layouts = new Map();
     // The windows web pages opened that are handed to their mod's page, until it shows them as elements.
     const handed = new Map(); // id -> the mod's page
+    // id -> how its main frame's last load failed, `{ url, kind }`, held from a failure before anything of the load was
+    // committed until a load commits
+    const failures = new Map();
     let client = null; // what the web engine answers and is told (listen)
     const told =
         (name) =>
@@ -101,8 +106,16 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         page.loadURL(url);
     }
 
+    // What a page that failed to load still shows is behind its failure, and its history holds only what committed: a
+    // page held at a failure goes back to what it showed, and reloads the address that failed.
     function navigate(page, to) {
         const history = page.navigationHistory;
+        const failure = failures.get(page.id);
+        if (failure && to === 'back' && !page.isBlank()) {
+            failures.delete(page.id);
+            return void tellChanged(REGISTRY.get(page.id).embedder, page);
+        }
+        if (failure && to === 'reload') return void page.loadURL(failure.url);
         if (to === 'back' && history.canGoBack()) history.goBack();
         else if (to === 'forward' && history.canGoForward()) history.goForward();
         else if (to === 'reload') page.reload();
@@ -148,17 +161,19 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         if (page.isDestroyed()) return null;
         const history = page.navigationHistory;
         const { icon, audible, muted } = SCRIPT.stateOf(page);
+        const failure = failures.get(page.id) ?? null;
         return {
             url: page.getURL(),
             title: page.getTitle(),
             icon,
             loading: page.isLoading(),
-            canGoBack: history.canGoBack(),
+            canGoBack: history.canGoBack() || (!!failure && !page.isBlank()),
             canGoForward: history.canGoForward(),
             blank: page.isBlank(),
             audible,
             muted,
             capture: page.capture(),
+            failure: failure && { ...failure },
         };
     }
 
@@ -286,10 +301,23 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         };
     }
 
-    // A page asks the web engine before its own loads, and tells it of each change.
+    // A page asks the web engine before its own loads, and tells it of each change. A load that fails before anything
+    // of it is committed is held as the page's failure, told with the change it comes with; a load stopped or replaced,
+    // and a certificate refused, is none.
     function adopt(modPage, page, { inPage }) {
         const id = page.id;
         REGISTRY.add(page, { embedder: modPage, inPage });
+        let provisional = false;
+        LOG.guard(page, 'started', () => (provisional = true));
+        LOG.guard(page, 'committed', () => {
+            provisional = false;
+            failures.delete(id);
+        });
+        LOG.guard(page, 'failed', (code, _description, url) => {
+            const kind = kindOf(code);
+            if (provisional && kind) failures.set(id, { url: String(url || page.getURL()), kind });
+            provisional = false;
+        });
         const changed = () => tellChanged(modPage, page);
         for (const event of ['changed', 'started', 'stopped', 'failed', 'committed']) LOG.guard(page, event, changed);
         if (inPage) {
@@ -300,6 +328,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         }
         page.once('destroyed', () => {
             pages.delete(id);
+            failures.delete(id);
             const over = layouts.get(id)?.over;
             if (layouts.delete(id) && over) STAGES.relayOf(over);
         });
@@ -351,7 +380,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         stage.whenResized(() => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]));
         const window = WINDOWS.openForStage({ title, page, stage, focus: () => page.focus() });
         windows.set(page.id, { window, embedder: modPage });
-        LOG.guard(page, 'changed', () => window.setTitle(labelOf(page)));
+        LOG.guard(page, 'changed', () => window.setTitle(labelOf(page.getTitle(), page.getURL())));
         LOG.guard(page, 'close', () => !closing && window.close());
         window.on('close', () => {
             closing = true;
@@ -413,14 +442,4 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         sessionsOf: (mod) => PARTITION.prefixOf(mod),
         webPagesIn,
     };
-}
-
-function labelOf(page) {
-    const title = page.getTitle();
-    let site = '';
-    try {
-        const url = new URL(page.getURL());
-        if (url.protocol === 'http:' || url.protocol === 'https:') site = url.host;
-    } catch {}
-    return site && title !== site ? `${title} (${site})` : title;
 }

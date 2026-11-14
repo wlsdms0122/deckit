@@ -104,6 +104,7 @@ async function main() {
     const listing = dockOver(createDock, {
         mods: [...named(['a']), broken, ...named(['b', 'switcher'])],
         fields: { a: {}, b: {}, switcher: { activationPolicy: 'accessory' } },
+        icons: { a: '<svg viewBox="0 0 1 1"/>', switcher: '<svg viewBox="0 0 2 2"/>' },
         running: ['b'],
     });
     listing.DOCK.start();
@@ -115,11 +116,18 @@ async function main() {
     );
     const guarded = (name) => listing.guards[`deckit-shell:dock-${kebab(name)}`];
     check(
-        "a mod with deckit.mods reads and changes the Dock, and the desktop's page sends what the person does",
+        "a mod with deckit.mods changes the Dock, any mod reads an icon, the desktop's page sends the person's hand",
         ['list', 'pinned', 'setPinned', 'open'].every((name) => guarded(name) === 'deckit.mods') &&
-            ['click', 'quit', 'keep', 'reorder'].every((name) => guarded(name) === CHANNEL.GUARD.ANY) &&
-            !('deckit-shell:dock-icon' in listing.guards),
+            guarded('icon') === CHANNEL.GUARD.MOD &&
+            ['click', 'quit', 'keep', 'reorder'].every((name) => guarded(name) === CHANNEL.GUARD.ANY),
         listing.guards
+    );
+    const iconsAsked = await Promise.all(['a', 'switcher', 'b', 'gone'].map((id) => listing.ask('icon', { id }, 'x')));
+    check(
+        'the list answers each app with its icon, and icon(id) any mod, app or not, with "" for none',
+        listed.map(({ icon }) => icon).join('|') === '<svg viewBox="0 0 1 1"/>|' &&
+            iconsAsked.join('|') === '<svg viewBox="0 0 1 1"/>|<svg viewBox="0 0 2 2"/>||',
+        iconsAsked
     );
     await listing.ask('setPinned', { id: 'b', pinned: false }, 'switcher');
     const keptNow = await listing.ask('pinned', {}, 'switcher');
@@ -351,12 +359,22 @@ function named(ids) {
 // `createDock` over stand-ins: `mods` as deckit lists them, `fields` each one's manifest fields, `active` those that
 // may activate for the local seat, `running` the mods that run, as `runs` lists them for a test to change, `windowed`
 // those of them with a window open, `dock` as the host app hands it, `state` what the shell kept, and `refusesWrites`
-// deckit refusing every write to state, as it does state it did not read. `guards` is the guard each channel's
+// deckit refusing every write to state, as it does state it did not read; `icons` each mod's icon as the shell read it. `guards` is the guard each channel's
 // declaration names, by its name. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and
 // `click(name, payload)` sends one as the desktop's page, the local seat's screen.
 function dockOver(
     createDock,
-    { mods, fields, running = [], windowed = [], active = [], dock = null, state = {}, refusesWrites = false }
+    {
+        mods,
+        fields,
+        icons = {},
+        running = [],
+        windowed = [],
+        active = [],
+        dock = null,
+        state = {},
+        refusesWrites = false,
+    }
 ) {
     const handlers = {};
     const guards = {}; // a channel's name -> the guard its declaration names
@@ -406,6 +424,7 @@ function dockOver(
         DESKTOP: {
             seatAt: (sender) => (sender === desktopPage ? 'local' : null),
             localSeat: 'local',
+            toDesktop: () => {},
             activation: {
                 input: (seat, id) => {
                     inputs.push(`${seat}:${id}`);
@@ -423,6 +442,7 @@ function dockOver(
             forward: (seat, id) => activated.push(`${seat}:${id}`) > 0 && windowed.includes(id),
             reopen: (one) => reopened.push(one),
         },
+        ICONS: { of: (id) => icons[id] ?? '', ready: async () => {}, onChange() {} },
         host: { show: () => shown.push(true) },
         dock,
     });

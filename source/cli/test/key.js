@@ -113,7 +113,9 @@ async function main() {
     const listed = channel('list')({}, 'settings');
     check(
         "the shell's keys are listed in order, each with its default and the chord set for it, as kept",
-        listed.map(({ id }) => id).join() === 'closeWindow,minimizeWindow,cycleWindows' &&
+        listed.map(({ id }) => id).join() ===
+            'closeWindow,minimizeWindow,cycleWindows,tileLeft,tileRight,tileFill,tileTopLeft,tileTopRight,' +
+                'tileBottomLeft,tileBottomRight,restoreWindow' &&
             JSON.stringify(listed[0].keystroke) ===
                 JSON.stringify({ code: 'KeyB', meta: true, control: false, alt: false, shift: false }) &&
             listed[0].defaultKeystroke.code === 'KeyW' &&
@@ -122,8 +124,12 @@ async function main() {
     );
     check(
         'a chord reads as a person reads it',
-        KEY.chordOf('minimizeWindow') === '⌘M' && KEY.chordOf('cycleWindows') === '⌘`' && KEY.chordOf('gone') === '',
-        [KEY.chordOf('minimizeWindow'), KEY.chordOf('cycleWindows')]
+        KEY.chordOf('minimizeWindow') === '⌘M' &&
+            KEY.chordOf('cycleWindows') === '⌘`' &&
+            KEY.chordOf('tileLeft') === '⌃⌥←' &&
+            KEY.chordOf('tileTopRight') === '⌃⌥I' &&
+            KEY.chordOf('gone') === '',
+        [KEY.chordOf('minimizeWindow'), KEY.chordOf('cycleWindows'), KEY.chordOf('tileLeft')]
     );
     const refusedTo = (run) => {
         try {

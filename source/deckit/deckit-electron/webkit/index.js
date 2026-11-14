@@ -1,9 +1,9 @@
 // Every page deckit shows is WebKit's, through the module beside the core (deckit-web.node): a page of deck's, a
 // surface one opened, or a web page. Each is a token that tells what becomes of it as events and answers what it is
-// asked: `changed`, `started`, `stopped`, `committed` (url), `failed` (code, description), `gone`, `focus`, `close`,
-// `mouse` (type, `mouseDown` or `mouseUp`), `key` (pressed, take), taken from the page once `take()` is called,
-// `unhandled` (pressed, take), a key down the page did not handle, taken from the rest of the app once `take()` is
-// called, and `destroyed`, once, as it closes. A key down a page shown in another (`containerOf(page)`, that page or
+// asked: `changed`, `started`, `stopped`, `committed` (url), `failed` (code, description, url), `gone`, `focus`,
+// `close`, `mouse` (type, `mouseDown` or `mouseUp`), `key` (pressed, take), taken from the page once `take()` is
+// called, `unhandled` (pressed, take), a key down the page did not handle, taken from the rest of the app once `take()`
+// is called, and `destroyed`, once, as it closes. A key down a page shown in another (`containerOf(page)`, that page or
 // null) did not handle is that page's next: a key down at its element with the keyboard, which its listeners may
 // cancel, and then a key it did not handle. `path` is the module's.
 export function createWebKit({ path, LOG, containerOf }) {
@@ -128,7 +128,7 @@ export function createWebKit({ path, LOG, containerOf }) {
                     return void page.emit('committed', payload.url);
                 case 'failed':
                     if (payload.code === CANCELLED) return undefined;
-                    return void page.emit('failed', payload.code, payload.description);
+                    return void page.emit('failed', payload.code, payload.description, payload.url);
                 case 'gone':
                     crashed = true;
                     return void page.emit('gone');

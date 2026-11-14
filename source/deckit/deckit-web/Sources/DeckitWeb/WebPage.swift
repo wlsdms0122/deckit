@@ -353,7 +353,9 @@ final class WebPage: NSObject {
         emitter.emit("failed", [
             "code": error.code,
             "description": error.localizedDescription,
-            "url": (error.userInfo[NSURLErrorFailingURLStringErrorKey] as? String) ?? view.url?.absoluteString ?? ""
+            "url": (error.userInfo[NSURLErrorFailingURLStringErrorKey] as? String)
+                ?? (error.userInfo[NSURLErrorFailingURLErrorKey] as? URL)?.absoluteString
+                ?? view.url?.absoluteString ?? ""
         ])
         emitter.emit("stopped")
     }

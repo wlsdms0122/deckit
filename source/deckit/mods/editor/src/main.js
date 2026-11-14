@@ -627,6 +627,7 @@ class Editor {
             const workspace = workspaces.add(root, { mode });
             workspace.tree = fileTree({
                 ui,
+                theme,
                 store,
                 fileSystem,
                 isUnsaved: (entry) =>

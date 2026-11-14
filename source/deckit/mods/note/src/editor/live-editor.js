@@ -240,12 +240,14 @@ function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollo
                 '&.cm-focused': { outline: 'none' },
                 // The font face is set only by typefaceTheme, so two rules never race. The side margin is on the
                 // scroller: the engine paints a selected line from the content's outer edge, so a margin inside it
-                // would be painted.
-                '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 28px' },
+                // would be painted. The text keeps a reading measure, 72 characters at most, in the middle.
+                '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 32px' },
                 '.cm-content': {
                     padding: '4px 0 40vh',
                     caretColor: theme.color.accent,
                     width: '100%',
+                    maxWidth: '72ch',
+                    margin: '0 auto',
                     boxSizing: 'border-box',
                 },
                 '.cm-line': { padding: '0' },
@@ -264,20 +266,20 @@ function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollo
                     padding: '0 .8em !important',
                 },
                 '.note-code-first': {
-                    borderTopLeftRadius: '7px',
-                    borderTopRightRadius: '7px',
+                    borderTopLeftRadius: 'var(--deckit-radius-medium)',
+                    borderTopRightRadius: 'var(--deckit-radius-medium)',
                     paddingTop: '.3em !important',
                 },
                 '.note-code-last': {
-                    borderBottomLeftRadius: '7px',
-                    borderBottomRightRadius: '7px',
+                    borderBottomLeftRadius: 'var(--deckit-radius-medium)',
+                    borderBottomRightRadius: 'var(--deckit-radius-medium)',
                     paddingBottom: '.3em !important',
                 },
                 '.note-fence': { color: muted, fontSize: '.8em' },
                 '.note-fence-folded': { color: muted, fontSize: '.7em', lineHeight: '1.1', textAlign: 'right' },
                 '.note-inline-code': {
                     backgroundColor: ui.alpha(theme.color.text, 0.1),
-                    borderRadius: '4px',
+                    borderRadius: 'var(--deckit-radius-small)',
                     padding: '.05em .25em',
                 },
                 '.note-link': {
@@ -306,7 +308,7 @@ function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollo
                     cursor: 'pointer',
                 },
                 ".note-check[aria-checked='true']": {
-                    background: `${theme.color.accent} url("data:image/svg+xml,${tick}") center / 68% no-repeat`,
+                    background: `${theme.color.accentFill} url("data:image/svg+xml,${tick}") center / 68% no-repeat`,
                     boxShadow: 'none',
                 },
             },

@@ -24,7 +24,7 @@ input = "call"
 mod = "mod-a"
 member = "set"
 handed = true
-args = ["mod-b", "today", { code = "KeyK", meta = false, control = true, alt = true, shift = false }]
+args = ["mod-b", "today", { code = "KeyL", meta = false, control = true, alt = true, shift = false }]
 
 [step.expect]
-answers = { mod = { id = "mod-b", name = "MOD B" }, command = "today", title = "Show Today", scope = "app", defaultKeystroke = { code = "KeyT", meta = false, control = true, alt = true, shift = false }, keystroke = { code = "KeyK", meta = false, control = true, alt = true, shift = false }, chord = "⌃⌥K", changed = true, active = true, issues = [] }
+answers = { mod = { id = "mod-b", name = "MOD B" }, command = "today", title = "Show Today", scope = "app", defaultKeystroke = { code = "KeyT", meta = false, control = true, alt = true, shift = false }, keystroke = { code = "KeyL", meta = false, control = true, alt = true, shift = false }, chord = "⌃⌥L", changed = true, active = true, issues = [] }

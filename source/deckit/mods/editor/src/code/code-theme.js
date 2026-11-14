@@ -3,7 +3,7 @@
 function codeTheme({ engine, theme, ui }) {
     const { tags } = engine;
     const { syntax } = theme;
-    const fast = (property) => `${property} ${theme.motion.fast}ms ${theme.motion.easing}`;
+    const fade = (property) => `${property} ${theme.motion.press.fade}ms ${theme.motion.press.easing}`;
     const highlights = [
         {
             tag: [
@@ -49,7 +49,13 @@ function codeTheme({ engine, theme, ui }) {
             '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
                 { backgroundColor: ui.alpha(theme.color.accent, 0.28) },
             // Transparent: lines scrolled sideways are clipped at its edge (clipGutter in code-view.js).
-            '.cm-gutters': { backgroundColor: 'transparent', color: theme.color.muted, border: '0' },
+            // Only the number of the line in hand speaks; the others step back.
+            '.cm-gutters': { backgroundColor: 'transparent', color: theme.color.disabled, border: '0' },
+            '.cm-lineNumbers .cm-gutterElement': {
+                padding: '0 12px',
+                textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums',
+            },
             '.cm-activeLineGutter': { backgroundColor: 'transparent', color: theme.color.text },
             '.cm-activeLine': { backgroundColor: theme.color.surface },
             // The engine draws a partial-line selection at letter height and this band at line height, so the two never
@@ -71,7 +77,7 @@ function codeTheme({ engine, theme, ui }) {
             '.cm-foldGutter .editor-fold-open, .cm-foldGutter .editor-fold-closed': {
                 cursor: 'pointer',
                 color: theme.color.muted,
-                transition: `${fast('background-color')}, ${fast('color')}`,
+                transition: `${fade('background-color')}, ${fade('color')}`,
             },
             '.cm-foldGutter .editor-fold-closed': { color: theme.color.text },
             '.cm-foldGutter .editor-fold-open:hover, .cm-foldGutter .editor-fold-closed:hover': {
@@ -81,12 +87,12 @@ function codeTheme({ engine, theme, ui }) {
             '.cm-foldPlaceholder': {
                 backgroundColor: theme.color.selected,
                 border: '0',
-                borderRadius: '5px',
+                borderRadius: 'var(--deckit-radius-control)',
                 color: 'inherit',
                 padding: '0 6px',
                 margin: '0 3px',
                 cursor: 'pointer',
-                transition: fast('background-color'),
+                transition: fade('background-color'),
             },
             '.cm-foldPlaceholder:hover': { backgroundColor: theme.color.pressed },
             '.cm-panels': { backgroundColor: theme.color.surface, color: theme.color.text },

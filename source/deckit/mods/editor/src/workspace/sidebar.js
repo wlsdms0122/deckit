@@ -16,7 +16,6 @@ const SIDEBAR_STYLE = `
         overflow-y: auto;
         padding: 0 12px;
     }
-    .editor-workspace-icon { display: flex; flex: 0 0 auto; }
     .editor-row-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .editor-unsaved-dot {
         flex: 0 0 auto;
@@ -26,9 +25,7 @@ const SIDEBAR_STYLE = `
         background: currentColor;
         opacity: 0.7;
     }
-    .editor-open-folder-icon { display: flex; opacity: 0.6; }
-    .editor-open-folder-label { opacity: 0.7; }
-    .editor-loose-icon { display: flex; }
+    .editor-open-folder-label { color: var(--deckit-muted); }
 `;
 
 // The editor's sidebar: the workspaces, and under them the navigator of the one in front, its files or its search, or
@@ -60,7 +57,7 @@ function sidebar({
     const section = ui.section({
         label: 'Workspaces',
         icon: ui.icon('folders', { size: 16 }),
-        actions: [{ title: 'Open', run: openMenu }],
+        actions: [{ icon: ui.icon('folderOpen', { size: 16 }), title: 'Open', run: openMenu }],
     });
     const workspaceRows = ui.list({ maxRows: 4, key: (item) => item.key, create: workspaceRowOf });
     const modes = ui.segmented({
@@ -149,22 +146,16 @@ function sidebar({
 
     function workspaceRowOf(item) {
         if (!item.workspace) {
-            const row = ui.row().element;
-            row.append(
-                iconElement(ui, 'editor-open-folder-icon', ui.icon('plus', { size: 15 })),
-                ui.element('span', { className: 'editor-open-folder-label', text: 'Open Folder…' })
-            );
+            const row = ui.row({ glyph: ui.icon('plus', { size: 15 }) }).element;
+            row.append(ui.element('span', { className: 'editor-open-folder-label', text: 'Open Folder…' }));
             row.addEventListener('click', () => onPickFolder());
             return row;
         }
-        const { element: row, setActive } = ui.row();
+        const { element: row, setActive } = ui.row({
+            glyph: item.root ? ui.folderIcon({ open: item.front, size: 16 }) : ui.icon('fileText', { size: 16 }),
+        });
         row.title = item.root || 'Files opened on their own';
         row.append(
-            iconElement(
-                ui,
-                'editor-workspace-icon',
-                item.root ? ui.folderIcon({ open: item.front, size: 16 }) : ui.icon('fileText', { size: 16 })
-            ),
             ui.element('span', { className: 'editor-row-label', text: item.root ? nameOf(item.root) : 'Files' })
         );
         if (item.unsaved) row.append(ui.element('span', { className: 'editor-unsaved-dot' }));
@@ -181,11 +172,8 @@ function sidebar({
     }
 
     function looseRowOf(item) {
-        const { element: row, setActive } = ui.row({ size: 'small' });
-        row.append(
-            iconElement(ui, 'editor-loose-icon', fileIconOf(ui, item.path, 14)),
-            ui.element('span', { className: 'editor-row-label', text: nameOf(item.path) })
-        );
+        const { element: row, setActive } = ui.row({ size: 'small', glyph: fileIconOf(ui, item.path, 14) });
+        row.append(ui.element('span', { className: 'editor-row-label', text: nameOf(item.path) }));
         row.title = item.path;
         row.addEventListener('click', () => onShowFile(item.file));
         setActive(item.current);

@@ -8,6 +8,8 @@ const { handlerRow } = require('../handler-list/handler-list.js');
 // refuses is told on its card. `onChange` hears that a choice was made here.
 function urlSchemesSection({ ui, urls, appName, onChange }) {
     const TITLE = 'URL Schemes';
+    // The glyph beside the title in the sidebar.
+    const GLYPH = 'link';
     const KEYWORDS = [
         '열기',
         '링크',
@@ -38,8 +40,16 @@ function urlSchemesSection({ ui, urls, appName, onChange }) {
     ui.addStyle(`
         .settings-scheme-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; }
         .settings-scheme-name { flex: 1 1 auto; min-width: 0; font: 600 var(--deckit-type-body); }
-        .settings-scheme-description { padding: 1px 12px 6px; font: var(--deckit-type-small); opacity: 0.5; }
-        .settings-scheme-none { padding: 4px 12px 6px 44px; font: 12.5px var(--deckit-font); opacity: 0.4; }
+        .settings-scheme-description {
+            padding: 1px 12px 6px;
+            font: var(--deckit-type-small);
+            color: var(--deckit-muted);
+        }
+        .settings-scheme-none {
+            padding: 4px 12px 6px 44px;
+            font: var(--deckit-type-small);
+            color: var(--deckit-muted);
+        }
         .settings-scheme-patterns {
             flex: 0 1 auto;
             min-width: 0;
@@ -47,11 +57,11 @@ function urlSchemesSection({ ui, urls, appName, onChange }) {
             text-overflow: ellipsis;
             white-space: nowrap;
             font: var(--deckit-type-small);
-            opacity: 0.45;
+            color: var(--deckit-muted);
         }
         .settings-scheme-refusal {
             padding: 4px 12px 6px 44px;
-            color: var(--deckit-alert);
+            color: var(--deckit-alert-ink);
             font: var(--deckit-type-small);
             white-space: pre-wrap;
         }
@@ -64,7 +74,7 @@ function urlSchemesSection({ ui, urls, appName, onChange }) {
     });
 
     body.append(cards.element);
-    return { element, title: TITLE, keywords: KEYWORDS, read, draw };
+    return { element, title: TITLE, glyph: GLYPH, keywords: KEYWORDS, read, draw };
 
     // Every scheme and the entries left out, as `deckit/urls` lists them, `{ schemes, refused }`, `schemes`
     // `[{ scheme, system, chosen, mods }]`; none while it cannot be read.

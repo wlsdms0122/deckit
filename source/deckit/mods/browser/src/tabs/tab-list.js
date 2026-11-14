@@ -138,6 +138,7 @@ function tabList({
         old.element.before(tab.page.element);
         release(tab, old);
         Object.assign(tab, { url, title: '', icon: '', loading: true, canGoBack: false, canGoForward: false });
+        tab.failure = null;
         listen(tab);
         changed();
     }
@@ -225,11 +226,14 @@ function tabList({
         const { page } = tab;
         const isCurrentPage = () => tab.page === page && nodes.items().includes(tab);
         page.delegate = {
+            // A page that failed to load is at the address that failed, with no title or icon of its own.
             didChange: (state) => {
                 if (tab.page !== page) return;
-                if (state.url) tab.url = canonical(state.url);
-                tab.title = state.title || '';
-                if (state.icon || !state.loading) tab.icon = state.icon || '';
+                tab.failure = state.failure || null;
+                const url = tab.failure ? tab.failure.url : state.url;
+                if (url) tab.url = canonical(url);
+                tab.title = tab.failure ? '' : state.title || '';
+                if (tab.failure || state.icon || !state.loading) tab.icon = tab.failure ? '' : state.icon || '';
                 tab.loading = state.loading;
                 tab.canGoBack = state.canGoBack;
                 tab.canGoForward = state.canGoForward;
@@ -300,6 +304,8 @@ function tabList({
             audible: false,
             muted: false,
             capture: { microphone: false, camera: false, screen: false },
+            // How its page last failed to load, `{ url, kind }`, while that is what it shows, or null.
+            failure: null,
         };
         if (!asleep) wake(tab);
         return tab;
@@ -326,10 +332,13 @@ function tabList({
     }
 
     // Pages out of sight are hidden by visibility: a page element with nothing to draw into (display: none) comes
-    // back blank or at the wrong size. The tab in front at the start shows the start page instead.
+    // back blank or at the wrong size. The tab in front at the start shows the start page instead, and one whose page
+    // failed to load the failure page.
     function showCurrent() {
         for (const tab of nodes.items())
-            if (tab.page) tab.page.element.style.visibility = tab === front && !atStart(tab) ? 'visible' : 'hidden';
+            if (tab.page)
+                tab.page.element.style.visibility =
+                    tab === front && !atStart(tab) && !tab.failure ? 'visible' : 'hidden';
     }
 
     // A window a page opened at START is the page's, which may draw in it.

@@ -40,54 +40,50 @@ class Mods {
                 height: 100%;
                 overflow: hidden;
                 color: var(--deckit-text);
-                font: var(--deckit-type-medium);
+                font: var(--deckit-type-body);
             }
-            .mods-head { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; padding: 10px 14px; }
-            .mods-title { flex: 0 0 auto; font: 700 var(--deckit-type-large); }
             .mods-search { flex: 1 1 auto; max-width: 320px; margin-left: auto; }
             .mods-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
             .mods-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-                gap: 6px;
+                grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+                gap: 16px 8px;
             }
             .mods-item {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 6px;
+                gap: 8px;
                 min-width: 0;
-                padding: 12px 6px 10px;
+                padding: 12px 8px;
                 border: 0;
-                border-radius: var(--deckit-radius-medium);
+                border-radius: var(--deckit-radius-card);
                 background: transparent;
                 color: inherit;
                 font: var(--deckit-type-body);
                 cursor: pointer;
-                transition: background-color var(--deckit-fast) var(--deckit-easing);
+                transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
             }
             .mods-item:hover { background: var(--deckit-hover); }
-            .mods-item:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--deckit-focus); }
-            .mods-icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; }
-            .mods-icon svg { width: 28px; height: 28px; }
-            .mods-name { display: flex; align-items: center; gap: 4px; max-width: 100%; }
-            .mods-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .mods-running {
-                flex: 0 0 auto;
-                width: 5px;
-                height: 5px;
-                border-radius: 50%;
-                background: currentColor;
-                opacity: 0.5;
+            .mods-item:active .deckit-app-icon { filter: var(--deckit-shadow-icon) brightness(.85); }
+            /* A name wraps to a second line before it is cut. */
+            .mods-name {
+                display: -webkit-box;
+                max-width: 100%;
+                overflow: hidden;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                overflow-wrap: anywhere;
+                text-align: center;
             }
-            .mods-none { padding: 24px 0; text-align: center; opacity: 0.45; }
+            .mods-none { padding: 24px 0; }
+            .mods-none[hidden] { display: none; }
         `);
         const page = ui.element('div', { className: 'mods-page' });
         const head = ui.element('div', { className: 'mods-head' });
         const field = ui.field({
             placeholder: 'Search',
-            icon: ui.icon('search', { size: 14 }),
-            size: 'small',
+            icon: ui.icon('search', { size: 13 }),
             clearable: true,
             onInput: (value) => {
                 query = value;
@@ -101,11 +97,16 @@ class Mods {
         field.element.classList.add('mods-search');
         const body = ui.element('div', { className: 'mods-body' });
         const grid = ui.element('div', { className: 'mods-grid' });
-        const none = ui.element('div', { className: 'mods-none', text: 'No mod matches.' });
-        head.append(ui.element('div', { className: 'mods-title', text: 'Mods' }), field.element);
-        body.append(grid, none);
+        const empty = ui.emptyState({ icon: ui.icon('search', { size: 24 }) });
+        const none = empty.element;
+        none.classList.add('mods-none');
+        // Why the mods could not be listed, where they would be.
+        const failure = ui.notice({});
+        failure.element.style.display = 'none';
+        head.append(field.element);
+        body.append(failure.element, grid, none);
         page.append(head, body);
-        ui.titleBar(head);
+        ui.titleBar(head, { title: 'Mods', scroller: body });
         ui.contextMenu(grid, {
             rowAt: (target) => target?.closest?.('.mods-item'),
             items: (item) => {
@@ -138,7 +139,16 @@ class Mods {
             try {
                 answered = await dock.list();
             } catch (error) {
-                return ui.toast(`Could not list the mods: ${error.message}`);
+                if (now !== asked) return;
+                grid.replaceChildren();
+                none.hidden = true;
+                failure.set({
+                    text: 'Could not list the mods.',
+                    details: error.message,
+                    action: { label: 'Try Again', run: draw },
+                });
+                failure.element.style.display = '';
+                return;
             }
             if (now !== asked) return;
             listed = answered;
@@ -147,8 +157,20 @@ class Mods {
 
         function show() {
             const mods = shown();
+            failure.element.style.display = 'none';
             grid.replaceChildren(...mods.map(itemOf));
             none.hidden = mods.length > 0;
+            const settings = ui.button({
+                label: 'Open Settings',
+                size: 'small',
+                variant: 'primary',
+                onClick: () => open('settings'),
+            });
+            empty.set({
+                title: query ? `No mod named “${query}”` : 'No mods to open',
+                hint: query ? 'Install more in Settings.' : 'Install a mod in Settings.',
+                actions: [settings.element],
+            });
         }
 
         function itemOf(mod) {
@@ -156,15 +178,9 @@ class Mods {
             item.type = 'button';
             item.dataset.modId = mod.id;
             item.title = mod.name;
-            const icon = ui.element('span', { className: 'mods-icon' });
-            if (mod.icon) icon.append(ui.sanitizeIcon(mod.icon));
-            const name = ui.element('span', { className: 'mods-name' });
-            name.append(ui.element('span', { className: 'mods-name-text', text: mod.name }));
-            if (mod.running) {
-                const running = ui.element('span', { className: 'mods-running' });
-                running.title = 'Running';
-                name.append(running);
-            }
+            const icon = ui.appIcon(mod.icon, { size: 'grid' });
+            // Whether it runs, the Dock shows.
+            const name = ui.element('span', { className: 'mods-name', text: mod.name });
             item.append(icon, name);
             item.addEventListener('click', () => open(mod.id));
             return item;
@@ -181,11 +197,11 @@ class Mods {
         }
 
         function open(id) {
-            dock.open(id).catch((error) => ui.toast(`Could not open it: ${error.message}`));
+            dock.open(id).catch((error) => ui.toast(`Could not open it: ${error.message}`, { kind: 'failure' }));
         }
 
         function keep(id, pinned) {
-            dock.setPinned(id, pinned).then(draw, (error) => ui.toast(error.message));
+            dock.setPinned(id, pinned).then(draw, (error) => ui.toast(error.message, { kind: 'failure' }));
         }
     }
 

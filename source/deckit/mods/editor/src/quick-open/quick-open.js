@@ -9,11 +9,11 @@ const QUICK_OPEN_STYLE = `
     .editor-quick-open-folder {
         flex: 1 1 auto;
         min-width: 0;
-        opacity: 0.45;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font: 12px var(--deckit-font);
+        color: var(--deckit-muted);
+        font: var(--deckit-type-small);
     }
 `;
 
@@ -44,9 +44,8 @@ function quickOpen({ ui, list, root, onOpen }) {
         shown = { root: null, query: '', files: [] };
         listing = true;
         picker = ui.quickPick({
-            placeholder: 'Open Quickly',
+            placeholder: 'Open quickly',
             value: query,
-            width: 'min(560px, calc(100vw - 40px))',
             key: (relative) => relative,
             create: rowOf,
             onInput: (text) => {

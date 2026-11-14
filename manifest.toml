@@ -14,6 +14,8 @@ requires = ["node", "npm", "npx", "shasum"]
 [command]
 build   = "source/cli/deckit build"
 check   = "source/cli/deckit check"
+style   = "source/cli/deckit style"
 dev     = "source/cli/deckit dev"
 test    = "source/cli/deckit test"
+shots   = "source/cli/deckit shots"
 install = "source/cli/deckit install"

@@ -3,19 +3,8 @@
 const SECTION_STYLE = `
     .settings-section { margin-bottom: 22px; }
     .settings-section-head { display: flex; align-items: center; gap: 8px; min-height: 24px; padding: 0 0 6px; }
-    .settings-section-title {
-        flex: 1 1 auto;
-        font: 700 11.5px var(--deckit-font);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        opacity: 0.45;
-    }
-    .settings-section-description {
-        padding: 0 0 8px;
-        font: 12.5px var(--deckit-font);
-        line-height: 1.5;
-        opacity: 0.45;
-    }
+    .settings-section-title { flex: 1 1 auto; font: 600 var(--deckit-type-heading); }
+    .settings-section-description { padding: 0 0 8px; color: var(--deckit-muted); font: var(--deckit-type-small); }
     .settings-card {
         margin-bottom: 10px;
         padding: 8px 0 4px;
@@ -23,10 +12,17 @@ const SECTION_STYLE = `
         border-radius: var(--deckit-radius-medium);
     }
     .settings-card-title { padding: 0 12px 4px; font: 600 var(--deckit-type-body); }
-    .settings-setting { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 4px 12px; }
-    .settings-setting-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 1px; min-width: 0; }
+    .settings-setting {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 12px;
+        min-height: 36px;
+        padding: 4px 12px;
+    }
+    .settings-setting-words { display: flex; flex: 1 1 240px; flex-direction: column; gap: 1px; min-width: 0; }
     .settings-setting-label { font: var(--deckit-type-body); }
-    .settings-setting-hint { font: var(--deckit-type-small); line-height: 1.45; opacity: 0.5; }
+    .settings-setting-hint { color: var(--deckit-muted); font: var(--deckit-type-small); }
 `;
 
 // A titled part of the Settings window. The caller adds to `head`, after the title, and fills `body`.

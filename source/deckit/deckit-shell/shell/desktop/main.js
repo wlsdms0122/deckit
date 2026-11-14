@@ -3,15 +3,19 @@ import * as DECLARED from './protocol.js';
 import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
 import * as WM from './model/window-manager.js';
+import * as MOTION from './model/motion.js';
 import * as ACTIVATION_MODEL from './model/activation.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
-import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as MODS from '../mods/index.js';
+
+// How many frames a second a window's motion is drawn at.
+const FRAMES = 120;
 
 // `deckit` is what connect answered, `state` the shell's own state, `web` what the web engine answered (`pageFor`),
 // `host` the app's answers, `REGION` the regions mods give their children, `PAGES` the shell's pages, `OVERLAY` their
-// overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment: SHELL.stage) and
-// `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL).
+// overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment: SHELL.stage),
+// `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL), and `clock`
+// what draws a frame's motion: `now()` in ms and `later(next)`, next called once the next frame is due.
 export function createDesktop({
     REGION,
     PAGES,
@@ -23,6 +27,7 @@ export function createDesktop({
     state: STATE,
     web,
     host,
+    clock = { now: () => performance.now(), later: (next) => setTimeout(next, 1000 / FRAMES) },
 }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -33,9 +38,17 @@ export function createDesktop({
     const ACTIVATION = ACTIVATION_MODEL.createActivation();
     // What each of the shell's keys does, by its id, to the local seat's key window.
     const KEY_ACTIONS = Object.freeze({
-        closeWindow: () => keyWindow() && WINDOWS.close(keyWindow()),
-        minimizeWindow: () => keyWindow() && minimize(keyWindow()),
+        closeWindow: () => keyWindow() && clicked(keyWindow(), 'close'),
+        minimizeWindow: () => keyWindow() && clicked(keyWindow(), 'minimize'),
         cycleWindows,
+        tileLeft: () => tileKey('left'),
+        tileRight: () => tileKey('right'),
+        tileFill: () => tileKey('fill'),
+        tileTopLeft: () => tileKey('top-left'),
+        tileTopRight: () => tileKey('top-right'),
+        tileBottomLeft: () => tileKey('bottom-left'),
+        tileBottomRight: () => tileKey('bottom-right'),
+        restoreWindow: () => keyWindow() && restore(keyWindow()),
     });
     // Which mods may activate for a seat, as its input and the requests mods make of one another hand it on.
     const activation = Object.freeze({
@@ -44,6 +57,9 @@ export function createDesktop({
         mayActivate: ACTIVATION.mayActivate,
     });
     const windows = new Map(); // id -> a normal window, as WINDOWS made it, while it is open
+    const panels = new Map(); // id -> a panel window, as WINDOWS made it, while it is open, in the order they opened
+    const inPanels = new Set(); // the children's pages the panel windows' regions show, as last laid
+    const heard = new WeakSet(); // the children's pages whose presses are heard
     const listeners = new Set();
     // The desktop's page, the documents it opened by name, and what it was last told.
     const desktop = { page: null, surfaces: new Map(), sent: '' };
@@ -51,19 +67,35 @@ export function createDesktop({
     let DOCK = null;
     let stage = null; // where the pages are laid, which the host app places
     let frames = {}; // mod id -> window name -> the frame it was left at, `{ level, x, y, width, height }`
-    let moving = null; // { id, from }: the window its content's drag moves, from the frame it had at the press
+    // { id, from, grab, pointer }: the window a drag of its title bar or its content's drag regions moves, from the
+    // frame it had at the press, `grab` where the press was in that frame, and where the pointer is on the stage now
+    let moving = null;
+    let dropping = null; // the tile the window moving takes let go where the pointer is now, or null
+    // id -> what is drawn of a window: `{ window, motion, value, velocity, late, leaving, gone }`, `value` its frame
+    // and opacity as drawn last, `leaving` 'closed' or 'minimized' while it goes, `gone()` once a closed one has
+    const drawn = new Map();
+    const handHeld = new Set(); // the windows whose frame follows the hand now, drawn where it is at once
+    // Whether the system asks for reduced motion, as the desktop's page tells it, or null until it does: a frame is
+    // then drawn where it is at once.
+    let reduced = null;
+    let ticking = false; // whether the next frame of a motion is due
+    let atOnce = false; // whether what is laid now is drawn where it is at once, as the desktop changes size
     let focused = null; // the key window the keyboard was last given to
+    let focusedContent = false; // whether the keyboard was given to its content, which may open after it
+    let held = null; // the id of the panel window at the edge `right` that holds the keyboard, or null
     let shown = false;
     let titled = null; // the title the host was last told
     let down = null; // why deckit's core answers nothing more, once it does not
     let strip = { height: 0, controlsWidth: 0 }; // the host's bar over the desktop's top
     let dockOut = false; // whether the Dock is out, as the desktop's page last told
+    let glass = []; // the materials laid under the desktop's page, as it last told
 
     // MARK: - Initializer
     // MARK: - Public
     // The desktop in the host window, the local seat's view of it: the backdrop, the normal windows `WINDOWS` opens in
     // the seat's order, each its content between the frame under it and the buttons over it with the children its
-    // regions show, and the Dock and the host's bar over them, `DOCK` giving the Dock's items. Each mod's page with a
+    // regions show, and the Dock and the host's bar over them, `DOCK` giving the Dock's items, and the panel windows in
+    // that bar. Each mod's page with a
     // window there is laid under the backdrop, at its front window, so what its overlay draws for a window lands over
     // that window. The machine's keyboard is the local seat's: a key pressed in a page reaches the mod whose page it
     // is, a chord the mod that took it.
@@ -95,17 +127,19 @@ export function createDesktop({
 
     // A normal window opens where its mod last left a normal window of its name, or cascaded from the key window, or
     // the front window on screen while none is key, where it left none or one of that name is open, placed at its size
-    // no smaller than its minimum, brought forward as orderFront brings it. A window with a `title` is titled: the
-    // shell draws its title bar, holding the title, over its content.
+    // no smaller than its minimum, brought forward as orderFront brings it. Its `bar` is its title bar (LAYOUT.barOf):
+    // the shell draws the bar of a titled one, holding its `title`, over its content.
     function open(window, { activates = true } = {}) {
         const desktopNow = area();
         const after = keyWindow() ? MANAGER.frameOf(keyWindow().id) : (MANAGER.viewOf(LOCAL).at(-1)?.frame ?? null);
         const twin = [...windows.values()].some(({ mod, name }) => mod === window.mod && name === window.name);
         const restored = (!twin && keptFrameOf(window)) || null;
-        const minimum = LAYOUT.minimumOf(window.minimum);
-        const framed = LAYOUT.framedSize(window.size, isTitled(window));
-        const size = { width: Math.max(framed.width, minimum.width), height: Math.max(framed.height, minimum.height) };
-        const frame = LAYOUT.placed({ size, restored, after, desktop: desktopNow });
+        const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
+        const size = {
+            width: Math.max(window.size.width, minimum.width),
+            height: Math.max(window.size.height, minimum.height),
+        };
+        const frame = LAYOUT.placed({ size, restored, after, desktop: desktopNow, bar: window.bar.height });
         windows.set(window.id, window);
         for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)])
             PAGES.allowSurface(desktop.page, name, (surface) => openSurface(name, surface));
@@ -113,16 +147,80 @@ export function createDesktop({
         orderFront(window, { activates });
     }
 
+    // A panel window stands at its edge, where panelFrames() places it, in front of every normal window: its content
+    // lies on the material the desktop's page draws for it, cut to its frame rounded as LAYOUT.panelRadius has it. One
+    // in the bar is never key; one at the right edge takes the keyboard as it opens, as orderFront gives it.
+    function openPanel(window, { activates = true } = {}) {
+        panels.set(window.id, window);
+        if (!orderFrontPanel(window, { activates })) update();
+    }
+
+    function closePanel(window) {
+        if (!panels.delete(window.id)) return;
+        if (held === window.id) held = null;
+        update();
+    }
+
+    // A panel window at the right edge takes the keyboard from the desktop where `activates` is true and its mod may
+    // activate for the local seat, the host window coming up; one in the bar stands where it is. Answers whether it
+    // took the keyboard.
+    function orderFrontPanel(window, { activates = true } = {}) {
+        if (!panels.has(window.id) || window.edge !== 'right' || !activates) return false;
+        if (!ACTIVATION.mayActivate(LOCAL, window.mod)) return false;
+        held = window.id;
+        update();
+        host.show();
+        return true;
+    }
+
+    // The local seat pressed in a panel window: its input reached the window's mod. One in the bar leaves the keyboard
+    // with the key window, or with the panel window that holds it; one at the right edge takes it.
+    function pressPanel(window) {
+        if (!panels.has(window.id)) return;
+        ACTIVATION.input(LOCAL, window.mod);
+        if (window.edge !== 'right') return giveBack();
+        if (held === window.id) return;
+        held = window.id;
+        update();
+    }
+
+    // The keyboard back on the desktop, with its key window, from the panel window that holds it: as the person
+    // presses a normal window, the desktop or the Dock, or a normal window comes in front as the key window. Where an
+    // overlay window took it, `refocus` false, the desktop's page is left as it is.
+    function toDesktop({ refocus = true } = {}) {
+        if (held === null) return;
+        held = null;
+        if (!refocus) focused = keyWindow();
+        update();
+    }
+
+    // The local seat pressed a child's view shown in a panel window: as a press in the panel window, its input reached
+    // the child's mod, and the keyboard stays with the key window.
+    function pressPanelChild(page) {
+        if (!inPanels.has(page)) return;
+        ACTIVATION.input(LOCAL, deckit.mods.modOf(page));
+        giveBack();
+    }
+
     // A mod left with no window open asks for no seat's attention.
     function close(window) {
         if (!windows.delete(window.id)) return;
         MANAGER.close(LOCAL, window.id);
         if (![...windows.values()].some(({ mod }) => mod === window.mod)) ACTIVATION.cancelAttention(window.mod);
-        if (moving?.id === window.id) moving = null;
-        for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)]) {
+        if (moving?.id === window.id) endDrag();
+        const surfaces = [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)].map((name) => {
             const surface = desktop.surfaces.get(name);
             desktop.surfaces.delete(name);
-            if (surface) PAGES.close(surface);
+            return surface;
+        });
+        const gone = () => surfaces.forEach((surface) => surface && PAGES.close(surface));
+        const shown = drawn.get(window.id);
+        if (shown && !shown.leaving && reduced !== null) {
+            shown.gone = gone;
+            shown.surfaces = surfaces;
+        } else {
+            drawn.delete(window.id);
+            gone();
         }
         update();
     }
@@ -136,6 +234,7 @@ export function createDesktop({
         const may = ACTIVATION.mayActivate(LOCAL, window.mod);
         if (may) MANAGER.orderFront(LOCAL, window.id, { activates });
         else holdBack(LOCAL, [window.id], window.mod, { activates });
+        if (may && activates) held = null;
         update();
         if (may && activates) host.show();
     }
@@ -146,6 +245,7 @@ export function createDesktop({
         if (!windows.has(window.id)) return;
         ACTIVATION.input(LOCAL, window.mod);
         MANAGER.orderFront(LOCAL, window.id);
+        held = null;
         update();
     }
 
@@ -159,6 +259,27 @@ export function createDesktop({
         update();
     }
 
+    // In the tile `name` of the zoom area (LAYOUT.TILES), where the window is resizable: the frame it had before is
+    // kept for its return, and what the person left it at stays that frame.
+    function tile(window, name) {
+        if (!window.bar.enabled.zoom || !windows.has(window.id)) return;
+        MANAGER.tile(LOCAL, window.id, name, LAYOUT.tileOf(name, LAYOUT.zoomedIn(area())));
+        update();
+    }
+
+    // Out of its tile, back at the frame it had before it took one; nothing for a window in none.
+    function restore(window) {
+        if (MANAGER.tileNameOf(window.id) === null) return;
+        MANAGER.untile(LOCAL, window.id);
+        update();
+    }
+
+    // A shell key that tiles the key window.
+    function tileKey(name) {
+        const key = keyWindow();
+        if (key) tile(key, name);
+    }
+
     function resize(window, { width, height }) {
         const frame = MANAGER.frameOf(window.id);
         if (!frame) return;
@@ -167,29 +288,63 @@ export function createDesktop({
         update();
     }
 
-    // A drag of the content's drag regions, or of the title bar of a titled window, `dx`, `dy` from the press: the
-    // window follows, and is left where its title bar can be reached.
-    function move(window, phase, dx, dy) {
+    // A drag of the content's drag regions, or of the title bar of a titled window, `dx`, `dy` from the press, `grab`
+    // `{ x, y }` where it pressed in the frame, the middle of its title bar where it is not told: the window follows,
+    // its edges landing on those it comes within LAYOUT.SNAP of, never over the host's bar, and is left where its
+    // title bar can be reached. A tiled one leaves its tile as it starts to move, at the frame it had before, the
+    // pointer held where it grabbed it across the title bar. With the pointer at a side of the zoom area, the tile it
+    // takes there is shown, and the window takes it as it is let go.
+    function move(window, phase, dx, dy, grab = null) {
         if (phase === 'began') {
-            moving = { id: window.id, from: MANAGER.frameOf(window.id) };
+            const from = MANAGER.frameOf(window.id);
+            const at = grab ?? { x: Math.round(from.width / 2), y: Math.round(window.bar.height / 2) };
+            moving = { id: window.id, from, grab: at, pointer: { x: from.x + at.x, y: from.y + at.y } };
             press(window);
             return;
         }
         if (moving?.id !== window.id) return;
-        const frame = { ...moving.from, x: moving.from.x + dx, y: moving.from.y + dy };
-        MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(frame, area()) : frame);
-        if (phase === 'ended') {
-            moving = null;
-            remember(window);
+        const { from, grab: at } = moving;
+        moving.pointer = { x: from.x + at.x + dx, y: from.y + at.y + dy };
+        if ((dx || dy) && MANAGER.tileNameOf(window.id) !== null) {
+            const before = MANAGER.standardFrameOf(window.id);
+            const across = Math.round((at.x * before.width) / from.width);
+            moving.from = { ...before, x: from.x + at.x - across, y: from.y };
+            moving.grab = { x: across, y: at.y };
+            moving.pointer = { x: from.x + at.x + dx, y: from.y + at.y + dy };
+            MANAGER.untile(LOCAL, window.id, moving.from);
         }
+        const zoomArea = LAYOUT.zoomedIn(area());
+        const others = MANAGER.viewOf(LOCAL)
+            .filter(({ id }) => id !== window.id)
+            .map(({ frame }) => frame);
+        const goes = { ...moving.from, x: moving.from.x + dx, y: moving.from.y + dy };
+        const snapped = LAYOUT.snapped(goes, ['top', 'bottom', 'left', 'right'], others, zoomArea);
+        const frame = LAYOUT.underBar(snapped, area(), { moved: true });
+        const drop = window.bar.enabled.zoom ? LAYOUT.dropAt(moving.pointer, zoomArea) : null;
+        handHeld.add(window.id);
+        if (phase !== 'ended') {
+            dropping = drop;
+            MANAGER.setFrame(LOCAL, window.id, frame);
+            return update();
+        }
+        endDrag();
+        if (drop) MANAGER.tile(LOCAL, window.id, drop, LAYOUT.tileOf(drop, zoomArea));
+        else MANAGER.setFrame(LOCAL, window.id, LAYOUT.kept(frame, area(), window.bar.height));
+        remember(window);
         update();
     }
 
-    // A double click on the title bar does what the person set it to.
+    // The drag that moves a window ends: its frame goes on drawn by its motion, and no tile is shown.
+    function endDrag() {
+        if (moving) handHeld.delete(moving.id);
+        moving = null;
+        dropping = null;
+    }
+
+    // A double click on the title bar does what the person set it to, where the window's button for it is enabled.
     function doubleClick(window) {
         const action = actionOnDoubleClick();
-        if (action === 'zoom') zoom(window);
-        else if (action === 'minimize') minimize(window);
+        if (action === 'zoom' || action === 'minimize') clicked(window, action);
     }
 
     // Each of the mod's windows brought forward for `seat`, in the order it had them, those it minimized too, as
@@ -198,8 +353,10 @@ export function createDesktop({
     function activate(seat, mod) {
         const ids = MANAGER.orderOf(seat).filter((id) => windows.get(id).mod === mod);
         if (!ids.length) return false;
-        if (ACTIVATION.mayActivate(seat, mod)) for (const id of ids) MANAGER.orderFront(seat, id);
-        else holdBack(seat, ids, mod);
+        if (ACTIVATION.mayActivate(seat, mod)) {
+            for (const id of ids) MANAGER.orderFront(seat, id);
+            held = null;
+        } else holdBack(seat, ids, mod);
         update();
         return true;
     }
@@ -210,21 +367,34 @@ export function createDesktop({
     }
 
     // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` some seat's
-    // key window while no overlay window holds the keyboard, its size, and where its buttons stand over its top.
+    // key window while neither an overlay window nor a panel window holds the keyboard, its size, and where its buttons
+    // stand over its top; a panel window is key while it holds the keyboard and has no buttons.
     function stateOf(window) {
+        if (panels.has(window.id)) {
+            const frame = panelFrameOf(window.id);
+            const key = held === window.id;
+            return { shown, key, width: frame?.width ?? 0, height: frame?.height ?? 0, titleBar: null };
+        }
         const frame = MANAGER.frameOf(window.id);
         return {
             shown: shown && MANAGER.isShown(window.id),
-            key: MANAGER.isKey(window.id) && !WINDOWS.keyOverlay(),
+            key: MANAGER.isKey(window.id) && !keyboardAway(),
             width: frame?.width ?? 0,
             height: frame?.height ?? 0,
-            titleBar: { ...LAYOUT.TITLE_BAR },
+            titleBar: LAYOUT.guideOf(window.bar),
         };
     }
 
-    // Whether the window is the local seat's key window, which an overlay window holding the keyboard gives it back to.
+    // Whether the window is the local seat's key window, which an overlay window or a panel window holding the keyboard
+    // gives it back to; or the panel window that holds it.
     function isKey(window) {
+        if (panels.has(window.id)) return held === window.id;
         return MANAGER.keyOf(LOCAL) === window.id;
+    }
+
+    // The panel window that holds the keyboard, or null.
+    function keyPanel() {
+        return panels.get(held) ?? null;
     }
 
     // The title a titled window's title bar holds now.
@@ -243,15 +413,17 @@ export function createDesktop({
     // Laid again, the desktop's page told, the keyboard given to a new key window, the host's title and each listener.
     function update() {
         if (!stage) return;
-        ACTIVATION.setActive(LOCAL, WINDOWS.keyOverlay()?.mod ?? keyWindow()?.mod ?? null);
+        ACTIVATION.setActive(LOCAL, keyPanel()?.mod ?? WINDOWS.keyOverlay()?.mod ?? keyWindow()?.mod ?? null);
         layout();
         tellPage();
-        const key = keyWindow();
-        if (key !== focused) {
+        const key = keyPanel() ?? keyWindow();
+        // A panel window's content may open after it took the keyboard.
+        if (key !== focused || (key && key === keyPanel() && !focusedContent && key.surface)) {
+            focusedContent = !!key?.surface;
             focused = key;
             if (shown) focus();
         }
-        const title = titleOf(key);
+        const title = titleOf(keyWindow());
         if (title !== titled) host.desktopTitled((titled = title));
         for (const listener of [...listeners]) listener();
     }
@@ -319,12 +491,12 @@ export function createDesktop({
             deckit.pages.whenEnds(sender, pageEnded);
             const state = stateOfPage();
             desktop.sent = JSON.stringify(state);
-            return { glass: TOKEN.GLASS, state };
+            return { state };
         });
         PROTOCOL.press.on(known(press));
         PROTOCOL.button.on(known((window, { button }) => clicked(window, button)));
-        PROTOCOL.resize.on(known((window, { phase, ...frame }) => framed(window, phase, frame)));
-        PROTOCOL.move.on(known((window, { phase, dx, dy }) => move(window, phase, dx, dy)));
+        PROTOCOL.resize.on(known((window, { phase, edge, ...frame }) => framed(window, phase, frame, edge)));
+        PROTOCOL.move.on(known((window, { phase, dx, dy, x, y }) => move(window, phase, dx, dy, grabOf(x, y))));
         PROTOCOL.doubleClick.on(known(doubleClick));
         PROTOCOL.dock.on(
             fromPage(({ out }) => {
@@ -332,7 +504,26 @@ export function createDesktop({
                 layout();
             })
         );
+        PROTOCOL.glass.on(
+            fromPage(({ materials }) => {
+                const next = materials.flatMap(materialOf);
+                if (JSON.stringify(next) === JSON.stringify(glass)) return;
+                glass = next;
+                layout();
+            })
+        );
         PROTOCOL.restart.on(fromPage(() => down && deckit.restart()));
+        PROTOCOL.motion.on(
+            fromPage(({ reduced: asked }) => {
+                reduced = asked;
+                layout();
+            })
+        );
+    }
+
+    // Where a press was in a window's frame, as a page tells it, or null where it does not.
+    function grabOf(x, y) {
+        return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
     }
 
     // The local seat's input on a window on its screen, which reaches the window's mod.
@@ -343,25 +534,39 @@ export function createDesktop({
         handler(window);
     }
 
+    // The person's click of a button, or the key or double click that does what it does: nothing where the window
+    // has it disabled.
     function clicked(window, button) {
+        if (!window.bar.enabled[button]) return;
         if (button === 'close') WINDOWS.close(window);
         else if (button === 'minimize') minimize(window);
         else if (button === 'zoom') zoom(window);
     }
 
-    // The frame a drag of an edge draws, kept where its title bar can be reached and remembered as the drag ends.
-    function framed(window, phase, frame) {
-        const { x, y, width, height } = frame;
-        const next = { x, y, width, height };
-        MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(next, area()) : next);
-        if (phase === 'ended') remember(window);
+    // The frame a drag of the edge `edge` draws, the sides it moves landing on the edges they come within
+    // LAYOUT.SNAP of, under the host's bar, kept where its title bar can be reached and remembered as the drag ends. A
+    // window that is not resizable takes none.
+    function framed(window, phase, frame, edge = null) {
+        if (!window.bar.enabled.zoom) return;
+        const others = MANAGER.viewOf(LOCAL)
+            .filter(({ id }) => id !== window.id)
+            .map(({ frame: other }) => other);
+        const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
+        const sides = edge ? edge.split('-') : [];
+        const met = sides.length ? LAYOUT.snapped(frame, sides, others, LAYOUT.zoomedIn(area()), minimum) : frame;
+        const next = LAYOUT.underBar(met, area(), { moved: false });
+        MANAGER.setFrame(LOCAL, window.id, phase === 'ended' ? LAYOUT.kept(next, area(), window.bar.height) : next);
+        if (phase === 'ended') {
+            handHeld.delete(window.id);
+            remember(window);
+        } else handHeld.add(window.id);
         update();
     }
 
     // The normal windows, back to front, each `{ id, mod, name, frame, key, minimized }`, as the host app reads them:
-    // none is key while an overlay window holds the keyboard.
+    // none is key while an overlay window or a panel window holds the keyboard.
     function windowsNow() {
-        const key = WINDOWS.keyOverlay() ? null : MANAGER.keyOf(LOCAL);
+        const key = keyboardAway() ? null : MANAGER.keyOf(LOCAL);
         return MANAGER.orderOf(LOCAL).map((id) => {
             const { mod, name } = windows.get(id);
             const minimized = MANAGER.isMinimized(LOCAL, id);
@@ -372,9 +577,9 @@ export function createDesktop({
     // A person's hand on the window `id` that windows() answers, as the host app hands it, each gesture whole, as the
     // desktop's page tells it: a press in it; a click of a button, `close`, `minimize` or `zoom`; a drag of its title
     // bar by `dx`, `dy`; a drag of its edge `edge`, as LAYOUT.resized names one, by `dx`, `dy`; and a double click on
-    // its title bar. A window minimized takes none.
+    // its title bar. A window minimized takes none; a panel window takes a press alone.
     const hand = Object.freeze({
-        press: (id) => byHand(id, press),
+        press: (id) => (panels.has(id) ? pressPanel(panels.get(id)) : byHand(id, press)),
         button: (id, button) =>
             byHand(id, (window) => {
                 press(window);
@@ -389,10 +594,10 @@ export function createDesktop({
         resize: (id, edge, dx, dy) =>
             byHand(id, (window) => {
                 press(window);
-                const minimum = LAYOUT.minimumOf(window.minimum);
+                const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
                 const frame = LAYOUT.resized(MANAGER.frameOf(id), edge, dx, dy, minimum);
-                framed(window, 'changed', frame);
-                framed(window, 'ended', frame);
+                framed(window, 'changed', frame, edge);
+                framed(window, 'ended', frame, edge);
             }),
         doubleClick: (id) =>
             byHand(id, (window) => {
@@ -428,8 +633,9 @@ export function createDesktop({
         update();
     }
 
+    // A press on the backdrop, the desktop where no window is, gives the keyboard back to the desktop's key window.
     function openSurface(name, surface) {
-        PAGES.whenFocused(surface, giveBack);
+        PAGES.whenFocused(surface, name === PAGE.BACKDROP ? toDesktop : giveBack);
         desktop.surfaces.set(name, surface);
         update();
     }
@@ -437,8 +643,9 @@ export function createDesktop({
     // A document loaded again in its place finds the surfaces the last one opened, by name, and draws them anew; a
     // page that crashed or went takes them with it, and its next document opens its own.
     function pageEnded({ replaced }) {
-        moving = null;
+        endDrag();
         dockOut = false;
+        glass = [];
         if (replaced) return;
         const dropped = [...desktop.surfaces.values()];
         desktop.surfaces.clear();
@@ -447,7 +654,7 @@ export function createDesktop({
     }
 
     function isTitled(window) {
-        return typeof window.title === 'string';
+        return window.bar.style === 'titled';
     }
 
     // The mod whose page a page of the app is, the content of its window, a web page it shows or an overlay of one,
@@ -467,20 +674,43 @@ export function createDesktop({
         return LAYOUT.desktopOf(stage.size(), strip.height);
     }
 
-    // The desktop changed size: a zoomed window fills it again, and any other is moved where its title bar can be
-    // reached. A desktop with no room yet, its stage in no window, moves none.
+    // The panel windows, in the order they opened, each `{ window, frame }`, its frame at its edge.
+    function panelFrames() {
+        const opened = [...panels.values()];
+        const frames = LAYOUT.panelsIn(
+            opened.map(({ edge, size }) => ({ edge, size })),
+            { ...stage.size(), bar: strip.height }
+        );
+        return opened.map((window, at) => ({ window, frame: frames[at] }));
+    }
+
+    // Whether an overlay window or a panel window holds the keyboard, away from the desktop's key window.
+    function keyboardAway() {
+        return held !== null || !!WINDOWS.keyOverlay();
+    }
+
+    function panelFrameOf(id) {
+        return panelFrames().find(({ window }) => window.id === id)?.frame ?? null;
+    }
+
+    // The desktop changed size: a zoomed window fills it again, a tiled one takes its tile in it, and any other is
+    // moved where its title bar can be reached, each drawn there at once as the desktop is. A desktop with no room yet,
+    // its stage in no window, moves none.
     function resized() {
         const desktopNow = area();
-        MANAGER.fitZoomed(LAYOUT.zoomedIn(desktopNow));
+        const zoomArea = LAYOUT.zoomedIn(desktopNow);
+        MANAGER.fitZoomed(zoomArea, (name) => LAYOUT.tileOf(name, zoomArea));
         if (desktopNow.width && desktopNow.height) {
             for (const id of windows.keys()) {
                 const frame = MANAGER.frameOf(id);
-                const kept = LAYOUT.kept(frame, desktopNow);
-                if (!MANAGER.isZoomed(id) && (kept.x !== frame.x || kept.y !== frame.y))
-                    MANAGER.setFrame(LOCAL, id, kept);
+                const kept = LAYOUT.kept(frame, desktopNow, windows.get(id).bar.height);
+                const fitted = MANAGER.isZoomed(id) || MANAGER.tileNameOf(id) !== null;
+                if (!fitted && (kept.x !== frame.x || kept.y !== frame.y)) MANAGER.setFrame(LOCAL, id, kept);
             }
         }
+        atOnce = true;
         update();
+        atOnce = false;
     }
 
     // The name of the key window's mod, or the app's while there is none.
@@ -490,24 +720,38 @@ export function createDesktop({
     }
 
     // From the bottom: the mods' pages with a window here, but for a child's another stage shows, the backdrop, each
-    // window in the local seat's order with the children its regions show, then the desktop's page, taking the
-    // pointer only at the host's bar and the Dock, its sliver or all of it while it is out. Over all of it, the
-    // overlay of each page laid that shows anything, at its page's rect. With deckit's core down the desktop's page
-    // alone covers it all.
+    // window in the local seat's order with the children its regions show, the materials the desktop's page draws
+    // glass over, then that page, taking the pointer only at the host's bar and the Dock, its sliver down the edge and
+    // its card while it is out, and the panel windows in that bar with the children their regions show. Over all of
+    // it, the overlay of each page laid that shows anything, at its page's rect, or over the whole stage for a panel
+    // window's content, so what it presents is not cut to the panel. With deckit's core down the desktop's page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
+        inPanels.clear();
         if (down) {
             stage.lay(OVERLAY.withOverlays([{ page: desktop.page, rect: full }]));
             REGION.show(stage, []);
             return;
         }
         const view = MANAGER.viewOf(LOCAL);
-        const children = childrenIn(view);
+        const seen = drawnNow(view);
+        const inBar = panelFrames();
+        const children = childrenIn([
+            ...seen.filter(({ leaving }) => !leaving),
+            ...inBar.map(({ window, frame }) => ({ id: window.id, frame })),
+        ]);
         const laidChildren = new Set(children.map(({ page }) => page));
+        for (const { window, page } of children) {
+            if (!panels.has(window)) continue;
+            inPanels.add(page);
+            if (!heard.has(page)) PAGES.whenFocused(page, () => pressPanelChild(page));
+            heard.add(page);
+        }
         const front = new Map(); // a mod's page -> the frame of its front window on screen
+        for (const { window, frame } of inBar) if (!front.has(window.page)) front.set(window.page, frame);
         for (const { id, frame } of view) front.set(windows.get(id).page, frame);
         const pages = new Set(
-            [...windows.values()]
+            [...windows.values(), ...panels.values()]
                 .map(({ page }) => page)
                 .filter((page) => !laidChildren.has(page) && !REGION.shownElsewhere(page, stage))
         );
@@ -517,42 +761,212 @@ export function createDesktop({
             OVERLAY.withOverlays([
                 ...[...pages].map((page) => ({ page, rect: front.get(page) ?? area(), input: [] })),
                 ...(backdrop ? [{ page: backdrop, rect: full }] : []),
-                ...view.flatMap(({ id, frame }) => {
-                    const window = windows.get(id);
-                    const titled = isTitled(window);
-                    const parts = LAYOUT.partsOf(frame);
+                ...seen.flatMap(({ id, window, frame, opacity, scale, content, leaving, surfaces }) => {
+                    const { bar } = window;
+                    const parts = LAYOUT.partsOf(frame, bar);
                     const clip = { ...frame, cornerRadius: LAYOUT.RADIUS };
+                    const [frameSurface, buttons] = surfaces ?? [
+                        surface(PAGE.frameOf(id)),
+                        surface(PAGE.buttonsOf(id)),
+                    ];
+                    const seenAs = { ...(opacity < 1 ? { opacity } : {}), ...(scale ? { scale } : {}) };
+                    const laid = { ...content, x: frame.x, y: frame.y };
+                    // Drawn scaled, as it opens, closes or goes into its Dock tile and back, it is laid whole at its
+                    // frame, past where it is drawn: it takes no press until it rests.
+                    const resting = !leaving && !scale;
+                    const still = resting ? {} : { input: [] };
                     return [
-                        surface(PAGE.frameOf(id)) && {
-                            page: surface(PAGE.frameOf(id)),
+                        frameSurface && {
+                            page: frameSurface,
                             rect: parts.rect,
-                            input: [
-                                ...parts.edges.map(({ rect }) => rect),
-                                ...(titled ? [LAYOUT.titleBarOf(frame)] : []),
-                            ],
+                            input: !resting
+                                ? []
+                                : [
+                                      ...(bar.enabled.zoom ? parts.edges.map(({ rect }) => rect) : []),
+                                      ...(isTitled(window) ? [LAYOUT.titleBarOf(frame, bar)] : []),
+                                  ],
+                            ...seenAs,
                         },
-                        window.surface && { page: window.surface, rect: LAYOUT.contentOf(frame, titled), clip },
+                        window.surface && {
+                            page: window.surface,
+                            rect: LAYOUT.contentOf(laid, bar),
+                            clip,
+                            ...still,
+                            ...seenAs,
+                        },
                         ...children
                             .filter(({ window }) => window === id)
-                            .map(({ page, rect }) => ({ page, rect, clip })),
-                        surface(PAGE.buttonsOf(id)) && {
-                            page: surface(PAGE.buttonsOf(id)),
+                            .map(({ page, rect }) => ({ page, rect, clip, ...still, ...seenAs })),
+                        buttons && {
+                            page: buttons,
                             rect: parts.buttons,
-                            input: buttonRects(),
+                            ...(leaving ? { clip } : {}),
+                            input: !resting
+                                ? []
+                                : LAYOUT.buttonsOf(bar).map(({ x, y, width, height }) => ({ x, y, width, height })),
+                            ...seenAs,
                         },
                     ].filter(Boolean);
                 }),
+                ...glass,
                 {
                     page: desktop.page,
                     rect: full,
                     input: [
                         ...(strip.height ? [{ x: 0, y: 0, width: full.width, height: strip.height }] : []),
-                        DOCK_MODEL.rectOf(area(), dockOut),
+                        ...DOCK_MODEL.inputOf(area(), dockOut, DOCK.items()),
                     ],
                 },
+                ...inBar.flatMap(({ window, frame }) => {
+                    const clip = { ...frame, cornerRadius: LAYOUT.panelRadius(window.edge, frame) };
+                    return [
+                        window.surface && { page: window.surface, rect: frame, clip, spread: full },
+                        ...children
+                            .filter(({ window: holder }) => holder === window.id)
+                            .map(({ page, rect }) => ({ page, rect, clip })),
+                    ].filter(Boolean);
+                }),
             ])
         );
         REGION.show(stage, shown ? [...laidChildren] : []);
+    }
+
+    // What is drawn of each window on the local seat's screen, `view` as MANAGER.viewOf has it: back to front, each
+    // `{ id, window, frame, opacity, scale, content, leaving, surfaces }`, `frame` where its frame is laid, `opacity`
+    // how much of it shows, `scale` how all of it is drawn scaled where it is, `content` the frame its content is laid
+    // at, its own, from the frame's top left and cut to it; a window going into its Dock tile or closing comes after
+    // them, in front, `leaving`, until it is gone, with the `surfaces` its frame and buttons are drawn in. Each frame is
+    // drawn by its motion to where the window is: one the hand moves or resizes, and every one as the desktop changes
+    // size, there at once; any other by the `move` spring from where it is drawn, its speed carried over, its frame
+    // moving and its content at its own size. One opening, closing, going into its Dock tile or coming out of it is
+    // laid whole at its frame and drawn scaled, content and all: opening from a little smaller about its middle,
+    // faded out, closing back so, going into its Dock tile and coming out of it from there. While the system asks for
+    // reduced motion each rect is there at once, opening, closing, going into the Dock and coming out of it fading
+    // alone.
+    function drawnNow(view) {
+        const now = clock.now();
+        const seen = [];
+        const leaving = [];
+        let running = false;
+        for (const { id, frame } of view) {
+            const to = { ...frame, opacity: 1 };
+            let entry = drawn.get(id);
+            if (!entry) {
+                entry = { window: windows.get(id), value: to, velocity: {}, motion: null, late: false, leaving: null };
+                drawn.set(id, entry);
+                go(entry, { ...MOTION.scaled(frame), opacity: 0 }, to, 'enter', now, { scales: true });
+            } else if (entry.leaving) {
+                step(entry, now);
+                entry.leaving = null;
+                go(entry, entry.value, to, 'enter', now, { late: true, scales: true });
+            } else if (!same(entry.motion?.to ?? entry.value, to)) {
+                step(entry, now);
+                if (handHeld.has(id) || atOnce || reduced !== false) settle(entry, to);
+                else go(entry, entry.value, to, 'move', now);
+            }
+            step(entry, now);
+            running = running || !!entry.motion;
+            entry.frame = frame;
+            seen.push({ id, window: entry.window, ...frameOf(entry, frame), content: frame, leaving: null });
+        }
+        const shownNow = new Set(view.map(({ id }) => id));
+        for (const [id, entry] of drawn) {
+            if (shownNow.has(id)) continue;
+            if (!entry.leaving) {
+                const closed = !windows.has(id);
+                entry.leaving = closed ? 'closed' : 'minimized';
+                entry.content = entry.frame ?? { ...entry.value };
+                const tile = closed ? MOTION.scaled(entry.content) : (dockTileOf(entry.window) ?? entry.content);
+                const role = closed ? 'exit' : 'move';
+                go(entry, entry.value, { ...tile, opacity: 0 }, role, now, { late: !closed, scales: true });
+            }
+            if (!entry.motion) continue;
+            step(entry, now);
+            if (!entry.motion) {
+                entry.motion = null;
+                if (entry.leaving === 'closed') {
+                    drawn.delete(id);
+                    entry.gone?.();
+                }
+                continue;
+            }
+            running = true;
+            const { window, content, surfaces } = entry;
+            leaving.push({ id, window, ...frameOf(entry, content), content, leaving: entry.leaving, surfaces });
+        }
+        if (running) tick();
+        return [...seen, ...leaving];
+    }
+
+    // The motion of `entry` from `from` to `to` by the spring of `role`, from the speed it is drawn at now, its opacity
+    // seen late (MOTION.lateOpacity) where `late`, the window laid at its frame and drawn scaled into the rect where it
+    // `scales`; with reduced motion its rect is at `to` at once and its opacity fades by the spring alone.
+    function go(entry, from, to, role, now, { late = false, scales = false } = {}) {
+        if (reduced === null) return settle(entry, to);
+        const start = reduced ? { ...to, opacity: from.opacity } : from;
+        entry.late = late && !reduced;
+        entry.scales = scales;
+        entry.motion = MOTION.motionOf({ from: start, to, role, now, velocity: entry.velocity });
+        if (same(start, to)) settle(entry, to);
+    }
+
+    function settle(entry, to) {
+        entry.motion = null;
+        entry.scales = false;
+        entry.value = to;
+        entry.velocity = {};
+    }
+
+    // `entry` drawn as its motion has it at `now`: answers whether it still runs.
+    function step(entry, now) {
+        if (!entry.motion) return false;
+        const { value, velocity, done } = MOTION.motionAt(entry.motion, now);
+        entry.value = value;
+        entry.velocity = velocity;
+        if (done) entry.motion = null;
+        return !done;
+    }
+
+    // What is drawn of `entry`, its window laid at `laid`: `{ frame, opacity, scale }`, `frame` its rect rounded to
+    // the px and `scale` null, or, where its motion scales it, `frame` `laid` and `scale` drawing it into its rect.
+    function frameOf({ value, late, scales }, laid) {
+        const raw = late ? MOTION.lateOpacity(value.opacity) : value.opacity;
+        const opacity = Math.round(Math.min(1, Math.max(0, raw)) * 1000) / 1000;
+        const scale = scales ? MOTION.scaleInto(laid, value) : null;
+        if (scale) return { frame: laid, opacity, scale };
+        const frame = {
+            x: Math.round(value.x),
+            y: Math.round(value.y),
+            width: Math.max(0, Math.round(value.width)),
+            height: Math.max(0, Math.round(value.height)),
+        };
+        return { frame, opacity, scale: null };
+    }
+
+    function same(one, other) {
+        return MOTION.PARTS.every((part) => Math.abs(one[part] - other[part]) < 0.001);
+    }
+
+    // The next frame of the windows' motion laid once it is due.
+    function tick() {
+        if (ticking) return;
+        ticking = true;
+        clock.later(() => {
+            ticking = false;
+            if (stage) layout();
+        });
+    }
+
+    // Where the Dock's item of `window`'s mod stands, or null where it has none.
+    function dockTileOf(window) {
+        return DOCK_MODEL.tileOf(area(), DOCK.items(), window.mod);
+    }
+
+    // A material the desktop's page told, `{ material, rect, cornerRadius }`, or none.
+    function materialOf({ material, x, y, width, height, cornerRadius } = {}) {
+        const rect = { x, y, width, height };
+        if (typeof material !== 'string' || ![x, y, width, height].every(Number.isFinite)) return [];
+        return [{ material, rect, cornerRadius: Number.isFinite(cornerRadius) ? Math.max(0, cornerRadius) : 0 }];
     }
 
     // `[{ window, page, rect }]`: the children the windows on screen show in their regions, each page on the stage once
@@ -565,7 +979,7 @@ export function createDesktop({
                 .map(({ run, page }) => [run.mod.id, page])
         );
         const framed = new Map(view.map(({ id, frame }) => [id, frame]));
-        const parents = new Set(view.map(({ id }) => windows.get(id).mod));
+        const parents = new Set(view.map(({ id }) => (windows.get(id) ?? panels.get(id)).mod));
         return [...parents].flatMap((parent) =>
             [...REGION.laidOut(parent, (child) => pageOf.has(child))].flatMap(([child, { window, rect }]) => {
                 const frame = framed.get(window);
@@ -581,13 +995,6 @@ export function createDesktop({
         );
     }
 
-    // Where the buttons take presses in their surface: between them a press is the title bar's, under them.
-    function buttonRects() {
-        const { size, gap, inset } = LAYOUT.BUTTON;
-        const y = Math.round((LAYOUT.TITLE_BAR.height - size) / 2);
-        return LAYOUT.BUTTONS.map((_button, at) => ({ x: inset + at * (size + gap), y, width: size, height: size }));
-    }
-
     // The Dock's items as the desktop's page draws them, `{ id, pinned, running, attention, active }`: `attention`
     // where the mod asks for the local seat's attention, and `active` for the mod of the desktop's key window.
     function dockNow() {
@@ -601,7 +1008,9 @@ export function createDesktop({
         }));
     }
 
-    // `{ windows, strip, title, dock, down }`, as the desktop's page draws it.
+    // `{ windows, panels, drop, strip, dock, down }`, as the desktop's page draws it. A window's frame is key as its
+    // content is (stateOf): not while an overlay window holds the keyboard, which update() tells as it takes or gives
+    // it back.
     function stateOfPage() {
         const key = MANAGER.keyOf(LOCAL);
         const active = windows.get(key)?.mod ?? null;
@@ -609,12 +1018,15 @@ export function createDesktop({
             windows: MANAGER.viewOf(LOCAL).map(({ id, frame }) => ({
                 id,
                 frame,
-                key: id === key,
-                minimum: LAYOUT.minimumOf(windows.get(id).minimum),
+                key: id === key && !keyboardAway(),
+                minimum: LAYOUT.minimumOf(windows.get(id).minimum, windows.get(id).bar),
+                bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),
+            panels: panelFrames().map(({ window, frame }) => ({ id: window.id, edge: window.edge, frame })),
+            drop:
+                moving && dropping ? { tile: dropping, frame: LAYOUT.tileOf(dropping, LAYOUT.zoomedIn(area())) } : null,
             strip,
-            title: titleOf(windows.get(key)),
             dock: { items: DOCK.items(), active, attention: ACTIVATION.attentionOf(LOCAL) },
             down: down && { name: deckit.config.name, why: down },
         };
@@ -629,15 +1041,17 @@ export function createDesktop({
         PROTOCOL.state.send(desktop.page, state);
     }
 
-    // The keyboard is the key window's content's, or the desktop page's while there is none.
+    // The keyboard is the content's of the panel window that holds it or of the key window, or the desktop page's while
+    // there is none.
     function focus() {
-        const page = (!down && keyWindow()?.surface) || desktop.page;
+        const page = (!down && (keyPanel() ?? keyWindow())?.surface) || desktop.page;
         if (page) PAGES.focus(page);
     }
 
-    // A press on the desktop's page or one of its surfaces leaves the keyboard with the key window.
+    // A press on the desktop's page or one of its surfaces leaves the keyboard with the key window, or with the panel
+    // window that holds it.
     function giveBack() {
-        const content = !down && keyWindow()?.surface;
+        const content = !down && (keyPanel() ?? keyWindow())?.surface;
         if (content) PAGES.focus(content);
     }
 
@@ -648,7 +1062,8 @@ export function createDesktop({
         const owner = OVERLAY.ownerOf(given);
         if (owner === desktop.page || [...desktop.surfaces.values()].includes(owner)) return desktop.page;
         const held = web.pageFor(owner) ?? owner;
-        return [...windows.values()].find(({ surface, page }) => surface === held || page === held)?.page ?? null;
+        const open = [...windows.values(), ...panels.values()];
+        return open.find(({ surface, page }) => surface === held || page === held)?.page ?? null;
     }
 
     // Whether a keystroke or a request in this page is the desktop's.
@@ -699,6 +1114,12 @@ export function createDesktop({
 
     return {
         start,
+        openPanel,
+        closePanel,
+        pressPanel,
+        orderFrontPanel,
+        toDesktop,
+        keyPanel,
         keptFrameOf,
         remember,
         keepsFramesOf,
@@ -724,7 +1145,7 @@ export function createDesktop({
         update,
         // What the host drives of it.
         control: {
-            glass: TOKEN.GLASS,
+            glass: true,
             // Into one of the host app's windows, as a stage is placed (`bounds`, `onClose`).
             place: (window, options) => stage.place(window, options),
             contains,
@@ -734,6 +1155,16 @@ export function createDesktop({
             present,
             shown: () => shown,
             windows: windowsNow,
+            // The panel windows, in the order they opened, each `{ id, mod, name, edge, frame, key }`.
+            panels: () =>
+                panelFrames().map(({ window: { id, mod, name, edge }, frame }) => ({
+                    id,
+                    mod,
+                    name,
+                    edge,
+                    frame,
+                    key: held === id,
+                })),
             dock: dockNow,
             hand,
             // The local seat's active mod, by its id, or null, and the mods that ask for its attention, in the order

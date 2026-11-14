@@ -14,14 +14,13 @@ const STYLE = `
         margin: -2px 0 -2px -4px;
         padding: 1px 4px;
         border: 0;
-        outline: none;
+        outline-offset: 0;
         border-radius: var(--deckit-radius-small);
         background: var(--deckit-background);
-        box-shadow: 0 0 0 2px var(--deckit-focus);
         color: var(--deckit-text);
     }
     .deckit-rename[data-grows] { margin-right: auto; }
-    .deckit-refusal { max-width: 280px; padding: 6px 9px; white-space: normal; color: var(--deckit-alert); }
+    .deckit-refusal { max-width: 280px; padding: 6px 9px; white-space: normal; color: var(--deckit-alert-ink); }
 `;
 // A list the field is in (a menu, a drag) must not act on a press or a text drag inside it.
 const KEPT_IN = ['pointerdown', 'mousedown', 'click', 'dblclick', 'contextmenu', 'dragstart'];
@@ -46,6 +45,7 @@ function inlineEdit(label, { selectStem = false, onCommit }) {
     const look = getComputedStyle(label);
     const input = page.createElement('input');
     input.className = 'deckit-rename';
+    input.dataset.deckitSolid = ''; // its own fill, so the plain inks on glass too
     input.value = was;
     input.spellcheck = false;
     input.toggleAttribute('data-grows', parseFloat(look.flexGrow) > 0);

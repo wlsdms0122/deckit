@@ -13,8 +13,7 @@ function startPage({ ui, onOpen }) {
         .browser-start-heading {
             margin: 0 0 14px 4px;
             color: var(--deckit-muted);
-            font: var(--deckit-type-small);
-            font-weight: 600;
+            font: var(--deckit-type-label);
         }
         .browser-start-tiles { display: grid; grid-template-columns: repeat(auto-fill, 84px); gap: 18px 14px; }
         .browser-start-tile {
@@ -23,6 +22,7 @@ function startPage({ ui, onOpen }) {
             align-items: center;
             gap: 8px;
             padding: 0;
+            border-radius: var(--deckit-radius-large);
             border: 0;
             background: none;
             color: var(--deckit-text);
@@ -40,12 +40,10 @@ function startPage({ ui, onOpen }) {
             color: var(--deckit-muted);
             font: var(--deckit-type-large);
             font-weight: 600;
-            transition: background var(--deckit-fast) var(--deckit-easing);
+            transition: background var(--deckit-press-fade) var(--deckit-press-curve);
         }
-        .browser-start-icon img { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; }
+        .browser-start-icon img { width: 32px; height: 32px; object-fit: contain; border-radius: var(--deckit-radius-control); }
         .browser-start-tile:hover .browser-start-icon { background: var(--deckit-hover); }
-        .browser-start-tile:focus-visible { outline: none; }
-        .browser-start-tile:focus-visible .browser-start-icon { box-shadow: 0 0 0 2px var(--deckit-focus); }
         .browser-start-title {
             width: 100%;
             font: var(--deckit-type-small);

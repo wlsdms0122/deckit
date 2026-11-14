@@ -4,9 +4,12 @@ const { isSpanning } = require('../occurrence/occurrence.js');
 
 // Its ground is set in a rule: set inline, it would stand over the kit's pressable wash.
 const PLAIN_BUTTON = 'calendar-plain-button';
+// The height of a week's row of day numbers: a 22px number inset 4 above and 2 below.
+const NUMBER_ROW = 28;
 
 // Six weeks from `start`, the days of `month` (0 to 11) in full and the rest stepped back, and the occurrences that
-// fall in them as bars. A week shows as many lanes as its height holds, and the rest of a day behind "+n more".
+// fall in them as chips in their colour, a timed one led by its start time. `placeholders`, while the events are read,
+// are 42 skeleton chips, one for each day of the six weeks, drawn on the days of `month`. A week shows as many lanes as its height holds, and the rest of a day behind "+n more".
 function monthView({ ui, detail, onOpenDay }) {
     ui.addStyle(`.${PLAIN_BUTTON} { border: 0; background: transparent; cursor: pointer; }`);
     // The weeks last drawn, and how many lanes fitted each then.
@@ -15,7 +18,7 @@ function monthView({ ui, detail, onOpenDay }) {
 
     return { draw, fitsAsDrawn };
 
-    function draw(into, { start, month, occurrences }) {
+    function draw(into, { start, month, occurrences, placeholders = null }) {
         const now = new Date();
 
         const weekHead = document.createElement('div');
@@ -24,13 +27,13 @@ function monthView({ ui, detail, onOpenDay }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(7, 1fr)',
             borderBottom: 'var(--deckit-border)',
-            opacity: '.6',
-            font: '700 11.5px var(--deckit-font)',
+            color: 'var(--deckit-muted)',
+            font: 'var(--deckit-type-label)',
         });
         for (const weekday of WEEKDAYS) {
             const cell = document.createElement('div');
-            cell.textContent = weekday.toUpperCase();
-            Object.assign(cell.style, { padding: '6px 8px', textAlign: 'center', letterSpacing: '.04em' });
+            cell.textContent = weekday;
+            Object.assign(cell.style, { padding: '6px 8px', textAlign: 'center' });
             weekHead.appendChild(cell);
         }
         into.appendChild(weekHead);
@@ -101,12 +104,23 @@ function monthView({ ui, detail, onOpenDay }) {
                 const grid = laneGrid(7);
                 for (const item of items.filter((candidate) => candidate.lane === lane)) {
                     const cell = laneCell(item.column, item.span);
-                    cell.appendChild(bar(item.occurrence, item.span > 1 || item.occurrence.allDay, detail.show));
+                    const timed = item.span === 1 && !item.occurrence.allDay;
+                    cell.appendChild(bar(ui, item.occurrence, true, detail.show, { time: timed }));
                     grid.appendChild(cell);
                 }
                 stack.appendChild(grid);
             }
             if (overflowing) stack.appendChild(moreRow(items, visibleLanes, weekStart));
+            if (placeholders) {
+                const grid = laneGrid(7);
+                for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                    const cell = laneCell(dayIndex, 1);
+                    const day = addDays(weekStart, dayIndex);
+                    if (day.getMonth() === month) cell.appendChild(placeholders[weekIndex * 7 + dayIndex].element);
+                    grid.appendChild(cell);
+                }
+                stack.appendChild(grid);
+            }
             lanes.appendChild(stack);
 
             week.append(numbers, lanes);
@@ -125,8 +139,9 @@ function monthView({ ui, detail, onOpenDay }) {
         const cell = document.createElement('div');
         Object.assign(cell.style, {
             display: 'flex',
-            justifyContent: 'center',
-            padding: '3px 0 2px',
+            height: NUMBER_ROW + 'px',
+            boxSizing: 'border-box',
+            padding: '4px 4px 2px',
             borderRight: dayIndex === 6 ? '0' : 'var(--deckit-border)',
         });
         const number = document.createElement('button');
@@ -134,21 +149,26 @@ function monthView({ ui, detail, onOpenDay }) {
         number.className = PLAIN_BUTTON;
         number.textContent = String(day.getDate());
         number.title = 'Open this day';
-        // A day of another month steps back toward the ground: it is still a button.
+        // A day of another month steps back toward the ground: it is still a button. At the cell's top left, as wide as
+        // today's circle at least.
         Object.assign(number.style, {
-            color:
-                day.getMonth() === month
-                    ? 'var(--deckit-text)'
-                    : 'color-mix(in srgb, var(--deckit-text) 38%, var(--deckit-background))',
-            font: '12.5px var(--deckit-font)',
-            padding: '1px 7px',
-            borderRadius: '10px',
-            transition: 'background-color var(--deckit-fast) var(--deckit-easing)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '22px',
+            height: '22px',
+            boxSizing: 'border-box',
+            color: day.getMonth() === month ? 'var(--deckit-text)' : 'var(--deckit-disabled)',
+            font: 'var(--deckit-type-small)',
+            fontVariantNumeric: 'tabular-nums',
+            padding: '0 5px',
+            borderRadius: 'var(--deckit-radius-round)',
+            transition: 'background-color var(--deckit-press-fade) var(--deckit-press-curve)',
         });
         if (sameDay(day, now)) {
-            number.style.background = 'var(--deckit-accent)';
-            number.style.color = '#fff';
-            number.style.fontWeight = '700';
+            number.style.background = 'var(--deckit-accent-fill)';
+            number.style.color = 'var(--deckit-on-accent)';
+            number.style.fontWeight = '600';
         } else {
             ui.pressable(number);
         }
@@ -173,12 +193,12 @@ function monthView({ ui, detail, onOpenDay }) {
                 Object.assign(more.style, {
                     width: 'calc(100% - 4px)',
                     margin: '0 2px',
-                    height: LANE_HEIGHT - 3 + 'px',
-                    color: 'color-mix(in srgb, var(--deckit-text) 65%, var(--deckit-background))',
-                    font: '11.5px var(--deckit-font)',
+                    height: LANE_HEIGHT - 2 + 'px',
+                    color: 'var(--deckit-muted)',
+                    font: 'var(--deckit-type-small)',
                     textAlign: 'left',
                     padding: '0 5px',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--deckit-radius-small)',
                     overflow: 'hidden',
                     whiteSpace: 'nowrap',
                 });
@@ -203,7 +223,7 @@ function monthView({ ui, detail, onOpenDay }) {
 // observer both read it, so they measure the same element.
 function capacityOf(weeks) {
     const rowHeight = weeks.clientHeight / 6;
-    return rowHeight > 0 ? Math.max(1, Math.floor((rowHeight - 24) / LANE_HEIGHT)) : null;
+    return rowHeight > 0 ? Math.max(1, Math.floor((rowHeight - NUMBER_ROW) / LANE_HEIGHT)) : null;
 }
 
 module.exports = { monthView };

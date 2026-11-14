@@ -1,37 +1,22 @@
 const { isWeb, placeOf } = require('../address/address.js');
-const { favicon } = require('../favicon/favicon.js');
+const { favicon, stillLoading } = require('../favicon/favicon.js');
 const { START } = require('../tabs/tab-list.js');
 
 // The window's title bar, as the Browser's toolbar: Back and Forward, the field of the tab in front, and `trailing` at
 // its end. The field holds the site's icon, which opens its permissions, the site, and Reload and the bookmark star of
 // the page. A press on the site edits the address. `onBookmark()` is a press on the star.
-function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
+function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
     const ICON_SIZE = 16;
 
     let shownTab = null;
 
     // The field is centred in the bar, as wide as the room between the two sides lets it be.
     ui.addStyle(`
-        .browser-toolbar {
-            flex: 0 0 auto;
-            display: grid;
-            grid-template-columns: 1fr minmax(0, 640px) 1fr;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-        }
+        .browser-toolbar { display: grid; grid-template-columns: 1fr minmax(0, 640px) 1fr; }
         .browser-toolbar-side { display: flex; align-items: center; gap: 2px; }
         .browser-toolbar-side[data-trailing] { justify-content: flex-end; }
-        .browser-address-field {
-            display: flex;
-            align-items: center;
-            min-width: 0;
-            height: 32px;
-            padding: 0 2px;
-            border-radius: var(--deckit-radius-round);
-            background: var(--deckit-fill);
-        }
-        .browser-toolbar[data-editing] .browser-address-field { box-shadow: inset 0 0 0 1px var(--deckit-focus); }
+        /* A kit field, so it is drawn and ringed as one, holding buttons of its own. */
+        .browser-address-field { gap: 0; padding: 0 2px; cursor: default; }
         .browser-address-field .browser-address-page { border-radius: var(--deckit-radius-round); }
         .browser-address-site {
             flex: 0 0 auto;
@@ -66,14 +51,15 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
             text-align: left;
             white-space: nowrap;
         }
-        .browser-address-place { min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+        .browser-address-place { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .browser-address-input { display: none; outline: none; }
         .browser-toolbar[data-editing] .browser-address,
         .browser-toolbar[data-editing] .browser-address-page { display: none; }
         .browser-toolbar[data-editing] .browser-address-input { display: block; }
     `);
     const element = ui.element('div', { className: 'browser-toolbar' });
-    ui.titleBar(element);
+    // The page under the bar is no kit content, so a rule marks the edge the kit's fade cannot.
+    ui.titleBar(element, { hairline: true });
     const back = ui.iconButton({ icon: ui.icon('chevronLeft', { size: ICON_SIZE }), title: 'Back', onClick: onBack });
     const forward = ui.iconButton({
         icon: ui.icon('chevronRight', { size: ICON_SIZE }),
@@ -83,7 +69,7 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
     const leading = ui.element('div', { className: 'browser-toolbar-side' });
     leading.append(back.element, forward.element);
 
-    const field = ui.element('div', { className: 'browser-address-field' });
+    const field = ui.element('div', { className: 'deckit-field browser-address-field' });
     const site = ui.element('button', { className: 'browser-address-site' });
     site.type = 'button';
     site.title = 'Site permissions';
@@ -123,13 +109,15 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
 
     // A page off the web has no site to give permissions to.
     function show(tab, { bookmarked }) {
+        const same = tab === shownTab;
         shownTab = tab;
         back.setEnabled(tab.canGoBack);
         forward.setEnabled(tab.canGoForward);
-        site.replaceChildren(favicon({ ui, page: tab }).element);
+        if (!same || !stillLoading(site, tab)) site.replaceChildren(favicon({ ui, page: tab }).element);
         site.disabled = !isWeb(tab.url);
         place.textContent = placeOf(tab.url);
         star.setIcon(starIcon(bookmarked));
+        star.setPressed(bookmarked);
     }
 
     function edit() {
@@ -145,13 +133,7 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
     }
 
     function bookmark() {
-        if (!shownTab) return;
-        onBookmark();
-        if (!theme.motion.fast) return;
-        star.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
-            duration: 220,
-            easing: theme.motion.easing,
-        });
+        if (shownTab) onBookmark();
     }
 
     function starIcon(on) {
