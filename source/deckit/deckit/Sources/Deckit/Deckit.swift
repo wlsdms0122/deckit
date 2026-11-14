@@ -18,6 +18,8 @@ public final class Deckit {
     public let users: UserRegistry
     public let runs: RunTable
     public let timeout: RunTimeout
+    // When a seat is idle.
+    public let idle: IdleRule
     // A mod at the relaunch limit launches again only as its launch is asked.
     private var limit: RelaunchLimit
     // Interface -> what the mods declare to it, as the runs were last told.
@@ -85,6 +87,7 @@ public final class Deckit {
             store: store
         )
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)
+        state.reserve(IdleRule.key)
         let runs = RunTable()
         self.users = try UserRegistry(principalState: deck.principalState, store: store)
         self.deck = deck
@@ -93,6 +96,7 @@ public final class Deckit {
         self.runs = runs
         self.limit = limit
         self.timeout = timeout
+        self.idle = IdleRule(kept: try state.read(folder: nil, key: IdleRule.key))
         self.now = now
     }
 

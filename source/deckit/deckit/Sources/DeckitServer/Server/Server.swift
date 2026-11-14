@@ -92,7 +92,8 @@ final class Server {
             return InitializeResult(
                 mods: deckit.catalog.folder,
                 data: deckit.deck.dataFolder.folder,
-                timeout: deckit.timeout
+                timeout: deckit.timeout,
+                seats: deckit.idle
             )
         }
 
