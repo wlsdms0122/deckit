@@ -22,6 +22,9 @@ deckit: a library a host app embeds to take mods, the way a game does
   key add|remove|list <principal> [<key>] [--name <name>] [--home <folder>]
                    the keys that may authenticate as a principal from outside the app, kept in deckit's folder:
                    Deckit.app's, or the one --home names; <key> is the base64 of an Ed25519 public key
+  user add|remove|list [<id>] [--name <name>] [--key <file>] [--home <folder>]
+                   the users that may sit at a seat of the app, kept in deckit's folder; with --key, a new key pair
+                   is registered for the user and its private half written to <file>
 
 For work on deckit itself, and kept out of manifest.toml:
 

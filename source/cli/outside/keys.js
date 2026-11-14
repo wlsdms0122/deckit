@@ -28,20 +28,24 @@ function appHome() {
     return folders.home ?? path.join(os.homedir(), '.config', config.id);
 }
 
-// What the core answers `method` with, for deckit's folder `home`; rejects with what it refused it with, its `kind`
-// and `stage` on it, or with why it answered nothing.
-function ask(home, method, params) {
+// What the core answers each of `requests`, `[method, params]`, asked in order for deckit's folder `home`; rejects with
+// what it refused the first one it refused with, its `kind` and `stage` on it, or with why it answered nothing.
+function asks(home, requests) {
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-key-'));
     const answered = new Promise((resolve, reject) => {
         const { core, api } = built(folder);
         const child = spawn(core, [], { stdio: ['pipe', 'pipe', 'ignore'] });
+        const answers = [];
         let rest = '';
         const send = (id, name, given) =>
             child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method: name, params: given }) + '\n');
         const receive = ({ id, result = null, error = null }) => {
             if (error) reject(Object.assign(new Error(error.message), { code: error.code, ...error.data }));
-            else if (id === 1) return send(2, method, params);
-            else resolve(result);
+            else {
+                if (id > 1) answers.push(result);
+                if (id <= requests.length) return send(id + 1, ...requests[id - 1]);
+                resolve(answers);
+            }
             child.stdin.end();
         };
         child.stdout.setEncoding('utf8');
@@ -56,6 +60,11 @@ function ask(home, method, params) {
         send(1, 'initialize', { home, api, ship: [], sources: [], permissions: [], fields: [] });
     });
     return answered.finally(() => fs.rmSync(folder, { recursive: true, force: true }));
+}
+
+// What the core answers `method` with, alone.
+function ask(home, method, params) {
+    return asks(home, [[method, params]]).then(([answer]) => answer);
 }
 
 // `key`, the base64 of an Ed25519 public key's 32 bytes (RFC 8032), may authenticate as `principal` from now on, under
@@ -74,4 +83,4 @@ function list({ home, principal }) {
     return ask(home, 'key/list', { principal });
 }
 
-module.exports = { appHome, ask, add, remove, list };
+module.exports = { SCHEME, appHome, asks, ask, add, remove, list };

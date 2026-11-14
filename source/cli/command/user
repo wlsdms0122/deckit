@@ -1,0 +1,59 @@
+#!/usr/bin/env node
+// Makes, removes and lists the users that may sit at a seat, in Deckit.app's folder of deckit or the one `--home`
+// names, through the core the last build made. With `--key`, a user is made with a new key pair: the public half is
+// registered for it and the private half written to the file named, which only its owner reads. Exits 1 with why the
+// core refused.
+const fs = require('fs');
+const path = require('path');
+
+const KEYS = require(path.join(__dirname, '..', 'outside', 'keys.js'));
+const USERS = require(path.join(__dirname, '..', 'outside', 'users.js'));
+const { makeKey } = require(path.join(__dirname, '..', 'outside', 'client.js'));
+
+const USAGE = [
+    'usage: deckit user add <id> --name <name> [--key <file>] [--home <folder>]',
+    '       deckit user remove <id> [--home <folder>]',
+    '       deckit user list [--home <folder>]',
+    "(<file> takes the private half of a new key pair; <folder> is deckit's folder, Deckit.app's own if left out)",
+].join('\n');
+
+const refuse = () => {
+    console.error(USAGE);
+    process.exit(2);
+};
+const words = [];
+const options = {};
+const args = process.argv.slice(2);
+while (args.length) {
+    const arg = args.shift();
+    if (!['--name', '--key', '--home'].includes(arg)) words.push(arg);
+    else if (!args.length || arg.slice(2) in options) refuse();
+    else options[arg.slice(2)] = args.shift();
+}
+const [action, id] = words;
+const takes = { add: 2, remove: 2, list: 1 }[action];
+const adds = action === 'add';
+if (words.length !== takes || adds !== 'name' in options || ('key' in options && !adds)) refuse();
+
+const home = options.home ? path.resolve(options.home) : KEYS.appHome();
+const main = async () => {
+    if (action === 'list') for (const user of await USERS.list({ home })) console.log(`${user.id} ${user.name}`);
+    if (action === 'remove') await USERS.remove({ home, id });
+    if (!adds) return;
+    if (!options.key) return USERS.add({ home, id, name: options.name });
+    const file = path.resolve(options.key);
+    const { publicKey, privateKey } = makeKey();
+    // The file is new: a key a person keeps is never written over.
+    fs.writeFileSync(file, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600, flag: 'wx' });
+    await USERS.add({ home, id, name: options.name, key: publicKey }).catch((error) => {
+        fs.rmSync(file);
+        throw error;
+    });
+};
+main().then(
+    () => process.exit(0),
+    (error) => {
+        console.error(`[user] ${error.message}`);
+        process.exit(1);
+    }
+);
