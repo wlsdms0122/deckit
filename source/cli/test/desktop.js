@@ -825,6 +825,7 @@ async function main() {
     overlayChecks(createOverlay, check);
 
     seatChecks({ LAYOUT, DOCK, createDesktop }, check);
+    await readingChecks({ LAYOUT, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -1510,6 +1511,246 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     );
 }
 
+// What a seat reads of the desktop, over a reader that answers one document a page: the desktop, a window and a node
+// as text and as data, what changed since a mark, a mark that is not kept, an act on a ref and a picture.
+async function readingChecks({ LAYOUT, createDesktop }, check) {
+    const reader = { heard: null, counts: new Map(), asked: [] };
+    const numberOf = (page) => Number(page.name.split('-')[1]) + 3;
+    const field = (document, more = {}) => ({
+        depth: 1,
+        role: 'textbox',
+        name: 'Line',
+        states: ['focused', 'text 5'],
+        ref: `${document}.2`,
+        ...more,
+    });
+    const gone = () => Promise.reject(Object.assign(new Error('gone'), { code: 'GONE' }));
+    const read = {
+        listen: (handler) => (reader.heard = handler),
+        outline: async (page, knobs) => {
+            reader.asked.push({ page: page.name, knobs });
+            const document = numberOf(page);
+            const toolbar = { depth: 0, role: 'toolbar', name: 'Tools', states: [], items: 40, inView: 2 };
+            const button = { depth: 1, role: 'button', name: 'A long na', length: 31, states: ['pressed'] };
+            const lines = [
+                { ...toolbar, ref: `${document}.1` },
+                field(document),
+                { ...button, ref: `${document}.3` },
+                { depth: 1, role: 'group', states: [], below: 12, ref: `${document}.4` },
+            ];
+            return { document, count: reader.counts.get(page.name) ?? 1, width: 200, height: 172, lines };
+        },
+        node: async (page, ref) => {
+            if (!ref.endsWith('.2')) return gone();
+            const lines = [{ depth: 1, role: 'text', name: 'hello' }];
+            return {
+                document: numberOf(page),
+                count: reader.counts.get(page.name) ?? 1,
+                line: field(numberOf(page), { depth: 0 }),
+                rect: { x: 10, y: 20, width: 100, height: 30 },
+                scroll: { top: 0, height: 900, left: 0, width: 100 },
+                lines,
+                more: 17,
+                selection: { line: 1, column: 5, length: 0 },
+            };
+        },
+        changes: async (page, { document, count }) => {
+            const now = reader.counts.get(page.name) ?? 1;
+            if (count < now - 1) throw Object.assign(new Error('stale'), { code: 'STALE' });
+            const entries = [{ kind: '~', ...field(document, { states: ['focused', 'text 6'] }) }];
+            return { document, from: count, count: now, entries: count < now ? entries : [] };
+        },
+        place: async () => ({ x: 10, y: 20, width: 100, height: 30 }),
+    };
+    const desk = desktopOver(createDesktop, { read });
+    const page = { name: 'page-a', mod: 'a' };
+    const bar = { ...LAYOUT.DEFAULT_BAR, enabled: { close: true, minimize: true, zoom: false } };
+    const windowOf = (id, more = {}) => ({
+        id,
+        mod: 'a',
+        name: `w${id}`,
+        level: 'normal',
+        page,
+        surface: { name: `content-${id}`, of: page },
+        size: { width: 200, height: 200 },
+        minimum: { width: 0, height: 0 },
+        bar,
+        ...more,
+    });
+    desk.dock.items = [
+        { id: 'a', name: 'A', pinned: true, running: true },
+        { id: 'b', name: 'B', pinned: true, running: false },
+    ];
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const all = [windowOf(1), windowOf(2, { title: 'Second', bar: { ...bar, style: 'titled' } })];
+    for (const [at, window] of all.entries()) {
+        desk.desktop.open(window);
+        desk.openSurfaces(window.id);
+        const frame = desk.frameOf(window.id);
+        desk.desktop.control.hand.move(window.id, 100 + 400 * at - frame.x, 300 - frame.y);
+    }
+    const me = desk.sit('s1');
+    const { served } = desk.seats;
+    const refused = (promise) =>
+        Promise.resolve(promise).then(
+            () => null,
+            ({ kind = null }) => kind
+        );
+    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    served.input(me, pointer('down', { x: 200, y: 400 }));
+    served.input(me, pointer('up', { x: 200, y: 400 }));
+
+    const first = await served.read(me, {});
+    const golden = [
+        `desktop 1200x800 mark ${first.mark}`,
+        'seat local "Local" key w2',
+        'seat s1 "s1" at 200,400 key w1 (you)',
+        'dock (2 items)',
+        '  item "A" [running, active] dock.a',
+        '  item "B" dock.b',
+        'window w1 "A" a at 100,300 200x200 [key s1]',
+        'window w2 "Second" a at 500,252 200x200 [key local]',
+    ].join('\n');
+    check(
+        'a seat reads the desktop: the seats, the Dock and the windows in its order',
+        first.text === golden,
+        first.text
+    );
+    const asData = await served.read(me, { format: 'json' });
+    check(
+        'the desktop as data is what its lines say',
+        asData.mark === first.mark &&
+            asData.data.windows.map(({ id, key }) => [id, key]).join() === 'w1,s1,w2,local' &&
+            asData.data.seats[1].you === true &&
+            asData.data.dock[0].ref === 'dock.a',
+        JSON.stringify(asData)
+    );
+
+    const window = await served.read(me, { level: 'window', window: 'w1', depth: 4 });
+    const outline = [
+        `window w1 "A" a at 100,300 200x200 [key s1] mark ${window.mark}`,
+        '  button "Close" w1.close',
+        '  button "Minimize" w1.minimize',
+        '  button "Zoom" [disabled] w1.zoom',
+        '  document 4 content 200x172',
+        '    toolbar "Tools" (40 items, 2 in view) 4.1',
+        '      textbox "Line" [focused s1, text 5] 4.2',
+        '      button "A long na…" (31) [pressed] 4.3',
+        '      group (12 elements below) 4.4',
+    ].join('\n');
+    check(
+        'a window reads as its parts and its documents, focused naming the seat, and the knobs reach the reader',
+        window.text === outline && window.mark > first.mark && reader.asked.at(-1).knobs.depth === 4,
+        window.text
+    );
+    const other = await served.read(me, { level: 'window', window: 'w2' });
+    check(
+        'a titled window lists its title bar, and focused names the seat whose keys go there',
+        other.text.includes('  titlebar "Second" w2.title\n') && other.text.includes('[focused local, text 5] 5.2'),
+        other.text
+    );
+    const node = await served.read(me, { level: 'node', ref: '4.2' });
+    const under = [
+        'textbox "Line" [focused s1, text 5] 4.2 at 110,320 100x30 scroll 0 of 900',
+        '  text "hello"',
+        '  ... 17 more',
+        '  selection 1:5',
+    ].join('\n');
+    const part = await served.read(me, { level: 'node', ref: 'w1.close' });
+    check(
+        'a node reads where it is on the desktop, its lines and its selection, a part of the shell as one line',
+        node.text === under && /^button "Close" w1\.close at \d+,\d+ 12x12$/.test(part.text),
+        `${node.text}\n${part.text}`
+    );
+    check(
+        'a ref no document has, a window none has and a level there is none of are refused',
+        (await refused(served.read(me, { level: 'node', ref: '99.1' }))) === 'GONE' &&
+            (await refused(served.read(me, { level: 'node', ref: '4.9' }))) === 'GONE' &&
+            (await refused(served.read(me, { level: 'window', window: 'w9' }))) === 'NOT_FOUND' &&
+            (await refused(served.read(me, { level: 'all' }))) === 'INVALID_ARGUMENT',
+        ''
+    );
+
+    const from = (await served.read(me, {})).mark;
+    const quiet = await served.changes(me, { since: from });
+    reader.counts.set('content-1', 2);
+    reader.heard({ page: all[0].surface, document: 4, count: 2 });
+    const typed = await served.changes(me, { since: from });
+    check(
+        'what changed after a typed line is one line, and nothing where nothing did',
+        quiet.text === `changes ${from} to ${from}` &&
+            typed.text === `changes ${from} to ${from + 1}\n~ textbox "Line" [focused s1, text 6] 4.2`,
+        `${quiet.text}\n${typed.text}`
+    );
+    desk.desktop.control.hand.button(2, 'minimize');
+    const you = desk.sit('s2');
+    const moved = await served.changes(me, { since: typed.mark });
+    check(
+        'the lines of the desktop that read otherwise are told as the seat reads them, a new one as new',
+        moved.text ===
+            [
+                `changes ${typed.mark} to ${moved.mark}`,
+                '~ seat local "Local"',
+                '+ seat s2 "s2"',
+                '~ window w2 "Second" a at 500,252 200x200',
+            ].join('\n'),
+        moved.text
+    );
+    desk.leave(you);
+    const left = await served.changes(me, { since: moved.mark });
+    check('what went is told by its ref', left.text === `changes ${moved.mark} to ${left.mark}\n- s2`, left.text);
+    check(
+        'a mark the desktop never had, and one older than a document keeps, are refused STALE',
+        (await refused(served.changes(me, { since: left.mark + 5 }))) === 'STALE' &&
+            (reader.counts.set('content-1', 9), reader.heard({ page: all[0].surface, document: 4, count: 9 }), true) &&
+            (await refused(served.changes(me, { since: left.mark }))) === 'STALE',
+        ''
+    );
+
+    desk.puts.length = 0;
+    const acted = await served.input(me, { event: 'act', ref: '4.2', action: 'press' });
+    const after = await served.read(me, {});
+    check(
+        'an act on a ref moves the pointer to its middle and presses there, answered as the press is',
+        acted.over === 1 &&
+            acted.key === 'key' &&
+            after.text.includes('seat s1 "s1" at 160,335 key w1 (you)') &&
+            desk.puts.map(({ page: to, event }) => [to, event.type, event.x, event.y].join()).join(' ') ===
+                'content-1,down,60,35 content-1,up,60,35',
+        JSON.stringify({ acted, puts: desk.puts, text: after.text })
+    );
+    await served.input(me, { event: 'act', ref: 'dock.b', action: 'press' });
+    check(
+        'an act on an item of the Dock is the click of the seat on it, and one that hovers or names nothing is refused',
+        desk.dock.clicked.map(String).join(' ') === 'b,s1' &&
+            (await refused(served.input(me, { event: 'act', ref: '4.2', action: 'hover' }))) === 'REFUSED' &&
+            (await refused(served.input(me, { event: 'act', ref: '4.2', action: 'rub' }))) === 'INVALID_ARGUMENT' &&
+            (await refused(served.input(me, { event: 'act', ref: 'w9.close', action: 'press' }))) === 'GONE',
+        JSON.stringify(desk.dock.clicked)
+    );
+
+    const whole = await served.capture(me, { scale: 2 });
+    const one = await served.capture(me, { window: 'w1' });
+    const element = await served.capture(me, { ref: '4.2' });
+    const [, alone, inWindow] = desk.pictures;
+    check(
+        "a picture is of the desktop in the seat's order, of one window alone, or of what a ref names",
+        whole.width === 2400 &&
+            whole.height === 1600 &&
+            whole.at.x === 0 &&
+            one.width === 200 &&
+            one.at.x === 100 &&
+            alone.pages.join() === 'frame-1,content-1,buttons-1' &&
+            element.width === 100 &&
+            element.at.y === 320 &&
+            inWindow.pages.join() === alone.pages.join() &&
+            typeof whole.png === 'string' &&
+            (await refused(served.capture(me, { window: 'w1', ref: '4.2' }))) === 'INVALID_ARGUMENT',
+        JSON.stringify(desk.pictures)
+    );
+}
+
 // `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage 1200
 // by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
 // desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that page:
@@ -1517,8 +1758,9 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
 // `pagePress(id)` a press on its frame let go there, and `pageFrames(id, frame)` the drags of its corners that leave
 // it at `frame`. `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in `page`,
 // which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it,
-// `key(page)` a key pressed in a page and `chord(mod)` a chord told to a mod.
-function desktopOver(createDesktop, { state = {}, clock }) {
+// `key(page)` a key pressed in a page and `chord(mod)` a chord told to a mod. `read` is what reads a page, and
+// `pictures` each picture the stage was asked for.
+function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} } }) {
     const handlers = {};
     const sent = [];
     const titles = [];
@@ -1595,7 +1837,16 @@ function desktopOver(createDesktop, { state = {}, clock }) {
         focus: (page) => focused.push(page),
         close() {},
     };
+    const pictures = [];
     const stage = {
+        // A picture that is only its header: a PNG's size is read from there.
+        capture: async (layers, { rect, scale }) => {
+            pictures.push({ pages: layers.map(({ page }) => page.name), rect, scale });
+            const png = Buffer.alloc(24);
+            png.writeUInt32BE(rect.width * scale, 16);
+            png.writeUInt32BE(rect.height * scale, 20);
+            return png;
+        },
         whenResized: (listener) => (resized = listener),
         size: () => size,
         lay: (layers) => (laid = layers),
@@ -1630,12 +1881,13 @@ function desktopOver(createDesktop, { state = {}, clock }) {
             put: (page, event, from) => puts.push({ page: page.name, event, from }),
         },
         reserve: (page, on) => reserved.set(page.name, on),
+        read,
         deckit,
         state: {
             read: (key, fallback) => state[key] ?? fallback,
             write: async (key, value) => (state[key] = value),
         },
-        web: { pageFor: () => null },
+        web: { pageFor: () => null, onPage() {} },
         host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
         ...(clock ? { clock } : {}),
     });
@@ -1709,6 +1961,7 @@ function desktopOver(createDesktop, { state = {}, clock }) {
         seats,
         closed,
         puts,
+        pictures,
         reserved,
         dock,
         request: (from, to) => heard.requests({ from, to }),
