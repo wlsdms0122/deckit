@@ -16,6 +16,7 @@ struct ErasureTests {
     private let record: Record
     private let dataFolder: DataFolder
     private let principalState: PrincipalState
+    private let keys: AuthorizedKeyStore
     private let sut: Erasure
 
     // MARK: - Initializer
@@ -26,10 +27,12 @@ struct ErasureTests {
         dataFolder = DataFolder(folder: home.appending(path: "data"), store: store)
         principalState = PrincipalState(root: home.appending(path: "principal-state"), store: store)
         try principalState.reserve("layer")
+        keys = AuthorizedKeyStore(folder: home.appending(path: "authorized-keys"), store: store)
         let storage = PrincipalStorage(
             dataFolder: dataFolder,
             record: record,
             principalState: principalState,
+            keys: keys,
             store: store
         )
         let settings = DeckSettings(file: home.appending(path: "deck.json"), store: store)
@@ -37,7 +40,7 @@ struct ErasureTests {
     }
 
     // MARK: - Test
-    @Test("erasing takes the principal's data folder, records and what a layer keeps of it, and notes it until cleared")
+    @Test("erasing takes the principal's data folder, records, authorized keys and what a layer keeps of it, noted")
     func eraseTakesWhatDeckKeeps() throws {
         // Given
         try keep("notes")
@@ -51,9 +54,11 @@ struct ErasureTests {
         #expect(!exists("data/notes"))
         #expect(!exists("records/notes"))
         #expect(!exists("principal-state/layer/notes.json"))
+        #expect(!exists("authorized-keys/notes.json"))
         #expect(exists("data/other"))
         #expect(exists("records/other"))
         #expect(exists("principal-state/layer/other.json"))
+        #expect(exists("authorized-keys/other.json"))
         #expect(sut.uncleared() == ["notes"])
     }
 
@@ -73,6 +78,7 @@ struct ErasureTests {
         #expect(exists("data/notes"))
         #expect(!exists("records/notes"))
         #expect(!exists("principal-state/layer/notes.json"))
+        #expect(!exists("authorized-keys/notes.json"))
         #expect(sut.uncleared() == ["notes"])
     }
 
@@ -112,6 +118,10 @@ struct ErasureTests {
         try Data("x".utf8).write(to: data.appending(path: "file.txt"))
         try record.write(principal: id, key: "tabs", text: "[]")
         try principalState.write("layer", principal: id, text: "{}")
+        try keys.authorize(
+            principal: id,
+            key: AuthorizedKey(scheme: .ed25519, key: Data(repeating: 1, count: 32), name: "test")
+        )
     }
 
     private func exists(_ path: String) -> Bool {

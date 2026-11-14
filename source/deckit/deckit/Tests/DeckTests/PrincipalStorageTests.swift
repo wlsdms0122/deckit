@@ -15,6 +15,7 @@ struct PrincipalStorageTests {
     private let home: URL
     private let record: Record
     private let principalState: PrincipalState
+    private let keys: AuthorizedKeyStore
     private let sut: PrincipalStorage
 
     // MARK: - Initializer
@@ -25,10 +26,12 @@ struct PrincipalStorageTests {
         principalState = PrincipalState(root: home.appending(path: "principal-state"), store: store)
         try principalState.reserve("layer")
         try principalState.reserve("other-layer")
+        keys = AuthorizedKeyStore(folder: home.appending(path: "authorized-keys"), store: store)
         sut = PrincipalStorage(
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             record: record,
             principalState: principalState,
+            keys: keys,
             store: store
         )
     }
@@ -43,6 +46,10 @@ struct PrincipalStorageTests {
         try record.write(principal: "notes", key: "tabs", text: "[]")
         try record.write(principal: "notes", key: "panes", text: "[]")
         try principalState.write("other-layer", principal: "notes", text: "{}")
+        try keys.authorize(
+            principal: "notes",
+            key: AuthorizedKey(scheme: .ed25519, key: Data(repeating: 1, count: 32), name: "test")
+        )
 
         // When
         let usage = try sut.usage(principal: "notes")
@@ -53,14 +60,16 @@ struct PrincipalStorageTests {
             usage == StorageUsage(
                 data: DataCount(count: 1, capped: false, hidden: false),
                 records: RecordCount(count: 2, hidden: false),
-                kept: ["other-layer"]
+                kept: ["other-layer"],
+                keys: 1
             )
         )
         #expect(
             other == StorageUsage(
                 data: DataCount(count: 0, capped: false, hidden: false),
                 records: RecordCount(count: 0, hidden: false),
-                kept: []
+                kept: [],
+                keys: 0
             )
         )
     }
