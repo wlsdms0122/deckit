@@ -109,10 +109,10 @@ async function main() {
         onAsk: ({ user }, { signal }) => (asks.push({ user, signal }), Promise.resolve(user === 'guest')),
     });
     check(
-        'the seats are served once',
+        'each answer is served once',
         (() => {
             try {
-                SEAT.serve({});
+                SEAT.serve({ input: () => ({}) });
             } catch {
                 return true;
             }

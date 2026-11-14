@@ -154,7 +154,7 @@ export function createApi({
                 // `key`, `text` and `act`, named under `event` beside its fields. Answered by what is served.
                 input: SEAT.input,
                 // serve({ input, read, changes, capture, onAsk }): what the shell answers the entry and the users at
-                // the seats with, once: `input(seat, event)`, `read(seat, query)`, `changes(seat, { since })`,
+                // the seats with, each once: `input(seat, event)`, `read(seat, query)`, `changes(seat, { since })`,
                 // `capture(seat, what)`, each handed plain data and answering what the user is answered, and
                 // `onAsk({ user }, { signal }) -> Promise of boolean`, whether the local seat lets `user` sit, `signal`
                 // aborted once no answer is waited for. What is not served is refused, and so is a user that waits

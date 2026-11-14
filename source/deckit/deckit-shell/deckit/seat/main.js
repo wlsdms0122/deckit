@@ -44,7 +44,7 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     const watching = new Set(); // the ids of the seats told as the desktop changes
     const openListeners = new Set();
     const closeListeners = new Set();
-    let served = null; // what the shell serves, once it does
+    let served = Object.freeze({}); // what the shell serves so far, each of SERVED once it does
     let local = null; // the local seat, once it opened
 
     // MARK: - Initializer
@@ -96,17 +96,18 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         return need('input')(at, event);
     }
 
-    // What the shell answers the entry, the readings and the ask with from now on, each of SERVED it has, handed over
-    // once. Answers what the shell tells a seat a transport connection opened: `changed(seat, { mark })`, told while
+    // What the shell answers the entry, the readings and the ask with from now on: each of SERVED is handed over once,
+    // together or by the part of the shell that answers it. Answers what the shell tells a seat a transport
+    // connection opened: `changed(seat, { mark })`, told while
     // the seat watches, and `held(seat, { window, holder })`.
     function serve(answers) {
-        if (served) throw new Error('[deckit] the seats are served already');
         if (CHANNEL.kindOf(answers) !== 'object') throw new Error('[deckit] what serves the seats is an object');
         for (const [key, answer] of Object.entries(answers)) {
             if (!SERVED.includes(key)) throw new Error(`[deckit] the seats are served no ${key}`);
             if (typeof answer !== 'function') throw new Error(`[deckit] ${key} is served as a function`);
+            if (served[key]) throw new Error(`[deckit] the seats are served ${key} already`);
         }
-        served = Object.freeze({ ...answers });
+        served = Object.freeze({ ...served, ...answers });
         return Object.freeze({
             changed: (seat, { mark }) => watching.has(seat.id) && tell(seat, PROTOCOL.changed, { mark }),
             held: (seat, { window, holder }) => tell(seat, PROTOCOL.held, { window, holder }),
@@ -164,14 +165,14 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     }
 
     function need(answer) {
-        if (!served?.[answer]) throw REFUSAL.refusal('call', 'REFUSED', `nothing here answers a seat's ${answer}`);
+        if (!served[answer]) throw REFUSAL.refusal('call', 'REFUSED', `nothing here answers a seat's ${answer}`);
         return served[answer];
     }
 
     // Whether the local seat lets `user` sit, as what the shell serves answers: no once ASK_TIME has passed or the
     // party left, and for an ask that throws.
     function ask(user, whenEnds) {
-        if (!served?.onAsk) return Promise.resolve(false);
+        if (!served.onAsk) return Promise.resolve(false);
         const waiting = new AbortController();
         return new Promise((resolve) => {
             const timer = setTimeout(resolve, ASK_TIME, false);
