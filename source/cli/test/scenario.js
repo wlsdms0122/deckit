@@ -5,6 +5,7 @@ const path = require('path');
 const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 const { seat } = require('./seat.js');
 const INPUT = require('./input.js');
+const READ = require('./read.js');
 const OUTSIDE = require('./outside.js');
 
 // The mods Deckit.app ships that are apps, which the Dock keeps from the first start: every one but the accessories,
@@ -2982,6 +2983,12 @@ async function run({
         await OUTSIDE.run({ check, home, logged, main, windowsNow, desktopLaid, idleTime: IDLE_TIME });
     } catch (error) {
         check('outside: a party attached', false, error.stack);
+    }
+
+    try {
+        await READ.run({ check, main, windowOf, dockClick });
+    } catch (error) {
+        check('read: a page was read', false, error.stack);
     }
 
     // A core that ends is not started again: what it ended of is told, asking for the app to be restarted.
