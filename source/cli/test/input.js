@@ -263,7 +263,14 @@ async function run({ check, main, laidNow, desktopLaid, windowsNow, windowOf, do
         words.join(' ')
     );
 
-    // A press of the machine's on a page whose keyboard is reserved reaches it and leaves the keyboard.
+    // A press of the machine's on a page whose keyboard is reserved reaches it and leaves the keyboard. The shell
+    // gives the keyboard to the window the local seat pressed, so the window of `b` is pressed first, and the
+    // keyboard handed to `a` under the shell.
+    await b.press('#deckit-input-field');
+    await sleep(200);
+    await main(`return webkit.focus(${a.id})`);
+    await sleep(100);
+    await taken(b);
     await main(`return webkit.reserveKeyboard(${b.id}, true)`);
     await b.press('#deckit-input-field');
     await sleep(200);

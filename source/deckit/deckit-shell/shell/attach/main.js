@@ -68,6 +68,8 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         KEY,
         makeStage,
         actionOnDoubleClick: ENV.actionOnDoubleClick,
+        input: ENV.input,
+        reserve: ENV.keys.reserve,
         deckit,
         state: STATE,
         web,

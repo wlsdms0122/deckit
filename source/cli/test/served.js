@@ -1,5 +1,6 @@
-// What the scenario serves the seats of the app under test with, in the shell's place: fixed answers, so what main
-// hands over and what it answers a user with is read exactly. It is loaded into the app's main process as connect
+// What the scenario serves the seats of the app under test with, for what the shell does not serve yet, the reading
+// and the ask: fixed answers, so what main hands over and what it answers a user with is read exactly. The shell
+// serves the entry itself. It is loaded into the app's main process as connect
 // answers (scenario.js: serveSeats), and what it kept is read there under `deckitTestSeats`.
 // The users the ask answers no, and never.
 const DENIED = 'outside-denied';
@@ -12,14 +13,10 @@ function lineOf(seat) {
 
 // `deckit`, what connect answered, with its seats served: every ask is answered yes but those of DENIED and WAITS.
 function serve(deckit) {
-    const kept = { seats: deckit.seats, handed: [], asked: [], withdrawn: [], opened: [], closed: [] };
+    const kept = { seats: deckit.seats, asked: [], withdrawn: [], opened: [], closed: [] };
     deckit.seats.onOpen((seat) => kept.opened.push(seat.id));
     deckit.seats.onClose((seat) => kept.closed.push(seat.id));
     kept.tells = deckit.seats.serve({
-        input: (seat, event) => {
-            kept.handed.push({ seat: seat.id, event });
-            return { over: 'w1', key: 'key', holder: seat.id };
-        },
         read: (seat) => ({ text: lineOf(seat), mark: 1 }),
         changes: (_seat, { since = null }) => ({ text: `changes ${since} to 2`, mark: 2 }),
         onAsk: ({ user }, { signal }) => {

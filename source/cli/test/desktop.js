@@ -824,6 +824,8 @@ async function main() {
     const { createOverlay } = await import(url('deckit-shell', 'shell', 'overlay', 'main.js'));
     overlayChecks(createOverlay, check);
 
+    seatChecks({ LAYOUT, createDesktop }, check);
+
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
 
@@ -906,6 +908,180 @@ function overlayChecks(createOverlay, check) {
 }
 
 // Tiles, edge snapping, the drop a drag shows and the motion a window's frame is drawn by.
+// Two seats attached beside the local one at a desktop with three windows, each seat's devices entering as deckit
+// hands them: presses read against what is laid for the seat, keys put in the seat's key window, a window held.
+function seatChecks({ LAYOUT, createDesktop }, check) {
+    const desk = desktopOver(createDesktop, {});
+    const page = { name: 'page-a', mod: 'a' };
+    const windowOf = (id, x) => ({
+        id,
+        mod: 'a',
+        name: `w${id}`,
+        level: 'normal',
+        page,
+        surface: { name: `content-${id}`, of: page },
+        size: { width: 200, height: 200 },
+        minimum: { width: 0, height: 0 },
+        bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+        at: x,
+    });
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const all = [windowOf(1, 100), windowOf(2, 400), windowOf(3, 700)];
+    for (const window of all) {
+        desk.desktop.open(window);
+        desk.openSurfaces(window.id);
+        desk.desktop.control.hand.move(
+            window.id,
+            window.at - desk.frameOf(window.id).x,
+            300 - desk.frameOf(window.id).y
+        );
+    }
+    const middle = (id) => {
+        const { x, y, width, height } = desk.desktop.control.windows().find((one) => one.id === id).frame;
+        return { x: x + width / 2, y: y + height / 2 };
+    };
+    const pointer = (type, at, more = {}) => ({ event: 'pointer', type, ...at, button: 0, count: 1, ...more });
+    const key = (code) => ({ event: 'key', type: 'down', code, key: code.slice(3).toLowerCase() });
+    const [me, you] = [desk.sit('s1'), desk.sit('s2')];
+    const localKey = () => desk.desktop.control.windows().find((one) => one.key)?.id;
+    check('the local seat keeps its key window as seats sit', localKey() === 3, localKey());
+
+    const mine = desk.enter(me, pointer('down', middle(1)));
+    const yours = desk.enter(you, pointer('down', middle(2)));
+    desk.enter(me, pointer('up', middle(1)));
+    desk.enter(you, pointer('up', middle(2)));
+    const typed = [desk.enter(me, key('KeyA')), desk.enter(you, key('KeyB')), desk.enter(me, key('KeyC'))];
+    const putIn = (name, from) =>
+        desk.puts.filter((put) => put.page === name && put.from === from).map(({ event }) => event.code ?? event.type);
+    check(
+        'two seats press two windows and type at once: each has its key window, and each key is put in its own',
+        mine.over === 1 &&
+            mine.key === 'key' &&
+            mine.holder === 's1' &&
+            yours.over === 2 &&
+            yours.holder === 's2' &&
+            typed.map(({ to }) => to).join() === '1,2,1' &&
+            putIn('content-1', 's1').join() === 'down,up,KeyA,KeyC' &&
+            putIn('content-2', 's2').join() === 'down,up,KeyB' &&
+            localKey() === 3,
+        JSON.stringify({ mine, yours, typed, puts: desk.puts })
+    );
+    const pressAt = desk.puts.find((put) => put.page === 'content-1').event;
+    check(
+        "a press is put at its point from the page's top left",
+        pressAt.x === 100 && pressAt.y === 100 - LAYOUT.DEFAULT_BAR.height,
+        JSON.stringify(pressAt)
+    );
+    check(
+        "the pages of the windows other seats hold are kept from the machine's keyboard, the local seat's own is not",
+        desk.reserved.get('content-1') && desk.reserved.get('content-2') && !desk.reserved.get('content-3'),
+        JSON.stringify([...desk.reserved])
+    );
+
+    const before = desk.puts.length;
+    const held = desk.enter(you, pointer('down', middle(1)));
+    desk.enter(you, pointer('up', middle(1)));
+    const refused = (() => {
+        try {
+            return desk.enter(you, key('KeyZ'));
+        } catch (error) {
+            return error;
+        }
+    })();
+    check(
+        'a press on a window another seat holds reaches it and answers held and who holds it, and a key is refused',
+        held.over === 1 &&
+            held.key === 'held' &&
+            held.holder === 's1' &&
+            refused.kind === 'HELD' &&
+            refused.stage === 'call' &&
+            desk.puts.slice(before).every(({ event }) => event.event === 'pointer') &&
+            desk.puts.length === before + 2,
+        JSON.stringify({ held, refused: refused.kind, puts: desk.puts.slice(before) })
+    );
+    const localHeld = desk.enter(desk.seats.open[0], {
+        ...pointer('down', { x: 5, y: 5 }),
+        page: all[0].surface,
+        carried: true,
+    });
+    check(
+        "the machine's press in a window another seat holds comes in front and leaves the local seat's key window",
+        localHeld.key === 'held' &&
+            localHeld.holder === 's1' &&
+            localKey() === 3 &&
+            desk.desktop.control.windows().at(-1).id === 1 &&
+            desk.puts.length === before + 2,
+        JSON.stringify(localHeld)
+    );
+
+    desk.seats.idle.add('s1');
+    const taken = desk.enter(you, pointer('down', middle(1)));
+    const after = desk.enter(you, key('KeyY'));
+    check(
+        "an idle holder's window is taken: the press answers key, the holder is told, and it has no key window",
+        taken.key === 'key' &&
+            taken.holder === 's2' &&
+            after.to === 1 &&
+            JSON.stringify(desk.seats.held) === JSON.stringify([{ seat: 's1', window: 1, holder: 's2' }]) &&
+            desk.enter(me, key('KeyA')).to === null,
+        JSON.stringify({ taken, after, held: desk.seats.held })
+    );
+    desk.seats.idle.clear();
+
+    desk.enter(me, pointer('down', middle(2)));
+    desk.enter(me, pointer('up', middle(2)));
+    const closing = desk.press('closeWindow', all[1].surface, 's1');
+    const open = () =>
+        desk.desktop.control
+            .windows()
+            .map(({ id }) => id)
+            .sort()
+            .join();
+    check(
+        "a seat's close key closes its own key window, not the local seat's",
+        closing === true && desk.closed.join() === '2' && localKey() === 3,
+        JSON.stringify({ closing, closed: desk.closed, open: open() })
+    );
+
+    const frame = () => desk.desktop.control.windows().find((one) => one.id === 3).frame;
+    const from = { ...frame() };
+    const bar = { x: from.x + 100, y: from.y + 10 };
+    const onBar = desk.enter(me, pointer('down', bar));
+    desk.enter(me, pointer('move', { x: bar.x + 40, y: bar.y + 30 }, { buttons: [0] }));
+    desk.enter(me, pointer('up', { x: bar.x + 40, y: bar.y + 30 }));
+    check(
+        "a seat's drag of a title bar moves the window, and its press there answers that the local seat holds it",
+        onBar.over === 3 && onBar.key === 'held' && frame().x === from.x + 40 && frame().y === from.y + 30,
+        JSON.stringify({ onBar, from, to: frame() })
+    );
+    const edge = { x: frame().x + frame().width + 2, y: frame().y + 100 };
+    desk.enter(me, pointer('down', edge));
+    desk.enter(me, pointer('move', { x: edge.x + 25, y: edge.y }, { buttons: [0] }));
+    desk.enter(me, pointer('up', { x: edge.x + 25, y: edge.y }));
+    check("a seat's drag of an edge resizes the window", frame().width === from.width + 25, JSON.stringify(frame()));
+
+    const moved = desk.enter(me, pointer('move', { x: 3, y: 500 }));
+    const nowhere = desk.enter(me, pointer('down', { x: 3, y: 500 }));
+    check(
+        'a move with no button reaches no page, and a press where no window is reaches the desktop',
+        moved.over === null && nowhere.over === 'desktop',
+        JSON.stringify({ moved, nowhere })
+    );
+    desk.leave(you);
+    check(
+        'a seat that left is not at the desktop',
+        (() => {
+            try {
+                desk.enter(you, key('KeyA'));
+            } catch (error) {
+                return error.kind === 'NOT_FOUND';
+            }
+        })(),
+        ''
+    );
+}
+
 function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const same = (one, other) => JSON.stringify(one) === JSON.stringify(other);
     const area = { x: 6, y: 28, width: 1195, height: 773 };
@@ -1195,7 +1371,14 @@ function desktopOver(createDesktop, { state = {}, clock }) {
     let size = { width: 1200, height: 800 };
     let resized = () => {};
     const desktopPage = { name: 'desktop' };
-    const heard = { requests: null, monitor: null, chords: null, press: null };
+    const closed = []; // the ids of the windows the desktop asked the shell's windows to close
+    const heard = { requests: null, monitor: null, chords: null, press: null, carried: null };
+    // The seats as deckit keeps them: the local one, those `sit` opens, what the desktop serves, the seats judged
+    // idle, what a seat was told of a window held, each event put in a page and each page kept from the keyboard.
+    const local = { id: 'local', local: true, user: { id: 'local', name: 'Local' } };
+    const seats = { open: [local], opened: null, closed: null, served: null, idle: new Set(), held: [] };
+    const puts = [];
+    const reserved = new Map();
     const KEY = {
         start: (press) => (heard.press = press),
         listen() {},
@@ -1215,6 +1398,18 @@ function desktopOver(createDesktop, { state = {}, clock }) {
             }),
         },
         log: { warn() {}, error() {} },
+        seats: {
+            local,
+            list: () => seats.open,
+            onOpen: (listener) => (seats.opened = listener),
+            onClose: (listener) => (seats.closed = listener),
+            isIdle: (seat) => seats.idle.has(seat.id),
+            input: async (seat, event) => seats.served.input(seat, event),
+            serve: (answers) => {
+                seats.served = answers;
+                return { changed() {}, held: (seat, told) => seats.held.push({ seat: seat.id, ...told }) };
+            },
+        },
         config: { name: 'Deckit' },
         core: { onDown() {} },
         pages: { whenEnds() {} },
@@ -1245,6 +1440,17 @@ function desktopOver(createDesktop, { state = {}, clock }) {
         size: () => size,
         lay: (layers) => (laid = layers),
         show() {},
+        // The top page of `layers` that takes the pointer at `point`, as a stage reads it.
+        hit: (layers, point) => {
+            for (const { page, rect, input } of [...layers].reverse()) {
+                if (!rect) continue;
+                const at = { x: point.x - rect.x, y: point.y - rect.y };
+                const holds = (one) =>
+                    at.x >= one.x && at.y >= one.y && at.x < one.x + one.width && at.y < one.y + one.height;
+                if (holds({ ...rect, x: 0, y: 0 }) && (!input || input.some(holds))) return { page, ...at };
+            }
+            return null;
+        },
     };
     let hostShown = 0;
     const desktop = createDesktop({
@@ -1259,6 +1465,11 @@ function desktopOver(createDesktop, { state = {}, clock }) {
         KEY,
         makeStage: () => stage,
         actionOnDoubleClick: () => 'zoom',
+        input: {
+            listen: (handler) => (heard.carried = handler),
+            put: (page, event, from) => puts.push({ page: page.name, event, from }),
+        },
+        reserve: (page, on) => reserved.set(page.name, on),
         deckit,
         state: {
             read: (key, fallback) => state[key] ?? fallback,
@@ -1270,7 +1481,10 @@ function desktopOver(createDesktop, { state = {}, clock }) {
     });
     desktop.start({
         WINDOWS: {
-            close: (window) => desktop.close(window),
+            close: (window) => {
+                closed.push(window.id);
+                desktop.close(window);
+            },
             keyOverlay: () => null,
             pageOf: (page) => page.of ?? page,
         },
@@ -1300,7 +1514,21 @@ function desktopOver(createDesktop, { state = {}, clock }) {
         },
         fromPage: (name, payload) => handlers[`deckit-shell:desktop-${name}`](payload, desktopPage),
         page: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-state').at(-1).payload,
-        press: (id, page) => heard.press(id, page),
+        press: (id, page, from) => heard.press(id, page, from),
+        // A seat deckit opens, what a seat's devices did as the entry hands it, and what the machine's did.
+        sit: (id) => {
+            const seat = { id, local: false, user: { id, name: id } };
+            seats.open.push(seat);
+            seats.opened(seat);
+            return seat;
+        },
+        leave: (seat) => seats.closed(seat),
+        enter: (seat, event) => seats.served.input(seat, event),
+        carried: (event) => heard.carried(event),
+        seats,
+        closed,
+        puts,
+        reserved,
         request: (from, to) => heard.requests({ from, to }),
         key: (page) => heard.monitor(page, { code: 'KeyA' }),
         chord: (mod) => heard.chords(mod),

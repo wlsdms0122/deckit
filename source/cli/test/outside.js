@@ -160,16 +160,10 @@ async function run({ check, home, logged, main }) {
     const press = { type: 'down', x: 40, y: 30, button: 0, count: 1 };
     const pressed = await party.request('seat/pointer', press);
     const typed = await party.request('seat/text', { type: 'insert', text: 'seen' });
-    const handed = await served('kept.handed');
     check(
-        'outside: what a seat does is handed to what is served with its seat, and answered as that answers',
-        same(pressed, { over: 'w1', key: 'key', holder: 's1' }) &&
-            same(typed, pressed) &&
-            same(handed, [
-                { seat: 's1', event: { event: 'pointer', ...press } },
-                { seat: 's1', event: { event: 'text', type: 'insert', text: 'seen' } },
-            ]),
-        JSON.stringify({ pressed, handed })
+        'outside: what a seat does enters the shell, which answers what its pointer reached and where its text went',
+        pressed && 'over' in pressed && typed && 'to' in typed,
+        JSON.stringify({ pressed, typed })
     );
     const reading = await party.request('seat/read', { level: 'desktop' });
     const unserved = await refusedWith(party.request('seat/capture', {}));
@@ -263,7 +257,7 @@ async function run({ check, home, logged, main }) {
     const printed = sat && [cli('seat', 'read', 'desktop'), cli('seat', 'press', '10,20'), cli('seat', 'changes')];
     check(
         'outside: deckit seat read desktop prints the line that is served, and a press what it reached',
-        printed && same(printed, [`${line}\n`, 'over w1, key\n', 'changes 1 to 2\n']),
+        printed && same([printed[0], printed[2]], [`${line}\n`, 'changes 1 to 2\n']) && /^over \S+/.test(printed[1]),
         JSON.stringify(printed)
     );
     if (sat) cli('seat', 'detach');
