@@ -18,6 +18,7 @@ import { createStages } from '../stage/main.js';
 import { createNotifications } from '../notification/main.js';
 import { createLoader } from '../main-process/loader.js';
 import { createWeb } from '../web/main.js';
+import { createRead, SCRIPT as READER } from '../read/main.js';
 
 // MARK: - Property
 const FRAME = 16; // ms
@@ -71,11 +72,14 @@ function createEnvironment({ core, preload, openWindow }) {
         guard,
     });
     const FOLDER = createFolder();
+    const READ = createRead({ LOG });
     // WebKit's module is the core's neighbour in the archive.
     const WEBKIT = createWebKit({
         path: require('path').join(require('path').dirname(core), 'deckit-web.node'),
         LOG,
         containerOf: (page) => WEB.containerOf(page),
+        always: [READER],
+        posted: READ.told,
     });
     const MESSAGES = createMessages();
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
@@ -153,6 +157,13 @@ function createEnvironment({ core, preload, openWindow }) {
             reserve: (page, on) => void (page.isDestroyed() || WEBKIT.native().reserveKeyboard(page.id, !!on)),
         }),
         input: Object.freeze({ listen, put }),
+        read: Object.freeze({
+            outline: READ.outline,
+            node: READ.node,
+            changes: READ.changes,
+            place: READ.place,
+            listen: READ.listen,
+        }),
         open: Object.freeze({ url: openURL, file: openFile, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({

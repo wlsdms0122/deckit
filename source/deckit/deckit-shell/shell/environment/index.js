@@ -73,6 +73,39 @@ const SHELL = Object.freeze({
         // `keys.unhandled`) carries `from`, and one it does not handle reaches nothing else
         put: 'function',
     },
+    // How a page reads to one who cannot see it, from what its document drew, its elements' roles, names and states.
+    // A document has a number, another for each document a page shows, and an element a ref, `<document>.<n>`, the
+    // same while the element is in its document. What is asked of an element or a document that is gone is refused
+    // with an error whose `code` is `GONE`
+    read: {
+        // outline(page, knobs) -> Promise of `{ document, count, width, height, lines }`: the page's size and its
+        // lines top to bottom, each `{ depth, role, name, length, states, items, inView, below, ref }`, `name` cut to
+        // `text` characters and `length` its whole length where it was cut, `states` words, `items` the items it holds
+        // and `inView` those in view, `below` the elements under a line at the deepest level; `count` is the
+        // document's count of changes the answer is at. `knobs`: `depth` (30), `roles` (all), only lines of these
+        // roles and those that hold them, `all` (false), the whole document and not what is in view, `items` (30),
+        // those of one container listed, `text` (80)
+        outline: 'function',
+        // node(page, ref, knobs) -> Promise of `{ document, count, line, rect, scroll, lines, more, selection,
+        // caret }`: the element's own line, its rect in the page, `{ top, height, left, width }` where it scrolls, the
+        // lines under it, its text too as lines of role `text`, `more` those left out, what is selected in a field,
+        // `{ start, end }` in its value or `{ line, column, length }` in editable content, and the rect its caret is
+        // at while it has its document's focus. `knobs` as of `outline`, `text` 200, and `lines`, the text lines
+        // listed, those in view without
+        node: 'function',
+        // changes(page, { document, count }) -> Promise of `{ document, from, count, entries }`: what reads otherwise
+        // in the document since that count, each `{ kind: '~', ...line }`, a line as it reads now, `not in view`
+        // among its states where it is out of sight, `{ kind: '+', ...line }`, a line not answered before, or
+        // `{ kind: '-', ref }`, an element gone. A count older than the document keeps, its last 256, is refused with
+        // an error whose `code` is `STALE`
+        changes: 'function',
+        // place(page, ref) -> Promise of `{ x, y, width, height }`: the element's rect in the page, once it is
+        // scrolled into view
+        place: 'function',
+        // listen(handler({ page, document, count })) -> off: each count of a document, which goes up as what it shows
+        // changes, at most once a frame
+        listen: 'function',
+    },
     // stage() -> a stage (`STAGE`): where pages are laid in one of the host app's windows
     stage: 'function',
     // fonts() -> { families, monospaced }: the font families installed, by name, and those of them whose faces are

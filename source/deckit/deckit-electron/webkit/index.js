@@ -6,8 +6,10 @@
 // is called, and `destroyed`, once, as it closes; `from`, of `mouse` and in `pressed`, is the token of the seat an
 // event was put for, and there is none on the machine's own. A key down a page shown in another (`containerOf(page)`, that page or
 // null) did not handle is that page's next: a key down at its element with the keyboard, which its listeners may
-// cancel, and then a key it did not handle. `path` is the module's.
-export function createWebKit({ path, LOG, containerOf }) {
+// cancel, and then a key it did not handle. `path` is the module's. `always` are scripts every document of every page
+// starts with, beside its own, and `posted(page, body)` is asked of what deckit's scripts post in a page's main frame
+// before its delegate is: true for a word that is its own, which the delegate is not told.
+export function createWebKit({ path, LOG, containerOf, always = [], posted = null }) {
     // MARK: - Property
     // WebKit's code for a load another one replaced.
     const CANCELLED = -999;
@@ -37,7 +39,7 @@ export function createWebKit({ path, LOG, containerOf }) {
     }) {
         const { page, listener } = pageOf({ delegate, fields });
         const options = {
-            scripts: scripts?.(page) ?? [],
+            scripts: [...(scripts?.(page) ?? []), ...always],
             store,
             applicationName: agentName(),
             cookieLifetime,
@@ -57,7 +59,7 @@ export function createWebKit({ path, LOG, containerOf }) {
         const { page, listener } = pageOf({ delegate, fields, opened });
         return {
             listener: (event, payload) => (event === 'adopted' ? page.adopted(payload.id) : listener(event, payload)),
-            scripts: scripts?.(page) ?? [],
+            scripts: [...(scripts?.(page) ?? []), ...always],
         };
     }
 
@@ -146,6 +148,7 @@ export function createWebKit({ path, LOG, containerOf }) {
                 }
                 case 'message': {
                     const { body, ...frame } = payload;
+                    if (frame.main && posted?.(page, body)) return false;
                     return delegate.message?.(body, frame) === true;
                 }
                 case 'request':
@@ -219,7 +222,7 @@ export function createWebKit({ path, LOG, containerOf }) {
             stop: () => can() && WEBKIT.go(page.id, 'stop'),
             focus: () => can() && WEBKIT.focus(page.id),
             droppedFiles: () => (can() ? WEBKIT.droppedFiles(page.id) : []),
-            run: (scripts) => can() && WEBKIT.run(page.id, scripts),
+            run: (scripts) => can() && WEBKIT.run(page.id, [...scripts, ...always]),
             evaluate: (source, world = 'page') =>
                 can()
                     ? WEBKIT.evaluate(page.id, source, world).then((json) => JSON.parse(json))
