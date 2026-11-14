@@ -205,18 +205,29 @@ final class Server {
 
         case "authentication/verify":
             let params = try request.decodeParams(as: VerifyParams.self)
-            let effects = try deckit.admit(
+            let admission = try deckit.admit(
                 transport: params.transport,
                 principal: params.principal,
                 scheme: params.scheme,
                 key: data(params.key),
-                signature: data(params.signature)
+                signature: data(params.signature),
+                idle: params.idle
             )
-            return answered(effects, by: deckit)
+            return AdmissionAnswer(admission, of: deckit)
 
         case "authentication/close":
-            deck.authentication.close(transport: try request.decodeParams(as: TransportParams.self).transport)
+            deckit.close(transport: try request.decodeParams(as: TransportParams.self).transport)
             return true
+
+        case "seat/open-local":
+            return try deckit.openLocalSeat(for: request.decodeParams(as: UserParams.self).id)
+
+        case "seat/answer":
+            let params = try request.decodeParams(as: SeatAnswerParams.self)
+            return AdmissionAnswer(try deckit.answer(transport: params.transport, allow: params.allow), of: deckit)
+
+        case "seat/list":
+            return deckit.seats.all
 
         case "runner/reconnect":
             return answered(try deckit.reconnect(), by: deckit)

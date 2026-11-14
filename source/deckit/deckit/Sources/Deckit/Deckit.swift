@@ -16,6 +16,7 @@ public final class Deckit {
     // The state the layers above keep, each its own.
     public let state: State
     public let users: UserRegistry
+    public let seats: SeatTable
     public let runs: RunTable
     public let timeout: RunTimeout
     // When a seat is idle.
@@ -48,6 +49,14 @@ public final class Deckit {
             + "and settings, and choose which mod opens an address.",
         privileged: true
     )
+    // What a user's job holds and no mod's can: it guards what is asked of a seat. No manifest is read against it, so
+    // no mod asks for it.
+    static let seat = Permission(
+        id: "deckit.seat",
+        name: "Seat",
+        description: "It sits at a seat of the desktop: a pointer, a keyboard and a view of its own.",
+        privileged: true
+    )
     private let now: () -> Date
 
     // MARK: - Initializer
@@ -67,6 +76,9 @@ public final class Deckit {
         timeout: RunTimeout = RunTimeout(launch: 20, end: 5),
         now: @escaping () -> Date = Date.init
     ) throws {
+        guard !permissions.contains(where: { permission in permission.id == Deckit.seat.id }) else {
+            throw ManifestError.permissionDefined(Deckit.seat.id)
+        }
         let store = Store()
         let deck = Deck(home: home, signals: [Deckit.contributionsChanged])
         let reader = try ManifestReader(
@@ -90,6 +102,7 @@ public final class Deckit {
         state.reserve(IdleRule.key)
         let runs = RunTable()
         self.users = try UserRegistry(principalState: deck.principalState, store: store)
+        self.seats = SeatTable()
         self.deck = deck
         self.catalog = catalog
         self.state = state
@@ -272,17 +285,30 @@ public final class Deckit {
         return effects
     }
 
-    // The transport connection `transport`, which arrived from outside, is admitted as the principal its claimant
-    // proves to be, as deck verifies it: a run of that principal's job launches, hosted by the transport connection,
-    // in a sandbox no other run shares. The job of a principal that comes from outside grants nothing: no permission,
-    // no principal reached by id, no interface used or provided. Refused for a principal that runs already.
+    // The local seat, whose devices are this machine's hardware, opens for the user `id`: no run of the user holds it,
+    // and it stays open. Refused for an id that is no user, for a user that sits or runs already, and while the local
+    // seat is open.
+    public func openLocalSeat(for id: String) throws -> Seat {
+        guard let user = users.user(of: id) else { throw UserError.notAUser(id) }
+        guard isFree(id) else { throw LaunchError.alreadyRunning(id) }
+        guard seats.local == nil else { throw SeatError.localOpen }
+
+        return seats.open(user, local: true)
+    }
+
+    // The transport connection `transport`, which arrived from outside, is admitted as the user its claimant proves to
+    // be, as deck verifies it. A principal deckit keeps no user record for is refused as a proof that does not verify
+    // is, so nothing is told of it, and a user that sits or runs already is refused. `idle` is the seconds the local
+    // seat's devices gave no input for: while the local seat is idle the user sits at once, and otherwise it waits
+    // until the local seat answers.
     public func admit(
         transport: String,
         principal: String,
         scheme: String,
         key: Data,
-        signature: Data
-    ) throws -> [Effect] {
+        signature: Data,
+        idle seconds: TimeInterval
+    ) throws -> Admission {
         let principal = try deck.authentication.verify(
             transport: transport,
             principal: principal,
@@ -290,23 +316,61 @@ public final class Deckit {
             key: key,
             signature: signature
         )
-        guard (deck.run(of: principal)?.state ?? .notRunning) == .notRunning else {
-            throw LaunchError.alreadyRunning(principal)
-        }
+        let user = try sitter(principal)
+        guard !idle.isIdle(after: seconds) else { return try seat(user, transport: transport) }
+        seats.ask(user, transport: transport)
+
+        return .asking(user)
+    }
+
+    // The local seat answers whether the user that waits on the transport connection may sit: it sits, held to what
+    // `admit` holds it to as it is answered, or is refused. Refused for a transport connection none waits on.
+    public func answer(transport: String, allow: Bool) throws -> Admission {
+        guard let asked = seats.answer(transport: transport) else { throw SeatError.notAsking(transport) }
+        guard allow else { throw SeatError.refused }
+
+        return try seat(sitter(asked.id), transport: transport)
+    }
+
+    // The transport connection closed: its challenge is no more, and the user that waits on it waits no more.
+    public func close(transport: String) {
+        deck.authentication.close(transport: transport)
+        seats.answer(transport: transport)
+    }
+
+    // MARK: - Private
+    // Whether the principal neither sits at a seat nor runs.
+    private func isFree(_ id: String) -> Bool {
+        seats.seat(of: id) == nil && (deck.run(of: id)?.state ?? .notRunning) == .notRunning
+    }
+
+    // The user the principal is, free to sit.
+    private func sitter(_ principal: String) throws -> User {
+        guard let user = users.user(of: principal) else { throw AuthenticationError.notAuthenticated }
+        guard isFree(principal) else { throw LaunchError.alreadyRunning(principal) }
+
+        return user
+    }
+
+    // The user sits: a run of its job launches, hosted by the transport connection, in a sandbox no other run shares,
+    // and its seat opens. A user's job holds `deckit.seat` and nothing else: no principal reached by id, no interface
+    // used or provided.
+    private func seat(_ user: User, transport: String) throws -> Admission {
         let job = Job(
-            principal: principal,
+            principal: user.id,
             revision: "transport \(transport)",
             host: .transport(transport),
-            permissions: [],
+            permissions: [Deckit.seat.id],
             reaches: .only([]),
             uses: [:],
             provides: [:]
         )
+        let launched = try deck.load([job])
+        let seat = seats.open(user, local: false)
 
-        return try observed(deck.load([job]))
+        return .seated(seat, try observed(launched))
     }
 
-    // MARK: - Private
     private func permit(_ asker: String?) throws {
         guard let asker, !(deck.job(of: asker)?.permissions.contains(Deckit.mods.id) ?? false) else { return }
         throw LaunchError.notPermitted(mod: asker, permission: Deckit.mods.id)
@@ -337,10 +401,10 @@ public final class Deckit {
     }
 
     // What deckit keeps and decides of the runs as `effects` move them, then of what that comes to, until nothing more
-    // comes: a run that launches has an entry; a run that failed counts toward its mod's relaunch limit, and a
-    // background mod's launches again; a mod a lifecycle waits for launches, but for the lifecycles that wait again as
-    // its run ends refused at launch, which are told that refusal; and a sandbox closes once its run has ended and the
-    // catalog no longer has its mod as it runs it.
+    // comes: a run that launches has an entry; a user's seat closes as its run ends; a mod's run that failed counts
+    // toward its relaunch limit, and a background mod's launches again; a mod a lifecycle waits for launches, but for
+    // the lifecycles that wait again as its run ends refused at launch, which are told that refusal; and a sandbox
+    // closes once its run has ended and the catalog no longer has its mod as it runs it.
     private func observed(_ effects: [Effect]) throws -> [Effect] {
         var observed: [Effect] = []
         var next = effects
@@ -357,7 +421,8 @@ public final class Deckit {
 
                 case let .tell(_, run) where run.state == .notRunning:
                     ended.append(run)
-                    if run.failed {
+                    let seat = seats.close(of: run.principal)
+                    if run.failed, seat == nil {
                         limit.fail(run.principal, at: now())
                     }
                     if run.failed, isBackground(run.principal) {

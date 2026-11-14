@@ -17,6 +17,8 @@ const TOLD = Object.assign({}, ...WIRES.map(({ told }) => told));
 // environment's (environment/: MAIN.transport), `path` where it listens.
 export function createOutside({ CORE, LOG, RUNNER, transport: TRANSPORT, path }) {
     // MARK: - Property
+    // No seat's devices are heard here, so the local seat gave no input since this began.
+    const began = Date.now();
     let sequence = 0;
 
     // MARK: - Initializer
@@ -97,14 +99,15 @@ export function createOutside({ CORE, LOG, RUNNER, transport: TRANSPORT, path })
         async function authenticate({ principal, scheme, key, signature }) {
             state = 'verifying';
             const withdraw = RUNNER.offer(transport, host);
+            const effectsOf = ({ effects = [] }) => effects;
             try {
-                const effects = await RUNNER.ask('authentication/verify', {
-                    transport,
-                    principal,
-                    scheme,
-                    key,
-                    signature,
-                });
+                const idle = (Date.now() - began) / 1000;
+                const proof = { transport, principal, scheme, key, signature, idle };
+                const verified = await RUNNER.ask('authentication/verify', proof, effectsOf);
+                // Nobody is here to ask: a user that waits for the local seat's answer is answered no.
+                const { effects } = verified.asking
+                    ? await RUNNER.ask('seat/answer', { transport, allow: false }, effectsOf)
+                    : verified;
                 const opened = effects.find((effect) => effect.effect === 'open' && effect.transport === transport);
                 run = RUNNER.runOf(opened.mod).number;
                 state = 'bound';

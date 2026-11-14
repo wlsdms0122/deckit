@@ -1,12 +1,14 @@
 // A party on a transport connection from outside, checked against the app under test through the client of the wire
 // (cli/outside): a key registered for a principal attaches as a run of it, any other proof is refused and told
 // nothing, a principal that runs takes no second party, and the run asks what a run asks, bounded by a job that grants
-// nothing: its own records and events, no connection. The key is registered, listed and removed as a host does it,
-// by `deckit key` against the app's folder, while the app runs.
+// only the seat permission: its own records and events, no connection. The key is registered, listed and removed as a
+// host does it, by `deckit key` against the app's folder, while the app runs, and its principal is made a user by the
+// core `deckit key` asks. The app's folder is seeded with an idle time of none, so a user sits unasked.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { makeKey, connect } = require('../outside/client.js');
+const { ask } = require('../outside/keys.js');
 const { until } = require('./devtools.js');
 
 const refusedWith = (promise) =>
@@ -24,11 +26,19 @@ async function run({ check, home, logged }) {
     const deckit = (...args) =>
         execFileSync(path.join(__dirname, '..', 'deckit'), ['key', ...args, '--home', home], { encoding: 'utf8' });
     deckit('add', principal, key.publicKey, '--name', 'test');
+    const keyed = await connect(socket);
+    const recordless = await refusedWith(keyed.authenticate({ principal, ...key }));
+    await ask(home, 'user/add', { id: principal, name: 'Outside Party' });
     const started = { contributions: { exportedIn: {}, awaits: {} } };
     const nothing = { message: 'not authenticated', code: -32803, kind: 'NOT_AUTHENTICATED', stage: 'call' };
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
     check('outside: only its owner opens the socket', (fs.statSync(socket).mode & 0o777) === 0o600, '');
+    check(
+        'outside: a registered key of a principal that is no user is refused as a wrong key is',
+        same(recordless, nothing),
+        JSON.stringify(recordless)
+    );
 
     const early = await connect(socket);
     const before = await refusedWith(early.request('record/keys', {}));
@@ -50,8 +60,11 @@ async function run({ check, home, logged }) {
     const party = await connect(socket);
     const attached = await party.authenticate({ principal, ...key });
     check(
-        'outside: a registered key attaches as a run of its principal, granted nothing',
-        attached.principal === principal && attached.run === 1 && same(attached.permissions, []) && attached.end > 0,
+        'outside: a registered key of a user attaches as a run of it, granted the seat permission only',
+        attached.principal === principal &&
+            attached.run === 1 &&
+            same(attached.permissions, ['deckit.seat']) &&
+            attached.end > 0,
         JSON.stringify(attached)
     );
     const second = await connect(socket);
@@ -86,7 +99,7 @@ async function run({ check, home, logged }) {
     const connections = await party.request('connection/begin', { lifecycle: 0 });
     const reach = await refusedWith(party.request('connection/reach', { lifecycle: 0, target: 'probe' }));
     check(
-        'outside: a job that grants nothing has no connection and reaches none',
+        'outside: the job of a user has no connection and reaches none',
         same(connections, []) && reach?.kind === 'NOT_PERMITTED',
         JSON.stringify({ connections, reach })
     );

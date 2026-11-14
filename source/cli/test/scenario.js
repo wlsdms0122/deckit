@@ -35,6 +35,9 @@ const BEHIND_TAB = 'https://example.org/';
 // REMOVED left, noted as not cleared yet.
 function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
+    // No seat's devices are heard and nobody answers an ask: with an idle time of none a user sits unasked.
+    fs.mkdirSync(path.join(data, 'deckit', 'state'), { recursive: true });
+    fs.writeFileSync(path.join(data, 'deckit', 'state', 'seats.json'), '{"idleTime":0}\n');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
     fs.rmSync(path.join(mods, PROBE), { recursive: true });
     fs.renameSync(path.join(mods, JOINS), path.join(data, JOINS));

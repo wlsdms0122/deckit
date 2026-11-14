@@ -74,4 +74,4 @@ function list({ home, principal }) {
     return ask(home, 'key/list', { principal });
 }
 
-module.exports = { appHome, add, remove, list };
+module.exports = { appHome, ask, add, remove, list };

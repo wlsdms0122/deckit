@@ -173,6 +173,15 @@ extension Refusal {
                 "NOT_FOUND"
             }
 
+        case let error as SeatError:
+            switch error {
+            case .refused, .localOpen:
+                "REFUSED"
+
+            case .notAsking:
+                "NOT_FOUND"
+            }
+
         case let error as StateError:
             switch error {
             case .notAKey:

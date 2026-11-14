@@ -255,12 +255,13 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         }
     }
 
-    // What the core answers is done before anything asked after it is. Answers the effects.
-    function ask(method, params) {
+    // What the core answers is done before anything asked after it is. Answers what the core answered: the effects,
+    // or, for a method that answers more, what `effectsOf` reads them from.
+    function ask(method, params, effectsOf = (answer) => answer) {
         const answered = CORE.request(method, params).then(
-            (effects) => {
-                apply(effects);
-                return effects;
+            (answer) => {
+                apply(effectsOf(answer));
+                return answer;
             },
             (error) => {
                 if (error.kind === 'ENDED') release(error);
