@@ -13,7 +13,7 @@ const path = require('path');
 const root = path.join(__dirname, '..', '..', '..');
 const { execFileSync } = require('child_process');
 const { start } = require(path.join(root, 'source', 'cli', 'test', 'start.js'));
-const { sleep } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
+const { until } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
 const SCENARIO = require(path.join(root, 'source', 'cli', 'test', 'scenario.js'));
 const OUT = path.join(root, '.build', 'test');
 const LIMIT = 300000;
@@ -77,7 +77,9 @@ const main = async () => {
     const app = start({ seed: SCENARIO.seed, shots: OUT, log, port, limit: LIMIT });
     const report = await SCENARIO.run(app);
     app.stop();
-    await sleep(1000);
+    // The app quits with its core ended, as the scenario left it, and is killed 5 s after it was asked to.
+    const gone = await until(() => !fs.existsSync(path.join(app.home, 'deckit.sock')), 4000);
+    report.push({ name: 'outside: the socket is gone once the app quit', ok: !!gone, detail: '' });
     fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 4) + '\n');
 
     const failed = report.filter(({ ok }) => !ok);
