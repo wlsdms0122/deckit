@@ -14,8 +14,7 @@ public struct Job: Equatable, Sendable {
     public let principal: String
     // Two jobs of one revision run the same code, in one sandbox.
     public let revision: String
-    // The file its page loads.
-    public let entry: URL
+    public let host: RunHost
     // The ids of the permissions granted to it.
     public let permissions: [String]
     // The principals it may reach by id.
@@ -29,7 +28,7 @@ public struct Job: Equatable, Sendable {
     public init(
         principal: String,
         revision: String,
-        entry: URL,
+        host: RunHost,
         permissions: [String],
         reaches: PrincipalSet,
         uses: [String: Int],
@@ -37,7 +36,7 @@ public struct Job: Equatable, Sendable {
     ) {
         self.principal = principal
         self.revision = revision
-        self.entry = entry
+        self.host = host
         self.permissions = permissions
         self.reaches = reaches
         self.uses = uses

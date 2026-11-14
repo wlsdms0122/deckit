@@ -19,6 +19,29 @@ struct DeckTests {
 
     // MARK: - Initializer
     // MARK: - Test
+    @Test("a run a transport connection hosts is a run as any: what its job holds decides what it is connected to")
+    func transportHostedRunIsARun() throws {
+        // Given
+        let service = Job.fixture("b", provides: ["x/api": [1]])
+        let client = Job.fixture("a", transport: "t1", uses: ["x/api": 1])
+        let other = Job.fixture("c", transport: "t2")
+        sut.owners.provide([service, client, other], keeping: [])
+
+        // When
+        let opened = try start(service, exportedIn: ["x/api": 0]) + sut.load([client, other])
+        let connections = try sut.connections.begin(principal: "a", run: 1, lifecycle: 0)
+        let none = try sut.connections.begin(principal: "c", run: 1, lifecycle: 0)
+        let crashed = try sut.crashed("a", run: 1, problem: "its transport connection closed")
+
+        // Then
+        #expect(opened.map(\.line).filter { line in line.hasPrefix("open") } == ["open b", "open a", "open c"])
+        #expect(connections.map(\.line) == ["1 a#1@0 -> b#1@0"])
+        #expect(none.isEmpty)
+        #expect(sut.job(of: "a")?.host == .transport("t1"))
+        #expect(crashed.map(\.line).contains("disconnect 1 a#1@0 -> b#1@0"))
+        #expect(sut.run(of: "a")?.failed == true)
+    }
+
     @Test("as an interface's owner changes, the runs that listen hear <interface>:owner-changed once it is reconnected")
     func ownerChangeIsDelivered() throws {
         // Given

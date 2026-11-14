@@ -9,7 +9,7 @@ import Foundation
 import Deck
 import Deckit
 
-// An effect as the driver reads it: deck's, with the mod a sandbox opens for as the catalog reads it, what a run is
+// An effect as the driver reads it: deck's, with the mod a sandbox a page hosts opens for as the catalog reads it, what a run is
 // refused with at launch, what a lifecycle that waits is told the mod it waits for is refused with, and what one that
 // reaches is refused with.
 struct EffectAnswer {
@@ -23,7 +23,13 @@ struct EffectAnswer {
         self.effect = effect
         switch effect {
         case let .open(job):
-            found = deckit.catalog.loading.first { mod in mod.manifest.id == job.principal }
+            switch job.host {
+            case .page:
+                found = deckit.catalog.loading.first { mod in mod.manifest.id == job.principal }
+
+            case .transport:
+                found = nil
+            }
             refusal = nil
 
         case let .tell(_, run), let .keep(run):

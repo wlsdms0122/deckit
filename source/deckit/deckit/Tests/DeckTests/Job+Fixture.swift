@@ -12,10 +12,12 @@ extension Job {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // A job of `id`, its entry `main.js` in a folder of its id.
+    // A job of `id`, hosted by a page whose entry is `main.js` in a folder of its id, or by the transport connection
+    // named.
     static func fixture(
         _ id: String,
         revision: String = "1",
+        transport: String? = nil,
         permissions: [String] = [],
         reaches: PrincipalSet = .only([]),
         uses: [String: Int] = [:],
@@ -24,7 +26,7 @@ extension Job {
         Job(
             principal: id,
             revision: revision,
-            entry: URL(filePath: "/principals/\(id)/main.js"),
+            host: transport.map(RunHost.transport) ?? .page(entry: URL(filePath: "/principals/\(id)/main.js")),
             permissions: permissions,
             reaches: reaches,
             uses: uses,
