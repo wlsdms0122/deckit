@@ -7,7 +7,7 @@
 
 import Foundation
 
-// How many files a mod's records are, every one whatever wrote it but the hidden ones, and whether there are any
+// How many files a principal's records are, every one whatever wrote it but the hidden ones, and whether there are any
 // of those.
 public struct RecordCount: Equatable, Sendable {
     // MARK: - Property

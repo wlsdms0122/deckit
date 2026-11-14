@@ -1,0 +1,28 @@
+case = 4
+name = "a-call-whose-function-throws-what-is-not-a-kind-is-refused"
+note = "A call whose function throws an error whose kind is not a kind is refused at call with kind REFUSED. mod-b's ping throws an error of kind busy, in lower case."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "ping"
+of = 2
+
+[step.expect]
+refuses = "call"
+kind = "REFUSED"

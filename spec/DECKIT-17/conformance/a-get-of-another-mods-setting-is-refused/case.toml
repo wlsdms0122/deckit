@@ -1,0 +1,31 @@
+case = 5
+name = "a-get-of-another-mods-setting-is-refused"
+note = "get reads the client's own mod's settings alone: it is refused at call with kind NOT_DECLARED for a key another mod declares. mod-b declares theme, and mod-a gets theme."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "get"
+handed = true
+args = ["theme"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_DECLARED"

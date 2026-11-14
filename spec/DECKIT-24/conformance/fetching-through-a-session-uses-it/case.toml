@@ -1,0 +1,37 @@
+case = 9
+name = "fetching-through-a-session-uses-it"
+note = "A mod uses a session as it fetches through it, and the web engine then names web under what mods.usage names kept. mod-b fetches hello.txt of site-a through its session main, and mod-a reads what mod-b keeps."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "fetch"
+of = 2
+sites = ["site-a/hello.txt"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "kept"
+
+[step.expect]
+answers = ["web"]

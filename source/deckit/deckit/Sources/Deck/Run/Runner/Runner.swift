@@ -7,69 +7,64 @@
 
 import Foundation
 
-// Each mod loads in a sandbox of its own and runs only while what it requires runs: one loaded while a mod it requires
-// does not run fails as it launches and stays as it is, and one ends before what it requires does. Which mods load or
-// unload, and when, is the caller's. The driver says what happened to a run, and is answered what to do, in order: the
-// runner never waits on it, and what comes of an effect comes back as what happened next.
+// Each principal runs its job in a sandbox of its own, one run at a time. Which jobs load or unload, and when, is the
+// caller's. The driver says what happened to a run, and is answered what to do, in order: the runner never waits on it,
+// and what comes of an effect comes back as what happened next.
 final class Runner {
     // MARK: - Property
-    private let catalog: Catalog
     // In the order they opened.
     private var sandboxes: [Sandbox] = []
-    // Mod id -> the number of its latest run, counted from 1.
+    // Principal -> the number of its latest run, counted from 1.
     private var runNumbers: [String: Int] = [:]
     private var effects: [Effect] = []
 
     // MARK: - Initializer
-    init(catalog: Catalog) {
-        self.catalog = catalog
-    }
+    init() {}
 
     // MARK: - Public
-    // The mods that have a sandbox, in the order they opened.
-    func mods() -> [Mod] {
-        sandboxes.map(\.mod)
+    // The jobs that have a sandbox, in the order they opened.
+    func jobs() -> [Job] {
+        sandboxes.map(\.job)
     }
 
-    // The mod a sandbox runs, while it has one.
-    func mod(of id: String) -> Mod? {
-        sandbox(of: id)?.mod
+    // The job a sandbox runs, while it has one.
+    func job(of id: String) -> Job? {
+        sandbox(of: id)?.job
     }
 
-    // The mod's latest run.
+    // The principal's latest run.
     func run(of id: String) -> Run? {
         sandbox(of: id)?.run
     }
 
-    // Each mod named that loads, as the catalog was last read, launches in the load order, in its page loaded anew.
-    // One whose run has not ended is left as it is. One whose code changed since its sandbox opened launches in a new
-    // sandbox.
-    func load(_ ids: [String]) throws -> [Effect] {
-        try decide {
-            for mod in catalog.lastRead where mod.problem == nil && ids.contains(mod.manifest.id) {
-                let sandbox = sandbox(of: mod.manifest.id)
-                guard (sandbox?.state ?? .notRunning) == .notRunning else { continue }
+    // Each job launches, in the order given, its page loaded anew. One whose principal's run launches or runs is left
+    // as it is, and one whose run terminates launches once that run has ended. One of another revision than its
+    // principal's sandbox launches in a new sandbox.
+    func load(_ jobs: [Job]) throws -> [Effect] {
+        try transition {
+            for job in jobs {
+                switch sandbox(of: job.principal)?.state ?? .notRunning {
+                case .notRunning:
+                    start(job)
 
-                if let sandbox, sandbox.mod.revision == mod.revision {
-                    sandbox.run = nextRun(of: mod.manifest.id)
-                    try launch(sandbox)
-                } else {
-                    if let sandbox {
-                        close(sandbox)
-                    }
-                    try open(mod)
+                case .terminating:
+                    sandbox(of: job.principal)?.next = job
+
+                case .launching, .running:
+                    break
                 }
             }
         }
     }
 
-    // Each mod named whose run has not ended terminates, after the mods that require it. A sandbox closes
-    // once its run has ended and the catalog no longer has its mod as it runs it.
+    // Each principal named whose run has not ended terminates, and the sandbox of one whose run has ended closes. A
+    // job kept to launch once a run ends is dropped.
     func unload(_ ids: [String]) throws -> [Effect] {
-        try decide {
-            for sandbox in sandboxes where ids.contains(sandbox.mod.manifest.id) {
+        try transition {
+            for sandbox in sandboxes where ids.contains(sandbox.job.principal) {
+                sandbox.next = nil
                 if sandbox.state == .notRunning {
-                    closeIfGone(sandbox)
+                    close(sandbox)
                 } else {
                     try terminate(sandbox)
                 }
@@ -77,40 +72,16 @@ final class Runner {
         }
     }
 
-    // It read its entry, while it launches.
-    func described(_ id: String, run number: Int, summary: JSONValue) throws -> [Effect] {
-        try decide {
+    // It started, with what it contributes.
+    func started(_ id: String, run number: Int, contributions: Contribution) throws -> [Effect] {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
-            var run = sandbox.run
-            run.describe(summary)
-            sandbox.run = run
-            effects.append(.keep(run))
-        }
-    }
-
-    // It started, with what it contributed.
-    func started(_ id: String, run number: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
-        try decide {
-            guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
-            try move(sandbox) { run throws(LifecycleError) in
-                try run.didLaunch(summary: summary, contributions: contributions)
-            }
-        }
-    }
-
-    // What it contributes now, while it runs.
-    func joined(_ id: String, run number: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
-        try decide {
-            guard let sandbox = sandbox(of: id, run: number), sandbox.state == .running else { return }
-            var run = sandbox.run
-            run.join(summary: summary, contributions: contributions)
-            sandbox.run = run
-            effects.append(.keep(run))
+            try move(sandbox) { run throws(LifecycleError) in try run.didLaunch(contributions) }
         }
     }
 
     func report(_ id: String, run number: Int, problem: String) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number) else { return }
             var run = sandbox.run
             guard run.record(problem) else { return }
@@ -119,70 +90,82 @@ final class Runner {
         }
     }
 
-    // It did not start, and why: its end is asked of its page as it terminates.
+    // It did not start, and why: its sandbox ends at once.
     func notStarted(_ id: String, run number: Int, problem: String) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didFailToLaunch(problem) }
+            effects.append(.kill(principal: id))
         }
     }
 
     func crashed(_ id: String, run number: Int, problem: String) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state != .notRunning else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.crash(problem) }
         }
     }
 
-    // Its page ended it, its time ran out or its page is gone.
+    // Its page ended it, its time ran out or its page is gone: its sandbox ends at once.
     func stopped(_ id: String, run number: Int) throws -> [Effect] {
-        try decide {
+        try transition {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .terminating else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didTerminate() }
+            effects.append(.kill(principal: id))
         }
     }
 
     // MARK: - Private
-    // What one fact comes to. A terminating run's end is asked once every mod that requires it has ended.
-    private func decide(_ fact: () throws -> Void) throws -> [Effect] {
+    // What one transition comes to. A job kept while a run terminated launches once that run has ended, and a
+    // terminating run's end is asked once.
+    private func transition(_ change: () throws -> Void) throws -> [Effect] {
         effects = []
-        try fact()
-        askStops()
+        try change()
+        for sandbox in sandboxes where sandbox.state == .notRunning {
+            guard let job = sandbox.next else { continue }
+            sandbox.next = nil
+            start(job)
+        }
+        for sandbox in sandboxes where sandbox.state == .terminating && !sandbox.stopAsked {
+            sandbox.stopAsked = true
+            effects.append(.stop(principal: sandbox.job.principal, number: sandbox.run.number))
+        }
 
         return effects
     }
 
-    private func open(_ mod: Mod) throws {
-        let sandbox = Sandbox(mod: mod, run: nextRun(of: mod.manifest.id))
-        sandboxes.append(sandbox)
-        effects.append(.open(mod))
-        try launch(sandbox)
+    // The job's principal, whose run has ended or which has no sandbox, launches the job, in a new sandbox where its
+    // sandbox runs another revision.
+    private func start(_ job: Job) {
+        let sandbox = sandbox(of: job.principal)
+        let run = nextRun(of: job.principal)
+        if let sandbox, sandbox.job.revision == job.revision {
+            sandbox.run = run
+            launch(sandbox)
+        } else {
+            if let sandbox {
+                close(sandbox)
+            }
+            open(job, run: run)
+        }
     }
 
-    private func closeIfGone(_ sandbox: Sandbox) {
-        let current = catalog.lastRead.contains { mod in
-            mod.manifest.id == sandbox.mod.manifest.id && mod.problem == nil && mod.revision == sandbox.mod.revision
-        }
-        if !current {
-            close(sandbox)
-        }
+    private func open(_ job: Job, run: Run) {
+        let sandbox = Sandbox(job: job, run: run)
+        sandboxes.append(sandbox)
+        effects.append(.open(job))
+        launch(sandbox)
     }
 
     private func close(_ sandbox: Sandbox) {
         sandboxes.removeAll { other in other === sandbox }
-        effects.append(.close(modId: sandbox.mod.manifest.id))
+        effects.append(.close(principal: sandbox.job.principal))
     }
 
-    // Its latest run launches. While a mod it requires does not run, the run fails as it launches, and its page does
-    // not load.
-    private func launch(_ sandbox: Sandbox) throws {
+    private func launch(_ sandbox: Sandbox) {
         sandbox.stopAsked = false
-        try tell(.willLaunch, sandbox.run, of: sandbox)
-        if let missing = missing(sandbox) {
-            try move(sandbox) { run throws(LifecycleError) in try run.crash("needs \(missing), which was not running") }
-        } else {
-            effects.append(.loadPage(modId: sandbox.mod.manifest.id))
-        }
+        effects.append(.tell(.willLaunch, sandbox.run))
+        effects.append(.loadPage(principal: sandbox.job.principal))
     }
 
     private func terminate(_ sandbox: Sandbox) throws {
@@ -197,67 +180,22 @@ final class Runner {
         let notification = try step(&run)
         sandbox.run = run
         guard let notification else { return }
-        try tell(notification, run, of: sandbox)
-    }
-
-    // A mod runs only while what it requires runs: it terminates as one of them terminates, before that one's end is
-    // asked, or as one ends with no willTerminate, having crashed or not launched.
-    private func tell(_ notification: LifecycleNotification, _ run: Run, of sandbox: Sandbox) throws {
         effects.append(.tell(notification, run))
-        switch notification {
-        case .willTerminate:
-            try terminateDependents(of: sandbox.mod.manifest.id)
-
-        case .didTerminate:
-            try terminateDependents(of: sandbox.mod.manifest.id)
-            closeIfGone(sandbox)
-
-        case .willLaunch, .didLaunch, .didFailToLaunch:
-            break
-        }
-    }
-
-    private func terminateDependents(of id: String) throws {
-        for dependent in directDependents(of: id) {
-            try terminate(dependent)
-        }
-    }
-
-    private func askStops() {
-        for sandbox in sandboxes {
-            let run = sandbox.run
-            guard run.state == .terminating, !sandbox.stopAsked else { continue }
-            let dependentEnding = directDependents(of: sandbox.mod.manifest.id).contains { dependent in
-                dependent.state == .terminating
-            }
-            guard !dependentEnding else { continue }
-            sandbox.stopAsked = true
-            effects.append(.stop(modId: sandbox.mod.manifest.id, number: run.number))
-        }
     }
 
     private func nextRun(of id: String) -> Run {
         let number = runNumbers[id, default: 0] + 1
         runNumbers[id] = number
 
-        return Run(modId: id, number: number)
-    }
-
-    private func directDependents(of id: String) -> [Sandbox] {
-        sandboxes.filter { sandbox in sandbox.mod.manifest.required.contains(id) }
-    }
-
-    // The first mod it requires, by id, that does not run, or nil.
-    private func missing(_ sandbox: Sandbox) -> String? {
-        sandbox.mod.manifest.required.first { id in self.sandbox(of: id)?.state != .running }
+        return Run(principal: id, number: number)
     }
 
     private func sandbox(of id: String) -> Sandbox? {
-        sandboxes.first { sandbox in sandbox.mod.manifest.id == id }
+        sandboxes.first { sandbox in sandbox.job.principal == id }
     }
 
-    // The mod's sandbox, while its latest run is the `number`th: what an older run said, still on its way, is not the
-    // newer one's.
+    // The principal's sandbox, while its latest run is the `number`th: what an older run said, still on its way, is not
+    // the newer one's.
     private func sandbox(of id: String, run number: Int) -> Sandbox? {
         guard let sandbox = sandbox(of: id), sandbox.run.number == number else { return nil }
         return sandbox

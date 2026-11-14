@@ -1,0 +1,35 @@
+case = 22
+name = "a-child-is-shown-no-more-as-its-overlay-window-closes"
+note = "A child's view leaves the screen as its region's overlay window closes: mod-a closes main, and mod-b says didAppear, then didDisappear, and no child is laid."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { close = true }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/mod-b/didAppear", activates = true }, { url = "https://said.test/mod-b/didDisappear", activates = true }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = []

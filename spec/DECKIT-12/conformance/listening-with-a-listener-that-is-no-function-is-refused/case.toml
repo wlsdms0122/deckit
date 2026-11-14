@@ -1,0 +1,21 @@
+case = 4
+name = "listening-with-a-listener-that-is-no-function-is-refused"
+note = "on takes a listener that is a function: one of another type is refused at call with kind INVALID_ARGUMENT. mod-a listens to mod-a:ready with the listener 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:ready", 1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

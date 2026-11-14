@@ -1,0 +1,30 @@
+case = 6
+name = "a-chord-is-read-by-the-client-of-its-own-mod"
+note = "chordOf(command) answers the chord of the key of the client's own mod for command, as a person reads it, for a client not granted deckit.system-services. mod-a declares a key for note on ctrl+alt+n."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "chordOf"
+handed = true
+args = ["note"]
+
+[step.expect]
+answers = "⌃⌥N"

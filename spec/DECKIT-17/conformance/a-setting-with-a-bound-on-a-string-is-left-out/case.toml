@@ -1,0 +1,30 @@
+case = 5
+name = "a-setting-with-a-bound-on-a-string-is-left-out"
+note = "An entry with a minimum or a maximum is left out where its type is not number. mod-b declares name, a string, with a maximum of 8."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "mods"
+
+[step.expect]
+answers = []

@@ -1,0 +1,21 @@
+case = 3
+name = "the-permission-is-checked-before-anything-else-of-the-request"
+note = "The permission is checked before anything else of the request. mod-a, granted nothing, asks that mod-z launch, which no bundle is listed under, and is refused at call with NOT_PERMITTED, not NOT_INSTALLED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-z"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

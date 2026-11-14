@@ -1,0 +1,29 @@
+case = 9
+name = "a-fetch-answers-the-status-the-headers-by-name-and-the-body"
+note = "fetch answers { url, status, headers, body, redirected }: the address that answered, its status, its headers in the order of their names, the names in lower case, and its body in base64. site-a answers hello.txt with the headers X-Type and Content-Type in that order."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/hello.txt"]
+
+[step.expect]
+answers = { url = "site-a/hello.txt", status = 200, headers = [["connection", "close"], ["content-length", "5"], ["content-type", "text/plain"], ["x-type", "greeting"]], body = "aGVsbG8=", redirected = false }

@@ -1,0 +1,3 @@
+["/sign-in"]
+status = 204
+headers = [["set-cookie", "signed=in; Path=/"]]

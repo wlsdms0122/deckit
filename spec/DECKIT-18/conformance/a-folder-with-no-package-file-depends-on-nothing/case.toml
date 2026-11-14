@@ -1,0 +1,32 @@
+case = 5
+name = "a-folder-with-no-package-file-depends-on-nothing"
+note = "A folder that holds no package.toml depends on nothing: a dry run answers no dependencies. mod-c has no package file."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "dependencies"
+
+[step.expect]
+answers = []

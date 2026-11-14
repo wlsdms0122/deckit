@@ -1,0 +1,26 @@
+case = 1
+name = "the-permissions-other-system-deckits-define-follow-the-table"
+note = "The system defines this table's permissions first, then each other DECKIT's, and before the host defines any. mod-a asks for one of each, and they are answered deckit.mods, deckit.system-services, system.file-handlers, which the DECKIT of opening outside the app defines, then the host's case.sync."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "case.sync", name = "Sync", description = "Syncs the pages." }]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "deckit.mods", reason = "Lists the mods.", usable = true, name = "Mods", description = "It can see every mod and the system's folders, launch and quit them, add one from a folder and delete installed ones, with what they stored.", privileged = true },
+    { id = "deckit.system-services", reason = "Runs the commands.", usable = true, name = "System Services", description = "It can act on other mods through the system's services: run their commands, change their keys and settings, and choose which mod opens an address.", privileged = true },
+    { id = "system.file-handlers", reason = "Opens the reports.", usable = true, name = "File Handlers", description = "It can open files in the app for them, which can start programs.", privileged = false },
+    { id = "case.sync", reason = "Syncs the pages.", usable = true, name = "Sync", description = "Syncs the pages.", privileged = false },
+]

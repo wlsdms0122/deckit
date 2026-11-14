@@ -15,16 +15,16 @@ function savedSession({ records, fileSystem, workspaces }) {
         records.set('session', {
             spaces: [
                 ...workspaces.all().map((workspace) => ({
-                    root: workspace.root,
+                    root: workspace.root ?? undefined,
                     open: savedTabsOf(workspace),
-                    active: workspace.current?.path || null,
+                    active: workspace.current?.path,
                     mode: workspace.mode,
                 })),
                 ...unrestoredWorkspaces.filter(
                     (saved) => !workspaces.all().some((workspace) => sameRoot(workspace, saved))
                 ),
             ],
-            active: front ? front.root || '' : null,
+            active: front ? front.root || '' : undefined,
         });
     }
 
@@ -32,7 +32,7 @@ function savedSession({ records, fileSystem, workspaces }) {
     // requested after this begins stays in front.
     async function restore({ openFolder, openInBackground }) {
         const since = workspaces.latestRequest();
-        const saved = records.get('session', { spaces: [], active: null });
+        const saved = records.get('session', { spaces: [] });
         try {
             for (const entry of saved.spaces) {
                 try {

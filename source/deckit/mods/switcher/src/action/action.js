@@ -24,9 +24,19 @@ function read(action) {
     };
 }
 
+// An entry a mod declares to `switcher/actions` in its manifest, `{ mod, entry }` as the switcher is handed it, read
+// as `read` reads an action, or null: choosing it runs `command`, a command of the mod's own, with `args` (`{}` left
+// out), and one that names none is read only. A declared action has no `value` and opens nothing.
+function readDeclared({ entry }) {
+    const action = read({ ...entry, value: null, opens: false });
+    if (!action) return null;
+    const command = typeof entry.command === 'string' ? entry.command : '';
+    return { ...action, command, args: command ? (entry.args ?? {}) : null };
+}
+
 // MARK: - Private
 function text(value) {
     return typeof value === 'string' ? value : '';
 }
 
-module.exports = { read };
+module.exports = { read, readDeclared };

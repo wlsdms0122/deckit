@@ -1,3 +1,4 @@
+const { match } = require('deckit-sdk/match');
 const NoteEngine = require('../engine/engine.js');
 const { localDate } = require('../date/format.js');
 const {
@@ -16,7 +17,7 @@ const { isAddress, linkTargetOf, linkDestinationOf } = require('./link.js');
 const { PARAGRAPH_STYLES } = require('./paragraph-style.js');
 
 // The document is the file's text exactly; formatting is only decorations drawn over it.
-function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, onFollowLink }) {
+function liveEditor({ theme, ui, typeface, chordOf, clipboard, onChange, onFollowLink }) {
     // Only for replacing the mark at a line start. What style a line is in comes from the syntax tree (lineStyleAt).
     const LEADING_MARK = /^(\s*)(#{1,6}\s+|(?:[-*+]|\d+[.)])\s+\[[ xX]\]\s+|[-*+]\s+|\d+[.)]\s+)?/;
     const QUOTE_MARKS = /^(\s*>\s?)+/;
@@ -114,9 +115,9 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
             return true;
         },
     });
-    // The editor keeps the keyboard and steers the slash menu.
-    const slashMenu = ui.autocomplete({ onPick: (item) => takeSlashCommand(item) });
-    const toolbar = ui.floatingToolbar();
+    // The editor keeps the keyboard and steers the slash menu; both float in the document the note is in.
+    const slashMenu = ui.autocomplete({ onPick: (item) => takeSlashCommand(item), over: element });
+    const toolbar = ui.floatingToolbar({ over: element });
     // Highest, to beat the Markdown keymap, which the engine puts at high precedence itself.
     const keys = engine.Prec.highest(
         engine.keymap.of([
@@ -187,6 +188,8 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         toggleChecked: () => toggleChecked(),
         text: () => (view ? view.state.doc.toString() : ''),
         isOpen: () => !!view,
+        // Its window opened again, in a document of its own.
+        setRoot: (document) => view?.setRoot(document),
         hasFocus: () => !!view && view.hasFocus,
         // The page's focus is in the note, whether or not its window has the keyboard: a command picked in the
         // switcher's window acts where the person was writing.
@@ -235,8 +238,9 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
             {
                 '&': { height: '100%', color: theme.color.text, backgroundColor: 'transparent' },
                 '&.cm-focused': { outline: 'none' },
-                // The font face is set only by typefaceTheme, so two rules never race. The side margin is on the scroller:
-                // the engine paints a selected line from the content's outer edge, so a margin inside it would be painted.
+                // The font face is set only by typefaceTheme, so two rules never race. The side margin is on the
+                // scroller: the engine paints a selected line from the content's outer edge, so a margin inside it
+                // would be painted.
                 '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 28px' },
                 '.cm-content': {
                     padding: '4px 0 40vh',
@@ -342,7 +346,8 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         hideFloats();
         if (view) view.setState(state);
         else {
-            view = new engine.EditorView({ state, parent: element });
+            // The engine puts its rules in the document it is told it is in, the window's.
+            view = new engine.EditorView({ state, parent: element, root: element.ownerDocument });
             // The engine ignores presses in the scroller's side margins, so one there is replayed at the nearest edge
             // of the text, keeping drags, double and triple clicks and shift-extend.
             view.scrollDOM.addEventListener('mousedown', (event) => {
@@ -354,7 +359,7 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
                     new MouseEvent('mousedown', {
                         bubbles: true,
                         cancelable: true,
-                        view: window,
+                        view: event.view,
                         detail: event.detail,
                         button: event.button,
                         buttons: event.buttons,

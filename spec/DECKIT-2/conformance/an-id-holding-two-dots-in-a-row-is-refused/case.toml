@@ -1,0 +1,19 @@
+case = 1
+name = "an-id-holding-two-dots-in-a-row-is-refused"
+note = "A name-part holds no \"..\". An id that does refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "no..tes"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

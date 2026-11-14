@@ -1,6 +1,8 @@
+const { movePath } = require('deckit-sdk/path');
+
 // A path read off the screen (a row, a card, a menu, a drag) is marked with the count of relocations recorded when it
 // was read, its `since`; the relocations recorded after that bring it up to date.
-function relocationLog({ movePath, idle }) {
+function relocationLog({ idle }) {
     const LIMIT = 100;
     const relocations = [];
     let recorded = 0;

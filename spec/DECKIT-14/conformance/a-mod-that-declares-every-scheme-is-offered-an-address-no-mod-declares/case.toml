@@ -1,0 +1,36 @@
+case = 5
+name = "a-mod-that-declares-every-scheme-is-offered-an-address-no-mod-declares"
+note = "An address whose scheme no mod declares goes to the mods that declare *. mod-b declares *, and takes gopher://example.com/."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+handed = true
+args = ["gopher://example.com/"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://mod-b.test/", activates = true }]

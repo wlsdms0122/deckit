@@ -1,0 +1,33 @@
+case = 10
+name = "a-page-made-at-no-address-is-blank"
+note = "A page made at the empty string or about:blank is a blank page, which loads nothing. The host's layer shows a page at no address, and reads whether it is blank."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "blank"
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "requested"
+
+[step.expect]
+answers = []

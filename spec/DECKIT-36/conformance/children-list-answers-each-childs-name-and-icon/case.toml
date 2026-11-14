@@ -1,0 +1,21 @@
+case = 22
+name = "children-list-answers-each-childs-name-and-icon"
+note = "Each child children.list answers is { id, name, icon }: mod-b, named Bee with an icon <svg/>, is answered with both."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = [{ id = "mod-b", name = "Bee", icon = "<svg/>" }]

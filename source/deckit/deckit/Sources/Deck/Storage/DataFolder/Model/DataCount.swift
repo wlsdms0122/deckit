@@ -7,7 +7,8 @@
 
 import Foundation
 
-// How many files a mod's data folder holds, up to a limit: whether it holds more, and whether it holds hidden ones.
+// How many files a principal's data folder holds, up to a limit: whether it holds more, and whether it holds hidden
+// ones.
 public struct DataCount: Equatable, Sendable {
     // MARK: - Property
     public internal(set) var count = 0

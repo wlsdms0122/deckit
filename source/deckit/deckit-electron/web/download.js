@@ -89,7 +89,8 @@ export function createDownload({ folder }) {
         return path.basename(String(suggested || '')).replace(/^\.+/, '') || 'download';
     }
 
-    // `name`, or `name (2)`, `name (3)` and on, before its extension, whichever is neither a file nor one being written.
+    // `name`, or `name (2)`, `name (3)` and on, before its extension, whichever is neither a file nor one being
+    // written.
     function freePath(name) {
         const extension = path.extname(name);
         const stem = name.slice(0, name.length - extension.length);

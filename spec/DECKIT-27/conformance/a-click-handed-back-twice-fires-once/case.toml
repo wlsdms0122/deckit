@@ -1,0 +1,129 @@
+case = 13
+name = "a-click-handed-back-twice-fires-once"
+note = "A click fires once: click() again does nothing. site-a, let have notifications, makes a notification, and the host's layer calls click twice."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { didReceiveNotification = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "title"
+
+[step.expect]
+answers = "granted show"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "click"
+delegated = 1
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "click"
+delegated = 1
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "title"
+
+[step.expect]
+answers = "granted show click"

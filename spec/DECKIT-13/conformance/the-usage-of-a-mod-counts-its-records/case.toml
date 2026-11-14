@@ -1,0 +1,34 @@
+case = 4
+name = "the-usage-of-a-mod-counts-its-records"
+note = "mods.usage answers what a mod has stored in each place it is kept, its records as how many it keeps. mod-b sets two records, and mod-a's usage of mod-b answers two records."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "storage.records.set"
+args = ["a", 1]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "storage.records.set"
+args = ["b", 2]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "records"
+
+[step.expect]
+answers = { count = 2, hidden = false }

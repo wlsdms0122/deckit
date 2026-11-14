@@ -1,0 +1,21 @@
+case = 16
+name = "a-dialog-of-folders-answers-the-path-of-the-folder-chosen"
+note = "dialogs.chooseFolders answers the absolute path of each folder the person chose in the dialog, and no permission guards it: mod-a, a mod granted nothing, asks for a folder, and the person chooses the folder folder-a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+chosen = ["folder-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+
+[step.expect]
+answers = ["folder-a"]

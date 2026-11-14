@@ -1,13 +1,20 @@
 // What an empty cell shows.
 const NO_VALUE = '–';
 
-// What `deckit.mods.usage` found of a mod, in words: a phrase for each place it has something in, and the name of each
-// thing the layers keep for it (`kept`), such as its configuration.
-function usageParts({ data, records, kept = [] }) {
+// What each layer of this app keeps of a mod, by the layer's name in `kept`. A name not here is shown as it is.
+const KEPT_TEXT = new Map([
+    ['shell', 'window frames and Dock place'],
+    ['web', 'site data and downloads'],
+]);
+
+// What `deckit.mods.usage` found of a mod, in words: a phrase for each place it has something in, and what each layer
+// keeps for it (`kept`).
+function usageParts({ data, records, values, kept = [] }) {
     return [
         data.count || data.hidden ? filesText(data, 'data file') : '',
         records.count || records.hidden ? filesText(records, 'record') : '',
-        ...kept,
+        values.count ? filesText({ ...values, hidden: false }, 'value') : '',
+        ...kept.map((name) => KEPT_TEXT.get(name) ?? name),
     ].filter(Boolean);
 }
 
@@ -22,8 +29,15 @@ function filesText({ count, capped = false, hidden }, noun) {
     return `${count}${capped ? '+' : ''} ${nouns}${hidden ? ' and hidden ones' : ''}`;
 }
 
-function schemeName(scheme, everyScheme) {
-    return scheme === everyScheme ? 'Every other scheme' : scheme + ':';
+// A scheme as `deckit/urls` lists it, as a person reads it: `*` is the list of an address whose scheme no mod names.
+function schemeName(scheme) {
+    return scheme === '*' ? 'Every other scheme' : scheme + ':';
+}
+
+// A pattern of `deckit/urls` as a person reads it: `*` every address, `<scheme>:*` every one of the scheme.
+function patternText(pattern) {
+    if (pattern === '*') return 'every address';
+    return /^[^:]+:\*$/.test(pattern) ? pattern.slice(0, -1) : pattern;
 }
 
 // `index` counts from 0.
@@ -31,19 +45,24 @@ function ordinal(index) {
     return ['1st', '2nd', '3rd'][index] || `${index + 1}th`;
 }
 
-// The chips of the Contributes column.
-function contributionsOf(live, keyCount, everyScheme) {
-    if (!live) return [];
+// The chips of the Contributes column: what a mod's manifest declares, as `deckit.mods.list()` answers it, and, while
+// it runs, the styles it lays on pages, as `summary`, its run's in `deckit.mods.runs()`, holds them.
+function contributionsOf({ contributes = {}, fields = {}, provides = {}, background }, summary) {
     const labels = [];
-    if (live.view) labels.push('view');
-    if (live.sidebar) labels.push('sidebar');
-    if (live.commands) labels.push('commands');
-    if (keyCount) labels.push(keyCount + (keyCount === 1 ? ' key' : ' keys'));
-    if (live.now) labels.push('now');
-    if (live.resolver) labels.push('resolver');
-    for (const pattern of live.urls) labels.push('opens: ' + (pattern === everyScheme ? 'every address' : pattern));
-    if (live.exports) labels.push('exports');
-    for (const target of live.styles ?? []) labels.push('styles: ' + (target === '*' ? 'every page' : target));
+    const count = (named, one, many) => {
+        const entries = contributes[named]?.length ?? 0;
+        if (entries) labels.push(`${entries} ${entries === 1 ? one : many}`);
+    };
+    if (fields.view) labels.push('view');
+    if (background) labels.push('background');
+    count('deckit/commands', 'command', 'commands');
+    count('deckit/keys', 'key', 'keys');
+    count('deckit/configuration', 'setting', 'settings');
+    for (const { scheme, patterns } of contributes['deckit/urls'] ?? [])
+        for (const pattern of patterns ?? [scheme === '*' ? '*' : `${scheme}:*`])
+            labels.push('opens: ' + patternText(pattern));
+    for (const named of Object.keys(provides)) labels.push('provides: ' + named);
+    for (const target of summary?.styles ?? []) labels.push('styles: ' + (target === '*' ? 'every page' : target));
     return labels;
 }
 
@@ -51,4 +70,4 @@ function nameAndVersion(mod) {
     return `${mod.name} ${mod.version || ''}`.trim();
 }
 
-module.exports = { NO_VALUE, usageParts, listText, schemeName, ordinal, contributionsOf, nameAndVersion };
+module.exports = { NO_VALUE, usageParts, listText, schemeName, patternText, ordinal, contributionsOf, nameAndVersion };

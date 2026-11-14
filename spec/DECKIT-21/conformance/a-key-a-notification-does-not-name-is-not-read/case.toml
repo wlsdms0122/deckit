@@ -1,0 +1,23 @@
+case = 7
+name = "a-key-a-notification-does-not-name-is-not-read"
+note = "A key of the notification that its table does not name is not read. mod-a shows Standup with the key command, and the host is handed Standup alone."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = "Standup", command = "show-day" }]
+
+[[step]]
+look = "shown"
+
+[step.expect]
+answers = [{ title = "Standup", body = "", silent = false }]

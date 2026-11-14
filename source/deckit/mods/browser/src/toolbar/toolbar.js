@@ -2,9 +2,9 @@ const { isWeb, placeOf } = require('../address/address.js');
 const { favicon } = require('../favicon/favicon.js');
 const { START } = require('../tabs/tab-list.js');
 
-// The view's title bar, as the Browser's toolbar: Back and Forward, the field of the tab in front, and `trailing` at its
-// end. The field holds the site's icon, which opens its permissions, the site, and Reload and the bookmark star of the
-// page. A press on the site edits the address. `onBookmark()` is a press on the star.
+// The window's title bar, as the Browser's toolbar: Back and Forward, the field of the tab in front, and `trailing` at
+// its end. The field holds the site's icon, which opens its permissions, the site, and Reload and the bookmark star of
+// the page. A press on the site edits the address. `onBookmark()` is a press on the star.
 function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
     const ICON_SIZE = 16;
 

@@ -1,0 +1,54 @@
+case = 14
+name = "open-hands-the-host-the-file-of-a-download-finished"
+note = "open opens the file of a download finished outside the app, as openExternal opens its file URL, and answers true. mod-a, granted system.file-handlers, shows site-a, whose page is a link to download /file.txt, and it is pressed; mod-a opens it."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "id"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.open"
+handle = "web"
+answered = 5
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "file:downloads/file.txt", activates = true }]

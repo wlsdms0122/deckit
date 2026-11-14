@@ -1,0 +1,39 @@
+case = 18
+name = "a-chord-told-lets-the-mod-that-took-it-activate"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-a opens main in attach. mod-b opens main once the host app started, cascaded from mod-a's main, the front window on screen. mod-a, granted deckit.app-keys, takes Meta+KeyK in attach, its press opening https://said.test/chord/mod-a. The person presses on mod-b's main and presses Meta+KeyK in it, input that reaches mod-b and then mod-a, told the chord; mod-a calls makeKeyAndOrderFront of main, which is key."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { open = { name = "main" } }]
+
+[[step]]
+input = "window"
+mod = "mod-b"
+name = "main"
+action = "press"
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyK", meta = true }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "makeKeyAndOrderFront", name = "main" }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-b", name = "main", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]

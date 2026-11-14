@@ -1,0 +1,36 @@
+case = 5
+name = "a-pattern-takes-no-address-whose-path-does-not-start-so"
+note = "A pattern of a host and a path takes only an address of that host whose path starts with that path. mod-b declares https://example.com/docs*, and https://example.com/doc is not offered to it: it opens outside the app."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+handed = true
+args = ["https://example.com/doc"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/doc", activates = true }]

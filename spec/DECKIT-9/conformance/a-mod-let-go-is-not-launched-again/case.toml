@@ -1,0 +1,44 @@
+case = 3
+name = "a-mod-let-go-is-not-launched-again"
+note = "release(id) lets the reach go: the mod reached runs on, and is not launched again once its run ends. mod-a reaches mod-b, lets it go and quits it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.release"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"

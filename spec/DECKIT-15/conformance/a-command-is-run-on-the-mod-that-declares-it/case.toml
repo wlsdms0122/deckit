@@ -1,0 +1,37 @@
+case = 5
+name = "a-command-is-run-on-the-mod-that-declares-it"
+note = "run(mod, id, args) reaches the mod, which launches it, calls runCommand(id, args) on the exports it opens for its id, and answers what it answers. mod-b, not running, echoes the text it is handed."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/commands"]
+listener = true
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "run"
+handed = true
+args = ["mod-b", "echo", { text = "hello" }]
+
+[step.expect]
+answers = "hello"

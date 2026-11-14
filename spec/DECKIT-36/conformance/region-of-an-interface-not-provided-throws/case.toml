@@ -1,0 +1,23 @@
+case = 22
+name = "region-of-an-interface-not-provided-throws"
+note = "region throws INVALID_ARGUMENT at call for an interface the manifest does not provide: mod-a hands it case/other."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/other", box = { x = 100, y = 100, width = 200, height = 150 } }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/region/1/threw/INVALID_ARGUMENT", activates = true }]

@@ -1,0 +1,65 @@
+case = 11
+name = "a-name-a-file-of-an-earlier-start-has-is-numbered"
+note = "A name is numbered where a file of the folder has it, written before the host app last started. mod-a shows site-a, whose page is a link to download /file.txt, and it is pressed; the host app quits and starts again, and it is shown and pressed again."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 8
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "name"
+
+[step.expect]
+answers = ["file (2).txt", "file.txt"]

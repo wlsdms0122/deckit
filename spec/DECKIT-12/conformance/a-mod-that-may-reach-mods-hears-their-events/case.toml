@@ -1,0 +1,32 @@
+case = 4
+name = "a-mod-that-may-reach-mods-hears-their-events"
+note = "A mod granted deckit.reach-mods hears the names of every mod's id, as it may reach every mod: on of another mod's name adds its listener, which hears that mod's events. mod-a, granted it, listens to mod-b:ready, and mod-b sends ready with 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-b:ready"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["ready", 1]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[1]]

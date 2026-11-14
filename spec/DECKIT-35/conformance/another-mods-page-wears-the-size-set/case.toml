@@ -1,0 +1,26 @@
+case = 21
+name = "another-mods-page-wears-the-size-set"
+note = "Every page the shell draws in wears the person's fonts: mod-a sets { size = 16 }, and mod-b's page holds --deckit-text-size 16px."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 16 }]
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--deckit-text-size"]
+
+[step.expect]
+answers = { dark = true, properties = { --deckit-text-size = "16px" } }

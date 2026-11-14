@@ -1,0 +1,33 @@
+case = 15
+name = "mods-open-launches-an-app-that-does-not-run"
+note = "mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-c installs mod-a once the host app started, so it does not run, and opens it with mods.open, so it launches."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.install"
+folders = ["mod-a"]
+part = "id"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.open"
+handle = "shell"
+args = ["mod-a"]
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "running"

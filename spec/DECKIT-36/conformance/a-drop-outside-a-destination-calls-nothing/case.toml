@@ -1,0 +1,38 @@
+case = 22
+name = "a-drop-outside-a-destination-calls-nothing"
+note = "A destination is told only of what is dropped on its element: notes is dropped at 500, 400 of the window, past the element, and onDrop is not called."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:dropped"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { drop = "outer", box = { x = 50, y = 50, width = 300, height = 300 } }]
+
+[[step]]
+input = "drop"
+mod = "mod-a"
+name = "main"
+folders = ["notes"]
+at = { x = 500, y = 400 }
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []

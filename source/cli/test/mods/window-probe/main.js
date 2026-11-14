@@ -1,7 +1,10 @@
-// A mod with a view, which asks a main process module of its own whether it finds the window its page is shown in,
-// installs the folder the test hands it as a person would, by a press in its page, and takes files dropped on it.
+// A mod with a window, which asks a main process module of its own whether it finds the window its page is shown in,
+// installs the folder the test hands it as a person would, by a press in its window, opens the mods the test names as a
+// person opens one the Dock does not keep, opens the file the test names through deckit/urls, and takes files dropped
+// on it. It is a system mod, which the test ships with the app: it opens the switcher by its command and binds another
+// mod's key again through the system's services.
 class WindowProbe {
-    attach(shell, deckit) {
+    attach(shell, deckit, { mainProcess }) {
         const marks = document.documentElement.dataset;
         const install = document.createElement('button');
         install.id = 'install';
@@ -11,7 +14,8 @@ class WindowProbe {
         Object.assign(drop.style, { width: '200px', height: '120px' });
         const content = document.createElement('div');
         content.append(install, drop);
-        shell.view.register({ content });
+        this.open = () => shell.windows.open({ name: 'probe', content });
+        this.open();
         shell.dropDestination(drop, {
             onDrop: (paths, at) => (marks.dropped = JSON.stringify({ paths, at })),
             onTargeted: (on) => (marks.targeted = (marks.targeted || '') + (on ? 'on ' : 'off ')),
@@ -24,10 +28,49 @@ class WindowProbe {
                 (error) => (marks.installed = 'failed: ' + error.message)
             )
         );
+        document.addEventListener('test-load', ({ detail: ids }) =>
+            Promise.all(ids.map((id) => deckit.mods.launch(id))).then(
+                () => (marks.loaded = ids.join()),
+                (error) => (marks.loaded = 'failed: ' + error.message)
+            )
+        );
+        let commands = null;
+        let keys = null;
+        let urls = null;
+        deckit.dependencies.onConnect('deckit/commands', (connected) => {
+            commands = connected;
+            return () => (commands = null);
+        });
+        deckit.dependencies.onConnect('deckit/keys', (connected) => {
+            keys = connected;
+            return () => (keys = null);
+        });
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => (urls = null);
+        });
+        document.addEventListener('test-open', ({ detail: url }) =>
+            urls?.open(url).then((opened) => (marks.opened = String(opened)))
+        );
+        document.addEventListener('test-switcher', () => commands?.run('switcher', 'show'));
+        document.addEventListener('test-bind', ({ detail: { mod, command, keystroke } }) =>
+            keys?.set(mod, command, keystroke).then(
+                ({ chord }) => (marks.bound = chord),
+                (error) => (marks.bound = 'failed: ' + error.message)
+            )
+        );
         document.addEventListener('test-stack', async () => {
-            const probe = await deckit.mainProcess('main-process/stack.js');
+            const probe = await mainProcess.start('main-process/stack.js');
             marks.found = String(await probe.found());
         });
+    }
+
+    reopen() {
+        this.open?.();
+    }
+
+    detach() {
+        this.open = null;
     }
 }
 

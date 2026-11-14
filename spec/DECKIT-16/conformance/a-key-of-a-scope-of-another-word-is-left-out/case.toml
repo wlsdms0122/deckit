@@ -1,0 +1,30 @@
+case = 6
+name = "a-key-of-a-scope-of-another-word-is-left-out"
+note = "An entry whose scope is neither app nor global is left out. mod-b declares a key for today of the scope everywhere."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "keys"
+
+[step.expect]
+answers = []

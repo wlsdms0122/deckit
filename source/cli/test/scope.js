@@ -1,11 +1,11 @@
-// The scope a lifecycle of a run cuts as it ends (deckit-shell/deck/runner/model/scope.js): each off it keeps runs
+// The scope a lifecycle of a run cuts as it ends (deckit-shell/deckit/runner/model/scope.js): each off it keeps runs
 // once, whether it is called or cut, and one called is no longer kept. Exits 1 with a line for each check that failed.
 // The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const SCOPE = pathToFileURL(
-    path.join(__dirname, '..', '..', 'deckit', 'deckit-shell', 'deck', 'runner', 'model', 'scope.js')
+    path.join(__dirname, '..', '..', 'deckit', 'deckit-shell', 'deckit', 'runner', 'model', 'scope.js')
 ).href;
 
 async function main() {

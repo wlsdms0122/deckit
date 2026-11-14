@@ -1,0 +1,52 @@
+case = 3
+name = "a-key-of-a-table-of-another-type-is-refused"
+note = "A request a key of whose table is of another type than the table gives is refused at call with INVALID_ARGUMENT, and the key is not turned into the type. mod-a, granted each permission a request below needs, hands the host an address to open with options holding activates as a string where the options give a boolean, and asks for a notification whose title is an integer, for one whose body is an integer, and for one whose silent is a string."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["https://example.com/a", { activates = "no" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = 1 }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = "a", body = 1 }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = "a", silent = "no" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

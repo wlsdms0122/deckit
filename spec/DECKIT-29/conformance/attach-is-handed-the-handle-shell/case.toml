@@ -1,0 +1,21 @@
+case = 15
+name = "attach-is-handed-the-handle-shell"
+note = "attach is handed the handle shell, and the host's layer over the shell reads the same mod's windows through its own. mod-a's attach opens a window named main through it, and the host's layer lists mod-a's windows."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "windows.list"
+handle = "shell"
+part = "name"
+
+[step.expect]
+answers = ["main"]

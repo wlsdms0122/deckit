@@ -1,0 +1,29 @@
+case = 1
+name = "a-bundle-read-in-place-hiding-a-system-mod-is-not-a-system-mod"
+note = "A bundle read in place is not a system mod, and it is the one held where it hides a shipped system mod of its name, so mod-a read in place asking for a privileged permission is refused."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "case.drive", name = "Drive", description = "Drives the other mods.", privileged = true }]
+ship = ["mod-a"]
+system = ["mod-a"]
+sources = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a"]
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"
+

@@ -1,0 +1,19 @@
+case = 1
+name = "an-api-of-a-later-patch-than-the-host-runs-is-refused"
+note = "Of the same minor, a version satisfies another only when its patch is at least the other's. A host that runs 1.2.0 does not satisfy 1.2.1, and the bundle refuses at read."
+
+[host]
+base = "system"
+api = "1.2.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

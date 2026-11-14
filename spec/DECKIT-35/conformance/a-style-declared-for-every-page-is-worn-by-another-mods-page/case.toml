@@ -1,0 +1,19 @@
+case = 21
+name = "a-style-declared-for-every-page-is-worn-by-another-mods-page"
+note = "A style of the target \"*\" is worn by every page the shell draws in: mod-a, granted deckit.styles, declares in its manifest's field styles the file a.css, which sets --case-a and --case-order to a, for \"*\", and mod-b's page holds both."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = { --case-a = "a", --case-order = "a" } }

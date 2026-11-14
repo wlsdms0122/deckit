@@ -1,0 +1,21 @@
+case = 22
+name = "a-view-naming-an-interface-the-mod-does-not-use-makes-no-child"
+note = "A view whose parent names an interface the mod does not use is read as none: mod-b names case/other, which it does not use, and mod-a has no children of case/view."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = []

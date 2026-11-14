@@ -1,0 +1,29 @@
+case = 5
+name = "a-list-answers-each-command-the-mods-declare"
+note = "list answers each command declared to deckit/commands, in the catalog's order and then the order written, with its mod, title, keywords and params, and no entry left out. mod-b declares today and echo, and mod-c note."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/commands"]
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/commands"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+
+[step.expect]
+answers = { commands = [{ mod = { id = "mod-b", name = "MOD B" }, id = "today", title = "Show Today", keywords = ["day", "now"] }, { mod = { id = "mod-b", name = "MOD B" }, id = "echo", title = "Echo", keywords = [], params = { type = "object", properties = { text = { type = "string", title = "Text" } }, required = ["text"] } }, { mod = { id = "mod-c", name = "mod-c" }, id = "note", title = "New Note", keywords = [] }], refused = [] }

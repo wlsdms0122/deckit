@@ -118,8 +118,9 @@ function fileActions({ ui, fileSystem, disk, workspaces, drafts, onOpen, onDrop 
     // counts as a request for what is left. The keyboard moves on only if it was in the file or nowhere: a file
     // trashed from the tree leaves it in the tree, for the next ⌘⌫.
     function drop(file) {
-        const focused = document.activeElement;
-        const follow = file.view.hasFocus || !focused || focused === document.body;
+        const page = file.view.dom.ownerDocument;
+        const focused = page.activeElement;
+        const follow = file.view.hasFocus || !focused || focused === page.body;
         const inFront = workspaces.current() === file;
         if (!workspaces.release(file)) return;
         if (inFront) workspaces.bringToFront(workspaces.front(), workspaces.front()?.current ?? null);

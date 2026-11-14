@@ -1,0 +1,36 @@
+case = 5
+name = "an-address-of-a-scheme-that-is-no-place-goes-nowhere"
+note = "An address of javascript, data, blob or about goes to no mod, and open answers false. mod-b declares *, which takes every address, and mod-a opens javascript:void(0)."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+handed = true
+args = ["javascript:void(0)"]
+
+[step.expect]
+answers = false
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

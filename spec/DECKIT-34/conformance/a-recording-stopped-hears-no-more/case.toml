@@ -1,0 +1,45 @@
+case = 18
+name = "a-recording-stopped-hears-no-more"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a records and stops; the person presses in main and presses cmd+w: main closes."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { record = true }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { stop = true }]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyW", meta = true }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = []

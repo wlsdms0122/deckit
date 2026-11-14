@@ -1,0 +1,4 @@
+id = "mod-d"
+version = "0.2.5"
+api = "1.0.0"
+main = "main.js"

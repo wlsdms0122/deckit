@@ -1,0 +1,55 @@
+case = 14
+name = "open-without-system-file-handlers-is-refused"
+note = "open is a request system.file-handlers guards, and nothing of a request refused is done. mod-a, granted nothing, shows site-a, whose page is a link to download /file.txt, and it is pressed; mod-a opens it."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "id"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.open"
+handle = "web"
+answered = 5
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

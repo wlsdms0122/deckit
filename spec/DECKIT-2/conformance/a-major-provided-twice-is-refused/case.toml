@@ -1,0 +1,19 @@
+case = 1
+name = "a-major-provided-twice-is-refused"
+note = "provides maps an interface to majors, each greater than the one before it. [1, 1] writes a major twice, and refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

@@ -1,0 +1,11 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+background = "Owns the actions."
+
+[interfaces]
+provides = { "mod-a/actions" = [1] }
+
+[[contributes."mod-a/actions"]]
+title = "Open"

@@ -2,12 +2,15 @@
 // dispatch answers once forge has taken the run, the run tells the steps of its own it starts and its end, whole
 // characters however the pipe splits them, one whose stream ends first ends failed, and one forge took no run for, or
 // none in time, rejects with what forge said.
-// Exits 1 with a line for each check that failed.
+// The mod (mods/forge/src/main.js) completes the session of its commands from the sessions there are, ranked by
+// the SDK's matching (deckit-sdk/match). Exits 1 with a line for each check that failed.
 const { EventEmitter } = require('events');
 const { PassThrough } = require('stream');
 const path = require('path');
 
-const makeRuns = require(path.join(__dirname, '..', '..', 'deckit', 'mods', 'forge', 'main-process', 'runs.js'));
+const DECKIT = path.join(__dirname, '..', '..', 'deckit');
+const makeRuns = require(path.join(DECKIT, 'mods', 'forge', 'main-process', 'runs.js'));
+const Forge = require(path.join(DECKIT, 'mods', 'forge', 'src', 'main.js'));
 
 function stream() {
     const child = new EventEmitter();
@@ -96,9 +99,49 @@ async function main() {
     );
     check('a run forge takes not in time rejects', /took no run/.test(waited?.message), waited?.message);
 
+    // The commands' session, completed on the exports for its id.
+    const registered = new Map(); // interface, or '' for its id -> what was registered
+    const sessions = [
+        { name: 'default', up: true, authority: true },
+        { name: 'review', up: true, authority: false },
+        { name: 'deploy', up: false, authority: false },
+    ];
+    await new Forge().start(
+        {
+            dependencies: { onConnect: () => {} },
+            exports: {
+                register: (...args) => registered.set(args.length > 1 ? args[0] : '', args[args.length - 1]),
+            },
+        },
+        {
+            mainProcess: {
+                start: async () => ({
+                    sessions: async () => ({ main: 'default', sessions }),
+                    on: () => {},
+                }),
+            },
+        }
+    );
+    const own = registered.get('').connect({});
+    const all = await own.completeCommand('start', 'session', '', {});
+    check(
+        'every session for nothing typed, with its state',
+        JSON.stringify(all) ===
+            JSON.stringify([
+                { value: 'default', title: 'default', hint: 'Running' },
+                { value: 'review', title: 'review', hint: 'Started elsewhere' },
+                { value: 'deploy', title: 'deploy', hint: 'Stopped' },
+            ]),
+        all
+    );
+    const typed = (await own.completeCommand('stop', 'session', 'de', {})).map(({ value }) => value);
+    check('the sessions found for what is typed', typed.sort().join() === 'default,deploy', typed);
+    const one = (await own.completeCommand('restart', 'session', 'rev', {})).map(({ value }) => value);
+    check('only the sessions found', one.join() === 'review', one);
+
     for (const line of failed) console.error(line);
     if (failed.length) process.exit(1);
-    console.log(`ok: ${count} forge run checks`);
+    console.log(`ok: ${count} forge checks`);
 }
 
 main().catch((error) => {

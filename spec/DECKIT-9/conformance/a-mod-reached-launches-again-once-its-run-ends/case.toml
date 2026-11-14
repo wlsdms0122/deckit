@@ -1,0 +1,31 @@
+case = 3
+name = "a-mod-reached-launches-again-once-its-run-ends"
+note = "A mod a lifecycle reaches launches again once its run has ended, while the reach is not let go. mod-a reaches mod-b and quits it, and mod-b runs again."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"

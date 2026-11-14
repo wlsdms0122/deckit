@@ -1,0 +1,29 @@
+case = 10
+name = "muting-with-what-is-no-boolean-is-refused"
+note = "A member of a page handle is refused at call with kind INVALID_ARGUMENT where what it is handed does not fit what it takes. The host's layer shows index.html of site-a and calls mute(\"no\"), a string."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mute"
+of = 2
+args = ["no"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

@@ -1,0 +1,40 @@
+case = 9
+name = "a-cookie-a-site-set-is-sent-on-the-next-fetch-of-the-session"
+note = "The cookies the answers set are kept in the session, and each fetch through it sends them. site-a sets signed=in as mod-a fetches sign-in, and mod-a then fetches hello.txt through the same session."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/sign-in"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/hello.txt"]
+
+[[step]]
+look = "requested"
+headers = ["cookie"]
+
+[step.expect]
+answers = [{ site = "site-a", method = "GET", path = "/sign-in", headers = [] }, { site = "site-a", method = "GET", path = "/hello.txt", headers = [["cookie", "signed=in"]] }]

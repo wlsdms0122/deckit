@@ -1,0 +1,21 @@
+case = 7
+name = "the-permission-of-show-is-checked-before-its-notification"
+note = "A request is refused first as the permissions refuse one, then for its arguments. mod-a, not granted system.notifications, shows the string Standup, and is refused with NOT_PERMITTED, not INVALID_ARGUMENT."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = ["Standup"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

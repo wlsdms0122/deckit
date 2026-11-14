@@ -1,0 +1,19 @@
+case = 1
+name = "a-manifest-writing-no-main-is-refused"
+note = "main is required. A manifest that writes none refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

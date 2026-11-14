@@ -1,0 +1,20 @@
+case = 15
+name = "a-layer-over-the-shell-is-handed-the-handle-shell"
+note = "The shell hands the handle shell to each lifecycle of a layer a host stacks over it, for an instance with no attach as well: mod-a's instance has start alone, and the host's layer lists mod-a's windows through it, none."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "windows.list"
+handle = "shell"
+
+[step.expect]
+answers = []

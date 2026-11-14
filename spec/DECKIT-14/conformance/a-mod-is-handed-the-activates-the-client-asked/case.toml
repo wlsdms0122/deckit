@@ -1,0 +1,36 @@
+case = 5
+name = "a-mod-is-handed-the-activates-the-client-asked"
+note = "openURL is handed { activates } as the client asked. mod-b declares board, and opens https://mod-b.test/ outside the app with the options it is handed, as mod-a opens board:1 with activates false."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+handed = true
+args = ["board:1", { activates = false }]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://mod-b.test/", activates = false }]

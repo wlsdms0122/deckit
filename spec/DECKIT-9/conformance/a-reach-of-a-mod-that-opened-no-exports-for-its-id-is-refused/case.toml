@@ -1,0 +1,29 @@
+case = 3
+name = "a-reach-of-a-mod-that-opened-no-exports-for-its-id-is-refused"
+note = "A reach of a mod that runs with no exports opened for its id is refused at call with NOT_EXPORTED. mod-b opens none, and runs on."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_EXPORTED"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"

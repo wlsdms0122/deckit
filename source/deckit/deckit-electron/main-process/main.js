@@ -1,344 +1,114 @@
-import * as FILES from '../files/index.js';
-import { createWindow } from './window.js';
+import * as CHANNEL from '../../deckit-sdk/deckit/channel/index.js';
+import * as REQUEST from '../../deckit-sdk/deckit/request/index.js';
+import * as DECLARED from './protocol.js';
+import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
+import * as MAIN_PROCESS_LAYER from './model/layer.js';
 
-// A mod's main process modules, run in Electron's main process as Node runs them (deckit-shell/environment:
-// mainProcess): which mod may start them, and when, is deck's. A mod is `{ id, folder, data, pageOf() }`: its folder,
-// its data folder, and the page it runs in now, or null.
-export function createMainProcess({ LOG, FOLDER, windowShowing }) {
+// How a host app puts a mod's main process modules on deckit, once, before it is ready: `deckit` is what connect
+// answered, and `environment` what environment() answered, whose `mainProcess` runs the modules (loader.js). A mod
+// with system.main-process starts and calls its own, they start anew with each run and end with it, and what they emit
+// goes to the mod's page. A mod with deckit.mods reads which mods only a restart of the app finishes and how each
+// mod's modules are, and is told when that may have changed. The app quits once the modules of the runs that ended
+// have ended too. Its layer is stacked on each mod's page, and it starts with deckit, before any mod launches.
+export function attach(deckit, environment) {
     // MARK: - Property
-    const WINDOW = createWindow({ LOG });
-    const fs = require('fs');
-    const path = require('path');
-    const crypto = require('crypto');
-    // `${mod id}\0${path}` -> promise of { relative, methods, paths, dispose }: a module started once in a run, by
-    // the first who asks, in the order they started.
-    const modules = new Map();
-    // mod id -> { folder, root, code }: its folder when its first module started, that folder's real path, and each
-    // file its modules required from it, by its path, with its contents' hash: the code that runs.
-    const loaded = new Map();
-    const live = new Set(); // mod ids with a module that started
-    const failures = new Map(); // mod id -> Map of module path -> why it did not start
-    // What only a restart can finish: a module with no dispose stays in the process, and one whose dispose failed
-    // may have left what it made.
-    const pending = new Map(); // mod id -> 'updated' | 'removed' | 'reinstalled' | 'leftover'
-    const endings = new Map(); // mod id -> promise of its modules' end, after its run ended
-    const windows = new Map(); // mod id -> the keys of the windows its modules opened
-    const removing = new Set(); // mod ids taken away whose run has not ended yet
-    const listeners = new Set(); // told when what a mod's facts say may have changed
+    const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
+    const LOADER = environment.mainProcess;
+    const APP = environment.app;
+    const FILES = environment.files;
+    const endings = new Set(); // the ends of modules still to come, each settled in its limit
+    const watching = new Set(); // the pages told when what `restartPending` or `statusOf` answer may have changed
 
     // MARK: - Initializer
+    for (const permission of MAIN_PROCESS_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
+    deckit.stack(MAIN_PROCESS_LAYER.LAYER);
+    deckit.onStart(start);
+
     // MARK: - Public
-    // A mod taken away, `running` whether its run has not ended: what its modules started keeps going until the
-    // process ends, unless they end with its run, which is told once that run has ended.
-    function removed(modId, { running = false } = {}) {
-        failures.delete(modId);
-        if (keysOf(modId).length && running) removing.add(modId);
-        else whenEnded(modId).then(() => loaded.has(modId) && setPending(modId, 'removed'));
-    }
-
-    // `listener()` is told when what `stateOf` or `restartPending` answer may have changed. Answers its off.
-    function onChange(listener) {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-    }
-
-    // Whether a module of the mod's runs, and why those that did not start did not, or null.
-    function stateOf(modId) {
-        const failed = [...(failures.get(modId)?.values() || [])];
-        return { running: live.has(modId), failure: failed.length ? failed.join('; ') : null };
-    }
-
-    function restartPending() {
-        return [...pending].map(([id, why]) => ({ id, why }));
-    }
-
-    // The mod installed again, once what ran in its place has ended, modules and all: what was removed this run and
-    // stayed is still a restart away, as reinstalled. Answers whether only a restart brings its modules up to date.
-    async function installed(modId) {
-        await whenEnded(modId);
-        if (pending.get(modId) === 'removed') setPending(modId, 'reinstalled');
-        return { restart: pending.has(modId) };
-    }
-
-    // Before a mod runs again: modules it started from code that has changed since, and that stayed, keep running
-    // the old code until a restart. Its new run asks for its modules again, so what failed before is asked again too.
-    // Code changed back to what runs is no update.
-    function launching(mod) {
-        failures.delete(mod.id);
-        whenEnded(mod.id).then(() => {
-            const before = loaded.get(mod.id);
-            if (!before) return;
-            const changed = before.folder !== mod.folder || !sameCode(before);
-            if (changed) setPending(mod.id, pending.get(mod.id) === 'removed' ? 'reinstalled' : 'updated');
-            else if (pending.get(mod.id) === 'updated') setPending(mod.id, null);
-        });
-    }
-
-    // A run's modules end with it, each by its dispose, the last started first, and the next run requires them anew.
-    // Only when every one of them has a dispose: one with none stays while the app runs, and with it the files
-    // they share in the cache. One still starting past the limit is let go, and may leave what it makes. Its windows
-    // close first, while the module that opened them is there to hear it. A failed dispose leaves the mod pending
-    // until the app restarts. `within` is the limit, in ms, a module has to finish starting, and each dispose.
-    function ended(mod, { within }) {
-        const keys = keysOf(mod.id);
-        if (!keys.length) return Promise.resolve();
-        const ending = (async () => {
-            // Each module as it is by the limit: made, failed, or still starting (null).
-            const results = await Promise.all(
-                keys.map((key) =>
-                    withinLimit(
-                        modules.get(key).then(
-                            (made) => ({ made }),
-                            () => ({ made: null })
-                        ),
-                        within
-                    )
-                )
-            );
-            const made = results.filter((result) => result?.made).map((result) => result.made);
-            const starting = results.some((result) => !result);
-            if (made.some(({ dispose }) => !dispose)) return starting && setPending(mod.id, 'leftover');
-            for (const key of windows.get(mod.id) || []) WINDOW.close(key);
-            windows.delete(mod.id);
-            let clean = true;
-            for (const { relative, dispose } of made.reverse())
-                clean = (await disposed(mod, relative, dispose, within)) && clean;
-            // One still starting is let go: the next run starts its own rather than wait on one that may never be
-            // done.
-            for (const key of keys) modules.delete(key);
-            if (starting) clean = false;
-            const root = loaded.get(mod.id)?.root;
-            if (root) forget(root, Object.keys(require.cache));
-            loaded.delete(mod.id);
-            live.delete(mod.id);
-            tell();
-            if (!clean) setPending(mod.id, 'leftover');
-            else if (pending.get(mod.id) !== 'leftover') setPending(mod.id, null);
-        })().finally(() => {
-            if (!removing.delete(mod.id)) return;
-            if (loaded.has(mod.id) && pending.get(mod.id) !== 'leftover') setPending(mod.id, 'removed');
-        });
-        endings.set(mod.id, ending);
-        ending.finally(() => endings.get(mod.id) === ending && endings.delete(mod.id));
-        return ending;
-    }
-
-    // One instance for each mod and file in a run: a module holds state (a token, a watcher), and starting it twice
-    // makes two of everything. `handed(path)` is what deck hands the module at that path, relative to the mod's folder.
-    // Answers { path, methods }, the paths of its functions.
-    async function load(mod, given, handed) {
-        await whenEnded(mod.id);
-        const { file, relative } = locate(mod.folder, given);
-        const key = `${mod.id}\0${relative}`;
-        if (!modules.has(key)) {
-            const made = make(mod, file, relative, handed);
-            modules.set(key, made);
-            made.catch(() => modules.get(key) === made && modules.delete(key));
-        }
-        const { paths } = await modules.get(key);
-        return { path: relative, methods: paths };
-    }
-
-    // What a module's method answers.
-    async function call(modId, given, method, args) {
-        const key = `${modId}\0${path.posix.normalize(String(given))}`;
-        if (!modules.has(key)) throw FILES.refuse('NOT_STARTED', `${given} is not started`);
-        const { methods } = await modules.get(key);
-        const found = methods.get(JSON.stringify(method));
-        if (!found) throw new Error(`${given} has no method ${method.join('.')}`);
-        try {
-            return await found(...args);
-        } finally {
-            noteCode(modId);
-        }
-    }
-
     // MARK: - Private
-    // Once the modules of the mod's run that ended have ended too, or stayed.
-    function whenEnded(modId) {
-        return endings.get(modId) || Promise.resolve();
-    }
-
-    // What `promise` resolves to, or null once `limit` ms have passed.
-    function withinLimit(promise, limit) {
-        let timer = null;
-        const late = new Promise((resolve) => (timer = setTimeout(() => resolve(null), limit)));
-        return Promise.race([promise, late]).finally(() => clearTimeout(timer));
-    }
-
-    // Whether the module ended what it made, in the limit.
-    async function disposed(mod, relative, dispose, limit) {
-        try {
-            const done = await withinLimit(
-                Promise.resolve(dispose()).then(() => true),
-                limit
-            );
-            if (!done) throw new Error(`did not end in ${limit} ms`);
+    function start() {
+        deckit.mods.observe('willLaunch', (run) => LOADER.launching(modOf(run)));
+        deckit.mods.onInstalled((modId) => LOADER.installed(modId));
+        deckit.mods.onRemoved(removed);
+        for (const name of ['didFailToLaunch', 'didTerminate'])
+            deckit.mods.observe(name, (run) => {
+                const ending = LOADER.ended(modOf(run), { within: deckit.mods.timeout().end }).catch(() => {});
+                endings.add(ending);
+                ending.then(() => endings.delete(ending));
+            });
+        APP.onQuit(() => {
+            if (!endings.size) return false;
+            Promise.all([...endings]).then(() => APP.quit());
             return true;
-        } catch (error) {
-            LOG.error(`${mod.id} ${relative}: dispose failed`, error);
-            return false;
-        }
+        });
+        PROTOCOL.start.handle(({ path }, sender) => {
+            const mod = modOf(deckit.mods.runOf(deckit.mods.modOf(sender)));
+            return LOADER.start(mod, path, (relative) => handedTo(mod, relative));
+        });
+        PROTOCOL.call.handle(({ path, method, args }, sender) => call(deckit.mods.modOf(sender), path, method, args));
+        PROTOCOL.restartPending.handle(() => LOADER.restartPending());
+        PROTOCOL.statusOf.handle(({ id }) => LOADER.statusOf(id));
+        PROTOCOL.watch.on((_payload, sender) => {
+            if (watching.has(sender)) return;
+            watching.add(sender);
+            deckit.pages.whenEnds(sender, () => watching.delete(sender));
+        });
+        LOADER.onChange(() => {
+            for (const page of watching) PROTOCOL.changed.send(page);
+        });
     }
 
-    // Its files are what require() adds to the cache, and require() runs to its end before anything else does.
-    async function make(mod, file, relative, handed) {
-        if (!loaded.has(mod.id))
-            loaded.set(mod.id, { folder: mod.folder, root: fs.realpathSync(mod.folder) + path.sep, code: new Map() });
-        const { root } = loaded.get(mod.id);
-        const before = new Set(Object.keys(require.cache));
-        let own = null;
-        const added = () => Object.keys(require.cache).filter((key) => !before.has(key));
-        try {
-            let factory;
-            try {
-                factory = require(file);
-            } finally {
-                own = added();
-            }
-            if (typeof factory !== 'function')
-                throw new Error(`${relative} exports no function; a main process module is (deck) => ({ methods })`);
-            const made = await factory(deckOf(mod, handed(relative)));
-            const methods = methodsOf(made, relative);
-            failures.get(mod.id)?.delete(relative);
-            live.add(mod.id);
-            const paths = [...methods.keys()].map((key) => JSON.parse(key));
-            LOG.info(`${mod.id} ${relative}: ${paths.map((path) => path.join('.')).join(', ') || 'no methods'}`);
-            const dispose = typeof made.dispose === 'function' ? () => made.dispose() : null;
-            noteCode(mod.id);
-            tell();
-            return { relative, methods, paths, dispose };
-        } catch (error) {
-            LOG.error(`${mod.id} ${relative} failed to start`, error);
-            const why = String(error.message || error);
-            if (!failures.has(mod.id)) failures.set(mod.id, new Map());
-            failures.get(mod.id).set(relative, why.startsWith(relative) ? why : `${relative}: ${why}`);
-            // Nothing of a mod none of whose modules started is running: all it required goes, and a fixed copy is
-            // no update. Otherwise what this one required goes, and what the others share stays.
-            if (live.has(mod.id)) forget(root, own);
-            else {
-                forget(root, Object.keys(require.cache));
-                loaded.delete(mod.id);
-            }
-            tell();
-            throw error;
-        }
+    // A mod taken away: its modules end with its run if it has not ended yet.
+    function removed(modId) {
+        const run = deckit.mods.runOf(modId);
+        LOADER.removed(modId, { running: !!run && run.state !== 'notRunning' });
     }
 
-    // What a module is handed: what deck hands it, and windows of Electron's own. The id is part of a window's key, so
-    // two mods asking for "log" get two windows and neither closes the other's. `ofPage()` is the window the mod's
-    // page is shown in now, as far as a preview or a dialog of the mod's goes, or null.
-    function deckOf(mod, handed) {
+    // A mod as the loader runs its modules, from a run of it: its folder, its data folder, and the page it runs in now.
+    function modOf(run) {
+        const id = run.mod.id;
+        return Object.freeze({ id, folder: run.folder, data: run.data, pageOf: () => pageOf(id) });
+    }
+
+    // The page the mod runs in now, or null.
+    function pageOf(modId) {
+        return deckit.mods.runs().find(({ run }) => run.mod.id === modId)?.page ?? null;
+    }
+
+    // What a module is handed: the mod's id and data folder, `emit(name, ...args)`, which the mod's page hears from
+    // the module at `path`, and `files`, with `refuse(kind, message)`, a refusal whose `kind` reaches the page.
+    function handedTo(mod, path) {
         return Object.freeze({
-            ...handed,
-            window: Object.freeze({
-                open: (options = {}) => {
-                    const key = `${mod.id}:${options.key || 'main'}`;
-                    if (!windows.has(mod.id)) windows.set(mod.id, new Set());
-                    windows.get(mod.id).add(key);
-                    return WINDOW.open({ ...options, key });
-                },
-                get: (key) => WINDOW.get(`${mod.id}:${key || 'main'}`),
-                close: (key) => WINDOW.close(`${mod.id}:${key || 'main'}`),
-                ofPage: () => {
-                    const page = mod.pageOf();
-                    const shown = page && windowShowing(page);
-                    if (!shown) return null;
-                    const { previewFile, closeFilePreview, showOpenDialog, showSaveDialog, isClosed } = shown;
-                    return Object.freeze({ previewFile, closeFilePreview, showOpenDialog, showSaveDialog, isClosed });
-                },
+            id: mod.id,
+            data: mod.data,
+            emit(name, ...args) {
+                const page = pageOf(mod.id);
+                if (page) PROTOCOL.event.send(page, { path, name: String(name), args });
+            },
+            files: Object.freeze({
+                name: FILES.name,
+                fresh: FILES.fresh,
+                rename: FILES.rename,
+                move: FILES.move,
+                trash: FILES.trash,
+                refuse: (kind, message) => Object.assign(new Error(message), { kind }),
             }),
         });
     }
 
-    // Its functions by path, nested objects walked, as a mod's exports are. `on` is the proxy's own: how the
-    // mod hears what the module emits. `dispose` is deckit's to call, as the module ends.
-    function methodsOf(made, relative) {
-        if (!made || typeof made !== 'object')
-            throw new Error(`${relative} gave no object of methods; a main process module is (deck) => ({ methods })`);
-        if (Object.hasOwn(made, 'on'))
-            throw new Error(`${relative} has a method "on", which is how its events are heard`);
-        if (Object.hasOwn(made, 'dispose') && typeof made.dispose !== 'function')
-            throw new Error(`${relative} has a "dispose" that is not a function, which is how it ends`);
-        const methods = new Map();
-        const walking = new Set(); // an object that holds itself is walked once
-        const walk = (value, trail) => {
-            if (typeof value === 'function') return methods.set(JSON.stringify(trail), value);
-            if (!value || typeof value !== 'object' || walking.has(value)) return;
-            walking.add(value);
-            for (const [key, inner] of Object.entries(value)) walk(inner, [...trail, key]);
-            walking.delete(value);
-        };
-        const { dispose: _dispose, ...rest } = made;
-        walk(rest, []);
-        return methods;
-    }
-
-    function locate(folder, given) {
-        const found = FOLDER.fileIn(folder, String(given));
-        if (!found) throw new Error(`${given} is no file in the mod's folder`);
-        return found;
-    }
-
-    // The files of the mod's folder its modules have required so far, by what they held then: a module may require
-    // one when a method first needs it.
-    function noteCode(modId) {
-        const entry = loaded.get(modId);
-        if (!entry) return;
-        for (const key of Object.keys(require.cache))
-            if (key.startsWith(entry.root) && !entry.code.has(key)) entry.code.set(key, hashOf(key));
-    }
-
-    function keysOf(modId) {
-        return [...modules.keys()].filter((key) => key.startsWith(modId + '\0'));
-    }
-
-    function setPending(modId, why) {
-        if ((pending.get(modId) || null) === why) return;
-        if (why) pending.set(modId, why);
-        else pending.delete(modId);
-        tell();
-    }
-
-    function tell() {
-        for (const listener of [...listeners]) listener();
-    }
-
-    // A module that threw, or ended, stays cached, so a fixed version installed later would load the old one. What
-    // of `keys` the cache holds under `root` goes, and with it the hold the module that required it keeps on it.
-    function forget(root, keys) {
-        for (const key of keys) {
-            const cached = require.cache[key];
-            if (!key.startsWith(root) || !cached) continue;
-            if (cached.parent) cached.parent.children = cached.parent.children.filter((child) => child !== cached);
-            delete require.cache[key];
-        }
-    }
-
-    // Whether the files the mod's modules required hold what they held when they were required: an install copies a
-    // folder anew, so a time says nothing of whether its code changed.
-    function sameCode({ code }) {
-        for (const [file, hash] of code) if (hashOf(file) !== hash) return false;
-        return true;
-    }
-
-    function hashOf(file) {
+    // What a method answers crosses to the mod's page, so it is what can be copied. A module not started in this run
+    // is refused NOT_STARTED.
+    async function call(modId, path, method, args) {
+        const answer = await LOADER.call(modId, path, method, args).catch((error) => {
+            throw error.kind === 'NOT_STARTED'
+                ? REQUEST.refusal('call', 'NOT_STARTED', `${path} is not started; mainProcess.start() starts it`)
+                : error;
+        });
         try {
-            return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-        } catch {
-            return '';
+            structuredClone(answer);
+        } catch (error) {
+            throw new Error(`${path} ${method.join('.')} answered what cannot be copied: ${error.message}`);
         }
+        return answer;
     }
-
-    return {
-        start: load,
-        call,
-        launching,
-        ended,
-        removed,
-        installed,
-        stateOf,
-        onChange,
-        restartPending,
-    };
 }

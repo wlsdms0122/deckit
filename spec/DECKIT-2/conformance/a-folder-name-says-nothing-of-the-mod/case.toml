@@ -1,0 +1,25 @@
+case = 1
+name = "a-folder-name-says-nothing-of-the-mod"
+note = "The folder a bundle is in says nothing about the mod: the manifest says who it is. A bundle in a folder named mod-b whose manifest writes id mod-a is the mod mod-a."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a"]
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "id"
+
+[step.expect]
+answers = "mod-a"

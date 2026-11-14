@@ -1,0 +1,18 @@
+id = "mod-b"
+name = "MOD B"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+background = "Runs."
+
+[permissions]
+"system.global-keys" = "Its key works."
+
+[[contributes."deckit/commands"]]
+id = "today"
+title = "Show Today"
+
+[[contributes."deckit/keys"]]
+command = "today"
+keystroke = "ctrl+alt+t"
+scope = "global"

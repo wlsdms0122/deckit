@@ -1,0 +1,23 @@
+case = 17
+name = "an-overlay-window-without-system-overlay-windows-throws-not-permitted"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. windows.open of the level overlay throws NOT_PERMITTED at call where the mod is not granted system.overlay-windows, and opens nothing: mod-a, granted nothing, opens f at the level overlay."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/f/threw/NOT_PERMITTED", activates = true }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = []

@@ -1,0 +1,21 @@
+case = 3
+name = "the-service-is-handed-the-clients-id-name-and-permissions"
+note = "connect(connection) is handed the client's name and its credential: its id, handed there alone, and the ids of the permissions it is granted, in the order the bundle answers them. mod-b's connect answers what it is handed, and mod-a, named Mod A, is granted deckit.mods and deckit.reach-mods."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+answers = { mod = { name = "Mod A" }, credential = { mod = "mod-a", permissions = ["deckit.mods", "deckit.reach-mods"] } }

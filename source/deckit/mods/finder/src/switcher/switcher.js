@@ -1,16 +1,18 @@
+const { match } = require('deckit-sdk/match');
+
 // What Finder adds to the switcher through its `setActions(actions)`: the folders at hand, a search of them and a
 // path typed, the system places, and what its keys do. Each action's value is `{ action, ...args }`, run by
 // `does[action](args, { ready })`; one that opens a search is the value its results add an arg to.
 // `atHand()` answers the paths of the folders at hand, `favorites` how each is drawn, `foldersAtHand(query)` those
-// found for a query, and `places` are the system places, `[id, title]`.
-function switcher({ ui, util, atHand, favorites, foldersAtHand, places, show, does }) {
+// found for a query, `places` are the system places, `[id, title]`, and `tildify(path)` is a path as it is shown.
+function switcher({ ui, tildify, atHand, favorites, foldersAtHand, places, show, does }) {
     return { list, search, run };
 
     function list() {
         return [
             ...atHand().map((path) => ({
                 label: favorites.labelOf(path),
-                hint: util.tildify(path),
+                hint: tildify(path),
                 icon: ui.icon(favorites.iconNameOf(path), { size: 16 }),
                 value: { action: 'open-folder', path },
             })),
@@ -70,7 +72,7 @@ function switcher({ ui, util, atHand, favorites, foldersAtHand, places, show, do
     }
 
     function matching(actions, query) {
-        return actions.filter(({ label }) => !query || util.match(label, query));
+        return actions.filter(({ label }) => !query || match(label, query));
     }
 }
 

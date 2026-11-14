@@ -1,0 +1,23 @@
+case = 3
+name = "a-key-of-a-table-the-signature-does-not-give-is-not-read"
+note = "A key of a table that the table does not give is not read, and refuses nothing. mod-a hands the host an address to open with options holding activates false and a key by, which the options do not give: the host is handed the address, the app that opens it left behind."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["https://example.com/a", { activates = false, by = "mod-a" }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/a", activates = false }]

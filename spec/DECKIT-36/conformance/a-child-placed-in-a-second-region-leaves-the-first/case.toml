@@ -1,0 +1,29 @@
+case = 22
+name = "a-child-placed-in-a-second-region-leaves-the-first"
+note = "A child is shown in one region at a time: mod-a places mod-b in one region, then in a second, and mod-b is laid over the second alone."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { region = 2, interface = "case/view", box = { x = 400, y = 100, width = 100, height = 100 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { place = 2, id = "mod-b" }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-b", parent = "mod-a", window = "main", frame = { x = 683, y = 207, width = 100, height = 100 } }]

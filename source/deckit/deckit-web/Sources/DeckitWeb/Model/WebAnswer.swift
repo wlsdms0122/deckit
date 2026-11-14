@@ -17,8 +17,8 @@ struct WebAnswer {
     let body: Data
     let redirected: Bool
 
-    // As JavaScript reads it: `{ url, status, headers, body, redirected }`, `headers` `[[name, value]]` and `body` its
-    // bytes in base64.
+    // As JavaScript reads it: `{ url, status, headers, body, redirected }`, `headers` `[[name, value]]`, one a name in
+    // the order of the names, and `body` its bytes in base64.
     var value: [String: Any?] {
         [
             "url": url.absoluteString,
@@ -34,11 +34,14 @@ struct WebAnswer {
         guard let url = response.url else { throw NodeError(message: "an answer came from no address") }
         self.url = url
         self.status = response.statusCode
-        self.headers = response.allHeaderFields.compactMap { name, value in
-            guard let name = name as? String else { return nil }
+        // The response's fields hold one value a name, a name it repeats joined by ", ".
+        self.headers = response.allHeaderFields
+            .compactMap { name, value in
+                guard let name = name as? String else { return nil }
 
-            return (name: name.lowercased(), value: "\(value)")
-        }
+                return (name: name.lowercased(), value: "\(value)")
+            }
+            .sorted { $0.name < $1.name }
         self.body = body
         self.redirected = redirected
     }

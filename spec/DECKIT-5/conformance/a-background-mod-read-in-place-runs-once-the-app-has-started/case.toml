@@ -1,0 +1,19 @@
+case = 2
+name = "a-background-mod-read-in-place-runs-once-the-app-has-started"
+note = "Every background mod the catalog holds launches as the app starts, whichever place it was found in, so mod-a read in place with background runs."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "running"
+

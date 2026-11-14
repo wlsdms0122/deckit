@@ -1,0 +1,31 @@
+case = 5
+name = "a-set-of-a-value-of-another-type-is-refused"
+note = "set is refused at call with kind INVALID_ARGUMENT where value is not of the setting's type, never read as it. mod-a sets tab-size, a number, to \"2\"."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["tab-size", "2"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

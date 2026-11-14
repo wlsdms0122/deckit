@@ -1,0 +1,12 @@
+id = "mod-b"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."deckit/configuration"]]
+key = "tab-size"
+type = "number"
+title = "Tab size"
+default = 9
+minimum = 1
+maximum = 8

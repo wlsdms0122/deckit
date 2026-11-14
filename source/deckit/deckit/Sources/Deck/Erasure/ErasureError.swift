@@ -8,13 +8,13 @@
 import Foundation
 
 public enum ErasureError: Refusal, Equatable {
-    case notAMod(String)
+    case notAPrincipal(String)
 
     // MARK: - Property
     public var message: String {
         switch self {
-        case let .notAMod(mod):
-            "not a mod id: \(mod)"
+        case let .notAPrincipal(principal):
+            "not an id: \(principal)"
         }
     }
 

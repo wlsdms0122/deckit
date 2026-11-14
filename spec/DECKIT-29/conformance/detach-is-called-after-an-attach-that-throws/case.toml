@@ -1,0 +1,18 @@
+case = 6
+name = "detach-is-called-after-an-attach-that-throws"
+note = "The shell's lifecycle ends at once where attach throws: detach is called while the run goes on. mod-a's start and detach each open https://said.test/ and its name outside the app, and its attach throws."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/start", activates = true }, { url = "https://said.test/detach", activates = true }]

@@ -1,0 +1,21 @@
+case = 3
+name = "a-part-of-an-array-answer-is-taken-of-each-element"
+note = "A step that writes part, of an answer that is an array of tables, answers the value under that key of each element that holds it, in order. mod-a asks what is declared to the interface it owns, two entries, and the step reads the entry of each."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "exports.contributions"
+args = ["mod-a/actions"]
+part = "entry"
+
+[step.expect]
+answers = [{ title = "Open" }, { title = "Note" }]

@@ -5,8 +5,8 @@ const { isSpanning } = require('../occurrence/occurrence.js');
 // Its ground is set in a rule: set inline, it would stand over the kit's pressable wash.
 const PLAIN_BUTTON = 'calendar-plain-button';
 
-// Six weeks from `start`, the days of `month` (0 to 11) in full and the rest stepped back, and the occurrences that fall
-// in them as bars. A week shows as many lanes as its height holds, and the rest of a day behind "+n more".
+// Six weeks from `start`, the days of `month` (0 to 11) in full and the rest stepped back, and the occurrences that
+// fall in them as bars. A week shows as many lanes as its height holds, and the rest of a day behind "+n more".
 function monthView({ ui, detail, onOpenDay }) {
     ui.addStyle(`.${PLAIN_BUTTON} { border: 0; background: transparent; cursor: pointer; }`);
     // The weeks last drawn, and how many lanes fitted each then.

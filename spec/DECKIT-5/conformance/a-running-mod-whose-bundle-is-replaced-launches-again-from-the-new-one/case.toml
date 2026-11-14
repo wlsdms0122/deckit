@@ -1,0 +1,26 @@
+case = 3
+name = "a-running-mod-whose-bundle-is-replaced-launches-again-from-the-new-one"
+note = "Once the catalog no longer holds the bundle a running run is of, its end is asked and the mod launches again from the bundle the catalog holds now. mod-b 1.0.0 runs in the background, and mod-b 2.0.0, whose entry throws, is installed in its place, so mod-b comes to the relaunch limit."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b-new"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+refuses = "launch"
+kind = "RELAUNCH_LIMIT"

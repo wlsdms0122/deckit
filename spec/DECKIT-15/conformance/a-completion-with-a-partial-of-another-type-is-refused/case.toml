@@ -1,0 +1,31 @@
+case = 5
+name = "a-completion-with-a-partial-of-another-type-is-refused"
+note = "complete is refused at call with kind INVALID_ARGUMENT where partial is not a string. mod-a completes the text of echo with 1 typed."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/commands"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "complete"
+handed = true
+args = ["mod-b", "echo", "text", 1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

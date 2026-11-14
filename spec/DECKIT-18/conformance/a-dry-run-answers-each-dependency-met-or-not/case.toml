@@ -1,0 +1,32 @@
+case = 5
+name = "a-dry-run-answers-each-dependency-met-or-not"
+note = "A dry run answers what deckit.mods answers with dependencies, each dependency the package file names in the order written, with the version of the mod installed and whether the requirement takes it, met or not. mod-c depends on mod-b ^1, installed as 1.4.2, and on mod-f 1, which is not installed."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "dependencies"
+
+[step.expect]
+answers = [{ id = "mod-b", requirement = "^1", installed = "1.4.2", satisfied = true }, { id = "mod-f", requirement = "1", satisfied = false }]

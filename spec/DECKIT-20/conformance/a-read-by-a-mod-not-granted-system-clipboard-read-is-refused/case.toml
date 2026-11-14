@@ -1,0 +1,20 @@
+case = 7
+name = "a-read-by-a-mod-not-granted-system-clipboard-read-is-refused"
+note = "readText is a request system.clipboard-read guards: mod-a, granted system.clipboard-write alone, reads, and is refused at call with kind NOT_PERMITTED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

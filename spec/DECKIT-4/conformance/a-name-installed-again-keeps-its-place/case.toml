@@ -1,0 +1,32 @@
+case = 3
+name = "a-name-installed-again-keeps-its-place"
+note = "A bundle installed again under a name already installed keeps that name's place and takes the place of the bundle before. mod-a, mod-b and mod-c are shipped, and mod-b 2.0.0 is installed."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b-new"]
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a", "mod-b", "mod-c"]
+
+[[step]]
+look = "mod"
+mod = "mod-b"
+part = "version"
+
+[step.expect]
+answers = "2.0.0"

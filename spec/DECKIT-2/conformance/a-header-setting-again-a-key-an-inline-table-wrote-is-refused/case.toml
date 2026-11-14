@@ -1,0 +1,20 @@
+case = 1
+name = "a-header-setting-again-a-key-an-inline-table-wrote-is-refused"
+note = "A key set twice in one table refuses: a header that goes on in a table an inline table wrote and sets its key again refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

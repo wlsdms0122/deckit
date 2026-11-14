@@ -1,0 +1,31 @@
+case = 4
+name = "an-event-a-mod-sends-is-heard-named-after-it"
+note = "An event a mod sends is named after the mod, and a listener for that name is called with the values it was sent with. mod-a listens to mod-a:ready and sends ready with three values, and its listener is called once with them."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:ready"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["ready", 1, "two", { three = [3] }]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[1, "two", { three = [3] }]]

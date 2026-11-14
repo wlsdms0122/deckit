@@ -1,0 +1,22 @@
+case = 15
+name = "fonts-set-of-a-size-below-the-bounds-is-refused"
+note = "fonts.set is refused INVALID_ARGUMENT where size is no size of the fonts, from 11 to 22: mod-a sets { size = 10 }, under 11."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 10 }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

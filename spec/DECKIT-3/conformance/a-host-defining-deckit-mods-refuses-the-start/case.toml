@@ -1,0 +1,15 @@
+case = 1
+name = "a-host-defining-deckit-mods-refuses-the-start"
+note = "The system defines deckit.mods, so a host that defines it too defines its id twice, which refuses the app's start at call with kind PERMISSION."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "deckit.mods", name = "Mods", description = "Manages the mods." }]
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "PERMISSION"

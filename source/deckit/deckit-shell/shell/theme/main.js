@@ -1,5 +1,5 @@
-import * as CHANNEL from '../../deck/channel/index.js';
-import * as DECLARED from './protocol.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/theme/protocol.js';
 
 export function createTheme({ deckit }) {
     // MARK: - Property
@@ -13,7 +13,8 @@ export function createTheme({ deckit }) {
     // `draws(page)`: whether a page is one the shell draws in.
     function start({ draws }) {
         PROTOCOL.setup.handle((_payload, sender) => {
-            if (!draws(sender)) throw Object.assign(new Error('only a deckit page draws'), { kind: 'REFUSED' });
+            if (!draws(sender))
+                throw Object.assign(new Error('only a deckit page draws'), { stage: 'call', kind: 'REFUSED' });
             if (!pages.has(sender)) {
                 pages.add(sender);
                 // A page that loads again leaves until its new document asks for the theme, and comes back then.

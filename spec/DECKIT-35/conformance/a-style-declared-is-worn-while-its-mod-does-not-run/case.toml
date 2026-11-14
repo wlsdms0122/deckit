@@ -1,0 +1,24 @@
+case = 21
+name = "a-style-declared-is-worn-while-its-mod-does-not-run"
+note = "A declared style is worn while the system holds the bundle, its run running or not: mod-a, granted deckit.styles, declares in its manifest's field styles the file a.css, which sets --case-a and --case-order to a, for \"*\", the person quits mod-a from its Dock item, and mod-b's page still holds both."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "dock"
+mod = "mod-a"
+action = "quit"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = { --case-a = "a", --case-order = "a" } }

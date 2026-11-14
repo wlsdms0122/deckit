@@ -1,0 +1,42 @@
+case = 10
+name = "ending-a-find-gives-a-page-no-user-activation"
+note = "What the web engine does in a site's page gives it no user activation, as the web platform gives none for it. mod-a shows site-a, whose page and a frame it makes read their user activation, finds find in it, and ends finding."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "find"
+of = 2
+args = ["find", { start = true }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "stopFind"
+of = 2
+args = [{}]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "page false false, frame false false"

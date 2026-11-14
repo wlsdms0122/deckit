@@ -1,0 +1,72 @@
+case = 12
+name = "permission-of-a-site-let-have-notifications-is-granted-and-asked-for-unasked"
+note = "permission is granted where the site has notifications in the page's session as the document starts, and requestPermission answers it, unasked, its callback called with it too. mod-a lets site-a have notifications and shows site-a, which asks for them with a callback."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { didReceiveNotification = true, decidePermission = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "title"
+
+[step.expect]
+answers = "granted callback granted granted"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []

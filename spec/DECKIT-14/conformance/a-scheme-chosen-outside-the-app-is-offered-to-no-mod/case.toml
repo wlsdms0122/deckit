@@ -1,0 +1,46 @@
+case = 5
+name = "a-scheme-chosen-outside-the-app-is-offered-to-no-mod"
+note = "choose(scheme, { system = true }) opens each address of the scheme outside the app at once. mod-b declares https and would take it, and https://example.com/ opens outside the app."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "choose"
+handed = true
+args = ["https", { system = true }]
+
+[step.expect]
+answers = { scheme = "https", system = "browser", chosen = { system = true }, mods = [{ mod = { id = "mod-b", name = "mod-b" }, patterns = ["https:*"] }] }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+handed = true
+args = ["https://example.com/"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/", activates = true }]

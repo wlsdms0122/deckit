@@ -29,7 +29,7 @@ const SECTION_STYLE = `
     .settings-setting-hint { font: var(--deckit-type-small); line-height: 1.45; opacity: 0.5; }
 `;
 
-// A titled part of the Settings view. The caller adds to `head`, after the title, and fills `body`.
+// A titled part of the Settings window. The caller adds to `head`, after the title, and fills `body`.
 function section({ ui, title, description = '' }) {
     const element = ui.element('div', { className: 'settings-section' });
     const head = ui.element('div', { className: 'settings-section-head' });

@@ -1,27 +1,27 @@
-// `refused(embedder, id, certificate)` tells deck what was refused in a web page it shows.
+// `refused(embedder, id, certificate)` tells the web engine what was refused in a web page it shows.
 export function createCertificate({ refused: tell }) {
     // MARK: - Property
-    // partition|host|fingerprint
+    // partition|host|fingerprint, until the app quits or the mod is erased
     const TRUSTED = new Set();
     const refused = new Map(); // the same key -> Map(page -> the address it was loading)
 
     // MARK: - Initializer
     // MARK: - Public
-    // A certificate the Mac cannot verify: let through where the mod handed it back as trusted, or else refused, and
-    // the page's tab told, `at` being `{ embedder, tab }`. `info` is `{ url, host, error, fingerprint, subject,
-    // issuer }`.
-    function decide(page, at, partition, info) {
+    // A certificate the system cannot verify: let through where the mod handed it back as trusted, or else refused, and
+    // the mod's page `embedder` that shows the page told, where it is shown. `info` is `{ url, host, error,
+    // fingerprint, subject, issuer }`.
+    function decide(page, embedder, partition, info) {
         const key = keyOf(partition, info.host, info.fingerprint);
         if (TRUSTED.has(key)) return true;
         remember(key, page, info.url);
-        if (at) tell(at.embedder, at.tab.id, info);
+        if (embedder) tell(embedder, page.id, info);
         return false;
     }
 
-    // What was refused under a certificate now trusted is loaded again: the page, or a window it opened.
+    // Each of `entries`, `{ host, fingerprint }`, trusted in the session `partition` spells. What was refused under a
+    // certificate now trusted is loaded again: the page, or a window it opened.
     function trust(partition, entries) {
         for (const { host, fingerprint } of entries) {
-            if (!host || !fingerprint) continue;
             const key = keyOf(partition, host, fingerprint);
             TRUSTED.add(key);
             for (const [page, url] of refused.get(key) || []) {
@@ -33,7 +33,17 @@ export function createCertificate({ refused: tell }) {
             }
             refused.delete(key);
         }
-        return TRUSTED.size;
+    }
+
+    // Whether a certificate is trusted in a session whose partition starts with `prefix`.
+    function trusts(prefix) {
+        return [...TRUSTED].some((key) => key.startsWith(prefix));
+    }
+
+    // Every certificate trusted in a session whose partition starts with `prefix`, trusted no more. A page already
+    // loaded under one stays as it is.
+    function distrust(prefix) {
+        for (const key of [...TRUSTED]) if (key.startsWith(prefix)) TRUSTED.delete(key);
     }
 
     // MARK: - Private
@@ -51,5 +61,5 @@ export function createCertificate({ refused: tell }) {
         });
     }
 
-    return { decide, trust };
+    return { decide, trust, trusts, distrust };
 }

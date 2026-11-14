@@ -6,6 +6,7 @@ const { paintPastNow } = require('../occurrence/paint.js');
 const { sidebar } = require('../sidebar/sidebar.js');
 const { switcher, inFront } = require('../switcher/switcher.js');
 const { timeGridView } = require('../views/time-grid-view.js');
+const { viewKeys } = require('../keys/keys.js');
 
 const MODES = [
     ['day', 'Day'],
@@ -13,9 +14,10 @@ const MODES = [
     ['month', 'Month'],
 ];
 
-// Calendar on screen: the view of `calendar` (calendar.js) at its mode and day, the sidebar, its keys and commands, and
-// what it adds to the switcher. It tells `calendar` the days it shows by `follow(range)`, so they are read. `screen` is
-// what `calendar` reaches it by; `end()` stops what it runs on its own and closes the questions it asked.
+// Calendar on screen: its window, the view of `calendar` (calendar.js) at its mode and day beside the sidebar, its own
+// keys, and what it adds to the switcher. It tells `calendar` the days it shows by `follow(range)`, so they are read.
+// `openWindow()` opens the window, or orders it front where it is open. `screen` is what `calendar` and the commands
+// reach it by; `end()` stops what it runs on its own and closes the questions it asked.
 function calendarView({ calendar, shell, deckit, sendTest }) {
     const { theme, ui } = shell;
     const { values } = deckit.storage;
@@ -26,7 +28,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     // The close() of each dialog prompt() has open.
     const asking = new Set();
 
-    // Drawing waits while the pane is hidden or the popover is up: a redraw takes the popover's anchor away.
+    // Drawing waits while the window is off screen or the popover is up: a redraw takes the popover's anchor away.
     let visible = false;
     let drawPending = false;
     let drawnView = '';
@@ -57,7 +59,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         modes: MODES,
         reminders: calendar.reminders,
         occurrences: calendar.occurrencesBetween,
-        show: shell.show,
+        show: openWindow,
         does: {
             ...inFront({
                 'show-view': showView,
@@ -154,10 +156,11 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
 
     content.append(head, body, firstLoad, empty);
 
-    const resizing = new ResizeObserver(() => {
+    // The body's size is observed in the window it is shown in, from each time it appears.
+    let resizing = null;
+    const fit = () => {
         if (mode === 'month' && !month.fitsAsDrawn()) render();
-    });
-    resizing.observe(body);
+    };
 
     // Being past changes with the clock alone, and so does the current-time line: each is moved in place, and only
     // a new day, which changes what today is, draws the view again.
@@ -165,69 +168,70 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
 
     calendar.follow(rangeOf(mode, cursor));
 
-    return {
-        content,
+    // The window's own keys, while it is key.
+    const keys = viewKeys(
+        {
+            today: { key: 'mod+t', run: goToToday },
+            dayView: { key: 'mod+1', run: () => showView({ view: 'day' }) },
+            weekView: { key: 'mod+2', run: () => showView({ view: 'week' }) },
+            monthView: { key: 'mod+3', run: () => showView({ view: 'month' }) },
+            // In a field ⌘← and ⌘→ move the caret.
+            previous: { key: 'mod+left', run: () => shift(-1), fieldsKeep: true },
+            next: { key: 'mod+right', run: () => shift(1), fieldsKeep: true },
+        },
+        { log: 'calendar', within: content }
+    );
+
+    // The days beside the sidebar, whose width and fold are kept as the person leaves them.
+    const split = ui.splitView({
         sidebar: side.element,
-        didAppear() {
-            visible = true;
-            calendar.read();
-            render();
-            calendar.follow(rangeOf(mode, cursor));
-        },
-        didDisappear() {
-            visible = false;
-            detail.close();
-        },
-        keys: {
-            today: { label: 'Go to Today', key: 'mod+t', run: goToToday },
-            dayView: { label: 'Day view', key: 'mod+1', run: () => showView({ view: 'day' }) },
-            weekView: { label: 'Week view', key: 'mod+2', run: () => showView({ view: 'week' }) },
-            monthView: { label: 'Month view', key: 'mod+3', run: () => showView({ view: 'month' }) },
-            previous: { label: 'Previous', key: 'mod+left', run: () => shift(-1) },
-            next: { label: 'Next', key: 'mod+right', run: () => shift(1) },
-        },
-        commands: {
-            'go-to-date': {
-                description: 'Shows a day in the view on screen.',
-                params: {
-                    type: 'object',
-                    properties: { date: { type: 'string', title: 'Date', description: 'A day, as YYYY-MM-DD.' } },
-                    required: ['date'],
-                },
-                run: goToDate,
-            },
-            'show-view': {
-                description: 'Shows the day, the week or the month view.',
-                params: {
-                    type: 'object',
-                    properties: {
-                        view: {
-                            type: 'string',
-                            title: 'View',
-                            oneOf: MODES.map(([key, label]) => ({ const: key, title: label })),
-                        },
-                    },
-                    required: ['view'],
-                },
-                run: showView,
-            },
-        },
+        content,
+        ...values.get('sidebar', {}),
+        onChange: (kept) => values.set('sidebar', kept),
+    });
+
+    return {
+        openWindow,
         actions,
         screen: {
             changed: render,
-            reveal: shell.show,
-            showDate,
+            openWindow,
+            goToDate,
+            showView,
             prompt,
         },
         // A sign-in waiting on a question closed here hears `false`, as when the person closes it.
         end() {
             visible = false;
+            keys.listen(false);
             clearInterval(ticking);
-            resizing.disconnect();
+            resizing?.disconnect();
             for (const close of [...asking]) close();
             calendar.follow(null);
         },
     };
+
+    function openWindow() {
+        shell.windows.open({
+            name: 'main',
+            content: split.element,
+            didAppear() {
+                visible = true;
+                resizing?.disconnect();
+                resizing = new body.ownerDocument.defaultView.ResizeObserver(fit);
+                resizing.observe(body);
+                calendar.read();
+                render();
+                calendar.follow(rangeOf(mode, cursor));
+            },
+            didBecomeKey: () => keys.listen(true),
+            didResignKey: () => keys.listen(false),
+            didDisappear() {
+                visible = false;
+                detail.close();
+            },
+        });
+    }
 
     function shift(by) {
         if (mode === 'day') cursor = addDays(cursor, by);
@@ -256,11 +260,6 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     function goTo(date, next) {
         cursor = startOfDay(date);
         setMode(next || mode);
-    }
-
-    function showDate(date) {
-        shell.show();
-        goTo(date);
     }
 
     function setMode(next) {
@@ -306,7 +305,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         }
         const firstRead = !blank && loading && feeds.all().every((feed) => !reads.has(feed));
         firstLoad.style.display = firstRead ? 'flex' : 'none';
-        // Hidden under the overlays, so the panel's glass shows through them.
+        // Hidden under the overlays, so the window's background material shows through them.
         head.style.visibility = blank || firstRead ? 'hidden' : '';
         body.style.visibility = blank || firstRead ? 'hidden' : '';
 
@@ -354,9 +353,10 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: length, easing: theme.motion.easing });
     }
 
-    // Calendar comes on screen and asks in a dialog: `{ answer, close }`, `answer` whether the person confirmed.
+    // Calendar's window comes on screen and asks in a dialog: `{ answer, close }`, `answer` whether the person
+    // confirmed.
     function prompt({ title: heading, message, confirmLabel, cancelLabel }) {
-        shell.show();
+        openWindow();
         let close = null;
         const answer = new Promise((resolve) => {
             let confirmed = false;

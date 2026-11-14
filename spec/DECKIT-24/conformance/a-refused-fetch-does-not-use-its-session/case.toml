@@ -1,0 +1,40 @@
+case = 9
+name = "a-refused-fetch-does-not-use-its-session"
+note = "A fetch refused for its arguments does not use its session. mod-b fetches an address whose scheme is ftp through its session main, and mod-a reads what mod-b keeps."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "fetch"
+of = 2
+args = ["ftp://127.0.0.1/hello.txt"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "kept"
+
+[step.expect]
+answers = []

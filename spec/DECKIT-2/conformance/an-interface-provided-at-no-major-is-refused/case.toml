@@ -1,0 +1,19 @@
+case = 1
+name = "an-interface-provided-at-no-major-is-refused"
+note = "provides maps an interface to a non-empty array of majors. An empty array refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

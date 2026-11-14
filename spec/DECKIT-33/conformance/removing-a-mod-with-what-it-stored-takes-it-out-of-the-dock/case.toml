@@ -1,0 +1,55 @@
+case = 19
+name = "removing-a-mod-with-what-it-stored-takes-it-out-of-the-dock"
+note = "mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-c installs mod-a once the host app started, so mod-a does not run, and keeps it in the Dock with mods.setPinned. mod-c removes mod-a with erase true and installs it again: it is not kept, and mods.usage names nothing under kept."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.install"
+folders = ["mod-a"]
+part = "id"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.setPinned"
+handle = "shell"
+args = ["mod-a", true]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.remove"
+args = ["mod-a", true]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.install"
+folders = ["mod-a"]
+part = "id"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-c", pinned = true, running = true, attention = false, active = false }]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.usage"
+args = ["mod-a"]
+part = "kept"
+
+[step.expect]
+answers = []

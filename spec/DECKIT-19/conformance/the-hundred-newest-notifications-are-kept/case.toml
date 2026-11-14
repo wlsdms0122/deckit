@@ -1,0 +1,736 @@
+case = 5
+name = "the-hundred-newest-notifications-are-kept"
+note = "The owner keeps the 100 newest notifications, and takes the oldest away as one more is posted. mod-a posts 101, n1 to n101, and lists n101 to n2."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/notifications"]
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/notifications"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n1" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n2" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n3" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n4" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n5" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n6" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n7" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n8" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n9" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n10" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n11" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n12" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n13" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n14" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n15" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n16" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n17" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n18" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n19" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n20" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n21" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n22" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n23" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n24" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n25" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n26" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n27" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n28" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n29" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n30" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n31" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n32" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n33" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n34" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n35" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n36" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n37" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n38" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n39" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n40" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n41" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n42" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n43" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n44" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n45" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n46" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n47" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n48" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n49" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n50" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n51" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n52" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n53" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n54" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n55" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n56" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n57" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n58" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n59" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n60" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n61" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n62" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n63" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n64" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n65" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n66" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n67" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n68" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n69" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n70" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n71" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n72" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n73" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n74" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n75" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n76" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n77" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n78" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n79" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n80" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n81" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n82" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n83" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n84" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n85" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n86" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n87" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n88" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n89" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n90" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n91" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n92" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n93" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n94" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n95" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n96" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n97" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n98" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n99" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n100" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "n101" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "title"
+
+[step.expect]
+answers = ["n101", "n100", "n99", "n98", "n97", "n96", "n95", "n94", "n93", "n92", "n91", "n90", "n89", "n88", "n87", "n86", "n85", "n84", "n83", "n82", "n81", "n80", "n79", "n78", "n77", "n76", "n75", "n74", "n73", "n72", "n71", "n70", "n69", "n68", "n67", "n66", "n65", "n64", "n63", "n62", "n61", "n60", "n59", "n58", "n57", "n56", "n55", "n54", "n53", "n52", "n51", "n50", "n49", "n48", "n47", "n46", "n45", "n44", "n43", "n42", "n41", "n40", "n39", "n38", "n37", "n36", "n35", "n34", "n33", "n32", "n31", "n30", "n29", "n28", "n27", "n26", "n25", "n24", "n23", "n22", "n21", "n20", "n19", "n18", "n17", "n16", "n15", "n14", "n13", "n12", "n11", "n10", "n9", "n8", "n7", "n6", "n5", "n4", "n3", "n2"]

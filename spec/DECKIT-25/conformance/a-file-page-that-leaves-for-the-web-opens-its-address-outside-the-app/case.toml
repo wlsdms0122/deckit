@@ -1,0 +1,41 @@
+case = 11
+name = "a-file-page-that-leaves-for-the-web-opens-its-address-outside-the-app"
+note = "A page that shows a file never goes to an address of the web: it stays, the delegate's shouldLeave(url) is asked, and, answered true, the address is opened outside the app. leaves.html of mod-a's bundle, shown for mod-a, granted system.files, goes to http://127.0.0.1:9/away as it loads."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+delegate = { shouldLeave = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+file = "mod-a/leaves.html"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "shouldLeave", args = ["http://127.0.0.1:9/away"] }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "http://127.0.0.1:9/away", activates = true }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "Leaves"

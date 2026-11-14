@@ -1,0 +1,38 @@
+case = 22
+name = "a-drop-hands-each-path-in-the-order-dropped"
+note = "onDrop is handed the paths in the order dropped: notes and photos are dropped, and onDrop is called with [notes, photos]."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:dropped"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { drop = "outer", box = { x = 50, y = 50, width = 300, height = 300 } }]
+
+[[step]]
+input = "drop"
+mod = "mod-a"
+name = "main"
+folders = ["notes", "photos"]
+at = { x = 70, y = 80 }
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [["outer", ["notes", "photos"], { x = 20, y = 30 }]]

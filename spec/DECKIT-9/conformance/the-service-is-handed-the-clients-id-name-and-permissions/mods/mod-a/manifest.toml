@@ -1,0 +1,10 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+name = "Mod A"
+main = "main.js"
+background = "Reaches the other mods."
+
+[permissions]
+"deckit.reach-mods" = "Reaches the other mods."
+"deckit.mods" = "Quits the other mods."

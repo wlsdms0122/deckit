@@ -1,0 +1,25 @@
+case = 8
+name = "the-permissions-of-the-web-engine-are-defined-after-the-systems"
+note = "The web engine defines system.files, system.network, system.certificates and system.site-permissions, in that order, after the system's own, none privileged. On the base web, mod-a asks for them in the other order, beside system.notifications, and is answered them in that one."
+
+[host]
+base = "web"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "system.notifications", reason = "n", usable = true, name = "Notifications", description = "It can show notifications in the corner of the screen, while you are looking at something else.", privileged = false },
+    { id = "system.files", reason = "f", usable = true, name = "Files", description = "It can open files in its own pages, where it can read what they hold.", privileged = false },
+    { id = "system.network", reason = "w", usable = true, name = "Network", description = "It can read any address on the web or your network, past the rules that keep one site from reading another.", privileged = false },
+    { id = "system.certificates", reason = "c", usable = true, name = "Certificates", description = "It can accept a certificate that cannot be verified, for one site, so that site's pages load.", privileged = false },
+    { id = "system.site-permissions", reason = "s", usable = true, name = "Site Permissions", description = "It can let a site's pages use the camera, the microphone, notifications, your location, the apps links open in and, as far as its clipboard permissions reach, what you copied, and take that back.", privileged = false },
+]

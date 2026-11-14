@@ -1,4 +1,4 @@
-// Starts an assembled Deckit.app for the test without taking the screen: macOS opens it in the background
+// Starts an assembled Deckit.app for the test without taking the screen: the system opens it in the background
 // (`open -g`), and inactive.js, run before the app's own entry, keeps it from ever becoming the active app. Its main
 // process's inspector answers on `port`. It is stopped when the test's process exits, and a test still running after
 // `limit` ms is ended as a failure, its app with it.
@@ -45,6 +45,9 @@ function launch({ app: folder, data, port, log, limit }) {
         '--args',
         `--inspect=${port}`,
         folder,
+        // A run the runner ended leaves no window state for the next launch to restore.
+        '-ApplePersistenceIgnoreState',
+        'YES',
     ]);
     for (let tries = 0; tries < 50 && !pid; tries++) {
         pid = pidOf(pattern);

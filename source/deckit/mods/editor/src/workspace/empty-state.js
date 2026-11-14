@@ -20,7 +20,7 @@ const EMPTY_STATE_STYLE = `
 
 // What the editor shows with no file open: what the front workspace is, how to open something, and with no folder in
 // front, the recent folders.
-function emptyState({ ui, util, chordOf, onQuickOpen, onPickFolder, onPickFiles, onOpenFolder }) {
+function emptyState({ ui, tildify, chordOf, onQuickOpen, onPickFolder, onPickFiles, onOpenFolder }) {
     const RECENT_SHOWN = 6;
 
     const element = ui.element('div', { className: 'editor-empty' });
@@ -64,7 +64,7 @@ function emptyState({ ui, util, chordOf, onQuickOpen, onPickFolder, onPickFiles,
         row.append(
             iconElement(ui, 'editor-recent-icon', ui.folderIcon({ open: false, size: 14 })),
             ui.element('span', { className: 'editor-recent-name', text: nameOf(item.path) }),
-            ui.element('span', { className: 'editor-recent-path', text: util.tildify(item.path) })
+            ui.element('span', { className: 'editor-recent-path', text: tildify(item.path) })
         );
         row.addEventListener('click', () => onOpenFolder(item.path));
         return row;

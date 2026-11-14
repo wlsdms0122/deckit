@@ -1,0 +1,27 @@
+case = 8
+name = "open-of-an-id-not-held-answers-false"
+note = "open answers false, and opens nothing, for an id the mod holds no download of. mod-a, granted system.file-handlers, opens nope."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.open"
+handle = "web"
+args = ["nope"]
+
+[step.expect]
+answers = false
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

@@ -1,0 +1,42 @@
+case = 10
+name = "a-site-that-reads-the-clipboard-is-asked-of-the-mod"
+note = "clipboard-read, of the rule ask, is asked of a mod granted system.clipboard-read and system.site-permissions, and a yes reads the clipboard the mod's handle writes. mod-a writes held, and site-a reads the clipboard as its page loads."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["held"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "decidePermission", args = [{ origin = "site-a", permissions = ["clipboard-read"], app = "", url = "" }] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 3
+part = "title"
+
+[step.expect]
+answers = "read held"

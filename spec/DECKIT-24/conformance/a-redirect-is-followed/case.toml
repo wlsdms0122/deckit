@@ -1,0 +1,29 @@
+case = 9
+name = "a-redirect-is-followed"
+note = "With redirect left out, follow, a redirect is followed, and the answer is that of the last address, with redirected true. site-a answers moved 302 to hello.txt."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/moved"]
+
+[step.expect]
+answers = { url = "site-a/hello.txt", status = 200, headers = [["connection", "close"], ["content-length", "5"]], body = "aGVsbG8=", redirected = true }

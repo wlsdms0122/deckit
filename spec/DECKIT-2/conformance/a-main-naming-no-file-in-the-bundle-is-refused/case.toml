@@ -1,0 +1,19 @@
+case = 1
+name = "a-main-naming-no-file-in-the-bundle-is-refused"
+note = "A path a manifest names is a regular file inside the bundle. A main in its form that names no file there refuses the bundle at read, before anything of it runs."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

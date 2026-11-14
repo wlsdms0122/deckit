@@ -1,0 +1,23 @@
+case = 3
+name = "a-file-from-a-mod-granted-system-file-handlers-is-handed-to-the-host"
+note = "openExternal of a file hands the host the file for a mod granted system.file-handlers, with activates true where it is left out. mod-a, granted it, opens file:///data/report.pdf."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["file:///data/report.pdf"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "file:///data/report.pdf", activates = true }]

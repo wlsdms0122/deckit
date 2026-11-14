@@ -70,8 +70,8 @@ function unsavedDrafts({ ui, records, isOpen, openDrafts, pick, saveCopy, onOpen
             );
     }
 
-    // Drawn with every paint, so a file opened since leaves the list at once: its draft is then the open file's, which a
-    // Discard here must not reach.
+    // Drawn with every paint, so a file opened since leaves the list at once: its draft is then the open file's, which
+    // a Discard here must not reach.
     function show() {
         const left = Object.entries(all()).filter(([path]) => !isOpen(path));
         list.element.hidden = !left.length;

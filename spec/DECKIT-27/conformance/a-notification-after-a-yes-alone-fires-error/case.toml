@@ -1,0 +1,93 @@
+case = 10
+name = "a-notification-after-a-yes-alone-fires-error"
+note = "A yes the mod answers the document's ask makes permission granted for the document, and a notification is shown only where the site has notifications in the session, as allow lets it have it. site-a asks for notifications as it loads, the host's delegate answers true, and site-a makes a notification."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { didReceiveNotification = true, decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "title"
+
+[step.expect]
+answers = "granted error"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+part = "method"
+
+[step.expect]
+answers = ["decidePermission"]

@@ -1,0 +1,17 @@
+case = 1
+name = "a-folder-whose-manifest-is-a-folder-is-passed-over"
+note = "A bundle holds a file named manifest.toml; a folder whose manifest.toml is a folder is not a bundle and is passed over."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a"]

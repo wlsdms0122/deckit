@@ -1,0 +1,31 @@
+case = 7
+name = "a-write-replaces-the-text-of-the-clipboard"
+note = "writeText replaces what the clipboard holds: what was there before is not kept beside it. mod-a writes one, then two, and reads two."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["one"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["two"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = "two"

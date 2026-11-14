@@ -1,0 +1,25 @@
+case = 18
+name = "the-shells-keys-do-nothing-where-no-window-is-key"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a opens main and x, and no input reached it, so no window is key and the desktop's own page has the keyboard: cmd+w and cmd+m leave both windows where they stand."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyW", meta = true }
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyM", meta = true }
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }]

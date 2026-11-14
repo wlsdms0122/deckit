@@ -2,3 +2,7 @@
 .build/
 .dev/
 node_modules/
+# The mods' link to the SDK, which their code requires.
+!/source/deckit/mods/node_modules/
+/source/deckit/mods/node_modules/*
+!/source/deckit/mods/node_modules/deckit-sdk

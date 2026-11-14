@@ -1,0 +1,29 @@
+case = 8
+name = "allow-of-an-origin-of-another-scheme-is-refused"
+note = "Each entry is { origin, permission }: origin an origin of the web as the URL Standard serializes it, permission a site-permission. mod-a hands allow the origin ftp://example.com, of no address of the web."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+args = [[{ origin = "ftp://example.com", permission = "notifications" }]]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

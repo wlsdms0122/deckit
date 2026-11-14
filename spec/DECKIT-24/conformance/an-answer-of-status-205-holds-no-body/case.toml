@@ -1,0 +1,29 @@
+case = 9
+name = "an-answer-of-status-205-holds-no-body"
+note = "body is left out of the answer of a status that has none: 101, 103, 204, 205 and 304. site-a answers empty 205."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/empty"]
+
+[step.expect]
+answers = { url = "site-a/empty", status = 205, headers = [["connection", "close"], ["content-length", "0"]], redirected = false }

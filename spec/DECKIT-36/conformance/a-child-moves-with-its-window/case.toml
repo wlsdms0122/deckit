@@ -1,0 +1,30 @@
+case = 22
+name = "a-child-moves-with-its-window"
+note = "As the window moves, the child's view moves with it: the person drags main's title bar by 10, 20, and mod-b is laid at 393, 227, 200 by 150."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "move"
+by = { x = 10, y = 20 }
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-b", parent = "mod-a", window = "main", frame = { x = 393, y = 227, width = 200, height = 150 } }]

@@ -1,3 +1,4 @@
+const { match } = require('deckit-sdk/match');
 const { foldersIn } = require('../notes-folder/folder.js');
 const { parentOf } = require('../notes-folder/path.js');
 
@@ -6,7 +7,7 @@ const { parentOf } = require('../notes-folder/path.js');
 // `does[action](args, { ready })`; one that opens a search is the value its results add an arg to.
 // `notesOf(query, { signal })` answers the notes found, and `styles` are the paragraph styles, `{ key, label }`, each
 // under the key of its name.
-function switcher({ ui, util, allNotes, notesOf, styles, show, does }) {
+function switcher({ ui, allNotes, notesOf, styles, show, does }) {
     let searching = null; // the search of notes under way, which a newer one stops
     return { list, search, run };
 
@@ -45,7 +46,7 @@ function switcher({ ui, util, allNotes, notesOf, styles, show, does }) {
     async function search(query, within) {
         if (within?.action === 'paragraph-style')
             return styles
-                .filter(({ label }) => !query || util.match(label, query))
+                .filter(({ label }) => !query || match(label, query))
                 .map(({ key, label }) => ({ label, key, value: { ...within, style: key } }));
         if (within?.action !== 'open') return [];
         searching?.abort();

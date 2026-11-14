@@ -1,0 +1,80 @@
+["/r1"]
+status = 302
+location = "/r2"
+
+["/r2"]
+status = 302
+location = "/r3"
+
+["/r3"]
+status = 302
+location = "/r4"
+
+["/r4"]
+status = 302
+location = "/r5"
+
+["/r5"]
+status = 302
+location = "/r6"
+
+["/r6"]
+status = 302
+location = "/r7"
+
+["/r7"]
+status = 302
+location = "/r8"
+
+["/r8"]
+status = 302
+location = "/r9"
+
+["/r9"]
+status = 302
+location = "/r10"
+
+["/r10"]
+status = 302
+location = "/r11"
+
+["/r11"]
+status = 302
+location = "/r12"
+
+["/r12"]
+status = 302
+location = "/r13"
+
+["/r13"]
+status = 302
+location = "/r14"
+
+["/r14"]
+status = 302
+location = "/r15"
+
+["/r15"]
+status = 302
+location = "/r16"
+
+["/r16"]
+status = 302
+location = "/r17"
+
+["/r17"]
+status = 302
+location = "/r18"
+
+["/r18"]
+status = 302
+location = "/r19"
+
+["/r19"]
+status = 302
+location = "/r20"
+
+["/r20"]
+status = 302
+location = "/hello.txt"
+

@@ -1,0 +1,36 @@
+case = 10
+name = "a-site-without-a-user-activation-is-refused-the-screen-unasked"
+note = "A site takes the screen only with the user activation the web platform needs for it, and is refused otherwise with InvalidStateError, unasked. site-a takes the screen as its page loads."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "InvalidStateError"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []

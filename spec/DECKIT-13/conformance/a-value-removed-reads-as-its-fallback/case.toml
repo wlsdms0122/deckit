@@ -1,0 +1,32 @@
+case = 4
+name = "a-value-removed-reads-as-its-fallback"
+note = "remove takes the value under its key away. mod-a sets theme, removes it, and get of theme with the fallback none answers none."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.set"
+args = ["theme", "dark"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.remove"
+args = ["theme"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.get"
+args = ["theme", "none"]
+
+[step.expect]
+answers = "none"

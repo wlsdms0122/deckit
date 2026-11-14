@@ -6,17 +6,21 @@
 //
 
 import Foundation
+import Deckit
 
-// Where in deckit's folder deck keeps the mods it installed and the mods' data folders, one a mod named by its id.
+// Where in deckit's folder deck keeps the mods it installed and the mods' data folders, one a mod named by its id, and
+// how long a run is given.
 struct InitializeResult: Encodable, Sendable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case mods
         case data
+        case timeout
     }
 
     let mods: URL
     let data: URL
+    let timeout: RunTimeout
 
     // MARK: - Initializer
     // MARK: - Public
@@ -24,6 +28,7 @@ struct InitializeResult: Encodable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(written(mods), forKey: .mods)
         try container.encode(written(data), forKey: .data)
+        try container.encode(timeout, forKey: .timeout)
     }
 
     // MARK: - Private

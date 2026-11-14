@@ -1,0 +1,45 @@
+case = 18
+name = "a-window-of-a-mod-that-may-not-activate-comes-in-front-where-no-window-is-key"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-a opens main in attach. mod-a minimizes main, so no window is key; a key the person presses on the desktop's page reaches no mod; mod-a calls makeKeyAndOrderFront of main, which comes back in front, not key."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "minimize", name = "main" }]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyA" }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "makeKeyAndOrderFront", name = "main" }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]
+
+[[step]]
+look = "desktop"
+
+[step.expect]
+answers = { attention = [], title = "Deckit conformance" }

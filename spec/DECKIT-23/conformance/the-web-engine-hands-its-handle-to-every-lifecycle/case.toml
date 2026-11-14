@@ -1,0 +1,20 @@
+case = 8
+name = "the-web-engine-hands-its-handle-to-every-lifecycle"
+note = "A host that stacks the web engine hands every lifecycle of every mod the handle web in frameworks. On the base web, mod-a's start keeps the names in the frameworks it is handed as the value frameworks, which reads web."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.get"
+args = ["frameworks", "none"]
+
+[step.expect]
+answers = ["web"]

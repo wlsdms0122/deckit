@@ -22,14 +22,15 @@ struct ServerTests {
     // MARK: - Initializer
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
-        initializeParams = #"{"home":"\#(home)","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[]}"#
+        initializeParams = #"{"home":"\#(home)","implementations":{},"api":"1.0.0","ship":[],"#
+            + #""sources":["\#(home)source"],"permissions":[],"fields":[]}"#
         initializeRequest = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#
         sut = Server()
     }
 
     // MARK: - Test
-    @Test("initialize answers where deck keeps the mods it installed and their data folders")
-    func initializeAnswersFolders() throws {
+    @Test("initialize answers where deck keeps the mods it installed, their data folders and how long a run is given")
+    func initializeAnswersFoldersAndTimeout() throws {
         // Given
         // When
         let response = try send(initializeRequest, to: sut)
@@ -37,6 +38,7 @@ struct ServerTests {
         // Then
         #expect(value(in: response, at: "result", "mods") == .string(home + "/mods"))
         #expect(value(in: response, at: "result", "data") == .string(home + "/data"))
+        #expect(value(in: response, at: "result", "timeout") == (try json(#"{"launch":20,"end":5}"#)))
     }
 
     @Test("a call before initialize is refused")
@@ -46,7 +48,11 @@ struct ServerTests {
         let response = try send(#"{"jsonrpc":"2.0","id":1,"method":"record/keys","params":{"mod":"notes"}}"#, to: sut)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"record/keys before initialize"}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"record/keys before initialize"}}"#
+            ))
+        )
     }
 
     @Test("initialize twice is refused")
@@ -61,7 +67,11 @@ struct ServerTests {
         )
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32600,"message":"the core is initialized once"}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":2,"error":{"code":-32600,"message":"the core is initialized once"}}"#
+            ))
+        )
     }
 
     @Test("a record written is read back as its text")
@@ -69,7 +79,8 @@ struct ServerTests {
         // Given
         _ = try send(initializeRequest, to: sut)
         _ = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"record/write","params":{"mod":"notes","key":"tabs","text":"[1,\"a\"]"}}"#,
+            #"{"jsonrpc":"2.0","id":2,"method":"record/write","#
+                + #""params":{"mod":"notes","key":"tabs","text":"[1,\"a\"]"}}"#,
             to: sut
         )
 
@@ -110,7 +121,12 @@ struct ServerTests {
         )
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32803,"message":"not a record key: A","data":{"kind":"KEY"}}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":2,"error":{"code":-32803,"message":"not a record key: A","#
+                    + #""data":{"kind":"INVALID_ARGUMENT","stage":"call"}}}"#
+            ))
+        )
     }
 
     @Test("an unknown method is not found")
@@ -122,7 +138,11 @@ struct ServerTests {
         let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"record/burn","params":{}}"#, to: sut)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"no method record/burn"}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"no method record/burn"}}"#
+            ))
+        )
     }
 
     @Test("params of the wrong shape are invalid")
@@ -134,7 +154,11 @@ struct ServerTests {
         let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"record/keys","params":{"key":"a"}}"#, to: sut)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"record/keys has no such params at mod"}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"record/keys has no such params at mod"}}"#
+            ))
+        )
     }
 
     @Test("params of the wrong shape say where")
@@ -144,12 +168,14 @@ struct ServerTests {
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"keymap/keystrokes","params":{"specs":["mod+k",5]}}"#,
+            #"{"jsonrpc":"2.0","id":2,"method":"runner/unload","params":{"mods":["a",5]}}"#,
             to: sut
         )
 
         // Then
-        #expect(value(in: response, at: "error", "message") == .string("keymap/keystrokes has no such params at specs.1"))
+        #expect(
+            value(in: response, at: "error", "message") == .string("runner/unload has no such params at mods.1")
+        )
     }
 
     @Test("a notification is not answered")
@@ -193,39 +219,6 @@ struct ServerTests {
         #expect(error["code"] == .number(-32600))
     }
 
-    @Test("configuration set as declared is read back as the JSON it was set as")
-    func configurationRoundTrips() throws {
-        // Given
-        _ = try send(initializeRequest, to: sut)
-        try mod("notes")
-        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["notes"]}}"#, to: sut)
-        let declared = #"[{"key":"wrap","type":"boolean"},{"key":"size","type":"number","maximum":12}]"#
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"configuration/declare","#
-                + #""params":{"mod":"notes","run":1,"configuration":\#(declared)}}"#,
-            to: sut
-        )
-        _ = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"configuration/set","params":{"mod":"notes","key":"wrap","value":true}}"#,
-            to: sut
-        )
-
-        // When
-        let set = try send(
-            #"{"jsonrpc":"2.0","id":6,"method":"configuration/set","params":{"mod":"notes","key":"size","value":14}}"#,
-            to: sut
-        )
-        let response = try send(
-            #"{"jsonrpc":"2.0","id":7,"method":"configuration/values","params":{"mod":"notes"}}"#,
-            to: sut
-        )
-
-        // Then
-        #expect(set == (try json(#"{"jsonrpc":"2.0","id":6,"result":{"value":12,"changed":true}}"#)))
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":7,"result":{"wrap":true,"size":12}}"#)))
-    }
-
     @Test("state written is read back by all, with no params asked")
     func stateRoundTrips() throws {
         // Given
@@ -244,64 +237,117 @@ struct ServerTests {
         )
     }
 
-    @Test("initialize refuses a permission defined twice")
-    func initializeRefusesPermissionDefinedTwice() throws {
+    @Test("initialize refuses deckit.mods handed in, as deckit defines it itself")
+    func initializeRefusesModsPermissionHanded() throws {
         // Given
-        let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them."}"#
+        let permission = #"{"id":"deckit.mods","name":"Mods","description":"All of them.","privileged":false}"#
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#,
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","#
+                + #""implementations":{},"api":"1.0.0","ship":[],"sources":[],"#
+                + #""permissions":[\#(permission)],"fields":[]}}"#,
             to: sut
         )
 
         // Then
         #expect(
-            response == (try json(#"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"message":"the permission deckit.mods is defined twice","data":{"kind":"PERMISSION"}}}"#))
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"#
+                    + #""message":"the permission deckit.mods is defined twice","#
+                    + #""data":{"kind":"PERMISSION","stage":"call"}}}"#
+            ))
         )
     }
 
-    @Test("the catalog reads a mod's urls as deckit judges them")
-    func catalogReadsURLs() throws {
+    @Test("initialize refuses a field handed in that deckit reads itself, with the kind FIELD")
+    func initializeRefusesOwnFieldHanded() throws {
         // Given
+        // When
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","#
+                + #""implementations":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[],"fields":["main"]}}"#,
+            to: sut
+        )
+
+        // Then
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"#
+                    + #""message":"the manifest field main is defined twice","data":{"kind":"FIELD","stage":"call"}}}"#
+            ))
+        )
+    }
+
+    @Test("a mod found that does not load is read with why, its kind NOT_LOADABLE, and one that loads with none")
+    func modNotLoadableIsReadWithItsKind() throws {
+        // Given
+        try mod("a")
+        try mod("b", adding: #"colour = "blue""#)
         _ = try send(initializeRequest, to: sut)
-        try mod("opener", urls: #"["https:*", "https:*"]"#)
-        try mod("broken", urls: #"["https:*", "*"]"#)
 
         // When
         let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
 
         // Then
-        guard case let .object(fields) = response, case let .array(mods)? = fields["result"] else {
-            Issue.record("no mods in \(response)")
+        guard case let .array(mods)? = value(in: response, at: "result"), mods.count == 2 else {
+            Issue.record("catalog/read answered no two mods: \(response)")
             return
         }
-        let opener = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("opener") }
-        let broken = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("broken") }
-        #expect(opener.flatMap { mod in value(in: mod, at: "manifest", "urls") } == .array([.string("https:*")]))
-        #expect(opener.flatMap { mod in value(in: mod, at: "problem") } == nil)
+        #expect(value(in: mods[0], at: "problem") == nil)
         #expect(
-            broken.flatMap { mod in value(in: mod, at: "problem") }
-                == .string(#"urls: "*" already takes every address, so it stands alone"#)
+            value(in: mods[1], at: "problem") == (try json(
+                #"{"message":"manifest.toml has \"colour\", which is not a manifest field","kind":"NOT_LOADABLE"}"#
+            ))
         )
     }
 
-    @Test("what a run contributed comes back with it, the layers' too, and a mod that depends on it connects to its exports")
+    @Test("a mod is read with the ids of the permissions it is granted: those it asks for that are defined here")
+    func modIsReadWithWhatItIsGranted() throws {
+        // Given
+        let permission = #"{"id":"host.x","name":"X","description":"What x guards.","privileged":false}"#
+        try mod("a", adding: "[permissions]\n\"host.x\" = \"to test\"\n\"host.y\" = \"to test\"")
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","implementations":{},"#
+                + #""api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[\#(permission)],"fields":[]}}"#,
+            to: sut
+        )
+
+        // When
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+
+        // Then
+        guard case let .array(mods)? = value(in: response, at: "result"), mods.count == 1 else {
+            Issue.record("catalog/read answered no one mod: \(response)")
+            return
+        }
+        #expect(value(in: mods[0], at: "granted") == (try json(#"["host.x"]"#)))
+    }
+
+    @Test("what a run contributed comes back with it as deck reads it, and a user connects to its exports")
     func contributionsRoundTrip() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("dep")
-        try mod("a", dependencies: #"dep = "1.0.0""#)
+        try mod("dep", adding: #"[interfaces]\#nprovides = { "dep/api" = [1] }"#)
+        try mod("a", adding: #"[interfaces]\#nuses = { "dep/api" = 1 }"#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["dep"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"runner/load","#
+                + #""params":{"mods":["dep"]}}"#,
+            to: sut
+        )
         let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
         _ = try send(begin + #"{"mod":"dep","run":1,"lifecycle":0}}"#, to: sut)
-        let contributions = #"{"exportedIn":0,"awaits":{},"layer":["a"]}"#
+        let contributions = #"{"exportedIn":{"dep/api":0},"awaits":{},"layer":["a"]}"#
         let started = #"{"mod":"dep","run":1,"summary":{"x":true},"contributions":\#(contributions)}"#
 
         // When
         let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":6,"method":"runner/load","params":{"mods":["a"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"runner/load","#
+                + #""params":{"mods":["a"]}}"#,
+            to: sut
+        )
         let connected = try send(begin + #"{"mod":"a","run":1,"lifecycle":0}}"#, to: sut)
 
         // Then
@@ -310,31 +356,118 @@ struct ServerTests {
             return
         }
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
-        #expect(value(in: told, at: "summary", "x") == .bool(true))
-        #expect(value(in: told, at: "contributions", "layer") == .array([.string("a")]))
-        #expect(value(in: told, at: "contributions", "exportedIn") == .number(0))
+        #expect(value(in: told, at: "summary") == nil)
+        #expect(value(in: told, at: "contributions") == (try json(#"{"exportedIn":{"dep/api":0},"awaits":{}}"#)))
         #expect(
             value(in: connected, at: "result")
                 == (try json(
-                    #"[{"id":1,"dependent":{"mod":"a","run":1,"lifecycle":0},"#
-                        + #""dependency":{"mod":"dep","run":1,"lifecycle":0},"required":true}]"#
+                    #"[{"id":1,"name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0},"#
+                        + #""service":{"mod":"dep","run":1,"lifecycle":0},"#
+                        + #""credential":{"mod":"a","permissions":[]}}]"#
                 ))
         )
     }
 
-    @Test("a configuration declared that deckit does not read is a problem of the run as it is declared")
-    func unreadConfigurationIsAProblem() throws {
+    @Test("a system mod granted deckit.reach-mods reaches a mod by id, which launches and connects with its credential")
+    func reachConnectsWithCredential() throws {
+        // Given
+        let ship = home + "ship"
+        try mod("t")
+        try mod("r", in: ship, adding: "[permissions]\n\"deckit.reach-mods\" = \"to test\"")
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","api":"1.0.0","#
+                + #""ship":[{"folder":"\#(ship)/r","system":true}],"sources":["\#(home)source"],"#
+                + #""permissions":[],"fields":[]}}"#,
+            to: sut
+        )
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/install-shipped"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":4,"method":"runner/load","params":{"mods":["r"]}}"#, to: sut)
+        let begin = #"{"jsonrpc":"2.0","id":5,"method":"connection/begin","params":"#
+        _ = try send(begin + #"{"mod":"r","run":1,"lifecycle":0}}"#, to: sut)
+        let reach = #"{"mod":"r","run":1,"lifecycle":0,"target":"t"}"#
+
+        // When
+        let reached = try send(#"{"jsonrpc":"2.0","id":6,"method":"connection/reach","params":\#(reach)}"#, to: sut)
+        _ = try send(begin + #"{"mod":"t","run":1,"lifecycle":0}}"#, to: sut)
+        let started = try send(
+            #"{"jsonrpc":"2.0","id":7,"method":"runner/started","#
+                + #""params":{"mod":"t","run":1,"contributions":{"exportedIn":{"t":0},"awaits":{}}}}"#,
+            to: sut
+        )
+        let released = try send(#"{"jsonrpc":"2.0","id":8,"method":"connection/release","params":\#(reach)}"#, to: sut)
+
+        // Then
+        let connection = #"{"id":1,"name":"t","client":{"mod":"r","run":1,"lifecycle":0},"#
+            + #""service":{"mod":"t","run":1,"lifecycle":0},"#
+            + #""credential":{"mod":"r","permissions":["deckit.reach-mods"]}}"#
+        guard case let .array(waited)? = value(in: reached, at: "result"),
+            case let .array(connected)? = value(in: started, at: "result")
+        else {
+            Issue.record("no effects in \(reached) or \(started)")
+            return
+        }
+        let wait = #"{"effect":"wait","mod":"t","name":"t","client":{"mod":"r","run":1,"lifecycle":0}}"#
+        #expect(waited.first == (try json(wait)))
+        #expect(waited.contains { effect in value(in: effect, at: "notification") == .string("willLaunch") })
+        #expect(connected.contains(try json(#"{"effect":"connect","connection":\#(connection)}"#)))
+        let disconnect = #"[{"effect":"disconnect","connection":\#(connection)}]"#
+        #expect(value(in: released, at: "result") == (try json(disconnect)))
+    }
+
+    @Test("a lifecycle that waits is answered as wait, with itself as its client")
+    func waitNamesItsClient() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("notes")
+        try mod("dep", adding: #"[interfaces]\#nprovides = { "dep/api" = [1] }"#)
+        try mod("a", adding: #"[interfaces]\#nuses = { "dep/api" = 1 }"#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["notes"]}}"#, to: sut)
-        let declared = #"[{"key":"shade","type":"slider"}]"#
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":{"mod":"a","run":1,"lifecycle":0}}"#,
+            to: sut
+        )
+        let started = #"{"mod":"a","run":1,"contributions":{"exportedIn":{},"awaits":{"dep/api":0}}}"#
+
+        // When
+        let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
+
+        // Then
+        guard case let .array(effects)? = value(in: response, at: "result") else {
+            Issue.record("no effects in \(response)")
+            return
+        }
+        #expect(
+            effects.contains(
+                try json(
+                    #"{"effect":"wait","mod":"dep","name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0}}"#
+                )
+            )
+        )
+    }
+
+    @Test("a lifecycle using an interface whose owner runs with no exports for it is answered as refuse, at call")
+    func reachWithoutExportsIsRefused() throws {
+        // Given
+        _ = try send(initializeRequest, to: sut)
+        try mod("dep", adding: #"[interfaces]\#nprovides = { "dep/api" = [1] }"#)
+        try mod("a", adding: #"[interfaces]\#nuses = { "dep/api" = 1 }"#)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a","dep"]}}"#, to: sut)
+        let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
+        _ = try send(begin + #"{"mod":"a","run":1,"lifecycle":0}}"#, to: sut)
+        _ = try send(begin + #"{"mod":"dep","run":1,"lifecycle":0}}"#, to: sut)
+        let started = #"{"exportedIn":{},"awaits":{}}}}"#
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":{"mod":"a","run":1,"contributions":"#
+                + started,
+            to: sut
+        )
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"configuration/declare","#
-                + #""params":{"mod":"notes","run":1,"configuration":\#(declared)}}"#,
+            #"{"jsonrpc":"2.0","id":6,"method":"runner/started","params":{"mod":"dep","run":1,"contributions":"#
+                + started,
             to: sut
         )
 
@@ -343,140 +476,142 @@ struct ServerTests {
             Issue.record("no effects in \(response)")
             return
         }
-        #expect(effects.contains { effect in
-            value(in: effect, at: "problem") == .string(#"configuration "shade": deckit does not read its type"#)
-        })
+        let refuse = #"{"effect":"refuse","name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0},"#
+            + #""refusal":{"stage":"call","kind":"NOT_EXPORTED","#
+            + #""message":"dep runs with no exports for dep/api that reach the lifecycle"}}"#
+        #expect(effects.contains(try json(refuse)))
     }
 
-    @Test("deckit's own methods answer through the server, as deck's do")
-    func deckitMethodsAnswer() throws {
+    @Test("a lifecycle that waits for a mod whose run fails to launch is answered as wait again, with that refusal")
+    func failedRunIsToldToItsWaiter() throws {
         // Given
-        try mod("mail", urls: #"["mailto:*"]"#)
         _ = try send(initializeRequest, to: sut)
+        try mod("dep", adding: #"[interfaces]\#nprovides = { "dep/api" = [1] }"#)
+        try mod("a", adding: #"[interfaces]\#nuses = { "dep/api" = 1 }"#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["mail"]}}"#, to: sut)
-        let contributions = #"{"awaits":{},"urls":true,"commands":[{"name":"compose"}]}"#
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#, to: sut)
         _ = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
-                + #""contributions":\#(contributions)}}"#,
+            #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":{"mod":"a","run":1,"lifecycle":0}}"#,
             to: sut
         )
+        let started = #"{"mod":"a","run":1,"contributions":{"exportedIn":{},"awaits":{}}}"#
+        _ = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
 
         // When
-        let defined = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"command/define","params":{"provider":"@app","name":"Deckit","#
-                + #""commands":[{"name":"go"}]}}"#,
+        let failed = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"runner/not-started","params":{"mod":"dep","run":1,"problem":"threw"}}"#,
             to: sut
         )
-        let registered = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"provider":"@app","name":"Deckit","key":{"name":"go","#
-                + #""label":"Go","key":"mod+1","scope":"local"}}}"#,
-            to: sut
-        )
-        let bound = try send(
-            #"{"jsonrpc":"2.0","id":6,"method":"keymap/bind","params":{"id":"@app.go","spec":"cmd+2"}}"#,
-            to: sut
-        )
-        let set = try send(
-            #"{"jsonrpc":"2.0","id":7,"method":"open/setHandlers","params":{"scheme":"mailto","order":["mail"],"#
-                + #""off":[]}}"#,
-            to: sut
-        )
-        let routed = try send(
-            #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","opensFiles":true,"#
-                + #""usesDefaultApp":false}}"#,
-            to: sut
-        )
-        let listed = try send(#"{"jsonrpc":"2.0","id":9,"method":"command/list"}"#, to: sut)
-        let checked = try send(
-            #"{"jsonrpc":"2.0","id":10,"method":"command/check","params":{"provider":"mail","command":"compose"}}"#,
-            to: sut
-        )
-        let provider = try send(
-            #"{"jsonrpc":"2.0","id":11,"method":"provider","params":{"id":"@app"}}"#,
-            to: sut
-        )
-        let nobody = try send(#"{"jsonrpc":"2.0","id":12,"method":"provider","params":{"id":"post"}}"#, to: sut)
 
         // Then
-        guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let go = bindings.first else {
-            Issue.record("no bindings in \(bound)")
+        guard case let .array(effects)? = value(in: failed, at: "result") else {
+            Issue.record("no effects in \(failed)")
             return
         }
-        #expect(value(in: defined, at: "result") == .bool(true))
-        #expect(value(in: registered, at: "result", "revision") != nil)
-        #expect(value(in: go, at: "id") == .string("@app.go"))
-        #expect(value(in: go, at: "spec") == .string("cmd+2"))
-        #expect(value(in: set, at: "result") == .bool(true))
-        #expect(value(in: routed, at: "result", "handlers") == .array([.string("mail")]))
-        #expect(listed == (try json(
-            #"{"jsonrpc":"2.0","id":9,"result":[{"provider":"@app","command":"go","description":"","params":null},"#
-                + #"{"provider":"mail","command":"compose","description":"","params":null}]}"#
-        )))
-        #expect(value(in: checked, at: "result", "command") == .string("compose"))
-        #expect(value(in: provider, at: "result") == .object([
-            "id": .string("@app"), "name": .string("Deckit"), "host": .bool(true),
-        ]))
-        #expect(value(in: nobody, at: "result") == .null)
+        let wait = #"{"effect":"wait","mod":"dep","name":"dep/api","client":{"mod":"a","run":1,"lifecycle":0},"#
+            + #""refusal":{"stage":"launch","kind":"NOT_LAUNCHED","message":"dep did not launch: threw"}}"#
+        #expect(effects.contains(try json(wait)))
+        #expect(!effects.contains { effect in value(in: effect, at: "notification") == .string("willLaunch") })
     }
 
-    @Test("a configuration lists with the declaration's fields, `default` as declared, and the value it reads as")
-    func configurationItemIsJSON() throws {
+    @Test("a mod at the relaunch limit loads no more until a mod granted deckit.mods asks that it launch")
+    func relaunchLimitResetsAsAsked() throws {
         // Given
-        let size = ConfigurationDeclaration(
-            key: "size",
-            type: .number,
-            title: "Size",
-            defaultValue: .number(12),
-            minimum: 8
+        let ship = home + "ship"
+        try mod("a")
+        try mod("m", in: ship, adding: "[permissions]\n\"deckit.mods\" = \"to test\"")
+        _ = try send(
+            initializeRequest.replacing(#""ship":[]"#, with: #""ship":[{"folder":"\#(ship)/m","system":true}]"#),
+            to: sut
         )
-        let sut = ConfigurationItem(declaration: size, value: .number(14))
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .sortedKeys
-
-        // When
-        let listed = String(decoding: try encoder.encode(sut), as: UTF8.self)
-
-        // Then
-        #expect(listed == #"{"default":12,"key":"size","minimum":8,"oneOf":[],"title":"Size","type":"number","value":14}"#)
-    }
-
-    @Test("the keymap reads as the driver keeps it: each binding with its chord, its issues and its keystroke")
-    func keymapIsJSON() throws {
-        // Given
-        _ = try send(initializeRequest, to: sut)
-        for (id, (name, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/install-shipped"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["m"]}}"#, to: sut)
+        let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#
+        for number in 1...5 {
+            _ = try send(load, to: sut)
             _ = try send(
-                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"provider":"@app","name":"Deckit","#
-                    + #""key":{"name":"\#(name)","label":"\#(name)","key":"\#(spec)","scope":"local"}}}"#,
+                #"{"jsonrpc":"2.0","id":4,"method":"runner/crash","params":{"mod":"a","run":\#(number),"#
+                    + #""problem":"its page ended"}}"#,
                 to: sut
             )
         }
 
         // When
-        let bound = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"keymap/bind","params":{"id":"@app.two","spec":"cmd+1"}}"#,
-                to: sut
+        let held = try send(load, to: sut)
+        let refused = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"runner/launch","params":{"mod":"m","by":"a"}}"#,
+            to: sut
+        )
+        let launched = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"runner/launch","params":{"mod":"a","by":"m"}}"#,
+            to: sut
         )
 
         // Then
-        guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let two = bindings.last,
-            case let .array(issues)? = value(in: two, at: "issues"), let held = issues.first
-        else {
-            Issue.record("not a keymap: \(bound)")
+        #expect(value(in: held, at: "result") == .array([]))
+        #expect(value(in: refused, at: "error", "data", "kind") == .string("NOT_PERMITTED"))
+        guard case let .array(effects)? = value(in: launched, at: "result") else {
+            Issue.record("runner/launch answered no effects: \(launched)")
             return
         }
-        #expect(value(in: bound, at: "result", "revision") == .number(3))
-        #expect(value(in: two, at: "id") == .string("@app.two"))
-        #expect(value(in: two, at: "key") == Keystroke(spec: "mod+2")?.spec.map(JSONValue.string))
-        #expect(value(in: two, at: "spec") == .string("cmd+1"))
-        #expect(value(in: two, at: "chord") == .string(try #require(Keystroke(spec: "cmd+1")).label))
-        #expect(value(in: two, at: "changed") == .bool(true))
-        #expect(value(in: two, at: "active") == .bool(false))
-        #expect(value(in: two, at: "keystroke", "code") == .string("Digit1"))
-        #expect(value(in: held, at: "kind") == .string("held"))
-        #expect(value(in: held, at: "other", "id") == .string("@app.one"))
-        #expect(value(in: held, at: "other", "provider") == .string("@app"))
+        #expect(effects.count == 2)
+    }
+
+    @Test("a launch asked with no by is not checked, and launches a mod at the relaunch limit")
+    func launchWithNoByIsNotChecked() throws {
+        // Given
+        try mod("a")
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        let load = #"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["a"]}}"#
+        for number in 1...5 {
+            _ = try send(load, to: sut)
+            _ = try send(
+                #"{"jsonrpc":"2.0","id":4,"method":"runner/crash","params":{"mod":"a","run":\#(number),"#
+                    + #""problem":"its page ended"}}"#,
+                to: sut
+            )
+        }
+
+        // When
+        let launched = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/launch","params":{"mod":"a"}}"#, to: sut)
+
+        // Then
+        guard case let .array(effects)? = value(in: launched, at: "result") else {
+            Issue.record("runner/launch answered no effects: \(launched)")
+            return
+        }
+        #expect(effects.count == 2)
+    }
+
+    @Test("a file inside a mod's folder is read as its text, and one a link takes outside it as null")
+    func modFileIsRead() throws {
+        // Given
+        try mod("a")
+        let folder = URL(filePath: home + "source").appending(path: "a")
+        try Data("body {}".utf8).write(to: folder.appending(path: "page.css"))
+        try Data("secret".utf8).write(to: URL(filePath: home + "secret.css"))
+        try FileManager.default.createSymbolicLink(
+            at: folder.appending(path: "outside.css"),
+            withDestinationURL: URL(filePath: home + "secret.css")
+        )
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+
+        // When
+        let inside = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"catalog/read-file","params":{"mod":"a","path":"page.css"}}"#,
+            to: sut
+        )
+        let outside = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"catalog/read-file","params":{"mod":"a","path":"outside.css"}}"#,
+            to: sut
+        )
+
+        // Then
+        #expect(value(in: inside, at: "result") == .string("body {}"))
+        #expect(value(in: outside, at: "result") == .null)
     }
 
     @Test("a result that cannot be written is answered with an internal error, never dropped")
@@ -496,32 +631,38 @@ struct ServerTests {
         #expect(value(in: response, at: "error", "code") == .number(-32603))
     }
 
-    @Test("a state key deckit keeps itself is refused to the driver")
-    func reservedStateKeyIsRefused() throws {
+    @Test("a field's table of keys of one canonical form is answered with both, each with its value")
+    func fieldKeysOfOneFormAreAnsweredApart() throws {
         // Given
-        _ = try send(initializeRequest, to: sut)
+        try mod("a", adding: "[view]\n\"caf\u{E9}\" = 1\n\"cafe\u{301}\" = 2")
+        let initialize = initializeRequest.replacing(#""fields":[]"#, with: #""fields":["view"]"#)
+        _ = try send(initialize, to: sut)
 
         // When
-        let response = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":null,"key":"keys","text":"[]"}}"#,
-            to: sut
-        )
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
 
         // Then
-        #expect(value(in: response, at: "error", "data", "kind") == .string("RESERVED"))
+        guard case let .array(mods)? = value(in: response, at: "result"), mods.count == 1 else {
+            Issue.record("catalog/read answered no one mod: \(response)")
+            return
+        }
+        #expect(value(in: mods[0], at: "problem") == nil)
+        #expect(
+            value(in: mods[0], at: "manifest", "fields")
+                == .object(["view": .object(["caf\u{E9}": .number(1), "cafe\u{301}": .number(2)])])
+        )
     }
 
     // MARK: - Private
-    private func mod(_ id: String, urls: String? = nil, dependencies: String? = nil) throws {
-        let folder = URL(filePath: home + "source").appending(path: id)
+    private func mod(_ id: String, in parent: String? = nil, adding extra: String = "") throws {
+        let folder = URL(filePath: parent ?? home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let manifest = """
             id = "\(id)"
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            """ + (urls.map { urls in "\nurls = \(urls)" } ?? "")
-            + (dependencies.map { dependencies in "\n[dependencies]\n\(dependencies)" } ?? "")
+            """ + (extra.isEmpty ? "" : "\n" + extra)
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
         try Data().write(to: folder.appending(path: "main.js"))
     }
@@ -529,7 +670,7 @@ struct ServerTests {
     private func value(in json: JSONValue, at path: String...) -> JSONValue? {
         path.reduce(json as JSONValue?) { value, key in
             guard case let .object(fields)? = value else { return nil }
-            return fields[key]
+            return fields[JSONName(key)]
         }
     }
 
@@ -538,6 +679,6 @@ struct ServerTests {
     }
 
     private func json(_ text: String) throws -> JSONValue {
-        try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8))
+        try JSONValue(data: Data(text.utf8))
     }
 }

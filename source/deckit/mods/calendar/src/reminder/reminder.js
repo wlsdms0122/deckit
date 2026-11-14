@@ -15,14 +15,13 @@ function leadText(lead) {
     return lead === null ? 'Off' : lead === 0 ? 'At start time' : `${lead} min before`;
 }
 
-// A notice before each meeting the person attends, as the configuration's `notify` says. `occurrences(from, to)`
-// answers what reminds; `onOpen(date)` shows Calendar on that date. `stop()` ends the checks.
-function reminder({ deckit, records, occurrences, onOpen }) {
-    const { configuration } = deckit;
+// A notice before each meeting the person attends, as the setting `notify` of `settings` (settings.js) says.
+// `occurrences(from, to)` answers what reminds, and `notice` posts it (notice.js). `stop()` ends the checks.
+function reminder({ settings, records, occurrences, notice }) {
     // A notice still on its way, so a check does not send it again.
     const pending = new Set();
 
-    configuration.on((key) => {
+    settings.on((key) => {
         if (key === 'notify') check();
     });
     const checking = setInterval(check, CHECK_MS);
@@ -50,10 +49,11 @@ function reminder({ deckit, records, occurrences, onOpen }) {
         }
     }
 
-    // The lead in minutes, or null when the person turned notices off. The configuration holds it as text.
+    // The lead in minutes, or null when the person turned notices off or the setting is not read yet, so nothing is
+    // announced before it is. The setting holds it as text.
     function lead() {
-        const chosen = configuration.get('notify');
-        if (chosen === 'off') return null;
+        const chosen = settings.get('notify');
+        if (chosen === null || chosen === 'off') return null;
         return REMINDER_LEADS.includes(Number(chosen)) ? Number(chosen) : DEFAULT_LEAD;
     }
 
@@ -73,14 +73,15 @@ function reminder({ deckit, records, occurrences, onOpen }) {
 
     function remind(occurrence, left) {
         const minutes = Math.round(left / 60000);
-        return deckit.notify({
+        return notice.post({
             title: nameOf(occurrence),
             body: `${minutes > 0 ? `in ${minutes} min` : 'now'} · ${clockText(occurrence.start)}`,
-            onClick: () => onOpen(occurrence.start),
+            date: occurrence.start,
         });
     }
 
-    // Recorded only once the notice was shown, so a notice that failed is tried again while still due.
+    // Recorded only once the notice was posted, so one that was not, with no owner of deckit/notifications or refused
+    // by it, is tried again while still due.
     function remember(key, start) {
         const fired = records.get(FIRED_KEY, {});
         fired[key] = start;

@@ -1,0 +1,31 @@
+case = 5
+name = "a-get-of-a-setting-the-mod-does-not-declare-is-refused"
+note = "get is refused at call with kind NOT_DECLARED where the client's own mod declares no setting of the key. mod-a declares tab-size and gets wrap."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "get"
+handed = true
+args = ["wrap"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_DECLARED"

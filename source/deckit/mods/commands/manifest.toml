@@ -1,0 +1,12 @@
+id = "commands"
+name = "Commands"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+activationPolicy = "accessory"
+
+[interfaces]
+provides = { "deckit/commands" = [1] }
+
+[permissions]
+"deckit.reach-mods" = "Reaches the mod whose command is run or completed, which launches it if it does not run."

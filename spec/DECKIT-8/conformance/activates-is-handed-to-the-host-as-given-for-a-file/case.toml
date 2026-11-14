@@ -1,0 +1,23 @@
+case = 3
+name = "activates-is-handed-to-the-host-as-given-for-a-file"
+note = "A file is handed to the host with activates as the options give it, as an address of the web is. mod-a, granted system.file-handlers, opens a file with activates false."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["file:///data/report.pdf", { activates = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "file:///data/report.pdf", activates = false }]

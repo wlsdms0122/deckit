@@ -1,0 +1,23 @@
+case = 22
+name = "a-placed-child-is-told-did-appear"
+note = "A child's view is told didAppear as it comes on screen in a region: mod-a places mod-b, and mod-b says mod-b/didAppear."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/mod-b/didAppear", activates = true }]

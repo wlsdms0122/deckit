@@ -1,0 +1,15 @@
+id = "mod-b"
+name = "MOD B"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."deckit/commands"]]
+id = "today"
+title = "Show Today"
+keywords = ["day", "now"]
+
+[[contributes."deckit/commands"]]
+id = "echo"
+title = "Echo"
+params = { type = "object", properties = { text = { type = "string", title = "Text" } }, required = ["text"] }

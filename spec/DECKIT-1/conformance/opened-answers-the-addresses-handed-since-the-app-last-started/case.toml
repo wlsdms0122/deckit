@@ -1,0 +1,41 @@
+case = 3
+name = "opened-answers-the-addresses-handed-since-the-app-last-started"
+note = "The look opened answers each address the system handed the host to open outside the app since the host app last started, in the order handed. mod-a opens two addresses, and after the app starts again opened answers none."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["https://example.com/a"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["https://example.com/b"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/a", activates = true }, { url = "https://example.com/b", activates = true }]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

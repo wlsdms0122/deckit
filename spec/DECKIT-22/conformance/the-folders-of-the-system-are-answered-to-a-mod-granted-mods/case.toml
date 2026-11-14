@@ -1,0 +1,17 @@
+case = 3
+name = "the-folders-of-the-system-are-answered-to-a-mod-granted-mods"
+note = "mods.folders() answers a mod granted deckit.mods. mod-a, a system mod granted it, calls it, and is answered."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.folders"

@@ -1,0 +1,22 @@
+case = 3
+name = "an-entry-that-exports-no-class-is-refused-at-launch"
+note = "What the entry exports is a class the system makes an instance of. The entry of mod-b exports a table, so the launch mod-a asks for is refused at launch with NOT_LAUNCHED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "launch"
+kind = "NOT_LAUNCHED"

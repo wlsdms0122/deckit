@@ -1,0 +1,24 @@
+case = 1
+name = "shipped-bundles-keep-their-order-at-the-next-start"
+note = "What a host ships is installed again at each start, in the order shipped, so mod-b and mod-a shipped in that order are listed so after the host app starts again."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-b", "mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-b", "mod-a"]
+

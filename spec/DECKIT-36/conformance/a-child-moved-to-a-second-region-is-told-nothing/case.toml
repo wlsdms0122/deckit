@@ -1,0 +1,29 @@
+case = 22
+name = "a-child-moved-to-a-second-region-is-told-nothing"
+note = "A view moved from one region on screen to another stays on screen: mod-b, placed in one region and then in a second, is told didAppear once and nothing more."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { region = 2, interface = "case/view", box = { x = 400, y = 100, width = 100, height = 100 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { place = 2, id = "mod-b" }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/mod-b/didAppear", activates = true }]

@@ -84,15 +84,9 @@ function tabList({
         return insert(tabOf(url, { title, icon }), { background, parent, index });
     }
 
-    // `target` is the window the address is opened in: a second request for it reuses the tab that answered the first.
-    function open(url, { activates = true, target = '' } = {}) {
-        const named = target && nodes.items().find((tab) => tab.target === target);
-        if (named) {
-            navigate(named, url);
-            if (activates) select(named);
-            return;
-        }
-        Object.assign(add(url, { background: !activates }), { target });
+    // An address another mod asked to open, in a new tab at the end, in front unless `activates` is false.
+    function open(url, { activates = true } = {}) {
+        add(url, { background: !activates });
     }
 
     // The window a tab's page opened, as a tab after it, and after the tabs it opened just before, in its folder.
@@ -160,7 +154,7 @@ function tabList({
     function reopen() {
         const last = closed.pop();
         if (!last) return;
-        const folder = last.parent === null ? nodes.root : nodes.find(last.parent);
+        const folder = last.parent === undefined ? nodes.root : nodes.find(last.parent);
         const where = folder ? { parent: folder, index: Math.min(last.index, folder.children.length) } : {};
         add(last.url, { title: last.title, icon: last.icon, ...where });
     }
@@ -279,7 +273,7 @@ function tabList({
         // One whose page has shown no page has nothing to come back to.
         if (tab.url !== START && !tab.page?.state.blank) {
             const { url, title, icon } = tab;
-            closed.push({ url, title, icon, parent: parent === nodes.root ? null : parent.id, index });
+            closed.push({ url, title, icon, parent: parent === nodes.root ? undefined : parent.id, index });
             closed.splice(0, Math.max(0, closed.length - KEPT_CLOSED));
         }
         release(tab, tab.page);
@@ -301,8 +295,6 @@ function tabList({
             loading: false,
             canGoBack: false,
             canGoForward: false,
-            // The window name an address was opened in, which a later request for the same name reuses.
-            target: '',
             // The tab whose page opened this one.
             opener: null,
             audible: false,

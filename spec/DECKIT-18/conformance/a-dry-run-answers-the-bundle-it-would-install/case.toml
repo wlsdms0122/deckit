@@ -1,0 +1,32 @@
+case = 5
+name = "a-dry-run-answers-the-bundle-it-would-install"
+note = "A dry run answers the bundle deckit.mods would install, as its dry run answers it. mod-c depends on mod-f 1, which is not installed, and the dry run answers its id."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "id"
+
+[step.expect]
+answers = "mod-c"

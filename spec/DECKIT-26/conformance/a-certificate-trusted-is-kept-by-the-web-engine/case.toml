@@ -1,0 +1,36 @@
+case = 8
+name = "a-certificate-trusted-is-kept-by-the-web-engine"
+note = "A certificate a mod trusts is what the web engine keeps of it. mod-a trusts a certificate for 127.0.0.1 in its session main, and mod-b reads what mod-a keeps."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "trust"
+of = 2
+args = [[{ host = "127.0.0.1", fingerprint = "sha256/47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=" }]]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "mods.usage"
+args = ["mod-a"]
+part = "kept"
+
+[step.expect]
+answers = ["web"]

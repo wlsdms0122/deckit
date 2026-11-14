@@ -1,0 +1,21 @@
+case = 4
+name = "contributions-hand-each-entry-with-its-mods-name-and-credential"
+note = "exports.contributions(interface) answers the owner each entry declared to the interface by the mods the system took, in the catalog's order and then the order written, with the declaring mod's name and credential. mod-a and mod-c each declare one, and mod-a is granted deckit.mods."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "exports.contributions"
+args = ["mod-b/actions"]
+
+[step.expect]
+answers = [{ mod = { name = "MOD A" }, credential = { mod = "mod-a", permissions = ["deckit.mods"] }, entry = { title = "Open" } }, { mod = { name = "MOD A" }, credential = { mod = "mod-a", permissions = ["deckit.mods"] }, entry = { title = "Close" } }, { mod = { name = "MOD C" }, credential = { mod = "mod-c", permissions = [] }, entry = { title = "Note" } }]

@@ -1,0 +1,20 @@
+case = 1
+name = "a-header-through-a-value-is-refused"
+note = "A header's path that reaches a key holding any value but a table or an array of tables refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = ["extra"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

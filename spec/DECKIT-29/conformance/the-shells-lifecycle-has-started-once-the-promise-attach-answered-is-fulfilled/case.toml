@@ -1,0 +1,21 @@
+case = 15
+name = "the-shells-lifecycle-has-started-once-the-promise-attach-answered-is-fulfilled"
+note = "The shell's lifecycle has started once the promise attach answered is fulfilled, and the lifecycle over it starts after: mod-a's attach opens a window named main after a wait, and the host's layer, whose lifecycle is over the shell's, lists mod-a's windows."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "windows.list"
+handle = "shell"
+part = "name"
+
+[step.expect]
+answers = ["main"]

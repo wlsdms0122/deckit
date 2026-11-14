@@ -1,0 +1,23 @@
+case = 19
+name = "quit-from-the-menu-quits-the-mod"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. The person chooses Quit from mod-b's item's menu, and mod-b's run ends."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "dock"
+mod = "mod-b"
+action = "quit"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"

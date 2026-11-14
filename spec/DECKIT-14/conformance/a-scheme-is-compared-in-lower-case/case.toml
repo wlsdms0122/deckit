@@ -1,0 +1,36 @@
+case = 5
+name = "a-scheme-is-compared-in-lower-case"
+note = "A scheme is compared in lower case, as declared and as opened. mod-b declares Board, and takes BOARD:1."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+handed = true
+args = ["BOARD:1"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://mod-b.test/", activates = true }]

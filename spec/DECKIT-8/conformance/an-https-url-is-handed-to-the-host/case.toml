@@ -1,0 +1,23 @@
+case = 3
+name = "an-https-url-is-handed-to-the-host"
+note = "openExternal of an address of the web is guarded by no permission and hands the host the URL, with activates true where it is left out. mod-a, granted nothing, opens an https URL."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["https://example.com/a"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/a", activates = true }]

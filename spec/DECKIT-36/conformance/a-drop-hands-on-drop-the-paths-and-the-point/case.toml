@@ -1,0 +1,38 @@
+case = 22
+name = "a-drop-hands-on-drop-the-paths-and-the-point"
+note = "onDrop is called with the path of each file dropped and the point from the element's top left: notes is dropped at 70, 80 of mod-a's window, on a destination at 50, 50 in it, and onDrop is called with [notes] and { x = 20, y = 30 }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:dropped"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { drop = "outer", box = { x = 50, y = 50, width = 300, height = 300 } }]
+
+[[step]]
+input = "drop"
+mod = "mod-a"
+name = "main"
+folders = ["notes"]
+at = { x = 70, y = 80 }
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [["outer", ["notes"], { x = 20, y = 30 }]]

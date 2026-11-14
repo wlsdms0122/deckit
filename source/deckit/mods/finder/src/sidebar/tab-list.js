@@ -73,7 +73,7 @@ function tabList({
                     disabled: isFavorite(folder),
                     run: () => onAddFavorite(folder),
                 },
-                { label: 'Show in Finder', icon: 'folder', run: () => reveal(folder) },
+                { label: 'Show in Folder', icon: 'folder', run: () => reveal(folder) },
             ];
         },
     });

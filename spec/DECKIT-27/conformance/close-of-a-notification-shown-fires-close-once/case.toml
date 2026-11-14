@@ -1,0 +1,93 @@
+case = 12
+name = "close-of-a-notification-shown-fires-close-once"
+note = "close() of a notification shown and not closed fires its close event; of one closed it does nothing. site-a, let have notifications, closes a notification twice as it is shown."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { didReceiveNotification = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "title"
+
+[step.expect]
+answers = "Start close show"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "didReceiveNotification", args = [{ title = "Hi", body = "", silent = false }] }]

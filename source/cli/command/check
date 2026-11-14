@@ -11,13 +11,20 @@ if (process.argv.length > 2) {
 }
 
 // The packages each may depend on. An environment stands on the shell, which declares what it provides, and the shell
-// knows no environment.
+// knows no environment. The SDK, what a mod links and the frameworks a page is handed, stands on nothing.
 const MAY_DEPEND = {
-    'deckit-electron': ['deckit-shell'],
-    'deckit-shell': [],
+    'deckit-electron': ['deckit-shell', 'deckit-sdk'],
+    'deckit-sdk': [],
+    'deckit-shell': ['deckit-sdk'],
 };
-// The shell reaches an environment only through what it is handed, so nothing of Electron's is in it: no module,
-// nothing its bundles carry, and no Electron object it would hold or call.
+// Each mod's bundle carries what the SDK's entries in the folders a mod links (LIBRARY.LINKED) reach, and runs in the
+// mod's page.
+const SDK = 'deckit-sdk';
+// The folders of the SDK's owners, each with the owners' folders it uses: Deckit's uses none, the shell's and the web
+// engine's use Deckit's. The SDK's linked folders use no other folder of it.
+const SDK_USES = { deckit: [], shell: ['deckit'], web: ['deckit'] };
+// The shell reaches an environment only through what it is handed, so nothing of Electron's is in it, nor in the SDK's
+// owners' folders: no module, nothing its bundles carry, and no Electron object it would hold or call.
 const SHELL = 'deckit-shell';
 const SHELL_BUNDLES = ['shell-main', 'shell-renderer'];
 const ELECTRON = /\brequire\(\s*["'`]electron["'`]\s*\)/;
@@ -38,6 +45,8 @@ const DECLARES = '\\b\\w+\\.(?:pageToMain|mainToPage)\\(';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];
+// What the SDK's root holds beside its concept folders: its package.json, which says its entries.
+const SDK_ROOT_FILES = ['package.json'];
 // The entry a mod's manifest names.
 const TOML_MAIN = /^main\s*=\s*"([^"]+)"/m;
 // The files the shell's main bundle carries.
@@ -83,6 +92,10 @@ for (const [name, { entries }] of SURFACES)
     for (const entry of entries)
         if (!files.includes(entry))
             problems.push(`deckit/${name}/package.json: names the entry ${entry}, which is no script`);
+// A mod resolves the SDK with no condition, so what it reaches of the SDK is in its linked folders.
+for (const entry of SURFACES.get(SDK).plain)
+    if (!linked(entry))
+        problems.push(`deckit/${SDK}/package.json: names ${entry} with no condition, which is in no linked folder`);
 for (const file of files) checkFile(file);
 checkCycles();
 checkSiblings(imports, packageOf);
@@ -105,6 +118,23 @@ function packageOf(file) {
     return file.split('/')[0];
 }
 
+// Whether a file is the shell's or in an owner's folder of the SDK: what reaches an environment only through what it
+// is handed.
+function ofShell(file) {
+    const [name, folder] = file.split('/');
+    return name === SHELL || (name === SDK && Object.hasOwn(SDK_USES, folder));
+}
+
+// A file's path below its package's root: the same for two files at the mirror path, one in each package.
+function mirrorOf(file) {
+    return file.split('/').slice(1).join('/');
+}
+
+// Whether a file is in a folder of the SDK's a mod links.
+function linked(file) {
+    return LIBRARY.LINKED.some((folder) => file.startsWith(folder + '/'));
+}
+
 // The module a file is of: its folder, where model/ is its folder's.
 function moduleOf(file) {
     return path.posix.dirname(file).replace(/\/model$/, '');
@@ -124,7 +154,7 @@ function checkFile(file) {
     // Every page of deckit's is WebKit's, so Electron's IPC carries nothing of deckit's.
     if (/\bipc(Main|Renderer)\b/.test(plain)) say(file, `reaches Electron's IPC, which no page of deckit's is on`);
     if (SHARED.has(file)) checkPure(file, plain);
-    if (packageOf(file) === SHELL) checkShell(file, plain);
+    if (ofShell(file)) checkShell(file, plain);
     const protocol = file.endsWith('/protocol.js');
     if (!protocol && /["'`](deckit-electron|deckit-shell):(?!\/\/)/.test(plain))
         say(file, 'writes a channel; channels are declared in a protocol.js');
@@ -178,13 +208,18 @@ function checkShell(file, plain) {
 function sharedFiles() {
     const environment = Object.keys(LIBRARY.BUNDLES).filter((name) => !SHELL_BUNDLES.includes(name));
     const reached = environment.flatMap((name) => [...LIBRARY.reach(LIBRARY.BUNDLES[name].entry)]);
-    return new Set(reached.filter((file) => packageOf(file) === SHELL));
+    return new Set(reached.filter(ofShell));
 }
 
-// A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no
-// package reaches another's around what that one answers.
+// A package's channels are its own: each starts with the name of the package whose main.js answers them, at the
+// protocol's mirror path, and one channel has one declaration, so no package reaches another's around what that one
+// answers.
 function checkChannels(file, plain) {
-    const name = packageOf(file);
+    const service = mirrorOf(path.posix.join(moduleOf(file), 'main.js'));
+    const answering = LIBRARY.PACKAGES.filter((name) => files.includes(`${name}/${service}`));
+    if (answering.length !== 1)
+        return say(file, `declares channels, but ${service}, which answers them, is in ${answering.length} packages`);
+    const [name] = answering;
     if (new RegExp(DECLARES + `\\s*(?=\\S)(?!["'\`][^"'\`$]*["'\`])`).test(plain))
         say(file, 'declares a channel not written out as text, so whose it is cannot be read');
     for (const [, channel] of plain.matchAll(new RegExp(DECLARES + `\\s*["'\`]([^"'\`]+)["'\`]`, 'g'))) {
@@ -203,6 +238,9 @@ function checkImport(file, spec, target) {
     const mine = packageOf(file);
     const theirs = packageOf(target);
     if (!SURFACES.has(theirs)) return say(file, `imports ${target}, which is in no package`);
+    // A concept's channels are how its own sides reach each other, in its package or at the mirror path in another.
+    if (target.endsWith('/protocol.js') && mirrorOf(moduleOf(target)) !== mirrorOf(moduleOf(file)))
+        say(file, `imports ${target}, how ${moduleOf(target)} is reached, which is ${moduleOf(target)}'s own`);
     if (theirs !== mine) {
         if (!SURFACES.get(mine).depends.has(theirs))
             say(file, `imports ${target}, in ${theirs}/, which ${mine}/ does not depend on`);
@@ -214,9 +252,10 @@ function checkImport(file, spec, target) {
     const from = moduleOf(file);
     const to = moduleOf(target);
     if (from.startsWith(to + '/')) say(file, `imports ${target}, in ${to}/, which holds it`);
-    // A concept's channels are how its own sides reach each other.
-    if (target.endsWith('/protocol.js') && moduleOf(target) !== moduleOf(file))
-        say(file, `imports ${target}, how ${moduleOf(target)} is reached, which is ${moduleOf(target)}'s own`);
+    // Inside the SDK, a top folder uses only those SDK_USES gives it.
+    const [fromTop, toTop] = [from, to].map((folder) => folder.split('/')[1]);
+    if (mine === SDK && fromTop !== toTop && !(Object.hasOwn(SDK_USES, fromTop) && SDK_USES[fromTop].includes(toTop)))
+        say(file, `imports ${target}, in ${SDK}/${toTop}/, which ${SDK}/${fromTop}/ does not use`);
 }
 
 function checkCycles() {
@@ -272,8 +311,11 @@ function checkSiblings(imports, scopeOf) {
 // renderer.js never in main, and nothing a renderer carries requires Node. Every file is in a bundle.
 function checkPlaces() {
     const carried = new Set();
-    for (const [name, { entry }] of Object.entries(LIBRARY.BUNDLES)) {
-        const place = PLACES[name];
+    const bundles = [
+        ...Object.entries(LIBRARY.BUNDLES).map(([name, { entry }]) => ({ name, place: PLACES[name], entry })),
+        ...[...SURFACES.get(SDK).entries].filter(linked).map((entry) => ({ name: 'mod', place: 'renderer', entry })),
+    ];
+    for (const { name, place, entry } of bundles) {
         for (const file of LIBRARY.reach(entry)) {
             carried.add(file);
             const plain = LIBRARY.code(fs.readFileSync(path.join(LIBRARY.DECKIT, file), 'utf8'));
@@ -294,7 +336,8 @@ function checkPlaces() {
 // A folder is a module (its files, and model/ for what supports them) or a group (folders only). A package's root
 // is a group that also holds its package.json and what puts the package together on each side: main.js and renderer.js.
 function checkFolders() {
-    for (const name of LIBRARY.PACKAGES) checkFolder(name, ROOT_FILES, { scripts: true });
+    for (const name of LIBRARY.PACKAGES)
+        checkFolder(name, name === SDK ? SDK_ROOT_FILES : ROOT_FILES, { scripts: true });
 }
 
 // `folder` and every folder in it, where `rootFiles` are what `folder` holds beside its concepts' folders, or null when
@@ -313,12 +356,14 @@ function checkFolder(folder, rootFiles, { scripts }) {
     if (root && held.length) {
         say(
             folder,
-            `holds ${held.map(({ name }) => name).join(', ')}: it holds only ${rootFiles.join(', ')}, and its concepts are folders`
+            `holds ${held.map(({ name }) => name).join(', ')}: ` +
+                `it holds only ${rootFiles.join(', ')}, and its concepts are folders`
         );
     } else if (held.length && below.length) {
         say(
             folder,
-            `holds files and the folders ${below.join(', ')}: a folder is a module (files, and model/) or a group (folders only)`
+            `holds files and the folders ${below.join(', ')}: ` +
+                'a folder is a module (files, and model/) or a group (folders only)'
         );
     } else if ((root || !held.length) && folders.includes('model')) {
         say(folder, 'holds model/ and no files of its own: a group holds folders only');
@@ -327,7 +372,8 @@ function checkFolder(folder, rootFiles, { scripts }) {
 }
 
 // A mod keeps the packages' shape: src/ holds its entry and its concepts' folders, and main-process/ its modules, each
-// folder a module or a group; it imports only its own files, and its folders beside each other use each other one way.
+// folder a module or a group; what it requires by a relative path is its own, and its folders beside each other use
+// each other one way.
 function checkMods() {
     const mods = LIBRARY.mods().map((name) => `mods/${name}`);
     // src/ is bundled for the sandbox and main-process/ runs in the app's main process, so neither reaches the other.

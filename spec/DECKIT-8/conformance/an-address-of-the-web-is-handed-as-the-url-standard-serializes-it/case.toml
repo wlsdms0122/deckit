@@ -1,0 +1,23 @@
+case = 3
+name = "an-address-of-the-web-is-handed-as-the-url-standard-serializes-it"
+note = "An address of the web is handed to the host as the URL Standard serializes the URL. mod-a opens HTTP://Example.COM, an http URL, and the host is handed http://example.com/."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["HTTP://Example.COM"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "http://example.com/", activates = true }]

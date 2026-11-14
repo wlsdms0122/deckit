@@ -1,0 +1,43 @@
+case = 18
+name = "mods-open-by-a-mod-that-may-not-activate-holds-the-windows-back"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-a opens main in attach, and mod-b opens main once the host app started. The person presses on mod-a's main, and mod-c, which no input reached, opens mod-b with mods.open: mod-b's main is held right behind the key window, and mod-b asks for attention."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { open = { name = "main", activates = false } }]
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.open"
+handle = "shell"
+args = ["mod-b"]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-b", name = "main", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+look = "desktop"
+
+[step.expect]
+answers = { active = "mod-a", attention = ["mod-b"], title = "mod-a" }

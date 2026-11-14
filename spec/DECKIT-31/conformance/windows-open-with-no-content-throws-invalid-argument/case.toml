@@ -1,0 +1,22 @@
+case = 15
+name = "windows-open-with-no-content-throws-invalid-argument"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. windows.open throws INVALID_ARGUMENT at call where options is no table, or holds no content or no name: the host's layer opens a window with a name and no content."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "windows.open"
+handle = "shell"
+args = [{ name = "main" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

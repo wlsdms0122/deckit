@@ -1,0 +1,46 @@
+case = 18
+name = "a-key-recorded-is-input-reaching-its-mod"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a, marked system and granted deckit.reach-mods, records; the person presses in mod-a's main, and mod-a reaches mod-b, which lets mod-b activate; the person presses cmd+j in main, which the recording takes, and which is input reaching mod-a; mod-b opens main: it comes right behind mod-a's, not key, and mod-b asks for attention."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { record = true }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyJ", meta = true }
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { open = { name = "main" } }]
+
+[[step]]
+look = "desktop"
+
+[step.expect]
+answers = { active = "mod-a", attention = ["mod-b"], title = "mod-a" }

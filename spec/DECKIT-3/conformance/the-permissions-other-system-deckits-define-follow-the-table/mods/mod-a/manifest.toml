@@ -1,0 +1,10 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"case.sync" = "Syncs the pages."
+"system.file-handlers" = "Opens the reports."
+"deckit.system-services" = "Runs the commands."
+"deckit.mods" = "Lists the mods."

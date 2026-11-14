@@ -1,0 +1,81 @@
+case = 11
+name = "a-download-finished-is-listed-with-what-it-received"
+note = "A download is listed with its address, its state, the bytes it received and expected, and its error. mod-a shows site-a, whose page is a link to download /file.txt, 5 bytes, and it is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "url"
+
+[step.expect]
+answers = ["site-a/file.txt"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "state"
+
+[step.expect]
+answers = ["finished"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "received"
+
+[step.expect]
+answers = [5]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "expected"
+
+[step.expect]
+answers = [5]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "error"
+
+[step.expect]
+answers = [""]

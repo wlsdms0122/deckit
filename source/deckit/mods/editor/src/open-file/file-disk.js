@@ -1,6 +1,7 @@
 // The disk side of an open file. `file.saved` is the document on disk at `file.mtime`. `file.base` is the disk version
-// unsaved edits were made over; when it is not the one on disk, `file.conflict` is that disk version ({ mtime }). These,
-// `file.trouble` and the line separator are set only here, and each change of them is told to `onDiskStateChange`.
+// unsaved edits were made over; when it is not the one on disk, `file.conflict` is that disk version ({ mtime }).
+// These, `file.trouble` and the line separator are set only here, and each change of them is told to
+// `onDiskStateChange`.
 function fileDisk({ engine, fileSystem, onDiskStateChange }) {
     // A compartment, so replaceText can choose it again.
     const separator = new engine.Compartment();

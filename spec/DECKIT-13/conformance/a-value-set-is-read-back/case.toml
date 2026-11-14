@@ -1,0 +1,26 @@
+case = 4
+name = "a-value-set-is-read-back"
+note = "A value is kept under its key and read back as what it was set to. mod-a sets the value theme to a table, and get of theme answers it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.set"
+args = ["theme", { text = "a", n = [1, 2] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.get"
+args = ["theme"]
+
+[step.expect]
+answers = { text = "a", n = [1, 2] }

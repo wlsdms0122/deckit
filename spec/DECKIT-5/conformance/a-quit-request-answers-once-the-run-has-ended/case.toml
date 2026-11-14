@@ -1,0 +1,31 @@
+case = 3
+name = "a-quit-request-answers-once-the-run-has-ended"
+note = "quit asks the end of the run of the mod under id and answers once that run is notRunning. mod-a launches mod-b and quits it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"

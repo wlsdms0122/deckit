@@ -1,0 +1,32 @@
+case = 5
+name = "a-package-file-whose-dependencies-is-no-table-is-refused"
+note = "An install is refused at call with kind NOT_LOADABLE where the dependencies of package.toml is no table. mod-c's package file writes dependencies as an array."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_LOADABLE"

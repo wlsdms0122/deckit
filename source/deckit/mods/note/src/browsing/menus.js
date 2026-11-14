@@ -24,7 +24,7 @@ function menus({
             { label: 'Move to', icon: 'folder', items: moveItems(path, since) },
             '-',
             { label: 'Copy as Markdown', icon: 'copy', run: whenThere(path, since, fileOperations.copyText) },
-            { label: 'Show in Finder', icon: 'folder', run: whenThere(path, since, fileOperations.showInFinder) },
+            { label: 'Show in Folder', icon: 'folder', run: whenThere(path, since, fileOperations.showInFolder) },
             '-',
             {
                 label: 'Move to Trash',
@@ -57,7 +57,7 @@ function menus({
                   ]
                 : []),
             '-',
-            { label: 'Show in Finder', icon: 'folder', run: whenThere(path, since, fileOperations.showInFinder) },
+            { label: 'Show in Folder', icon: 'folder', run: whenThere(path, since, fileOperations.showInFolder) },
             ...(path
                 ? [
                       {

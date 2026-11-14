@@ -13,12 +13,7 @@ import Deckit
 // `initialize` on.
 final class Server {
     // MARK: - Property
-    private let decoder = JSONDecoder()
-    private let encoder = {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .sortedKeys
-        return encoder
-    }()
+    private let writer = JSONWriter()
     private var deckit: Deckit?
 
     // MARK: - Initializer
@@ -27,7 +22,7 @@ final class Server {
     func respond(to message: Data) -> Data? {
         let response: Response?
         do {
-            response = answer(try decoder.decode(Request.self, from: message))
+            response = answer(try Request(JSONValue(data: message)))
         } catch let DecodingError.dataCorrupted(context) where context.codingPath.isEmpty {
             let error = ResponseError(code: .parseError, message: "not JSON: \(context.debugDescription)")
             response = .error(id: nil, error)
@@ -42,10 +37,10 @@ final class Server {
     // answered.
     func written(_ response: Response) -> Data {
         do {
-            return try encoder.encode(response)
+            return try writer.write(response)
         } catch {
             let failure = ResponseError(code: .internalError, message: "the answer could not be written: \(error)")
-            return (try? encoder.encode(Response.error(id: response.id, failure))) ?? Data()
+            return (try? writer.write(Response.error(id: response.id, failure))) ?? Data()
         }
     }
 
@@ -86,15 +81,19 @@ final class Server {
             let params = try request.decodeParams(as: InitializeParams.self)
             let deckit = try Deckit(
                 home: URL(filePath: params.home, directoryHint: .isDirectory),
-                ship: params.ship.map { folder in URL(filePath: folder) },
+                ship: params.ship,
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
-                schemeHandlers: params.schemeHandlers,
-                permissions: params.permissions
+                permissions: params.permissions,
+                fields: params.fields
             )
             self.deckit = deckit
 
-            return InitializeResult(mods: deckit.deck.catalog.folder, data: deckit.deck.dataFolder.folder)
+            return InitializeResult(
+                mods: deckit.catalog.folder,
+                data: deckit.deck.dataFolder.folder,
+                timeout: deckit.timeout
+            )
         }
 
         guard let deckit else {
@@ -105,129 +104,140 @@ final class Server {
         switch request.method {
         case "record/read":
             let params = try request.decodeParams(as: ModKeyParams.self)
-            return try deck.records.read(mod: params.mod, key: params.key) as any Encodable & Sendable
+            return try deck.records.read(principal: params.mod, key: params.key) as any Encodable & Sendable
 
         case "record/write":
             let params = try request.decodeParams(as: WriteRecordParams.self)
-            try deck.records.write(mod: params.mod, key: params.key, text: params.text)
+            try deck.records.write(principal: params.mod, key: params.key, text: params.text)
             return true
 
         case "record/remove":
             let params = try request.decodeParams(as: ModKeyParams.self)
-            try deck.records.remove(mod: params.mod, key: params.key)
+            try deck.records.remove(principal: params.mod, key: params.key)
             return true
 
         case "record/keys":
-            return try deck.records.keys(mod: request.decodeParams(as: ModParams.self).mod)
+            return try deck.records.keys(principal: request.decodeParams(as: ModParams.self).mod)
 
         case "state/all":
-            return try deck.state.all()
+            return try deckit.state.all()
 
         case "state/write":
             let params = try request.decodeParams(as: WriteStateParams.self)
-            try deck.state.write(folder: params.folder, key: params.key, text: params.text)
+            try deckit.state.write(folder: params.folder, key: params.key, text: params.text)
             return true
-
-        case "configuration/declare":
-            let params = try request.decodeParams(as: DeclareConfigurationParams.self)
-            return try deckit.configuration.declare(params.configuration, mod: params.mod, run: params.run)
-
-        case "configuration/values":
-            return deckit.configuration.values(of: try request.decodeParams(as: ModParams.self).mod)
-
-        case "configuration/list":
-            return deckit.configuration.list()
-
-        case "configuration/set":
-            let params = try request.decodeParams(as: SetConfigurationParams.self)
-            return try deckit.configuration.set(mod: params.mod, key: params.key, value: params.value)
 
         case "catalog/read":
-            return deck.readCatalog()
+            return deckit.readCatalog()
 
-        case "catalog/arrange":
-            try deck.catalog.arrange(request.decodeParams(as: ArrangeCatalogParams.self).ids)
+        case "catalog/interfaces":
+            return deckit.catalog.interfaces
+
+        case "catalog/pin":
+            let params = try request.decodeParams(as: PinCatalogParams.self)
+            try deckit.catalog.pin(params.interface, to: params.mod)
             return true
 
-        case "catalog/install-shipped":
-            return try deck.catalog.installShipped()
+        case "catalog/read-file":
+            let params = try request.decodeParams(as: ReadFileParams.self)
+            return deckit.catalog.text(of: params.path, in: params.mod) as any Encodable & Sendable
 
-        case "catalog/plan-install":
-            let folder = URL(filePath: try request.decodeParams(as: InstallModParams.self).from)
-            return try deck.catalog.planInstall(from: folder)
+        case "catalog/install-shipped":
+            return try deckit.catalog.installShipped()
 
         case "catalog/install":
-            let folder = URL(filePath: try request.decodeParams(as: InstallModParams.self).from)
-            return try deck.catalog.install(from: folder)
+            let params = try request.decodeParams(as: InstallModParams.self)
+            return try deckit.catalog.install(from: folder(params.from), dryRun: params.dryRun)
 
         case "catalog/remove":
-            return try deck.catalog.remove(request.decodeParams(as: RemoveModParams.self).id)
+            return try deckit.catalog.remove(request.decodeParams(as: RemoveModParams.self).id)
 
         case "storage/usage":
-            return try deck.storage.usage(mod: request.decodeParams(as: ModParams.self).mod)
+            return try deckit.usage(request.decodeParams(as: ModParams.self).mod)
 
         case "erasure/erase":
-            try deck.erasure.erase(mod: request.decodeParams(as: ModParams.self).mod)
+            try deck.erasure.erase(principal: request.decodeParams(as: ModParams.self).mod)
             return true
 
         case "erasure/uncleared":
             return deck.erasure.uncleared()
 
         case "erasure/cleared":
-            try deck.erasure.cleared(mod: request.decodeParams(as: ModParams.self).mod)
+            try deck.erasure.cleared(principal: request.decodeParams(as: ModParams.self).mod)
             return true
 
+        case "runner/reconnect":
+            return answered(try deckit.reconnect(), by: deckit)
+
+        case "runner/start":
+            return answered(try deckit.start(), by: deckit)
+
         case "runner/load":
-            return try deck.load(request.decodeParams(as: ModsParams.self).mods)
+            return answered(try deckit.load(request.decodeParams(as: ModsParams.self).mods), by: deckit)
+
+        case "runner/launch":
+            let params = try request.decodeParams(as: LaunchParams.self)
+            return answered(try deckit.launch(params.mod, by: params.by), by: deckit)
 
         case "runner/unload":
-            return try deck.unload(request.decodeParams(as: ModsParams.self).mods)
+            return answered(try deckit.unload(request.decodeParams(as: ModsParams.self).mods), by: deckit)
 
-        case "runner/described":
-            let params = try request.decodeParams(as: DescribedParams.self)
-            return try deck.described(params.mod, run: params.run, summary: params.summary)
+        case "runner/quit":
+            let params = try request.decodeParams(as: LaunchParams.self)
+            return answered(try deckit.quit(params.mod, by: params.by), by: deckit)
 
         case "runner/started":
             let params = try request.decodeParams(as: StartedParams.self)
-            return try deck.started(
-                params.mod,
-                run: params.run,
-                summary: params.summary,
-                contributions: params.contributions
-            )
-
-        case "runner/joined":
-            let params = try request.decodeParams(as: StartedParams.self)
-            return try deck.joined(
-                params.mod,
-                run: params.run,
-                summary: params.summary,
-                contributions: params.contributions
-            )
+            let effects = try deckit.started(params.mod, run: params.run, contributions: params.contributions)
+            return answered(effects, by: deckit)
 
         case "runner/problem":
             let params = try request.decodeParams(as: RunProblemParams.self)
-            return try deck.report(params.mod, run: params.run, problem: params.problem)
+            return answered(try deckit.report(params.mod, run: params.run, problem: params.problem), by: deckit)
 
         case "runner/not-started":
             let params = try request.decodeParams(as: RunProblemParams.self)
-            return try deck.notStarted(params.mod, run: params.run, problem: params.problem)
+            return answered(try deckit.notStarted(params.mod, run: params.run, problem: params.problem), by: deckit)
+
+        case "runner/timed-out":
+            let params = try request.decodeParams(as: RunParams.self)
+            return answered(try deckit.timedOut(params.mod, run: params.run), by: deckit)
 
         case "runner/crash":
             let params = try request.decodeParams(as: RunProblemParams.self)
-            return try deck.crashed(params.mod, run: params.run, problem: params.problem)
+            return answered(try deckit.crashed(params.mod, run: params.run, problem: params.problem), by: deckit)
 
         case "runner/stopped":
             let params = try request.decodeParams(as: RunParams.self)
-            return try deck.stopped(params.mod, run: params.run)
+            return answered(try deckit.stopped(params.mod, run: params.run), by: deckit)
 
         case "connection/begin":
             let params = try request.decodeParams(as: LifecycleParams.self)
-            return try deck.connections.begin(mod: params.mod, run: params.run, lifecycle: params.lifecycle)
+            return try deck.connections.begin(principal: params.mod, run: params.run, lifecycle: params.lifecycle)
 
         case "connection/end":
             let params = try request.decodeParams(as: LifecycleParams.self)
-            return deck.ended(params.mod, run: params.run, lifecycle: params.lifecycle)
+            return answered(try deckit.ended(params.mod, run: params.run, lifecycle: params.lifecycle), by: deckit)
+
+        case "connection/reach":
+            let params = try request.decodeParams(as: ReachParams.self)
+            let effects = try deckit.reach(
+                params.target,
+                from: params.mod,
+                run: params.run,
+                lifecycle: params.lifecycle
+            )
+            return answered(effects, by: deckit)
+
+        case "connection/release":
+            let params = try request.decodeParams(as: ReachParams.self)
+            let effects = try deckit.release(
+                params.target,
+                from: params.mod,
+                run: params.run,
+                lifecycle: params.lifecycle
+            )
+            return answered(effects, by: deckit)
 
         case "connection/refuse":
             deck.connections.refuse(try request.decodeParams(as: ConnectionParams.self).connection)
@@ -239,67 +249,31 @@ final class Server {
 
         case "event/listen":
             let params = try request.decodeParams(as: ListenParams.self)
-            deck.events.listen(mod: params.mod, run: params.run, names: params.names)
+            deck.events.listen(principal: params.mod, run: params.run, names: params.names)
             return true
 
         case "event/emit":
             let params = try request.decodeParams(as: EmitParams.self)
-            return deck.events.emit(mod: params.mod, run: params.run, name: params.name)
+            return try deck.events.emit(principal: params.mod, run: params.run, name: params.name)
 
-        case "keymap/register":
-            let params = try request.decodeParams(as: RegisterKeyParams.self)
-            return try deckit.keymap.register(params.key, provider: params.provider, name: params.name)
-
-        case "keymap/bind":
-            let params = try request.decodeParams(as: BindKeyParams.self)
-            return try deckit.keymap.bind(params.id, spec: params.spec)
-
-        case "keymap/reset":
-            return try deckit.keymap.reset(request.decodeParams(as: ResetKeyParams.self).id)
-
-        case "keymap/record":
-            return RecordedKey(try request.decodeParams(as: RecordKeyParams.self).keystroke)
-
-        case "keymap/keystrokes":
-            return try request.decodeParams(as: KeystrokesParams.self).specs.map(Keystroke.init(spec:))
-
-        case "command/define":
-            let params = try request.decodeParams(as: DefineCommandsParams.self)
-            try deckit.commands.define(params.commands, provider: params.provider, name: params.name)
-            return true
-
-        case "command/list":
-            return deckit.commands.list()
-
-        case "command/find":
-            let params = try request.decodeParams(as: CheckCommandParams.self)
-            return try deckit.commands.find(params.command, of: params.provider)
-
-        case "command/check":
-            let params = try request.decodeParams(as: CheckCommandParams.self)
-            return try deckit.commands.check(params.command, of: params.provider, args: params.args)
-
-        case "provider":
-            return deckit.provider(of: try request.decodeParams(as: ProviderParams.self).id)
-
-        case "open/route":
-            let params = try request.decodeParams(as: RouteParams.self)
-            return deckit.urlRouter.route(
-                params.url,
-                opensFiles: params.opensFiles,
-                usesDefaultApp: params.usesDefaultApp
-            )
-
-        case "open/handlerLists":
-            return deckit.urlRouter.handlerLists()
-
-        case "open/setHandlers":
-            let params = try request.decodeParams(as: SetHandlersParams.self)
-            try deckit.urlRouter.setHandlers(of: params.scheme, order: params.order, off: params.off)
-            return true
+        case "interface/contributions":
+            let params = try request.decodeParams(as: ContributionsParams.self)
+            return try deckit.catalog.declarations(to: params.interface, for: params.mod)
 
         default:
             throw ResponseError(code: .methodNotFound, message: "no method \(request.method)")
         }
+    }
+
+    // The folder `path` names, refused as no mod where it is not an absolute path.
+    private func folder(_ path: String) throws -> URL {
+        guard path.hasPrefix("/") else { throw ModFolderError.notLoadable("\(path) is no absolute path") }
+
+        return URL(filePath: path)
+    }
+
+    // `effects` as the driver reads them.
+    private func answered(_ effects: [Effect], by deckit: Deckit) -> [EffectAnswer] {
+        effects.map { effect in EffectAnswer(effect, of: deckit) }
     }
 }

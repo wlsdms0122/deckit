@@ -1,5 +1,5 @@
-// An address typed with its scheme, handed to deckit to open: its scheme's handlers in the person's order, then the
-// system's answer.
+// An address typed with its scheme, handed to `open`: the mods that open it, the one the person chose first, then
+// outside the app.
 function openAddress({ open }) {
     const ADDRESS = /^[a-z][a-z0-9+.-]*:\S+$/i;
 

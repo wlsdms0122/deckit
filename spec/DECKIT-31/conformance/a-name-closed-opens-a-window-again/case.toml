@@ -1,0 +1,41 @@
+case = 17
+name = "a-name-closed-opens-a-window-again"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. The person presses on main, so mod-a may activate. A window's name is free once it has closed: mod-a closes main and opens main again, a new window."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "close", name = "main" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "main" } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/main/didResignKey", activates = true }, { url = "https://said.test/main/didDisappear", activates = true }, { url = "https://said.test/main/didClose", activates = true }, { url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }]

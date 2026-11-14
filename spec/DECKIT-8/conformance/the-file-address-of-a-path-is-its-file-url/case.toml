@@ -1,0 +1,20 @@
+case = 3
+name = "the-file-address-of-a-path-is-its-file-url"
+note = "fileURL(path) answers the file URL of an absolute path, each code point but /, letters, digits and -_.!~*'() percent-encoded. mod-a, granted nothing, asks for /data/a~b c#1.pdf, and the space and the # are encoded, the ~ kept."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fileURL"
+args = ["/data/a~b c#1.pdf"]
+
+[step.expect]
+answers = "file:///data/a~b%20c%231.pdf"

@@ -1,0 +1,20 @@
+case = 1
+name = "a-field-of-a-blank-name-is-added"
+note = "A field's name is any string a key writes, a blank one too. A host that adds the field named one space starts, and a manifest that writes it is answered its value."
+
+[host]
+base = "system"
+api = "1.0.0"
+fields = [" "]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "fields"
+
+[step.expect.answers]
+" " = 1

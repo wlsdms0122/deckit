@@ -1,0 +1,21 @@
+case = 21
+name = "theme-is-dark-where-the-host-app-look-is-dark"
+note = "The theme is the host app's look: on a host whose look is dark, theme.dark, read through mod-a's handle shell, answers true."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+appearance = "dark"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.dark"
+handle = "shell"
+
+[step.expect]
+answers = true

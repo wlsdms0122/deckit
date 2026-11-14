@@ -3,4 +3,8 @@ name = "Open User Path"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-urls = ["test-open://probe/deep/*"]
+activationPolicy = "accessory"
+
+[[contributes."deckit/urls"]]
+scheme = "test-open"
+patterns = ["test-open://probe/deep/*"]

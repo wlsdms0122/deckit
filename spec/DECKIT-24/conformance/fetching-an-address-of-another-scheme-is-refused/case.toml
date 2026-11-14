@@ -1,0 +1,29 @@
+case = 9
+name = "fetching-an-address-of-another-scheme-is-refused"
+note = "fetch is refused at call with kind INVALID_ARGUMENT where url is no URL whose scheme is http or https. mod-a fetches an address whose scheme is ftp."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+args = ["ftp://127.0.0.1/hello.txt"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

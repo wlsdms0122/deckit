@@ -1,0 +1,34 @@
+case = 16
+name = "the-path-of-a-folder-chosen-is-revealed"
+note = "What dialogs.chooseFolders answers is the absolute path reveal takes: mod-a, a mod granted nothing, asks for a folder, the person chooses folder-a, and mod-a reveals the path the request answered."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+chosen = ["folder-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+
+[step.expect]
+answers = ["folder-a"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+answered = 2
+
+[[step]]
+look = "revealed"
+
+[step.expect]
+answers = ["folder-a"]

@@ -1,0 +1,22 @@
+case = 15
+name = "fonts-set-of-a-text-past-256-scalar-values-is-refused"
+note = "The text of the fonts holds 1 to 256 scalar values: mod-a sets a text of 257 \"a\", refused INVALID_ARGUMENT."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ text = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

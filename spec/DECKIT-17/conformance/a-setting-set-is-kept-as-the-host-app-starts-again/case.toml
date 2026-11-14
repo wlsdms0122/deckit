@@ -1,0 +1,50 @@
+case = 5
+name = "a-setting-set-is-kept-as-the-host-app-starts-again"
+note = "What is set is kept by the owner in its storage, so a setting reads as it as the host app starts again. mod-a sets tab-size to 2, and the host app quits and starts."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["tab-size", 2]
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "get"
+handed = true
+args = ["tab-size"]
+
+[step.expect]
+answers = 2

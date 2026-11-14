@@ -1,0 +1,39 @@
+case = 18
+name = "a-recording-takes-a-shell-key"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a records, and the person presses in main and presses cmd+w: the recording is handed it, and main stays open."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { record = true }]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyW", meta = true }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/rec/KeyW/meta", activates = true }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]

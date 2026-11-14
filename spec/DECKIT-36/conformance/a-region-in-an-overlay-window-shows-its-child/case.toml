@@ -1,0 +1,23 @@
+case = 22
+name = "a-region-in-an-overlay-window-shows-its-child"
+note = "A region in an overlay window shows its child as one in a normal window does: mod-a, granted system.overlay-windows, opens its window main as an overlay window, 720 by 480 at 280, 160, and places mod-b in a region over an element at 100, 100, 200 by 150, and mod-b is laid at 380, 260, 200 by 150."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-b", parent = "mod-a", window = "main", frame = { x = 380, y = 260, width = 200, height = 150 } }]

@@ -1,0 +1,36 @@
+case = 10
+name = "a-frame-of-an-opaque-origin-is-refused-unasked"
+note = "A document whose origin is opaque is no site, and its ask is refused unasked. site-a makes a frame sandboxed without allow-same-origin, which asks for notifications and tells the page, and the host's delegate would answer true."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "denied"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []

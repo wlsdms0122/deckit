@@ -1,0 +1,27 @@
+case = 3
+name = "a-file-url-whose-path-decodes-to-no-utf-8-is-refused"
+note = "openExternal is refused at call with UNSUPPORTED_URL where the URL is a file URL whose path percent-decodes to bytes that are not UTF-8, and the host is handed nothing. mod-a, granted system.file-handlers, opens file:///data/report%FF.pdf, whose byte FF is no UTF-8."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["file:///data/report%FF.pdf"]
+
+[step.expect]
+refuses = "call"
+kind = "UNSUPPORTED_URL"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

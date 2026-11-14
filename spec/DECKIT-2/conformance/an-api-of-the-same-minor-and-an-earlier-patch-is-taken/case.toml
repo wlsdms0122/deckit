@@ -1,0 +1,19 @@
+case = 1
+name = "an-api-of-the-same-minor-and-an-earlier-patch-is-taken"
+note = "Of the same minor, a version satisfies another whose patch is at most its own. A host that runs 1.2.3 satisfies 1.2.2."
+
+[host]
+base = "system"
+api = "1.2.3"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "api"
+
+[step.expect]
+answers = "1.2.2"

@@ -1,0 +1,19 @@
+case = 1
+name = "a-link-out-of-the-bundle-is-laid-out-as-written"
+note = "A link is laid out as a link holding the target it is written with. main is a link to ../mod-b/main.js, which laid out points out of the bundle into the folder beside it, so the bundle is refused at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

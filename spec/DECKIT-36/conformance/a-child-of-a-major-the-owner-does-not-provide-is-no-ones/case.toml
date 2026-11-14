@@ -1,0 +1,21 @@
+case = 22
+name = "a-child-of-a-major-the-owner-does-not-provide-is-no-ones"
+note = "A mod is a child of the owner of its view's interface only where that mod provides the major it uses: mod-b uses case/view at major 2, mod-a provides major 1 alone, and mod-a has no children of case/view."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = []

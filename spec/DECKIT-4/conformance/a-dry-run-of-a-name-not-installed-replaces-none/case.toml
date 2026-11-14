@@ -1,0 +1,23 @@
+case = 3
+name = "a-dry-run-of-a-name-not-installed-replaces-none"
+note = "A dry run of install answers replaces false where no installed bundle is listed under the bundle's name, so a dry run of mod-b, which nothing installed is listed under, replaces none."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+args = [{ dryRun = true }]
+part = "replaces"
+
+[step.expect]
+answers = false

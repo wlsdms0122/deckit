@@ -1,0 +1,21 @@
+case = 1
+name = "a-permission-nothing-defines-is-taken-and-not-usable"
+note = "A permission asked for that neither the system, a layer nor the host defines leaves the bundle taken, and the permission is not usable."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "system.case-camera", reason = "Takes a photo of a page.", usable = false },
+]

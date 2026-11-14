@@ -1,0 +1,13 @@
+id = "packages"
+name = "Packages"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+activationPolicy = "accessory"
+
+[interfaces]
+provides = { "deckit/packages" = [1] }
+
+[permissions]
+"deckit.mods" = "Installs a mod from a folder you pick once the mods it depends on are installed."
+"system.main-process" = "Reads the package file of a folder you install a mod from."

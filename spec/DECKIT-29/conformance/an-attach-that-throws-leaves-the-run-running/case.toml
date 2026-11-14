@@ -1,0 +1,18 @@
+case = 6
+name = "an-attach-that-throws-leaves-the-run-running"
+note = "A layer that throws fails no run: mod-a's attach throws, and its run is running."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "running"

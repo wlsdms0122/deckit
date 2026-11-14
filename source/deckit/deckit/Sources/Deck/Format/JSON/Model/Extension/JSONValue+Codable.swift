@@ -7,7 +7,10 @@
 
 import Foundation
 
+// An object through a container keyed by its names, each name its own key: a coder keeps two names of one canonical
+// form as two while it keeps each key it is given apart, as JSONWriter does.
 extension JSONValue: Codable {
+    // MARK: - Property
     // MARK: - Initializer
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -22,31 +25,42 @@ extension JSONValue: Codable {
         } else if let value = try? container.decode([JSONValue].self) {
             self = .array(value)
         } else {
-            self = .object(try container.decode([String: JSONValue].self))
+            let object = try decoder.container(keyedBy: JSONName.self)
+            let members = try object.allKeys.map { name in (name, try object.decode(JSONValue.self, forKey: name)) }
+            self = .object(Dictionary(members) { first, _ in first })
         }
     }
 
     // MARK: - Public
     public func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
         switch self {
         case .null:
+            var container = encoder.singleValueContainer()
             try container.encodeNil()
 
         case let .bool(value):
+            var container = encoder.singleValueContainer()
             try container.encode(value)
 
         case let .number(value):
+            var container = encoder.singleValueContainer()
             try container.encode(value)
 
         case let .string(value):
+            var container = encoder.singleValueContainer()
             try container.encode(value)
 
         case let .array(value):
+            var container = encoder.singleValueContainer()
             try container.encode(value)
 
-        case let .object(value):
-            try container.encode(value)
+        case let .object(members):
+            var container = encoder.container(keyedBy: JSONName.self)
+            for (name, value) in members {
+                try container.encode(value, forKey: name)
+            }
         }
     }
+
+    // MARK: - Private
 }

@@ -49,6 +49,28 @@ export function clearStorage(WEBKIT, id, modId) {
     return WEBKIT.clear(storeFor(id, ORIGIN.originOf(modId)));
 }
 
+// How many items a mod's pages keep in the web's local storage, read in a page of the mod's origin and store that is
+// blank and runs nothing, closed once it has answered.
+export function countStorage(WEBKIT, id, modId) {
+    const origin = ORIGIN.originOf(modId);
+    const page = WEBKIT.make({
+        store: storeFor(id, origin),
+        scheme: ORIGIN.SCHEME,
+        delegate: {
+            request: ({ reply }) => reply({ type: 'text/html; charset=utf-8', body: '' }),
+            navigate: (url) => (String(url).startsWith(origin + '/') ? 'load' : 'refuse'),
+        },
+    });
+    return new Promise((resolve, reject) => {
+        page.once('committed', () => page.evaluate('return localStorage.length').then(resolve, reject));
+        page.once('failed', (code, description) =>
+            reject(new Error(`${modId}'s storage was not read: ${description}`))
+        );
+        page.once('gone', () => reject(new Error(`${modId}'s storage was not read: its page is gone`)));
+        page.loadURL(ORIGIN.addressOf(origin));
+    }).finally(() => page.close());
+}
+
 // Every page of deck's is the same PAGE, whichever origin it is loaded under: what it becomes is asked of main as it
 // starts. Under a mod's origin the rest of the folder `folderOf(modId)` answers is served too, for its page to use:
 // images, styles, data, scripts. Answers how a load of a page's scheme is answered: `answer({ url, reply })`.

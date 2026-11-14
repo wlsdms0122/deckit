@@ -7,6 +7,7 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // As it is written.
 extension Version: Decodable {

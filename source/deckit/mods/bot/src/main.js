@@ -5,67 +5,54 @@ const { sessionPicker } = require('./forge/sessions/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 
-// The configuration keys that say where llmemory and the brain are, handed to the main process together.
+// The settings that say where llmemory and the brain are, handed to the main process together.
 const PLACES = ['llmemory', 'brain'];
 
+// What Bot calls on `forge/sessions`.
+const FORGE = ['sessions', 'session', 'start', 'stop', 'restart', 'log', 'call', 'dispatch', 'runSchedule', 'run'];
+
 class Bot {
-    static keywords = [
-        'bot',
-        'forge',
-        'daemon',
-        'supervisor',
-        'runner',
-        'service',
-        'llmemory',
-        'brain',
-        'memory',
-        '봇',
-        '데몬',
-        '서비스',
-        '러너',
-        '브레인',
-        '기억',
-        '지식',
-    ];
+    // What attach has put on screen for the commands and reopen() to reach, while it is attached: `openWindow()` opens
+    // Bot's window, or orders it front where it is open.
+    screen = null;
 
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
+    // The commands its manifest declares to `deckit/commands`, run from the exports for its id. Each acts on the
+    // window's views, `show` bringing the window in front, and one run while Bot is not attached says so.
+    start(deckit) {
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Bot has no window to open');
+            return this.screen;
+        };
+        const commands = {
+            show: (args) => onScreen().show(args),
+            'choose-session': (args) => onScreen().chooseSession(args),
+            'search-brain': (args) => onScreen().searchBrain(args),
+            'read-note': (args) => onScreen().readNote(args),
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Bot has no command ${id}`);
+                    await commands[id](args ?? {});
+                },
+            }),
+        });
+    }
 
-    static configuration = {
-        llmemory: {
-            type: 'string',
-            title: 'LLMemory command',
-            description:
-                "Where the llmemory program is, as a full path. Empty: the llmemory on your login shell's PATH.",
-            default: '',
-        },
-        brain: {
-            type: 'string',
-            title: 'Brain folder',
-            description: "The brain's folder, the one llmemory reads with --home. Brain lists nothing until it is set.",
-            default: '',
-        },
-        wrapCode: {
-            type: 'boolean',
-            title: 'Wrap code in notes',
-            description:
-                "Long lines in a note's code blocks wrap instead of scrolling sideways. " +
-                'The wrap button on a block switches it too.',
-            default: false,
-        },
-    };
-
-    static form = {
-        llmemory: { placeholder: 'llmemory' },
-        brain: { placeholder: 'Not set' },
-    };
-
-    async attach(shell, deckit) {
+    async attach(shell, deckit, { mainProcess }) {
         const { ui } = shell;
         const store = deckit.storage.values;
-        const { forge } = deckit.dependencies;
-        const bot = await deckit.mainProcess('main-process/bot/bot.js');
-        const places = () => Object.fromEntries(PLACES.map((key) => [key, deckit.configuration.get(key)]));
-        await bot.use(places());
+        const forge = forgeOf();
+        const settings = settingsOf();
+        const bot = await mainProcess.start('main-process/bot/bot.js');
+        const places = () => Object.fromEntries(PLACES.map((key) => [key, settings.get(key)]));
+        // An address in a note opens through `deckit/urls`; one asked while it is not connected is logged.
+        let urls = null;
+        const openURL = async (url) => {
+            if (urls) return urls.open(url);
+            console.warn(`[bot] ${url} did not open: deckit/urls is not connected`);
+            return false;
+        };
 
         const content = document.createElement('div');
         Object.assign(content.style, {
@@ -131,7 +118,7 @@ class Bot {
                 system: 'LLMemory',
                 label: 'Brain',
                 icon: 'search',
-                view: brainView({ shell, deckit, bot }),
+                view: brainView({ shell, deckit, bot, settings, openURL }),
             },
         ];
         const modeOf = (key) => MODES.find((entry) => entry.key === key) || MODES[0];
@@ -230,88 +217,56 @@ class Bot {
         const supervisor = modeOf('supervisor').view;
         const brain = modeOf('brain').view;
 
-        shell.view.register({
-            content,
+        // The window's own keys, while it is key: ⌘ and a key, matched on the physical key.
+        const KEYS = {
+            Digit1: () => setMode('supervisor'),
+            Digit2: () => setMode('brain'),
+            Digit3: () => setMode('workflows'),
+            Digit4: () => setMode('schedules'),
+            KeyF: () => setMode('brain'),
+            BracketLeft: () => mode.key === 'brain' && brain.back(),
+        };
+        const onKey = (event) => {
+            if (!event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+            if (!Object.hasOwn(KEYS, event.code)) return;
+            event.preventDefault();
+            KEYS[event.code]();
+        };
+        const listenKeys = (on) => {
+            if (on) content.ownerDocument.addEventListener('keydown', onKey);
+            else content.ownerDocument.removeEventListener('keydown', onKey);
+        };
+
+        // The views beside the sidebar that picks them, whose width and fold are kept as the person leaves them.
+        const split = ui.splitView({
             sidebar,
-            didAppear: () => {
-                visible = true;
-                show();
-            },
-            didDisappear: () => {
-                visible = false;
-                hide();
-            },
+            content,
+            ...store.get('sidebar', {}),
+            onChange: (kept) => store.set('sidebar', kept),
         });
-        deckit.commands.register({
-            show: {
-                description: 'Shows Bot on Services, Workflows, Schedules or Brain, a Forge view on the session given.',
-                params: {
-                    type: 'object',
-                    properties: {
-                        view: {
-                            type: 'string',
-                            title: 'View',
-                            oneOf: MODES.map((entry) => ({ const: entry.key, title: entry.label })),
-                        },
-                        session: {
-                            type: 'string',
-                            title: 'Forge session',
-                            description: 'The session the Forge views show. Absent: the one chosen.',
-                        },
-                    },
-                    required: ['view'],
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear: () => {
+                    visible = true;
+                    show();
                 },
-                run: (args) => {
-                    showView(args);
-                    shell.show();
+                didBecomeKey: () => listenKeys(true),
+                didResignKey: () => listenKeys(false),
+                didDisappear: () => {
+                    visible = false;
+                    hide();
                 },
-            },
-            'choose-session': {
-                description: 'Chooses which daemon the Forge views show.',
-                params: {
-                    type: 'object',
-                    properties: { session: { type: 'string', title: 'Forge session' } },
-                    required: ['session'],
-                },
-                run: chooseSession,
-                complete: (_param, partial) => picker.candidates(partial),
-            },
-            'search-brain': {
-                description: 'Lists the notes of the brain that match a search, in Brain.',
-                params: {
-                    type: 'object',
-                    properties: { query: { type: 'string', title: 'Search' } },
-                    required: ['query'],
-                },
-                run: searchBrain,
-            },
-            'read-note': {
-                description: 'Opens a note of the brain in Brain.',
-                params: {
-                    type: 'object',
-                    properties: { note: { type: 'string', title: 'Note' } },
-                    required: ['note'],
-                },
-                run: readNote,
-                complete: (_param, partial, { signal }) => brain.notesFor(partial, { signal }),
-            },
-        });
-        const viewKey = (view, key) => ({ label: modeOf(view).label, key, run: () => showView({ view }) });
-        deckit.keys.register({
-            services: viewKey('supervisor', 'mod+1'),
-            brain: viewKey('brain', 'mod+2'),
-            workflows: viewKey('workflows', 'mod+3'),
-            schedules: viewKey('schedules', 'mod+4'),
-            searchBrain: { label: 'Search the brain', key: 'mod+f', run: () => showView({ view: 'brain' }) },
-            brainBack: { label: 'Back to the Note Before', key: 'mod+[', run: brainBack },
-        });
+            });
+        openWindow();
         const actions = switcher({
             ui,
             modes: MODES,
             supervisor,
             picker,
             brain,
-            show: shell.show,
+            show: openWindow,
             does: {
                 ...inFront({
                     show: showView,
@@ -330,7 +285,31 @@ class Bot {
                 },
             },
         });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('forge/sessions', (sessions) => forge.connect(sessions));
+        deckit.dependencies.onConnect('deckit/urls', (connected) => {
+            urls = connected;
+            return () => {
+                if (urls === connected) urls = null;
+            };
+        });
+        settings.on((key) => {
+            if (PLACES.includes(key))
+                bot.use(places()).then((renewed) => {
+                    if (renewed) brain.reload();
+                });
+        });
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
+        this.screen = {
+            openWindow,
+            show: (args) => {
+                showView(args);
+                openWindow();
+            },
+            chooseSession,
+            searchBrain,
+            readNote,
+        };
 
         function showView({ view, session }) {
             if (!MODES.some((entry) => entry.key === view)) throw new Error(`Bot has no view ${view}`);
@@ -357,14 +336,72 @@ class Bot {
             if (mode.key !== 'brain') throw new Error('Brain is not shown');
             brain.back();
         }
+    }
 
-        deckit.configuration.on((key) => {
-            if (PLACES.includes(key))
-                bot.use(places()).then((renewed) => {
-                    if (renewed) brain.reload();
-                });
-        });
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
+    }
+
+    detach() {
+        this.screen = null;
     }
 }
 
 module.exports = Bot;
+
+// What Bot calls on `forge/sessions`, the members of FORGE, held while Forge is connected: `connect(sessions)` hands
+// them over, and answers what lets them go. A call while none is held rejects, as one forge does not answer does, and
+// the views show it so.
+function forgeOf() {
+    let held = null;
+    const forge = Object.fromEntries(
+        FORGE.map((name) => [
+            name,
+            async (...args) => {
+                if (!held) throw new Error('Forge is not connected');
+                return held[name](...args);
+            },
+        ])
+    );
+    forge.connect = (sessions) => {
+        held = sessions;
+        return () => {
+            if (held === sessions) held = null;
+        };
+    };
+    return forge;
+}
+
+// Bot's settings as `deckit/configuration` last told them, read at once by the views: `get(key)`, `set(key, value)`
+// while it is connected, and `on(listener)`, which hears each key as it changes and every key as they are first read.
+// `connect(configuration)` hands the interface over, and answers what lets it go; what was read stays.
+function settingsOf() {
+    let configuration = null;
+    let values = {};
+    const listeners = new Set();
+    const tell = (key) => {
+        for (const listener of listeners) listener(key);
+    };
+    return {
+        get: (key) => values[key],
+        set: (key, value) => configuration?.set(key, value),
+        on: (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
+        connect: async (given) => {
+            configuration = given;
+            await given.onChange((key, value) => {
+                if (configuration !== given) return;
+                values = { ...values, [key]: value };
+                tell(key);
+            });
+            values = await given.values();
+            for (const key of Object.keys(values)) tell(key);
+            return () => {
+                if (configuration === given) configuration = null;
+            };
+        },
+    };
+}

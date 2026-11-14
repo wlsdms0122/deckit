@@ -1,0 +1,19 @@
+case = 7
+name = "the-clipboard-of-the-base-holds-no-text-as-a-case-begins"
+note = "The base keeps a clipboard of its own, which holds no text as the case begins. mod-a, granted system.clipboard-read, reads the empty string."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = ""

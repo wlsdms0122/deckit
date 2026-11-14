@@ -1,13 +1,13 @@
-// The channels between main and a page (deckit-shell/deck/ipc), checked over a stand-in for what an environment
-// carries them with (deckit-shell/environment): main and pages, each its own copy of its side's module, as each is its
-// own bundle. Exits 1 with a line for each check that failed. What a page is asked before its code says how to answer
-// cannot be timed in the app, so it is checked here. The packages are ES modules, so they are imported as such.
+// The channels between main and a page (deckit/ipc: main.js in deckit-shell, renderer.js in deckit-sdk), checked over
+// a stand-in for what an environment carries them with (deckit-shell/environment): main and pages, each its own copy of
+// its side's module, as each is its own bundle. Exits 1 with a line for each check that failed. What a page is asked
+// before its code says how to answer cannot be timed in the app, so it is checked here. The packages are ES modules,
+// so they are imported as such. Main holds each channel to its guard by the mod a page runs, as `MODS` says.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const DECKIT = path.join(__dirname, '..', '..', 'deckit');
 const url = (...parts) => pathToFileURL(path.join(DECKIT, ...parts)).href;
-const IPC = (side) => url('deckit-shell', 'deck', 'ipc', side);
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const outcome = (promise) =>
@@ -42,7 +42,6 @@ const MAIN_ENVIRONMENT = {
             page.on('destroyed', destroyed);
         },
         pin() {},
-        watchInput() {},
     },
 };
 
@@ -78,18 +77,21 @@ function pageNamed(name) {
 }
 
 async function main() {
-    const CHANNEL = await import(url('deckit-shell', 'deck', 'channel', 'index.js'));
+    const CHANNEL = await import(url('deckit-sdk', 'deckit', 'channel', 'index.js'));
     const reported = [];
     const report = (label) => reported.push(label);
     const [A, B, C, D] = ['A', 'B', 'C', 'D'].map((name) => pageNamed(name));
-    const MAIN = await import(`${IPC('main.js')}?main`);
+    const MAIN = await import(`${url('deckit-shell', 'deckit', 'ipc', 'main.js')}?main`);
     const unborne = thrown(() =>
         CHANNEL.bindAll(MAIN.layerChannels, { early: CHANNEL.mainToPage('deckit-shell:early') }).early.send(A.page, {})
     );
-    MAIN.carry(MAIN_ENVIRONMENT, { report });
+    // A and B run mods, C and D none.
+    const MODS = { A: { id: 'a', granted: ['deckit.test-asks'] }, B: { id: 'b', granted: [] } };
+    const identify = (page) => MODS[page.name] ?? null;
+    MAIN.carry(MAIN_ENVIRONMENT, { report, identify });
     const pages = [];
     for (const [at, { environment }] of [A, B, C, D].entries()) {
-        const side = await import(`${IPC('renderer.js')}?page${at}`);
+        const side = await import(`${url('deckit-sdk', 'deckit', 'ipc', 'renderer.js')}?page${at}`);
         side.carry(environment, { report });
         pages.push(side);
     }
@@ -102,10 +104,29 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
+    // The permission a call on `picked` is guarded by: deckit.test-asks for `which` 'held', none otherwise.
+    const picks = [];
+    const pick = (payload) => {
+        picks.push(payload);
+        return CHANNEL.fieldOf(payload, 'which') === 'held' ? 'deckit.test-asks' : null;
+    };
     const DECLARED = {
-        setup: CHANNEL.pageToMain('deckit-shell:setup', { a: 'string?' }, { reply: true, sync: true }),
-        ask: CHANNEL.pageToMain('deckit-shell:ask', { a: 'string' }, { reply: true }),
-        tell: CHANNEL.pageToMain('deckit-shell:tell', { a: 'string' }),
+        setup: CHANNEL.pageToMain(
+            'deckit-shell:setup',
+            { a: 'string?' },
+            { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
+        ),
+        ask: CHANNEL.pageToMain('deckit-shell:ask', { a: 'string' }, { reply: true, guard: CHANNEL.GUARD.ANY }),
+        tell: CHANNEL.pageToMain('deckit-shell:tell', { a: 'string' }, { guard: CHANNEL.GUARD.ANY }),
+        anyPage: CHANNEL.pageToMain('deckit-shell:any-page', {}, { reply: true, guard: CHANNEL.GUARD.ANY }),
+        modPage: CHANNEL.pageToMain('deckit-shell:mod-page', {}, { reply: true, guard: CHANNEL.GUARD.MOD }),
+        granted: CHANNEL.pageToMain(
+            'deckit-shell:granted',
+            { a: 'string' },
+            { reply: true, guard: 'deckit.test-asks' }
+        ),
+        picked: CHANNEL.pageToMain('deckit-shell:picked', { which: 'string' }, { reply: true, guard: pick }),
+        grantedTell: CHANNEL.pageToMain('deckit-shell:granted-tell', { a: 'string' }, { guard: 'deckit.test-asks' }),
         escape: CHANNEL.mainToPage('deckit-shell:escape', { reply: true }),
         state: CHANNEL.mainToPage('deckit-shell:state'),
     };
@@ -121,6 +142,10 @@ async function main() {
         throw new Error('a listener throws');
     });
     inMain.tell.on((payload, sender) => told.push([sender.name, payload.a]));
+    for (const name of ['anyPage', 'modPage', 'granted', 'picked'])
+        inMain[name].handle((_payload, sender) => sender.name);
+    const toldGranted = [];
+    inMain.grantedTell.on((payload, sender) => toldGranted.push([sender.name, payload.a]));
 
     // A page asks main, sync and not.
     const asked = await outcome(inA.ask.invoke({ a: 'hi' }));
@@ -146,6 +171,63 @@ async function main() {
     await tick();
     check('main hears what a page tells, and only what fits', JSON.stringify(told) === '[["A","told"]]', told);
     check("a listener's throw is reported", reported.includes('deckit-shell:tell'), reported);
+
+    // Main holds each call to its channel's guard, after the payload is a table and before its fields.
+    const by = async (inPage, name, payload) => outcome(inPage[name].invoke(payload));
+    const anyPage = await by(inC, 'anyPage', {});
+    check('a channel any page may ask answers a page that runs no mod', anyPage.value === 'C', anyPage);
+    const modByNone = await by(inC, 'modPage', {});
+    check('a channel for mods refuses a page that runs no mod REFUSED', modByNone.kind === 'REFUSED', modByNone);
+    const modByMod = await by(inB, 'modPage', {});
+    check("a channel for mods answers a mod's page granted nothing", modByMod.value === 'B', modByMod);
+    const grantedByNone = await by(inC, 'granted', { a: 'x' });
+    check('a channel a permission guards refuses a page that runs no mod REFUSED', grantedByNone.kind === 'REFUSED', {
+        grantedByNone,
+    });
+    const notGranted = await by(inB, 'granted', { a: 'x' });
+    check(
+        'a channel a permission guards refuses a mod not granted it NOT_PERMITTED',
+        notGranted.kind === 'NOT_PERMITTED' && /b does not have the deckit.test-asks permission/.test(notGranted.error),
+        notGranted
+    );
+    const isGranted = await by(inA, 'granted', { a: 'x' });
+    check('a channel a permission guards answers a mod granted it', isGranted.value === 'A', isGranted);
+    const beforeFields = await by(inB, 'granted', { a: 1 });
+    check('the guard is held before the fields', beforeFields.kind === 'NOT_PERMITTED', beforeFields);
+    const pickedHeld = await by(inB, 'picked', { which: 'held' });
+    check('a picker guards a call by what it picks', pickedHeld.kind === 'NOT_PERMITTED', pickedHeld);
+    const pickedNone = await by(inB, 'picked', { which: 'free' });
+    check("a call a picker guards by none is answered for a mod's page", pickedNone.value === 'B', pickedNone);
+    const pickedByNone = await by(inC, 'picked', { which: 'free' });
+    check('a call a picker guards by none refuses a page that runs no mod', pickedByNone.kind === 'REFUSED', {
+        pickedByNone,
+    });
+    const pickedWrong = await by(inB, 'picked', { which: 5 });
+    check('a picker handed a field of another kind leaves it to the fields', pickedWrong.kind === 'REFUSED', {
+        pickedWrong,
+    });
+    const picked = picks.length;
+    const notTable = await B.environment.messages.ask({ channel: 'deckit-shell:picked', payload: 'held' });
+    check(
+        'a payload that is no table is refused before the guard reads it',
+        notTable?.error?.kind === 'REFUSED' && picks.length === picked,
+        { notTable, picks }
+    );
+    check(
+        'a picker is handed the payload as sent',
+        picks.every((payload) => typeof payload === 'object' && payload !== null) && picks.at(-1).which === 5,
+        picks
+    );
+    check("a page's channel carries its declaration's guard", inA.granted.guard === 'deckit.test-asks', inA.granted);
+    inB.grantedTell.send({ a: 'b' });
+    inC.grantedTell.send({ a: 'c' });
+    inA.grantedTell.send({ a: 'a' });
+    await tick();
+    check(
+        "a tell its guard refuses is dropped, the others' heard",
+        JSON.stringify(toldGranted) === '[["A","a"]]',
+        toldGranted
+    );
 
     // Main asks a page before the page says how to answer: the question waits for it.
     const early = outcome(inMain.escape.invoke(A.page, { key: 'Escape' }, { timeout: 1000 }));
@@ -201,14 +283,16 @@ async function main() {
     await tick();
     check('a page hears what main tells once it listens, and nothing before', JSON.stringify(states) === '[2]', states);
 
-    // A layer's names are its own, read once: what deck binds as its own is never a layer's, even declared alike, and
-    // deck and a layer may share a package's names otherwise.
-    const deckOwn = CHANNEL.pageToMain('deckit-shell:mod-load', {});
-    MAIN.ownChannels.bind(deckOwn);
-    const own = thrown(() => MAIN.layerChannels.bind(deckOwn));
-    check('a layer binds no channel deck binds as its own', /not a layer's/.test(own), own);
-    const beside = thrown(() => MAIN.layerChannels.bind(CHANNEL.pageToMain('deckit-shell:panel-said', {})));
-    check("a layer binds its own beside deck's, under the same package's name", beside === '', beside);
+    // A layer's names are its own, read once: what deckit binds as its own is never a layer's, even declared alike,
+    // and deckit and a layer may share a package's names otherwise.
+    const deckitOwn = CHANNEL.pageToMain('deckit-shell:mod-load', {}, { guard: CHANNEL.GUARD.ANY });
+    MAIN.ownChannels.bind(deckitOwn);
+    const own = thrown(() => MAIN.layerChannels.bind(deckitOwn));
+    check('a layer binds no channel deckit binds as its own', /not a layer's/.test(own), own);
+    const beside = thrown(() =>
+        MAIN.layerChannels.bind(CHANNEL.pageToMain('deckit-shell:panel-said', {}, { guard: CHANNEL.GUARD.ANY }))
+    );
+    check("a layer binds its own beside deckit's, under the same package's name", beside === '', beside);
     let reads = 0;
     const twoFaced = {
         get channel() {
@@ -218,6 +302,7 @@ async function main() {
         fields: {},
         reply: true,
         sync: false,
+        guard: CHANNEL.GUARD.ANY,
     };
     const masked = thrown(() => MAIN.layerChannels.bind(twoFaced));
     check('a declaration is read once, so what is checked is what is bound', masked === '' && reads === 1, {
@@ -229,9 +314,13 @@ async function main() {
         ['a page', PAGE_A],
     ]) {
         const other = thrown(() =>
-            router.layerChannels.bind(CHANNEL.pageToMain('deckit-shell:ask', {}, { reply: true }))
+            router.layerChannels.bind(
+                CHANNEL.pageToMain('deckit-shell:ask', {}, { reply: true, guard: CHANNEL.GUARD.ANY })
+            )
         );
         check(`a channel is declared once, in ${side}`, /declared already/.test(other), other);
+        const unguarded = thrown(() => router.layerChannels.bind(CHANNEL.pageToMain('deckit-shell:unguarded', {})));
+        check(`a channel a page sends main is declared with its guard, in ${side}`, /guard/.test(unguarded), unguarded);
         const again = thrown(() => router.layerChannels.bind(DECLARED.ask));
         check(`binding the same declaration again binds it, in ${side}`, again === '', again);
     }
@@ -242,7 +331,7 @@ async function main() {
 
     // The channels are carried once, by one environment, and nothing crosses before.
     check('nothing crosses before the channels are carried', /nothing carries/.test(unborne), unborne);
-    const twice = thrown(() => MAIN.carry(MAIN_ENVIRONMENT, { report }));
+    const twice = thrown(() => MAIN.carry(MAIN_ENVIRONMENT, { report, identify }));
     check('the channels are carried once', /carried already/.test(twice), twice);
 
     for (const line of failed) console.error(line);

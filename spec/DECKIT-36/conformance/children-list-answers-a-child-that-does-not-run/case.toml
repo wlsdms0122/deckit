@@ -1,0 +1,28 @@
+case = 22
+name = "children-list-answers-a-child-that-does-not-run"
+note = "A mod is a child whether its run is running or not: mod-b, which names case/view as its view's parent and does not run, is among mod-a's children of case/view."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = [{ id = "mod-b", name = "mod-b", icon = "" }]

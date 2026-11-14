@@ -1,0 +1,37 @@
+case = 11
+name = "a-page-does-not-load-a-file-where-the-mod-is-not-granted-system-files"
+note = "A file loads only in a page laid in the mod's page, where the mod is granted system.files; a load refused leaves a page made at it blank. The host's layer shows notes.html of mod-a's bundle in the mod's page, for mod-a, granted nothing."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+file = "mod-a/notes.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "url"
+
+[step.expect]
+answers = ""
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "blank"
+
+[step.expect]
+answers = true

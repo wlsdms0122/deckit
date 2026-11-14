@@ -1,0 +1,25 @@
+case = 3
+name = "a-release-of-an-id-not-reached-does-nothing"
+note = "A release of an id the lifecycle does not reach is not refused and does nothing. mod-a lets go of mod-b, which it never reached, and mod-b does not run."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.release"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"

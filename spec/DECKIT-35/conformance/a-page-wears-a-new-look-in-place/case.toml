@@ -1,0 +1,22 @@
+case = 21
+name = "a-page-wears-a-new-look-in-place"
+note = "Each page wears a new theme in place: the host app's look turns light from dark, and the desktop's own page's colour scheme is light."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "appearance"
+appearance = "light"
+
+[[step]]
+look = "worn"
+properties = []
+
+[step.expect]
+answers = { dark = false, properties = {} }

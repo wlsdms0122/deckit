@@ -1,0 +1,30 @@
+case = 5
+name = "a-second-setting-of-one-key-from-one-mod-is-left-out"
+note = "A mod's second entry of a key it declared already is left out. mod-b declares theme, then tab-size of the key theme."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "mods"
+
+[step.expect]
+answers = [{ mod = { id = "mod-b", name = "mod-b" }, items = [{ entry = { key = "theme", type = "string", title = "Theme", default = "light", oneOf = [{ const = "light", title = "Light" }, { const = "dark", title = "Dark" }] }, value = "light" }] }]

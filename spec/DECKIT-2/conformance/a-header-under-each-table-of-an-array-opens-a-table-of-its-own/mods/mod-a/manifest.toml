@@ -1,0 +1,16 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."mod-b/actions"]]
+title = "New Page"
+
+[contributes."mod-b/actions".when]
+focused = true
+
+[[contributes."mod-b/actions"]]
+title = "Delete Page"
+
+[contributes."mod-b/actions".when]
+focused = false

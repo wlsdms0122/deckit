@@ -1,0 +1,38 @@
+case = 22
+name = "a-drop-reaches-the-innermost-destination-alone"
+note = "Of destinations one inside another that hold the point, the innermost alone is told: notes is dropped inside both, and the inner one alone is called, at 20, 30 of it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:dropped"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { drop = "outer", box = { x = 50, y = 50, width = 300, height = 300 } }, { drop = "inner", box = { x = 100, y = 100, width = 100, height = 100 }, in = "outer" }]
+
+[[step]]
+input = "drop"
+mod = "mod-a"
+name = "main"
+folders = ["notes"]
+at = { x = 120, y = 130 }
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [["inner", ["notes"], { x = 20, y = 30 }]]

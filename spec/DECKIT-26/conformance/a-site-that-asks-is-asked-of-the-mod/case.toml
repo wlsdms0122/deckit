@@ -1,0 +1,36 @@
+case = 10
+name = "a-site-that-asks-is-asked-of-the-mod"
+note = "A name of the rule ask is asked of the mod granted system.site-permissions, through decidePermission({ origin, permissions, app, url }), and true lets the site have it. site-a asks for notifications as its page loads, and the host's delegate answers true."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "decidePermission", args = [{ origin = "site-a", permissions = ["notifications"], app = "", url = "" }] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "default granted"

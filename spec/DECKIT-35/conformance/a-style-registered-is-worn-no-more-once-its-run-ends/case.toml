@@ -1,0 +1,24 @@
+case = 21
+name = "a-style-registered-is-worn-no-more-once-its-run-ends"
+note = "A registered style is worn while the mod's run runs: mod-a, granted deckit.styles, registers in attach a style for \"*\" that sets --case-b and --case-order to b, the person quits mod-a from its Dock item, and mod-b's page holds neither."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "dock"
+mod = "mod-a"
+action = "quit"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = {} }

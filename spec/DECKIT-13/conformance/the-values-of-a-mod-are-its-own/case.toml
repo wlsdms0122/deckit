@@ -1,0 +1,26 @@
+case = 4
+name = "the-values-of-a-mod-are-its-own"
+note = "A mod reads only its own values. mod-a sets theme, and mod-b's get of theme answers its fallback."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "storage.values.set"
+args = ["theme", "dark"]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "storage.values.get"
+args = ["theme", "none"]
+
+[step.expect]
+answers = "none"

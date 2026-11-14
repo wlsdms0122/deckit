@@ -1,0 +1,19 @@
+case = 1
+name = "a-main-that-is-a-link-to-a-file-inside-the-bundle-is-taken"
+note = "A path is resolved following every link; a main that is a link to a regular file inside the bundle is taken."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "main"
+
+[step.expect]
+answers = "entry.js"

@@ -1,0 +1,19 @@
+//
+//  ScopedName+CustomStringConvertible.swift
+//  Deck
+//
+//  Created by JSilver on 10/20/26.
+//
+
+import Foundation
+
+extension ScopedName: CustomStringConvertible {
+    // MARK: - Property
+    package var description: String {
+        "\(principal):\(name)"
+    }
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
+}

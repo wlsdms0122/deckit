@@ -1,0 +1,22 @@
+case = 16
+name = "a-dialog-of-folders-takes-several-where-multiple-is-true"
+note = "Where multiple is true, the dialog takes several folders, and the request answers the path of each, in the order the dialog answers them. mod-a, a mod granted nothing, asks with multiple true, and the person chooses folder-a and folder-b."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+chosen = ["folder-a", "folder-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+args = [{ multiple = true }]
+
+[step.expect]
+answers = ["folder-a", "folder-b"]

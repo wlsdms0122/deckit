@@ -3,3 +3,7 @@ name = "Broker Provider"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
+
+[interfaces]
+provides = { "broker-provider/broker" = [1] }

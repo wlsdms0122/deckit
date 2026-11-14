@@ -1,0 +1,21 @@
+case = 3
+name = "a-file-of-an-address-of-another-type-is-refused"
+note = "filePath is not a request: it throws its refusal, at call with kind INVALID_ARGUMENT, where url is not a string. mod-a asks for the url true."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "filePath"
+args = [true]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

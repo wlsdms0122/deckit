@@ -1,0 +1,20 @@
+case = 15
+name = "what-attach-answers-is-not-read"
+note = "What attach answers is not read: mod-a's attach answers 5, and the host's layer, whose lifecycle starts once the shell's has, lists mod-a's windows, none."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "windows.list"
+handle = "shell"
+
+[step.expect]
+answers = []

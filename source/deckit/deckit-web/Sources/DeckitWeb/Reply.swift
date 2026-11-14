@@ -8,8 +8,8 @@
 import Foundation
 import CNodeAPI
 
-// A JavaScript function that hands what it is called with to `answer`: how JavaScript answers a question WebKit asks
-// and waits on, as a page's permission.
+// A JavaScript function that hands what it is called with, its first two arguments, to `answer`: how JavaScript
+// answers a question WebKit asks and waits on, as a page's permission.
 @MainActor
 final class Reply {
     // MARK: - Property
@@ -47,7 +47,7 @@ private func replied(_ environment: napi_env?, _ info: napi_callback_info?) -> n
         let (environment, info) = given
         let node = Node(environment)
         do {
-            let (arguments, data) = try node.arguments(info, count: 1)
+            let (arguments, data) = try node.arguments(info, count: 2)
             guard let data else { return }
             try Unmanaged<Reply>.fromOpaque(data).takeUnretainedValue().called(node, arguments)
         } catch {

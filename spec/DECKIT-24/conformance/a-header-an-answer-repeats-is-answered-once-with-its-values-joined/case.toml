@@ -1,0 +1,30 @@
+case = 9
+name = "a-header-an-answer-repeats-is-answered-once-with-its-values-joined"
+note = "A name the answer repeats is answered once, its values joined by \", \" in the order answered. site-a answers hello.txt with x-a: 1 and x-a: 2."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/hello.txt"]
+part = "headers"
+
+[step.expect]
+answers = [["connection", "close"], ["content-length", "5"], ["x-a", "1, 2"]]

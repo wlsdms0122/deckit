@@ -49,6 +49,14 @@ struct Node {
         return number
     }
 
+    // A whole number, such as an id or a count: any other number no Int holds throws.
+    func integer(_ value: napi_value) throws -> Int {
+        let number = try number(value)
+        guard let integer = Int(exactly: number) else { throw NodeError(message: "\(number) is not a whole number") }
+
+        return integer
+    }
+
     func bool(_ value: napi_value) throws -> Bool {
         var bool = false
         try check(napi_get_value_bool(environment, value, &bool))

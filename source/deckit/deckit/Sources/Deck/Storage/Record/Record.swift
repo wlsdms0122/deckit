@@ -7,8 +7,8 @@
 
 import Foundation
 
-// A mod's records: JSON by key, one file a key, kept apart from the mod's own data folder. Deck keeps the text it is
-// handed and never reads what it says.
+// A principal's records: JSON by key, one file a key, kept apart from the principal's own data folder. Deck keeps the
+// text it is handed and never reads what it says.
 public final class Record {
     // MARK: - Property
     private let fileExtension = "json"
@@ -22,20 +22,26 @@ public final class Record {
     }
 
     // MARK: - Public
-    public func read(mod: String, key: String) throws -> String? {
-        store.read(try file(mod: mod, key: key))
+    public func read(principal: String, key: String) throws -> String? {
+        store.read(try file(principal: principal, key: key))
     }
 
-    public func write(mod: String, key: String, text: String) throws {
-        try store.write(text, to: try file(mod: mod, key: key))
+    // Refused once the disk has no room for it.
+    public func write(principal: String, key: String, text: String) throws {
+        let file = try file(principal: principal, key: key)
+        do {
+            try store.write(text, to: file)
+        } catch let error as CocoaError where error.code == .fileWriteOutOfSpace {
+            throw RecordError.outOfSpace(key)
+        }
     }
 
-    public func remove(mod: String, key: String) throws {
-        try store.remove(try file(mod: mod, key: key))
+    public func remove(principal: String, key: String) throws {
+        try store.remove(try file(principal: principal, key: key))
     }
 
-    public func keys(mod: String) throws -> [String] {
-        try store.names(in: folder(of: mod))
+    public func keys(principal: String) throws -> [String] {
+        try store.names(in: folder(of: principal))
             .compactMap { name in
                 let file = URL(filePath: name)
                 guard file.pathExtension == fileExtension else { return nil }
@@ -46,24 +52,24 @@ public final class Record {
             .sorted()
     }
 
-    func erase(mod: String) throws {
-        try store.remove(folder(of: mod))
+    func erase(principal: String) throws {
+        try store.remove(folder(of: principal))
     }
 
-    func count(mod: String) throws -> RecordCount {
-        let names = try store.names(in: folder(of: mod))
+    func count(principal: String) throws -> RecordCount {
+        let names = try store.names(in: folder(of: principal))
         let hidden = names.filter { $0.hasPrefix(".") }
         return RecordCount(count: names.count - hidden.count, hidden: !hidden.isEmpty)
     }
 
     // MARK: - Private
-    // Mod ids are held to their rule before a mod loads, so an id here is a folder name.
-    private func folder(of mod: String) -> URL {
-        folder.appending(path: mod, directoryHint: .isDirectory)
+    // The caller hands a principal that is a name, so it is a folder name.
+    private func folder(of principal: String) -> URL {
+        folder.appending(path: principal, directoryHint: .isDirectory)
     }
 
-    private func file(mod: String, key: String) throws -> URL {
+    private func file(principal: String, key: String) throws -> URL {
         guard store.isName(key) else { throw RecordError.notAKey(key) }
-        return folder(of: mod).appending(path: key).appendingPathExtension(fileExtension)
+        return folder(of: principal).appending(path: key).appendingPathExtension(fileExtension)
     }
 }

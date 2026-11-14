@@ -1,0 +1,125 @@
+import * as MESSAGE from './message.js';
+
+// The core: deckit's own, which reads and installs the mods, and keeps what they store and the state. `core` is how
+// the environment reaches it, `home` deckit's folder, and `api` the version of the mod contract it runs mods with.
+export function createCore({ FOLDERS, LOG, core, home, api }) {
+    // MARK: - Property
+    const pending = new Map(); // request id -> { resolve, reject }
+    let connection = null;
+    let ready = null; // settled once the core has answered initialize
+    let kept = null; // where the core keeps the mods it installed and their data folders, as initialize answered
+    let given = null; // how long a run is given, as initialize answered
+    let ended = null; // why the core is gone, once it is
+    let down = null; // why the core answers nothing more, once it does not: it ended, or did not start
+    const downListeners = [];
+    let sequence = 0;
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // Once the app is ready, before any mod launches: what the mods are read against is handed over then, `permissions`
+    // those the layers on this host define and `fields` the manifest fields they read. Resolves once the core has
+    // answered initialize; rejects with what it refused it with, its kind on it, or, for a core that ended, ENDED.
+    function start({ permissions, fields }) {
+        connection = core.open({
+            onMessage: receive,
+            onLog: (line) => LOG.info('core:', line),
+            onEnd: end,
+        });
+        ready = send('initialize', {
+            home,
+            api,
+            ship: FOLDERS.ship,
+            sources: FOLDERS.sources,
+            permissions,
+            fields,
+        }).then(({ mods, data, timeout }) => {
+            kept = { mods, data };
+            given = { launch: timeout.launch * 1000, end: timeout.end * 1000 };
+        });
+        // A core that does not start is down, and each request after it is refused with why. Its refusal is what
+        // started it to report.
+        ready.catch((error) => tellDown(`did not start: ${error.message || error}`));
+        return ready;
+    }
+
+    // What the core answers. Asked before the core has answered initialize, it waits for that.
+    function request(method, params) {
+        return ready.then(() => send(method, params));
+    }
+
+    // Where the core keeps the mods it installed and their data folders, `{ mods, data }`, once the core has started.
+    function folders() {
+        return kept;
+    }
+
+    // How long a run is given, in milliseconds, `{ launch, end }`, once the core has started: its code `launch` to
+    // start once it launched, and each of its lifecycles `end` to end once its end is asked. The core says how long,
+    // and what runs the mods keeps the time.
+    function timeout() {
+        return given;
+    }
+
+    // `listener(why)` is told once the core answers nothing more: it ended, or it did not start. Told at once when that
+    // is so already. Answers its off.
+    function onDown(listener) {
+        if (down) {
+            tell(listener, down);
+            return () => {};
+        }
+        downListeners.push(listener);
+        return () => {
+            const at = downListeners.indexOf(listener);
+            if (at >= 0) downListeners.splice(at, 1);
+        };
+    }
+
+    // MARK: - Private
+    // A core that ended is not started again: all that is asked of it is refused, of kind ENDED, saying the app is
+    // to be restarted, and so whatever asked shows it.
+    function end(why) {
+        ended = Object.assign(new Error(`deckit's core ended (${why}): restart the app`), { kind: 'ENDED' });
+        LOG.error(ended.message);
+        for (const { reject } of pending.values()) reject(ended);
+        pending.clear();
+        tellDown(`ended (${why})`);
+    }
+
+    function tellDown(why) {
+        if (down) return;
+        down = why;
+        for (const listener of downListeners.splice(0)) tell(listener, why);
+    }
+
+    function tell(listener, why) {
+        try {
+            listener(why);
+        } catch (error) {
+            LOG.error('what heard the core go down failed', error);
+        }
+    }
+
+    function send(method, params) {
+        if (ended) return Promise.reject(ended);
+        const id = ++sequence;
+        return new Promise((resolve, reject) => {
+            pending.set(id, { resolve, reject });
+            connection.send(MESSAGE.request(id, method, params));
+        });
+    }
+
+    function receive(line) {
+        let response;
+        try {
+            response = MESSAGE.read(line);
+        } catch {
+            return LOG.error('the core said what is no message:', line);
+        }
+        const asked = pending.get(response.id);
+        if (!asked) return LOG.error('the core answered nothing asked:', line);
+        pending.delete(response.id);
+        if (response.error) asked.reject(response.error);
+        else asked.resolve(response.result);
+    }
+
+    return { start, request, folders, timeout, onDown };
+}

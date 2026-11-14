@@ -1,0 +1,42 @@
+case = 8
+name = "clearing-a-session-leaves-what-a-mod-let-a-site-have"
+note = "clear() takes what the session stored and nothing else: what the mod let a site have in it stays. mod-b lets https://example.com have notifications in its session main and clears it, and mod-a reads web under what mod-b's usage names kept."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "allow"
+of = 2
+args = [[{ origin = "https://example.com", permission = "notifications" }]]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "clear"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "kept"
+
+[step.expect]
+answers = ["web"]

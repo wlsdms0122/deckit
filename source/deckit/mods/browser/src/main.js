@@ -1,54 +1,82 @@
-const { parseAddress, hostOf, placeOf } = require('./address/address.js');
+const { parseAddress, hostOf } = require('./address/address.js');
 const { bookmarkEditor } = require('./bookmark-editor/bookmark-editor.js');
-const { candidatesOf, itemOf } = require('./candidates/candidates.js');
+const { itemOf } = require('./candidates/candidates.js');
 const { downloadList } = require('./downloads/downloads.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
+const { settingsOf } = require('./settings/settings.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
 const { startPage } = require('./start-page/start-page.js');
 const { store } = require('./store/store.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
-const { START, tabList, tabLabel } = require('./tabs/tab-list.js');
+const { START, tabList } = require('./tabs/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
+const { viewKeys } = require('./keys/keys.js');
+
+// The sites' notifications kept for a press, the latest.
+const NOTICES_KEPT = 100;
 
 class Browser {
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
-    static keywords = ['브라우저', '웹', '인터넷', 'browser', 'web'];
-    static configuration = {
-        homepage: {
-            type: 'string',
-            title: 'Homepage',
-            description: 'The address a new tab opens. Empty, it opens the start page, the bookmarks as tiles.',
-            default: '',
-        },
-        searchEngine: {
-            type: 'string',
-            title: 'Search engine',
-            description: 'Where words typed in the address bar are searched.',
-            default: 'https://www.google.com/search?q=',
-            oneOf: [
-                { const: 'https://www.google.com/search?q=', title: 'Google' },
-                { const: 'https://duckduckgo.com/?q=', title: 'DuckDuckGo' },
-                { const: 'https://www.bing.com/search?q=', title: 'Bing' },
-            ],
-        },
-    };
+    // What attach has put on screen for the commands, the addresses and reopen() to reach, while it is attached:
+    // `openWindow()` opens the Browser's window, or orders it front where it is open.
+    screen = null;
 
-    static form = { homepage: { placeholder: 'Start page' } };
+    // The commands its manifest declares to `deckit/commands`, and the `http` and `https` addresses it declares to
+    // `deckit/urls`, each taken from the exports for its id and run on the tabs in its window, open or not:
+    // `show-notification` brings the window front, and `new-tab` at no address opens it where it is closed, as the
+    // address is typed in it. A command run while the Browser is not attached says so, and an address that comes then
+    // is passed on.
+    start(deckit) {
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Browser has no window to open');
+            return this.screen;
+        };
+        const commands = {
+            'new-tab': ({ url }) => onScreen().newTab(url),
+            'reopen-tab': () => onScreen().reopenTab(),
+            'show-notification': (args) => onScreen().showNotification(args),
+            'switch-to-tab': (args) => onScreen().switchToTab(args),
+            'open-bookmark': (args) => onScreen().openBookmark(args),
+        };
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Browser has no command ${id}`);
+                    await commands[id](args ?? {});
+                },
+                openURL: async (url, { activates }) => {
+                    const address = parseAddress(url);
+                    if (!address) return false;
+                    return !!this.screen && this.screen.openURL(address, { activates });
+                },
+            }),
+        });
+    }
 
-    attach(shell, deckit) {
+    attach(shell, deckit, { web }) {
         const { theme, ui } = shell;
-        const { storage, configuration } = deckit;
+        const { storage } = deckit;
         const { values, records } = storage;
+        const settings = settingsOf();
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
 
         let shown = false;
+        // The owner of deckit/notifications while one is connected, and the sites' notifications posted to it, by the
+        // key a press names, the latest kept.
+        let notifications = null;
+        const notices = new Map();
+        let noticeSequence = 0;
+        deckit.dependencies.onConnect('deckit/notifications', (connected) => {
+            notifications = connected;
+            return () => (notifications = null);
+        });
 
         // Files get a session of their own (system.files), so a file page never holds the web's cookies.
-        const webSession = deckit.web.session('web');
-        const filesSession = deckit.web.session('files');
+        const webSession = web.session('web');
+        const filesSession = web.session('files');
         const { bookmarks, certificates, sitePermissions } = store({ records, onBookmarksChange: showBookmarks });
         const editor = bookmarkEditor({ ui, bookmarks });
-        // The view is the toolbar over the area of pages.
+        // The content is the toolbar, the window's title bar, over the area of pages.
         const content = ui.element('div', {
             style: { display: 'flex', flexDirection: 'column', width: '100%', height: '100%', overflow: 'hidden' },
         });
@@ -67,7 +95,7 @@ class Browser {
         const bar = toolbar({
             theme,
             ui,
-            trailing: downloadList({ theme, ui, downloads: deckit.web.downloads }).element,
+            trailing: downloadList({ theme, ui, downloads: web.downloads, reveal: shell.reveal }).element,
             onBack: goBack,
             onForward: goForward,
             onReload: reload,
@@ -106,7 +134,7 @@ class Browser {
         });
         const sidePanel = sidebar({
             ui,
-            chordOf: deckit.keys.chordOf,
+            chordOf: (name) => keys.chordOf(name),
             clipboard: deckit.clipboard,
             values,
             bookmarks,
@@ -128,85 +156,65 @@ class Browser {
 
         area.append(start.element);
         content.append(bar.element, area);
-        webSession.trust(certificates.all());
-        webSession.allow(sitePermissions.all());
+        // What was kept is handed back whole, and one entry the session does not take refuses all of it.
+        const restored = (what) => (error) =>
+            console.warn(`[browser] the ${what} kept were not restored: ${error.message}`);
+        webSession.trust(certificates.all()).catch(restored('certificates'));
+        webSession.allow(sitePermissions.all()).catch(restored('site permissions'));
         tabs.restore();
         showBookmarks();
 
-        shell.view.register({
-            content,
+        // The window's own keys, while it is key.
+        const keys = viewKeys(
+            {
+                newTab: { key: 'mod+t', run: () => newTab() },
+                reopenTab: { key: 'mod+shift+t', run: reopenTab },
+                find: { key: 'mod+f', run: openFind },
+                closeTab: { key: 'mod+w', run: closeTab },
+                address: { key: 'mod+l', run: editAddress },
+                reload: { key: 'mod+r', run: reload },
+                back: { key: 'mod+[', run: goBack },
+                forward: { key: 'mod+]', run: goForward },
+                ...Object.fromEntries(
+                    [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
+                        `tab${number}`,
+                        { key: `mod+${number}`, run: () => showTab(number - 1) },
+                    ])
+                ),
+                lastTab: { key: 'mod+9', run: () => showTab(-1) },
+            },
+            { log: 'browser', within: content }
+        );
+        this.endKeys = () => keys.listen(false);
+
+        // The pages beside the sidebar's tabs and bookmarks, whose width and fold are kept as the person leaves them.
+        const split = ui.splitView({
             sidebar: sidePanel.element,
-            didAppear() {
-                shown = true;
-                prompter.askPending(tabs.front());
-            },
-            didDisappear() {
-                shown = false;
-            },
+            content,
+            ...values.get('sidebar', {}),
+            onChange: (kept) => values.set('sidebar', kept),
         });
-
-        deckit.commands.register({
-            'new-tab': {
-                description: 'Opens a new tab, at the address given or the homepage.',
-                params: { type: 'object', properties: { url: { type: 'string', title: 'Address' } } },
-                run: ({ url } = {}) => newTab(url),
-            },
-            'reopen-tab': { description: 'Opens the tab closed last again, where it was.', run: reopenTab },
-            'switch-to-tab': {
-                description: 'Brings an open tab to the front.',
-                params: {
-                    type: 'object',
-                    properties: { tab: { type: 'string', title: 'Tab' } },
-                    required: ['tab'],
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear() {
+                    shown = true;
+                    prompter.askPending(tabs.front());
                 },
-                run: switchToTab,
-                complete: (_param, partial) => candidatesOf(tabs.tree(), tabLabel, partial, deckit.util),
-            },
-            'open-bookmark': {
-                description: 'Opens a bookmark in a new tab.',
-                params: {
-                    type: 'object',
-                    properties: { bookmark: { type: 'string', title: 'Bookmark' } },
-                    required: ['bookmark'],
+                didBecomeKey: () => keys.listen(true),
+                didResignKey: () => keys.listen(false),
+                didDisappear() {
+                    shown = false;
                 },
-                run: openBookmark,
-                complete: (_param, partial) =>
-                    candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), partial, deckit.util),
-            },
-        });
-
-        deckit.keys.register({
-            newTab: { label: 'New Tab', key: 'mod+t', run: () => newTab() },
-            reopenTab: { label: 'Reopen Closed Tab', key: 'mod+shift+t', run: reopenTab },
-            find: { label: 'Find in Page', key: 'mod+f', run: openFind },
-            closeTab: { label: 'Close Tab', key: 'mod+w', run: closeTab },
-            address: { label: 'Edit Address', key: 'mod+l', run: editAddress },
-            reload: { label: 'Reload', key: 'mod+r', run: reload },
-            back: { label: 'Back', key: 'mod+[', run: goBack },
-            forward: { label: 'Forward', key: 'mod+]', run: goForward },
-            ...Object.fromEntries(
-                [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
-                    `tab${number}`,
-                    { label: `Tab ${number}`, key: `mod+${number}`, run: () => showTab(number - 1) },
-                ])
-            ),
-            lastTab: { label: 'Last Tab', key: 'mod+9', run: () => showTab(-1) },
-        });
-
-        deckit.urls.register((url, { activates = true, target = '' } = {}) => {
-            const address = parseAddress(url);
-            if (!address) return false;
-            if (activates) shell.show();
-            tabs.open(address, { activates, target: String(target || '') });
-            return true;
-        });
+            });
+        openWindow();
 
         const actions = switcher({
             ui,
-            util: deckit.util,
             tabs,
             bookmarks,
-            show: shell.show,
+            show: openWindow,
             does: inFront({
                 'new-tab': ({ url }) => newTab(url),
                 'reopen-tab': reopenTab,
@@ -220,10 +228,23 @@ class Browser {
                 forward: goForward,
             }),
         });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        this.screen = {
+            openWindow,
+            // One at no address has its address typed in the window, opened where it is closed.
+            newTab: (url) => {
+                if (url === undefined && !shell.windows.list().length) openWindow();
+                newTab(url);
+            },
+            reopenTab,
+            showNotification,
+            switchToTab,
+            openBookmark,
+            openURL,
+        };
 
         function home() {
-            return parseAddress(configuration.get('homepage')) || START;
+            return parseAddress(settings.get('homepage')) || START;
         }
 
         function showTabs() {
@@ -278,10 +299,22 @@ class Browser {
             tabs.close(tabs.front());
         }
 
-        // The page goes to the address typed, or searches for the text, and takes the keyboard.
+        // An address another mod asked to open, in a new tab, in front unless `activates` is false.
+        function openURL(address, { activates }) {
+            const front = activates !== false;
+            if (front) openWindow();
+            tabs.open(address, { activates: front });
+            return true;
+        }
+
+        // The page goes to the address typed, or searches for the text, and takes the keyboard. Words typed before the
+        // settings are read are searched nowhere.
         function go(text) {
             const tab = tabs.front();
-            tabs.navigate(tab, parseAddress(text) || configuration.get('searchEngine') + encodeURIComponent(text));
+            const address = parseAddress(text);
+            const engine = settings.get('searchEngine');
+            if (!address && !engine) return;
+            tabs.navigate(tab, address || engine + encodeURIComponent(text));
             tab.page.focus();
         }
 
@@ -310,24 +343,50 @@ class Browser {
             if (!tabs.atStart(tabs.front())) find.show();
         }
 
-        function notify(tab, notification) {
+        // A site's notification, posted while an owner of deckit/notifications is connected and dropped while none is.
+        async function notify(tab, notification) {
+            if (!notifications) return;
             const site = hostOf(tab.url);
-            deckit.notify({
-                title: notification.title || site,
-                body: notification.body ? notification.body + ' · ' + site : site,
-                silent: notification.silent,
-                onClick: () => {
-                    if (!tabs.list().includes(tab)) return;
-                    shell.show();
-                    tabs.select(tab);
-                    notification.click();
-                },
-            });
+            const key = String(++noticeSequence);
+            notices.set(key, notification);
+            for (const old of [...notices.keys()].slice(0, -NOTICES_KEPT)) notices.delete(old);
+            try {
+                await notifications.post({
+                    title: notification.title || site,
+                    body: notification.body ? notification.body + ' · ' + site : site,
+                    silent: notification.silent,
+                    command: 'show-notification',
+                    args: { tab: String(tab.id), notification: key },
+                });
+            } catch {
+                notices.delete(key);
+            }
+        }
+
+        // A press on a site's notification: its tab comes forward, and the site hears the press.
+        function showNotification({ tab, notification }) {
+            const found = tabs.list().find((each) => String(each.id) === tab);
+            if (!found) throw new Error('The tab the notification came from is closed');
+            openWindow();
+            tabs.select(found);
+            notices.get(notification)?.click();
+            notices.delete(notification);
         }
 
         function notAnAddress(text) {
             ui.dialog({ title: 'Not a web address', message: text, confirmLabel: 'OK', cancelLabel: null });
         }
+    }
+
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
+    }
+
+    detach() {
+        this.screen = null;
+        this.endKeys?.();
+        this.endKeys = null;
     }
 }
 

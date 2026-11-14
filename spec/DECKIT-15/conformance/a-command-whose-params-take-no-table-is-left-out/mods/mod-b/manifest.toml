@@ -1,0 +1,10 @@
+id = "mod-b"
+name = "MOD B"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."deckit/commands"]]
+id = "today"
+title = "Show Today"
+params = { type = "string" }

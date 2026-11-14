@@ -1,5 +1,10 @@
+const { TIER, matchFields } = require('deckit-sdk/match');
+const PATH = require('deckit-sdk/path');
+const { activitySection } = require('./sections/activity/activity-section.js');
 const { CHIP_STYLE } = require('./chip/chip.js');
 const { generalSection } = require('./sections/general/general-section.js');
+const { HANDLER_LIST_STYLE } = require('./sections/handler-list/handler-list.js');
+const { interfacesSection } = require('./sections/interfaces/interfaces-section.js');
 const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
 const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
 const { modsSection } = require('./sections/mods/mods-section.js');
@@ -7,19 +12,48 @@ const { SECTION_STYLE } = require('./sections/section/section.js');
 const { tableOfContents } = require('./table-of-contents/table-of-contents.js');
 const { urlSchemesSection } = require('./sections/url-schemes/url-schemes-section.js');
 
+// The system's services Settings draws and changes, each by the name it is held under while it is connected.
+const SERVICES = {
+    keys: 'deckit/keys',
+    urls: 'deckit/urls',
+    configuration: 'deckit/configuration',
+    commands: 'deckit/commands',
+    packages: 'deckit/packages',
+};
+// Where the sidebar's width and fold are kept, as the person leaves them.
+const SIDEBAR = 'sidebar';
+
 class Settings {
-    static keywords = ['설정', '모드', 'settings', 'mods'];
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    // What attach has put on screen for the command and reopen() to reach, while it is attached: `openWindow()` opens
+    // Settings' window, or orders it front where it is open.
+    screen = null;
 
-    attach(shell, deckit) {
+    // The command its manifest declares to `deckit/commands` is taken from the exports for its id, and runs on the
+    // window, opening it where it is closed, failing, saying so, while Settings is not attached.
+    start(deckit) {
+        deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (id !== 'show-settings-of') throw new Error(`Settings has no command ${id}`);
+                    if (!this.screen) throw new Error('Settings has no window to open');
+                    await this.screen.showSettingsOf(args ?? {});
+                    return null;
+                },
+            }),
+        });
+    }
+
+    attach(shell, deckit, { mainProcess }) {
         const { ui } = shell;
-        const { util } = deckit;
-        const APP_NAME = deckit.about().name;
+        const { name: APP_NAME, home } = deckit.about();
+        const tildify = (path) => PATH.tildify(path, home);
 
-        // mod id -> the keys a mod had as the Keyboard section last drew it running: a key map lists a mod's keys only
-        // while it runs
-        const drawnKeys = new Map();
+        // name in SERVICES -> its exports while it is connected
+        const services = { keys: null, urls: null, configuration: null, commands: null, packages: null };
         let shown = false;
+        let drawing = 0;
+        // what deckit.mods.list(), runs() and interfaces() last answered
+        let listed = { list: [], runs: [], interfaces: [] };
 
         // In every rule of this mod, `line-height` comes after `font`: the shorthand resets it.
         ui.addStyle(`
@@ -41,16 +75,19 @@ class Settings {
             }
             .settings-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
         `);
-        ui.addStyle(SECTION_STYLE + CHIP_STYLE);
+        ui.addStyle(SECTION_STYLE + CHIP_STYLE + HANDLER_LIST_STYLE);
         const page = ui.element('div', { className: 'settings-page' });
         const body = ui.element('div', { className: 'settings-body' });
         const mods = modsSection({
             ui,
             mods: deckit.mods,
+            mainProcess,
+            packages: () => services.packages,
             pins: shell.mods,
             dropDestination: shell.dropDestination,
-            everyScheme: deckit.urls.everyScheme,
-            util,
+            dialogs: shell.dialogs,
+            reveal: shell.reveal,
+            tildify,
             appName: APP_NAME,
             onChange: redraw,
         });
@@ -58,15 +95,22 @@ class Settings {
         const modSettings = modSettingsSection({
             ui,
             theme: shell.theme,
-            modConfiguration: deckit.modConfiguration,
-            formOf: shell.formOf,
+            configuration: () => services.configuration,
             sources,
-            nameOf: (id) => deckit.mods.list().running.find((mod) => mod.id === id)?.name || id,
+            nameOf: (id) => listed.list.find((entry) => entry.id === id)?.mod?.name || id,
         });
-        const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
+        const urlSchemes = urlSchemesSection({ ui, urls: () => services.urls, appName: APP_NAME, onChange: redraw });
+        const interfaces = interfacesSection({ ui, mods: deckit.mods });
+        const activity = activitySection({ ui, mods: deckit.mods, onInterfaces: () => contents.go(interfaces) });
         const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts });
-        const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
-        const sections = [mods, general, modSettings, urlSchemes, keyboard];
+        const keyboard = keyboardSection({
+            ui,
+            keys: () => services.keys,
+            shellKeys: shell.keys,
+            appName: APP_NAME,
+            onChange: redraw,
+        });
+        const sections = [mods, activity, general, modSettings, urlSchemes, interfaces, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
@@ -75,7 +119,7 @@ class Settings {
         page.append(title, body);
         // A mod's settings can be asked for by its command before the first visit draws anything.
         modSettings.draw();
-        deckit.exports.register({
+        deckit.exports.register('settings/buttons', {
             connect: (connection) => ({
                 setButtons: (buttons) => {
                     sources.set(connection, buttons);
@@ -87,33 +131,40 @@ class Settings {
                 modSettings.draw();
             },
         });
+        // A service connected or gone changes what its section can draw.
+        for (const [name, named] of Object.entries(SERVICES))
+            deckit.dependencies.onConnect(named, (service) => {
+                services[name] = service;
+                if (name === 'configuration') modSettings.draw();
+                else if (shown) redraw();
+                return () => {
+                    services[name] = null;
+                    if (name === 'configuration') modSettings.draw();
+                    else if (shown) redraw();
+                };
+            });
 
-        shell.view.register({
-            content: page,
+        // The table of contents beside the sections; a key being recorded stops as the keyboard leaves the window.
+        const split = ui.splitView({
             sidebar: contents.element,
-            didAppear: () => {
-                shown = true;
-                redraw();
-                contents.follow();
-            },
-            didDisappear: () => {
-                shown = false;
-                keyboard.stopRecording();
-            },
+            content: page,
+            ...deckit.storage.values.get(SIDEBAR, {}),
+            onChange: (kept) => deckit.storage.values.set(SIDEBAR, kept),
         });
-        deckit.commands.register({
-            'show-settings-of': {
-                description: 'Shows the settings of one mod in Settings.',
-                params: {
-                    type: 'object',
-                    properties: { mod: { type: 'string', title: 'Mod' } },
-                    required: ['mod'],
+        const openWindow = () =>
+            shell.windows.open({
+                name: 'main',
+                content: split.element,
+                didAppear: () => {
+                    shown = true;
+                    redraw();
+                    contents.follow();
                 },
-                run: showSettingsOf,
-                complete: (_param, partial) => settingsOf(partial),
-            },
-        });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) =>
+                didResignKey: () => keyboard.stopRecording(),
+                didDisappear: () => (shown = false),
+            });
+        openWindow();
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) =>
             quickSwitcher.setActions({
                 list: () => [
                     ...sections.map((section, index) => ({
@@ -137,45 +188,77 @@ class Settings {
                         : [],
                 run: async ({ action, index, mod }) => {
                     if (action === 'show-section') {
-                        shell.show();
-                        requestAnimationFrame(() => contents.go(sections[index]));
-                    } else await showSettingsOf({ mod }, { ready: shell.show });
+                        openWindow();
+                        body.ownerDocument.defaultView.requestAnimationFrame(() => contents.go(sections[index]));
+                    } else await showSettingsOf({ mod }, { ready: openWindow });
                 },
             })
         );
         deckit.mods.onChange(() => shown && redraw());
+        mainProcess?.onChange(() => shown && redraw());
         // Fonts set elsewhere come as a new theme, which a mod's setting left unset may inherit.
         shell.theme.onChange(() => {
             if (!shown) return;
             general.draw();
             modSettings.draw();
         });
+        this.screen = { openWindow, showSettingsOf: (args) => showSettingsOf(args, { ready: openWindow }) };
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
-        // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
-        // one, not as a mod gone and back.
-        function redraw() {
-            const { found, running: now } = deckit.mods.list();
-            const listed = deckit.keys.list();
-            const handlerLists = deckit.urls.list();
-            for (const mod of now)
-                drawnKeys.set(
-                    mod.id,
-                    listed.filter(({ provider }) => provider === mod.id)
-                );
-            const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
-            const running = [...now, ...restarting];
-            // A new run may have registered some of its keys already: those are the key map's.
-            const listedIds = new Set(listed.map(({ id }) => id));
-            const shortcuts = [
-                ...listed,
-                ...restarting.flatMap(({ id }) => drawnKeys.get(id) || []).filter(({ id }) => !listedIds.has(id)),
+        // A mod starting or stopping shows what its run that launched contributed, as deckit.mods.runs() answers it, so
+        // a restart reads as one, not as a mod gone and back. A later drawing that starts while this one reads the
+        // services, or how the mods' main process modules are, draws instead.
+        async function redraw() {
+            const turn = ++drawing;
+            const [keys, urls, configured, commands, list, runs, interfaceQueues] = await Promise.all([
+                keyboard.read(),
+                urlSchemes.read(),
+                refusedBy('configuration'),
+                refusedBy('commands'),
+                deckit.mods.list(),
+                deckit.mods.runs(),
+                deckit.mods.interfaces(),
+            ]);
+            if (turn !== drawing) return;
+            const failures = await failuresOf(list);
+            if (turn !== drawing) return;
+            listed = { list, runs, interfaces: interfaceQueues };
+            const { shortcuts } = keys;
+            const { schemes } = urls;
+            const refused = [
+                ...commands,
+                ...configured,
+                ...keys.refused.map((one) => ({ ...one, interface: SERVICES.keys })),
+                ...urls.refused.map((one) => ({ ...one, interface: SERVICES.urls })),
             ];
-            mods.draw({ found, running, shortcuts, handlerLists });
+            mods.draw({ ...listed, shortcuts, schemes, refused, failures });
+            activity.draw(listed);
             modSettings.draw();
-            urlSchemes.draw(handlerLists);
+            urlSchemes.draw(schemes);
+            interfaces.draw(interfaceQueues);
             general.draw();
             keyboard.draw(shortcuts);
+        }
+
+        // Why the main process modules of each mod of `list` that did not start did not, by its id; none where the
+        // host runs no main process modules.
+        async function failuresOf(list) {
+            if (!mainProcess) return new Map();
+            const states = await Promise.all(list.map((entry) => mainProcess.statusOf(entry.id)));
+            return new Map(list.map((entry, index) => [entry.id, states[index]?.failure || null]));
+        }
+
+        // What the service held as `name` left out of what the mods declare to it, as its `list` answers them, each
+        // with the interface; none while it is not connected or cannot be read.
+        async function refusedBy(name) {
+            if (!services[name]) return [];
+            try {
+                const { refused } = await services[name].list();
+                return refused.map((one) => ({ ...one, interface: SERVICES[name] }));
+            } catch (error) {
+                console.warn(`[settings] could not read what ${SERVICES[name]} left out`, error);
+                return [];
+            }
         }
 
         // The mods with settings as they were last drawn, ranked for `partial`, matched by their name, id and the
@@ -187,7 +270,6 @@ class Settings {
                 keywords: [group.id, ...group.items.map((item) => item.label).filter(Boolean)],
             }));
             if (!partial.trim()) return candidates;
-            const { TIER, matchFields } = util;
             return candidates
                 .map((candidate) => ({
                     candidate,
@@ -204,19 +286,28 @@ class Settings {
                 .map(({ candidate }) => candidate);
         }
 
-        // Asked of the mods with settings as they were last drawn, which the switcher listed.
-        // `ready()` is told once the mod is found to have settings.
+        // Asked of the mods with settings as they are drawn now. `ready()` is told once the mod is found to have
+        // settings.
         async function showSettingsOf({ mod: id }, { ready = () => {} } = {}) {
+            await modSettings.draw();
             if (!modSettings.groups().some((group) => group.id === id)) throw new Error(`${id} has no settings`);
             ready();
-            await modSettings.draw();
-            requestAnimationFrame(() => {
+            body.ownerDocument.defaultView.requestAnimationFrame(() => {
                 const card = modSettings.cardOf(id);
                 if (!card) return;
                 contents.reveal(modSettings, card);
                 modSettings.highlight(card);
             });
         }
+    }
+
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
+    }
+
+    detach() {
+        this.screen = null;
     }
 }
 

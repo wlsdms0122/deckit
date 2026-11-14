@@ -1,0 +1,36 @@
+case = 17
+name = "a-request-of-a-mod-that-may-not-activate-hands-nothing"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-a opens main in attach. The person presses on mod-a's main, so mod-a may activate. mod-b, marked system and granted deckit.reach-mods, which no input reached, reaches mod-c by its id, mod-c opening exports in start; mod-c opens x, which comes right behind main, not key."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "dependencies.reach"
+args = ["mod-c"]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "events.emit"
+args = ["go", { open = { name = "x" } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-c", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]

@@ -7,9 +7,10 @@ const { store } = require('../accounts/store.js');
 // provider through Calendar's exports (README.md) signs it in, keeps what it signed in with, and reads its calendars.
 // Calendar keeps which accounts there are and which of their calendars are shown. It reads the `now` window the
 // sidebar and the reminders stand on (read-cache.js), and the days the view shows while one says so through
-// `follow(range)`. `screen()` is what the view (view.js) has put on screen, or null: `changed()` draws again,
-// `showDate(date)` brings Calendar forward on that day, and `prompt(question)` asks in a dialog (provider-client.js).
-function calendar({ deckit, screen }) {
+// `follow(range)`. `settings` are the mod's (settings.js), which the reminders read. `screen()` is what the view
+// (view.js) has put on screen, or null: `changed()` draws again, and `prompt(question)` asks in a dialog
+// (provider-client.js).
+function calendar({ deckit, settings, screen, notice }) {
     // A failed write is shown on this mod's row in Settings.
     const records = {
         get: (key, fallback) => deckit.storage.records.get(key, fallback),
@@ -27,10 +28,10 @@ function calendar({ deckit, screen }) {
     });
     const reads = readCache({ records, accounts, feeds, client, onChange: changed, onRead });
     const reminders = reminder({
-        deckit,
+        settings,
         records,
         occurrences: occurrencesBetween,
-        onOpen: (date) => screen()?.showDate(date),
+        notice,
     });
 
     // A read decides for itself whether it is due, so asking every minute costs nothing.

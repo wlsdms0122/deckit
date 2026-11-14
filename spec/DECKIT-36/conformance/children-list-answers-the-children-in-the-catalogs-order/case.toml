@@ -1,0 +1,21 @@
+case = 22
+name = "children-list-answers-the-children-in-the-catalogs-order"
+note = "children.list answers the mod's children of an interface it owns, in the catalog's order: mod-a provides case/view, and mod-c and mod-b, shipped in that order, name it as their view's parent; mod-a's children.list of case/view answers mod-c, then mod-b."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-c", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = ["case/view"]
+
+[step.expect]
+answers = [{ id = "mod-c", name = "mod-c", icon = "" }, { id = "mod-b", name = "mod-b", icon = "" }]

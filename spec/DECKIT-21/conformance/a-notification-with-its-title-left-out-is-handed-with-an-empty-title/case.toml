@@ -1,0 +1,29 @@
+case = 7
+name = "a-notification-with-its-title-left-out-is-handed-with-an-empty-title"
+note = "A notification shown with its title left out is handed with the title the empty string, and one with its body left out with the body the empty string. mod-a shows the body Ping, then the title Pong."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ body = "Ping" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = "Pong" }]
+
+[[step]]
+look = "shown"
+
+[step.expect]
+answers = [{ title = "", body = "Ping", silent = false }, { title = "Pong", body = "", silent = false }]

@@ -1,0 +1,22 @@
+case = 1
+name = "keys-of-other-scalar-values-are-two-keys"
+note = "Two keys are the same key only when they are the same sequence of Unicode scalar values. café written with U+00E9 and with e and U+0301 are two keys, so two permissions are asked for, and the bundle is taken."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "cafe\u0301", reason = "Two.", usable = false },
+    { id = "caf\u00e9", reason = "One.", usable = false },
+]

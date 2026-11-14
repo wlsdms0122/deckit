@@ -8,13 +8,11 @@
 import Foundation
 import Deck
 
-// A run that started, or that runs, with what its page reported: `summary` as a person reads it, and what it
-// contributes.
+// A run that started, with what it contributes as deck reads it. Other keys are not read.
 struct StartedParams: Decodable {
     // MARK: - Property
     let mod: String
     let run: Int
-    let summary: JSONValue
     let contributions: Contribution
 
     // MARK: - Initializer

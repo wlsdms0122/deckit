@@ -1,0 +1,22 @@
+case = 3
+name = "a-launch-request-takes-a-mod-off-the-relaunch-limit"
+note = "A launch request takes a mod off the relaunch limit and launches it. mod-b, a background mod whose entry throws, is at the limit once the app has started, so the launch mod-a asks for is refused with NOT_LAUNCHED, not RELAUNCH_LIMIT."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "launch"
+kind = "NOT_LAUNCHED"

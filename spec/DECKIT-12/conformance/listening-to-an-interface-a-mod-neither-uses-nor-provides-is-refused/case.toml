@@ -1,0 +1,22 @@
+case = 4
+name = "listening-to-an-interface-a-mod-neither-uses-nor-provides-is-refused"
+note = "A mod listens only to names of its own id and of the interfaces it uses or provides: on of a signal of another interface is refused at call with kind NOT_PERMITTED. mod-c provides mod-b/pages, and mod-a, which neither uses nor provides it, listens to mod-b/pages:changed."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-b/pages:changed"]
+listener = true
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

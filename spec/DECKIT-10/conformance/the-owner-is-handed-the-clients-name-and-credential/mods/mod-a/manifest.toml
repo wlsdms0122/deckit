@@ -1,0 +1,9 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+name = "Mod A"
+main = "main.js"
+background = "Uses the pages."
+
+[interfaces]
+uses = { "mod-b/pages" = 1 }

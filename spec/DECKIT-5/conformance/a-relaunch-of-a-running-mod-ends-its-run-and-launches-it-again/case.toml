@@ -1,0 +1,27 @@
+case = 3
+name = "a-relaunch-of-a-running-mod-ends-its-run-and-launches-it-again"
+note = "relaunch asks the end of the run of the mod under id and, once it is notRunning, launches the mod. mod-b, a background mod whose start hands the host an address, runs from the start and is relaunched, so its start is called twice."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.relaunch"
+args = ["mod-b"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [
+    { url = "https://example.com/started", activates = true },
+    { url = "https://example.com/started", activates = true },
+]

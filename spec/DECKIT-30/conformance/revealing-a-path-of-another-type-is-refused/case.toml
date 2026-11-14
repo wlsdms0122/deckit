@@ -1,0 +1,28 @@
+case = 16
+name = "revealing-a-path-of-another-type-is-refused"
+note = "reveal is refused at call with kind INVALID_ARGUMENT where path is not a string, and the host is handed nothing: mod-a, a mod granted nothing, reveals the number 5."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reveal"
+handle = "shell"
+args = [5]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+look = "revealed"
+
+[step.expect]
+answers = []

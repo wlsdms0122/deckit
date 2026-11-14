@@ -1,0 +1,19 @@
+case = 21
+name = "a-style-registered-without-deckit-styles-is-not-worn"
+note = "styles.register by a mod not granted deckit.styles registers nothing: mod-a, granted nothing, registers in attach a style for \"*\", and mod-b's page holds nothing of it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = {} }

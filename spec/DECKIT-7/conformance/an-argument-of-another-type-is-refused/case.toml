@@ -1,0 +1,52 @@
+case = 3
+name = "an-argument-of-another-type-is-refused"
+note = "A request whose argument is of another type than its signature gives is refused at call with INVALID_ARGUMENT, and the argument is not turned into the type. mod-a, granted deckit.mods and each permission a request below needs, hands the integer 1 where each takes a string: it asks that the mod 1 launch, that a dry run of the install from the folder 1 be made, that the address 1 be opened, and that 1 be copied."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+args = [1, { dryRun = true }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

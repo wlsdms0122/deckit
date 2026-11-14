@@ -1,0 +1,26 @@
+case = 21
+name = "a-style-declared-of-no-string-is-left-out"
+note = "A key of the field styles bound to no string is read as left out, and the rest is read, the mod running: mod-a declares 5 for mod-b and a.css for \"*\", and mod-b's page holds what a.css sets."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "running"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = { --case-a = "a", --case-order = "a" } }

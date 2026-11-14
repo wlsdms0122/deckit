@@ -1,0 +1,23 @@
+case = 3
+name = "a-dry-run-of-a-folder-that-is-no-bundle-is-refused-at-read"
+note = "A folder that is not a bundle refuses a dry run of install at read with NOT_LOADABLE, as it refuses install. mod-a asks a dry run of a folder that holds no manifest."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+args = [{ dryRun = true }]
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

@@ -132,7 +132,7 @@ function listingCache({ about, disk, isShown, onRead }) {
         if (error.kind === 'NOT_PERMITTED')
             return {
                 title: about().name + ' cannot read this folder',
-                hint: 'macOS gives an app a folder in System Settings › Privacy & Security › Files and Folders.',
+                hint: "An app reads a folder once the system's privacy settings allow it.",
                 permission: true,
             };
         return { title: 'Could not read this folder', hint: error.message, permission: false };

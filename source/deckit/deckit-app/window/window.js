@@ -1,7 +1,7 @@
 function createWindow({ CONFIG, THEME, windows }) {
     // MARK: - Property
-    // The bar over a view that fills the window, the bar's height included, whose buttons stand in the panel's top
-    // left, inside the sidebar card while it is open. The buttons are centred on the bar's height.
+    // The bar over a view that fills the window, the bar's height included: the desktop's strip in the host window.
+    // The buttons are centred on the bar's height.
     const FULL_SIZE_BAR = barOf({ height: 52, left: 20 });
     // The window's three buttons, from the first one's left edge to the last one's right.
     const BUTTONS_WIDTH = 52;
@@ -15,19 +15,19 @@ function createWindow({ CONFIG, THEME, windows }) {
     const SAVE_DELAY = 400;
     const solid = new Set(); // the open windows drawn in the bar's colour, which follow the system's appearance
     const covered = new WeakSet(); // the windows whose view covers the bar
-    // floating window -> { key, moved, timer }: the key it keeps where the person moved it to by, and whether they
-    // moved it since it was last shown
+    // floating window -> { moved, timer }: whether the person moved it since it was last shown, and the wait before
+    // the frame they left it at is told
     const floating = new WeakMap();
 
     // MARK: - Initializer
     // MARK: - Public
-    // A window of Deckit.app, with macOS's title bar across its top, drawn in the bar's colour, and a view below it,
-    // all of the window's content, through `place(window)`. The bar is the window's own, laid as macOS lays it, so
-    // it drags, snaps and answers a double click as the person set. `size` is the view's. `glass`, for a view drawn as
-    // glass: the window blurs what is behind it instead. `fullSize`: the view fills the window, the bar's height
-    // included, and draws and drags what lies under the bar itself (TITLE_BAR), the title not drawn. A window with a
-    // `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to the
-    // view as the window takes it.
+    // A window of Deckit.app, with the system's title bar across its top, drawn in the bar's colour, and a view below
+    // it, all of the window's content, through `place(window)`. The bar is the window's own, laid as the system lays
+    // it, so it drags, snaps and answers a double click as the person set. `size` is the view's. `glass`, for a view
+    // drawn as glass: the window blurs what is behind it instead. `fullSize`: the view fills the window, the bar's
+    // height included, and draws and drags what lies under the bar itself (TITLE_BAR), the title not drawn. A window
+    // with a `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to
+    // the view as the window takes it.
     function open({ title = '', size = null, glass = null, fullSize = false, key = null, place, focus = null }) {
         const viewSize = size || DEFAULT_VIEW_SIZE;
         const windowSize = fullSize
@@ -54,29 +54,28 @@ function createWindow({ CONFIG, THEME, windows }) {
         return window;
     }
 
-    // A window over every app, on every Space and over an app in full screen, that takes the keyboard without bringing
-    // Deckit.app forward. It blurs what is behind it, macOS draws its edge, and it has no bar, so what is laid in it,
-    // as glass, is all it draws, and it moves by what that marks to drag. `size` is its own; where it was moved to is
-    // kept by `key`. `place(window)` puts a view in it, which fills it; `focus` hands the view the keyboard as the
-    // window takes it, and `blur` hears it lose it. It opens hidden: `float(window)` shows it.
-    function openFloating({ size, key, place, focus, blur }) {
+    // A window over every app, on every workspace and over an app in full screen, that takes the keyboard without
+    // bringing Deckit.app forward. It blurs what is behind it, the system draws its edge, and it has no bar, so what is
+    // laid in it, as glass, is all it draws, and it moves by what that marks to drag. `size` is its own.
+    // `place(window)` puts a view in it, which fills it; `focus` hands the view the keyboard as the window takes it,
+    // `blur` hears it lose it, and `didMove(frame)` hears each frame a move by the person leaves it at. It opens
+    // hidden: `float(window, { activates, kept })` shows it, taking the keyboard unless `activates` is false.
+    function openFloating({ size, place, focus, blur, didMove }) {
         const window = windows().open({ kind: 'floating', size, material: 'hud' });
         place(window);
-        keepMoves(window, key);
+        keepMoves(window, didMove);
         window.on('key', () => setImmediate(() => window.isKey() && focus()));
         window.on('resign', () => blur());
         return window;
     }
 
-    // A floating window shown with the keyboard on the screen the pointer is on: where it was last moved to, when that
-    // is on this screen, or else centred across it, a fifth of the way down.
-    function float(window) {
+    // A floating window shown with the keyboard on the screen the pointer is on: at `kept`, where it was last left,
+    // when that is on this screen, or else centred across it, a fifth of the way down.
+    function float(window, { activates = true, kept = null } = {}) {
         const { screen } = require('electron');
         const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
         const { width, height } = window.frame();
-        const moving = floating.get(window);
-        moving.moved = false;
-        const kept = read()[moving.key];
+        floating.get(window).moved = false;
         const inside =
             !!kept &&
             kept.x >= area.x &&
@@ -87,7 +86,7 @@ function createWindow({ CONFIG, THEME, windows }) {
             ? kept
             : { x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + area.height / 5) };
         window.setFrame({ x: at.x, y: at.y, width, height });
-        window.show({ focus: true });
+        window.show({ focus: activates });
     }
 
     // Gives a window's view `size`, and the bar's height with it in a window whose view fills it.
@@ -105,19 +104,16 @@ function createWindow({ CONFIG, THEME, windows }) {
     }
 
     // MARK: - Private
-    // Kept as the person moves it, and only then: `moving` comes before a move they make, and never before one
+    // Told as the person moves it, and only then: `moving` comes before a move they make, and never before one
     // `setFrame` makes.
-    function keepMoves(window, key) {
-        const moving = { key, moved: false, timer: null };
+    function keepMoves(window, didMove) {
+        const moving = { moved: false, timer: null };
         floating.set(window, moving);
         window.on('moving', () => (moving.moved = true));
         window.on('moved', () => {
             if (!moving.moved) return;
             clearTimeout(moving.timer);
-            moving.timer = setTimeout(
-                () => !window.isClosed() && write({ ...read(), [key]: window.frame() }),
-                SAVE_DELAY
-            );
+            moving.timer = setTimeout(() => !window.isClosed() && didMove(window.frame()), SAVE_DELAY);
         });
     }
 

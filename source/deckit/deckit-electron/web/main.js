@@ -1,5 +1,5 @@
 import * as ENVIRONMENT from '../../deckit-shell/environment/index.js';
-import * as SITE from '../../deckit-shell/deckit/web/model/site.js';
+import * as SITE from '../../deckit-shell/web/engine/model/site.js';
 import { createPartition } from './model/partition.js';
 import { createRegistry } from './registry.js';
 import { createCertificate } from './certificate.js';
@@ -8,26 +8,29 @@ import { createScript } from './script.js';
 import { storeOf } from '../webkit/index.js';
 import { CHANNEL } from '../messages/main.js';
 
-// The web pages a mod's page shows, as the Electron environment shows them (deckit-shell/environment: MAIN.web), on
-// WebKit: laid just over the mod's page, over the element that holds a web page's place in it, or alone in a window of
-// the app's, each in a session of the mod's, kept in a data store of its own. `MESSAGES` carries what the mod's page
-// says of them, `relayOf(page)` lays a page's web pages again where it is shown, and `WINDOWS.openForStage` asks the
-// host app for a window.
-export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
+// The web pages a mod's page shows, as the Electron environment shows them (deckit-shell/environment: WEB), on WebKit:
+// laid just over the document the element that holds a web page's place is in, the mod's page or a surface it opened,
+// or alone in a window of the app's, each in a session of the mod's, kept in a data store of its own. `MESSAGES`
+// carries what the mod's page says of them, `relayOf(page)` lays a page's web pages again where it is shown,
+// `WINDOWS.openForStage` asks the host app for a window, and `surfaceOf(page, name)` is the surface a page opened by
+// that name.
+export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf }) {
     // MARK: - Property
     const windows = new Map(); // window page id -> { window, embedder }
     const PARTITION = createPartition({ CONFIG });
     const REGISTRY = createRegistry();
     const embedders = new WeakSet(); // the mods' pages that show web pages
-    const pages = new Map(); // id -> a web page deck holds
-    const layouts = new Map(); // id -> where its mod's page last said it shows, { frame, visible }
+    const pages = new Map(); // id -> a web page shown, in a mod's page or in a window
+    // id -> where its mod's page last said it shows, { frame, visible, over }, `over` the page its element is in: the
+    // mod's page, a surface it opened, or null for a surface no longer open
+    const layouts = new Map();
     // The windows web pages opened that are handed to their mod's page, until it shows them as elements.
     const handed = new Map(); // id -> the mod's page
-    let deck = null; // what deck answers and is told (listen)
+    let client = null; // what the web engine answers and is told (listen)
     const told =
         (name) =>
         (...args) =>
-            deck[name](...args);
+            client[name](...args);
     const sessionOf = (page) => PARTITION.read(page.partition);
     const CERTIFICATE = createCertificate({ refused: told('refused') });
     const DOWNLOAD = createDownload({ folder: () => require('electron').app.getPath('downloads') });
@@ -38,13 +41,15 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         permitted: told('permitted'),
         notified: told('notified'),
         request: told('request'),
+        readClipboard: told('readClipboard'),
+        writeClipboard: told('writeClipboard'),
     });
 
     // MARK: - Initializer
     // MARK: - Public
     function listen(given) {
-        if (deck) throw new Error('[deckit] the web is listened to once');
-        deck = ENVIRONMENT.checked(given, ENVIRONMENT.WEB_DECK, 'what deck hands the web');
+        if (client) throw new Error('[deckit] the web is listened to once');
+        client = ENVIRONMENT.checked(given, ENVIRONMENT.WEB_CLIENT, 'what the web engine hands the web');
         hear();
     }
 
@@ -61,7 +66,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         LOG.guard(modPage, 'destroyed', closeShown, { once: true });
     }
 
-    // A web page deck holds, while it is there.
+    // A web page shown, while it is there.
     function pageOf(id) {
         const page = pages.get(id);
         return page && !page.isDestroyed() ? page : null;
@@ -69,19 +74,26 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
 
     function holderOf(page) {
         const entry = REGISTRY.get(page.id);
-        return entry ? { embedder: entry.embedder, id: page.id, tab: entry.tab, inPage: entry.inPage } : null;
+        return entry ? { embedder: entry.embedder, id: page.id, inPage: entry.inPage } : null;
     }
 
-    function holdsKeyboard(modPage) {
-        return [modPage, ...REGISTRY.pagesIn(modPage)].some((page) => !page.isDestroyed() && page.isFocused());
+    // The page the element of web page `page` is in, or null for one shown in no element.
+    function containerOf(page) {
+        return layouts.get(page.id)?.over ?? null;
+    }
+
+    // Whether `page` has the keyboard, or a web page it shows, or one laid over it, its element in that page.
+    function holdsKeyboard(page) {
+        const over = [...layouts].flatMap(([id, layout]) => (layout.over === page ? [pageOf(id)] : []));
+        return [page, ...REGISTRY.pagesIn(page), ...over].some((one) => one && !one.isDestroyed() && one.isFocused());
     }
 
     function openWindow(modPage, { mod, session, url, title }) {
         const page = makePage(PARTITION.spell(mod, session), modPage);
         pages.set(page.id, page);
-        adopt(modPage, page, { inPage: false, tab: page.id });
-        showInWindow(modPage, page, { title, size: deck.windowSize });
-        page.loadURL(url);
+        adopt(modPage, page, { inPage: false });
+        showInWindow(modPage, page, { title });
+        if (!SITE.isBlank(url)) page.loadURL(url);
         return page.id;
     }
 
@@ -117,7 +129,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
                 const active =
                     !found || !matches ? 0 : back ? ((last - 2 + matches) % matches) + 1 : (last % matches) + 1;
                 entry.found = active;
-                deck.found(entry.embedder, page.id, { matches: found ? matches : 0, active, final: true });
+                client.found(entry.embedder, page.id, { matches: found ? matches : 0, active, final: true });
             })
             .catch((error) => LOG.error('a find in a web page failed', error));
     }
@@ -125,7 +137,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
     function stopFind(page, { keepSelection }) {
         const entry = REGISTRY.get(page.id);
         if (entry) entry.found = 0;
-        if (!keepSelection) page.evaluate('getSelection()?.removeAllRanges()', 'deckit').catch(() => {});
+        if (!keepSelection) SCRIPT.unselect(page);
     }
 
     function close(page) {
@@ -150,10 +162,15 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         };
     }
 
+    // An answer past `fetchLimit` bytes is refused QUOTA_EXCEEDED. The module refuses it with its message alone,
+    // `response too large`.
     function fetch(mod, session, request) {
         return WEBKIT.fetch(storeOf(PARTITION.spell(mod, session)), request, {
-            limit: deck.fetchLimit,
-            cookieLifetime: deck.cookieLifetime,
+            limit: client.fetchLimit,
+            cookieLifetime: client.cookieLifetime,
+        }).catch((error) => {
+            if (!/^response too large\b/.test(error?.message)) throw error;
+            throw Object.assign(new Error(error.message), { kind: 'QUOTA_EXCEEDED' });
         });
     }
 
@@ -168,29 +185,36 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
             const page = pageOf(id);
             return page && REGISTRY.get(id)?.embedder === sender ? page : null;
         };
+        // The page the element of web page `id` is in, which has the keyboard back from it.
+        const holding = (sender, id) => layouts.get(id)?.over || sender;
         MESSAGES.on(CHANNEL.webShow, (sender, { partition, url, page }) => show(sender, { partition, url, page }));
-        // One not shown hands the keyboard to its mod's page.
-        MESSAGES.on(CHANNEL.webPlace, (sender, layout) => {
-            const page = ownPage(sender, layout.id);
+        // One not shown hands the keyboard to the page its element is in.
+        MESSAGES.on(CHANNEL.webPlace, (sender, { id, frame, visible, surface }) => {
+            const page = ownPage(sender, id);
             if (!page) return;
-            layouts.set(page.id, layout);
-            if (!layout.visible && page.isFocused()) sender.focus();
-            STAGES.relayOf(sender);
+            const was = layouts.get(id)?.over;
+            const over = surface === undefined ? sender : surfaceOf(sender, String(surface));
+            layouts.set(id, { frame, visible, over });
+            if (!visible && page.isFocused()) holding(sender, id).focus();
+            if (was && was !== over) STAGES.relayOf(was);
+            if (over) STAGES.relayOf(over);
         });
         MESSAGES.on(CHANNEL.webFocus, (sender, { id }) => ownPage(sender, id)?.focus());
-        MESSAGES.on(CHANNEL.webUnfocus, (sender) => sender.focus());
-        // A page that goes with the keyboard hands it to its mod's page, which would otherwise have nowhere to go.
+        MESSAGES.on(CHANNEL.webUnfocus, (sender, { id }) => holding(sender, id).focus());
+        // A page that goes with the keyboard hands it to the page its element was in, which would otherwise have
+        // nowhere to go.
         MESSAGES.on(CHANNEL.webRemove, (sender, { id }) => {
             const page = ownPage(sender, id);
             if (!page) return;
             const focused = page.isFocused();
+            const held = holding(sender, id);
             page.close();
-            if (focused) sender.focus();
+            if (focused) held.focus();
         });
     }
 
-    // A web page an element of `modPage` shows, in the session `partition` spells, loaded at `url` as deck lets it, or
-    // the window of id `page` a web page opened, handed to it: its id, or null when it is not shown.
+    // A web page an element of `modPage` shows, in the session `partition` spells, loaded at `url` as the web engine
+    // lets it, or the window of id `page` a web page opened, handed to it: its id, or null when it is not shown.
     function show(modPage, { partition, url, page: handedId }) {
         try {
             if (!embedders.has(modPage)) throw new Error('the page shows no web pages');
@@ -200,11 +224,11 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
                 return handedId;
             }
             const session = PARTITION.read(partition);
-            if (!session || !deck.attaching(modPage, session)) throw new Error("its session is not the mod's");
+            if (!session || !client.attaching(modPage, session)) throw new Error("its session is not the mod's");
             const page = makePage(PARTITION.spell(session.mod, session.name), modPage);
             pages.set(page.id, page);
-            adopt(modPage, page, { inPage: true, tab: page.id });
-            if (url && url !== 'about:blank') page.loadURL(url);
+            adopt(modPage, page, { inPage: true });
+            if (url && !SITE.isBlank(url)) page.loadURL(url);
             return page.id;
         } catch (error) {
             LOG.warn('a web page was not shown', error?.message || '');
@@ -212,72 +236,61 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         }
     }
 
-    // What a page asks, put to deck: a link it follows, a window it opens, what it asks to have, a certificate the Mac
-    // does not trust, and an app's address. A download it starts is written to the Downloads folder, and deck is told
-    // of it for the mod showing the page. `page` is the page asking, known once it is adopted.
+    // What a page asks, put to the web engine: a link it follows, a window it opens, what it asks to have, a
+    // certificate that is not trusted, and an app's address, which the web engine opens. A download it starts is
+    // written to the Downloads folder, and the web engine is told of it for the mod showing the page. `page` is the
+    // page asking, known once it is adopted, which answers for itself while it is shown.
     function delegateOf(modPage) {
         let page = null;
         let hear = () => {};
-        const tabOf = () => REGISTRY.get(page.id)?.tab ?? page.id;
+        const shown = () => (REGISTRY.get(page.id) ? page : null);
         return {
             adopted: (made, heard) => {
                 page = made;
                 hear = heard;
             },
-            message: (body) => hear(body),
+            message: (body, frame) => hear(body, frame),
             navigate: (url) => {
                 const inPage = !!REGISTRY.get(page.id)?.inPage;
-                return deck.loading(modPage, page, String(url), { inPage, from: page.getURL(), followed: true });
+                return client.loading(modPage, page, String(url), { inPage, from: page.getURL(), followed: true });
             },
-            open: ({ url, ownWindow, background, width, height }) => {
-                const inPage = !!REGISTRY.get(page.id)?.inPage;
-                const asked = {
-                    url,
-                    tab: tabOf(),
-                    from: page.getURL(),
-                    inPage,
-                    ownWindow,
-                    activates: !background,
-                };
-                const where = deck.windowOpen(modPage, page, asked);
-                if (where === 'window') return openPopup(modPage, page, { width, height });
-                if (where === 'page') return openHanded(modPage, page, { url, activates: asked.activates });
-                return null;
+            // Whatever the page, in the mod's page or apart, a popup it is given is a page handed to its mod's page.
+            // `origin` is the opening frame's, as `external`'s.
+            open: ({ url, background, origin }) => {
+                const activates = !background;
+                const from = page.getURL();
+                if (!client.windowOpen(modPage, page, { url, from, origin: origin ?? from, activates })) return null;
+                return openHanded(modPage, page, { url, activates });
             },
-            permission: ({ origin, permissions }) => {
-                const at = REGISTRY.tabOf(page);
-                return at ? deck.request(at.embedder, at.tab.id, { origin, permissions }) : Promise.resolve(false);
-            },
-            certificate: (info) => CERTIFICATE.decide(page, REGISTRY.tabOf(page), page.partition, info),
+            // `origin` is the asking frame's; an opaque one is no site's.
+            permission: ({ origin, permissions }) =>
+                shown()
+                    ? client.request(modPage, page.id, { origin: SITE.originOf(origin), permissions })
+                    : Promise.resolve(false),
+            certificate: (info) => CERTIFICATE.decide(page, shown() && modPage, page.partition, info),
             download: ({ url }) => {
-                const at = REGISTRY.tabOf(page);
-                if (!at) return null;
+                if (!shown()) return null;
                 return DOWNLOAD.listenerFor(
                     url,
-                    (download) => deck.downloaded(at.embedder, download),
-                    (asked) => deck.shouldDownload(at.embedder, at.tab.id, asked)
+                    (download) => client.downloaded(modPage, download),
+                    (asked) => client.shouldDownload(modPage, page.id, asked)
                 );
             },
-            external: (url) => {
-                const at = REGISTRY.tabOf(page);
-                if (!at) return;
-                deck.requestApp(at.embedder, at.tab.id, { url, origin: SITE.originOf(page.getURL()) }).then(
-                    (ok) => ok && require('electron').shell.openExternal(url),
-                    (error) => LOG.error("an app's address was not opened", error)
-                );
+            // An app's address is asked as the origin of the frame that goes there, or the page's where no frame does.
+            external: ({ url, origin }) => {
+                if (!shown()) return;
+                client
+                    .requestApp(modPage, page.id, { url, origin: SITE.originOf(origin ?? page.getURL()) })
+                    .catch((error) => LOG.error("an app's address was not opened", error));
             },
         };
     }
 
-    // A page asks deck before its own loads, and tells it of each change. `tab` is the page whose delegate answers for
-    // it, itself or the page that opened it.
-    function adopt(modPage, page, { inPage, tab }) {
+    // A page asks the web engine before its own loads, and tells it of each change.
+    function adopt(modPage, page, { inPage }) {
         const id = page.id;
-        REGISTRY.add(page, { embedder: modPage, tab, inPage });
-        const changed = () => {
-            const state = stateOf(page);
-            if (state) deck.changed(modPage, id, state);
-        };
+        REGISTRY.add(page, { embedder: modPage, inPage });
+        const changed = () => tellChanged(modPage, page);
         for (const event of ['changed', 'started', 'stopped', 'failed', 'committed']) LOG.guard(page, event, changed);
         if (inPage) {
             const tell = (event) => MESSAGES.tell(modPage, CHANNEL.webTold, { id, event });
@@ -287,79 +300,65 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         }
         page.once('destroyed', () => {
             pages.delete(id);
-            if (layouts.delete(id)) STAGES.relayOf(modPage);
+            const over = layouts.get(id)?.over;
+            if (layouts.delete(id) && over) STAGES.relayOf(over);
         });
         const loadURL = page.loadURL;
         page.loadURL = (url) => {
-            const verdict = deck.loading(modPage, page, String(url || ''), { inPage, from: page.getURL() });
+            const verdict = client.loading(modPage, page, String(url || ''), { inPage, from: page.getURL() });
             return verdict === 'load' ? loadURL(url) : Promise.resolve();
         };
-        page.delegate.adopted(page, SCRIPT.attach(modPage, page, changed));
-        deck.adopted(modPage, page);
+        client.adopted(modPage, page);
     }
 
-    // The listener of the page WebKit makes for a window `opener` opened, in its session, answering to its tab.
-    function openPopup(modPage, opener, { width, height }) {
-        const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
-        const delegate = delegateOf(modPage);
-        return WEBKIT.listenerFor({
-            fields: { partition: opener.partition },
-            delegate,
-            opened: (page) => {
-                pages.set(page.id, page);
-                adopt(modPage, page, { inPage: false, tab });
-                const size = width && height ? { width, height } : deck.windowSize;
-                const window = showInWindow(modPage, page, { size });
-                const closeWithOpener = () => window.close();
-                opener.once('destroyed', closeWithOpener);
-                page.once('destroyed', () => opener.removeListener('destroyed', closeWithOpener));
-            },
-        });
+    // The scripts every document of `page` starts with, asked before the module makes it, and what deckit's scripts
+    // post in it heard.
+    function scriptsOf(modPage, page) {
+        const { scripts, heard } = SCRIPT.attach(modPage, page, () => tellChanged(modPage, page));
+        page.delegate.adopted(page, heard);
+        return scripts;
     }
 
-    // The listener of the page WebKit makes for a window `opener` opened, handed to `modPage` to show as an element,
-    // and closed with `modPage` if it never shows it.
+    function tellChanged(modPage, page) {
+        const state = stateOf(page);
+        if (state) client.changed(modPage, page.id, state);
+    }
+
+    // What the module is answered for the page WebKit makes for a window `opener` opened, handed to `modPage` to show
+    // as an element, and closed with `modPage` if it never shows it.
     function openHanded(modPage, opener, { url, activates }) {
-        const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
         return WEBKIT.listenerFor({
             fields: { partition: opener.partition },
             delegate: delegateOf(modPage),
+            scripts: (page) => scriptsOf(modPage, page),
             opened: (page) => {
                 pages.set(page.id, page);
                 handed.set(page.id, modPage);
                 page.once('destroyed', () => handed.delete(page.id));
-                adopt(modPage, page, { inPage: true, tab: page.id });
-                deck.opened(modPage, tab, page.id, { url, activates });
+                adopt(modPage, page, { inPage: true });
+                client.opened(modPage, opener.id, page.id, { url, activates });
             },
         });
     }
 
     // A page in a window of the app's, the two going together: the page closes with the window, and a page that
     // closes itself takes its window. The window is titled by the page, and a site's page says which site it is, so a
-    // page cannot pass for another.
-    function showInWindow(modPage, page, { title = '', size }) {
+    // page cannot pass for another. The page fills the stage once the host app places it, which a host that lays the
+    // page itself never does.
+    function showInWindow(modPage, page, { title = '' }) {
         let closing = false;
         const stage = STAGES.stage();
-        const fill = () => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]);
-        stage.whenResized(fill);
-        const window = WINDOWS.openForStage({
-            title,
-            size,
-            stage,
-            focus: () => page.focus(),
-            onClose: () => {
-                closing = true;
-                stage.close();
-                page.close();
-            },
-        });
-        fill();
+        stage.whenResized(() => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]));
+        const window = WINDOWS.openForStage({ title, page, stage, focus: () => page.focus() });
         windows.set(page.id, { window, embedder: modPage });
         LOG.guard(page, 'changed', () => window.setTitle(labelOf(page)));
         LOG.guard(page, 'close', () => !closing && window.close());
         window.on('close', () => {
+            closing = true;
+            stage.close();
+            page.close();
             windows.delete(page.id);
-            deck.closed(modPage, page.id);
+            client.closed(modPage, page.id);
         });
         return window;
     }
@@ -369,19 +368,21 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
     function makePage(partition, modPage) {
         return WEBKIT.make({
             store: storeOf(partition),
-            cookieLifetime: deck.cookieLifetime,
+            cookieLifetime: client.cookieLifetime,
             clearWhileBlank: true,
             takesKeyboard: false,
             delegate: delegateOf(modPage),
             fields: { partition },
+            scripts: (page) => scriptsOf(modPage, page),
         });
     }
 
-    // Where a mod's page shows its web pages: each shown one, at its element's rect in the page.
-    function webPagesIn(modPage) {
-        return REGISTRY.pagesIn(modPage).flatMap((page) => {
-            const { frame, visible } = layouts.get(page.id) || {};
-            return visible && frame ? [{ page, frame }] : [];
+    // The web pages shown over `page`, a mod's page or a surface it opened: each whose element is in it, at its rect
+    // there.
+    function webPagesIn(page) {
+        return [...layouts].flatMap(([id, { frame, visible, over }]) => {
+            const shown = over === page && visible && frame && pageOf(id);
+            return shown ? [{ page: shown, frame }] : [];
         });
     }
 
@@ -390,6 +391,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         embed,
         pageOf,
         holderOf,
+        containerOf,
         holdsKeyboard,
         openWindow,
         load,
@@ -406,6 +408,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         clear,
         cancelDownload: (id) => WEBKIT.cancelDownload(id),
         trust: (mod, session, entries) => CERTIFICATE.trust(PARTITION.spell(mod, session), entries),
+        trusts: (mod) => CERTIFICATE.trusts(PARTITION.prefixOf(mod)),
+        distrust: (mod) => CERTIFICATE.distrust(PARTITION.prefixOf(mod)),
         sessionsOf: (mod) => PARTITION.prefixOf(mod),
         webPagesIn,
     };

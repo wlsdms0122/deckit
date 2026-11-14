@@ -1,0 +1,27 @@
+case = 7
+name = "showing-a-notification-with-neither-title-nor-body-is-refused"
+note = "show is refused at call with kind INVALID_ARGUMENT where title and body are both empty. mod-a shows the title and the body empty."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "notifications.show"
+args = [{ title = "", body = "" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+look = "shown"
+
+[step.expect]
+answers = []

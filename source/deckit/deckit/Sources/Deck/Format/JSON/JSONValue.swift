@@ -13,13 +13,14 @@ public enum JSONValue: Equatable, Sendable {
     case number(Double)
     case string(String)
     case array([JSONValue])
-    case object([String: JSONValue])
+    case object([JSONName: JSONValue])
 
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
+    // The value as `type` decodes it from the JSON text it is written as.
     public func decode<Value: Decodable>(as type: Value.Type) throws -> Value {
-        let data = try JSONEncoder().encode(self)
+        let data = try JSONWriter().write(self)
         return try JSONDecoder().decode(type, from: data)
     }
 

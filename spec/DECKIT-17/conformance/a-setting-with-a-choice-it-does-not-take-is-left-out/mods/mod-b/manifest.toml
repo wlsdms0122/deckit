@@ -1,0 +1,11 @@
+id = "mod-b"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."deckit/configuration"]]
+key = "theme"
+type = "string"
+title = "Theme"
+default = "light"
+oneOf = [{ const = "light", title = "Light" }, { const = 1, title = "One" }]

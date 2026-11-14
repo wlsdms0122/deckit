@@ -3,8 +3,9 @@ const PAGE_NAME = /^[a-z][a-z0-9-]*$/;
 
 // The pages that run no mod, which the shell's UI draws, and what any page of deck's is to the UI: a token it keeps and
 // hands back, never reads. A page it makes is told deck as the host app's, by its name. `deckit` is what connect
-// answered, and `pages` what the environment makes and tells of a page (environment: SHELL.pages).
-export function createPage({ deckit, pages }) {
+// answered, `web` what the web engine answered (`pageFor`), and `pages` what the environment makes and tells of a page
+// (environment: SHELL.pages).
+export function createPage({ deckit, web, pages }) {
     // MARK: - Property
     // A page -> { allowed: surface name -> onOpen(surface), opened: surface name -> its page, while it is there }
     const openable = new WeakMap();
@@ -79,10 +80,19 @@ export function createPage({ deckit, pages }) {
     }
 
     // MARK: - Private
-    // A page of deck's (a mod's, or one that runs none) or a surface one opened: any other is refused.
+    // A page of deck's (a mod's, or one that runs none), a surface one opened, or a web page a mod's shows: any other
+    // is refused.
     function known(page) {
         if (deckit.pages.nameOf(page) || deckit.mods.modOf(page) || surfacePages.has(page)) return;
-        throw new Error("[deckit] it takes a page of deck's: a mod's, one that runs none, or a surface one opened");
+        if (web.pageFor(page)) return;
+        throw new Error(
+            "[deckit] it takes a page of deck's: a mod's, one that runs none, a surface one opened or a web page a mod's shows"
+        );
+    }
+
+    // The surface named `name` the page has open, or null.
+    function surfaceOf(page, name) {
+        return openable.get(page)?.opened.get(name) ?? null;
     }
 
     // The paths of the files last dropped on the page from outside the app.
@@ -90,5 +100,5 @@ export function createPage({ deckit, pages }) {
         return isAlive(page) ? pages.droppedFiles(page) : [];
     }
 
-    return { open, allowSurface, isAlive, focus, close, whenFocused, droppedFiles };
+    return { open, allowSurface, isAlive, focus, close, whenFocused, surfaceOf, droppedFiles };
 }

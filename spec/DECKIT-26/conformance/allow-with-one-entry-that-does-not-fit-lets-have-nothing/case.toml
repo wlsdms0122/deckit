@@ -1,0 +1,45 @@
+case = 12
+name = "allow-with-one-entry-that-does-not-fit-lets-have-nothing"
+note = "An entry that does not fit refuses the whole call, and nothing of it is let have. mod-a lets site-a have notifications and fullscreen in its session main, and shows site-a there."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }, { origin = "site-a", permission = "fullscreen" }]]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "decidePermission", args = [{ origin = "site-a", permissions = ["notifications"], app = "", url = "" }] }]

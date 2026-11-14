@@ -2,44 +2,44 @@
 
 What a mod takes care of so that it works as part of Deckit for the person using it: what shape it takes, and where each of its features goes. [MOD.md](MOD.md) is the contract deck holds a mod to and what each part of its handles, `deckit` and `shell`, does; [UI.md](UI.md) is the kit a mod draws with. This document says which of them to use for what, and names them without explaining them again.
 
-A person meets a mod through its view, its actions in the switcher, its keys, its settings and its notifications. A headless mod has no view, and everything here but the view applies to it. The view, switcher actions and `local` keys are registered in `attach`, with what the mod shows (MOD.md, Lifecycles).
+A person meets a mod through its window, its actions in the switcher, its keys, its settings and its notifications. A headless mod has no window, and everything here but the window applies to it. Windows and switcher actions are made in `attach`, with what the mod shows (MOD.md, Lifecycles).
 
 ## Where things go
 
 | What the mod has | Where it goes |
 |---|---|
-| What it shows and lets the person work in | the view's content (`shell.view.register`), or a window of its own (`shell.window.register`) for a mod that stands apart from the panel, such as one over every app |
+| What it shows and lets the person work in | a window's content (`shell.windows.open`), at the `overlay` level for one over every app |
 | The things the content can show (files, tabs, notes, calendars) | the sidebar, in sections |
 | Moving through what is shown, and acting on it | the title bar |
-| Something it does | a key (`deckit.keys.register`) and a switcher action; also a button in the title bar or in a section's header when it is done while looking at the view |
-| Something other mods, the host app or an automation runs by name, its args saying it in full | a command (`deckit.commands.register`). What only means something where the person is (Save, Next Tab) stays a key |
+| Something it does | a command with a key (`[[contributes."deckit/keys"]]`) and a switcher action; also a button in the title bar or in a section's header when it is done while looking at the window |
+| Something other mods or an automation runs by name, its args saying it in full | a command (`[[contributes."deckit/commands"]]`, MOD.md, Commands and addresses). What only means something where the person is (Save, Next Tab) is a key of the page's |
 | Something due now | the switcher's `now`, and a notification when the person may be elsewhere |
-| A choice set once that holds from then on | a setting (`static configuration`). One switched while working is a control in the view |
+| A choice set once that holds from then on | a setting (`[[contributes."deckit/configuration"]]`). One switched while working is a control in the window |
 | A view shown inside another mod's | a region of that mod (`parent`, MOD.md, `shell.region`) |
 
 ## Checklist
 
-- [ ] The view lays a title bar with `ui.titleBar`, and nothing in the view that takes presses reaches above it.
-- [ ] The view can be used with the sidebar folded.
-- [ ] What the mod does from a button or a menu has a key in `deckit.keys.register`, and the button's tooltip shows it with `deckit.keys.chordOf`.
+- [ ] The window lays a title bar with `ui.titleBar`, and nothing in the window that takes presses reaches above it.
+- [ ] The window can be used with the sidebar folded.
+- [ ] What the mod does from a button or a menu has a key declared to `deckit/keys`, and the button's tooltip shows it with the Keymap's `chordOf`.
 - [ ] Lists are `ui.tree` or `ui.row`, and answer the keys under Lists.
 - [ ] Empty, loading and failed content is drawn (`ui.emptyState`, `ui.loading`, `ui.dialog`).
 - [ ] Colours, type, radii and motion come from the theme's tokens, and text the person writes follows `shell.fonts`.
 - [ ] Nothing animates with reduced motion (`theme.motion`).
 - [ ] Switcher actions, settings and notifications are written as Words says.
 
-## The view
+## The window
 
-`shell.view.register` lays two areas: `sidebar`, under the mod list, and `content`, beside it and up to the panel's top.
+A mod's window lays two areas with `ui.splitView`: the sidebar, and the content beside it.
 
 - The sidebar lists what the content can show (files, tabs, notes, calendars) and lets the person pick, add, rename and arrange them. Controls for what is shown go in the content's title bar.
-- What the sidebar does has a key or a switcher action too, so the view works with the sidebar folded.
+- What the sidebar does has a key or a switcher action too, so the window works with the sidebar folded.
 
 ## The title bar
 
-The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room (MOD.md, `shell.view.register`).
+The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room.
 
-- Every view lays one, empty if it has nothing to put there, so the window can be dragged from the top of any mod.
+- Every window lays one, empty if it has nothing to put there, so the window can be dragged from the top of any mod.
 - A web page, an editor, a canvas or a map starts below it. Pressed content drawn to the top edge leaves nowhere to drag the window from.
 - Leave empty room in it: a field or a strip of tabs does not run edge to edge.
 - Lay it in three parts:
@@ -94,11 +94,11 @@ What a mod hands the switcher (the Switcher's `setActions`, MOD.md) is what it d
 - **`keywords`:** words a person would type for it that the label does not hold, in Korean and in English.
 - An action that needs one more thing before it acts (which tab, which bookmark) `opens` a list of those. Something typed that the mod can act on directly (an address) is answered by `search`.
 - **`now`:** what is due now, such as an event about to start or a run that failed, with `tone` for its status.
-- An action whose work is seen in the view calls `shell.show()` once it knows it can be done, so a refusal is read under the switcher's list, and before it waits on anything the person answers in the view. One whose work is done out of sight does not, and its row says done, or why not.
+- An action whose work is seen in a window brings the window forward (`makeKeyAndOrderFront()`) once it knows it can be done, so a refusal is read under the switcher's list, and before it waits on anything the person answers in the window. One whose work is done out of sight does not, and its row says done, or why not.
 
 ## Settings
 
-A mod's settings (`static configuration` in its class) are shown in Settings under the mod, drawn as its `static form` says.
+A mod's settings (`[[contributes."deckit/configuration"]]`) are shown in Settings under the mod, drawn as each declaration says.
 
 - **`title`:** what the setting holds, in sentence case (Search engine, Forge command).
 - **`description`:** one or two sentences, each with a full stop, saying what the setting changes and what an empty or default value does ("Empty: the forge on your login shell's PATH.", "Default follows the General section.").
@@ -107,15 +107,15 @@ A mod's settings (`static configuration` in its class) are shown in Settings und
 
 ## Notifications
 
-`deckit.notify` tells the person what happened while they may be elsewhere: a reminder, a site's message, a run that ended.
+A post to `deckit/notifications` (MOD.md, Standard interfaces) tells the person what happened while they may be elsewhere: a reminder, a site's message, a run that ended.
 
 - The title is what it is about (the event, the site), and the body is the rest.
-- `onClick` brings the mod to the front at what it is about.
+- Its `token` runs a command of the mod's that brings it to the front at what it is about.
 - The result of what the person just did where they are looking is shown there, in the view or on the switcher's row. What has no place of its own in the view to stay (a mod removed, a change that did not apply) is a `ui.toast`.
 
 ## Keys
 
-A mod's keys are registered with `deckit.keys.register`, and the person can change them in Settings: read a key with `deckit.keys.chordOf` and never write a chord into the mod's own text. `mod` is ⌘ on macOS.
+A mod's keys are declared to `deckit/keys`, each running one of its commands, and the person can change them in Settings: read a key's chord with `chordOf(command)` on the Keymap's exports (`uses = { "deckit/keys" = 1 }`) and never write a chord into the mod's own text. `mod` is ⌘.
 
 | Key | What it does, in any mod that has it |
 |---|---|
@@ -130,8 +130,8 @@ A mod's keys are registered with `deckit.keys.register`, and the person can chan
 | ⌃↩, ⌥↩ | open, open with the system's app |
 
 - Use the key in the table for its action, and no other key for it.
-- A key is shown only where typing it works: in the tooltip of the button that does the same (`ui.tooltip(element, { text, chord: () => deckit.keys.chordOf(name) })`), not in a list of actions from elsewhere such as the switcher.
-- The shell's keys (⌘\ for the sidebar) and the Switcher's (⌥Space) are not taken by another mod.
+- A key is shown only where typing it works: in the tooltip of the button that does the same (`ui.tooltip(element, { text, chord: () => keys.chordOf(command) })`, `keys` the Keymap's exports), not in a list of actions from elsewhere such as the switcher.
+- The shell's keys (⌘W, ⌘M and ⌘` on the key window) and the Switcher's (⌥Space) are not taken by another mod.
 
 ## The theme
 

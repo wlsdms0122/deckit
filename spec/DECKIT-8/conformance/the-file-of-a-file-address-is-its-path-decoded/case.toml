@@ -1,0 +1,20 @@
+case = 3
+name = "the-file-of-a-file-address-is-its-path-decoded"
+note = "filePath(url) answers the path a file URL's path decodes to. mod-a, granted nothing, asks for file:///data/a~b%20c%231.pdf, whose path is /data/a~b c#1.pdf."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "filePath"
+args = ["file:///data/a~b%20c%231.pdf"]
+
+[step.expect]
+answers = "/data/a~b c#1.pdf"

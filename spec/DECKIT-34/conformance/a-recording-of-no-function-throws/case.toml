@@ -1,0 +1,23 @@
+case = 6
+name = "a-recording-of-no-function-throws"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a records with 5 in place of a function: keys.record throws at call with kind INVALID_ARGUMENT."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { record = 5 }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/record/threw/INVALID_ARGUMENT", activates = true }]

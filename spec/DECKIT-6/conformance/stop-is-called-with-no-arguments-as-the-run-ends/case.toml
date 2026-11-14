@@ -1,0 +1,30 @@
+case = 3
+name = "stop-is-called-with-no-arguments-as-the-run-ends"
+note = "As a run's end is asked, the system's lifecycle ends by calling stop, with no arguments, on the instance start was called on. mod-a launches mod-b and quits it, and the stop of mod-b hands the host, through the handle its start kept, an address that counts the arguments stop was given."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/stopped/0", activates = true }]

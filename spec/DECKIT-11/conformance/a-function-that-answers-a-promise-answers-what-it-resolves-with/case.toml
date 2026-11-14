@@ -1,0 +1,27 @@
+case = 4
+name = "a-function-that-answers-a-promise-answers-what-it-resolves-with"
+note = "A call of a function across a connection answers what the promise it answered resolves with. mod-b's ping answers a promise of 2."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "ping"
+of = 2
+
+[step.expect]
+answers = 2

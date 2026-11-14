@@ -3,13 +3,21 @@ name = "Settings"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+icon = "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'/><circle cx='12' cy='12' r='3'/></svg>"
+keywords = ["설정", "모드", "settings", "mods"]
+
+[interfaces]
+provides = { "settings/buttons" = [1] }
+uses = { "deckit/commands" = 1, "deckit/configuration" = 1, "deckit/keys" = 1, "deckit/packages" = 1, "deckit/urls" = 1, "switcher/actions" = 1 }
 
 [permissions]
-"deckit.mods" = "Its Mods section installs a mod from a folder you pick, removes installed ones, restarts a mod or the app, shows a mod's folder in Finder and pins a mod to the mod list."
-"deckit.mod-configuration" = "Its Mod Settings section shows and changes every mod's configuration."
-"deckit.keymap" = "Its Keyboard section is where every mod's shortcuts are shown and changed."
-"deckit.url-schemes" = "Its URL Schemes section sets which mod is asked first to open an address, scheme by scheme."
+"deckit.mods" = "Its Mods section installs a mod from a folder you pick once the mods it depends on are installed, removes installed ones, restarts a mod or the app, keeps a mod in the Dock, and chooses the mod that owns an interface. Its Activity section quits and restarts running mods."
+"deckit.system-services" = "Its Keyboard section lists every mod's keys and sets the chord you choose, its URL Schemes section chooses what opens each scheme, and its Mod Settings section shows and changes every mod's settings, and its Mods section shows on a mod's row what it declares that the app leaves out."
+"deckit.shell-keys" = "Its Keyboard section shows the keys of the app's windows and sets the chord you choose."
 "deckit.fonts" = "Its General section sets the fonts and the text size mods write text in."
 
-[dependencies]
-switcher = { version = "1.0.0", optional = true }
+[[contributes."deckit/commands"]]
+id = "show-settings-of"
+title = "Show a Mod's Settings"
+keywords = ["설정", "settings"]
+params = { type = "object", properties = { mod = { type = "string", title = "Mod" } }, required = ["mod"] }

@@ -1,0 +1,10 @@
+id = "mod-b"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[[contributes."deckit/configuration"]]
+key = "name"
+type = "string"
+title = "Name"
+maximum = 8

@@ -1,0 +1,58 @@
+case = 14
+name = "remove-of-another-mods-download-answers-false"
+note = "A mod reaches no download of another: remove of its id answers false, and the download stays. mod-a shows site-a, whose page is a link to download /file.txt, and it is pressed; mod-b removes it by its id."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+sites = ["site-a"]
+delegate = { shouldDownload = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "id"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "downloads.remove"
+handle = "web"
+answered = 5
+
+[step.expect]
+answers = false
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.list"
+handle = "web"
+part = "name"
+
+[step.expect]
+answers = ["file.txt"]

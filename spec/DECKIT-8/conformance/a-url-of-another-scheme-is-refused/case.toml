@@ -1,0 +1,27 @@
+case = 3
+name = "a-url-of-another-scheme-is-refused"
+note = "openExternal is refused at call with UNSUPPORTED_URL where the URL's scheme is none of http, https and file, and the host is handed nothing. mod-a opens a mailto URL."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["mailto:a@example.com"]
+
+[step.expect]
+refuses = "call"
+kind = "UNSUPPORTED_URL"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

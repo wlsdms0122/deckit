@@ -1,0 +1,37 @@
+case = 6
+name = "a-key-reset-is-bound-to-its-default"
+note = "reset(mod, command) binds the key to its default again and answers it. mod-a sets the key of today to ctrl+alt+k, then resets it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["mod-b", "today", { code = "KeyK", meta = false, control = true, alt = true, shift = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "reset"
+handed = true
+args = ["mod-b", "today"]
+
+[step.expect]
+answers = { mod = { id = "mod-b", name = "MOD B" }, command = "today", title = "Show Today", scope = "app", defaultKeystroke = { code = "KeyT", meta = false, control = true, alt = true, shift = false }, keystroke = { code = "KeyT", meta = false, control = true, alt = true, shift = false }, chord = "⌃⌥T", changed = false, active = true, issues = [] }

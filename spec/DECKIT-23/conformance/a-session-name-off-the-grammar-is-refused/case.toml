@@ -1,0 +1,22 @@
+case = 8
+name = "a-session-name-off-the-grammar-is-refused"
+note = "session(name) throws its refusal at call with kind INVALID_ARGUMENT where name is not a session-name, which holds no capital. mod-a asks for the session Main."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["Main"]
+handle = "web"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

@@ -1,0 +1,46 @@
+case = 9
+name = "clearing-a-session-takes-its-cookies"
+note = "clear() takes what the session stored, its cookies among them. site-a sets signed=in as mod-a fetches sign-in through its session main, mod-a clears the session, and fetches hello.txt through it."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/sign-in"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clear"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/hello.txt"]
+
+[[step]]
+look = "requested"
+headers = ["cookie"]
+
+[step.expect]
+answers = [{ site = "site-a", method = "GET", path = "/sign-in", headers = [] }, { site = "site-a", method = "GET", path = "/hello.txt", headers = [] }]

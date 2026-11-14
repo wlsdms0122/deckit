@@ -1,9 +1,9 @@
 const { styled } = require('../dom/dom.js');
 const { renderMarkdown } = require('./markdown.js');
 
-const brainView = ({ shell, deckit, bot }) => {
+// `settings` are Bot's (main.js), and `openURL` opens an address a note links to.
+const brainView = ({ shell, deckit, bot, settings, openURL }) => {
     const { theme, ui } = shell;
-    const { configuration } = deckit;
     const store = deckit.storage.values;
     const LINK = 'var(--deckit-accent)';
     const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -19,12 +19,12 @@ const brainView = ({ shell, deckit, bot }) => {
     const markdown = renderMarkdown({
         ui,
         onNote: (id) => open(id, true),
-        onLink: (url) => deckit.urls.open(url),
+        onLink: (url) => openURL(url),
         wrap: {
-            get: () => configuration.get('wrapCode') === true,
-            set: (on) => configuration.set('wrapCode', on),
+            get: () => settings.get('wrapCode') === true,
+            set: (on) => settings.set('wrapCode', on),
             on: (listener) =>
-                configuration.on((key) => {
+                settings.on((key) => {
                     if (key === 'wrapCode') listener();
                 }),
         },
@@ -104,9 +104,12 @@ const brainView = ({ shell, deckit, bot }) => {
 
     const renderAxes = () => axisList.set([{ name: null, count: axes.total }, ...axes.axes]);
 
+    // The axis chosen is kept; all of them, null, keeps none.
+    const keepAxis = () => (axis === null ? store.remove('axis') : store.set('axis', axis));
+
     const chooseAxis = (name) => {
         axis = name;
-        store.set('axis', name);
+        keepAxis();
         renderAxes();
         refresh();
     };
@@ -650,7 +653,7 @@ const brainView = ({ shell, deckit, bot }) => {
         wake();
         if (axis !== null) {
             axis = null;
-            store.set('axis', null);
+            keepAxis();
             renderAxes();
         }
         query = String(text || '').trim();

@@ -1,4 +1,4 @@
-import * as SESSION from '../../../deckit-shell/deckit/web/model/session.js';
+import * as SESSION from '../../../deckit-sdk/web/engine/model/session.js';
 
 // MARK: - Property
 // MARK: - Initializer

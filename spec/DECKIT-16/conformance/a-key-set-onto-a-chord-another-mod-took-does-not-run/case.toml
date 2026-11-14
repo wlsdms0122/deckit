@@ -1,0 +1,31 @@
+case = 6
+name = "a-key-set-onto-a-chord-another-mod-took-does-not-run"
+note = "A key whose chord keys.take of the shell's handle refuses, as another mod took it, does not run. mod-c takes ctrl+alt+k in its attach, and mod-a sets the key of today to it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["mod-b", "today", { code = "KeyK", meta = false, control = true, alt = true, shift = false }]
+part = "active"
+
+[step.expect]
+answers = false

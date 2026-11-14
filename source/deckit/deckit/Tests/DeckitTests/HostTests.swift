@@ -15,86 +15,48 @@ import Deckit
 struct HostTests {
     // MARK: - Property
     private let root = FileManager.default.temporaryDirectory.appending(path: "host-tests-\(UUID().uuidString)")
-    private let findKey = Key(name: "find", label: "Find", spec: "mod+f", scope: .local)
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a host builds a deckit, registers a key and reads the keymap, with no JSON")
-    func hostRegistersAKey() throws {
-        // Given
-        let sut = try deckit()
-
-        // When
-        let keymap = try sut.keymap.register(findKey, provider: "@app", name: "App")
-
-        // Then
-        let find = try #require(keymap.bindings.first)
-        #expect(find.binding.id == "@app.find")
-        #expect(find.binding.provider.name == "App")
-        #expect(find.binding.keystroke == Keystroke(spec: "mod+f"))
-        #expect(find.active)
-        #expect(find.issues.isEmpty)
-    }
-
-    @Test("a mod's run started with the keys it contributed changes the keymap, which deck carries")
-    func runChangesTheKeymap() throws {
+    @Test("a host builds a deckit, reads its mods and launches one, with no JSON")
+    func hostLaunchesAMod() throws {
         // Given
         try writeMod("a")
         let sut = try deckit()
-        let contributions = Contribution(
-            exportedIn: nil,
-            awaits: [:],
-            layers: [
-                "keys": .array([
-                    .object([
-                        "name": .string("next"),
-                        "label": .string("Next"),
-                        "key": .string("mod+j"),
-                        "scope": .string("local")
-                    ])
-                ])
-            ]
-        )
 
         // When
-        let effects = try sut.deck.started("a", run: 1, summary: .object([:]), contributions: contributions)
+        let mods = sut.readCatalog()
+        let effects = try sut.load(mods.map(\.manifest.id))
 
         // Then
-        let changes = effects.compactMap { effect in
-            if case let .layer(change) = effect { change as? ResolvedKeymap } else { nil }
-        }
-        let keymap = try #require(changes.last)
-        #expect(keymap.bindings.map(\.binding.id) == ["a.next"])
-        #expect(keymap.bindings.first?.binding.provider.name == "A")
+        #expect(mods.map(\.manifest.name) == ["A"])
+        #expect(effects.contains { effect in
+            guard case let .open(job) = effect else { return false }
+            return job.principal == "a"
+        })
     }
 
     @Test("a part kept after the deckit it came from is let go still works")
     func partOutlivesItsDeckit() throws {
         // Given
-        let sut = try deckit().keymap
+        let sut = try deckit().state
 
         // When
-        let resolved = try sut.register(findKey, provider: "@app", name: "App")
+        try sut.write(folder: nil, key: "kept", text: "1")
 
         // Then
-        #expect(resolved.bindings.map(\.binding.id) == ["@app.find"])
+        #expect(try sut.read(folder: nil, key: "kept") == "1")
     }
 
     // MARK: - Private
-    // A deckit over the mods written, read and each that loads launching.
     private func deckit() throws -> Deckit {
-        let deckit = try Deckit(
+        try Deckit(
             home: root.appending(path: "home"),
             ship: [],
             sources: [root.appending(path: "source")],
             api: try #require(Version("1.0.0")),
-            schemeHandlers: [:],
             permissions: []
         )
-        let mods = deckit.deck.readCatalog()
-        _ = try deckit.deck.load(mods.map(\.manifest.id))
-
-        return deckit
     }
 
     private func writeMod(_ id: String) throws {

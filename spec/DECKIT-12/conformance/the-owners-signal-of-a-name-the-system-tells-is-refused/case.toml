@@ -1,0 +1,35 @@
+case = 4
+name = "the-owners-signal-of-a-name-the-system-tells-is-refused"
+note = "owner-changed and contributions-changed are the signals the system tells of an interface: its owner's emit of either is refused at call with kind NOT_PERMITTED, and sends nothing. mod-b owns mod-b/pages and sends mod-b/pages:owner-changed, and mod-a, listening to it, does not hear it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-b/pages:owner-changed"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["mod-b/pages:owner-changed"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []

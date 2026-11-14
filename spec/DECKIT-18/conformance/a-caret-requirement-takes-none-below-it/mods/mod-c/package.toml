@@ -1,0 +1,4 @@
+[dependencies]
+"mod-b" = "^1.5"
+"mod-d" = "0.2.6"
+"mod-e" = "^0.0"

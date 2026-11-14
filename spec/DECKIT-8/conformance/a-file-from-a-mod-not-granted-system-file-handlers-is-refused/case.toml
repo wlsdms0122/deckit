@@ -1,0 +1,27 @@
+case = 3
+name = "a-file-from-a-mod-not-granted-system-file-handlers-is-refused"
+note = "openExternal of a file is a request system.file-handlers guards, and nothing of a request refused is done. mod-a is not granted it, so its opening of file:///data/report.pdf is refused at call with NOT_PERMITTED and the host is handed nothing."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["file:///data/report.pdf"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

@@ -1,0 +1,21 @@
+case = 15
+name = "mods-list-answers-the-name-an-app-is-listed-by"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-b's manifest writes the name Bee, and mod-a's writes none, so it is listed by its id."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "mod-a", name = "mod-a", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-b", name = "Bee", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-c", name = "mod-c", icon = "", keywords = [], pinned = true, running = true }]

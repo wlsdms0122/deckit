@@ -11,14 +11,16 @@ struct ResponseError: Error {
     // MARK: - Property
     let code: ErrorCode
     let message: String
-    // The kind of a call's refusal, which the driver puts back on the error it throws.
+    // The kind of a call's refusal and the stage it is refused at, which the driver puts back on the error it throws.
     let kind: String?
+    let stage: String?
 
     // MARK: - Initializer
-    init(code: ErrorCode, message: String, kind: String? = nil) {
+    init(code: ErrorCode, message: String, kind: String? = nil, stage: String? = nil) {
         self.code = code
         self.message = message
         self.kind = kind
+        self.stage = stage
     }
 
     // MARK: - Public

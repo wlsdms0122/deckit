@@ -1,0 +1,20 @@
+case = 3
+name = "the-file-address-of-a-path-that-is-not-absolute-is-empty"
+note = "fileURL answers the empty string where path is not absolute: it does not begin with /. mod-a asks for data/report.pdf."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fileURL"
+args = ["data/report.pdf"]
+
+[step.expect]
+answers = ""

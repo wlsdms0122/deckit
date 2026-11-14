@@ -1,0 +1,19 @@
+case = 21
+name = "a-mods-style-is-worn-over-the-pages-own"
+note = "Styles are laid over the page's own: mod-b's attach adopts a style sheet of its page setting --case-order to own, mod-a declares a.css for \"*\" setting it to a, and mod-b's page holds a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = { --case-a = "a", --case-order = "a" } }

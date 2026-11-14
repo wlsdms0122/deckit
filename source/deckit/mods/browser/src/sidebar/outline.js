@@ -20,7 +20,7 @@ const FOLDER_INKS = {
 // list, a row is carried as `describe(node)` says. A folder's row is drawn here and an item's by `createItem` and
 // `updateItem`; both are painted here with their depth, and a folder's in its colour.
 //
-// The keys walk the rows as macOS walks an outline (the kit's `tree`). The row they stand on is the lead. With
+// The keys walk the rows as the kit's `tree` walks an outline. The row they stand on is the lead. With
 // `choose(item)`, leading an item chooses it (a tab brought to the front), so the lead is the chosen item; any other
 // row is marked as chosen while it leads. `nameOf(item)` is what type-ahead matches; `onRename(node)` and
 // `onOpen(node)` are what Return and Control-Return do to the lead, but Control-Return on a folded folder unfolds it.
@@ -127,7 +127,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
     list.element.addEventListener('focusout', () => {
         if (!leadKey) return;
         queueMicrotask(() => {
-            if (!leadKey || list.element.contains(document.activeElement)) return;
+            if (!leadKey || list.element.contains(list.element.ownerDocument.activeElement)) return;
             leadKey = null;
             draw();
         });

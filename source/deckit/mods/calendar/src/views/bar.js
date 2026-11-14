@@ -37,8 +37,8 @@ function rowItems(start, count, occurrences) {
         .filter(Boolean);
 }
 
-// A filled bar when `continuous`, or a dot, the time and the title. A click opens the occurrence with `onOpen(occurrence,
-// element)`.
+// A filled bar when `continuous`, or a dot, the time and the title. A click opens the occurrence with
+// `onOpen(occurrence, element)`.
 function bar(occurrence, continuous, onOpen) {
     const element = document.createElement('div');
     Object.assign(element.style, {

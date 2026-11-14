@@ -42,7 +42,7 @@ function selectionInput({
     ui.marquee(areaElement, {
         listAt,
         selection,
-        // As in macOS Finder, a click on no entry closes the columns after its own.
+        // A click on no entry closes the columns after its own.
         onSelect: (paths, { folder, opened }, { click }) => selectIn(folder, paths, click ? null : opened),
     });
     ui.tree(areaElement, {
@@ -55,7 +55,7 @@ function selectionInput({
         onSelect: (path, { extend: extending }) => (extending ? extend : select)(path, { reveal: true }),
         onSelectAll: selectAll,
         onPreview: (path) => quickLook(entryAt(path)),
-        // As in macOS Finder, Return renames one entry and leaves several alone.
+        // Return renames one entry and leaves several alone.
         onRename: (path) => selection().length === 1 && rename(entryAt(path)),
         onOpen: () => open(selected()),
     });

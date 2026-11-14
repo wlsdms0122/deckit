@@ -5,5 +5,10 @@ api = "1.0.0"
 main = "main.js"
 
 [permissions]
-"system.main-process" = "to test what a main process module finds of the panel's window"
-"deckit.mods" = "to install what the test hands it"
+"system.main-process" = "to test what a main process module finds of the window its page is shown in"
+"deckit.mods" = "to install what the test hands it, and open the mods it names"
+"deckit.system-services" = "to test opening the switcher by its command, and binding another mod's key again"
+"system.file-handlers" = "to open a file through deckit/urls in the mod that opens it"
+
+[interfaces]
+uses = { "deckit/commands" = 1, "deckit/keys" = 1, "deckit/urls" = 1 }

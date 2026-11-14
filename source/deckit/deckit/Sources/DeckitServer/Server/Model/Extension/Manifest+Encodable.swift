@@ -9,38 +9,37 @@ import Foundation
 import Deck
 import Deckit
 
-// The fields deckit adds beside deck's own.
 extension Manifest: Encodable {
     // MARK: - Property
-    private struct Key: CodingKey {
-        let stringValue: String
-        let intValue: Int? = nil
-
-        init(_ stringValue: String) {
-            self.stringValue = stringValue
-        }
-
-        init(stringValue: String) {
-            self.stringValue = stringValue
-        }
-
-        init?(intValue: Int) {
-            nil
-        }
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case version
+        case api
+        case main
+        case background
+        case provides
+        case uses
+        case permissions
+        case contributes
+        case fields
     }
 
     // MARK: - Initializer
     // MARK: - Public
     public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: Key.self)
-        try container.encode(id, forKey: Key("id"))
-        try container.encode(name, forKey: Key("name"))
-        try container.encode(version, forKey: Key("version"))
-        try container.encode(api, forKey: Key("api"))
-        try container.encode(main, forKey: Key("main"))
-        try container.encode(dependencies, forKey: Key("dependencies"))
-        try container.encode(permissions, forKey: Key("permissions"))
-        try container.encode(value(of: URLsField()).map(\.written), forKey: Key("urls"))
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(version, forKey: .version)
+        try container.encode(api, forKey: .api)
+        try container.encode(main, forKey: .main)
+        try container.encode(background, forKey: .background)
+        try container.encode(provides, forKey: .provides)
+        try container.encode(uses, forKey: .uses)
+        try container.encode(permissions, forKey: .permissions)
+        try container.encode(contributes, forKey: .contributes)
+        try container.encode(JSONValue.object(fields), forKey: .fields)
     }
 
     // MARK: - Private

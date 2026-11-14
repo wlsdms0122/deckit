@@ -1,20 +1,21 @@
-// What Electron gives deck and the shell in main (deckit-shell/environment: MAIN, SHELL): every page is WebKit's,
-// through the module beside the core, laid in the module's windows, and carries the messages; Electron runs the app,
-// its keys, menus and the system's services, the core is a child process, and the log a file of its own.
+// What Electron gives deck, the web engine and the shell in main (deckit-shell/environment: MAIN, WEB, SHELL), and
+// what runs a mod's main process modules (`mainProcess`, main-process/loader.js): every page is WebKit's, through the
+// module beside the core, laid in the module's windows, and carries the messages; Electron runs the app, its keys,
+// menus and the system's services, the core is a child process, and the log a file of its own.
 import * as LISTENER from '../listener/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
 import * as LOG_FILE from '../log/file.js';
 import * as FILES from '../files/index.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
-import { clearStorage, serve, storeFor } from '../sandbox/index.js';
+import { clearStorage, countStorage, serve, storeFor } from '../sandbox/index.js';
 import { createFolder } from '../mod/folder.js';
 import { createWebKit } from '../webkit/index.js';
 import { createMessages, CHANNEL } from '../messages/main.js';
 import { createWindows } from '../window/index.js';
 import { createStages } from '../stage/main.js';
 import { createNotifications } from '../notification/main.js';
-import { createMainProcess } from '../main-process/main.js';
+import { createLoader } from '../main-process/loader.js';
 import { createWeb } from '../web/main.js';
 
 // MARK: - Property
@@ -69,16 +70,22 @@ function createEnvironment({ core, preload, openWindow }) {
     });
     const FOLDER = createFolder();
     // WebKit's module is the core's neighbour in the archive.
-    const WEBKIT = createWebKit({ path: require('path').join(require('path').dirname(core), 'deckit-web.node'), LOG });
+    const WEBKIT = createWebKit({
+        path: require('path').join(require('path').dirname(core), 'deckit-web.node'),
+        LOG,
+        containerOf: (page) => WEB.containerOf(page),
+    });
     const MESSAGES = createMessages();
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
     const STAGES = createStages({ LOG, WEBKIT, idOf: WINDOWS.idOf, webPagesIn: (page) => WEB.webPagesIn(page) });
-    const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS });
-    const MAIN_PROCESS = createMainProcess({ LOG, FOLDER, windowShowing: STAGES.windowShowing });
+    const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf });
+    const LOADER = createLoader({ LOG, FOLDER, windowShowing });
     const NOTIFICATIONS = createNotifications({ guard });
     const origins = new WeakMap(); // a page deck made -> its origin
     const mods = new WeakSet(); // the pages mods run in
-    const openings = new WeakMap(); // a page -> { surfaces, opens, name }, what its window.open becomes (openingOf)
+    // a page -> { surfaces, opens, name, opened }, what its window.open becomes (openingOf), `opened` the surfaces
+    // open, by name
+    const openings = new WeakMap();
     const pins = new WeakMap(); // a pinned page -> { address }, the address its first load committed
     let answer = null; // how a load of deck's scheme is answered, once deck serves (serve)
     let script = null; // the preload's source
@@ -101,7 +108,7 @@ function createEnvironment({ core, preload, openWindow }) {
         if (owned) mods.add(page);
         page.run([{ source: (script ??= require('fs').readFileSync(preload, 'utf8')), world: 'deckit' }]);
         page.once('destroyed', () => {
-            for (const surface of openingOf(page).opened) surface.close();
+            for (const surface of openingOf(page).opened.values()) surface.close();
         });
         return page;
     };
@@ -130,21 +137,26 @@ function createEnvironment({ core, preload, openWindow }) {
             pin: (page) => pin(guard, page, pins),
             watchInput: (page, listener) => watchInput(guard, page, listener),
             clearStorage: (modId) => clearStorage(WEBKIT, CONFIG.id, modId),
+            countStorage: (modId) => countStorage(WEBKIT, CONFIG.id, modId),
         }),
         keys: Object.freeze({
             capture: (page, handler) => capture(guard, page, handler),
+            unhandled: (page, handler) => unhandled(guard, page, handler),
             hotkey,
             focused: () => WEBKIT.focusedPage(),
         }),
-        open: Object.freeze({ url: openURL, file: openFile, reveal, appFor }),
+        open: Object.freeze({ url: openURL, file: openFile, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({
             readText: () => require('electron').clipboard.readText(),
             writeText: (text) => require('electron').clipboard.writeText(text),
         }),
         dialogs: Object.freeze({ chooseFolders }),
+        reveal,
         stage: STAGE,
         fonts: () => WEBKIT.native().fonts(),
+        // What the person set a double click on a title bar to do: `zoom`, `minimize` or `none`, as read at each call.
+        actionOnDoubleClick: () => WEBKIT.native().actionOnDoubleClick(),
         web: Object.freeze({
             listen: WEB.listen,
             embed: WEB.embed,
@@ -166,18 +178,21 @@ function createEnvironment({ core, preload, openWindow }) {
             clear: WEB.clear,
             cancelDownload: WEB.cancelDownload,
             trust: WEB.trust,
+            trusts: WEB.trusts,
+            distrust: WEB.distrust,
             sessionsOf: WEB.sessionsOf,
         }),
+        // Read by attachMainProcess alone (main-process/main.js).
         mainProcess: Object.freeze({
-            start: MAIN_PROCESS.start,
-            call: MAIN_PROCESS.call,
-            launching: MAIN_PROCESS.launching,
-            ended: MAIN_PROCESS.ended,
-            removed: MAIN_PROCESS.removed,
-            installed: MAIN_PROCESS.installed,
-            stateOf: MAIN_PROCESS.stateOf,
-            onChange: MAIN_PROCESS.onChange,
-            restartPending: MAIN_PROCESS.restartPending,
+            start: LOADER.start,
+            call: LOADER.call,
+            launching: LOADER.launching,
+            ended: LOADER.ended,
+            removed: LOADER.removed,
+            installed: LOADER.installed,
+            statusOf: LOADER.statusOf,
+            onChange: LOADER.onChange,
+            restartPending: LOADER.restartPending,
         }),
         core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
         folders: Object.freeze({ user: require('os').homedir() }),
@@ -247,8 +262,8 @@ function createEnvironment({ core, preload, openWindow }) {
             return WEBKIT.listenerFor({
                 delegate: SURFACE,
                 opened: (surface) => {
-                    held.opened.add(surface);
-                    surface.once('destroyed', () => held.opened.delete(surface));
+                    held.opened.set(name, surface);
+                    surface.once('destroyed', () => held.opened.get(name) === surface && held.opened.delete(name));
                     held.surfaces.opened(name, surface);
                 },
             });
@@ -258,8 +273,19 @@ function createEnvironment({ core, preload, openWindow }) {
 
     function openingOf(page) {
         if (!openings.has(page))
-            openings.set(page, { surfaces: null, opens: new Set(), name: null, opened: new Set() });
+            openings.set(page, { surfaces: null, opens: new Set(), name: null, opened: new Map() });
         return openings.get(page);
+    }
+
+    // The surface `page` opened by `name`, while it is open, or null.
+    function surfaceOf(page, name) {
+        return openings.get(page)?.opened.get(name) || null;
+    }
+
+    // The window a page is shown in, or one a surface it opened is shown in, or null.
+    function windowShowing(page) {
+        const surfaces = [...(openings.get(page)?.opened.values() || [])];
+        return [page, ...surfaces].map(STAGES.windowShowing).find(Boolean) || null;
     }
 
     // What the pages of deck's tell main of themselves.
@@ -272,13 +298,17 @@ function createEnvironment({ core, preload, openWindow }) {
             openingOf(page).name = null;
         });
         MESSAGES.on(CHANNEL.consoleError, (page, { message }) => page.emit('console-error', String(message)));
-        const windowOf = (page) => WINDOWS.idOf(STAGES.windowShowing(page));
-        MESSAGES.on(CHANNEL.drag, (page) => {
-            const id = windowOf(page);
+        // A drag region's press, in the page or in the surface it names.
+        const windowOf = (page, { surface }) => {
+            const shown = surface === undefined ? page : surfaceOf(page, String(surface));
+            return shown ? WINDOWS.idOf(STAGES.windowShowing(shown)) : null;
+        };
+        MESSAGES.on(CHANNEL.drag, (page, body) => {
+            const id = windowOf(page, body);
             if (id !== null) WEBKIT.native().drag(id);
         });
-        MESSAGES.on(CHANNEL.titleBar, (page) => {
-            const id = windowOf(page);
+        MESSAGES.on(CHANNEL.titleBar, (page, body) => {
+            const id = windowOf(page, body);
             if (id !== null) WEBKIT.native().doubleClickTitleBar(id);
         });
     }
@@ -368,6 +398,14 @@ function capture(guard, page, handler) {
     });
 }
 
+// A key down the page did not handle, told after the page had it, taken from the rest of the app when `handler`
+// answers true.
+function unhandled(guard, page, handler) {
+    guard(page, 'unhandled', ({ code, meta, control, alt, shift }, take) => {
+        if (handler(Object.freeze({ code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift }))) take();
+    });
+}
+
 // A key held with Electron's global shortcuts, which the system hands the app wherever it is pressed. Holding one
 // already held, by this app or another, fails.
 function hotkey(keystroke, handler) {
@@ -404,15 +442,21 @@ function openURL(url, { activate = true } = {}) {
     return require('electron').shell.openExternal(url, { activate });
 }
 
-async function openFile(file) {
+// Opened by its address, so that `activate` brings the app that opens it forward as it does for `url`.
+async function openFile(file, { activate = true } = {}) {
     const found = existing(file);
-    return !!found && !(await require('electron').shell.openPath(found));
+    if (!found) return false;
+    try {
+        await require('electron').shell.openExternal(require('url').pathToFileURL(found).href, { activate });
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function reveal(file) {
     const found = existing(file);
     if (found) require('electron').shell.showItemInFolder(found);
-    return !!found;
 }
 
 // An app's name as a person reads it.

@@ -1,0 +1,45 @@
+case = 4
+name = "a-signal-sent-by-a-mod-that-does-not-own-the-interface-is-named-after-the-mod"
+note = "Only the owner of an interface sends its signals: an event of that name from any other mod is named after that mod. mod-c provides mod-b/pages, which mod-b owns, and sends mod-b/pages:changed; mod-a, listening to mod-b/pages:changed, does not hear it, and mod-c, listening to mod-c:mod-b/pages:changed, does."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-b/pages:changed"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "events.on"
+args = ["mod-c:mod-b/pages:changed"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "events.emit"
+args = ["mod-b/pages:changed", "page-1"]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []
+
+[[step]]
+look = "heard"
+mod = "mod-c"
+
+[step.expect]
+answers = [["page-1"]]

@@ -1,0 +1,38 @@
+case = 11
+name = "a-popup-the-delegate-does-not-take-is-opened-outside-the-app"
+note = "A popup the delegate does not take is closed, and its address opened outside the app, activates true for a press that did not ask for it behind. A press on opener.html of site-a calls window.open(\"/child.html\"), in a page whose delegate answers false."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { openWindow = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/opener.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+part = "method"
+
+[step.expect]
+answers = ["openWindow"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "site-a/child.html", activates = true }]

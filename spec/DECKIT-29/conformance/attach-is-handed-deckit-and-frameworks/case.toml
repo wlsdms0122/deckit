@@ -1,0 +1,17 @@
+case = 6
+name = "attach-is-handed-deckit-and-frameworks"
+note = "attach(shell, deckit, frameworks) is handed a handle deckit and the frameworks' handles. mod-a's attach clears the session main of frameworks.web, then opens https://said.test/attach outside the app through deckit."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/attach", activates = true }]

@@ -1,0 +1,21 @@
+case = 6
+name = "exports-opened-in-attach-reach-the-lifecycle-over-the-shell"
+note = "Exports opened in the shell's lifecycle reach a client's lifecycle of a later place: mod-a's attach opens exports for its id through the deckit it is handed, and mod-b reaches mod-a through the host's layer, whose lifecycle is over the shell's."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "dependencies.reach"
+args = ["mod-a"]
+
+[step.expect]
+answers = { said = "attach" }

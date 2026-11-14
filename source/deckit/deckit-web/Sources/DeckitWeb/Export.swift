@@ -38,6 +38,7 @@ enum Export: Int, CaseIterable {
     case setTitle
     case setColor
     case keyWindow
+    case actionOnDoubleClick
     case doubleClickTitleBar
     case drag
     case previewFile

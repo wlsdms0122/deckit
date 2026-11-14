@@ -1,33 +1,29 @@
-import * as CHANNEL from '../../deck/channel/index.js';
-import * as DECLARED from './protocol.js';
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as DECLARED from '../../../deckit-sdk/shell/fonts/protocol.js';
 import * as FONTS from './model/fonts.js';
-import * as FONTS_PERMISSION from './model/permission.js';
 
-// `deckit` is what connect answered; `installed()` answers the fonts installed (environment: SHELL.fonts).
-export function createFonts({ deckit, installed }) {
+// `deckit` is what connect answered, `state` the shell's own state; `installed()` answers the fonts installed
+// (environment: SHELL.fonts).
+export function createFonts({ deckit, state: STATE, installed }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const KEPT = 'fonts';
-    let fonts = FONTS.DEFAULT;
+    let fonts = {};
     let keeping = Promise.resolve(); // the change being kept, which the next one waits for
 
     // MARK: - Initializer
     // MARK: - Public
-    // The person's fonts, kept in the shell's state, which a mod with deckit.fonts reads and changes.
-    // `onChange(fonts)` hears them at once and at each change.
+    // The person's fonts, kept in the shell's state, which a mod with deckit.fonts sets whole: fonts that are not ones
+    // are refused at call, INVALID_ARGUMENT. `onChange(fonts)` hears them at once and at each change.
     function start({ onChange }) {
-        fonts = FONTS.keptOf(deckit.state.read(KEPT, {}));
+        fonts = FONTS.keptOf(STATE.read(KEPT, {}));
         onChange(fonts);
-        PROTOCOL.current.handle((_payload, sender) => {
-            holds(sender);
-            return fonts;
-        });
         PROTOCOL.installed.handle(() => installed());
-        PROTOCOL.set.handle((change, sender) => {
-            holds(sender);
-            const problem = FONTS.problemOf(change);
-            if (problem) throw new Error(`fonts.set() ${problem}`);
-            const kept = keeping.then(() => keep(change, onChange));
+        PROTOCOL.set.handle((next) => {
+            const problem = FONTS.problemOf(next);
+            if (problem)
+                throw Object.assign(new Error(`fonts.set: ${problem}`), { stage: 'call', kind: 'INVALID_ARGUMENT' });
+            const kept = keeping.then(() => keep(next, onChange));
             keeping = kept.catch(() => {});
             return kept;
         });
@@ -35,22 +31,12 @@ export function createFonts({ deckit, installed }) {
 
     // MARK: - Private
     // Worn only once kept: a change the core refuses leaves the fonts as they were.
-    async function keep(change, onChange) {
-        const next = FONTS.merged(fonts, change);
+    async function keep(next, onChange) {
         if (JSON.stringify(next) === JSON.stringify(fonts)) return fonts;
-        await deckit.state.write(KEPT, next);
+        await STATE.write(KEPT, next);
         fonts = next;
         onChange(fonts);
         return fonts;
-    }
-
-    // Held to the permission: main does not take a page's word for it.
-    function holds(page) {
-        const modId = deckit.mods.modOf(page);
-        const permissions = deckit.mods.runOf(modId)?.mod.permissions || [];
-        if (permissions.some(({ id }) => id === FONTS_PERMISSION.FONTS)) return;
-        const refused = new Error(`${modId || 'the page'} does not have the ${FONTS_PERMISSION.FONTS} permission`);
-        throw Object.assign(refused, { kind: 'REFUSED' });
     }
 
     return { start };

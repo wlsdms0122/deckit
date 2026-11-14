@@ -1,0 +1,21 @@
+case = 4
+name = "contributions-of-an-interface-the-mod-does-not-own-are-refused"
+note = "exports.contributions(interface) is refused at call with kind NOT_OWNER for a mod that does not own the interface. mod-c, which declares to mod-b/actions, asks for what is declared to it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-b", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "exports.contributions"
+args = ["mod-b/actions"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_OWNER"

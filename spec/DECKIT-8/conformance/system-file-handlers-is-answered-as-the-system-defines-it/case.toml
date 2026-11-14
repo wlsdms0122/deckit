@@ -1,0 +1,21 @@
+case = 1
+name = "system-file-handlers-is-answered-as-the-system-defines-it"
+note = "The system defines system.file-handlers, named File Handlers, with its description, and not privileged, so a bundle read in place, which is not a system mod, that asks for it is taken and the permission is usable."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "system.file-handlers", reason = "Opens the reports.", usable = true, name = "File Handlers", description = "It can open files in the app for them, which can start programs.", privileged = false },
+]

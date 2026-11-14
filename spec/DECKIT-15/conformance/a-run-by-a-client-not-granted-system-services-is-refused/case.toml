@@ -1,0 +1,30 @@
+case = 5
+name = "a-run-by-a-client-not-granted-system-services-is-refused"
+note = "run is refused at call with kind NOT_PERMITTED for a client not granted deckit.system-services, before its arguments are read: mod-a hands a mod of another type."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/commands"]
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/commands"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "run"
+handed = true
+args = [1, "today"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

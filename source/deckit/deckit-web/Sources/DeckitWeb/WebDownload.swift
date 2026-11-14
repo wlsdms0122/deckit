@@ -10,8 +10,8 @@ import WebKit
 
 // A download a page started, which tells JavaScript what becomes of it: `adopted` ({ id }) first, then asks
 // `destination` ({ url, suggestedFilename, mimeType, expectedLength, reply }), answered later through `reply` with the
-// path of the file to write, or "" to cancel it; then `progress` ({ received, expected }), `expected` -1 while it is
-// not known, and once, `finished` or `failed` ({ description, cancelled }).
+// path of the file to write, or "" to cancel it; then `progress` ({ received, expected }), `expected` the length the
+// answer says it holds, -1 where it says none, and once, `finished` or `failed` ({ description, cancelled }).
 @MainActor
 final class WebDownload: NSObject {
     // MARK: - Property
@@ -26,6 +26,8 @@ final class WebDownload: NSObject {
     // WebKit's handler of the destination, while JavaScript has not answered it.
     private var deciding: (@MainActor @Sendable (URL?) -> Void)?
     private var told: (received: Int64, expected: Int64)?
+    // The length the answer says it holds, -1 where it says none: WebKit's progress counts none for an empty one.
+    private var length: Int64 = -1
 
     // MARK: - Initializer
     // `ended` is told once, as it finishes or fails.
@@ -57,7 +59,10 @@ final class WebDownload: NSObject {
 
     private func tellProgress() {
         let progress = download.progress
-        let now = (received: progress.completedUnitCount, expected: progress.totalUnitCount)
+        let now = (
+            received: progress.completedUnitCount,
+            expected: progress.totalUnitCount >= 0 ? progress.totalUnitCount : length
+        )
         guard told.map({ $0 != now }) ?? true else { return }
         told = now
         emitter.emit("progress", ["received": Double(now.received), "expected": Double(now.expected)])
@@ -96,6 +101,7 @@ extension WebDownload: WKDownloadDelegate {
         completionHandler: @escaping @MainActor @Sendable (URL?) -> Void
     ) {
         deciding = completionHandler
+        length = response.expectedContentLength
         let reply = Reply { [weak self] node, arguments in
             let path = try arguments.first.map { try node.string($0) } ?? ""
             self?.decide(path)

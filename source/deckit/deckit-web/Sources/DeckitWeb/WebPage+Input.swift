@@ -37,8 +37,9 @@ extension WebPage {
         }
     }
 
-    // The mouse's button pressed (`leftMouseDown`), moved held (`leftMouseDragged`) or let go (`leftMouseUp`) at
-    // `point`, from the page's top left, or the mouse moved there (`mouseMoved`), which its window hands on.
+    // The mouse's button pressed (`leftMouseDown`), the page given the keyboard first as its window gives a press,
+    // moved held (`leftMouseDragged`) or let go (`leftMouseUp`) at `point`, from the page's top left, or the mouse
+    // moved there (`mouseMoved`), which its window hands on.
     func sendMouse(_ type: NSEvent.EventType, at point: CGPoint, through input: InputMonitor) throws {
         let window = try shownWindow()
         guard let event = NSEvent.mouseEvent(
@@ -57,6 +58,7 @@ extension WebPage {
         switch type {
         case .leftMouseDown:
             HeldButton.hold(true)
+            view.take()
             view.mouseDown(with: event)
 
         case .leftMouseDragged:
@@ -72,7 +74,8 @@ extension WebPage {
     }
 
     // `files` dragged in from outside the app and dropped at `point`, from the page's top left, each by reference as
-    // Finder drags it: dragged over the page first, and dropped once the page has had `settle` to answer the drag.
+    // the system's file browser drags it: dragged over the page first, and dropped once the page has had `settle` to
+    // answer the drag.
     func sendDrop(_ files: [URL], at point: CGPoint, settle: Duration = .milliseconds(300)) async throws {
         let window = try shownWindow()
         let pasteboard = NSPasteboard.withUniqueName()

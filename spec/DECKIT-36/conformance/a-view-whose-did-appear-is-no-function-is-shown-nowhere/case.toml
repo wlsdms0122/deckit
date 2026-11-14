@@ -1,0 +1,23 @@
+case = 22
+name = "a-view-whose-did-appear-is-no-function-is-shown-nowhere"
+note = "A view.register handed a part that is no function registers nothing: mod-b registers { content, didAppear = 5 }, and is laid nowhere as mod-a places it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = []

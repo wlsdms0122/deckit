@@ -3,15 +3,66 @@ name = "Browser"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-urls = ["http:*", "https:*"]
+icon = "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><path d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20'/><path d='M2 12h20'/></svg>"
+keywords = ["브라우저", "웹", "인터넷", "browser", "web"]
 
 [permissions]
-"system.certificates" = "Asks you about a site whose certificate this Mac cannot verify, and loads it once you say yes."
+"system.certificates" = "Asks you about a site whose certificate this computer cannot verify, and loads it once you say yes."
 "system.site-permissions" = "Asks you when a site wants the camera, the microphone or notices, and lets it have them once you say yes."
-"system.notifications" = "Shows a site's notices, the way a browser does."
-"system.files" = "Opens a file on this Mac in a tab when you type its path or a file:// address."
-"system.file-handlers" = "Opens a file you downloaded in the app that handles it, and shows it in Finder."
-"system.clipboard-write" = "Copy Link in a tab's or a bookmark's menu puts its address on the clipboard."
+"system.files" = "Opens a file on this computer in a tab when you type its path or a file:// address."
+"system.file-handlers" = "Opens a file you downloaded in the app that handles it."
+"system.clipboard-read" = "Asks you when a site wants to read what you copied, and lets it once you say yes."
+"system.clipboard-write" = "Copy Link in a tab's or a bookmark's menu puts its address on the clipboard, and a site's page can copy what you ask it to."
 
-[dependencies]
-switcher = { version = "1.0.0", optional = true }
+[interfaces]
+uses = { "deckit/configuration" = 1, "deckit/notifications" = 1, "switcher/actions" = 1 }
+
+[[contributes."deckit/configuration"]]
+key = "homepage"
+type = "string"
+title = "Homepage"
+description = "The address a new tab opens. Empty, it opens the start page, the bookmarks as tiles."
+default = ""
+placeholder = "Start page"
+
+[[contributes."deckit/configuration"]]
+key = "searchEngine"
+type = "string"
+title = "Search engine"
+description = "Where words typed in the address bar are searched."
+default = "https://www.google.com/search?q="
+oneOf = [
+    { const = "https://www.google.com/search?q=", title = "Google" },
+    { const = "https://duckduckgo.com/?q=", title = "DuckDuckGo" },
+    { const = "https://www.bing.com/search?q=", title = "Bing" },
+]
+
+[[contributes."deckit/commands"]]
+id = "new-tab"
+title = "New Tab"
+params = { type = "object", properties = { url = { type = "string", title = "Address" } } }
+
+[[contributes."deckit/commands"]]
+id = "reopen-tab"
+title = "Reopen Closed Tab"
+
+[[contributes."deckit/commands"]]
+id = "show-notification"
+title = "Show a Site's Notification"
+params = { type = "object", properties = { tab = { type = "string", title = "Tab" }, notification = { type = "string", title = "Notification" } }, required = ["tab", "notification"] }
+
+[[contributes."deckit/commands"]]
+id = "switch-to-tab"
+title = "Switch to Tab"
+params = { type = "object", properties = { tab = { type = "string", title = "Tab" } }, required = ["tab"] }
+
+[[contributes."deckit/commands"]]
+id = "open-bookmark"
+title = "Open Bookmark"
+params = { type = "object", properties = { bookmark = { type = "string", title = "Bookmark" } }, required = ["bookmark"] }
+
+[[contributes."deckit/urls"]]
+scheme = "http"
+
+[[contributes."deckit/urls"]]
+scheme = "https"

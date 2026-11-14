@@ -1,0 +1,17 @@
+case = 19
+name = "an-activation-policy-that-is-not-accessory-is-regular"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-b writes activationPolicy acessory, which is not accessory, so it is regular and an app, kept in the Dock at the first start as the host ships it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = true, attention = false, active = false }]

@@ -1,0 +1,17 @@
+case = 1
+name = "a-name-past-u-ffff-is-listed-after-one-below-it"
+note = "Names not installed are listed by the names compared as Unicode scalar values, and a refused bundle is listed under the id it writes, so U+FF21 is listed before U+1D400, which a comparison of UTF-16 code units would put first."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["Ａ", "\U0001d400"]

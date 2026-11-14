@@ -1,0 +1,21 @@
+case = 1
+name = "system-notifications-is-answered-as-the-system-defines-it"
+note = "The system defines system.notifications, named Notifications, with its description, and not privileged, so a bundle read in place, which is not a system mod, that asks for it is taken and the permission is usable."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [
+    { id = "system.notifications", reason = "Tells of meetings.", usable = true, name = "Notifications", description = "It can show notifications in the corner of the screen, while you are looking at something else.", privileged = false },
+]

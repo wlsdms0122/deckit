@@ -1,0 +1,38 @@
+case = 22
+name = "a-drop-on-a-childs-view-reaches-the-childs-destination"
+note = "Files are dropped on the page laid where they land, a child's view among them: notes is dropped on mod-b's view over mod-a's region, and mod-b's destination is called at 20, 30 of it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.on"
+args = ["mod-b:dropped"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { drop = "outer", box = { x = 50, y = 50, width = 300, height = 300 } }, { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 100, height = 100 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "drop"
+mod = "mod-a"
+name = "main"
+folders = ["notes"]
+at = { x = 120, y = 130 }
+
+[[step]]
+look = "heard"
+mod = "mod-b"
+
+[step.expect]
+answers = [["mod-b", ["notes"], { x = 20, y = 30 }]]

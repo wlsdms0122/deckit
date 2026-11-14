@@ -1,0 +1,38 @@
+case = 12
+name = "a-link-to-an-address-an-app-opens-is-asked-and-opened"
+note = "A page's navigation to an address of a scheme off the never list, which the host has an app for, is asked of the mod as open:<scheme>, with the app's name and the address, and true opens the address outside the app. The host has the app Mail for mailto, and site-a's link to mailto:a@example.com is pressed."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+apps = { mailto = "Mail" }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "decidePermission", args = [{ origin = "site-a", permissions = ["open:mailto"], app = "Mail", url = "mailto:a@example.com" }] }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "mailto:a@example.com", activates = true }]

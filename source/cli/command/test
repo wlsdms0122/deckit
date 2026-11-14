@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 // Checks the channels between main and a page, the stage pages are laid on, what an environment gives and connect
-// answers, deck's client of the core, its runner and the scope a lifecycle cuts, deckit as a layer on deck, the key
-// map, the web pages a mod shows and what a page is told as it starts, runs the core's tests, then drives Deckit.app,
-// put together from the archive it builds first, through the scenario, with data of its own that is thrown away.
-// Exits 1 with a line for each check that failed. Screenshots and the app's log are left in .build/test/.
+// answers, deck's client of the core, its runner, the exports a page opens by interface, the mods a connection
+// launches, the scope a lifecycle cuts and the events a page hears, deckit as a layer on deck, the key map, the mods as
+// the core reads them, an address offered to its handlers in turn, the web pages a mod shows, what a page is told as it
+// starts, the styles a page wears, the regions mods give their children, forge's runs, the commands, urls, keymap and
+// configuration mods, the Switcher's list, Settings' Activity and the Mods mod's search, runs the core's tests, then
+// drives Deckit.app, put together from the archive it builds first, through the scenario, with data of its own that is
+// thrown away. Exits 1 with a line for each check that failed. Screenshots and the app's log are left in .build/test/.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -43,14 +46,34 @@ const main = async () => {
         'environment.js',
         'core.js',
         'runner.js',
+        'exports.js',
+        'connection.js',
         'scope.js',
+        'event.js',
         'layers.js',
         'keymap.js',
+        'catalog.js',
+        'open.js',
         'web.js',
+        'main-process.js',
         'page.js',
-        'panel.js',
+        'desktop.js',
+        'window.js',
+        'dock.js',
+        'host.js',
+        'key.js',
         'style.js',
+        'region.js',
         'forge.js',
+        'commands.js',
+        'urls.js',
+        'keymap-mod.js',
+        'configuration.js',
+        'packages.js',
+        'switcher.js',
+        'notifications.js',
+        'activity.js',
+        'all-mods.js',
     ];
     for (const check of checks)
         execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {
@@ -64,7 +87,7 @@ const main = async () => {
     fs.mkdirSync(OUT, { recursive: true });
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-app-'));
     const data = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-data-'));
-    const files = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-files-'));
+    const files = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-files-')));
     // WebKit keeps what the app's pages store for the app that runs it, Electron's, under an id the data folder's own:
     // the stores that came while the test ran are its, and go with its folders.
     const stores = path.join(os.homedir(), 'Library', 'WebKit', bundleOf(electronApp()), 'WebsiteDataStore');
@@ -75,7 +98,7 @@ const main = async () => {
             if (!before.has(store)) fs.rmSync(path.join(stores, store), { recursive: true, force: true });
     });
     APP.assemble(archive, folder);
-    SCENARIO.seed({ data, files: fs.realpathSync(files) });
+    SCENARIO.seed({ data, files, app: folder });
     const log = path.join(OUT, 'log.txt');
     const app = launch({ app: folder, data, port, log, limit: LIMIT });
     const module = path.join(fs.realpathSync(folder), 'deckit', 'deckit-web.node');
@@ -86,7 +109,7 @@ const main = async () => {
     // The id the app runs under, as its configuration makes it of the data folder.
     process.env.DECKIT_DATA = data;
     const { id } = require(path.join(folder, 'config', 'config.js')).config;
-    const report = await SCENARIO.run({ ...devtools, endCore, logged, home: path.join(data, 'deckit'), id });
+    const report = await SCENARIO.run({ ...devtools, endCore, logged, home: path.join(data, 'deckit'), files, id });
     devtools.close();
     app.stop();
     await sleep(1000);

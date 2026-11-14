@@ -1,0 +1,25 @@
+case = 3
+name = "a-quit-of-a-mod-that-has-no-run-leaves-it-as-it-is"
+note = "A quit of a mod that has no run leaves it as it is and is not refused. mod-a quits mod-b, which has not run since the app started."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"

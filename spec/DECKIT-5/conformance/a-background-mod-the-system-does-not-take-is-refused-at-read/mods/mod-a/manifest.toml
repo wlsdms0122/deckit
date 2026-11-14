@@ -1,0 +1,4 @@
+id = "mod-a"
+api = "1.0.0"
+main = "main.js"
+background = "Keeps the index."

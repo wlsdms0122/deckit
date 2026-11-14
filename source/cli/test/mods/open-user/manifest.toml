@@ -3,7 +3,10 @@ name = "Open User"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-urls = ["test-open:*"]
+activationPolicy = "accessory"
 
-[dependencies]
-switcher = { version = "1.0.0", optional = true }
+[interfaces]
+uses = { "deckit/urls" = 1, "switcher/actions" = 1 }
+
+[[contributes."deckit/urls"]]
+scheme = "test-open"

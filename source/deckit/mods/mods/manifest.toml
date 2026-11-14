@@ -1,0 +1,19 @@
+id = "mods"
+name = "Mods"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+icon = "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='7' height='7' rx='1.5'/><rect x='14' y='3' width='7' height='7' rx='1.5'/><rect x='3' y='14' width='7' height='7' rx='1.5'/><rect x='14' y='14' width='7' height='7' rx='1.5'/></svg>"
+keywords = ["모드", "전체", "앱", "mods", "all", "apps", "launcher"]
+
+[permissions]
+"deckit.mods" = "Lists every mod you can open, opens the one you pick, and keeps one in the Dock or takes it out."
+
+[[contributes."deckit/commands"]]
+id = "show"
+title = "Show All Mods"
+
+[[contributes."switcher/actions"]]
+label = "Show All Mods"
+keywords = ["모드", "전체", "all"]
+command = "show"

@@ -1,0 +1,22 @@
+case = 15
+name = "keys-list-answers-the-shells-keys"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a, marked system and granted deckit.shell-keys, lists the shell's keys: closeWindow, minimizeWindow and cycleWindows, in that order, each with its name and its default, and bound to it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "keys.list"
+handle = "shell"
+args = []
+
+[step.expect]
+answers = [{ id = "closeWindow", name = "Close Window", defaultKeystroke = { code = "KeyW", meta = true, control = false, alt = false, shift = false }, keystroke = { code = "KeyW", meta = true, control = false, alt = false, shift = false } }, { id = "minimizeWindow", name = "Minimize Window", defaultKeystroke = { code = "KeyM", meta = true, control = false, alt = false, shift = false }, keystroke = { code = "KeyM", meta = true, control = false, alt = false, shift = false } }, { id = "cycleWindows", name = "Cycle Through Windows", defaultKeystroke = { code = "Backquote", meta = true, control = false, alt = false, shift = false }, keystroke = { code = "Backquote", meta = true, control = false, alt = false, shift = false } }]

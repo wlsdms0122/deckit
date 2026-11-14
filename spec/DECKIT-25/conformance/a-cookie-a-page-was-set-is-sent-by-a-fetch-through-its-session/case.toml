@@ -1,0 +1,39 @@
+case = 10
+name = "a-cookie-a-page-was-set-is-sent-by-a-fetch-through-its-session"
+note = "A page keeps in its session's store what its site sets, as a fetch does. site-a sets signed=in as the page loads index.html in mod-a's session main, and mod-a fetches hello.txt through that session."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 3
+sites = ["site-a/hello.txt"]
+
+[[step]]
+look = "requested"
+headers = ["cookie"]
+
+[step.expect]
+answers = [{ site = "site-a", method = "GET", path = "/index.html", headers = [] }, { site = "site-a", method = "GET", path = "/hello.txt", headers = [["cookie", "signed=in"]] }]

@@ -1,0 +1,25 @@
+case = 3
+name = "a-dry-run-installs-nothing"
+note = "A dry run of install changes nothing, so after mod-a asks one of mod-b the catalog still lists mod-a alone."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+args = [{ dryRun = true }]
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a"]

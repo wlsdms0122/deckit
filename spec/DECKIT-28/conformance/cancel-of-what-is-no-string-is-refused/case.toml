@@ -1,0 +1,22 @@
+case = 8
+name = "cancel-of-what-is-no-string-is-refused"
+note = "cancel takes the id as a string: another type is refused at call with kind INVALID_ARGUMENT. mod-a cancels 1."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "downloads.cancel"
+handle = "web"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

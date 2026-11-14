@@ -1,0 +1,93 @@
+case = 12
+name = "the-other-options-of-a-notification-are-not-told"
+note = "The other options are held as attributes and change nothing else: the mod is not told them, and a notification is told whatever tag an earlier one has. site-a, let have notifications, makes two notifications of one tag, with an icon, data and requireInteraction, and reads the tag of the second."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { didReceiveNotification = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "title"
+
+[step.expect]
+answers = "Start show show a"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 4
+part = "loading"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = [{ method = "didReceiveNotification", args = [{ title = "One", body = "", silent = false }] }, { method = "didReceiveNotification", args = [{ title = "Two", body = "", silent = false }] }]

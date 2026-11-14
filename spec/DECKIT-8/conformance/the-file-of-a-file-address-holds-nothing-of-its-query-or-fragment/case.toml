@@ -1,0 +1,20 @@
+case = 3
+name = "the-file-of-a-file-address-holds-nothing-of-its-query-or-fragment"
+note = "filePath answers the path alone, nothing of the URL's query or fragment. mod-a asks for file:///data/report.pdf?page=2#top."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "filePath"
+args = ["file:///data/report.pdf?page=2#top"]
+
+[step.expect]
+answers = "/data/report.pdf"

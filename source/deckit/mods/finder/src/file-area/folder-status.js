@@ -50,7 +50,7 @@ function folderStatus({ ui, chordOf, onShowHidden, onReveal, onPrivacySettings }
             actions.push(showHidden.element);
         }
         actions.push(
-            ui.button({ label: 'Show in Finder', title: '', onClick: () => onReveal(folder), size: 'small' }).element
+            ui.button({ label: 'Show in Folder', title: '', onClick: () => onReveal(folder), size: 'small' }).element
         );
         return screenOf({
             title: 'This folder is empty',

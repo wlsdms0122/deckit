@@ -1,5 +1,6 @@
 // The stage pages are laid on (deckit-electron/stage), checked over a stand-in for WebKit's module: what it is asked
-// to lay, in what order, where and shown or not, each page's web pages over it, and where it is placed in its window.
+// to lay, in what order, where, cut to what and shown or not, each page's web pages over it, and where it is placed in
+// its window.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -127,6 +128,19 @@ async function main() {
         JSON.stringify(asked.laid.map(({ page }) => page)) === '[1,2,4]',
         asked.laid
     );
+    webPages.set(a, [{ page: web, frame: rect(2, 3, 4, 5) }]);
+    const round = { ...rect(0, 0, 9, 9), cornerRadius: 4 };
+    stage.lay([{ page: a, rect: rect(1, 1, 9, 9), clip: round }]);
+    check(
+        "a page is cut to its clip, its corners rounded, and its web pages to that clip and the page's rect",
+        JSON.stringify(asked.laid) ===
+            JSON.stringify([
+                { page: 2, frame: rect(1, 1, 9, 9), clips: [round] },
+                { page: 5, frame: rect(3, 4, 4, 5), clips: [round, rect(1, 1, 9, 9)] },
+            ]),
+        asked.laid
+    );
+    webPages.set(a, []);
 
     b.gone = true;
     stage.lay([

@@ -1,0 +1,35 @@
+case = 7
+name = "writing-a-text-of-another-type-to-the-clipboard-is-refused"
+note = "writeText is refused at call with kind INVALID_ARGUMENT where text is not a string, never read as one. mod-a writes one, then the number 5, and reads one."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["one"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = [5]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = "one"

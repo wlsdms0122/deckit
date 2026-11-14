@@ -1,0 +1,21 @@
+case = 15
+name = "mods-list-answers-each-app-with-its-icon-and-keywords"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-a writes an icon and keywords, mod-b writes an icon that is no string and keywords that are no array, so each reads as none, and mod-c writes neither; every keyword of mod-a's that is not empty is answered, in order."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "mod-a", name = "mod-a", icon = "<svg viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"6\"/></svg>", keywords = ["notes", "write"], pinned = true, running = true }, { id = "mod-b", name = "mod-b", icon = "", keywords = [], pinned = true, running = true }, { id = "mod-c", name = "mod-c", icon = "", keywords = [], pinned = true, running = true }]

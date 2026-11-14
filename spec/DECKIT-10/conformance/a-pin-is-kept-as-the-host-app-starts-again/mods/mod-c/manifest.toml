@@ -1,0 +1,7 @@
+id = "mod-c"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[interfaces]
+provides = { "mod-b/pages" = [1] }

@@ -1,0 +1,30 @@
+case = 3
+name = "a-reach-of-a-mod-at-the-relaunch-limit-is-refused"
+note = "A reach of a mod at the relaunch limit launches nothing and is refused at launch with RELAUNCH_LIMIT. mod-b is a background mod whose entry throws, so it is at the limit once the app has started."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+refuses = "launch"
+kind = "RELAUNCH_LIMIT"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "launch"
+kind = "RELAUNCH_LIMIT"

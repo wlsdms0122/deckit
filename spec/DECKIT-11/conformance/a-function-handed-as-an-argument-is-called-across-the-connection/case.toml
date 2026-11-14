@@ -1,0 +1,32 @@
+case = 4
+name = "a-function-handed-as-an-argument-is-called-across-the-connection"
+note = "A function in what a call is handed crosses as one in the exports does, from the client to the service. mod-a hands mod-b's subscribe a listener, which mod-b calls with hi before it answers."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "subscribe"
+of = 2
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [["hi"]]

@@ -1,0 +1,19 @@
+case = 21
+name = "the-desktops-own-page-wears-the-host-app-look"
+note = "Every page the shell draws in wears the theme, the desktop's own page among them: on a host whose look is light, its colour scheme is light."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+appearance = "light"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+properties = []
+
+[step.expect]
+answers = { dark = false, properties = {} }

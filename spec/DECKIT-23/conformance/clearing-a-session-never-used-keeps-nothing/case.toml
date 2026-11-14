@@ -1,0 +1,35 @@
+case = 8
+name = "clearing-a-session-never-used-keeps-nothing"
+note = "clear() takes what the session stored, and of a session the mod never used keeps nothing of it. mod-b clears its session main, never used, and mod-a reads that the web engine keeps nothing of mod-b."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "clear"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "kept"
+
+[step.expect]
+answers = []

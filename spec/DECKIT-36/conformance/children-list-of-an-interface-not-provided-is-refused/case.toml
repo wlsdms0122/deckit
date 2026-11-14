@@ -1,0 +1,22 @@
+case = 22
+name = "children-list-of-an-interface-not-provided-is-refused"
+note = "children.list is refused at call with INVALID_ARGUMENT for an interface the manifest does not provide: mod-a asks for case/other."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = ["case/other"]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

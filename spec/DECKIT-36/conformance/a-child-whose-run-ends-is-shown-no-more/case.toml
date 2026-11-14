@@ -1,0 +1,30 @@
+case = 22
+name = "a-child-whose-run-ends-is-shown-no-more"
+note = "A region shows its child while the child's run is running: mod-x quits mod-b, and no child is laid."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-x"]
+system = ["mod-x"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-x"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = []

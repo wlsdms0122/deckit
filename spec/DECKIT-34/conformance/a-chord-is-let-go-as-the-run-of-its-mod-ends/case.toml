@@ -1,0 +1,38 @@
+case = 19
+name = "a-chord-is-let-go-as-the-run-of-its-mod-ends"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a takes ctrl+alt+k, and the person quits mod-a from its item's menu in the Dock, so its page ends; mod-b takes the chord, and the press is told to mod-b."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "a" }]
+
+[[step]]
+input = "dock"
+mod = "mod-a"
+action = "quit"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "b" }]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyK", control = true, alt = true }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/take/a/held/true", activates = true }, { url = "https://said.test/take/b/held/true", activates = true }, { url = "https://said.test/chord/b", activates = true }]

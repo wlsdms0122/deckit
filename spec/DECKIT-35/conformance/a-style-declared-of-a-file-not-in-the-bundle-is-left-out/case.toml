@@ -1,0 +1,19 @@
+case = 21
+name = "a-style-declared-of-a-file-not-in-the-bundle-is-left-out"
+note = "A path of the field styles that names no file of the bundle is read as left out, and the rest is read: mod-a declares missing.css for mod-b and a.css for \"*\", and mod-b's page holds what a.css sets."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = { --case-a = "a", --case-order = "a" } }

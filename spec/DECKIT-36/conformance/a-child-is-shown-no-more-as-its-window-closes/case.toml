@@ -1,0 +1,29 @@
+case = 22
+name = "a-child-is-shown-no-more-as-its-window-closes"
+note = "A region shows its child only while its window is on screen: mod-a closes the window, and no child is laid."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { close = true }]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = []

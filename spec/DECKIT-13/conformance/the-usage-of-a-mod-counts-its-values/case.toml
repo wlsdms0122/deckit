@@ -1,0 +1,34 @@
+case = 4
+name = "the-usage-of-a-mod-counts-its-values"
+note = "mods.usage answers what a mod has stored in each place it is kept, its values as how many it keeps. mod-b sets two values, and mod-a's usage of mod-b answers two values."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "storage.values.set"
+args = ["theme", "dark"]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "storage.values.set"
+args = ["width", 240]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "values"
+
+[step.expect]
+answers = { count = 2 }

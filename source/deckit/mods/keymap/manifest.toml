@@ -1,0 +1,16 @@
+id = "keymap"
+name = "Keymap"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+activationPolicy = "accessory"
+background = "Takes the mods' keys from the start, so each works as soon as the app opens."
+
+[interfaces]
+provides = { "deckit/keys" = [1] }
+uses = { "deckit/commands" = 1 }
+
+[permissions]
+"deckit.app-keys" = "Takes the mods' keys that work wherever you are in the app."
+"system.global-keys" = "Takes the mods' keys that work in every app."
+"deckit.system-services" = "Runs the command of the key you press, which launches its mod if it does not run."

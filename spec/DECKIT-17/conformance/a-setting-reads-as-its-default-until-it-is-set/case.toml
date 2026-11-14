@@ -1,0 +1,30 @@
+case = 5
+name = "a-setting-reads-as-its-default-until-it-is-set"
+note = "get(key) answers the default of the client's own mod's setting where nothing is set. mod-a declares tab-size, 4 by default."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/configuration"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/configuration"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "get"
+handed = true
+args = ["tab-size"]
+
+[step.expect]
+answers = 4

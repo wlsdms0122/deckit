@@ -1,7 +1,7 @@
 const { isInside } = require('../path/path.js');
 
-// The workspaces and the files open in them. A path is open once or not at all; a workspace only lists which of the open
-// files are its tabs, and the workspace with no folder holds the files opened on their own. Each request to bring
+// The workspaces and the files open in them. A path is open once or not at all; a workspace only lists which of the
+// open files are its tabs, and the workspace with no folder holds the files opened on their own. Each request to bring
 // something to the front takes the next number, and the workspace it brought forward keeps it (`requestedAt`), so an
 // open that took long gives way to anything requested after it. A released file is handed to `onRelease` to take down.
 // `onOpenFilesChange` hears each file opened, released or moved.
@@ -162,8 +162,8 @@ function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
         if (file !== undefined) workspace.current = file;
     }
 
-    // For what nobody requested: `workspace` takes only an empty front, or one nothing was requested into since `since`.
-    // Not counted, which would pass by what a person is still waiting for.
+    // For what nobody requested: `workspace` takes only an empty front, or one nothing was requested into since
+    // `since`. Not counted, which would pass by what a person is still waiting for.
     function fillIdleFront(workspace, file, { since } = {}) {
         const idle = !front || !list.includes(front) || (since !== undefined && !(front.requestedAt > since));
         if (idle) front = workspace;

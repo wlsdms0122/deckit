@@ -1,0 +1,37 @@
+case = 5
+name = "a-choice-left-out-clears-the-choice"
+note = "choose(scheme) with the choice left out clears what was chosen, and the scheme is answered with no chosen. mod-c is chosen for https, and then nothing is."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-b", "mod-c"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "choose"
+handed = true
+args = ["https", { mod = "mod-c" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "choose"
+handed = true
+args = ["https"]
+
+[step.expect]
+answers = { scheme = "https", system = "browser", mods = [{ mod = { id = "mod-b", name = "mod-b" }, patterns = ["https:*"] }, { mod = { id = "mod-c", name = "mod-c" }, patterns = ["https:*"] }] }

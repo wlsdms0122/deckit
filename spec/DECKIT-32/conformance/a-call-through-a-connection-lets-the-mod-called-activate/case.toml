@@ -1,0 +1,46 @@
+case = 18
+name = "a-call-through-a-connection-lets-the-mod-called-activate"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. mod-a opens main in attach. The person presses on mod-a's main, so mod-a may activate. mod-a, marked system and granted deckit.reach-mods, reaches mod-b by its id, a request that hands mod-b activation, mod-b opening exports in start. A key the person presses in main ends that; mod-a calls ping of the exports it reached, a request of mod-b, which then opens x, key."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyA" }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "ping"
+of = 3
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { open = { name = "x" } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-b", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = true, minimized = false }]

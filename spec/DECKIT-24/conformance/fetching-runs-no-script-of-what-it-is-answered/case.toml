@@ -1,0 +1,32 @@
+case = 9
+name = "fetching-runs-no-script-of-what-it-is-answered"
+note = "fetch runs no script of what it is answered and loads nothing it names. site-a answers page.html, which fetches /ran as a script and loads /image.png, and requested reads one request."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/page.html"]
+
+[[step]]
+look = "requested"
+
+[step.expect]
+answers = [{ site = "site-a", method = "GET", path = "/page.html", headers = [] }]

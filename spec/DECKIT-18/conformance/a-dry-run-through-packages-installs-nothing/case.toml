@@ -1,0 +1,40 @@
+case = 5
+name = "a-dry-run-through-packages-installs-nothing"
+note = "A dry run changes nothing. mod-c depends on mod-b ^1, installed as 1.4.2, and after its dry run a dry run of mod-c replaces nothing."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+part = "replaces"
+
+[step.expect]
+answers = false

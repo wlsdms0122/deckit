@@ -1,0 +1,20 @@
+case = 2
+name = "a-background-mod-the-system-does-not-take-is-refused-at-read"
+note = "What the system answers of a run under a name whose bundle it did not take is the refusal at read, so mod-a with background and no version is refused at read with NOT_LOADABLE."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"
+

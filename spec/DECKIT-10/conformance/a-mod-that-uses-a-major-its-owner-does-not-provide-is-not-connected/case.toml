@@ -1,0 +1,25 @@
+case = 4
+name = "a-mod-that-uses-a-major-its-owner-does-not-provide-is-not-connected"
+note = "A lifecycle is connected to an interface's owner only where the owner provides the major it uses. mod-a uses major 2 of mod-b/pages, mod-b provides major 1, and mod-a's listener is handed nothing."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["mod-b/pages"]
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []

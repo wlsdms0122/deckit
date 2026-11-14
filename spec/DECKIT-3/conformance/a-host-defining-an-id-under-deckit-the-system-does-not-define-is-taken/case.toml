@@ -1,0 +1,11 @@
+case = 1
+name = "a-host-defining-an-id-under-deckit-the-system-does-not-define-is-taken"
+note = "Only an id the system defines is defined twice when a host defines it too, and no prefix is kept for the system, so a host that defines deckit.sync, which the system does not define, starts."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "deckit.sync", name = "Sync", description = "Syncs the pages." }]
+
+[[step]]
+input = "start"

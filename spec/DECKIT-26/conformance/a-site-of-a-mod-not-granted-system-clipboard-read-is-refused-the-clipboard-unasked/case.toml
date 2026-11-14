@@ -1,0 +1,42 @@
+case = 10
+name = "a-site-of-a-mod-not-granted-system-clipboard-read-is-refused-the-clipboard-unasked"
+note = "clipboard-read is asked only of a mod granted system.clipboard-read. mod-a, granted system.site-permissions and system.clipboard-write, writes held, and site-a reads the clipboard."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.writeText"
+args = ["held"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 3
+part = "title"
+
+[step.expect]
+answers = "NotAllowedError"

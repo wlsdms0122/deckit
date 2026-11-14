@@ -1,0 +1,30 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+background = "Reads its settings."
+
+[interfaces]
+uses = { "deckit/configuration" = 1 }
+
+[permissions]
+"deckit.system-services" = "Lists the settings and sets them."
+
+[[contributes."deckit/configuration"]]
+key = "tab-size"
+type = "number"
+title = "Tab size"
+default = 4
+minimum = 1
+maximum = 8
+
+[[contributes."deckit/configuration"]]
+key = "name"
+type = "string"
+title = "Name"
+
+[[contributes."deckit/configuration"]]
+key = "wrap"
+type = "boolean"
+title = "Wrap"
+default = false

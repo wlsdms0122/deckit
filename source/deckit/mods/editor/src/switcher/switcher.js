@@ -1,10 +1,12 @@
 const { nameOf } = require('../path/path.js');
 
 // What the Editor adds to the switcher through its `setActions(actions)`: New File named for the workspace in front,
-// the workspaces and recent folders to go to, a search of each workspace's files, and what its keys do. Each action's
+// the workspaces and recent folders to go to, a search of each workspace's files, and what its keys do. Open Folder…
+// is declared in contributes.json. Each action's
 // value is `{ action, ...args }`, run by `does[action](args, { ready })`; one that opens a search is the value its
-// results add an arg to. `filesOf(workspace, query)` answers the files found in one.
-function switcher({ ui, util, workspaces, recentFolders, filesOf, show, does }) {
+// results add an arg to. `filesOf(workspace, query)` answers the files found in one, and `tildify(path)` is a path as
+// it is shown.
+function switcher({ ui, tildify, workspaces, recentFolders, filesOf, show, does }) {
     return { list, search, run };
 
     function list() {
@@ -24,14 +26,14 @@ function switcher({ ui, util, workspaces, recentFolders, filesOf, show, does }) 
             ...withFolder.map((workspace) => ({
                 group: 'Workspaces',
                 label: nameOf(workspace.root),
-                hint: util.tildify(workspace.root),
+                hint: tildify(workspace.root),
                 icon: ui.icon('folders', { size: 16 }),
                 value: { action: 'open-folder', path: workspace.root },
             })),
             ...recentFolders().map((path) => ({
                 group: 'Recent Folders',
                 label: nameOf(path),
-                hint: util.tildify(path),
+                hint: tildify(path),
                 icon: ui.icon('folder', { size: 16 }),
                 value: { action: 'open-folder', path },
             })),
@@ -39,7 +41,7 @@ function switcher({ ui, util, workspaces, recentFolders, filesOf, show, does }) 
                 .sort((left, right) => (right === front) - (left === front))
                 .map((workspace) => ({
                     label: 'Search Files in ' + nameOf(workspace.root),
-                    hint: util.tildify(workspace.root),
+                    hint: tildify(workspace.root),
                     icon: ui.icon('search', { size: 16 }),
                     opens: true,
                     value: { action: 'open', root: workspace.root },
@@ -55,11 +57,6 @@ function switcher({ ui, util, workspaces, recentFolders, filesOf, show, does }) 
                 label: 'Open File…',
                 keywords: ['열기', '파일', 'open', 'file'],
                 value: { action: 'open-file' },
-            },
-            {
-                label: 'Open Folder…',
-                keywords: ['열기', '폴더', '워크스페이스', 'open', 'folder', 'workspace', 'project'],
-                value: { action: 'open-folder' },
             },
             { label: 'New Folder', value: { action: 'new-folder' } },
             { label: 'Move to Trash', value: { action: 'trash' } },

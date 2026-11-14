@@ -1,0 +1,9 @@
+id = "mod-b"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+background = "Runs."
+view = "case/view"
+
+[interfaces]
+uses = { "case/view" = 1 }

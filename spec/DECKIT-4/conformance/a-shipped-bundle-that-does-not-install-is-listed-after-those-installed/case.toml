@@ -1,0 +1,26 @@
+case = 1
+name = "a-shipped-bundle-that-does-not-install-is-listed-after-those-installed"
+note = "A shipped bundle that does not install is not installed, so mod-a, refused with no version, is listed after mod-b, installed, though it was shipped first, and is refused as it was."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-b", "mod-a"]
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"
+

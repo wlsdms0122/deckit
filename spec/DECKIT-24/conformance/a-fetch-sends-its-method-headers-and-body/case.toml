@@ -1,0 +1,34 @@
+case = 9
+name = "a-fetch-sends-its-method-headers-and-body"
+note = "fetch sends the request to url with method, each header handed and the bytes body holds. mod-a posts the bytes \"hi\" to site-a with the header x-token: t, and requested reads the request."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/post"]
+args = [{ method = "POST", headers = [["x-token", "t"]], body = "aGk=" }]
+
+[[step]]
+look = "requested"
+headers = ["x-token"]
+
+[step.expect]
+answers = [{ site = "site-a", method = "POST", path = "/post", headers = [["x-token", "t"]], body = "aGk=" }]

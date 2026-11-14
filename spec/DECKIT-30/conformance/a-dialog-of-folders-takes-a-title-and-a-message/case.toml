@@ -1,0 +1,22 @@
+case = 16
+name = "a-dialog-of-folders-takes-a-title-and-a-message"
+note = "options takes title and message, strings, which the dialog shows. mod-a, a mod granted nothing, asks for a folder with a title and a message, and the person chooses folder-a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+chosen = ["folder-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+args = [{ title = "Notes", message = "Choose the folder your notes are in." }]
+
+[step.expect]
+answers = ["folder-a"]

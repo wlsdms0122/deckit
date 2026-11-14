@@ -63,11 +63,12 @@ const MOD_DETAILS_STYLE = `
     .settings-details-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 `;
 
-// What an opened mod row shows: the mods it depends on, where its view is shown, its permissions, the addresses
-// it opens, its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it.
+// What an opened mod row shows: the interfaces it uses, in which mod's window its view is shown, its permissions, the
+// addresses it opens, its keys and where it lives. `onPinnedChange` hears the person keep a mod in the Dock or take it
+// out.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the slow
 // duration, as content entering the row.
-function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
+function modDetails({ ui, mods, pins, tildify, onPinnedChange }) {
     let mod = null;
     let open = false;
     let usageRead = false;
@@ -86,43 +87,24 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
 
     // Drawn again only when what it shows changed, and then its usage read again when it is open.
     function set(next) {
-        const facts = JSON.stringify(next);
+        const snapshot = JSON.stringify(next);
         mod = next;
-        if (facts === drawn) return;
-        drawn = facts;
+        if (snapshot === drawn) return;
+        drawn = snapshot;
         usageRead = false;
         // A main process module starts when the mod asks for it, so none running is no fault: only a start that
         // failed is told.
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
-        // One is short while it has a problem or is not running, and its problem is said over it. An optional one
-        // short stops nothing, so it is drawn quiet, not as a fault.
-        const relationChips = (optional) =>
-            (mod.relations || [])
-                .filter((relation) => relation.optional === optional)
-                .map((relation) => {
-                    const text = `${relation.name} ${relation.version}`;
-                    const ok = !relation.problem && relation.running;
-                    const { element } =
-                        optional && !ok ? chip({ ui, text, muted: true }) : statusChip({ ui, text, ok });
-                    if (relation.problem) element.title = relation.problem;
-                    return element;
-                });
-        for (const [label, optional] of [
-            ['Requires', false],
-            ['Uses', true],
-        ]) {
-            const chips = relationChips(optional);
-            if (chips.length) addPart(label, chipRow(chips));
-        }
-        if (mod.live?.parent && pins) addPart('Sidebar', sidebarPin());
+        if (mod.uses?.length) addPart('Interfaces', chipRow(useChips(mod.uses)));
+        if (mod.view?.parent && pins) addPart('View', viewPin());
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
-        if (mod.live?.urls.length) addPart('Opens', chipRow(openingChips(mod.handlerLists)));
+        if (mod.schemes.length) addPart('Opens', chipRow(openingChips(mod.schemes)));
         if (mod.keys.length) addPart('Keys', keyGrid());
         const location = ui.element('div', { className: 'settings-details-location' });
-        if (mod.folder) location.append(detailsLine(util.tildify(mod.folder)));
+        if (mod.folder) location.append(detailsLine(tildify(mod.folder)));
         location.append(statusLine);
         addPart('Location', location);
         if (open) readUsage();
@@ -133,7 +115,7 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         if (open) readUsage();
         if (!animate) element.style.transition = 'none';
         element.toggleAttribute('data-open', open);
-        if (!animate) requestAnimationFrame(() => (element.style.transition = ''));
+        if (!animate) element.ownerDocument.defaultView?.requestAnimationFrame(() => (element.style.transition = ''));
     }
 
     // Read when the row is open: it walks the data folder, and most rows are never opened.
@@ -154,9 +136,21 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         );
     }
 
-    // A child's view is shown in its parent's, and in the sidebar's list as well once the person pins it there.
-    function sidebarPin() {
-        const parent = (mod.relations || []).find((relation) => relation.id === mod.live.parent);
+    // Each interface it uses, at the major it uses, with its owner when one is. Using one is never required, so one
+    // that reaches no one is drawn quiet, with its problem said over it.
+    function useChips(uses) {
+        return uses.map((use) => {
+            const text = [`${use.interface} v${use.major}`, use.name].filter(Boolean).join(' · ');
+            const { element } = chip({ ui, text, muted: !use.owner || !!use.problem });
+            element.title = use.problem || (use.owner ? '' : `No other mod owns ${use.interface}`);
+            return element;
+        });
+    }
+
+    // A child's view is shown in a region of the window of the owner of the interface it names as parent, and in the
+    // Dock as well once the person pins it there.
+    function viewPin() {
+        const parent = (mod.uses || []).find((use) => use.interface === mod.view.parent);
         const { id } = mod;
         const pin = ui.element('div', { className: 'settings-details-switch' });
         const toggle = ui.toggle({
@@ -167,7 +161,11 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
             },
         });
         pin.append(
-            detailsLine(`Shown in ${parent?.name || mod.live.parent}. Pinned to the sidebar too`),
+            detailsLine(
+                parent?.name
+                    ? `Shown in ${parent.name}. Kept in the Dock too`
+                    : `Shown in the owner of ${mod.view.parent}. Kept in the Dock too`
+            ),
             toggle.element
         );
         return pin;
@@ -185,33 +183,30 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         return row;
     }
 
-    // Where the mod stands in each scheme's handler list. Its position is counted among the ones switched on: a
-    // mod switched off ahead of it is never asked.
-    function openingChips(handlerLists) {
-        return handlerLists
-            .filter((handlerList) => handlerList.handlers.some((handler) => handler.id === mod.id))
-            .map((handlerList) => {
-                const handler = handlerList.handlers.find((candidate) => candidate.id === mod.id);
-                const index = handlerList.handlers.filter((candidate) => candidate.on).indexOf(handler);
-                const standing = handler.on ? 'asked ' + ordinal(index) : 'off';
-                return statusChip({
-                    ui,
-                    text: `${schemeName(handlerList.scheme, everyScheme)} · ${standing}`,
-                    ok: handler.on,
-                }).element;
-            });
+    // Where the mod stands in the turn of each scheme it opens, as `deckit/urls` lists them: a scheme you chose to
+    // open outside the app is offered to no mod.
+    function openingChips(schemes) {
+        return schemes.map((scheme) => {
+            const index = scheme.mods.findIndex((entry) => entry.mod.id === mod.id);
+            const outside = !!scheme.chosen?.system;
+            return statusChip({
+                ui,
+                text: `${schemeName(scheme.scheme)} · ${outside ? 'opens outside the app' : 'offered ' + ordinal(index)}`,
+                ok: !outside,
+            }).element;
+        });
     }
 
     function keyGrid() {
         const grid = ui.element('div', { className: 'settings-details-keys' });
         for (const shortcut of mod.keys) {
             const key = ui.element('div', { className: 'settings-details-key' });
-            const label = ui.element('span', { className: 'settings-details-label', text: shortcut.label });
-            label.title = shortcut.label;
+            const label = ui.element('span', { className: 'settings-details-label', text: shortcut.title });
+            label.title = shortcut.title;
             key.append(
                 ui.element('span', {
                     className: 'settings-details-chord',
-                    text: shortcut.spec ? shortcut.chord : 'None',
+                    text: shortcut.keystroke ? shortcut.chord : 'None',
                 }),
                 label
             );

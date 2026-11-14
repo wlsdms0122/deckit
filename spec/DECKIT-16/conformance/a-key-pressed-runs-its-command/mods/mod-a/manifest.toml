@@ -1,0 +1,11 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+background = "Lists keys."
+
+[interfaces]
+uses = { "deckit/keys" = 1 }
+
+[permissions]
+"deckit.system-services" = "Lists the keys."

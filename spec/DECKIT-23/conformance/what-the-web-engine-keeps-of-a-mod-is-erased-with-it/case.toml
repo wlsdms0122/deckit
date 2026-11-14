@@ -1,0 +1,71 @@
+case = 8
+name = "what-the-web-engine-keeps-of-a-mod-is-erased-with-it"
+note = "remove with erase true erases what the web engine keeps of the mod. mod-a installs mod-b, which lets https://example.com have notifications in its session main; mod-a removes it with erase true and installs it again, and reads that the web engine keeps nothing of mod-b."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+part = "id"
+
+[step.expect]
+answers = "mod-b"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "allow"
+of = 4
+args = [[{ origin = "https://example.com", permission = "notifications" }]]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.remove"
+args = ["mod-b", true]
+
+[step.expect]
+answers = { erased = true }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+part = "id"
+
+[step.expect]
+answers = "mod-b"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "kept"
+
+[step.expect]
+answers = []

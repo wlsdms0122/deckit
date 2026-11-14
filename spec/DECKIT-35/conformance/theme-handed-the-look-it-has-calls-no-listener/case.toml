@@ -1,0 +1,29 @@
+case = 21
+name = "theme-handed-the-look-it-has-calls-no-listener"
+note = "The theme changes only as the host hands a look that is not the one before: mod-a listens, the host hands the dark look it has again, and the listener was not called."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "theme.onChange"
+handle = "shell"
+listener = true
+
+[[step]]
+input = "appearance"
+appearance = "dark"
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []

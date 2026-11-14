@@ -1,0 +1,18 @@
+case = 1
+name = "bundles-read-in-place-are-listed-by-the-names-they-are-listed-under"
+note = "Names not installed are listed by the names compared as scalar values, and a bundle is listed under its id, not its folder name, so the folder mod-a holding mod-z comes after the folder mod-b holding mod-y."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-y", "mod-z"]
+

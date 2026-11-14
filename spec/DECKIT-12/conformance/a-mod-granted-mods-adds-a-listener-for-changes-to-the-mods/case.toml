@@ -1,0 +1,18 @@
+case = 4
+name = "a-mod-granted-mods-adds-a-listener-for-changes-to-the-mods"
+note = "A mod granted deckit.mods adds a listener with mods.onChange, which is not refused. mod-a, a system mod granted deckit.mods, hands mods.onChange a listener."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.onChange"
+listener = true

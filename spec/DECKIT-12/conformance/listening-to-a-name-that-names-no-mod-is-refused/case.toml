@@ -1,0 +1,22 @@
+case = 4
+name = "listening-to-a-name-that-names-no-mod-is-refused"
+note = "on takes a name <mod id>:<event name>: a name that is not one is refused at call with kind INVALID_ARGUMENT. mod-a listens to ready."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["ready"]
+listener = true
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

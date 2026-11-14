@@ -1,5 +1,5 @@
-// Run in the app under test before its own entry: the app never becomes the active one, so it never takes the
-// person's menu bar, keyboard or pointer. It has no Dock icon or menu bar of its own, and macOS, which opened it in the
+// Run in the app under test before its own entry: the app never becomes the active one, so it never takes the person's
+// menu bar, keyboard or pointer. It has no Dock icon or menu bar of its own, and the system, which opened it in the
 // background, leaves the app in front where it is as its windows ask to come forward. The test drives it through its
 // main process and WebKit's module, which need none of that.
 if (process.type === 'browser') {

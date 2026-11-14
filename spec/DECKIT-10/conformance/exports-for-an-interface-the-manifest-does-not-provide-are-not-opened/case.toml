@@ -1,0 +1,25 @@
+case = 4
+name = "exports-for-an-interface-the-manifest-does-not-provide-are-not-opened"
+note = "exports.register(interface, exports) opens nothing for an interface the manifest does not provide. mod-b provides mod-b/pages and opens mod-b/notes alone, and mod-a, which uses mod-b/pages, is refused NOT_EXPORTED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onRefuse"
+args = ["mod-b/pages"]
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[{ stage = "call", kind = "NOT_EXPORTED" }]]

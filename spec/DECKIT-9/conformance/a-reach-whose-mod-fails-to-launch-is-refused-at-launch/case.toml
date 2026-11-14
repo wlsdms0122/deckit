@@ -1,0 +1,30 @@
+case = 3
+name = "a-reach-whose-mod-fails-to-launch-is-refused-at-launch"
+note = "A reach of a mod whose run fails to launch is refused at launch with NOT_LAUNCHED. The entry of mod-b throws as it is evaluated."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.reach"
+args = ["mod-b"]
+
+[step.expect]
+refuses = "launch"
+kind = "NOT_LAUNCHED"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+refuses = "launch"
+kind = "NOT_LAUNCHED"

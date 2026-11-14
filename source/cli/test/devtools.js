@@ -45,6 +45,12 @@ function connect({ port, shots, module }) {
         return target ? sessionOf(target) : null;
     }
 
+    // The session of the page WebKit's module knows by `id`, or null.
+    async function pageById(id) {
+        const target = (await targets()).find((candidate) => Number(candidate.id) === Number(id));
+        return target ? sessionOf(target) : null;
+    }
+
     // The sessions of every page whose address starts with `match`.
     async function pages(match) {
         return Promise.all((await targets()).filter((candidate) => candidate.url.startsWith(match)).map(sessionOf));
@@ -73,7 +79,7 @@ function connect({ port, shots, module }) {
         if (typeof png === 'string') fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(png, 'base64'));
     }
 
-    // The session of the overlay `opener`'s page opened beside it (deckit-shell/shell/overlay), or null.
+    // The session of the overlay `opener`'s page opened beside it (deckit-sdk/shell/overlay), or null.
     async function overlayOf(opener) {
         if (!opener) return null;
         for (const target of (await targets()).filter((candidate) => candidate.url === 'about:blank')) {
@@ -226,23 +232,29 @@ function connect({ port, shots, module }) {
         );
     };
 
-    return { targets, page, pages, overlayOf, compose, main, webPage, thrown, close };
+    return { targets, page, pageById, pages, overlayOf, compose, main, webPage, thrown, close };
 }
 
 // A connection to a DevTools protocol target at `url`: `send(method, params)` resolves to the answer, or to an error
-// after 5 seconds.
+// after 5 seconds, or at once once the target has gone.
 async function open(url) {
     const socket = new WebSocket(url);
     await new Promise((resolve, reject) => ((socket.onopen = resolve), (socket.onerror = reject)));
     let id = 0;
     const waiting = new Map();
+    const gone = { error: { message: 'the target has gone' } };
     socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
         waiting.get(message.id)?.(message);
         waiting.delete(message.id);
     };
+    socket.onclose = () => {
+        for (const resolve of waiting.values()) resolve(gone);
+        waiting.clear();
+    };
     const send = (method, params = {}) =>
         new Promise((resolve) => {
+            if (socket.readyState !== WebSocket.OPEN) return resolve(gone);
             const n = ++id;
             waiting.set(n, resolve);
             setTimeout(() => waiting.delete(n) && resolve({ error: { message: method + ' timed out' } }), 5000);

@@ -1,0 +1,39 @@
+case = 20
+name = "a-chord-in-global-the-machine-does-not-give-is-not-held"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. The machine does not give the host app ctrl+alt+k outside it. mod-a takes it in the scope global: the take answers held false; the person presses it in another app, and nothing is told; in the host app, and it is."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+unavailable = [{ code = "KeyK", control = true, alt = true }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "a", scope = "global" }]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyK", control = true, alt = true }
+outside = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/take/a/held/false", activates = true }]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyK", control = true, alt = true }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/take/a/held/false", activates = true }, { url = "https://said.test/chord/a", activates = true }]

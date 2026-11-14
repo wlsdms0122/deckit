@@ -1,0 +1,19 @@
+case = 1
+name = "a-blank-name-is-refused"
+note = "A name is a string, not blank. One of white space alone refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

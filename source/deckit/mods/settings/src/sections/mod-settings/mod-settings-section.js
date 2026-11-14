@@ -1,20 +1,20 @@
 const { section } = require('../section/section.js');
 
-// The Mod Settings section: a card per mod that declares a configuration or sets buttons through Settings' exports,
-// `setButtons(buttons)`, a control per configuration item and a row per button. `theme` is shell.theme, whose numbers
-// a number left unset may inherit. `modConfiguration` is deckit.modConfiguration; `formOf(mod)` answers how a mod's
-// configuration is drawn (shell.formOf). `sources` is what each mod set, `{ list, run }`, by its connection. A button
-// gives its value to the `run` its mod set and shows under it the text that answers; `nameOf(mod)` names a card that
-// has only buttons. A change that did not apply is told in a toast.
-function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, nameOf }) {
+// The Mod Settings section: a card per mod that declares a setting or sets buttons through Settings' exports,
+// `setButtons(buttons)`, a control per setting and a row per button. `theme` is shell.theme, whose numbers a number
+// left unset may inherit. `configuration()` is `deckit/configuration` while it is connected, and a setting is drawn
+// from the hints its entry carries beside what Configuration reads. `sources` is what each mod set, `{ list, run }`,
+// by its connection. A button gives its value to the `run` its mod set and shows under it the text that answers;
+// `nameOf(mod)` names a card that has only buttons. A change that did not apply is told in a toast.
+function modSettingsSection({ ui, theme, configuration, sources, nameOf }) {
     const TITLE = 'Mod Settings';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
-        'Choices each mod offers. A mod declares them; they are kept with its data, so an update keeps them.';
+        'Choices each mod offers. A mod declares them; what you choose is kept for it, so an update keeps it.';
     const HIGHLIGHT_LENGTH = 1200;
-    // The kit's lists a form's `choices` can name.
+    // The kit's lists an entry's `choices` can name.
     const LISTS = ['textFonts', 'monospacedFonts'];
-    // The theme's numbers a form's `inherits` can name.
+    // The theme's numbers an entry's `inherits` can name.
     const INHERITABLE = ['textSize'];
     // What a number left unset shows.
     const UNSET = 'Default';
@@ -67,15 +67,15 @@ function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, name
         showMessage(read.length ? '' : 'No mod has settings.');
     }
 
-    // Each mod's configuration, its items as its form draws them. A mod whose form cannot be read is drawn without one.
+    // Each mod's settings as `deckit/configuration` lists them, each drawn with the hints its entry carries.
     async function configurationsOf() {
-        const listed = await modConfiguration.list();
-        return Promise.all(
-            listed.map(async (group) => {
-                const form = await formOf(group.id).catch(() => ({}));
-                return { ...group, items: group.items.map((item) => itemOf(item, form?.[item.key] || {})) };
-            })
-        );
+        if (!configuration()) throw new Error('the Configuration mod is not running');
+        const { mods: listed } = await configuration().list();
+        return listed.map(({ mod, items }) => ({
+            id: mod.id,
+            name: mod.name,
+            items: items.map(({ entry, value }) => itemOf(entry, value)),
+        }));
     }
 
     // The buttons each mod adds, `[mod id, buttons]`, each `{ button, hint, after, runs }`: `runs` is `{ mod, value }`,
@@ -83,7 +83,7 @@ function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, name
     function buttonsOf() {
         return Promise.all(
             [...sources].map(async ([connection, source]) => {
-                const mod = connection.mod.id;
+                const mod = connection.credential.mod;
                 try {
                     const listed = typeof source.list === 'function' ? await source.list() : [];
                     return [mod, (Array.isArray(listed) ? listed : []).map((action) => buttonOf(mod, action))];
@@ -176,7 +176,8 @@ function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, name
             if (declared === shape) {
                 // A button has no value: everything it shows is in its shape. A control being typed in keeps what is
                 // typed.
-                if (!item.runs && !control.element.contains(document.activeElement)) control.set(valueOf(item));
+                if (!item.runs && !control.element.contains(control.element.ownerDocument.activeElement))
+                    control.set(valueOf(item));
                 return;
             }
             shape = declared;
@@ -190,7 +191,8 @@ function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, name
         async function change(value) {
             control.set(value);
             try {
-                control.set(await modConfiguration.set(modId, current.key, value));
+                if (!configuration()) throw new Error('the Configuration mod is not running');
+                control.set(await configuration().setOf(modId, current.key, value));
             } catch (error) {
                 control.set(valueOf(current));
                 ui.toast('Could not change the setting: ' + error.message);
@@ -239,7 +241,7 @@ function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, name
                 answer.hidden = true;
                 let text = '';
                 try {
-                    const source = [...sources].find(([connection]) => connection.mod.id === mod)?.[1];
+                    const source = [...sources].find(([connection]) => connection.credential.mod === mod)?.[1];
                     if (typeof source?.run !== 'function') throw new Error(`${nameOf(mod)} is not running`);
                     const said = await source.run(value);
                     text = typeof said === 'string' ? said : '';
@@ -266,30 +268,30 @@ function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, name
         return JSON.stringify({ ...item, value: null });
     }
 
-    // A configuration item as its row draws it, with the hints of its form: its options are its `oneOf`, or for a
-    // string the list of the kit its form's `choices` names (`listed`); `inherited` is the theme's number its form's
-    // `inherits` names, for a number.
-    function itemOf(item, hints) {
-        const listed = item.type === 'string' && LISTS.includes(hints.choices) ? ui[hints.choices]() : null;
-        const choices = (item.oneOf || []).map((choice) => ({
+    // A setting as its row draws it, from its entry as declared and `value`, what it reads as now: its options are its
+    // `oneOf`, or for a string the list of the kit its `choices` names (`listed`); `inherited` is the theme's number
+    // its `inherits` names, for a number. `step`, `unit` and `placeholder` are hints its entry carries for the control.
+    function itemOf(entry, value) {
+        const listed = entry.type === 'string' && LISTS.includes(entry.choices) ? ui[entry.choices]() : null;
+        const choices = (entry.oneOf || []).map((choice) => ({
             value: choice.const,
             label: choice.title ?? String(choice.const),
         }));
         return {
-            key: item.key,
-            type: item.type,
-            value: item.value,
-            default: item.default,
-            label: item.title || item.key,
-            hint: item.description || '',
+            key: entry.key,
+            type: entry.type,
+            value,
+            default: entry.default,
+            label: entry.title || entry.key,
+            hint: entry.description || '',
             options: listed || choices,
             listed: !!listed,
-            minimum: item.minimum,
-            maximum: item.maximum,
-            step: typeof hints.step === 'number' && hints.step > 0 ? hints.step : 1,
-            unit: typeof hints.unit === 'string' ? hints.unit : '',
-            placeholder: typeof hints.placeholder === 'string' ? hints.placeholder : '',
-            inherited: item.type === 'number' && INHERITABLE.includes(hints.inherits) ? theme[hints.inherits] : null,
+            minimum: entry.minimum,
+            maximum: entry.maximum,
+            step: typeof entry.step === 'number' && entry.step > 0 ? entry.step : 1,
+            unit: typeof entry.unit === 'string' ? entry.unit : '',
+            placeholder: typeof entry.placeholder === 'string' ? entry.placeholder : '',
+            inherited: entry.type === 'number' && INHERITABLE.includes(entry.inherits) ? theme[entry.inherits] : null,
         };
     }
 }

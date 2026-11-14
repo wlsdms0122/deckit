@@ -1,0 +1,34 @@
+case = 11
+name = "a-file-page-the-delegate-keeps-in-opens-nothing"
+note = "shouldLeave(url) answered false keeps the address in: nothing is opened outside the app, and the page stays. leaves.html of mod-a's bundle, shown for mod-a, granted system.files, goes to http://127.0.0.1:9/away as it loads, in a page whose delegate answers false."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+delegate = { shouldLeave = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+file = "mod-a/leaves.html"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "Leaves"

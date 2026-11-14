@@ -3,6 +3,45 @@ name = "Forge"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
+background = "Follows the forge daemons and the runs on them while the app is open."
+icon = "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 10H6a4 4 0 0 1-4-4 1 1 0 0 1 1-1h4'/><path d='M7 5a1 1 0 0 1 1-1h13a1 1 0 0 1 1 1 7 7 0 0 1-7 7H8a1 1 0 0 1-1-1z'/><path d='M9 12v5'/><path d='M15 12v5'/><path d='M5 20a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3 1 1 0 0 1-1 1H6a1 1 0 0 1-1-1'/></svg>"
+keywords = ["forge", "daemon", "workflow", "service", "schedule"]
 
 [permissions]
 "system.main-process" = "Starts and stops the forge daemons and runs forge's operations on them, by running the forge command."
+
+[interfaces]
+provides = { "forge/sessions" = [1] }
+uses = { "deckit/configuration" = 1 }
+
+[[contributes."deckit/configuration"]]
+key = "forge"
+type = "string"
+title = "Forge command"
+description = "Where the forge program is, as a full path. Empty: the forge on your login shell's PATH."
+default = ""
+placeholder = "forge"
+
+[[contributes."deckit/configuration"]]
+key = "forgeConfig"
+type = "string"
+title = "Forge configuration"
+description = "The config.toml the default session is served with. Empty: forge's own, in the session's folder."
+default = ""
+placeholder = "~/.config/forge/default/config.toml"
+
+[[contributes."deckit/commands"]]
+id = "start"
+title = "Start Forge"
+params = { type = "object", properties = { session = { type = "string", title = "Session", description = "A forge session. Absent: default." } } }
+
+[[contributes."deckit/commands"]]
+id = "stop"
+title = "Stop Forge"
+params = { type = "object", properties = { session = { type = "string", title = "Session", description = "A forge session. Absent: default." } } }
+
+[[contributes."deckit/commands"]]
+id = "restart"
+title = "Restart Forge"
+params = { type = "object", properties = { session = { type = "string", title = "Session", description = "A forge session. Absent: default." } } }

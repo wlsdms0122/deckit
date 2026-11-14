@@ -1,0 +1,28 @@
+case = 20
+name = "a-chord-in-app-is-not-told-pressed-in-another-app"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a takes ctrl+alt+k in the scope app, and the person presses it in another app in front: nothing is told."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { take = { code = "KeyK", control = true, alt = true }, as = "a" }]
+
+[[step]]
+input = "key"
+keystroke = { code = "KeyK", control = true, alt = true }
+outside = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/take/a/held/true", activates = true }]

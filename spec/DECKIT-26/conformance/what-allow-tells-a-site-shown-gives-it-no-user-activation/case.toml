@@ -1,0 +1,43 @@
+case = 12
+name = "what-allow-tells-a-site-shown-gives-it-no-user-activation"
+note = "What the web engine tells a site gives it no user activation, as the web platform gives none for it. mod-a shows site-a, whose page and a frame it makes read their user activation, and lets site-a have notifications in its session main."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+handle = "web"
+args = ["main"]
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "allow"
+of = 2
+origins = ["site-a"]
+args = [[{ origin = "site-a", permission = "notifications" }]]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 3
+part = "title"
+
+[step.expect]
+answers = "page false false, frame false false"

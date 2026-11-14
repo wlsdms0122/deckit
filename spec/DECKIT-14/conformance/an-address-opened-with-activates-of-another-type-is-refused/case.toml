@@ -1,0 +1,36 @@
+case = 5
+name = "an-address-opened-with-activates-of-another-type-is-refused"
+note = "open is refused at call with kind INVALID_ARGUMENT where activates is not a boolean. mod-a opens https://example.com/ with activates 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+handed = true
+args = ["https://example.com/", { activates = 1 }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

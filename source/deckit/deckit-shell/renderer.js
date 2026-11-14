@@ -1,67 +1,12 @@
-import * as IPC from './deck/ipc/renderer.js';
-import * as LOG from './deck/log/renderer.js';
-import * as ENVIRONMENT from './environment/index.js';
-import * as SETUP from './deckit/setup/renderer.js';
-import * as PAGE from './shell/page/renderer.js';
-import { createRun } from './deck/runner/run.js';
-import { createRunner } from './deck/runner/renderer.js';
-import { createRecord } from './deck/record/renderer.js';
-import { createConnection } from './deck/connection/renderer.js';
-import { createEvent } from './deck/event/renderer.js';
-import { createMods } from './deck/mods/renderer.js';
-import { createWeb } from './deckit/web/renderer.js';
-import { createNotification } from './deckit/notification/renderer.js';
-import { createKeymap } from './deckit/keymap/renderer.js';
-import { createCommand } from './deckit/command/renderer.js';
-import { createConfiguration } from './deckit/configuration/renderer.js';
-import { createMod } from './deckit/mod/renderer.js';
-import { shellOf } from './shell/mod/renderer.js';
-import * as SHELL_LAYER from './shell/mod/model/layer.js';
+import { connect } from './deckit/connect/renderer.js';
+import * as WEB from './web/attach/renderer.js';
+import * as SHELL from './shell/attach/renderer.js';
 
 // MARK: - Public
-// Deckit on every page it makes, a mod's or one the shell made, as the environment boots the page with what it gives
-// a page (environment: PAGE). Called as the page's preload runs: the page listens to main at once, so what main asks
-// before the page's code answers waits for it, and the rest starts once the document is there.
-function start(given) {
-    const ENV = ENVIRONMENT.checked(given, ENVIRONMENT.PAGE, 'what the environment gives a page');
-    // What a listener on the page's channels throws goes to deckit's log, as main's does.
-    IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
-    if (document.readyState === 'loading')
-        document.addEventListener('DOMContentLoaded', () => run(ENV), { once: true });
-    else run(ENV);
-}
-
-// MARK: - Private
-// The page the shell made is drawn; a mod's runs, deck's runner handed deckit's layer with the shell's stacked over it
-// when the shell is on deckit, each part handed what it uses.
-function run(ENV) {
-    const { page, sessions, layers } = SETUP.setup();
-    if (page) return PAGE.page(page, { channels: IPC.layerChannels });
-    const RUN = createRun();
-    const RUNNER = createRunner({
-        RUN,
-        STORAGE: createRecord(),
-        CONNECTION: createConnection({ RUN }),
-        EVENT: createEvent({ RUN }),
-        MODS: createMods({ RUN }),
-        modules: ENV.modules,
-    });
-    const WEB = createWeb({ sessions, web: ENV.web });
-    const MOD = createMod({
-        WEB,
-        NOTIFICATION: createNotification(),
-        KEYMAP: createKeymap(),
-        COMMAND: createCommand(),
-        CONFIGURATION: createConfiguration({ RUN }),
-    });
-    // The layers stacked over deckit, in the order they stacked, each by its name.
-    const OVER = { [SHELL_LAYER.LAYER]: () => shellOf({ WEB, channels: IPC.layerChannels }) };
-    const over = layers.flatMap((name) => {
-        if (Object.hasOwn(OVER, name)) return [OVER[name]()];
-        LOG.error(`no layer on a mod's page is named ${name}, so none stacks for it`);
-        return [];
-    });
-    RUNNER.start({ layers: [MOD.layer, ...over] });
+// Deckit on every page it makes, with the web engine's layer and the shell's, the host app's own `layers`, by name, as
+// connect takes them, and the pages the shell draws. `given` is what the environment gives a page.
+function start(given, { layers = {} } = {}) {
+    connect(given, { layers: { ...layers, ...WEB.layersOf(given), ...SHELL.layersOf(given) }, page: SHELL.page });
 }
 
 export { start };

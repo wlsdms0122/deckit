@@ -3,3 +3,6 @@ name = "Region Parent"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+
+[interfaces]
+provides = { "region-parent/boards" = [1] }

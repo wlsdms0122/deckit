@@ -1,0 +1,22 @@
+case = 3
+name = "a-bundle-installed-from-a-folder-is-not-a-system-mod"
+note = "A system mod is one the host ships and marks system, and a bundle installed from a folder is none, so installing mod-b, which asks for the privileged deckit.mods, is refused at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

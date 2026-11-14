@@ -1,0 +1,31 @@
+case = 4
+name = "a-listener-hears-only-the-name-it-was-added-for"
+note = "A listener is called for the name it was added for and for no other. mod-a listens to mod-a:ready and sends done, and its listener is not called."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.on"
+args = ["mod-a:ready"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["done", 1]
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []

@@ -1,4 +1,4 @@
-// How forge is run: on the PATH of the person's login shell, asked once, for an app opened from the Finder has only the
+// How forge is run: on the PATH of the person's login shell, asked once, for an app the system opens has only the
 // system's, and forge, and what it runs in turn, are found on it.
 module.exports = () => {
     const { execFile } = require('child_process');

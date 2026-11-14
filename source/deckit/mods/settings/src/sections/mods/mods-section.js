@@ -1,16 +1,32 @@
 const { chip } = require('../../chip/chip.js');
 const { NO_VALUE, contributionsOf, nameAndVersion, usageParts, listText } = require('../../format/format.js');
 const { PERMISSION_LIST_STYLE, permissionList } = require('./permission-list.js');
+const { DEPENDENCY_LIST_STYLE, dependencyList } = require('./dependency-list.js');
 const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
 const { section } = require('../section/section.js');
 
-// The Mods section: every mod found in the load order, what each contributes, installing and removing them, and putting
-// them in another order and applying it. `onChange` hears that a mod was installed, removed, restarted, pinned or moved
-// here. Failures and what was done are told in a toast. `mods` is deckit.mods; `pins`, the panel's pins (shell.mods),
-// or nothing under a shell that has none; `dropDestination` the shell's.
-function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appName, onChange }) {
+// The Mods section: every mod found in their order, what each contributes, and installing and removing them.
+// `onChange` hears that a mod was installed, removed, restarted or pinned here. Failures and what was done are told
+// in a toast. `mods` is deckit.mods; `mainProcess` what the mods' main process modules come to, or nothing under a
+// host that runs none; `packages()`, deckit/packages while it is connected, which installs, dry run too; `pins`, the
+// Dock's pins (shell.mods), or nothing under a shell that has none; `dropDestination`, `dialogs` and `reveal` the
+// shell's; `tildify(path)` a path as it is shown.
+function modsSection({
+    ui,
+    mods,
+    mainProcess,
+    packages,
+    pins,
+    dropDestination,
+    dialogs,
+    reveal,
+    tildify,
+    appName,
+    onChange,
+}) {
     const TITLE = 'Mods';
+    const PACKAGES = 'deckit/packages';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
     // What a mod that loads but is not running is doing, by its run's state: one starting or stopping says it by a
     // spinner beside its name, with the word as its title.
@@ -19,17 +35,12 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
     // How long a restart asked here is shown at least: one that ends sooner would only flicker.
     const RESTART_SHOWN_MS = 600;
     const DESCRIPTION =
-        'Install a mod from its folder, picked or dropped here, or remove one you no longer need. Drag rows to ' +
-        'change the order mods load in, then apply it. Open a row to see what it adds, what it needs and where its ' +
-        'files are.';
+        'Install a mod from its folder, picked or dropped here, or remove one you no longer need. Open a row to see ' +
+        'what it adds, what it needs and where its files are.';
     const COLUMNS = ['NAME', 'VERSION', 'CONTRIBUTES', ''];
 
     const rowFills = new WeakMap(); // row element -> its fill(mod)
-    let ids = []; // the mods' ids, as the list was last drawn
-    let listed = null; // what deck last listed: the mods in the order it keeps, and what they do
-    let draft = null; // the order the rows were dragged into and not yet applied, or null
-    let refusal = ''; // why deck refused the draft as it was applied, or ''
-    let applying = false;
+    let listed = null; // what deckit last listed: the mods in their order, and what they do
     const restarting = new Set(); // the ids of the mods a restart asked here is bringing back
 
     ui.addStyle(`
@@ -95,16 +106,6 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         }
         .settings-mod-failure { color: var(--deckit-alert); }
         .settings-mod-note { opacity: 0.5; }
-        .settings-order {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin: 8px 0 0;
-            font: 12.5px var(--deckit-font);
-        }
-        .settings-order[hidden] { display: none; }
-        .settings-order-text { flex: 1 1 auto; opacity: 0.7; }
-        .settings-order-text[data-refused] { color: var(--deckit-alert); opacity: 1; }
         .settings-install-mod { margin: 12px 0 6px; font: 600 var(--deckit-type-body); }
         .settings-install-mod:first-child { margin-top: 0; }
         /* Over the whole section while files are dragged over it, drawn inside it, so nothing of it is cut. The
@@ -133,7 +134,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         .settings-drop-icon { display: flex; color: var(--deckit-target); }
         .settings-install-note { margin-top: 10px; font: var(--deckit-type-small); line-height: 1.5; opacity: 0.5; }
     `);
-    ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE);
+    ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE + DEPENDENCY_LIST_STYLE);
     const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const drop = ui.element('div', { className: 'settings-drop' });
     const dropIcon = ui.element('div', { className: 'settings-drop-icon' });
@@ -149,32 +150,12 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         create: modRow,
         update: (row, mod) => rowFills.get(row)(mod),
     });
-    // A drag changes the order drawn; it is deck's once applied. Deck refuses an order that puts a mod that loads
-    // before one it requires, and the order stays drawn, with why, to be changed again.
-    ui.sortable(rows, {
-        onReorder: (id, toId) => {
-            const next = [...ids];
-            const from = next.indexOf(id);
-            const to = next.indexOf(toId);
-            if (applying || from < 0 || to < 0) return;
-            next.splice(to, 0, next.splice(from, 1)[0]);
-            draft = next.join() === listed.found.map((mod) => mod.id).join() ? null : next;
-            refusal = '';
-            render();
-        },
-    });
-    const order = ui.element('div', { className: 'settings-order' });
-    const orderText = ui.element('span', { className: 'settings-order-text' });
-    const revertButton = ui.button({ label: 'Revert', size: 'small', onClick: settleOrder });
-    const applyButton = ui.button({ label: 'Apply', size: 'small', variant: 'primary', onClick: applyOrder });
-    const restart = restartNotice({ ui, mods, appName });
+    const restart = restartNotice({ ui, mods, mainProcess, appName });
     const headings = COLUMNS.map((text) => ui.element('div', { text }));
 
     // Over the name, past the caret in front of it.
     headings[0].style.paddingLeft = '13px';
     columns.append(...headings);
-    order.hidden = true;
-    order.append(orderText, revertButton.element, applyButton.element);
     head.append(installButton.element);
     element.classList.add('settings-mods');
     dropIcon.innerHTML = ui.icon('download', { size: 28 });
@@ -184,57 +165,19 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         onTargeted: (on) => element.toggleAttribute('data-targeted', on),
         onDrop: dropAndInstall,
     });
-    body.append(columns, rows.element, order, restart.element);
+    body.append(columns, rows.element, restart.element);
     return { element, title: TITLE, keywords: KEYWORDS, draw };
 
     function draw(state) {
         listed = state;
-        restart.draw(state.found);
+        restart.draw(state.list);
         render();
     }
 
-    // The rows in the order dragged into while one is, those found since after them.
-    function render() {
-        // Under a shell that has no pins, no child is pinned.
-        const pinned = new Set(pins ? pins.pinned() : []);
-        const place = (mod) => (draft.includes(mod.id) ? draft.indexOf(mod.id) : draft.length);
-        const found = draft ? [...listed.found].sort((mod, other) => place(mod) - place(other)) : listed.found;
-        ids = found.map(({ id }) => id);
-        order.hidden = !draft;
-        orderText.textContent = refusal
-            ? 'Could not apply the order: ' + refusal
-            : 'The mods load in this order once it is applied.';
-        orderText.toggleAttribute('data-refused', Boolean(refusal));
-        rows.set(modRowsOf({ ...listed, found, pinned }));
-    }
-
-    // While it is applied, the order is neither dragged, applied again nor reverted.
-    function applyOrder() {
-        setApplying(true);
-        mods.arrange(draft)
-            .then(
-                () => {
-                    settleOrder();
-                    onChange();
-                },
-                (error) => {
-                    refusal = error.message;
-                    render();
-                }
-            )
-            .finally(() => setApplying(false));
-    }
-
-    function setApplying(on) {
-        applying = on;
-        applyButton.setEnabled(!on);
-        revertButton.setEnabled(!on);
-    }
-
-    function settleOrder() {
-        draft = null;
-        refusal = '';
-        render();
+    // Under a shell that has no Dock, or one that does not answer, no mod is kept in one.
+    async function render() {
+        const kept = pins ? await pins.pinned().catch(() => []) : [];
+        rows.set(modRowsOf({ ...listed, pinned: new Set(kept) }));
     }
 
     // A row opens and closes by a press, and stays as it is when the list is drawn again.
@@ -253,13 +196,13 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         const actions = ui.element('div', { className: 'settings-mod-actions' });
         const relaunchAction = ui.rowAction({
             icon: ui.icon('reload', { size: 14 }),
-            title: 'Restart this mod, and the mods that require it',
+            title: 'Restart this mod',
             onClick: () => relaunch(current),
         });
         const revealAction = ui.rowAction({
             icon: ui.icon('externalWindow', { size: 14 }),
-            title: 'Show in Finder',
-            onClick: () => mods.reveal(current.id),
+            title: 'Show in Folder',
+            onClick: () => reveal(current.folder),
         });
         const removeAction = ui.rowAction({
             icon: ui.icon('x', { size: 14 }),
@@ -268,9 +211,9 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         });
         const source = chip({ ui, text: 'source', muted: true });
         const failure = ui.element('div', { className: 'settings-mod-failure' });
-        // What is wrong with an optional dependency stops nothing, so it is said quietly, not as a fault.
+        // An interface it uses that reaches no one stops nothing, so it is said quietly, not as a fault.
         const note = ui.element('div', { className: 'settings-mod-note' });
-        const details = modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange: onChange });
+        const details = modDetails({ ui, mods, pins, tildify, onPinnedChange: onChange });
 
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
@@ -295,7 +238,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
 
         function fill(mod) {
             current = mod;
-            const labels = contributionsOf(mod.live, mod.keys.length, everyScheme);
+            const labels = mod.contributions;
             name.textContent = name.title = mod.name;
             name.toggleAttribute('data-not-loaded', !!mod.notLoaded);
             busy.hidden = !mod.restarting && !BUSY.includes(mod.state);
@@ -315,13 +258,14 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
             failure.textContent = [
                 mod.notLoaded || mod.problem,
                 ...(mod.hides || []).map((folder) => `${folder} has the same id and is not read`),
+                ...mod.refused,
             ]
                 .filter(Boolean)
                 .join('\n');
             failure.hidden = !failure.textContent;
-            note.textContent = (mod.relations || [])
-                .filter((relation) => relation.optional && relation.problem)
-                .map((relation) => relation.problem)
+            note.textContent = (mod.uses || [])
+                .map((use) => use.problem)
+                .filter(Boolean)
                 .join('\n');
             note.hidden = !note.textContent;
             details.set(mod);
@@ -335,25 +279,35 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
     }
 
     async function pickAndInstall() {
-        let picked;
+        let folders;
         try {
-            picked = await mods.pick({ multiple: true });
+            folders = await dialogs.chooseFolders({
+                multiple: true,
+                title: 'Choose mod folders',
+                message: 'Pick the folders that have manifest.toml in them',
+            });
         } catch (error) {
             return ui.toast('Could not install: ' + error.message);
         }
-        askAndInstall(picked);
+        askAndInstall(await Promise.all(folders.map(planOf)));
     }
 
     // Each folder refused on its own, so one refused leaves the others to install.
     async function dropAndInstall(folders) {
-        const plans = folders.map((from) =>
-            mods.planInstall(from).catch((error) => ({ from, problem: error.message }))
-        );
-        askAndInstall(await Promise.all(plans));
+        askAndInstall(await Promise.all(folders.map(planOf)));
     }
 
-    // The folders picked install one after another once the person agrees to what they replace and ask for. A folder
-    // refused is told, and the others install.
+    // What the folder would install, with what it depends on, beside the folder, or `{ folder, problem }` for one
+    // refused.
+    function planOf(folder) {
+        return Promise.resolve()
+            .then(() => service().install(folder, { dryRun: true }))
+            .then((plan) => ({ ...plan, folder }))
+            .catch((error) => ({ folder, problem: error.message }));
+    }
+
+    // The folders picked install one after another once the person agrees to what they replace, ask for and depend
+    // on. One whose dependency is unmet is told so and left out. A folder refused is told, and the others install.
     function askAndInstall(picked) {
         const refused = picked.filter((entry) => entry.problem);
         const plans = picked.filter((entry) => !entry.problem);
@@ -361,25 +315,38 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
             if (refused.length) ui.toast(refusalText(refused));
             return;
         }
-        const asking = plans.filter((plan) => plan.permissions.length > 0);
-        const replacing = plans.filter((plan) => plan.replaces);
+        const unmet = plans.filter((plan) => plan.dependencies.some((dependency) => !dependency.satisfied));
+        const installing = plans.filter((plan) => !unmet.includes(plan));
+        const asking = plans.filter(
+            (plan) => plan.permissions.length > 0 || plan.background || plan.dependencies.length
+        );
+        const replacing = installing.filter((plan) => plan.replaces);
         if (!asking.length && !replacing.length) return installPicked(plans, refused);
         const one = plans.length === 1;
-        const verb = one && replacing.length ? 'Replace' : 'Install';
+        const verb = installing.length === 1 && replacing.length ? 'Replace' : 'Install';
         const replaced = listText(replacing.map((plan) => plan.name));
+        const unmetNames = listText(unmet.map((plan) => plan.name));
         ui.dialog({
-            title: one ? `${verb} ${plans[0].name}?` : `Install ${plans.length} mods?`,
+            title: !installing.length
+                ? `Cannot install ${one ? plans[0].name : `${plans.length} mods`}`
+                : installing.length === 1
+                  ? `${verb} ${installing[0].name}?`
+                  : `Install ${installing.length} mods?`,
             message: [
                 replacing.length
                     ? `${one ? 'It' : 'Installing them'} replaces the installed ${replaced}. ` +
                       `What ${replacing.length === 1 ? 'it' : 'they'} stored is kept.`
                     : '',
-                one && asking.length ? `${nameAndVersion(plans[0])} asks for:` : '',
+                unmet.length
+                    ? `${one ? 'It' : unmetNames} cannot be installed until the mods ` +
+                      `${unmet.length === 1 ? 'it depends' : 'they depend'} on are installed at versions ` +
+                      `${unmet.length === 1 ? 'it takes' : 'they take'}. Install them first.`
+                    : '',
             ],
-            content: asking.length ? permissionRequest(asking, { named: !one }) : null,
-            confirmLabel: verb,
-            cancelLabel: 'Cancel',
-            onConfirm: () => installPicked(plans, refused),
+            content: request(asking),
+            confirmLabel: installing.length ? verb : null,
+            cancelLabel: installing.length ? 'Cancel' : 'OK',
+            onConfirm: () => installPicked(installing, refused),
         });
     }
 
@@ -388,8 +355,8 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         const failed = [];
         for (const plan of plans) {
             try {
-                const installed = await mods.install(plan.from);
-                done.push(`${plan.replaces ? 'Replaced' : 'Installed'} ${nameAndVersion(installed)}.`);
+                const installed = await service().install(plan.folder);
+                done.push(`${installed.replaces ? 'Replaced' : 'Installed'} ${nameAndVersion(installed)}.`);
             } catch (error) {
                 failed.push(`Could not install ${plan.name}: ${error.message}`);
             }
@@ -398,29 +365,50 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         if (done.length) onChange();
     }
 
-    function refusalText(refused) {
-        return refused.map(({ from, problem }) => `Could not install ${from.split('/').pop()}: ${problem}`).join(' ');
+    function service() {
+        const connected = packages();
+        if (!connected) throw new Error(`${PACKAGES} is not connected`);
+        return connected;
     }
 
-    // `named`: each mod's list is headed by its name, as one dialog asks for several.
-    function permissionRequest(plans, { named }) {
+    function refusalText(refused) {
+        return refused
+            .map(({ folder, problem }) => `Could not install ${folder.split('/').pop()}: ${problem}`)
+            .join(' ');
+    }
+
+    // What each mod planned depends on and asks for, each list headed by its name.
+    function request(plans) {
         const element = ui.element('div');
+        const heading = (text) => ui.element('div', { className: 'settings-install-mod', text });
         for (const plan of plans) {
-            if (named)
+            const { dependencies, permissions, background } = plan;
+            if (dependencies.length)
                 element.append(
-                    ui.element('div', { className: 'settings-install-mod', text: `${nameAndVersion(plan)} asks for:` })
+                    heading(`${nameAndVersion(plan)} depends on:`),
+                    dependencyList({ ui, dependencies, nameOf }).element
                 );
-            element.append(permissionList({ ui, permissions: plan.permissions }).element);
+            if (permissions.length || background)
+                element.append(
+                    heading(`${nameAndVersion(plan)} asks for:`),
+                    permissionList({ ui, permissions, background }).element
+                );
         }
-        element.append(
-            ui.element('div', {
-                className: 'settings-install-note',
-                text:
-                    'A mod reaches only what is listed here. Main Process is the exception: code there can do ' +
-                    'whatever the app can, so install a mod that asks for it only if you trust where it came from.',
-            })
-        );
+        if (plans.some((plan) => plan.permissions.length || plan.background))
+            element.append(
+                ui.element('div', {
+                    className: 'settings-install-note',
+                    text:
+                        'A mod reaches only what is listed here. Main Process is the exception: code there can do ' +
+                        'whatever the app can, so install a mod that asks for it only if you trust where it came from.',
+                })
+            );
         return element;
+    }
+
+    // The name of the mod of the id `id` as deckit last listed it, or the id for one not found.
+    function nameOf(id) {
+        return listed?.list.find((entry) => entry.id === id)?.mod?.name || id;
     }
 
     async function askRemove(mod) {
@@ -431,11 +419,6 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
             return ui.toast('Could not tell what it stores: ' + error.message);
         }
         const hasData = places.length > 0;
-        const names = new Map(mods.list().found.map((other) => [other.id, other.name]));
-        const requiring = mod.dependents.map((id) => names.get(id) ?? id);
-        const breaks = requiring.length
-            ? `${requiring.join(', ')} ${requiring.length === 1 ? 'needs' : 'need'} it and will stop loading.`
-            : '';
         ui.dialog({
             title: `Remove ${mod.name}?`,
             message: [
@@ -443,7 +426,6 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
                     ? `This deletes the mod's code. Its ${listText(places)} will be kept unless you say otherwise: keeping ` +
                       'them means a reinstall picks up where you left off.'
                     : "This deletes the mod's code. It has nothing stored.",
-                breaks,
                 'To bring it back, install its folder again with Install Mod.',
             ],
             confirmLabel: 'Remove',
@@ -456,84 +438,97 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         });
     }
 
-    // The mod and the mods that require it restart, their rows saying so until they are back.
+    // The mod restarts, its row saying so until it is back.
     async function relaunch(mod) {
-        const ids = [mod.id, ...mod.dependents];
         const shown = new Promise((resolve) => setTimeout(resolve, RESTART_SHOWN_MS));
-        for (const id of ids) restarting.add(id);
+        restarting.add(mod.id);
         render();
         try {
             await Promise.all([mods.relaunch(mod.id), shown]);
         } catch (error) {
             return ui.toast('Could not restart: ' + error.message);
         } finally {
-            for (const id of ids) restarting.delete(id);
+            restarting.delete(mod.id);
             render();
         }
         onChange();
     }
 
     async function remove(mod, { withData }) {
+        let erased;
         try {
-            await mods.remove(mod.id, withData);
+            ({ erased } = await mods.remove(mod.id, withData));
         } catch (error) {
             return ui.toast('Could not remove: ' + error.message);
         }
-        ui.toast(`Removed ${mod.name}${withData ? ' and its data' : ''}.`);
+        ui.toast(`Removed ${mod.name}${erased ? ' and its data' : ''}.`);
         onChange();
     }
 
-    // One row per mod, in the load order whether it loads or not, each in its place whatever its run is doing: one
-    // starting or stopping is in `running` as it last ran, and says so by its spinner. `notLoaded` is why one is not
-    // running, `problem` what went wrong with one that is. Permissions are read from the folder, so one that did not
-    // load still shows the permissions it asks for.
-    function modRowsOf({ found, running, shortcuts, handlerLists, pinned }) {
-        const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.provider === id);
-        const fromDisk = (mod) => ({
-            version: mod?.version,
-            installed: mod?.installed,
-            shipped: mod?.shipped,
-            state: mod?.run?.state,
-            folder: mod?.folder,
-            permissions: mod?.permissions,
-            mainProcessFailure: mod?.mainProcess.failure,
-            relations: mod?.relations,
-            dependents: mod?.dependents,
-            hides: mod?.hides,
-        });
-        return found.map((mod) => {
-            const live = running.find((entry) => entry.id === mod.id);
-            if (!live)
-                return {
-                    id: mod.id,
-                    name: mod.name,
-                    ...fromDisk(mod),
-                    keys: keysOf(mod.id),
-                    handlerLists,
-                    restarting: restarting.has(mod.id),
-                    // One starting for the first time, or restarting here, is not yet anything but that: its spinner
-                    // says so.
-                    notLoaded:
-                        mod.problem ||
-                        (restarting.has(mod.id)
-                            ? null
-                            : mod.run?.problem ||
-                              (mod.run?.state === 'launching' ? null : STATE_WORDS[mod.run?.state] || 'did not load')),
-                };
-            return {
-                id: live.id,
-                name: live.name,
-                ...fromDisk(mod),
-                live,
-                pinned: pinned.has(live.id),
-                keys: keysOf(live.id),
-                handlerLists,
-                restarting: restarting.has(live.id),
-                problem: mod.mainProcess.failure
-                    ? 'a main process module did not start: ' + mod.mainProcess.failure
-                    : live.problem,
+    // One row per mod of `list`, in the mods' order whether it loads or not, each in its place whatever its run, as
+    // `runs` answers it, is doing: one starting or stopping shows what its run that launched contributed, and says so
+    // by its spinner. `notLoaded` is why one is not running, `problem` what went wrong with one that is. What it
+    // declares and the permissions it asks for are read from its manifest. Each interface it uses is read from
+    // `interfaces`. `shortcuts` are the keys as the Keyboard section read them, `schemes` the schemes as the URL
+    // Schemes section did, `refused` what the services of the interfaces left out of what the mods declare,
+    // `[{ interface, mod, entry, problem }]`, and `failures` why the main process modules of a mod that did not start
+    // did not, by its id.
+    function modRowsOf({ list, runs, interfaces, shortcuts, schemes, refused, failures, pinned }) {
+        return list.map((entry) => {
+            const manifest = entry.mod ?? {};
+            const run = runs.find((each) => each.id === entry.id) ?? null;
+            const live = run && (run.state === 'running' || run.summary) ? run : null;
+            const mainProcessFailure = failures.get(entry.id) ?? null;
+            const row = {
+                id: entry.id,
+                name: manifest.name ?? entry.id,
+                version: manifest.version,
+                installed: entry.installed,
+                shipped: entry.shipped,
+                state: run?.state,
+                folder: entry.folder,
+                permissions: manifest.permissions,
+                mainProcessFailure,
+                uses: usesOf(entry.id, interfaces),
+                hides: entry.hides,
+                view: manifest.fields?.view ?? null,
+                contributions: contributionsOf(manifest, live?.summary),
+                keys: shortcuts.filter((shortcut) => shortcut.mod?.id === entry.id),
+                schemes: schemes.filter((scheme) => scheme.mods.some((one) => one.mod.id === entry.id)),
+                refused: refused
+                    .filter((one) => one.mod.id === entry.id)
+                    .map((one) => `${one.interface}: ${one.problem}`),
+                pinned: pinned.has(entry.id),
+                restarting: restarting.has(entry.id),
             };
+            if (live)
+                return {
+                    ...row,
+                    problem: mainProcessFailure
+                        ? 'a main process module did not start: ' + mainProcessFailure
+                        : live.problem || null,
+                };
+            // One starting for the first time, or restarting here, is not yet anything but that: its spinner says so.
+            const stopped =
+                run?.problem ||
+                run?.refusal?.message ||
+                (run?.state === 'launching' ? null : STATE_WORDS[run?.state ?? 'notRunning']);
+            return { ...row, notLoaded: entry.refusal?.message || (restarting.has(entry.id) ? null : stopped) };
         });
+    }
+
+    // Each interface the mod `id` uses, `{ interface, major, owner, name, problem }`: the interface's owner, and its
+    // name among the providers, absent where the mod itself owns it or none does.
+    function usesOf(id, interfaces) {
+        return interfaces.flatMap((queue) =>
+            queue.clients
+                .filter((client) => client.id === id)
+                .map(({ major, problem }) => {
+                    const owner = queue.owner && queue.owner !== id ? queue.owner : null;
+                    const name = owner ? (queue.providers.find((one) => one.id === owner)?.name ?? null) : null;
+                    return { interface: queue.interface, major, owner, name, problem };
+                })
+        );
     }
 }
 

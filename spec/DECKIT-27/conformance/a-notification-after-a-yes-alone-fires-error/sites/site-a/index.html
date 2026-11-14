@@ -1,0 +1,1 @@
+<!doctype html><title>Start</title><script>const on = (n) => { n.onshow = () => document.title += ' show'; n.onerror = () => document.title += ' error'; n.onclose = () => document.title += ' close'; n.onclick = () => document.title += ' click'; return n; };Notification.requestPermission().then((p) => { document.title = p; on(new Notification('Hi')); });</script>

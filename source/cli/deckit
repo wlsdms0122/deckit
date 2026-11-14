@@ -13,6 +13,8 @@ deckit: a library a host app embeds to take mods, the way a game does
   test [--port <port>]
                    deckit built, then the core's tests, then Deckit.app from it, through its scenario
   install          Deckit.app built, then put into /Applications
+  conformance [--spec <folder>] [<DECKIT-N | case name> ...]
+                   deckit built, then the specification's cases run on it: the live set's, or those named
 
 For work on deckit itself, and kept out of manifest.toml:
 

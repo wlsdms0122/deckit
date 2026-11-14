@@ -1,0 +1,30 @@
+case = 6
+name = "a-key-set-with-no-keystroke-is-bound-to-none"
+note = "A key set with keystroke left out is bound to none: its keystroke is left out, its chord is empty, it is changed and does not run. mod-a sets the key of today with no keystroke."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["mod-b", "today"]
+
+[step.expect]
+answers = { mod = { id = "mod-b", name = "MOD B" }, command = "today", title = "Show Today", scope = "app", defaultKeystroke = { code = "KeyT", meta = false, control = true, alt = true, shift = false }, chord = "", changed = true, active = false, issues = [] }

@@ -15,12 +15,18 @@ import Quartz
 @MainActor
 final class Window: NSObject {
     // MARK: - Property
-    // `titled`: macOS's title bar, its buttons and its title, above what the window shows, or over it where the buttons
-    // are put. `floating`: no bar, over every app, on every Space and over one in full screen, taking the keyboard
-    // without bringing the app forward.
+    // `titled`: the system's title bar, its buttons and its title, above what the window shows, or over it where the
+    // buttons are put. `floating`: no bar, over every app, on every workspace and over one in full screen, taking the
+    // keyboard without bringing the app forward.
     enum Kind: String {
         case titled
         case floating
+    }
+
+    enum DoubleClickAction: String {
+        case zoom
+        case minimize
+        case none
     }
 
     let id: Int
@@ -37,7 +43,7 @@ final class Window: NSObject {
     // MARK: - Initializer
     // `color` is laid under what the window shows; `material` blurs what is behind it instead. `showsTitle` draws the
     // title in the bar. A titled window with `buttons` shows its content under the bar too, the buttons where they
-    // say; one without has the bar as macOS lays it.
+    // say; one without has the bar as the system lays it.
     init(
         id: Int,
         kind: Kind,
@@ -188,16 +194,29 @@ final class Window: NSObject {
     }
 
     // What the person set a double click on a title bar to do.
-    func doubleClickTitleBar() {
+    static var actionOnDoubleClick: DoubleClickAction {
         switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
         case "Minimize":
-            window.miniaturize(nil)
+            .minimize
 
         case "None":
-            break
+            .none
 
         default:
+            .zoom
+        }
+    }
+
+    func doubleClickTitleBar() {
+        switch Self.actionOnDoubleClick {
+        case .zoom:
             window.zoom(nil)
+
+        case .minimize:
+            window.miniaturize(nil)
+
+        case .none:
+            break
         }
     }
 

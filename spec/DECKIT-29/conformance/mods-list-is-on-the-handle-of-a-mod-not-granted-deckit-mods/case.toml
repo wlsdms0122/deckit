@@ -1,0 +1,21 @@
+case = 15
+name = "mods-list-is-on-the-handle-of-a-mod-not-granted-deckit-mods"
+note = "Every member is on the handle shell, and what a permission guards is refused, not left off: mods.list, a request deckit.mods guards, made by mod-a, granted nothing, is refused NOT_PERMITTED."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.list"
+handle = "shell"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

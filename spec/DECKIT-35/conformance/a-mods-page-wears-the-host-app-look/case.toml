@@ -1,0 +1,20 @@
+case = 21
+name = "a-mods-page-wears-the-host-app-look"
+note = "Every page the shell draws in wears the theme, the page of a mod's run among them: on a host whose look is light, mod-a's page's colour scheme is light."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+appearance = "light"
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-a"
+properties = []
+
+[step.expect]
+answers = { dark = false, properties = {} }

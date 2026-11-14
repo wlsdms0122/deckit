@@ -1,0 +1,19 @@
+case = 21
+name = "a-style-registered-twice-wears-the-first"
+note = "styles.register registers once: mod-a's attach registers a style for \"*\" setting --case-a to a, then one setting --case-b to b, and mod-b's page holds --case-a alone."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "worn"
+mod = "mod-b"
+properties = ["--case-a", "--case-b", "--case-order"]
+
+[step.expect]
+answers = { dark = true, properties = { --case-a = "a" } }

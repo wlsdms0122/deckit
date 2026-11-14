@@ -1,0 +1,36 @@
+case = 5
+name = "of-two-mods-as-narrow-the-lower-id-is-offered-an-address-first"
+note = "Of two mods whose patterns that take an address are as narrow, the one of the lower id is offered it first, whatever the catalog order. mod-c is shipped before mod-b, both declare board, and mod-b takes board:1."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/urls"]
+ship = ["mod-a", "mod-c", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/urls"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "open"
+handed = true
+args = ["board:1"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://mod-b.test/", activates = true }]

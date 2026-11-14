@@ -7,14 +7,15 @@
 
 import Foundation
 import Deck
+import Deckit
 
 extension Permission: Codable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case id
         case name
-        case means
-        case reach
+        case description
+        case privileged
     }
 
     // MARK: - Initializer
@@ -23,7 +24,8 @@ extension Permission: Codable {
         self.init(
             id: try container.decode(String.self, forKey: .id),
             name: try container.decode(String.self, forKey: .name),
-            means: try container.decode(String.self, forKey: .means)
+            description: try container.decode(String.self, forKey: .description),
+            privileged: try container.decode(Bool.self, forKey: .privileged)
         )
     }
 
@@ -32,8 +34,8 @@ extension Permission: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
-        try container.encode(means, forKey: .means)
-        try container.encode(reach, forKey: .reach)
+        try container.encode(description, forKey: .description)
+        try container.encode(privileged, forKey: .privileged)
     }
 
     // MARK: - Private

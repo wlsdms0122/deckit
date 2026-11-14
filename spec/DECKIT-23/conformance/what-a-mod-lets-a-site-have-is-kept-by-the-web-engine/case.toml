@@ -1,0 +1,36 @@
+case = 8
+name = "what-a-mod-lets-a-site-have-is-kept-by-the-web-engine"
+note = "A layer that keeps anything of a mod is named under kept, and the web engine keeps what a mod lets a site have. mod-b lets https://example.com have notifications in its session main, and mod-a reads web under what mod-b's usage names kept."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "allow"
+of = 2
+args = [[{ origin = "https://example.com", permission = "notifications" }]]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.usage"
+args = ["mod-b"]
+part = "kept"
+
+[step.expect]
+answers = ["web"]

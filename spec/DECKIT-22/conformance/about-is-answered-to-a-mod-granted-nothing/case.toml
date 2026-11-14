@@ -1,0 +1,16 @@
+case = 3
+name = "about-is-answered-to-a-mod-granted-nothing"
+note = "about() is guarded by no permission and is never refused. mod-a, granted nothing, calls about(), and is answered."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "about"

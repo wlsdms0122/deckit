@@ -1,0 +1,23 @@
+case = 22
+name = "region-of-no-element-throws"
+note = "region throws INVALID_ARGUMENT at call where element is no element: mod-a hands it null."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 }, element = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/region/1/threw/INVALID_ARGUMENT", activates = true }]

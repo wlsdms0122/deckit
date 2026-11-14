@@ -1,0 +1,22 @@
+case = 15
+name = "fonts-set-of-a-text-with-a-control-character-is-refused"
+note = "The text of the fonts holds no control character: mod-a sets { text = \"A\\nB\" }, a line break in it, refused INVALID_ARGUMENT."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ text = "A\nB" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

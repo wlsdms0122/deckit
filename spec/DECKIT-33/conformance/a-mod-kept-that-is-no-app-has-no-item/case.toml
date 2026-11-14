@@ -1,0 +1,28 @@
+case = 19
+name = "a-mod-kept-that-is-no-app-has-no-item"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. The host names mod-b, mod-x, which is not installed, mod-d, which writes activationPolicy accessory, and mod-c: only the apps among them are items, and mods.pinned answers those."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-d", "mod-c"]
+system = ["mod-c"]
+dock = ["mod-b", "mod-x", "mod-d", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-b", pinned = true, running = true, attention = false, active = false }, { mod = "mod-c", pinned = true, running = true, attention = false, active = false }, { mod = "mod-a", pinned = false, running = true, attention = false, active = false }]
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.pinned"
+handle = "shell"
+
+[step.expect]
+answers = ["mod-b", "mod-c"]

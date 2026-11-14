@@ -1,0 +1,79 @@
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as IPC from '../../../deckit-sdk/deckit/ipc/renderer.js';
+import * as DECLARED from './protocol.js';
+import * as LOG from '../log/renderer.js';
+
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
+
+// What a mod's page knows of its run: the mod, the ids of the permissions it is granted, how long each of its
+// lifecycles is given to end, in milliseconds, the run's number main counts it by, and what went wrong with it, which
+// main is told as it is recorded.
+export function createRun() {
+    // MARK: - Property
+    const failures = [];
+    let mod = null;
+    let granted = [];
+    let end = 0;
+    let number = null;
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // What main answered as the page loaded: the mod's manifest, what it is granted, how long an end is given and which
+    // run this is.
+    function begin(loaded) {
+        mod = loaded.manifest;
+        granted = Object.freeze([...loaded.granted]);
+        end = loaded.end;
+        number = loaded.run;
+    }
+
+    // A throw, or a promise that rejects, is recorded against the mod, never only a console line.
+    function deliver(what, listener, ...args) {
+        try {
+            Promise.resolve(listener(...args)).catch((error) => fail(`${what} threw: ${error.message || error}`));
+        } catch (error) {
+            fail(`${what} threw: ${error.message || error}`);
+        }
+    }
+
+    // A problem is recorded against the run. A page whose load main refused has no run, so its problem is only
+    // logged.
+    function fail(problem) {
+        LOG.warn(`${mod?.id ?? 'a mod'}: ${problem}`);
+        failures.push(problem);
+        if (number !== null) PROTOCOL.problem.send({ run: number, problem: String(problem) });
+    }
+
+    // It did not start, and why: what the mods that require it are told.
+    function notStarted() {
+        if (number === null) return;
+        PROTOCOL.notStarted.send({ run: number, problem: String(failures.at(-1) || 'it did not start') });
+    }
+
+    // The mod ends its run, as any request ends it: fulfilled once its end is asked.
+    async function quit() {
+        if (number !== null) await PROTOCOL.quit.invoke({ run: number });
+    }
+
+    // MARK: - Private
+
+    return {
+        begin,
+        deliver,
+        fail,
+        notStarted,
+        quit,
+        get mod() {
+            return mod;
+        },
+        get granted() {
+            return granted;
+        },
+        get end() {
+            return end;
+        },
+        get number() {
+            return number;
+        },
+    };
+}

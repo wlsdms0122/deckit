@@ -1,0 +1,33 @@
+case = 9
+name = "a-post-redirected-by-308-is-sent-again-as-it-was"
+note = "A redirect of status 301, 302 or 303 is followed with GET and no body, and one of 307 or 308 with the method and the body of the request. site-a answers a POST of moved 308, and requested reads the second request."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/moved"]
+args = [{ method = "POST", body = "aGk=" }]
+
+[[step]]
+look = "requested"
+
+[step.expect]
+answers = [{ site = "site-a", method = "POST", path = "/moved", headers = [], body = "aGk=" }, { site = "site-a", method = "POST", path = "/hello.txt", headers = [], body = "aGk=" }]

@@ -42,7 +42,7 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
                 let file = try member("file").map { try node.string($0) }
                 var data = try file.map { try Data(contentsOf: URL(fileURLWithPath: $0), options: .alwaysMapped) }
                     ?? Data((try member("body").map { try node.string($0) } ?? "").utf8)
-                var status = try member("status").map { Int(try node.number($0)) } ?? 200
+                var status = try member("status").map { try node.integer($0) } ?? 200
                 var headers = ["Content-Type": try member("type").map { try node.string($0) } ?? "text/plain"]
                 if file != nil {
                     headers["Accept-Ranges"] = "bytes"

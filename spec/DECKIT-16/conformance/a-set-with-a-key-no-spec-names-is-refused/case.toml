@@ -1,0 +1,31 @@
+case = 6
+name = "a-set-with-a-key-no-spec-names-is-refused"
+note = "set is refused at call with kind INVALID_ARGUMENT where the code of keystroke names a key a spec does not. mod-a sets the key of today to ctrl+alt and the code Numpad1."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/keys", "deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/keys"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = ["mod-b", "today", { code = "Numpad1", meta = false, control = true, alt = true, shift = false }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

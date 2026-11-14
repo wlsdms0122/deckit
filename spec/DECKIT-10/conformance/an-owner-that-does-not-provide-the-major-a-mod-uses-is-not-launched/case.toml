@@ -1,0 +1,18 @@
+case = 4
+name = "an-owner-that-does-not-provide-the-major-a-mod-uses-is-not-launched"
+note = "The owner of an interface is not launched for a lifecycle that uses a major it does not provide. mod-a, a background mod, uses major 2 of mod-b/pages, and mod-b, no background mod, provides major 1 and does not run."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"

@@ -10,27 +10,30 @@ const NOW_MAX = 3;
 // How long the list waits for slow Now actions before it opens; later ones arrive on their own.
 const NOW_WAIT_MS = 150;
 
-// The list of a Show item for each mod the shell can show and the actions mods set, `given`, by the connection of
-// each, in `window`, the mod's own: `show()` opens it, and `toggle()` opens it or puts it away when it is
-// open. Each open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod
-// coming on screen, another app. `end()` drops the list.
-function switcher(shell, deckit, window, given) {
-    const registry = deckit.commands;
+// The list of a Show item for each mod the shell can show, the actions mods set, `given`, by the connection of each,
+// and the actions mods declare to `switcher/actions`, over an overlay window of its own: `show()` opens it, and
+// `toggle()` opens it or puts it away when it is open. Each open reads the mods and their actions anew. It stays until
+// the keyboard goes elsewhere: Escape, a mod coming on screen, another app. `end()` drops the list.
+// `notifications()` and `commands()` are the owners of deckit/notifications and deckit/commands while one is
+// connected, or null. The mods to show, their names and icons are read with deckit.mods: `shell.mods.list()` and
+// `open(id)`, and `deckit.mods.list()`, whose bundles' fields give each mod's icon.
+function switcher(shell, deckit, given, { notifications = () => null, commands = () => null } = {}) {
     const records = deckit.storage.records;
-    const drawing = { ui: shell.ui, theme: shell.theme, util: deckit.util }; // what the list is drawn and ranked with
-    let open = null; // the list on screen, or on its way: { list, about, submenus }
+    const drawing = { ui: shell.ui, theme: shell.theme }; // what the list is drawn with
+    let open = null; // the list on screen, or on its way: { list, window, about, submenus }
 
-    return { show, toggle, putAway, closed, end };
+    return { show, toggle, putAway, end };
 
     function toggle() {
         if (open) return putAway();
         show();
     }
 
-    // The window comes once the list is drawn in it, and goes with it: the two are one thing on screen.
+    // The window comes once the list is drawn over it, and goes with it: the two are one thing on screen. A window that
+    // closes or resigns key where the list did not ask takes the list with it.
     async function show() {
         if (open) return;
-        const current = { list: null, about: null, submenus: new Map() };
+        const current = { list: null, window: null, about: null, submenus: new Map() };
         open = current;
         let supplied;
         try {
@@ -47,7 +50,18 @@ function switcher(shell, deckit, window, given) {
             onQuery: (raw, submenu) => search(current, raw, submenu),
             onClose: () => open === current && putAway(),
         });
-        window.open();
+        current.window = shell.windows.open({
+            name: 'main',
+            content: document.createElement('div'),
+            level: 'overlay',
+            width: 600,
+            height: 400,
+            didResignKey: () => open === current && putAway(),
+            didClose: () => {
+                current.window = null;
+                if (open === current) putAway();
+            },
+        });
         supplied.later.then((items) => open === current && current.list.model.setNow(items));
     }
 
@@ -56,12 +70,7 @@ function switcher(shell, deckit, window, given) {
         const current = open;
         open = null;
         current.list?.close();
-        window.close();
-    }
-
-    // The window was put away where it was not asked to: the list goes with it.
-    function closed() {
-        if (open) putAway();
+        current.window?.close();
     }
 
     function end() {
@@ -75,13 +84,12 @@ function switcher(shell, deckit, window, given) {
         const listing = Promise.all(
             sources.map(async ([mod, source]) => [mod, (await actionsOf(mod, source, 'list')) || []])
         );
-        const shown = await showable();
-        const actions = await listing;
-        const mods = ITEMS.modsIn({ actions, shown });
-        const found = await Promise.all(mods.map((id) => deckit.provider(id)));
+        const [shown, bundles] = await Promise.all([shell.mods.list(), deckit.mods.list()]);
+        const actions = [...(await listing), ...(await declared())];
+        const icons = new Map(bundles.map(({ id, mod }) => [id, mod?.fields?.icon]));
         current.about = {
-            names: new Map(found.filter(Boolean).map(({ id, name }) => [id, name])),
-            iconOf: shell.iconOf,
+            names: new Map(bundles.map(({ id, mod }) => [id, mod?.name])),
+            iconOf: (id) => (typeof icons.get(id) === 'string' ? icons.get(id) : ''),
         };
         const used = records.get(USE, {});
         const listed = ITEMS.listed({ actions, shown, about: current.about });
@@ -130,7 +138,8 @@ function switcher(shell, deckit, window, given) {
             current.submenus.set(item.id, item);
             return { ...item, run: () => remembers && remember(item), submenu: { icon: item.icon } };
         }
-        if (item.shows || item.value !== null) return { ...item, run: () => go(current, item, remembers) };
+        if (item.shows || item.command || item.value !== null)
+            return { ...item, run: () => go(current, item, remembers) };
         return { ...item, run: undefined };
     }
 
@@ -144,8 +153,10 @@ function switcher(shell, deckit, window, given) {
         let said = null;
         try {
             const left = item.shows
-                ? await registry.run(ITEMS.SHOW, { mod: item.shows })
-                : await sourceOf(item.mod).run(item.value);
+                ? await shell.mods.open(item.shows)
+                : item.command
+                  ? await commandsOwner().run(item.mod, item.command, item.args)
+                  : await sourceOf(item.mod).run(item.value);
             if (typeof left === 'string' && left) said = { text: left, alert: false };
         } catch (error) {
             said = { text: error?.message || String(error), alert: true };
@@ -158,15 +169,24 @@ function switcher(shell, deckit, window, given) {
         if (said) current.list.model.say(said.text, { alert: said.alert });
     }
 
+    // Posted to deckit/notifications, with nothing to bring forward; while no owner is connected it is only logged.
     function notify(item, why) {
-        deckit
-            .notify({ title: item.label, body: why })
-            .catch((error) => console.error(`[switcher] ${item.label} did not run: ${why}`, error));
+        const owner = notifications();
+        const posted = owner
+            ? owner.post({ title: item.label, body: why })
+            : Promise.reject(new Error('no mod shows notifications'));
+        posted.catch((error) => console.error(`[switcher] ${item.label} did not run: ${why}`, error));
     }
 
     // What each mod set, `[mod id, { list, now, search, run }]`.
     function currentSources() {
-        return [...given].map(([connection, source]) => [connection.mod.id, source]);
+        return [...given].map(([connection, source]) => [connection.credential.mod, source]);
+    }
+
+    function commandsOwner() {
+        const owner = commands();
+        if (!owner) throw new Error('No mod runs commands now');
+        return owner;
     }
 
     function sourceOf(mod) {
@@ -175,12 +195,24 @@ function switcher(shell, deckit, window, given) {
         return source;
     }
 
-    // The mods the shell can show, as its Show command completes them, or none for a host with no shell.
-    async function showable() {
-        const commands = await registry.list();
-        const { provider, command } = ITEMS.SHOW;
-        if (!commands.some((entry) => entry.provider === provider && entry.command === command)) return [];
-        return (await registry.complete(ITEMS.SHOW, 'mod', '')) || [];
+    // What mods declare to `switcher/actions`, `[mod id, actions]` for each mod in turn, as `action.js` reads them:
+    // none while the switcher does not own it.
+    async function declared() {
+        let handed = [];
+        try {
+            handed = await deckit.exports.contributions('switcher/actions');
+        } catch (error) {
+            if (error?.kind !== 'NOT_OWNER') console.error('[switcher] the declared actions could not be read', error);
+        }
+        const byMod = new Map();
+        for (const contribution of handed) {
+            const action = ACTION.readDeclared(contribution);
+            if (!action) continue;
+            const id = contribution.credential.mod;
+            if (!byMod.has(id)) byMod.set(id, []);
+            byMod.get(id).push(action);
+        }
+        return [...byMod];
     }
 
     // The actions `source` answers to `name`, as `action.js` reads them, or null where it answers null.
@@ -206,9 +238,10 @@ function switcher(shell, deckit, window, given) {
         return out;
     }
 
-    // Keyed by what it runs, as an item is made fresh on every open: a mod gives an action the same value each time.
-    function keyOf({ mod, value, shows }) {
-        return JSON.stringify(shows ? [ITEMS.SHOW.provider, shows] : [mod, value]);
+    // Keyed by what it runs, as an item is made fresh on every open: a mod gives an action the same value each time,
+    // and a declared one names the same command and args.
+    function keyOf({ mod, value, command, args, shows }) {
+        return JSON.stringify(shows ? [ITEMS.SHOWN_BY, shows] : command ? [mod, { command, args }] : [mod, value]);
     }
 
     // Too small to outweigh a use, the time only breaks ties, the later first.

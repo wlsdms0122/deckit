@@ -1,0 +1,30 @@
+case = 5
+name = "a-post-with-an-action-title-of-another-type-is-refused"
+note = "post is refused at call with kind INVALID_ARGUMENT where an action's title is not a string, never read as one. mod-a posts Standup with an action of the title 5."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/notifications"]
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/notifications"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "post"
+handed = true
+args = [{ title = "Standup", body = "in 5 min", actions = [{ title = 5, command = "snooze" }] }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

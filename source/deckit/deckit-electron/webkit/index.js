@@ -1,9 +1,12 @@
 // Every page deckit shows is WebKit's, through the module beside the core (deckit-web.node): a page of deck's, a
 // surface one opened, or a web page. Each is a token that tells what becomes of it as events and answers what it is
 // asked: `changed`, `started`, `stopped`, `committed` (url), `failed` (code, description), `gone`, `focus`, `close`,
-// `mouse` (type, `mouseDown` or `mouseUp`), `key` (pressed, take), taken from the page once `take()` is called, and
-// `destroyed`, once, as it closes. `path` is the module's.
-export function createWebKit({ path, LOG }) {
+// `mouse` (type, `mouseDown` or `mouseUp`), `key` (pressed, take), taken from the page once `take()` is called,
+// `unhandled` (pressed, take), a key down the page did not handle, taken from the rest of the app once `take()` is
+// called, and `destroyed`, once, as it closes. A key down a page shown in another (`containerOf(page)`, that page or
+// null) did not handle is that page's next: a key down at its element with the keyboard, which its listeners may
+// cancel, and then a key it did not handle. `path` is the module's.
+export function createWebKit({ path, LOG, containerOf }) {
     // MARK: - Property
     // WebKit's code for a load another one replaced.
     const CANCELLED = -999;
@@ -17,7 +20,8 @@ export function createWebKit({ path, LOG }) {
     // that is given. `scheme` is served by the page's delegate (`request`), `clear` draws nothing where the document
     // does not, `clearWhileBlank` so until it commits its first page, `fullSpeed` runs off screen as on it, and
     // `takesKeyboard` false has the keyboard only as it is given it or pressed. `delegate` answers what the page asks
-    // (pageOf); `fields` are kept on the token.
+    // (pageOf); `fields` are kept on the token; `scripts(page)` the scripts every document of the page starts with, as
+    // `run` takes them, asked with the token before the module makes the page.
     function make({
         store,
         cookieLifetime,
@@ -28,9 +32,11 @@ export function createWebKit({ path, LOG }) {
         takesKeyboard,
         delegate,
         fields = {},
+        scripts,
     }) {
         const { page, listener } = pageOf({ delegate, fields });
         const options = {
+            scripts: scripts?.(page) ?? [],
             store,
             applicationName: agentName(),
             cookieLifetime,
@@ -44,11 +50,14 @@ export function createWebKit({ path, LOG }) {
         return page;
     }
 
-    // The listener of a page WebKit makes for a window a page opened, in its opener's data store: `opened(page)`
-    // once the module has it.
-    function listenerFor({ delegate, fields = {}, opened }) {
+    // What the module is answered for a page WebKit makes for a window a page opened, in its opener's data store:
+    // `{ listener, scripts }`, its listener and `scripts(page)`, as of `make`; `opened(page)` once the module has it.
+    function listenerFor({ delegate, fields = {}, opened, scripts }) {
         const { page, listener } = pageOf({ delegate, fields, opened });
-        return (event, payload) => (event === 'adopted' ? page.adopted(payload.id) : listener(event, payload));
+        return {
+            listener: (event, payload) => (event === 'adopted' ? page.adopted(payload.id) : listener(event, payload)),
+            scripts: scripts?.(page) ?? [],
+        };
     }
 
     // The page of the module's id, while it is open.
@@ -85,11 +94,16 @@ export function createWebKit({ path, LOG }) {
 
     // MARK: - Private
     // A page and the listener the module tells it through, before the module has given it its id. `delegate`:
-    // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height })`, the
-    // listener of the page given for the window, or nothing; `download({ url })`, the listener of the download
-    // (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise of a
-    // boolean`; `certificate(info) -> boolean`, whether it is trusted; `external(url)`; `message(body)`; and, for a
-    // page with a scheme of its own, `request({ url, method, body, reply })`.
+    // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height, origin })`,
+    // what `listenerFor` answers for the page given for the window, or nothing; `download({ url })`, the listener of
+    // the download (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise
+    // of a boolean`;
+    // `certificate(info) -> boolean`, whether it is trusted; `external({ url, origin })`, `origin`, as of `open`, the
+    // frame's that goes there, or nothing where no frame does; `message(body, frame) -> boolean`, what deckit's scripts
+    // post in any frame, `frame` `{ origin, main, evaluate(source, world), answer(text) }`: `evaluate` runs `source` in
+    // that frame, its value dropped, and `answer` is the value of the post's promise, which runs no script in the page;
+    // true for a message answered later, any other answered null at once; and, for a page with a scheme of its own,
+    // `request({ url, method, body, reply })`.
     function pageOf({ delegate, fields, opened = null }) {
         const WEBKIT = loaded();
         const { EventEmitter } = require('events');
@@ -125,8 +139,14 @@ export function createWebKit({ path, LOG }) {
                     page.emit('key', payload, () => (taken = true));
                     return taken;
                 }
-                case 'message':
-                    return void delegate.message?.(payload.body);
+                case 'unhandled': {
+                    const { reply, ...pressed } = payload;
+                    return void passOn(page, pressed, reply);
+                }
+                case 'message': {
+                    const { body, ...frame } = payload;
+                    return delegate.message?.(body, frame) === true;
+                }
                 case 'request':
                     // A request the delegate throws on at once is answered as failed, so nothing waits on it; a
                     // second reply is dropped.
@@ -137,7 +157,7 @@ export function createWebKit({ path, LOG }) {
                         throw error;
                     }
                 case 'external':
-                    return void delegate.external?.(payload.url);
+                    return void delegate.external?.(payload);
                 case 'navigate':
                     return delegate.navigate?.(payload.url) ?? 'load';
                 case 'open':
@@ -216,6 +236,43 @@ export function createWebKit({ path, LOG }) {
             },
         });
         return { page, listener };
+    }
+
+    // `pressed`, a key down `page` did not handle, to the page it is shown in, or else told as its own: `reply(taken)`
+    // answers whether it is taken from the rest of the app.
+    function passOn(page, pressed, reply) {
+        const container = containerOf(page);
+        if (!container) {
+            let taken = false;
+            try {
+                page.emit('unhandled', pressed, () => (taken = true));
+            } finally {
+                reply(taken);
+            }
+            return;
+        }
+        container.evaluate(keyDown(pressed), 'deckit').then(
+            (cancelled) => (cancelled ? reply(true) : passOn(container, pressed, reply)),
+            () => reply(false)
+        );
+    }
+
+    // A key down at the element with the keyboard, as the document's listeners hear one: whether one cancelled it.
+    function keyDown({ code, key, meta, control, alt, shift }) {
+        const options = {
+            code,
+            key,
+            metaKey: meta,
+            ctrlKey: control,
+            altKey: alt,
+            shiftKey: shift,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+        };
+        return `const event = new KeyboardEvent('keydown', ${JSON.stringify(options)});
+            (document.activeElement ?? document).dispatchEvent(event);
+            return event.defaultPrevented;`;
     }
 
     function spelled(url) {

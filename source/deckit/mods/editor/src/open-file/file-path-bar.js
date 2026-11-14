@@ -30,7 +30,7 @@ const PATH_BAR_STYLE = `
 
 // Above the open file: where it is, from its workspace's folder, and where the cursor is. A folder of the path reveals
 // the file in the workspace's tree.
-function filePathBar({ ui, util, onReveal }) {
+function filePathBar({ ui, tildify, onReveal }) {
     const element = ui.element('div', { className: 'editor-path-bar' });
     const crumbs = ui.list({ key: (item) => item.key, create: crumbOf });
     const cursorPosition = ui.element('div', { className: 'editor-cursor-position' });
@@ -44,7 +44,7 @@ function filePathBar({ ui, util, onReveal }) {
         element.hidden = !file;
         if (!file) return crumbs.set([]);
         const inRoot = !!root && isInside(file.path, root);
-        const parts = inRoot ? [nameOf(root), ...relativePath(file.path, root).split('/')] : [util.tildify(file.path)];
+        const parts = inRoot ? [nameOf(root), ...relativePath(file.path, root).split('/')] : [tildify(file.path)];
         const items = [];
         parts.forEach((label, index) => {
             const last = index === parts.length - 1;

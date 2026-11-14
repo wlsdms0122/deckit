@@ -1,0 +1,30 @@
+case = 5
+name = "a-second-command-of-one-id-from-one-mod-is-left-out"
+note = "A mod's second entry of a command id it declared already is left out. mod-b declares today twice, titled First and Second."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/commands"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/commands"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "list"
+handed = true
+part = "commands"
+
+[step.expect]
+answers = [{ mod = { id = "mod-b", name = "MOD B" }, id = "today", title = "First", keywords = [] }]

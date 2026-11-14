@@ -45,8 +45,8 @@ async function readText(file, limit) {
     }
 }
 
-// A folder inside that cannot be read is passed over; the root itself refused (macOS privacy) is an error, not an
-// empty folder. A link to a file is walked as the file; a link to a folder is not followed, so a link back up never
+// A folder inside that cannot be read is passed over; the root itself refused (the system's privacy) is an error, not
+// an empty folder. A link to a file is walked as the file; a link to a folder is not followed, so a link back up never
 // walks a folder twice.
 async function* walk(root) {
     const folders = [root];

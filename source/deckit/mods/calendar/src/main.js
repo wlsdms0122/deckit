@@ -1,38 +1,45 @@
 const { calendar } = require('./calendar/calendar.js');
 const { calendarView } = require('./calendar/view.js');
-const { REMINDER_LEADS, DEFAULT_LEAD, leadText } = require('./reminder/reminder.js');
+const { notice } = require('./notice/notice.js');
+const { settingsOf } = require('./settings/settings.js');
 
 class Calendar {
-    static configuration = {
-        notify: {
-            type: 'string',
-            title: 'Notify me',
-            description:
-                "Meetings you are invited to, and every event on your own calendars. A calendar's ✎ changes which it is. A hidden calendar reminds too.",
-            default: String(DEFAULT_LEAD),
-            oneOf: [
-                { const: 'off', title: leadText(null) },
-                ...REMINDER_LEADS.map((lead) => ({ const: String(lead), title: leadText(lead) })),
-            ],
-        },
-    };
-    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></svg>`;
-    static keywords = ['캘린더', '일정', '달력', 'calendar', 'schedule'];
-
-    // What the view has put on screen for the function side to reach (calendar.js), while it is attached.
+    // What the view has put on screen for the function side (calendar.js), the commands and reopen() to reach, while
+    // it is attached.
     screen = null;
 
+    // The commands its manifest declares to `deckit/commands` are taken from the exports for its id: Send a test runs
+    // with no screen, and the others on the view in its window, open or not, `show-date` opening the window, failing,
+    // saying so, while Calendar is not attached.
     start(deckit) {
-        this.calendar = calendar({ deckit, screen: () => this.screen });
-        this.sendTest = () => sendTest(deckit, () => this.screen?.reveal());
-        deckit.commands.register({
-            'send-test': {
-                description:
-                    'Shows a notification now, to see that macOS lets it through. Answers what came of it, as text.',
-                run: this.sendTest,
+        const onScreen = () => {
+            if (!this.screen) throw new Error('Calendar has no window to open');
+            return this.screen;
+        };
+        const settings = settingsOf();
+        deckit.dependencies.onConnect('deckit/configuration', (configuration) => settings.connect(configuration));
+        const notices = notice(deckit);
+        this.calendar = calendar({ deckit, settings, screen: () => this.screen, notice: notices });
+        this.sendTest = () => sendTest(deckit, notices);
+        const commands = {
+            'send-test': this.sendTest,
+            'show-date': (args) => {
+                const screen = onScreen();
+                screen.goToDate(args);
+                screen.openWindow();
             },
-        });
+            'go-to-date': (args) => onScreen().goToDate(args),
+            'show-view': (args) => onScreen().showView(args),
+        };
         deckit.exports.register({
+            connect: () => ({
+                runCommand: async (id, args) => {
+                    if (!Object.hasOwn(commands, id)) throw new Error(`Calendar has no command ${id}`);
+                    return (await commands[id](args ?? {})) ?? null;
+                },
+            }),
+        });
+        deckit.exports.register('calendar/accounts', {
             connect: (connection) => ({
                 setProvider: (provider) => {
                     this.calendar.setProvider(connection, provider);
@@ -48,17 +55,15 @@ class Calendar {
 
     attach(shell, deckit) {
         this.view = calendarView({ calendar: this.calendar, shell, deckit, sendTest: this.sendTest });
-        const { content, sidebar, didAppear, didDisappear, keys, commands, actions } = this.view;
-        shell.view.register({ content, sidebar, didAppear, didDisappear });
-        deckit.keys.register(keys);
-        deckit.commands.register(commands);
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
-        deckit.dependencies.onConnect('settings', (settings) =>
+        this.view.openWindow();
+        const { actions } = this.view;
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('settings/buttons', (settings) =>
             settings.setButtons({
                 list: () => [
                     {
                         button: 'Send a test',
-                        hint: 'Shows one now, to see that macOS lets it through.',
+                        hint: 'Shows one now, to see that the system lets it through.',
                         after: 'notify',
                         value: 'send-test',
                     },
@@ -67,6 +72,11 @@ class Calendar {
             })
         );
         this.screen = this.view.screen;
+    }
+
+    // Its Dock item pressed while its window is closed.
+    reopen() {
+        this.screen?.openWindow();
     }
 
     detach() {
@@ -78,20 +88,19 @@ class Calendar {
 
 module.exports = Calendar;
 
-// Shows a notification the way a reminder looks, and answers what the person reads of how it went. A click on it
-// calls `reveal()`.
-async function sendTest(deckit, reveal) {
-    let shown = false;
+// Posts a notice the way a reminder looks, and answers what the person reads of how it went. A press on it shows
+// Calendar on today.
+async function sendTest(deckit, notices) {
+    let posted = false;
     try {
-        shown = await deckit.notify({
+        posted = await notices.post({
             title: 'Calendar',
             body: 'This is what a reminder looks like',
-            onClick: reveal,
+            date: new Date(),
         });
     } catch {}
-    // macOS reports a notice as shown even when its settings keep it off the screen.
-    return (
-        (shown ? 'Sent. ' : 'Not shown. ') +
-        `If none appeared, allow ${deckit.about().name} in System Settings › Notifications.`
-    );
+    // The system reports a notice as shown even when its settings keep it off the screen.
+    return posted
+        ? `Sent. If none appeared, allow ${deckit.about().name} in the system's notification settings.`
+        : 'Not sent: no mod shows notifications now.';
 }

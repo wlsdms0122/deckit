@@ -1,0 +1,23 @@
+case = 3
+name = "a-file-url-whose-host-is-localhost-is-a-file"
+note = "A file URL whose host the URL Standard reads as empty is a file. mod-a, granted system.file-handlers, opens file://localhost/data/report.pdf, whose host localhost the Standard reads as empty, and the host is handed the file /data/report.pdf."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["file://localhost/data/report.pdf"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "file:///data/report.pdf", activates = true }]

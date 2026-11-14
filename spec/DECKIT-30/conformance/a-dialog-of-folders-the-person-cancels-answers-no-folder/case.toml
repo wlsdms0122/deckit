@@ -1,0 +1,20 @@
+case = 16
+name = "a-dialog-of-folders-the-person-cancels-answers-no-folder"
+note = "dialogs.chooseFolders answers the empty array where the person chose no folder, as one who cancels the dialog: mod-a, a mod granted nothing, asks for a folder, and the person chooses none."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dialogs.chooseFolders"
+handle = "shell"
+
+[step.expect]
+answers = []

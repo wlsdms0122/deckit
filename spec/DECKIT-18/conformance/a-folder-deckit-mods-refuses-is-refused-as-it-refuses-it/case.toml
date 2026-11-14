@@ -1,0 +1,32 @@
+case = 5
+name = "a-folder-deckit-mods-refuses-is-refused-as-it-refuses-it"
+note = "An install of a folder deckit.mods refuses is refused with the kind deckit.mods refuses it with. mod-c's bundle names no main."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_LOADABLE"

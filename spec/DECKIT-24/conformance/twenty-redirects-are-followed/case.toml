@@ -1,0 +1,30 @@
+case = 9
+name = "twenty-redirects-are-followed"
+note = "A fetch follows at most 20 redirects. site-a redirects r1 to r20 each to the next, and r20 to hello.txt, which answers."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/r1"]
+part = "url"
+
+[step.expect]
+answers = "site-a/hello.txt"

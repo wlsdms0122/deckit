@@ -1,0 +1,21 @@
+case = 3
+name = "a-file-url-is-refused-for-the-permission-before-its-host"
+note = "A request is refused first as the permissions refuse one, then with UNSUPPORTED_URL. mod-a, granted nothing, opens file://elsewhere/data/report.pdf, a file URL on another host, and is refused at call with NOT_PERMITTED, not UNSUPPORTED_URL."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "openExternal"
+args = ["file://elsewhere/data/report.pdf"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

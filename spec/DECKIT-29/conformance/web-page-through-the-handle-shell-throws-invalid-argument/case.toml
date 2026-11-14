@@ -1,0 +1,22 @@
+case = 15
+name = "web-page-through-the-handle-shell-throws-invalid-argument"
+note = "web.page of the handle shell is the page the web engine offers the shell: handed a table with no session, it throws INVALID_ARGUMENT, as web pages refuse it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "web.page"
+handle = "shell"
+args = [{}]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

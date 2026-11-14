@@ -1,7 +1,8 @@
 // Where a layer on deckit lays pages in a window of the app's: a stage it places in the window, and the pages on it,
 // each where it is or hidden, drawn in the order laid. Which pages, in what order and where, is the layer's; the web
-// pages a page shows are laid just over it, each over the element that holds its place and cut to the page
-// (`webPagesIn(page)`, `[{ page, frame }]`, `frame` in the page). `idOf(window)` is a window's in the module.
+// pages a page shows are laid just over it, each over the element that holds its place and cut to the page and to
+// what the page is cut to (`webPagesIn(page)`, `[{ page, frame }]`, `frame` in the page). `idOf(window)` is a
+// window's in the module.
 export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
     // MARK: - Property
     const showing = new WeakMap(); // page -> the stage it is shown on, a page of deck's or a web page
@@ -52,10 +53,11 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
             if (!closed) native.showStage(id, !!on);
         }
 
-        // What is on the stage: each layer `{ page, rect, input }`, laid there, taking the pointer only inside the
-        // rects `input` names in it where it names any, or `{ page, hidden: true }`, kept out of the window, which a
-        // page in it would slow as it resizes. The pages laid are in the order given, bottom to top. A page left out,
-        // or gone, is taken off. Each is clear where it draws nothing.
+        // What is on the stage: each layer `{ page, rect, clip, input }`, laid there, drawn only inside `clip`, a
+        // rect on the stage with its corners rounded by `cornerRadius`, where it is given, and taking the pointer only
+        // inside the rects `input` names in it where it names any, or `{ page, hidden: true }`, kept out of the window,
+        // which a page in it would slow as it resizes. The pages laid are in the order given, bottom to top. A page
+        // left out, or gone, is taken off. Each is clear where it draws nothing.
         function lay(layers) {
             if (closed) return;
             for (const { page, rect = null, hidden = false } of layers)
@@ -94,7 +96,7 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                 }
         }
 
-        // The pages as laid, each page's web pages just over it, cut to the page's rect.
+        // The pages as laid, each page's web pages just over it, cut to the page's clip and its rect.
         function relay() {
             for (const page of record.shown) if (showing.get(page) === record) showing.delete(page);
             record.shown.clear();
@@ -102,16 +104,21 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                 showing.set(page, record);
                 record.shown.add(page);
             };
-            const layers = laid.flatMap(({ page, rect, input }) => {
+            const layers = laid.flatMap(({ page, rect, clip, input }) => {
                 if (page.isDestroyed()) return [];
                 if (!rect) return [{ page: page.id, hidden: true }];
                 show(page);
+                const clips = clip ? [clip] : [];
                 const over = webPagesIn(page).map((web) => {
                     show(web.page);
                     const { x, y, width, height } = web.frame;
-                    return { page: web.page.id, frame: { x: rect.x + x, y: rect.y + y, width, height }, clip: rect };
+                    const frame = { x: rect.x + x, y: rect.y + y, width, height };
+                    return { page: web.page.id, frame, clips: [...clips, rect] };
                 });
-                return [{ page: page.id, frame: rect, ...(input ? { input } : {}) }, ...over];
+                return [
+                    { page: page.id, frame: rect, ...(clip ? { clips } : {}), ...(input ? { input } : {}) },
+                    ...over,
+                ];
             });
             native.layStage(id, layers);
         }

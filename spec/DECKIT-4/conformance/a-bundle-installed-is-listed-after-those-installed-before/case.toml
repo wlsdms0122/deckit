@@ -1,0 +1,25 @@
+case = 3
+name = "a-bundle-installed-is-listed-after-those-installed-before"
+note = "The catalog is read again as a request is answered, and installed names are listed in the order each was first installed, before the others. mod-a is shipped, mod-c read in place, and mod-b installed."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+sources = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.install"
+folders = ["mod-b"]
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["mod-a", "mod-b", "mod-c"]

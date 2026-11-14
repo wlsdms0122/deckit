@@ -1,0 +1,19 @@
+case = 1
+name = "a-top-level-key-no-one-adds-is-refused"
+note = "A manifest's top-level keys are the system's fields and those a layer or the host adds. A key that is neither refuses the bundle at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

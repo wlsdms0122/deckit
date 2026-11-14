@@ -1,12 +1,14 @@
-// What an environment gives deckit (deckit-shell/environment): how a given object is held to it, that connect and
-// attach refuse an environment that lacks a member, and what connect answers the UI and the host app. Exits 1 with a
-// line for each check that failed. The packages are ES modules, so they are imported as such.
+// What an environment gives deckit (deckit-shell/environment): how a given object is held to it, that connect, the web
+// engine's attach and the UI's refuse an environment that lacks a member, that connect refuses a shipped folder with no
+// system mark, what connect answers the UI, the web engine and the host app, that Deckit.app answers what connect and
+// attach ask of a host app, and that each attach defines its permissions. Exits 1 with a line for each check that
+// failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
-// What the UI on deckit uses of what connect answers.
+// What the UI, the web engine and the main process modules on deckit use of what connect answers.
 const USED = {
     config: { name: 'string' },
     onStart: 'function',
@@ -15,24 +17,24 @@ const USED = {
     restart: 'function',
     channels: { bind: 'function' },
     permissions: { define: 'function' },
+    fields: { define: 'function' },
     mods: {
         notifications: 'array',
         list: 'function',
         onChange: 'function',
-        arrange: 'function',
+        ownerOf: 'function',
         runs: 'function',
         runOf: 'function',
-        listingOf: 'function',
         observe: 'function',
+        onInstalled: 'function',
+        onRemoved: 'function',
+        timeout: 'function',
         modOf: 'function',
-        managerFrom: 'function',
+        openExternal: 'function',
     },
-    pages: { add: 'function', whenEnds: 'function', nameOf: 'function' },
-    keymap: { register: 'function', chordOf: 'function', listen: 'function', delegate: 'function' },
-    commands: { register: 'function' },
-    state: { read: 'function', write: 'function' },
-    web: { pageFor: 'function', holdsKeyboard: 'function' },
-    log: { warn: 'function' },
+    pages: { add: 'function', whenEnds: 'function', nameOf: 'function', onSandbox: 'function' },
+    stateIn: 'function',
+    log: { info: 'function', warn: 'function' },
 };
 
 async function main() {
@@ -100,6 +102,7 @@ async function main() {
             })
         );
     const environment = standIn(ENVIRONMENT.MAIN);
+    const webEnvironment = standIn(ENVIRONMENT.WEB);
     const shellEnvironment = standIn(ENVIRONMENT.SHELL);
     const host = { notificationClicked() {}, restart() {} };
     // What the build defines as it bundles.
@@ -107,9 +110,7 @@ async function main() {
     globalThis.DECKIT_SOURCE = 'test';
     const SHELL = await import(url('deckit-shell', 'main.js'));
     const uiHost = Object.fromEntries(
-        ['start', 'showsPanel', 'show', 'dismiss', 'panelTitled', 'showWindow', 'hideWindow', 'closeWindow'].map(
-            (name) => [name, () => {}]
-        )
+        ['start', 'show', 'desktopTitled', 'showWindow', 'closeWindow'].map((name) => [name, () => {}])
     );
     const early = thrown(() => SHELL.attach({}, shellEnvironment, { host: uiHost }));
     check('attach before connect is refused, saying so', /attach comes after connect/.test(early), early);
@@ -123,7 +124,16 @@ async function main() {
     );
     const unknown = thrown(() => SHELL.connect(environment, { host, config: { colour: 'red' } }));
     check('connect refuses a configuration it does not read', /config sets colour/.test(unknown), unknown);
-    const answer = SHELL.connect(environment, { host, config: { id: 'test' } });
+    const unmarked = thrown(() => SHELL.connect(environment, { host, folders: { ship: ['/ship/a'] } }));
+    check(
+        'connect refuses a shipped folder with no system mark',
+        /folders\.ship lists \{ folder, system \}/.test(unmarked),
+        unmarked
+    );
+    // Deckit.app's own host app, over windows and a theme that are never asked for before it starts.
+    const { createApp } = require(path.join(__dirname, '..', '..', 'deckit', 'deckit-app', 'app', 'app.js'));
+    const deckitApp = createApp({ WINDOW: {}, THEME: {} }).make({ restart() {} });
+    const answer = SHELL.connect(environment, { host: deckitApp, config: { id: 'test' } });
     check(
         'the environment is configured with what names what it keeps',
         configured.length === 1 && configured[0].id === 'test',
@@ -139,8 +149,33 @@ async function main() {
             answer.window === undefined,
         Object.keys(answer.pages)
     );
+    check(
+        "connect's answer tells the host app when deckit has started, not before the app is ready",
+        answer.whenStarted() instanceof Promise && answer.whenStarted() === answer.whenStarted(),
+        typeof answer.whenStarted
+    );
     check('connect is called once', /once/.test(thrown(() => SHELL.connect(environment, { host }))), '');
-    const other = thrown(() => SHELL.attach({ ...answer }, shellEnvironment, { host: uiHost }));
+    const { pages: _pages, ...webPageless } = webEnvironment;
+    const unwebbed = thrown(() => SHELL.attachWeb(answer, webPageless));
+    check(
+        "the web engine's attach refuses an environment that lacks what the web engine is given, naming it",
+        /the environment lacks pages/.test(unwebbed),
+        unwebbed
+    );
+    let web = null;
+    const webAttached = thrown(() => (web = SHELL.attachWeb(answer, webEnvironment)));
+    check(
+        "the web engine's attach answers what the UI reads of the web pages mods show",
+        webAttached === '' &&
+            typeof web?.pageFor === 'function' &&
+            typeof web.holdsKeyboard === 'function' &&
+            typeof web.onPage === 'function',
+        webAttached
+    );
+    const network = { id: 'system.network', name: 'x', description: 'x' };
+    const webTwice = thrown(() => answer.permissions.define(network));
+    check("the web engine's attach defines the web's permissions", /defined twice/.test(webTwice), webTwice);
+    const other = thrown(() => SHELL.attach({ ...answer }, shellEnvironment, { host: uiHost, web }));
     check('attach refuses what connect did not answer', /takes what connect answered/.test(other), other);
     const { stage: _stage, ...stageless } = shellEnvironment;
     const unstaged = thrown(() => SHELL.attach(answer, stageless, { host: uiHost }));
@@ -152,11 +187,18 @@ async function main() {
     const unanswered = thrown(() => SHELL.attach(answer, shellEnvironment, { host: { start() {} } }));
     check(
         'attach refuses a host that does not answer the UI, naming what',
-        /does not answer showsPanel/.test(unanswered),
+        /does not answer show, desktopTitled/.test(unanswered),
         unanswered
     );
-    const attached = thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }));
-    check('attach refused can be called again', attached === '', attached);
+    const attached = thrown(() => SHELL.attach(answer, shellEnvironment, { host: deckitApp, web }));
+    check("attach refused can be called again, and takes Deckit.app's answers", attached === '', attached);
+    const keys = ['deckit.app-keys', 'system.global-keys', 'deckit.shell-keys'];
+    const twice = keys.map((id) => thrown(() => answer.permissions.define({ id, name: 'x', description: 'x' })));
+    check(
+        'attach defines the permissions of the UI, those of the keys included',
+        twice.every((one) => /defined twice/.test(one)),
+        twice
+    );
     check(
         'attach is called once',
         /once/.test(thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }))),

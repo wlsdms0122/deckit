@@ -1,0 +1,20 @@
+case = 3
+name = "the-folders-of-the-system-are-refused-to-a-mod-not-granted-mods"
+note = "mods.folders() is a request deckit.mods guards: mod-a, not granted it, calls it, and is refused at call with kind NOT_PERMITTED."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.folders"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

@@ -12,40 +12,35 @@ import Testing
 @Suite("Runner")
 struct RunnerTests {
     // MARK: - Property
-    private let root: URL
-    private let home: URL
-    private let source: URL
-
     // MARK: - Initializer
-    init() {
-        root = FileManager.default.temporaryDirectory.appending(path: "runner-tests-\(UUID().uuidString)")
-        home = root.appending(path: "home")
-        source = root.appending(path: "source")
-    }
-
     // MARK: - Test
-    @Test("each mod named that loads opens, launches and loads its page, in the load order")
-    func loadOpensEachMod() throws {
+    @Test("each job opens a sandbox, launches and loads its page, in the order given")
+    func loadOpensEachJob() throws {
         // Given
-        try write("a")
-        try write("b", main: nil)
-        let (sut, catalog) = try runner()
+        let sut = Runner()
 
         // When
-        _ = catalog.read()
-        let effects = try sut.load(["b", "a"])
+        let effects = try sut.load([.fixture("b"), .fixture("a")])
 
         // Then
-        #expect(describe(effects) == ["open a", "tell willLaunch a 1 launching", "loadPage a"])
+        #expect(
+            describe(effects) == [
+                "open b",
+                "tell willLaunch b 1 launching",
+                "loadPage b",
+                "open a",
+                "tell willLaunch a 1 launching",
+                "loadPage a"
+            ]
+        )
+        #expect(sut.jobs().map(\.principal) == ["b", "a"])
     }
 
     @Test("a run launches once its page says it started, and what an older run says is not the newer one's")
     func startedLaunchesTheLatestRun() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        _ = try sut.load(["a"])
+        let sut = Runner()
+        _ = try sut.load([.fixture("a")])
 
         // When
         let stale = try sut.started("a", run: 2)
@@ -56,92 +51,27 @@ struct RunnerTests {
         #expect(describe(effects) == ["tell didLaunch a 1 running"])
     }
 
-    @Test("a mod loaded while what it requires launches fails as it launches, and launches once that runs")
-    func dependentLoadsOnceItsRequirementRuns() throws {
+    @Test("a run asked to unload terminates, its stop() asked once, and ends once that answered, its sandbox killed")
+    func unloadAsksTheStop() throws {
         // Given
-        try write("a")
-        try write("b", requires: ["a": "1.0.0"])
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-
-        // When
-        let together = try sut.load(["a", "b"])
-        _ = try sut.started("a", run: 1)
-        let after = try sut.load(["b"])
-
-        // Then
-        #expect(
-            describe(together) == [
-                "open a",
-                "tell willLaunch a 1 launching",
-                "loadPage a",
-                "open b",
-                "tell willLaunch b 1 launching",
-                "tell didTerminate b 1 notRunning"
-            ]
-        )
-        #expect(describe(after) == ["tell willLaunch b 2 launching", "loadPage b"])
-    }
-
-    @Test("a mod terminates before what it requires, whose stop() is asked once it has ended")
-    func dependentsEndFirst() throws {
-        // Given
-        try write("a")
-        try write("b", requires: ["a": "1.0.0"])
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        try launch(["a", "b"], with: sut)
+        let sut = Runner()
+        try launch(["a"], with: sut)
 
         // When
         let unloaded = try sut.unload(["a"])
-        let dependentStopped = try sut.stopped("b", run: 1)
         let stopped = try sut.stopped("a", run: 1)
 
         // Then
-        #expect(
-            describe(unloaded) == [
-                "tell willTerminate a 1 terminating",
-                "tell willTerminate b 1 terminating",
-                "stop b 1"
-            ]
-        )
-        #expect(describe(dependentStopped) == ["tell didTerminate b 1 notRunning", "stop a 1"])
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
-    }
-
-    @Test("a mod whose requirement crashed terminates, and stays down once that runs again")
-    func dependentStaysDownAfterItsRequirement() throws {
-        // Given
-        try write("a")
-        try write("b", requires: ["a": "1.0.0"])
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        try launch(["a", "b"], with: sut)
-
-        // When
-        let crashed = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
-        let stopped = try sut.stopped("b", run: 1)
-        let loaded = try sut.load(["a"])
-
-        // Then
-        #expect(
-            describe(crashed) == [
-                "tell didTerminate a 1 notRunning",
-                "tell willTerminate b 1 terminating",
-                "stop b 1"
-            ]
-        )
-        #expect(describe(stopped) == ["tell didTerminate b 1 notRunning"])
-        #expect(describe(loaded) == ["tell willLaunch a 2 launching", "loadPage a"])
+        #expect(describe(unloaded) == ["tell willTerminate a 1 terminating", "stop a 1"])
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "kill a"])
+        #expect(sut.run(of: "a")?.failed == false)
     }
 
     @Test("the first problem recorded against a run is kept, and told with no step, once")
     func problemIsKept() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        _ = try sut.load(["a"])
+        let sut = Runner()
+        _ = try sut.load([.fixture("a")])
 
         // When
         let first = try sut.report("a", run: 1, problem: "a listener threw")
@@ -152,29 +82,45 @@ struct RunnerTests {
         #expect(describe(second).isEmpty)
     }
 
-    @Test("a run that did not start terminates, its stop() asked, and ends once that answered")
+    @Test("a run that did not start ends failing at once, its sandbox killed")
     func failedLaunchEnds() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        _ = try sut.load(["a"])
+        let sut = Runner()
+        _ = try sut.load([.fixture("a")])
 
         // When
         let failed = try sut.notStarted("a", run: 1, problem: "start threw")
         let stopped = try sut.stopped("a", run: 1)
 
         // Then
-        #expect(describe(failed) == ["tell didFailToLaunch a 1 terminating", "stop a 1"])
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
+        let run = try #require(sut.run(of: "a"))
+        #expect(describe(failed) == ["tell didFailToLaunch a 1 notRunning", "kill a"])
+        #expect(describe(stopped).isEmpty)
+        #expect(run.failed)
+        #expect(run.problem == "start threw")
+    }
+
+    @Test("a run that crashed before its end was asked ended failing, and one that crashed as it terminated did not")
+    func crashFailsUnlessAsked() throws {
+        // Given
+        let sut = Runner()
+        try launch(["a", "b"], with: sut)
+        _ = try sut.unload(["b"])
+
+        // When
+        let crashed = try sut.crashed("a", run: 1, problem: "gone")
+        _ = try sut.crashed("b", run: 1, problem: "gone as asked")
+
+        // Then
+        #expect(describe(crashed) == ["tell didTerminate a 1 notRunning"])
+        #expect(sut.run(of: "a")?.failed == true)
+        #expect(sut.run(of: "b")?.failed == false)
     }
 
     @Test("a run asked to unload again as it terminates tells nothing more")
     func terminatingRunUnloadsOnce() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
+        let sut = Runner()
         try launch(["a"], with: sut)
         _ = try sut.unload(["a"])
 
@@ -184,204 +130,115 @@ struct RunnerTests {
 
         // Then
         #expect(again.isEmpty)
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "kill a"])
     }
 
-    @Test("a mod whose run has not ended is left as it is, and one that ended launches again in its sandbox")
+    @Test("a principal whose run launches or runs is left as it is, and one that ended launches again in its sandbox")
     func loadLaunchesOnlyWhatEnded() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
+        let sut = Runner()
         try launch(["a"], with: sut)
 
         // When
-        let running = try sut.load(["a"])
+        let running = try sut.load([.fixture("a")])
         _ = try sut.unload(["a"])
-        let terminating = try sut.load(["a"])
         _ = try sut.stopped("a", run: 1)
-        let ended = try sut.load(["a"])
+        let ended = try sut.load([.fixture("a")])
+        let launching = try sut.load([.fixture("a")])
 
         // Then
         #expect(running.isEmpty)
-        #expect(terminating.isEmpty)
         #expect(describe(ended) == ["tell willLaunch a 2 launching", "loadPage a"])
+        #expect(launching.isEmpty)
     }
 
-    @Test("what loads is the catalog as it was last read")
-    func lastReadLoads() throws {
+    @Test("a job loaded as its run terminates launches once that run has ended, in a new sandbox for a new revision")
+    func loadAsARunTerminatesLaunchesOnceItEnded() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        try write("b")
+        let sut = Runner()
+        try launch(["a", "b"], with: sut)
+        _ = try sut.unload(["a", "b"])
 
         // When
-        let effects = try sut.load(["a", "b"])
+        let terminating = try sut.load([.fixture("a"), .fixture("b", revision: "2")])
+        let a = try sut.stopped("a", run: 1)
+        let b = try sut.stopped("b", run: 1)
 
         // Then
-        #expect(describe(effects) == ["open a", "tell willLaunch a 1 launching", "loadPage a"])
+        #expect(terminating.isEmpty)
+        #expect(
+            describe(a) == ["tell didTerminate a 1 notRunning", "kill a", "tell willLaunch a 2 launching", "loadPage a"]
+        )
+        #expect(
+            describe(b) == [
+                "tell didTerminate b 1 notRunning",
+                "kill b",
+                "close b",
+                "open b",
+                "tell willLaunch b 2 launching",
+                "loadPage b"
+            ]
+        )
+        #expect(sut.job(of: "b")?.revision == "2")
     }
 
-    @Test("a mod removed closes once its run has ended, and loads no more")
-    func removedModCloses() throws {
+    @Test("a job loaded as its principal's run terminates is dropped as the principal unloads before that run ends")
+    func unloadDropsTheLoadKept() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
+        let sut = Runner()
         try launch(["a"], with: sut)
-        try FileManager.default.removeItem(at: source.appending(path: "a"))
+        _ = try sut.unload(["a"])
+        _ = try sut.load([.fixture("a")])
 
         // When
-        _ = catalog.read()
         let unloaded = try sut.unload(["a"])
         let stopped = try sut.stopped("a", run: 1)
-        let loaded = try sut.load(["a"])
 
         // Then
-        #expect(describe(unloaded) == ["tell willTerminate a 1 terminating", "stop a 1"])
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "close a"])
-        #expect(loaded.isEmpty)
+        #expect(unloaded.isEmpty)
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "kill a"])
     }
 
-    @Test("a mod whose code changed loads in a new sandbox once its old one has closed")
-    func updatedModOpensAgain() throws {
+    @Test("a sandbox stays once its run has ended, and closes as it is unloaded")
+    func unloadOfAnEndedRunCloses() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
+        let sut = Runner()
         try launch(["a"], with: sut)
-        try write("a", version: "1.1.0")
-
-        // When
-        _ = catalog.read()
         _ = try sut.unload(["a"])
-        let stopped = try sut.stopped("a", run: 1)
-        let loaded = try sut.load(["a"])
-
-        // Then
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "close a"])
-        #expect(describe(loaded) == ["open a", "tell willLaunch a 2 launching", "loadPage a"])
-    }
-
-    @Test("a sandbox whose run ended before its mod changed closes as the mod loads, or unloads")
-    func endedSandboxOfAChangedModCloses() throws {
-        // Given
-        try write("a")
-        try write("b")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        _ = try sut.load(["a", "b"])
-        _ = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
-        _ = try sut.crashed("b", run: 1, problem: "its page ended (crashed)")
-        try write("a", version: "1.1.0")
-        try FileManager.default.removeItem(at: source.appending(path: "b"))
+        _ = try sut.stopped("a", run: 1)
+        let kept = sut.jobs().map(\.principal)
 
         // When
-        _ = catalog.read()
-        let loaded = try sut.load(["a"])
-        let unloaded = try sut.unload(["b"])
+        let closed = try sut.unload(["a"])
 
         // Then
-        #expect(describe(loaded) == ["close a", "open a", "tell willLaunch a 2 launching", "loadPage a"])
-        #expect(describe(unloaded) == ["close b"])
+        #expect(kept == ["a"])
+        #expect(describe(closed) == ["close a"])
+        #expect(sut.jobs().isEmpty)
+        #expect(sut.run(of: "a") == nil)
     }
 
-    @Test("what a launching run's page read of its entry is kept, and a run past launching keeps what it has")
-    func launchingRunIsDescribed() throws {
+    @Test("a job of another revision than its principal's ended sandbox launches in a new one, its run counted on")
+    func newRevisionOpensANewSandbox() throws {
         // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        _ = try sut.load(["a"])
+        let sut = Runner()
+        try launch(["a"], with: sut)
+        _ = try sut.unload(["a"])
+        _ = try sut.stopped("a", run: 1)
 
         // When
-        let described = try sut.described("a", run: 1, summary: .object(["x": .string("1")]))
-        _ = try sut.started("a", run: 1)
-        let late = try sut.described("a", run: 1, summary: .object(["x": .string("")]))
+        let effects = try sut.load([.fixture("a", revision: "2")])
 
         // Then
-        #expect(describe(described) == ["keep a 1 "])
-        #expect(late.isEmpty)
-        #expect(try #require(sut.run(of: "a")).summary == .object([:]))
-    }
-
-    @Test("a running run contributes anew, what it contributes now in place of what it did, and one not running does not")
-    func runningRunJoins() throws {
-        // Given
-        try write("a")
-        let (sut, catalog) = try runner()
-        _ = catalog.read()
-        _ = try sut.load(["a"])
-        let joining = Contribution(exportedIn: 1, awaits: ["b": 1], layers: ["layer": .array([])])
-        let early = try sut.joined("a", run: 1, summary: .object([:]), contributions: joining)
-        _ = try sut.started("a", run: 1, exportedIn: 0)
-
-        // When
-        let joined = try sut.joined("a", run: 1, summary: .object(["x": .bool(true)]), contributions: joining)
-
-        // Then
-        let run = try #require(sut.run(of: "a"))
-        #expect(early.isEmpty)
-        #expect(describe(joined) == ["keep a 1 "])
-        #expect(run.summary == .object(["x": .bool(true)]))
-        #expect(run.contributions?.exportedIn == 1)
-        #expect(run.contributions?.awaits == ["b": 1])
-        #expect(run.contributions?.layers == ["layer": .array([])])
+        #expect(describe(effects) == ["close a", "open a", "tell willLaunch a 2 launching", "loadPage a"])
+        #expect(sut.job(of: "a")?.revision == "2")
     }
 
     // MARK: - Private
-    private func runner() throws -> (Runner, Catalog) {
-        let store = Store()
-        let reader = try ManifestReader(
-            api: try #require(Version("1.0.0")),
-            permissions: [],
-            fields: [],
-            store: store
-        )
-        let modFolder = ModFolder(reader: reader, store: store)
-        let folder = home.appending(path: "mods")
-        let catalog = Catalog(
-            folder: folder,
-            sources: [source],
-            ship: [],
-            modFolder: modFolder,
-            dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
-            installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
-            store: store
-        )
-
-        return (Runner(catalog: catalog), catalog)
-    }
-
-    private func write(
-        _ id: String,
-        version: String = "1.0.0",
-        main: String? = "main.js",
-        requires: [String: String] = [:]
-    ) throws {
-        let location = source.appending(path: id)
-        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let dependencies = requires.isEmpty
-            ? ""
-            : "\n[dependencies]\n" + requires.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
-        let text = """
-            id = "\(id)"
-            version = "\(version)"
-            api = "1.0.0"
-            main = "\(main ?? "missing.js")"
-            """ + dependencies
-        try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
-        if let main {
-            try Data().write(to: location.appending(path: main))
-        }
-    }
-
-    // Each mod launches and starts in turn, so it loads while what it requires runs.
+    // Each principal loads and starts in turn.
     private func launch(_ ids: [String], with sut: Runner) throws {
         for id in ids {
-            _ = try sut.load([id])
+            _ = try sut.load([.fixture(id)])
             _ = try sut.started(id, run: try #require(sut.run(of: id)).number)
         }
     }

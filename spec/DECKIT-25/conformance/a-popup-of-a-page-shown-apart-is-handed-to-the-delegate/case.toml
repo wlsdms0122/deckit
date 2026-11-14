@@ -1,0 +1,45 @@
+case = 11
+name = "a-popup-of-a-page-shown-apart-is-handed-to-the-delegate"
+note = "A popup of a page shown apart is handed to the delegate's openWindow, as one of a page laid in the mod's page is. A press on opener.html of site-a, shown apart, calls window.open(\"/child.html\"), in a page whose delegate takes every popup."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { openWindow = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/opener.html"
+apart = true
+
+[[step]]
+input = "activate"
+mod = "mod-a"
+of = 2
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+part = "method"
+
+[step.expect]
+answers = ["openWindow"]
+
+[[step]]
+look = "requested"
+
+[step.expect]
+answers = [{ site = "site-a", method = "GET", path = "/opener.html", headers = [] }, { site = "site-a", method = "GET", path = "/child.html", headers = [] }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

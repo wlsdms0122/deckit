@@ -1,0 +1,24 @@
+case = 3
+name = "a-launch-answers-once-the-promise-start-answered-is-fulfilled"
+note = "The system's lifecycle has started once the promise start answered is fulfilled, and only then is the run running. The start of mod-b waits, then hands the host an address, then fulfils its promise, so once the launch mod-a asks for is answered the host has been handed it."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.launch"
+args = ["mod-b"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://example.com/started", activates = true }]

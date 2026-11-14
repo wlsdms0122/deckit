@@ -1,0 +1,32 @@
+case = 5
+name = "a-requirement-of-another-type-is-refused"
+note = "An install is refused at call with kind NOT_LOADABLE where a requirement is not a string. mod-c depends on mod-b 1, a number."
+
+[host]
+base = "system"
+api = "1.0.0"
+owners = ["deckit/packages"]
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["deckit/packages"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "install"
+handed = true
+folders = ["mod-c"]
+args = [{ dryRun = true }]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_LOADABLE"

@@ -1,6 +1,6 @@
 # deckit
 
-A library a host app embeds to take mods, the way a game does. It runs mods and composes what they add to the app: views, commands, keys, URL scheme handlers, libraries for other mods, extensions of what other mods do, new looks for their pages and work in the app's main process. It is three layers: deck, the engine, which knows nothing of a screen; deckit, the platform on deck (the web, windows, keys, commands, opening addresses, main process modules); and a shell, the surface a person uses. Deckit's own shell is the panel and the kit mods draw with; deckit runs its mods whether or not a host app puts it on, so a host app may leave it off. Deckit has its own mods too (Switcher, Editor, Finder, Notes, Browser, Calendar, Bot, Settings, and Deckit, which offers what a person asks of deck itself in the switcher). Where the panel is shown is the host app's. Deckit.app is deckit embedded by itself.
+A library a host app embeds to run mods. A mod is what a person adds to the app: a window or a view, keys, what it declares to other mods' interfaces, exports for the mods that use it, a new look for other mods' pages and work in the app's main process. Deckit is built in layers: the environment, the driver, which deck and deckit run on in Electron; deck, the kernel, which runs principals' jobs in sandboxes and knows no mod; Deckit, the system services and policy: what a mod is, installing it, which mods launch and when, and the platform services a mod reaches; the system mods, the services, which provide commands, keys, configuration, opening addresses and notifications as interfaces; and the Deckit Shell, the desktop: the mods' windows, the Dock and the kit mods draw with. Deckit runs its mods whether or not a host app attaches the shell. Deckit has its own mods too (Switcher, Editor, Finder, Notes, Browser, Calendar, Bot, Forge, Notifications, Mods, Packages, Settings, Commands, Configuration, Keymap, URLs, and Deckit, which offers what a person asks of deckit itself in the switcher). Where the desktop is shown is the host app's. Deckit.app is deckit embedded by itself.
 
 Deckit is `source/deckit` and the documents it ships, whole by itself. This package around it, `manifest.toml` and `source/cli`, is the commands below, which check, build, run and ship it.
 
@@ -10,7 +10,7 @@ Deckit is `source/deckit` and the documents it ships, whole by itself. This pack
 source/cli/deckit build
 ```
 
-writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the bundles of deck and deckit and of the shell, the core (built with Swift 6.3 or later), `deckit.json`, the documents a host app reads, and deckit's own mods, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources, built with the same Swift, make the same archive, byte for byte.
+writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the bundles of the environment and of deckit-shell, the core (built with Swift 6.3 or later), `deckit.json`, the documents a host app reads, and deckit's own mods, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources, built with the same Swift, make the same archive, byte for byte.
 
 ```
 source/cli/deckit build app
@@ -32,6 +32,6 @@ makes `.build/Deckit.app` from it too, the way any host app embeds it. Deckit ke
 
 - [ARCHITECTURE.md](document/ARCHITECTURE.md): how deckit is built, and why
 - [EMBEDDING.md](document/EMBEDDING.md): what a host app embeds, and how
-- [MOD.md](document/MOD.md): writing a mod: the manifest, what a mod registers and what `deck` gives it
+- [MOD.md](document/MOD.md): writing a mod: the manifest, what a mod registers and what its handles give it
 - [UI.md](document/UI.md): the kit mods draw with, part by part
 - [GUIDELINES.md](document/GUIDELINES.md): what shape a mod takes and where its features go: its view, the sidebar, the switcher, keys, settings and notifications

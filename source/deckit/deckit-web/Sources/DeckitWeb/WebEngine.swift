@@ -11,8 +11,9 @@ import CNodeAPI
 
 // The pages, windows and stages the module made, each by an id of its own, and what JavaScript does to them and to
 // the pages' data stores (Export).
-// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, clearWhileBlank, fullSpeed, takesKeyboard },
-//   emit) -> id` (WebPage), `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document
+// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, clearWhileBlank, fullSpeed, takesKeyboard,
+//   scripts }, emit) -> id` (WebPage), `scripts` those its documents start with, as `run` takes them, set before
+//   its view is made, `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document
 //   does not, as do the windows it opens, `clearWhileBlank` so until it commits its first page, `fullSpeed` running off
 //   screen or covered as on it, `takesKeyboard` false having the keyboard only as it is given it or pressed, as do the
 //   windows it opens; `load(id, url)`; `go(id, to)`; `focus(id)`;
@@ -30,7 +31,8 @@ import CNodeAPI
 //   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
 //   `windowState(id) -> { fullScreen, zoomed }`; `windowSize(id)`, `setWindowSize(id, size)`, its content's;
 //   `setTitle(id, title)`; `setColor(id, color)`; `keyWindow()`, the window with the keyboard, or null;
-//   `doubleClickTitleBar(id)`; `drag(id)`, moved by the press of the mouse under way, false where none is;
+//   `doubleClickTitleBar(id)`, as `actionOnDoubleClick()` says, what the person set a double click on a title bar to
+//   do: `zoom`, `minimize` or `none`; `drag(id)`, moved by the press of the mouse under way, false where none is;
 //   `previewFile(id, file, title)` and `closeFilePreview(id)`, Quick Look's panel over the window;
 //   `showOpenDialog(id, options) -> Promise of the paths chosen, none when cancelled` and
 //   `showSaveDialog(id, options) -> Promise of the path, or null`, as a sheet on it, `options` NSOpenPanel's (dress).
@@ -40,8 +42,9 @@ import CNodeAPI
 //   from outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
 //   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
-//   clip, input } | { page, hidden: true }])`, `clip` a rect on the stage the page is cut to, `input` the rects in the
-//   page that take the pointer, all of it without; `showStage(id, on)`;
+//   clips, input } | { page, hidden: true }])`, `clips` the rects on the stage the page is cut to, each
+//   `{ x, y, width, height, cornerRadius }`, `input` the rects in the page that take the pointer, all of it without;
+//   `showStage(id, on)`;
 //   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, and
 //   the view with the window's keyboard marked.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
@@ -77,20 +80,20 @@ final class WebEngine {
             return arguments[index]
         }
         let page = { () throws -> WebPage in
-            let id = Int(try self.node.number(try argument(0)))
+            let id = try self.node.integer(try argument(0))
             guard let page = self.pages[id] else { throw NodeError(message: "no web page \(id)") }
 
             return page
         }
         let string = { (index: Int) throws -> String in try self.node.string(try argument(index)) }
         let window = { (index: Int) throws -> Window in
-            let id = Int(try self.node.number(try argument(index)))
+            let id = try self.node.integer(try argument(index))
             guard let window = self.windows[id] else { throw NodeError(message: "no window \(id)") }
 
             return window
         }
         let stage = { () throws -> Stage in
-            let id = Int(try self.node.number(try argument(0)))
+            let id = try self.node.integer(try argument(0))
             guard let stage = self.stages[id] else { throw NodeError(message: "no stage \(id)") }
 
             return stage
@@ -125,18 +128,7 @@ final class WebEngine {
             return try node.make(try page().droppedFiles)
 
         case .run:
-            try page().run(try node.array(try argument(1)).map { script in
-                guard let source = try node.member(script, "source") else {
-                    throw NodeError(message: "a script needs its source")
-                }
-                let world = try node.member(script, "world").map { try node.string($0) }
-
-                return UserScript(
-                    source: try node.string(source),
-                    world: world.flatMap(UserScript.World.init) ?? .page,
-                    mainFrameOnly: try node.member(script, "mainFrameOnly").map { try node.bool($0) } ?? true
-                )
-            })
+            try page().run(try UserScript.read(node, try argument(1)))
 
         case .evaluate:
             let world = arguments.count > 2 && !node.isNothing(arguments[2]) ? try string(2) : "page"
@@ -161,7 +153,7 @@ final class WebEngine {
             let store = try storeOf(try string(0))
             let request = try WebRequest(try argument(1), in: node)
             let options = try argument(2)
-            guard let limit = try node.member(options, "limit").map({ Int(try node.number($0)) }) else {
+            guard let limit = try node.member(options, "limit").map({ try node.integer($0) }) else {
                 throw NodeError(message: "fetch takes { limit, applicationName, cookieLifetime }")
             }
             let applicationName = try node.member(options, "applicationName").map { try node.string($0) } ?? ""
@@ -197,7 +189,7 @@ final class WebEngine {
             pages[closed.id] = nil
 
         case .cancelDownload:
-            downloads[Int(try node.number(try argument(0)))]?.cancel()
+            downloads[try node.integer(try argument(0))]?.cancel()
 
         case .safariVersion:
             let version = Bundle(path: "/Applications/Safari.app")?
@@ -249,6 +241,9 @@ final class WebEngine {
 
         case .keyWindow:
             return try node.make(windows.values.first { $0.window.isKeyWindow }?.id)
+
+        case .actionOnDoubleClick:
+            return try node.make(Window.actionOnDoubleClick.rawValue)
 
         case .doubleClickTitleBar:
             try window(0).doubleClickTitleBar()
@@ -381,19 +376,25 @@ final class WebEngine {
         case .layStage:
             try stage().lay(try node.array(try argument(1)).map { layer in
                 guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
-                let page = Int(try node.number(id))
+                let page = try node.integer(id)
                 guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
                 if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
-                    return (laid, nil, nil, nil)
+                    return (laid, nil, [], nil)
                 }
                 guard let frame = try node.member(layer, "frame") else {
-                    throw NodeError(message: "a layer is { page, frame, clip, input } or { page, hidden: true }")
+                    throw NodeError(message: "a layer is { page, frame, clips, input } or { page, hidden: true }")
                 }
+                let clips = try node.member(layer, "clips").map { try node.array($0) } ?? []
 
                 return (
                     laid,
                     try node.rect(frame),
-                    try node.member(layer, "clip").map { try node.rect($0) },
+                    try clips.map { clip in
+                        Stage.Clip(
+                            rect: try node.rect(clip),
+                            cornerRadius: try node.member(clip, "cornerRadius").map { try node.number($0) } ?? 0
+                        )
+                    },
                     try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } }
                 )
             })
@@ -431,9 +432,11 @@ final class WebEngine {
         let clear = try node.member(options, "clear").map { try node.bool($0) } ?? false
         let clearWhileBlank = try node.member(options, "clearWhileBlank").map { try node.bool($0) } ?? false
         let takesKeyboard = try node.member(options, "takesKeyboard").map { try node.bool($0) } ?? true
+        let scripts = try node.member(options, "scripts").map { try UserScript.read(node, $0) } ?? []
 
         return adopt(
             configuration,
+            scripts,
             emitter,
             clear: clear,
             clearWhileBlank: clearWhileBlank,
@@ -456,6 +459,7 @@ final class WebEngine {
     // the page that opened it is.
     private func adopt(
         _ configuration: WKWebViewConfiguration,
+        _ scripts: [UserScript],
         _ emitter: Emitter,
         clear: Bool,
         clearWhileBlank: Bool,
@@ -466,12 +470,14 @@ final class WebEngine {
         let page = WebPage(
             id: lastID,
             configuration: configuration,
+            scripts: scripts,
             emitter: emitter,
-            adopt: { [weak self] configuration, emitter in
+            adopt: { [weak self] configuration, scripts, emitter in
                 guard let self else { fatalError("a web page outlived the module") }
 
                 return adopt(
                     configuration,
+                    scripts,
                     emitter,
                     clear: clear,
                     clearWhileBlank: clearWhileBlank,
@@ -540,7 +546,7 @@ final class WebEngine {
     }
 
     private func window(at value: napi_value) throws -> Window {
-        let id = Int(try node.number(value))
+        let id = try node.integer(value)
         guard let window = windows[id] else { throw NodeError(message: "no window \(id)") }
 
         return window

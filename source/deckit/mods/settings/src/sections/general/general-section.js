@@ -1,8 +1,9 @@
 const { section } = require('../section/section.js');
 
 // The General section, what every mod follows: the face text is in and its size, which a page's text wears where
-// nothing chooses another and a mod's own font settings follow while they are Default. `theme` is shell.theme, `fonts`
-// shell.fonts. A change that did not apply is told in a toast.
+// nothing chooses another and a mod's own font settings follow while they are Default. `theme` is shell.theme, whose
+// `fonts` are the ones the person chose, and `fonts` shell.fonts, which changes them. A change that did not apply is
+// told in a toast.
 function generalSection({ ui, theme, fonts }) {
     const TITLE = 'General';
     const KEYWORDS = ['일반', '글꼴', '폰트', '글자 크기', 'general', 'fonts', 'font size', 'typeface'];
@@ -30,7 +31,7 @@ function generalSection({ ui, theme, fonts }) {
 
     // The faces installed are read again, so a face installed since is offered.
     function draw() {
-        show(fonts.get());
+        show(theme.fonts);
     }
 
     // The size shown is the one text is in now, the default's where none was chosen.
@@ -75,11 +76,13 @@ function generalSection({ ui, theme, fonts }) {
         return row;
     }
 
-    // The controls show what was kept.
+    // The fonts are set whole, the one changed and the other as it is; the controls show what was kept.
     async function change(key, value) {
         rows[key].set(value);
+        const next = { ...theme.fonts, [key]: value };
+        if (value === DEFAULT) delete next[key];
         try {
-            show(await fonts.set({ [key]: value === DEFAULT ? null : value }));
+            show(await fonts.set(next));
         } catch (error) {
             draw();
             ui.toast('Could not change the fonts: ' + error.message);

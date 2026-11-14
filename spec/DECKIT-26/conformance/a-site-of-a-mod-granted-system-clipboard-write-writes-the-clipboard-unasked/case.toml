@@ -1,0 +1,44 @@
+case = 10
+name = "a-site-of-a-mod-granted-system-clipboard-write-writes-the-clipboard-unasked"
+note = "clipboard-write, of the rule allow, is let a site of a mod granted system.clipboard-write, unasked, and writes the clipboard the mod's handle reads. site-a writes from site-a as its page loads, and mod-a reads the clipboard."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+delegate = { decidePermission = false }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "title"
+
+[step.expect]
+answers = "written"
+
+[[step]]
+look = "delegated"
+mod = "mod-a"
+
+[step.expect]
+answers = []
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "clipboard.readText"
+
+[step.expect]
+answers = "from site-a"

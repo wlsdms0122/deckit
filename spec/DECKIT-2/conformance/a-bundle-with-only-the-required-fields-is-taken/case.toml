@@ -1,0 +1,27 @@
+case = 1
+name = "a-bundle-with-only-the-required-fields-is-taken"
+note = "A manifest that writes id, version, api and main, each in its form, is taken. What it does not write is answered empty, and its name is its id."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect.answers]
+id = "mod-a"
+name = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+provides = {}
+uses = {}
+permissions = []
+contributes = {}
+fields = {}

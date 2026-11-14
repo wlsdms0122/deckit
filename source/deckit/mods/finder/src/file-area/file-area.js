@@ -213,7 +213,7 @@ function fileArea({
         return tabs.location() && !isLoading() ? { folder: workingFolder(), mark: element } : null;
     }
 
-    // The row a press on `under` drags: in columns any of it, in the list its icon and name, as in macOS Finder.
+    // The row a press on `under` drags: in columns any of it, in the list its icon and name.
     function draggableRowAt(under) {
         if (view === 'columns') return under.closest('[data-path]');
         return under.closest('.finder-list-name > *')?.closest('[data-path]') ?? null;

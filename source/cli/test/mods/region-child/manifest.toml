@@ -3,6 +3,8 @@ name = "Region Child"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+activationPolicy = "accessory"
+view = { parent = "region-parent/boards" }
 
-[dependencies]
-region-parent = { version = "1.0.0", optional = true }
+[interfaces]
+uses = { "region-parent/boards" = 1 }

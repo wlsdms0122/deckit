@@ -1,0 +1,29 @@
+case = 17
+name = "resize-sizes-an-overlay-window"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. resize sizes a window at the level overlay, its top left where it was: mod-a, granted system.overlay-windows, resizes f to 300 by 300."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "resize", name = "f", args = [300, 300] }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "f", level = "overlay", frame = { x = 540, y = 160, width = 300, height = 300 }, key = false, minimized = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/f/didAppear", activates = true }, { url = "https://said.test/f/didResize", activates = true }]

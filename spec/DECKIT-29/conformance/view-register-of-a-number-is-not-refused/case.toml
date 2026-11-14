@@ -1,0 +1,18 @@
+case = 15
+name = "view-register-of-a-number-is-not-refused"
+note = "A registration is never refused: view.register, handed a number, answers nothing."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "view.register"
+handle = "shell"
+args = [5]

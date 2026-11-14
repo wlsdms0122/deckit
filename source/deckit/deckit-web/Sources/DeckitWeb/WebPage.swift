@@ -12,14 +12,17 @@ import CNodeAPI
 
 // A page on WebKit, laid on a stage, which tells JavaScript what becomes of it and asks it what to do: `emit(event,
 // payload)`. Told: `adopted` ({ id }) first, then `changed` (its state), `started`, `committed` ({ url }), `stopped`,
-// `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body }), what
-// deckit's own scripts post, and `external` ({ url }), an address of an app's the page asked to go to. Asked, answered
-// at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow, background }), a function to hear the page
-// given for the window, or nothing for none; `download` ({ url }), a function to hear the download (WebDownload), or
-// nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a key
-// taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted though
-// the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }), and, for a
-// page made with a scheme of its own, `request` (SchemeHandler).
+// `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body, origin, main,
+// evaluate, answer }), what deckit's own scripts post in a frame (received), and `external` ({ url, origin }), an
+// address of an app's the page asked to go to. Asked, answered at once: `navigate` ({ url }), "load" to let it; `open`
+// ({ url, ownWindow, background, width, height, origin }), `{ listener, scripts }` for the page given for the window,
+// `listener` a function to hear it and `scripts` those its documents start with, as `run` takes them, or nothing for
+// none, each `origin` the frame's that asks (origin(of:)); `download` ({ url }), a function to hear the
+// download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a
+// key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
+// though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
+// `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle, true for
+// one taken from the rest of the app, and, for a page made with a scheme of its own, `request` (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -34,24 +37,30 @@ final class WebPage: NSObject {
     let id: Int
     let view: WebPageView
     private let emitter: Emitter
-    private let adopt: @MainActor (WKWebViewConfiguration, Emitter) -> WebPage
+    private let adopt: @MainActor (WKWebViewConfiguration, [UserScript], Emitter) -> WebPage
     private let keep: @MainActor (WKDownload, Emitter) -> Void
     private var observations: [NSKeyValueObservation] = []
     // The address JavaScript asked to load, which asked deck before: its navigation is not asked again.
     private var requested: URL?
 
     // MARK: - Initializer
-    // `configuration` is the page's, WebKit's own for a window a page opened. `adopt` makes the page for such a window,
-    // and `keep` keeps a download the page started, heard by the emitter JavaScript gave for it.
+    // `configuration` is the page's, WebKit's own for a window a page opened, and `scripts` those every document of the
+    // page starts with, as `run` sets them. `adopt` makes the page for such a window, and `keep` keeps a download the
+    // page started, heard by the emitter JavaScript gave for it.
     init(
         id: Int,
         configuration: WKWebViewConfiguration,
+        scripts: [UserScript],
         emitter: Emitter,
-        adopt: @escaping @MainActor (WKWebViewConfiguration, Emitter) -> WebPage,
+        adopt: @escaping @MainActor (WKWebViewConfiguration, [UserScript], Emitter) -> WebPage,
         keep: @escaping @MainActor (WKDownload, Emitter) -> Void
     ) {
-        // A window's configuration is its opener's copy, whose scripts and handlers are the opener's.
+        // A window's configuration is its opener's copy, whose scripts and handlers are the opener's. The page's own
+        // are set before the view is made, so the blank document a window opened at a blank address shows, which its
+        // opener can script at once, starts with them; WebKit runs none in the empty one a window opened at another
+        // address has until that address commits.
         configuration.userContentController = WKUserContentController()
+        Self.add(scripts, to: configuration.userContentController)
         configuration.preferences.isElementFullscreenEnabled = true
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         let view = WebPageView(frame: .zero, configuration: configuration)
@@ -62,7 +71,7 @@ final class WebPage: NSObject {
         self.adopt = adopt
         self.keep = keep
         super.init()
-        configuration.userContentController.add(
+        configuration.userContentController.addScriptMessageHandler(
             MessageRelay(to: self),
             contentWorld: Self.deckitWorld,
             name: Self.messages
@@ -106,8 +115,11 @@ final class WebPage: NSObject {
         emitter.emit("adopted", ["id": id])
     }
 
+    // The load under way is stopped first: WebKit drops a load asked while a cross-site one is still provisional, and
+    // the page is left loading what it had.
     func load(_ url: URL) {
         requested = url
+        view.stopLoading()
         view.load(URLRequest(url: url))
     }
 
@@ -138,46 +150,52 @@ final class WebPage: NSObject {
     func run(_ scripts: [UserScript]) {
         let controller = view.configuration.userContentController
         controller.removeAllUserScripts()
-        for script in scripts {
-            controller.addUserScript(WKUserScript(
-                source: script.source,
-                injectionTime: .atDocumentStart,
-                forMainFrameOnly: script.mainFrameOnly,
-                in: script.world == .page ? .page : Self.deckitWorld
-            ))
-        }
+        Self.add(scripts, to: controller)
     }
 
     // What a key does, asked of JavaScript before the page has it.
     func pressed(_ event: NSEvent) -> Bool {
-        let flags = event.modifierFlags
-        let payload: [String: Any?] = [
-            "type": event.type == .keyDown ? "keyDown" : "keyUp",
-            "code": KeyCode(event.keyCode).name,
-            "key": event.charactersIgnoringModifiers ?? "",
-            "meta": flags.contains(.command),
-            "control": flags.contains(.control),
-            "alt": flags.contains(.option),
-            "shift": flags.contains(.shift)
-        ]
+        var payload = Self.keystroke(of: event)
+        payload["type"] = event.type == .keyDown ? "keyDown" : "keyUp"
 
         return emitter.emit("key", payload) { node, value in try node.bool(value) } ?? false
+    }
+
+    // What a key pressed that the page did not handle does, asked of JavaScript after the page had it: whether it is
+    // taken from the rest of the app. Until JavaScript answers, the app does not have it; one answered later and not
+    // taken goes to the app's menu.
+    func unhandled(_ event: NSEvent) -> Bool {
+        let answer = KeyAnswer()
+        let reply = Reply { node, arguments in
+            guard answer.taken == nil else { return }
+            let taken = try arguments.first.map { try node.bool($0) } ?? false
+            answer.taken = taken
+            if !answer.asking && !taken { NSApp.mainMenu?.performKeyEquivalent(with: event) }
+        }
+        var payload = Self.keystroke(of: event)
+        payload["reply"] = reply
+        emitter.emit("unhandled", payload)
+        answer.asking = false
+
+        return answer.taken ?? true
     }
 
     func pointed(_ event: NSEvent) {
         emitter.emit("mouse", ["type": event.type == .leftMouseDown ? "mouseDown" : "mouseUp"])
     }
 
-    // The value of `source`, a function body that may await, as JSON, run in the page's world or deckit's.
+    // The value of `source`, a function body that may await, as JSON, run in the page's world or deckit's, in the main
+    // frame or in `frame`.
     func evaluate(
         _ source: String,
         in world: UserScript.World,
+        frame: WKFrameInfo? = nil,
         done: @escaping @MainActor (Result<String, Error>) -> Void
     ) {
         view.callAsyncJavaScript(
             "return JSON.stringify(await (async () => { \(source) })()) ?? 'null'",
             arguments: [:],
-            in: nil,
+            in: frame,
             in: world == .page ? .page : Self.deckitWorld
         ) { result in
             MainActor.assumeIsolated {
@@ -235,13 +253,70 @@ final class WebPage: NSObject {
         emitter.release()
     }
 
-    // What deckit's scripts post, as text.
-    func received(_ body: Any) {
-        guard let text = body as? String else { return }
-        emitter.emit("message", ["body": text])
+    // What deckit's scripts post, as text, from any frame of the page, and the reply its post's promise takes: told
+    // with the frame's origin, whether it is the main frame, `evaluate(source, world)`, which runs `source` in that
+    // frame as `evaluate` does, its value dropped, and `answer(text)`, the reply, nothing for null. JavaScript answers
+    // true for one it answers later; any other is replied null at once. A reply runs no script, so it gives the page
+    // no user gesture, as `evaluate` gives it one (WebKit's own).
+    func received(
+        _ body: Any,
+        from frame: WKFrameInfo,
+        reply: @escaping @MainActor @Sendable (Any?, String?) -> Void
+    ) {
+        guard let text = body as? String else { return reply(nil, nil) }
+        var replied = false
+        let answer = Reply { node, arguments in
+            guard !replied else { return }
+            let value = try arguments.first.flatMap { node.isNothing($0) ? nil : try node.string($0) }
+            replied = true
+            reply(value, nil)
+        }
+        let evaluate = Reply { [weak self] node, arguments in
+            guard let source = try arguments.first.map({ try node.string($0) }) else { return }
+            let world = try arguments.dropFirst().first.flatMap { node.isNothing($0) ? nil : try node.string($0) }
+            self?.evaluate(source, in: world.flatMap(UserScript.World.init) ?? .page, frame: frame) { _ in }
+        }
+        let later = emitter.emit("message", [
+            "body": text,
+            "origin": Self.serialized(frame.securityOrigin),
+            "main": frame.isMainFrame,
+            "evaluate": evaluate,
+            "answer": answer
+        ]) { node, value in try node.bool(value) } ?? false
+        if !later && !replied {
+            replied = true
+            reply(nil, nil)
+        }
     }
 
     // MARK: - Private
+    // The origin of the frame whose document starts `action`, serialized, or nothing for one no frame starts, such as
+    // a load JavaScript asks for: WebKit then gives no `sourceFrame`, though it declares one, so it is read by its key.
+    private static func origin(of action: WKNavigationAction) -> String? {
+        (action.value(forKey: "sourceFrame") as? WKFrameInfo).map { serialized($0.securityOrigin) }
+    }
+
+    // An origin as the URL Standard serializes it: `null` for an opaque one, which has no scheme.
+    private static func serialized(_ origin: WKSecurityOrigin) -> String {
+        guard !origin.protocol.isEmpty else { return "null" }
+        let port = origin.port == 0 ? "" : ":\(origin.port)"
+
+        return "\(origin.protocol)://\(origin.host)\(port)"
+    }
+
+    private static func keystroke(of event: NSEvent) -> [String: Any?] {
+        let flags = event.modifierFlags
+
+        return [
+            "code": KeyCode(event.keyCode).name,
+            "key": event.charactersIgnoringModifiers ?? "",
+            "meta": flags.contains(.command),
+            "control": flags.contains(.control),
+            "alt": flags.contains(.option),
+            "shift": flags.contains(.shift)
+        ]
+    }
+
     private func observe() {
         let told: @MainActor () -> Void = { [weak self] in
             guard let self else { return }
@@ -281,6 +356,17 @@ final class WebPage: NSObject {
             "url": (error.userInfo[NSURLErrorFailingURLStringErrorKey] as? String) ?? view.url?.absoluteString ?? ""
         ])
         emitter.emit("stopped")
+    }
+
+    private static func add(_ scripts: [UserScript], to controller: WKUserContentController) {
+        for script in scripts {
+            controller.addUserScript(WKUserScript(
+                source: script.source,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: script.mainFrameOnly,
+                in: script.world == .page ? .page : deckitWorld
+            ))
+        }
     }
 
     // A function JavaScript answered with, to hear what it was given, or nil for anything else.
@@ -340,7 +426,7 @@ extension WebPage: WKNavigationDelegate {
             webView.configuration.urlSchemeHandler(forURLScheme: scheme) == nil
         {
             decisionHandler(.cancel)
-            emitter.emit("external", ["url": url.absoluteString])
+            emitter.emit("external", ["url": url.absoluteString, "origin": Self.origin(of: navigationAction)])
             return
         }
         if navigationAction.shouldPerformDownload {
@@ -464,11 +550,17 @@ extension WebPage: WKUIDelegate {
             "ownWindow": windowFeatures.width != nil || windowFeatures.height != nil,
             "background": navigationAction.modifierFlags.contains(.command),
             "width": windowFeatures.width?.doubleValue,
-            "height": windowFeatures.height?.doubleValue
+            "height": windowFeatures.height?.doubleValue,
+            "origin": Self.origin(of: navigationAction)
         ]
-        let heard: Emitter? = emitter.emit("open", payload, read: Self.listener)
-        guard let heard else { return nil }
-        let page = adopt(configuration, heard)
+        let given: (Emitter, [UserScript])? = emitter.emit("open", payload) { node, value in
+            guard !node.isNothing(value), let listener = try node.member(value, "listener") else { return nil }
+            guard let heard = try Self.listener(node, listener) else { return nil }
+
+            return (heard, try node.member(value, "scripts").map { try UserScript.read(node, $0) } ?? [])
+        }
+        guard let (heard, scripts) = given else { return nil }
+        let page = adopt(configuration, scripts, heard)
         // Its first load is the window deck was asked for.
         page.requested = navigationAction.request.url
         page.announce()
@@ -492,19 +584,17 @@ extension WebPage: WKUIDelegate {
         case .microphone: ["microphone"]
         default: ["camera", "microphone"]
         }
-        let port = origin.port == 0 ? "" : ":\(origin.port)"
-        var answered = false
-        let reply = Reply { node, arguments in
-            guard !answered else { return }
-            answered = true
-            let granted = try arguments.first.map { try node.bool($0) } ?? false
-            decisionHandler(granted ? .grant : .deny)
-        }
-        emitter.emit("permission", [
-            "origin": "\(origin.protocol)://\(origin.host)\(port)",
-            "permissions": permissions,
-            "reply": reply
-        ])
+        askPermission(frame.securityOrigin, permissions, decisionHandler)
+    }
+
+    @available(macOS 27.0, *)
+    func webView(
+        _ webView: WKWebView,
+        requestGeolocationPermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
+    ) {
+        askPermission(frame.securityOrigin, ["geolocation"], decisionHandler)
     }
 
     func webView(
@@ -547,4 +637,35 @@ extension WebPage: WKUIDelegate {
         alert.accessoryView = field
         dialog(alert) { response in completionHandler(response == .alertFirstButtonReturn ? field.stringValue : nil) }
     }
+}
+
+extension WebPage {
+    // MARK: - Private
+    // What a site asks for, by the web platform's names, put to JavaScript as `permission`: given on true, else
+    // refused. `origin` is the frame's that asks, as the web platform asks a frame's permission.
+    private func askPermission(
+        _ origin: WKSecurityOrigin,
+        _ permissions: [String],
+        _ decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
+    ) {
+        var answered = false
+        let reply = Reply { node, arguments in
+            guard !answered else { return }
+            answered = true
+            let granted = try arguments.first.map { try node.bool($0) } ?? false
+            decisionHandler(granted ? .grant : .deny)
+        }
+        emitter.emit("permission", [
+            "origin": Self.serialized(origin),
+            "permissions": permissions,
+            "reply": reply
+        ])
+    }
+}
+
+// What JavaScript answered of a key the page did not handle, and whether it is still being asked.
+@MainActor
+private final class KeyAnswer {
+    var taken: Bool?
+    var asking = true
 }

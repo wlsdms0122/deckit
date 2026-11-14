@@ -1,0 +1,22 @@
+case = 22
+name = "children-list-of-no-string-is-refused"
+note = "children.list is refused at call with INVALID_ARGUMENT where interface is no string: mod-a hands it the integer 5."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "children.list"
+handle = "shell"
+args = [5]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

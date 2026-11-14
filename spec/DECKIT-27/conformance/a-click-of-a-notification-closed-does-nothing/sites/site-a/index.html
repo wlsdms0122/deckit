@@ -1,0 +1,1 @@
+<!doctype html><title>Start</title><script>const on = (n) => { n.onshow = () => document.title += ' show'; n.onerror = () => document.title += ' error'; n.onclose = () => document.title += ' close'; n.onclick = () => document.title += ' click'; return n; };const n = on(new Notification('Hi')); n.addEventListener('show', () => n.close());</script>

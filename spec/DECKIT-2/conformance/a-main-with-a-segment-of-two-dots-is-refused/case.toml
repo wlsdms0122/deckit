@@ -1,0 +1,19 @@
+case = 1
+name = "a-main-with-a-segment-of-two-dots-is-refused"
+note = "A path's segment is never \"..\". A main that climbs out of the bundle and back into it, to a file that is there, is refused at read."
+
+[host]
+base = "system"
+api = "1.0.0"
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+
+[step.expect]
+refuses = "read"
+kind = "NOT_LOADABLE"

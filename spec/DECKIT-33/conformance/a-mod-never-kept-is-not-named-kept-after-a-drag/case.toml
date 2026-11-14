@@ -1,0 +1,28 @@
+case = 19
+name = "a-mod-never-kept-is-not-named-kept-after-a-drag"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. mod-c, marked system and granted deckit.mods, keeps the Dock through the handle shell. mod-d writes activationPolicy accessory, and the person drags mod-c's item onto mod-a's place: mods.usage of mod-d names nothing under kept."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-d", "mod-c"]
+system = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "dock"
+mod = "mod-c"
+action = "drag"
+to = "mod-a"
+
+[[step]]
+input = "call"
+mod = "mod-c"
+member = "mods.usage"
+args = ["mod-d"]
+part = "kept"
+
+[step.expect]
+answers = []

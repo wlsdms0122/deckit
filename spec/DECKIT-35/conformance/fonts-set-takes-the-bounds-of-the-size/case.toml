@@ -1,0 +1,31 @@
+case = 15
+name = "fonts-set-takes-the-bounds-of-the-size"
+note = "The size of the fonts is an integer from 11 to 22, both taken: mod-a sets { size = 11 }, then { size = 22 }, answered { size = 22 }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 11 }]
+
+[step.expect]
+answers = { size = 11 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fonts.set"
+handle = "shell"
+args = [{ size = 22 }]
+
+[step.expect]
+answers = { size = 22 }

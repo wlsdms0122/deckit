@@ -17,41 +17,50 @@ import Deckit
 struct GoldenTests {
     // MARK: - Property
     private static let refusals: [(any Refusal, String)] = [
-        (ErasureError.notAMod("x"), "MOD"),
+        (ErasureError.notAPrincipal("x"), "INVALID_ARGUMENT"),
+        (EventError.reserved("x/api:owner-changed"), "NOT_PERMITTED"),
         (ConnectionError.notRunning("a"), "NOT_RUNNING"),
-        (ConnectionError.ended, "ENDED_CONNECTION"),
-        (ConnectionError.notAnEnd(mod: "a"), "NOT_AN_END"),
-        (InstallError.notLoadable("p"), "NOT_LOADABLE"),
-        (InstallError.installedThere, "INSTALLED_THERE"),
+        (ConnectionError.ended, "ENDED"),
+        (ConnectionError.notAnEnd(principal: "a"), "NOT_AN_END"),
+        (ConnectionError.lifecycleEnded(Endpoint(principal: "a", run: 1, lifecycle: 0)), "ENDED"),
+        (ConnectionError.ownId("a"), "INVALID_ARGUMENT"),
+        (ConnectionError.outOfReach(principal: "b", client: "a"), "NOT_PERMITTED"),
+        (ConnectionError.notExported(name: "b", principal: "b"), "NOT_EXPORTED"),
+        (ConnectionError.unsupportedVersion(name: "b/api", principal: "b", major: 2), "UNSUPPORTED_VERSION"),
         (InstallError.nested, "NESTED"),
-        (InstallError.occupied(id: "a", folder: "/a"), "OCCUPIED"),
-        (InstallError.refused("p"), "REFUSED"),
         (InstallError.notInstalled("a"), "NOT_INSTALLED"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
-        (LoadOrderError.requiredLater(mod: "b", requirement: "a"), "REQUIRED_LATER"),
-        (LoadOrderError.unreadable("deck.json"), "UNREADABLE"),
-        (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
+        (LaunchError.notPermitted(mod: "a", permission: "deckit.mods"), "NOT_PERMITTED"),
+        (LaunchError.notInstalled("a"), "NOT_INSTALLED"),
+        (LaunchError.relaunchLimit("a"), "RELAUNCH_LIMIT"),
+        (LaunchError.timedOut(mod: "a", problem: "late"), "TIMED_OUT"),
+        (LaunchError.notLaunched(mod: "a", problem: "threw"), "NOT_LAUNCHED"),
+        (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
+        (PinError.notProvider(interface: "x/api", principal: "a"), "NOT_PROVIDER"),
+        (LifecycleError.transition(principal: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
+        (ModFolderError.notLoadable("p"), "NOT_LOADABLE"),
         (ManifestError.permissionDefined("p"), "PERMISSION"),
         (ManifestError.fieldDefined("f"), "FIELD"),
-        (ModStorageError.notAMod("x"), "MOD"),
-        (RecordError.notAKey("k"), "KEY"),
-        (ModStateError.notAName("N"), "NAME"),
-        (ModStateError.reserved("n"), "RESERVED"),
-        (StateError.notAKey("k"), "KEY"),
+        (PrincipalStorageError.notAPrincipal("x"), "INVALID_ARGUMENT"),
+        (RecordError.notAKey("k"), "INVALID_ARGUMENT"),
+        (RecordError.outOfSpace("k"), "QUOTA_EXCEEDED"),
+        (PrincipalStateError.notAName("N"), "NAME"),
+        (PrincipalStateError.reserved("n"), "RESERVED"),
+        (StateError.notAKey("k"), "INVALID_ARGUMENT"),
         (StateError.notAFolder("f"), "FOLDER"),
         (StateError.reserved("keys"), "RESERVED"),
-        (KeymapError.noSuchBinding("@app.x"), "SHORTCUT"),
-        (KeymapError.notAChord("x"), "CHORD"),
-        (KeymapError.cannotWork(label: "C", scope: .app), "REFUSED"),
-        (KeymapError.notAHost("x"), "REFUSED"),
-        (KeymapError.noLabel("k"), "REFUSED"),
-        (CommandError.noSuchCommand("a.c"), "COMMAND"),
-        (CommandError.arguments(command: "a.c", why: "w"), "ARGUMENTS"),
-        (CommandError.notAName("a.b"), "REFUSED"),
-        (ConfigurationError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
-        (ConfigurationError.notOfType(key: "k", type: .number), "TYPE"),
-        (ConfigurationError.notAChoice(key: "k", value: .string("v")), "CHOICE"),
-        (URLRouterError.noHandlers("x"), "SCHEME")
+    ]
+
+    private static let stages: [(any Refusal, String)] = [
+        (ModFolderError.notLoadable("p"), "read"),
+        (LaunchError.relaunchLimit("a"), "launch"),
+        (LaunchError.timedOut(mod: "a", problem: "late"), "launch"),
+        (LaunchError.notLaunched(mod: "a", problem: "threw"), "launch"),
+        (LaunchError.notPermitted(mod: "a", permission: "deckit.mods"), "call"),
+        (LaunchError.notInstalled("a"), "call"),
+        (InstallError.nested, "call"),
+        (InstallError.readInPlace(id: "a", folder: "/a"), "call"),
+        (RecordError.notAKey("k"), "call"),
     ]
 
     private let root = FileManager.default.temporaryDirectory.appending(path: "golden-tests-\(UUID().uuidString)")
@@ -64,12 +73,20 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "urls = [\"mailto:*\"]\n[permissions]\n\"system.global-keys\" = \"to test\"\n"
-                + "\"system.example\" = \"to test\""
+            adding: "icon = \"a.png\"\n[interfaces]\nprovides = { \"a/api\" = [1], \"a/own\" = [1] }\n[permissions]\n"
+                + "\"deckit.example\" = \"to test\"\n\"system.example\" = \"to test\"\n"
+                + "[[contributes.\"a/api\"]]\ntitle = \"Size\"\nsize = 12"
         )
-        try writeMod("b", in: "source", adding: "[dependencies]\na = \"1.0.0\"")
-        try writeMod("c", in: "ship")
+        try writeMod("b", in: "source", adding: "[interfaces]\nuses = { \"a/api\" = 1, \"a/own\" = 1 }")
+        try writeMod(
+            "c",
+            in: "ship",
+            adding: "background = \"to test\"\n[interfaces]\nprovides = { \"a/api\" = [1] }\n[permissions]\n"
+                + "\"deckit.privileged\" = \"to test\"\n\"deckit.reach-mods\" = \"to test\"\n\"deckit.mods\" = \"to test\""
+        )
+        try writeMod("f", in: "source", adding: "colour = \"blue\"")
         try writeMod("d", in: "spare")
+        try writeMod("e", in: "spare", adding: "[permissions]\n\"deckit.privileged\" = \"to test\"")
         let requests = try lines(of: "session")
         let pinned = try lines(of: "answers")
         let sut = Server()
@@ -97,6 +114,16 @@ struct GoldenTests {
         #expect(sut.kind == kind)
         #expect(sut.code == .requestFailed)
         #expect(sut.message == refusal.message)
+    }
+
+    @Test("a refusal crosses with the stage it is refused at", arguments: stages)
+    func refusalHasItsStage(refusal: any Refusal, stage: String) {
+        // Given
+        // When
+        let sut = ResponseError(refusing: refusal)
+
+        // Then
+        #expect(sut.stage == stage)
     }
 
     // MARK: - Private

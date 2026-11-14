@@ -1,0 +1,20 @@
+case = 2
+name = "a-background-mod-hidden-by-a-mod-that-is-not-does-not-run"
+note = "A run runs the bundle the catalog holds under the name, so mod-a shipped with background, hidden by mod-a read in place without it, does not run."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-b"]
+sources = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "notRunning"
+

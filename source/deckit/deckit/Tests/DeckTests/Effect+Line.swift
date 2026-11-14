@@ -13,30 +13,33 @@ extension Effect {
     // The effect in one line, as a test compares it.
     var line: String {
         switch self {
-        case let .open(mod):
-            "open \(mod.manifest.id)"
+        case let .open(job):
+            "open \(job.principal)"
 
-        case let .loadPage(modId):
-            "loadPage \(modId)"
+        case let .loadPage(principal):
+            "loadPage \(principal)"
 
         case let .tell(notification, run):
             [
                 "tell",
                 notification.rawValue,
-                run.modId,
+                run.principal,
                 String(run.number),
                 run.state.rawValue
             ]
                 .joined(separator: " ")
 
         case let .keep(run):
-            "keep \(run.modId) \(run.number) \(run.problem ?? "")"
+            "keep \(run.principal) \(run.number) \(run.problem ?? "")"
 
-        case let .stop(modId, number):
-            "stop \(modId) \(number)"
+        case let .stop(principal, number):
+            "stop \(principal) \(number)"
 
-        case let .close(modId):
-            "close \(modId)"
+        case let .kill(principal):
+            "kill \(principal)"
+
+        case let .close(principal):
+            "close \(principal)"
 
         case let .connect(connection):
             "connect \(connection.line)"
@@ -44,8 +47,14 @@ extension Effect {
         case let .disconnect(connection):
             "disconnect \(connection.line)"
 
-        case let .layer(change):
-            "layer \(type(of: change))"
+        case let .deliver(delivery):
+            "deliver \(delivery.name) to \(delivery.listeners.joined(separator: ", "))"
+
+        case let .wait(name, client, service):
+            "wait \(client.principal)#\(client.run)@\(client.lifecycle) for \(service) by \(name)"
+
+        case let .refuse(name, client, refusal):
+            "refuse \(client.principal)#\(client.run)@\(client.lifecycle) by \(name): \(refusal.message)"
         }
     }
 

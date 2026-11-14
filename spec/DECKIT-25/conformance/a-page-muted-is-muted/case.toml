@@ -1,0 +1,45 @@
+case = 10
+name = "a-page-muted-is-muted"
+note = "mute(on) mutes the page, and state.muted says so. The host's layer shows index.html of site-a and mutes it."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "muted"
+
+[step.expect]
+answers = false
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mute"
+of = 2
+args = [true]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "muted"
+
+[step.expect]
+answers = true

@@ -7,20 +7,22 @@
 
 import Foundation
 
-// Where a mod runs, run after run, until the mod goes or its code changes.
+// Where a principal runs, run after run, while its job keeps its revision.
 final class Sandbox {
     // MARK: - Property
-    let mod: Mod
+    let job: Job
     // Its latest run.
     var run: Run
     var stopAsked = false
+    // The job to launch once its run has ended, asked while it terminated.
+    var next: Job?
     var state: RunState {
         run.state
     }
 
     // MARK: - Initializer
-    init(mod: Mod, run: Run) {
-        self.mod = mod
+    init(job: Job, run: Run) {
+        self.job = job
         self.run = run
     }
 

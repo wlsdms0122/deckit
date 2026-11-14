@@ -1,0 +1,47 @@
+case = 9
+name = "a-cookie-of-a-mods-session-is-not-sent-by-another-mods"
+note = "A fetch sends its own session's cookies and no other mod's. site-a sets signed=in as mod-a fetches sign-in through its session main, and mod-b then fetches hello.txt through its own session main."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "fetch"
+of = 2
+sites = ["site-a/sign-in"]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "session"
+args = ["main"]
+handle = "web"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "fetch"
+of = 4
+sites = ["site-a/hello.txt"]
+
+[[step]]
+look = "requested"
+headers = ["cookie"]
+
+[step.expect]
+answers = [{ site = "site-a", method = "GET", path = "/sign-in", headers = [] }, { site = "site-a", method = "GET", path = "/hello.txt", headers = [] }]

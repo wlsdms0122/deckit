@@ -1,0 +1,21 @@
+case = 4
+name = "the-permission-of-on-change-is-checked-before-its-listener"
+note = "mods.onChange judges the permission before its listener: a mod not granted deckit.mods that hands a listener that is no function is refused at call with kind NOT_PERMITTED. mod-a, granted nothing, hands mods.onChange the listener 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.onChange"
+args = [1]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

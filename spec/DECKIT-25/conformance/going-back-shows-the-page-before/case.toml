@@ -1,0 +1,51 @@
+case = 10
+name = "going-back-shows-the-page-before"
+note = "back() goes to the page before in the page's history. The host's layer shows index.html of site-a, loads next.html in it, goes back, and reads its address."
+
+[host]
+base = "web"
+api = "1.0.0"
+ship = ["mod-a"]
+sites = ["site-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "show"
+mod = "mod-a"
+session = "main"
+site = "site-a/index.html"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "load"
+of = 2
+sites = ["site-a/next.html"]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "canGoBack"
+
+[step.expect]
+answers = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "back"
+of = 2
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "state"
+of = 2
+part = "url"
+
+[step.expect]
+answers = "site-a/index.html"

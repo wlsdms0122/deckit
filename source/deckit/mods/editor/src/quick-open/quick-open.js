@@ -1,3 +1,4 @@
+const { ranker } = require('deckit-sdk/match');
 const { fileIconOf } = require('../file-type/file-type.js');
 const { iconElement } = require('../icon-element/icon-element.js');
 const { nameOf, folderOf } = require('../path/path.js');
@@ -16,9 +17,9 @@ const QUICK_OPEN_STYLE = `
     }
 `;
 
-// Open Quickly: a file of the front workspace found by part of its name. Ranked in a worker: forty thousand paths take a
-// few hundred milliseconds.
-function quickOpen({ ui, ranker, list, root, onOpen }) {
+// Open Quickly: a file of the front workspace found by part of its name. Ranked in a worker: forty thousand paths take
+// a few hundred milliseconds. `close()` lets go of what the worker holds for it.
+function quickOpen({ ui, list, root, onOpen }) {
     const SHOWN = 50;
     const TYPING_DELAY_MS = 60;
     const boxRanker = ranker({ paths: true });
@@ -36,7 +37,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
     let typing = null;
     let query = ''; // what was typed last, there again when the box opens again
 
-    return { show };
+    return { show, close: boxRanker.close };
 
     function show() {
         if (picker) return picker.focus();

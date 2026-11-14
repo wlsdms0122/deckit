@@ -1,18 +1,9 @@
 const { fileTypeOf } = require('../file-type/file-type.js');
 const { typefaceOf } = require('./typeface.js');
 
-// The engine's view of an open file, with the editor's extensions, in a box laid over the others. The configuration it
-// reads is the font, its size and line wrapping.
-function codeView({
-    engine,
-    theme,
-    ui,
-    configuration,
-    themeExtensions,
-    separatorExtension,
-    createFindPanel,
-    onUpdate,
-}) {
+// The engine's view of an open file, with the editor's extensions, in a box laid over the others. The settings it reads
+// are the font, its size and line wrapping.
+function codeView({ engine, theme, ui, settings, themeExtensions, separatorExtension, createFindPanel, onUpdate }) {
     // The engine's special characters, less "\r" (kept by CRLF lines in a mixed file, see separatorFor in file-disk.js)
     // and the byte order mark.
     const QUIET_SPECIAL_CHARACTERS =
@@ -123,7 +114,7 @@ function codeView({
                 separatorExtension(text),
                 language.of(languageOf(path)),
                 look.of(lookExtensions),
-                wrapping.of(configuration.get('wrap') ? engine.EditorView.lineWrapping : []),
+                wrapping.of(settings.get('wrap') ? engine.EditorView.lineWrapping : []),
                 typeface.of(typefaceNow()),
                 engine.EditorView.updateListener.of((update) => {
                     if (update.selectionSet)
@@ -145,15 +136,15 @@ function codeView({
     function typefaceNow() {
         return typefaceOf(
             engine,
-            { font: configuration.get('font'), size: configuration.get('fontSize') },
+            { font: settings.get('font'), size: settings.get('fontSize') },
             { faces: ui.monospacedFonts(), theme }
         );
     }
 
-    // Lines scrolled sideways are clipped where the gutter begins, so the gutter can stay transparent. The selection and
-    // cursor layers start at the gutter's left edge, so theirs are clipped a gutter's width further in. The layers are
-    // zero-size boxes with their marks outside, so an inset clips them whole; a polygon reaching far past the box clips
-    // only what is left of the gutter's edge.
+    // Lines scrolled sideways are clipped where the gutter begins, so the gutter can stay transparent. The selection
+    // and cursor layers start at the gutter's left edge, so theirs are clipped a gutter's width further in. The layers
+    // are zero-size boxes with their marks outside, so an inset clips them whole; a polygon reaching far past the box
+    // clips only what is left of the gutter's edge.
     function clipGutter(view) {
         const left = view.scrollDOM.scrollLeft;
         const gutter = view.dom.querySelector('.cm-gutters')?.offsetWidth || 0;

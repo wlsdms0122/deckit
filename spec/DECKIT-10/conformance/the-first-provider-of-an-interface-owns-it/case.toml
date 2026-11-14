@@ -1,0 +1,25 @@
+case = 4
+name = "the-first-provider-of-an-interface-owns-it"
+note = "Of the mods that provide an interface, the first to begin to provide it owns it, those that begin at once in the catalog's order. mod-b and mod-c provide mod-b/pages, mod-b first, and mod-a is connected to mod-b."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["mod-b/pages"]
+listener = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[{ from = "mod-b" }]]

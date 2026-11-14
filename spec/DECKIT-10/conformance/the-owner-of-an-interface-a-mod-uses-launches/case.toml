@@ -1,0 +1,18 @@
+case = 4
+name = "the-owner-of-an-interface-a-mod-uses-launches"
+note = "The owner of an interface a lifecycle uses launches, as a mod reached does. mod-a, a background mod, uses mod-b/pages, and mod-b, no background mod, runs."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "running"

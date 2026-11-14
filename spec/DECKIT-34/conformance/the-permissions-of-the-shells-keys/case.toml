@@ -1,0 +1,20 @@
+case = 6
+name = "the-permissions-of-the-shells-keys"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. The shell defines deckit.app-keys, system.global-keys and deckit.shell-keys, the last privileged; mod-a, marked system, asks for the three in the other order and is answered them in the order the shell defines them."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mod"
+mod = "mod-a"
+part = "permissions"
+
+[step.expect]
+answers = [{ id = "deckit.app-keys", reason = "a", usable = true, name = "App Keys", description = "Its keys work wherever you are in the app, whatever is in front, and are taken from every page there.", privileged = false }, { id = "system.global-keys", reason = "g", usable = true, name = "Global Keys", description = "Its keys work in every app, this one in front or not, and are taken from all of them.", privileged = false }, { id = "deckit.shell-keys", reason = "s", usable = true, name = "Shell Keys", description = "It can change the keys of the app's desktop.", privileged = true }]

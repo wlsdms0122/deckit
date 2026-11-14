@@ -65,7 +65,7 @@ function fileMenu({
             { label: 'Rename…', icon: 'pencil', run: () => rename(entry) },
             { label: 'Move to Trash', icon: 'trash', hint: chordOf('trash'), run: () => trash([entry]) },
             '-',
-            { label: 'Show in Finder', icon: 'folder', run: () => reveal(entry.path) },
+            { label: 'Show in Folder', icon: 'folder', run: () => reveal(entry.path) },
             { label: 'Copy Path', icon: 'copy', run: () => copyPath(entry.path) },
             ...(folder ? ['-', favoriteItem(entry.path)] : []),
         ];
@@ -93,7 +93,7 @@ function fileMenu({
             { label: 'New Folder', icon: 'folderPlus', hint: chordOf('newFolder'), run: () => newFolder(folder) },
             { label: 'Go to Folder…', hint: chordOf('goToFolder'), run: onGoToFolder },
             '-',
-            { label: 'Show in Finder', icon: 'folder', run: () => reveal(folder) },
+            { label: 'Show in Folder', icon: 'folder', run: () => reveal(folder) },
             { label: 'Copy Path', icon: 'copy', run: () => copyPath(folder) },
             {
                 label: 'Add to Favorites',

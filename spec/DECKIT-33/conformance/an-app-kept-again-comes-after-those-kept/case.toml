@@ -1,0 +1,27 @@
+case = 19
+name = "an-app-kept-again-comes-after-those-kept"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. The person chooses Remove from Dock from mod-a's item's menu and then Keep in Dock: mod-a is kept again after mod-b, kept before it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "dock"
+mod = "mod-a"
+action = "remove"
+
+[[step]]
+input = "dock"
+mod = "mod-a"
+action = "keep"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-b", pinned = true, running = true, attention = false, active = false }, { mod = "mod-a", pinned = true, running = true, attention = false, active = false }]

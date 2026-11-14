@@ -1,0 +1,25 @@
+case = 3
+name = "a-background-mod-quit-by-a-request-is-not-launched-again"
+note = "Only a background mod whose run failed launches again, and a run whose end was asked has not failed. mod-a quits mod-b, a background mod that runs, and mod-b stays notRunning."
+
+[host]
+base = "system"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+system = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "mods.quit"
+args = ["mod-b"]
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"

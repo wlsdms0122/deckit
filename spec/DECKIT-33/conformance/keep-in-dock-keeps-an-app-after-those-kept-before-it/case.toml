@@ -1,0 +1,28 @@
+case = 19
+name = "keep-in-dock-keeps-an-app-after-those-kept-before-it"
+note = "Each mod is a background mod, so each launches as the host app starts, in the order the host ships it. The host keeps mod-c alone in the Dock; the person chooses Keep in Dock from mod-b's item's menu, and then from mod-a's, so each is kept after those kept before it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+dock = ["mod-c"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "dock"
+mod = "mod-b"
+action = "keep"
+
+[[step]]
+input = "dock"
+mod = "mod-a"
+action = "keep"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-c", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = true, attention = false, active = false }, { mod = "mod-a", pinned = true, running = true, attention = false, active = false }]
