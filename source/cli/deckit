@@ -19,6 +19,9 @@ deckit: a library a host app embeds to take mods, the way a game does
   install          Deckit.app built, then put into /Applications
   conformance [--spec <folder>] [<DECKIT-N | case name> ...]
                    deckit built, then the specification's cases run on it: the live set's, or those named
+  key add|remove|list <principal> [<key>] [--name <name>] [--home <folder>]
+                   the keys that may authenticate as a principal from outside the app, kept in deckit's folder:
+                   Deckit.app's, or the one --home names; <key> is the base64 of an Ed25519 public key
 
 For work on deckit itself, and kept out of manifest.toml:
 
