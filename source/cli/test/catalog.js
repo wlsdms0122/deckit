@@ -275,6 +275,7 @@ async function main() {
         PERMISSION: { define: () => {} },
         MANIFEST_FIELD: { define: () => {} },
         SETUP: { stack: () => {} },
+        SEAT: {},
     }).make({ onStart: () => {}, restart: () => {} });
     const fields = api.mods.fieldsOf('s');
     check(
