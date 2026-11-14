@@ -98,14 +98,17 @@ const SHELL_PAGE = Object.freeze({
 
 // What SHELL.stage() makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
 // a time, `bounds` a rect or a function of the window's content size that it follows, `front` over what is in the
-// window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
-// `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one is kept
-// out of the window, and a page left out, or gone, is taken off; `hit(laid, point) -> { page, x, y } or null`, the page
-// a press at a point of the stage reaches were `laid` what is on it, with the point from that page's top left, read
-// from the list alone, so for an order that is not shown too; `close()`, the stage ended, its pages taken off and it
-// out of its window. Where a page laid on it, or a surface it opened, marks itself with `--app-region: drag`, a press
-// drags the window it is in and a double click does what the person set a title bar's to do, unless what draws in that
-// document took its drags (SHELL_PAGE.drags); `--app-region: no-drag` marks what inside it takes presses itself.
+// window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`; `whenResized(listener)
+// -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one is kept out of the window, and a
+// page left out, or gone, is taken off; `hit(laid, point) -> { page, x, y } or null`, the page a press at a point of
+// the stage reaches were `laid` what is on it, with the point from that page's top left, read from the list alone, so
+// for an order that is not shown too; `capture(laid, { rect, scale }) -> Promise of a PNG`, `rect` of the stage, all of
+// it without, as it would be seen were `laid` what is on it, made from what each page draws, a page under another
+// whole, a material and a hidden page leaving nothing, `scale` pixels a point; `close()`, the stage ended, its pages
+// taken off and it out of its window. Where a page laid on it, or a surface it opened, marks itself with `--app-region:
+// drag`, a press drags the window it is in and a double click does what the person set a title bar's to do, unless what
+// draws in that document took its drags (SHELL_PAGE.drags); `--app-region: no-drag` marks what inside it takes presses
+// itself.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',
@@ -113,6 +116,7 @@ const STAGE = Object.freeze({
     show: 'function',
     lay: 'function',
     hit: 'function',
+    capture: 'function',
     close: 'function',
 });
 

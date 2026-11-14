@@ -58,6 +58,8 @@ import CNodeAPI
 //   layer transform marked scaled, and the view with the window's keyboard marked; `pageAt(window, { x, y }) -> id`,
 //   the page a press at a point of the window's content, from its top left, reaches as the window hit tests it, or
 //   null where it reaches none.
+// - Pictures (Capture): `capture(layers, { rect, scale }) -> Promise of a PNG in base64`, `rect` of a stage as
+//   `layers`, those `layStage` takes, would have it, made from what each page draws, `scale` pixels a point, 1 without.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -385,50 +387,19 @@ final class WebEngine {
             )
 
         case .layStage:
-            try stage().lay(try node.array(try argument(1)).map { layer in
-                if let material = try node.member(layer, "material") {
-                    guard let frame = try node.member(layer, "frame") else {
-                        throw NodeError(message: "a material is laid at a frame")
-                    }
-                    return .material(
-                        Self.materials[try node.string(material)] ?? .menu,
-                        rect: try node.rect(frame),
-                        cornerRadius: try node.member(layer, "cornerRadius").map { try node.number($0) } ?? 0
-                    )
-                }
-                guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
-                let page = try node.integer(id)
-                guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
-                if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
-                    return .page(laid, frame: nil, clips: [], input: nil, opacity: 1, scale: nil)
-                }
-                guard let frame = try node.member(layer, "frame") else {
-                    throw NodeError(message: "a layer is { page, frame, clips, input } or { page, hidden: true }")
-                }
-                let clips = try node.member(layer, "clips").map { try node.array($0) } ?? []
-                let opacity = try node.member(layer, "opacity").map { try node.number($0) } ?? 1
-                let scale = try node.member(layer, "scale").map { scale in
-                    Stage.Scale(
-                        by: CGFloat(max(0.001, try node.member(scale, "by").map { try node.number($0) } ?? 1)),
-                        x: CGFloat(try node.member(scale, "x").map { try node.number($0) } ?? 0),
-                        y: CGFloat(try node.member(scale, "y").map { try node.number($0) } ?? 0)
-                    )
-                }
+            try stage().lay(try layers(try argument(1)))
 
-                return .page(
-                    laid,
-                    frame: try node.rect(frame),
-                    clips: try clips.map { clip in
-                        Stage.Clip(
-                            rect: try node.rect(clip),
-                            cornerRadius: try node.member(clip, "cornerRadius").map { try node.number($0) } ?? 0
-                        )
-                    },
-                    input: try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } },
-                    opacity: CGFloat(min(1, max(0, opacity))),
-                    scale: scale
-                )
-            })
+        case .capture:
+            let options = try argument(1)
+            guard let rect = try node.member(options, "rect") else {
+                throw NodeError(message: "a picture is of a rect")
+            }
+            let scale = try node.member(options, "scale").map { try node.number($0) } ?? 1
+            let (promise, settle) = try promised()
+            Capture.take(try layers(try argument(0)), rect: try node.rect(rect), scale: CGFloat(scale)) { result in
+                settle(result.map { $0.base64EncodedString() })
+            }
+            return promise
 
         case .showStage:
             try stage().show(try node.bool(try argument(1)))
@@ -664,6 +635,54 @@ final class WebEngine {
 
         default:
             throw NodeError(message: "an event put is a pointer, a key or a text, of a type it has")
+        }
+    }
+
+    // The layers JavaScript names, as `layStage` takes them.
+    private func layers(_ value: napi_value) throws -> [Stage.Layer] {
+        try node.array(value).map { layer in
+            if let material = try node.member(layer, "material") {
+                guard let frame = try node.member(layer, "frame") else {
+                    throw NodeError(message: "a material is laid at a frame")
+                }
+                return .material(
+                    Self.materials[try node.string(material)] ?? .menu,
+                    rect: try node.rect(frame),
+                    cornerRadius: try node.member(layer, "cornerRadius").map { try node.number($0) } ?? 0
+                )
+            }
+            guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
+            let page = try node.integer(id)
+            guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
+            if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
+                return .page(laid, frame: nil, clips: [], input: nil, opacity: 1, scale: nil)
+            }
+            guard let frame = try node.member(layer, "frame") else {
+                throw NodeError(message: "a layer is { page, frame, clips, input } or { page, hidden: true }")
+            }
+            let clips = try node.member(layer, "clips").map { try node.array($0) } ?? []
+            let opacity = try node.member(layer, "opacity").map { try node.number($0) } ?? 1
+            let scale = try node.member(layer, "scale").map { scale in
+                Stage.Scale(
+                    by: CGFloat(max(0.001, try node.member(scale, "by").map { try node.number($0) } ?? 1)),
+                    x: CGFloat(try node.member(scale, "x").map { try node.number($0) } ?? 0),
+                    y: CGFloat(try node.member(scale, "y").map { try node.number($0) } ?? 0)
+                )
+            }
+
+            return .page(
+                laid,
+                frame: try node.rect(frame),
+                clips: try clips.map { clip in
+                    Stage.Clip(
+                        rect: try node.rect(clip),
+                        cornerRadius: try node.member(clip, "cornerRadius").map { try node.number($0) } ?? 0
+                    )
+                },
+                input: try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } },
+                opacity: CGFloat(min(1, max(0, opacity))),
+                scale: scale
+            )
         }
     }
 

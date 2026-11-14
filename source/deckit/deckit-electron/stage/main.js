@@ -86,6 +86,17 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
             return found && { ...found, page: WEBKIT.pageById(found.page) };
         }
 
+        // `rect` of the stage, all of it where none is given, as it would be seen were `layers` what is laid, as `lay`
+        // takes them: a Promise of a PNG, `scale` pixels a point, 1 where it is not given, made from what each page
+        // draws and from no window, so for an order that is not the one shown too. A page is drawn where it is laid,
+        // cut and scaled as laid; a hidden page and a material leave nothing in it.
+        function capture(layers, { rect = null, scale = 1 } = {}) {
+            const of = layersOf(layers, () => {});
+            return native
+                .capture(of, { rect: rect ?? { x: 0, y: 0, ...size() }, scale })
+                .then((png) => Buffer.from(png, 'base64'));
+        }
+
         // The stage ended: its pages taken off and it out of its window.
         function close() {
             if (closed) return;
@@ -159,7 +170,7 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
         }
 
         const record = { relay, window: () => at?.window || null, shown: new Set() };
-        return Object.freeze({ place, size, whenResized, show, lay, hit, close });
+        return Object.freeze({ place, size, whenResized, show, lay, hit, capture, close });
     }
 
     // A page's web pages moved, came or went: the stage it is shown on lays them again.

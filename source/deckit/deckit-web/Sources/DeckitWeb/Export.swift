@@ -62,4 +62,5 @@ enum Export: Int, CaseIterable {
     case listenInput
     case putInput
     case reserveKeyboard
+    case capture
 }

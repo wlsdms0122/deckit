@@ -210,6 +210,7 @@ const STAGE = () => {
                 stage.lay(layers);
             },
             hit: (layers, point) => stage.hit(layers, point),
+            capture: (layers, options) => stage.capture(layers, options),
             close() {},
         });
     }
@@ -228,6 +229,7 @@ const STAGE = () => {
             stage.lay(layers);
         },
         hit: (layers, point) => stage.hit(layers, point),
+        capture: (layers, options) => stage.capture(layers, options),
         close() {
             staged.splice(staged.indexOf(record), 1);
             stage.close();
