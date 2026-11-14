@@ -209,6 +209,7 @@ const STAGE = () => {
                 laid = layers;
                 stage.lay(layers);
             },
+            hit: (layers, point) => stage.hit(layers, point),
             close() {},
         });
     }
@@ -226,6 +227,7 @@ const STAGE = () => {
             record.laid = layers;
             stage.lay(layers);
         },
+        hit: (layers, point) => stage.hit(layers, point),
         close() {
             staged.splice(staged.indexOf(record), 1);
             stage.close();
