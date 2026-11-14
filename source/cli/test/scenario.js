@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 const { seat } = require('./seat.js');
+const INPUT = require('./input.js');
 const OUTSIDE = require('./outside.js');
 
 // The mods Deckit.app ships that are apps, which the Dock keeps from the first start: every one but the accessories,
@@ -2967,6 +2968,12 @@ async function run({
         check('scenario ran', false, error.stack);
     }
     check('no page threw', !thrown.length, thrown.slice(0, 3).join(' | '));
+
+    try {
+        await INPUT.run({ check, main, laidNow, desktopLaid, windowsNow, windowOf, dockClick });
+    } catch (error) {
+        check("input: a seat's input was put", false, error.stack);
+    }
 
     try {
         await OUTSIDE.run({ check, home, logged, main });

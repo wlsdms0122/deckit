@@ -95,7 +95,8 @@ function createEnvironment({ core, preload, openWindow }) {
     const moved = { last: null, timer: null }; // the move not told yet
     hear();
     // A page that runs no mod is named as a host is, with no dot, so its origin is never a mod's. It is clear where it
-    // draws nothing, as the windows it opens are.
+    // draws nothing, as the windows it opens are. Every page has the keyboard only as it is given it or pressed, as the
+    // windows it opens do: its document focusing an element takes it from nothing.
     const make = ({ modId = null, name = null, keepsDrawing = false } = {}) => {
         const owned = modId !== null;
         const origin = owned ? ORIGIN.originOf(modId) : ORIGIN.pageOriginOf(name);
@@ -104,6 +105,7 @@ function createEnvironment({ core, preload, openWindow }) {
             store: storeFor(CONFIG.id, origin),
             scheme: ORIGIN.SCHEME,
             clear: true,
+            takesKeyboard: false,
             fullSpeed: owned || keepsDrawing,
             delegate: delegateOf(asked),
         });
