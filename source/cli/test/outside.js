@@ -1,9 +1,11 @@
 // A party on a transport connection from outside, checked against the app under test through the client of the wire
 // (cli/outside): a key registered for a principal attaches as a run of it, any other proof is refused and told
 // nothing, a principal that runs takes no second party, and the run asks what a run asks, bounded by a job that grants
-// nothing: its own records and events, no connection. The keys are registered as deck keeps them, in the app's folder.
+// nothing: its own records and events, no connection. The key is registered, listed and removed as a host does it,
+// by `deckit key` against the app's folder, while the app runs.
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { makeKey, connect } = require('../outside/client.js');
 const { until } = require('./devtools.js');
 
@@ -19,9 +21,9 @@ async function run({ check, home, logged }) {
     const socket = path.join(home, 'deckit.sock');
     const principal = 'outside-party';
     const key = makeKey();
-    const registered = [{ key: key.publicKey, name: 'test', scheme: 'ed25519' }];
-    fs.mkdirSync(path.join(home, 'authorized-keys'), { recursive: true });
-    fs.writeFileSync(path.join(home, 'authorized-keys', `${principal}.json`), JSON.stringify(registered));
+    const deckit = (...args) =>
+        execFileSync(path.join(__dirname, '..', 'deckit'), ['key', ...args, '--home', home], { encoding: 'utf8' });
+    deckit('add', principal, key.publicKey, '--name', 'test');
     const started = { contributions: { exportedIn: {}, awaits: {} } };
     const nothing = { message: 'not authenticated', code: -32803, kind: 'NOT_AUTHENTICATED', stage: 'call' };
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -112,6 +114,17 @@ async function run({ check, home, logged }) {
         'outside: a run that quits is asked to stop, then closed',
         (await settled(again.closed)) && stopped,
         String(stopped)
+    );
+
+    const listed = deckit('list', principal);
+    check('outside: a key registered is listed', listed === `ed25519 ${key.publicKey} test\n`, listed);
+    deckit('remove', principal, key.publicKey);
+    const late = await connect(socket);
+    const revoked = await refusedWith(late.authenticate({ principal, ...key }));
+    check(
+        'outside: a key removed as the app runs is refused from then on',
+        same(revoked, nothing) && deckit('list', principal) === '',
+        JSON.stringify(revoked)
     );
 }
 
