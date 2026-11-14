@@ -113,7 +113,7 @@ function shipProbe({ data, app }) {
     );
 }
 
-// The app assembled in `app` serves its seats with the test's answers (served.js) as it connects: deckit's main
+// The app assembled in `app` has the ask of its seats answered by the test (served.js) as it connects: deckit's main
 // bundle is loaded through a file that hands what connect answers over.
 function serveSeats({ app }) {
     const bundle = path.join(app, 'deckit', 'shell-main.js');

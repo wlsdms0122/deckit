@@ -13,8 +13,9 @@ const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 const { makeKey, readKey, connect } = require('../outside/client.js');
 const RELAY = require('../outside/relay.js');
-const { until } = require('./devtools.js');
+const { sleep, until } = require('./devtools.js');
 const SERVED = require('./served.js');
+const READING = require('./reading.js');
 
 // How long an admission waits for the local seat's answer, in ms (deckit-shell/deckit/seat).
 const ASK_TIME = 60000;
@@ -169,22 +170,41 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         JSON.stringify({ pressed, typed })
     );
     const reading = await party.request('seat/read', { level: 'desktop' });
-    const unserved = await refusedWith(party.request('seat/capture', {}));
+    const asData = await party.request('seat/read', { level: 'desktop', format: 'json' });
     const malformed = await refusedWith(party.request('seat/pointer', { type: 'down' }));
+    const [first, ...lines] = String(reading?.text).split('\n');
     check(
-        'outside: a reading is answered by what is served, and what nothing serves or is malformed is refused',
-        same(reading, { text: SERVED.lineOf(seat), mark: 1 }) && unserved?.kind === 'REFUSED' && !!malformed,
-        JSON.stringify({ reading, unserved, malformed })
+        'outside: a reading is answered by the shell, as text or as data, and what is malformed is refused',
+        first === `desktop ${asData?.data?.desktop.width}x${asData?.data?.desktop.height} mark ${reading.mark}` &&
+            lines.some((line) =>
+                new RegExp(`^seat ${seat.id} "Outside Party" at 40,30( key w\\d+)? \\(you\\)$`).test(line)
+            ) &&
+            asData.data.seats.some(({ id, you }) => id === seat.id && you) &&
+            !!malformed,
+        JSON.stringify({ reading, asData, malformed })
     );
     const changed = [];
     party.on('seat/changed', (change) => changed.push(change));
-    await served(`kept.tells.changed(kept.seats.list()[1], { mark: 2 })`);
+    // A press in the middle of each window: the seat's key window changes, which its line and the window's tell.
+    const pressIn = async ({ rect }) => {
+        const point = { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+        await party.request('seat/pointer', { ...press, ...point });
+        await party.request('seat/pointer', { ...press, ...point, type: 'up' });
+    };
+    const [front, ...behind] = (await windowsNow()).filter(({ scaled }) => !scaled).reverse();
+    await pressIn(front);
+    await sleep(200);
+    const untold = changed.length;
     const watching = await party.request('seat/watch', { on: true });
-    await served(`kept.tells.changed(kept.seats.list()[1], { mark: 3 })`);
+    const since = (await party.request('seat/changes', {})).mark;
+    for (const window of behind) await pressIn(window);
     check(
-        'outside: a seat that watches is told the desktop changed',
-        watching === true && (await until(() => changed.length > 0, 3000)) && same(changed, [{ mark: 3 }]),
-        JSON.stringify(changed)
+        'outside: a seat that watches is told the desktop changed, and one that does not is told nothing',
+        watching === true &&
+            untold === 0 &&
+            (await until(() => changed.some(({ mark }) => mark > since), 3000)) &&
+            changed.every(({ mark }) => Number.isInteger(mark)),
+        JSON.stringify({ since, changed })
     );
     await party.request('record/write', { key: 'note', value: { text: 'kept' } });
     const read = await party.request('record/read', { key: 'note' });
@@ -256,11 +276,14 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         sat && said.startsWith('asking the local seat ...\n') && (fs.statSync(relay).mode & 0o777) === 0o600,
         said + refused
     );
-    const line = SERVED.lineOf({ id: sat, user: { name: 'Terminal' } });
     const printed = sat && [cli('seat', 'read', 'desktop'), cli('seat', 'press', '10,20'), cli('seat', 'changes')];
     check(
-        'outside: deckit seat read desktop prints the line that is served, and a press what it reached',
-        printed && same([printed[0], printed[2]], [`${line}\n`, 'changes 1 to 2\n']) && /^over \S+/.test(printed[1]),
+        'outside: deckit seat read desktop prints the desktop with its seat, a press what it reached, changes the marks',
+        printed &&
+            /^desktop \d+x\d+ mark \d+\n/.test(printed[0]) &&
+            new RegExp(`^seat ${sat} "Terminal" \\(you\\)$`, 'm').test(printed[0]) &&
+            /^over \S+/.test(printed[1]) &&
+            /^changes \d+ to \d+$/m.test(printed[2]),
         JSON.stringify(printed)
     );
     if (sat) cli('seat', 'detach');
@@ -426,6 +449,33 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
             closedOwn && standingAfter.includes(windowB.id) && standingAfter.includes(localKey.id),
             JSON.stringify({ chordSent, standingAfter, windowA: windowA.id })
         );
+        // The second seat, back at the field of the child, reads what it sits at.
+        const back = [seatB.as('press', showsFor(seatB, windowB)), seatB.as('press', at(child))];
+        const watch = ({ seat }) => {
+            const user = seat === seatA.seat ? 'ta' : 'tb';
+            const watching = spawn(command, ['seat', 'watch', '--as', user, '--home', home]);
+            let told = '';
+            watching.stdout.on('data', (chunk) => (told += chunk));
+            return { said: () => told, stop: () => watching.kill('SIGINT') };
+        };
+        try {
+            if (back[1] !== `over ${windowB.id}, key`) throw new Error(`the seat is not back: ${back}`);
+            await READING.run({
+                check,
+                reader: seatB,
+                other: seatA,
+                window: (await windowsNow()).find(({ id }) => id === windowB.id),
+                editor: (await windowsNow()).find(({ mod }) => mod === 'editor'),
+                showsFor,
+                inPage,
+                page: child.id,
+                field: FIELD,
+                folder: path.join(home, '..'),
+                watch,
+            });
+        } catch (error) {
+            check('reading: a seat read the desktop', false, error.stack);
+        }
         for (const page of [windowB.content, child.id, localKey.content])
             await inPage(page, `document.querySelector('#${FIELD}')?.remove()`);
         seatA.as('detach');
