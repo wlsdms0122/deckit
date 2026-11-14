@@ -5,6 +5,7 @@
 import * as LISTENER from '../listener/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
+import * as SOCKET from '../socket/main.js';
 import * as LOG_FILE from '../log/file.js';
 import * as FILES from '../files/index.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
@@ -195,6 +196,13 @@ function createEnvironment({ core, preload, openWindow }) {
             restartPending: LOADER.restartPending,
         }),
         core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
+        transport: Object.freeze({
+            listen: (where, listeners) => {
+                const listener = SOCKET.listen(where, listeners);
+                app.once('quit', listener.close);
+                return listener;
+            },
+        }),
         folders: Object.freeze({ user: require('os').homedir() }),
         files: Object.freeze({
             readText: FILES.readText,
