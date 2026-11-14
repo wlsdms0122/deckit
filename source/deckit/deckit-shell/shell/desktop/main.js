@@ -610,7 +610,7 @@ export function createDesktop({
         if (!hit) return { over: null };
         const part = partAt(hit);
         if (part) {
-            if (type === 'down') gesture(seat, type, point, part, { count: event.count });
+            if (type === 'down') gesture(seat, type, point, part, { count: event.count, button: event.button });
             const made = MANAGER.keyOf(seat) === part.id ? 'key' : 'held';
             return { over: part.id, ...(type === 'down' ? { key: made, holder: MANAGER.holderOf(part.id) } : {}) };
         }
@@ -672,23 +672,26 @@ export function createDesktop({
         return null;
     }
 
-    // What a seat's pointer does on the parts of a window the shell draws, `on` `{ id, part }` under it (partAt):
-    // a 'down' is a press on the window, a drag of its title bar from there moves it, a drag of an edge resizes it, an
-    // up on the button the press was on clicks it, and a 'down' on the title bar that is the second of two, `count`
-    // 2, is a double click. `point` is in any space that holds still while the button is down.
-    function gesture(seat, type, point, on, { count = 1 } = {}) {
+    // What a seat's pointer does on the parts of a window the shell draws, `on` `{ id, part }` under it (partAt), the
+    // one recognizer of every seat: a 'down' is a press on the window, a drag of its title bar from there moves it, a
+    // drag of an edge resizes it, an up on the button the press was on clicks it, and a 'down' on the title bar that
+    // is the second of two, `count` 2, is a double click. A 'down' of another `button` than the first is a press on
+    // the window and no more. `point` is in any space that holds still while the button is down, and `grab` where a
+    // 'down' is from the frame's top left, read from `point` where it is not told, which holds for a point on the
+    // desktop.
+    function gesture(seat, type, point, on, { count = 1, button = 0, grab = null } = {}) {
         const hand = hands.get(seat);
+        if (!hand) return;
         if (type === 'down') {
             hand.down = null;
             return byHand(seat, on.id, (window) => {
+                if (button !== 0) return press(seat, window);
                 if (on.part !== 'bar' || count === 2) press(seat, window);
                 if (on.part === 'bar' && count === 2) return doubleClick(seat, window);
-                hand.down = { ...on, from: point, frame: MANAGER.frameOf(on.id) };
+                const frame = MANAGER.frameOf(on.id);
+                hand.down = { ...on, from: point, frame };
                 if (on.part === 'bar')
-                    move(seat, window, 'began', 0, 0, {
-                        x: point.x - hand.down.frame.x,
-                        y: point.y - hand.down.frame.y,
-                    });
+                    move(seat, window, 'began', 0, 0, grab ?? { x: point.x - frame.x, y: point.y - frame.y });
             });
         }
         const held = hand.down;
@@ -720,12 +723,11 @@ export function createDesktop({
         if (held) ACTIVATION.requestAttention(seat, mod);
     }
 
-    // The desktop's page draws alone, so what it tells is the person's: no mod's code runs there. What it tells of a
-    // window is the input of the seat whose view it shows, the local one, which reaches that window's mod.
+    // The desktop's page draws alone, so what it tells is the person's: no mod's code runs there. What the pointer does
+    // on a window's parts there is the input of the seat whose view it shows, the local one, recognized as any seat's
+    // is (gesture) from where it is on the screen.
     function listen() {
         const fromPage = (handler) => (payload, sender) => sender === desktop.page && handler(payload);
-        const known = (handler) =>
-            fromPage(({ id, ...payload }) => byHand(LOCAL, id, (window) => handler(LOCAL, window, payload)));
         PROTOCOL.setup.handle((_payload, sender) => {
             if (sender !== desktop.page)
                 throw Object.assign(new Error("only the desktop's page asks this"), { stage: 'call', kind: 'REFUSED' });
@@ -734,15 +736,13 @@ export function createDesktop({
             desktop.sent = JSON.stringify(state);
             return { state };
         });
-        PROTOCOL.press.on(known(press));
-        PROTOCOL.button.on(known((seat, window, { button }) => clicked(seat, window, button)));
-        PROTOCOL.resize.on(
-            known((seat, window, { phase, edge, ...frame }) => framed(seat, window, phase, frame, edge))
+        PROTOCOL.pointer.on(
+            fromPage(({ id, part, type, x, y, button, count, grabX, grabY }) => {
+                if (!['down', 'move', 'up'].includes(type)) return;
+                const grab = Number.isFinite(grabX) && Number.isFinite(grabY) ? { x: grabX, y: grabY } : null;
+                gesture(LOCAL, type, { x, y }, { id, part }, { button, count, grab });
+            })
         );
-        PROTOCOL.move.on(
-            known((seat, window, { phase, dx, dy, x, y }) => move(seat, window, phase, dx, dy, grabOf(x, y)))
-        );
-        PROTOCOL.doubleClick.on(known(doubleClick));
         PROTOCOL.dock.on(
             fromPage(({ out }) => {
                 dockOut = out;
@@ -764,11 +764,6 @@ export function createDesktop({
                 layout();
             })
         );
-    }
-
-    // Where a press was in a window's frame, as a page tells it, or null where it does not.
-    function grabOf(x, y) {
-        return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
     }
 
     // `seat`'s input on a window on its screen, which reaches the window's mod.
@@ -1300,7 +1295,6 @@ export function createDesktop({
                 id,
                 frame,
                 key: id === key && !keyboardAway(),
-                minimum: LAYOUT.minimumOf(windows.get(id).minimum, windows.get(id).bar),
                 bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),

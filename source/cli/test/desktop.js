@@ -359,7 +359,7 @@ async function main() {
             !desk.page().dock.attention.length,
         { names: names(), shown: desk.hostShown(), dock: desk.page().dock }
     );
-    desk.fromPage('press', { id: 1 });
+    desk.pagePress(1);
     check(
         'a press on a window makes it key, its mod the active mod, which asks for no attention',
         desk.desktop.isKey(one) && desk.page().dock.active === 'a' && !desk.page().dock.attention.length,
@@ -400,7 +400,7 @@ async function main() {
         desk.hostShown() === 2,
         desk.hostShown()
     );
-    desk.fromPage('press', { id: 2 });
+    desk.pagePress(2);
     check(
         "a press on a window's frame makes it key, in front",
         desk.focused.at(-1)?.name === 'content-2' &&
@@ -470,7 +470,7 @@ async function main() {
         names().at(-5) === 'buttons-2' && desk.desktop.isKey(three),
         names()
     );
-    desk.fromPage('press', { id: 2 });
+    desk.pagePress(2);
 
     desk.desktop.orderFront(one, { activates: false });
     check(
@@ -538,7 +538,7 @@ async function main() {
         null
     );
 
-    desk.fromPage('resize', { id: 2, phase: 'ended', x: 300, y: 200, width: 500, height: 400 });
+    desk.pageFrames(2, { x: 300, y: 200, width: 500, height: 400 });
     check(
         "a window's frame is remembered by its mod and its name",
         JSON.stringify(desk.state['window-frames'].a.other) ===
@@ -593,7 +593,7 @@ async function main() {
         desk.frameOf(2)
     );
 
-    desk.fromPage('resize', { id: 3, phase: 'ended', x: 1300, y: 700, width: 300, height: 200 });
+    desk.pageFrames(3, { x: 1300, y: 700, width: 300, height: 200 });
     desk.resize({ width: 800, height: 500 });
     const smaller = LAYOUT.desktopOf({ width: 800, height: 500 }, 28);
     check(
@@ -630,9 +630,9 @@ async function main() {
         told
     );
     const before = desk.frameOf(4);
-    desk.fromPage('move', { id: 4, phase: 'began', dx: 0, dy: 0 });
-    desk.fromPage('move', { id: 4, phase: 'changed', dx: -10, dy: 5 });
-    desk.fromPage('move', { id: 4, phase: 'ended', dx: -10, dy: 5 });
+    desk.pagePointer(4, 'bar', 'down', { x: 0, y: 0 }, { grabX: 100, grabY: 10 });
+    desk.pagePointer(4, 'bar', 'move', { x: -10, y: 5 });
+    desk.pagePointer(4, 'bar', 'up', { x: -10, y: 5 });
     check(
         "a drag of a titled window's title bar moves it, and its frame is remembered by its name",
         desk.frameOf(4).x === before.x - 10 &&
@@ -1068,6 +1068,23 @@ function seatChecks({ LAYOUT, createDesktop }, check) {
         moved.over === null && nowhere.over === 'desktop',
         JSON.stringify({ moved, nowhere })
     );
+    const listed = (id) => desk.desktop.control.windows().find((one) => one.id === id);
+    const stood = { ...listed(1).frame };
+    desk.pagePointer(1, 'bar', 'down', { x: 0, y: 0 }, { button: 2, grabX: 10, grabY: 10 });
+    desk.pagePointer(1, 'bar', 'move', { x: 50, y: 0 });
+    desk.pagePointer(1, 'bar', 'up', { x: 50, y: 0 }, { button: 2 });
+    const front = desk.desktop.control.windows().at(-1).id;
+    desk.pagePointer(1, 'minimize', 'down', { x: 0, y: 0 });
+    desk.pagePointer(1, 'buttons', 'up', { x: 30, y: 0 });
+    const missed = { ...listed(1) };
+    desk.pagePointer(1, 'minimize', 'down', { x: 0, y: 0 });
+    desk.pagePointer(1, 'minimize', 'up', { x: 0, y: 0 });
+    check(
+        "the pointer the desktop's page tells is recognized as a seat's is: a button is clicked as it is let go on " +
+            'it, not off it, and another button than the first presses the window and moves nothing',
+        front === 1 && !missed.minimized && missed.frame.x === stood.x && listed(1).minimized,
+        JSON.stringify({ front, stood, missed, now: listed(1) })
+    );
     desk.leave(you);
     check(
         'a seat that left is not at the desktop',
@@ -1310,8 +1327,8 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     desk.press('tileRight', one.surface);
     run(400);
     const tileWidth = listed().width;
-    desk.fromPage('move', { id: 1, phase: 'began', dx: 0, dy: 0, x: 300, y: 20 });
-    desk.fromPage('move', { id: 1, phase: 'changed', dx: -50, dy: 30 });
+    desk.pagePointer(1, 'bar', 'down', { x: 0, y: 0 }, { grabX: 300, grabY: 20 });
+    desk.pagePointer(1, 'bar', 'move', { x: -50, y: 30 });
     const pulled = listed();
     const grabbed = Math.round((300 * before.width) / tileWidth);
     check(
@@ -1324,12 +1341,12 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
         { pulled, drawn: desk.frameOf(1) }
     );
     const pointer = LAYOUT.tileOf('right', zone).x + 300;
-    desk.fromPage('move', { id: 1, phase: 'changed', dx: zone.x - pointer, dy: 300 });
+    desk.pagePointer(1, 'bar', 'move', { x: zone.x - pointer, y: 300 });
     const shown = desk.page().drop;
-    desk.fromPage('move', { id: 1, phase: 'changed', dx: zone.x - pointer + 200, dy: 300 });
+    desk.pagePointer(1, 'bar', 'move', { x: zone.x - pointer + 200, y: 300 });
     const hidden = desk.page().drop;
-    desk.fromPage('move', { id: 1, phase: 'changed', dx: zone.x - pointer - 30, dy: 300 });
-    desk.fromPage('move', { id: 1, phase: 'ended', dx: zone.x - pointer - 30, dy: 300 });
+    desk.pagePointer(1, 'bar', 'move', { x: zone.x - pointer - 30, y: 300 });
+    desk.pagePointer(1, 'bar', 'up', { x: zone.x - pointer - 30, y: 300 });
     check(
         "a window dragged with the pointer at the zoom area's left side shows the half it takes there, none away " +
             'from it, and takes it as it is let go',
@@ -1356,8 +1373,10 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
 // `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage
 // 1200 by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
 // desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that
-// page, `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in `page`, which
-// the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it, `key(page)` a
+// page: `pagePointer(id, part, type, point, more)` what the pointer does on a part of window `id` at a point of the
+// screen, `pagePress(id)` a press on its frame let go there, and `pageFrames(id, frame)` the drags of its corners
+// that leave it at `frame`. `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in
+// `page`, which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it, `key(page)` a
 // key pressed in a page and `chord(mod)` a chord told to a mod.
 function desktopOver(createDesktop, { state = {}, clock }) {
     const handlers = {};
@@ -1493,6 +1512,9 @@ function desktopOver(createDesktop, { state = {}, clock }) {
     const backdrop = { name: 'backdrop' };
     allowed.get('backdrop')(backdrop);
     const frameOf = (id) => laid.find(({ page }) => page.name === `content-${id}`)?.rect ?? null;
+    const fromPage = (name, payload) => handlers[`deckit-shell:desktop-${name}`](payload, desktopPage);
+    const pagePointer = (id, part, type, { x, y }, more = {}) =>
+        fromPage('pointer', { id, part, type, x, y, button: 0, ...(type === 'down' ? { count: 1 } : {}), ...more });
     return {
         desktop,
         desktopPage,
@@ -1512,7 +1534,25 @@ function desktopOver(createDesktop, { state = {}, clock }) {
         openSurfaces: (id) => {
             for (const name of [`frame-${id}`, `buttons-${id}`]) allowed.get(name)({ name });
         },
-        fromPage: (name, payload) => handlers[`deckit-shell:desktop-${name}`](payload, desktopPage),
+        fromPage,
+        pagePointer,
+        pagePress: (id) => {
+            pagePointer(id, 'top', 'down', { x: 0, y: 0 });
+            pagePointer(id, 'top', 'up', { x: 0, y: 0 });
+        },
+        pageFrames: (id, to) => {
+            const drag = (part, dx, dy) => {
+                pagePointer(id, part, 'down', { x: 0, y: 0 });
+                pagePointer(id, part, 'move', { x: dx, y: dy });
+                pagePointer(id, part, 'up', { x: dx, y: dy });
+            };
+            const now = () => desktop.control.windows().find((one) => one.id === id).frame;
+            const [right, bottom] = [to.x + to.width, to.y + to.height];
+            const corner = (x, y) => drag('bottom-right', x - now().x - now().width, y - now().y - now().height);
+            corner(Math.max(right, now().x + now().width), Math.max(bottom, now().y + now().height));
+            drag('top-left', to.x - now().x, to.y - now().y);
+            corner(right, bottom);
+        },
         page: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-state').at(-1).payload,
         press: (id, page, from) => heard.press(id, page, from),
         // A seat deckit opens, what a seat's devices did as the entry hands it, and what the machine's did.

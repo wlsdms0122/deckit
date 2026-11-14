@@ -7,9 +7,9 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, minimum, bar, title }], panels: [{ id, edge, frame }], drop, strip, dock, down }`: the
+// `{ windows: [{ id, frame, key, bar, title }], panels: [{ id, edge, frame }], drop, strip, dock, down }`: the
 // windows on the screen of the seat at the host window, `frame` on the stage, `key` whether it is that seat's key
-// window, `minimum` the size it is never below, `bar` its title bar (model/layout.js barOf), `title` what the title bar
+// window, `bar` its title bar (model/layout.js barOf), `title` what the title bar
 // the shell draws over a titled window's content holds, or null for a window whose content draws its own; `panels`,
 // the panel windows at their edge, 'top' in the strip or 'right', the material drawn under each at its frame; `drop`
 // `{ tile, frame }`, the tile (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame,
@@ -19,47 +19,25 @@ export const setup = CHANNEL.pageToMain(
 // (dock/main.js items), the id of the mod whose window is that seat's key window, or null, and the ids of the mods
 // that ask for that seat's attention; and `down` `{ name, why }` once deckit's core answers nothing more, or null.
 export const state = CHANNEL.mainToPage('deckit-shell:desktop-state');
-// A press on a window's frame or its buttons.
-export const press = CHANNEL.pageToMain('deckit-shell:desktop-press', { id: 'number' }, { guard: CHANNEL.GUARD.ANY });
-// One of a window's buttons clicked: `button` 'close', 'minimize' or 'zoom'.
-export const button = CHANNEL.pageToMain(
-    'deckit-shell:desktop-button',
-    { id: 'number', button: 'string' },
-    { guard: CHANNEL.GUARD.ANY }
-);
-// A window's frame as a drag of its edge `edge` (model/layout.js resized) draws it: `phase` 'changed', then 'ended'
-// as the drag ends.
-export const resize = CHANNEL.pageToMain(
-    'deckit-shell:desktop-resize',
+// What the pointer of the seat at the host window does on a part of a window the page draws, as it does it, main
+// recognizing what it means: `id` the window, `part` 'bar', its title bar, an edge as model/layout.js resized names
+// it, a button by its name or 'buttons' between them; `type` 'down' on the part, then 'move' and 'up' wherever the
+// pointer goes with the button held, `part` then what of the window is under it; `x`, `y` on the screen, which holds
+// still as the frame moves; `button` the one pressed or let go; and for a 'down', `count`, its click count, and
+// `grabX`, `grabY`, where it is from the frame's top left.
+export const pointer = CHANNEL.pageToMain(
+    'deckit-shell:desktop-pointer',
     {
         id: 'number',
-        phase: 'string',
-        edge: 'string?',
+        part: 'string',
+        type: 'string',
         x: 'number',
         y: 'number',
-        width: 'number',
-        height: 'number',
+        button: 'number',
+        count: 'number?',
+        grabX: 'number?',
+        grabY: 'number?',
     },
-    { guard: CHANNEL.GUARD.ANY }
-);
-// A drag of a titled window's title bar, `dx`, `dy` from the press on the screen, `x`, `y` where it pressed from the
-// frame's top left: `phase` 'began', 'changed', then 'ended' as the drag ends; and the second press of a double click
-// there.
-export const move = CHANNEL.pageToMain(
-    'deckit-shell:desktop-move',
-    {
-        id: 'number',
-        phase: 'string',
-        dx: 'number',
-        dy: 'number',
-        x: 'number?',
-        y: 'number?',
-    },
-    { guard: CHANNEL.GUARD.ANY }
-);
-export const doubleClick = CHANNEL.pageToMain(
-    'deckit-shell:desktop-double-click',
-    { id: 'number' },
     { guard: CHANNEL.GUARD.ANY }
 );
 // The Dock slid `out` as the pointer came near, or back in to its sliver: where it takes the pointer.

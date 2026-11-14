@@ -357,18 +357,20 @@ function boot(theme, channels) {
         const bar = element(frame.document, 'div', 'deckit-window-title');
         const text = element(frame.document, 'span', 'deckit-window-title-text');
         bar.append(text);
-        bar.addEventListener('pointerdown', (down) => move(id, bar, down));
+        forward(id, bar, () => 'bar', { takes: true });
         const edges = EDGES.map((edge) => {
             const band = element(frame.document, 'div', 'deckit-window-edge');
             band.dataset.edge = edge;
-            band.addEventListener('pointerdown', (down) => resize(id, edge, band, down));
+            forward(id, band, () => edge, { takes: true });
             return band;
         });
         frame.document.body.append(material, bar, ...edges);
 
         const held = surface(PAGE.buttonsOf(id));
         const buttons = element(held.document, 'div', 'deckit-window-buttons');
-        buttons.addEventListener('pointerdown', () => PROTOCOL.press.send({ id }));
+        const under = ({ clientX, clientY }) =>
+            held.document.elementFromPoint(clientX, clientY)?.closest('[data-button]')?.dataset.button ?? 'buttons';
+        forward(id, buttons, under);
         LAYOUT.BUTTONS.forEach((name) => {
             const button = element(held.document, 'button', 'deckit-window-button');
             button.type = 'button';
@@ -378,66 +380,41 @@ function boot(theme, channels) {
             button.innerHTML =
                 '<svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">' +
                 `<path d="${GLYPHS[name]}"/></svg>`;
-            button.addEventListener('click', () => PROTOCOL.button.send({ id, button: name }));
+            // A button the keyboard clicks is pressed and let go where it is.
+            button.addEventListener('click', ({ detail }) => {
+                if (detail !== 0) return;
+                for (const type of ['down', 'up'])
+                    PROTOCOL.pointer.send({ id, part: name, type, x: 0, y: 0, button: 0 });
+            });
             buttons.append(button);
         });
         held.document.body.append(buttons);
         return { material, bar, text, buttons, edges, off: [frame.off, held.off] };
     }
 
-    // A drag of a titled window's title bar, read on the screen, as the surface moves with the frame. The second press
-    // of a double click is the title bar's.
-    function move(id, bar, down) {
-        if (down.button !== 0) return;
-        down.preventDefault();
-        PROTOCOL.press.send({ id });
-        if (down.detail === 2) return PROTOCOL.doubleClick.send({ id });
-        bar.setPointerCapture(down.pointerId);
-        const send = (phase, event) =>
-            PROTOCOL.move.send({ id, phase, dx: event.screenX - down.screenX, dy: event.screenY - down.screenY });
-        const grab = { x: down.clientX - SHADOW, y: down.clientY - SHADOW };
-        const moved = (event) => send('changed', event);
-        const up = (event) => {
-            bar.removeEventListener('pointermove', moved);
-            bar.removeEventListener('pointerup', up);
-            bar.removeEventListener('pointercancel', up);
-            send('ended', event);
-        };
-        bar.addEventListener('pointermove', moved);
-        bar.addEventListener('pointerup', up);
-        bar.addEventListener('pointercancel', up);
-        PROTOCOL.move.send({ id, phase: 'began', dx: 0, dy: 0, ...grab });
-    }
-
-    // A drag of an edge, read on the screen, as the surface moves with the frame: the frame main is told as it goes,
-    // never below the window's minimum, and once more as the drag ends.
-    function resize(id, edge, band, down) {
-        if (down.button !== 0) return;
-        const window = state.windows.find((one) => one.id === id);
-        if (!window) return;
-        down.preventDefault();
-        PROTOCOL.press.send({ id });
-        band.setPointerCapture(down.pointerId);
-        let frame = window.frame;
-        const move = (event) => {
-            frame = LAYOUT.resized(
-                window.frame,
-                edge,
-                event.screenX - down.screenX,
-                event.screenY - down.screenY,
-                window.minimum
-            );
-            PROTOCOL.resize.send({ id, phase: 'changed', edge, ...frame });
-        };
-        const up = () => {
-            band.removeEventListener('pointermove', move);
-            band.removeEventListener('pointerup', up);
-            band.removeEventListener('pointercancel', up);
-            PROTOCOL.resize.send({ id, phase: 'ended', edge, ...frame });
-        };
-        band.addEventListener('pointermove', move);
-        band.addEventListener('pointerup', up);
-        band.addEventListener('pointercancel', up);
+    // What the pointer does on `node`, a part of the window `id`, told to main as it does it: its press there, and
+    // with the button held, each move and the up, wherever it goes, read on the screen as the surface moves with the
+    // frame. `partOf(event)` names the part under it. A part that `takes` its press leaves the document none of it.
+    function forward(id, node, partOf, { takes = false } = {}) {
+        const send = (type, event, more = {}) =>
+            PROTOCOL.pointer.send({
+                id,
+                part: partOf(event),
+                type,
+                x: event.screenX,
+                y: event.screenY,
+                button: event.button,
+                ...more,
+            });
+        const held = (event) => node.hasPointerCapture(event.pointerId);
+        node.addEventListener('pointerdown', (down) => {
+            if (takes) down.preventDefault();
+            node.setPointerCapture(down.pointerId);
+            send('down', down, { count: down.detail, grabX: down.clientX - SHADOW, grabY: down.clientY - SHADOW });
+        });
+        node.addEventListener('pointermove', (event) => held(event) && send('move', event));
+        for (const ends of ['pointerup', 'pointercancel'])
+            node.addEventListener(ends, (event) => held(event) && send('up', event));
     }
 
     // A document of this page's, laid where main puts it, wearing this page's rules. It draws nothing of its own: what

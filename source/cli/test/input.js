@@ -286,6 +286,34 @@ async function run({ check, main, laidNow, desktopLaid, windowsNow, windowOf, do
     );
     for (const page of [a, b]) await page.evaluate(UNWATCH);
 
+    // A drag of a window's edge put in the desktop's page, in the frame it draws for the key window: the page tells
+    // what the pointer does and main recognizes the drag, as it does for every seat.
+    const keyNow = async () => (await windowsNow()).find((window) => window.key);
+    const sized = await keyNow();
+    const surface = (await desktopLaid()).pages.find(({ name }) => name === `frame-${sized?.id}`);
+    if (sized && surface) {
+        const edge = {
+            x: sized.rect.x - surface.rect.x + sized.rect.width + 2,
+            y: sized.rect.y - surface.rect.y + Math.round(sized.rect.height / 2),
+        };
+        const pointer = (type, dx, more) =>
+            put(surface, { event: 'pointer', type, x: edge.x + dx, y: edge.y, ...more });
+        const widthIs = (width) => until(async () => (await keyNow())?.rect.width === width, 3000);
+        await pointer('down', 0, { button: 0, buttons: [0], count: 1 });
+        await pointer('move', 30, { buttons: [0] });
+        const wider = await widthIs(sized.rect.width + 30);
+        await pointer('up', 30, { button: 0, buttons: [] });
+        await pointer('down', 30, { button: 0, buttons: [0], count: 1 });
+        await pointer('move', 0, { buttons: [0] });
+        await pointer('up', 0, { button: 0, buttons: [] });
+        const back = await widthIs(sized.rect.width);
+        check(
+            "input: a drag of a window's edge in the desktop's page resizes the window, and back",
+            wider && back,
+            JSON.stringify({ from: sized.rect, now: (await keyNow())?.rect })
+        );
+    } else check("input: the key window's frame is laid", false, JSON.stringify({ sized, surface }));
+
     // The page a press reaches, read from the layers, is the one the host window finds.
     const { hitIn } = await import(HIT);
     const laid = await desktopLaid();
