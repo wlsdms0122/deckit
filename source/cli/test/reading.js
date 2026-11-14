@@ -131,16 +131,16 @@ async function run({ check, reader, other, window, editor, showsFor, inPage, pag
     const pressed = shown && other.as('press', shown);
     const texts = editor ? other.as('read', 'window', `w${editor.id}`, '--roles', 'textbox') : '';
     const [, text] = /^ +textbox \[text \d+\] (\d+\.\d+)$/m.exec(texts) ?? [];
-    const acted = text && other.as('press', text);
+    const byRef = text && other.as('press', text);
     const inEditor = editor ? reader.as('read', 'window', `w${editor.id}`, '--roles', 'textbox') : '';
     check(
         'reading: the Editor read by one seat while another types in it names that seat as focused',
-        acted === `over ${editor?.id}, key` &&
+        byRef === `over ${editor?.id}, key` &&
             new RegExp(`^window w${editor?.id} "Editor" editor .*\\[key ${other.seat}\\] mark \\d+$`, 'm').test(
                 inEditor
             ) &&
             new RegExp(`^ +textbox \\[focused ${other.seat}, text \\d+\\] ${text}$`, 'm').test(inEditor),
-        JSON.stringify({ shown, pressed, texts, acted, inEditor })
+        JSON.stringify({ shown, pressed, texts, byRef, inEditor })
     );
 }
 
