@@ -153,35 +153,40 @@ final class WebPage: NSObject {
         Self.add(scripts, to: controller)
     }
 
-    // What a key does, asked of JavaScript before the page has it.
-    func pressed(_ event: NSEvent) -> Bool {
+    // What a key does, asked of JavaScript before the page has it, `from` the seat it was put for, none for the
+    // machine's.
+    func pressed(_ event: NSEvent, from: String? = nil) -> Bool {
         var payload = Self.keystroke(of: event)
         payload["type"] = event.type == .keyDown ? "keyDown" : "keyUp"
+        if let from { payload["from"] = from }
 
         return emitter.emit("key", payload) { node, value in try node.bool(value) } ?? false
     }
 
     // What a key pressed that the page did not handle does, asked of JavaScript after the page had it: whether it is
     // taken from the rest of the app. Until JavaScript answers, the app does not have it; one answered later and not
-    // taken goes to the app's menu.
-    func unhandled(_ event: NSEvent) -> Bool {
+    // taken goes to the app's menu, unless it was put for a seat, `from`, whose keys the app never has.
+    func unhandled(_ event: NSEvent, from: String? = nil) -> Bool {
         let answer = KeyAnswer()
         let reply = Reply { node, arguments in
             guard answer.taken == nil else { return }
             let taken = try arguments.first.map { try node.bool($0) } ?? false
             answer.taken = taken
-            if !answer.asking && !taken { NSApp.mainMenu?.performKeyEquivalent(with: event) }
+            if !answer.asking && !taken && from == nil { NSApp.mainMenu?.performKeyEquivalent(with: event) }
         }
         var payload = Self.keystroke(of: event)
         payload["reply"] = reply
+        if let from { payload["from"] = from }
         emitter.emit("unhandled", payload)
         answer.asking = false
 
         return answer.taken ?? true
     }
 
-    func pointed(_ event: NSEvent) {
-        emitter.emit("mouse", ["type": event.type == .leftMouseDown ? "mouseDown" : "mouseUp"])
+    func pointed(_ event: NSEvent, from: String? = nil) {
+        var payload: [String: Any?] = ["type": event.type == .leftMouseDown ? "mouseDown" : "mouseUp"]
+        if let from { payload["from"] = from }
+        emitter.emit("mouse", payload)
     }
 
     // The value of `source`, a function body that may await, as JSON, run in the page's world or deckit's, in the main

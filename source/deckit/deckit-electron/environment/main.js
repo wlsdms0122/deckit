@@ -20,6 +20,7 @@ import { createLoader } from '../main-process/loader.js';
 import { createWeb } from '../web/main.js';
 
 // MARK: - Property
+const FRAME = 16; // ms
 // UI Events' names for the input deck is told of, by the module's.
 const INPUT = { keyDown: 'keydown', keyUp: 'keyup', mouseDown: 'mousedown', mouseUp: 'mouseup' };
 // Electron's accelerator key for each key code a spec names that is not a letter, a digit or a function key.
@@ -90,6 +91,8 @@ function createEnvironment({ core, preload, openWindow }) {
     const pins = new WeakMap(); // a pinned page -> { address }, the address its first load committed
     let answer = null; // how a load of deck's scheme is answered, once deck serves (serve)
     let script = null; // the preload's source
+    const hearing = new Set(); // what hears the machine's input (listen)
+    const moved = { last: null, timer: null }; // the move not told yet
     hear();
     // A page that runs no mod is named as a host is, with no dot, so its origin is never a mod's. It is clear where it
     // draws nothing, as the windows it opens are.
@@ -145,7 +148,9 @@ function createEnvironment({ core, preload, openWindow }) {
             unhandled: (page, handler) => unhandled(guard, page, handler),
             hotkey,
             focused: () => WEBKIT.focusedPage(),
+            reserve: (page, on) => void (page.isDestroyed() || WEBKIT.native().reserveKeyboard(page.id, !!on)),
         }),
+        input: Object.freeze({ listen, put }),
         open: Object.freeze({ url: openURL, file: openFile, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({
@@ -229,6 +234,60 @@ function createEnvironment({ core, preload, openWindow }) {
             ]),
         }),
     });
+
+    // The machine's pointer and keyboard, each event told as the app has it, `{ event: 'pointer', type, x, y, button,
+    // buttons, modifiers, count, dx, dy }` or `{ event: 'key', type, code, key, modifiers, repeat }`, with `page`, the
+    // page it is delivered to, the point from that page's top left, or null and the point from its window's content's,
+    // and `carried: true`: the page has it already. Moves are told once a frame, the last of them, and before whatever
+    // follows them. Answers its off.
+    function listen(handler) {
+        if (!hearing.size) WEBKIT.native().listenInput((_name, event) => heard(event));
+        hearing.add(handler);
+        return () => hearing.delete(handler);
+    }
+
+    function heard(event) {
+        const told = Object.freeze({
+            ...event,
+            page: event.page === null ? null : WEBKIT.pageById(event.page),
+            carried: true,
+        });
+        if (told.event === 'pointer' && told.type === 'move') {
+            moved.last = told;
+            moved.timer ??= setTimeout(flush, FRAME);
+            return;
+        }
+        flush();
+        tell(told);
+    }
+
+    function flush() {
+        clearTimeout(moved.timer);
+        const last = moved.last;
+        moved.timer = null;
+        moved.last = null;
+        if (last) tell(last);
+    }
+
+    function tell(event) {
+        for (const listener of [...hearing]) {
+            try {
+                listener(event);
+            } catch (error) {
+                LOG.error('a listener of the input failed', error);
+            }
+        }
+    }
+
+    // `event`, as `listen` tells one or `{ event: 'text', type, text }`, `type` `insert`, `compose`, `commit` or
+    // `cancel`, put into `page` at a point from its top left for the seat `from` names, a token of the caller's: the
+    // page is not given the keyboard, what the page tells of the event carries `from`, and a key the page does not
+    // handle is told as its own unhandled key and reaches nothing else.
+    function put(page, event, from) {
+        if (typeof from !== 'string' || !from) throw new Error('[deckit] an event is put from a token');
+        if (isGone(page)) return;
+        WEBKIT.native().putInput(page.id, { ...event, from });
+    }
 
     // What a page of deck's asks of main: a load of its scheme, its own files or a question, what it posts, where it
     // goes, and the window it opens. `asked.page` is the page, known once it is made. It is given no permission of the
@@ -399,10 +458,10 @@ function watchInput(guard, page, listener) {
 }
 
 // A key, told before it reaches the page, taken from it when `handler` answers true. Told after what watchInput
-// watches, when that watch began first.
+// watches, when that watch began first. `from` is the token of the seat it was put for, none on the machine's own.
 function capture(guard, page, handler) {
-    guard(page, 'key', ({ type, code, meta, control, alt, shift }, take) => {
-        const pressed = { type: INPUT[type], code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
+    guard(page, 'key', ({ type, code, meta, control, alt, shift, from }, take) => {
+        const pressed = { type: INPUT[type], code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift, from };
         if (handler(Object.freeze(pressed))) take();
     });
 }
@@ -410,8 +469,9 @@ function capture(guard, page, handler) {
 // A key down the page did not handle, told after the page had it, taken from the rest of the app when `handler`
 // answers true.
 function unhandled(guard, page, handler) {
-    guard(page, 'unhandled', ({ code, meta, control, alt, shift }, take) => {
-        if (handler(Object.freeze({ code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift }))) take();
+    guard(page, 'unhandled', ({ code, meta, control, alt, shift, from }, take) => {
+        if (handler(Object.freeze({ code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift, from })))
+            take();
     });
 }
 

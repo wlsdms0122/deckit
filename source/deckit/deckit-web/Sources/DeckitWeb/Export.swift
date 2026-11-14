@@ -59,4 +59,7 @@ enum Export: Int, CaseIterable {
     case removeStage
     case tree
     case pageAt
+    case listenInput
+    case putInput
+    case reserveKeyboard
 }

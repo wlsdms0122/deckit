@@ -9,16 +9,17 @@ import AppKit
 import WebKit
 
 // A web page's WKWebView, which tells when it takes the keyboard, may take it only as it is given it or pressed unless
-// it `takesKeyboard` as its document focuses an element, keeps the files of the drop last performed on it, takes the
-// pointer only inside its `inputRegion` while it has one, and hears the pointer only where it is the page under it, in
-// a key window of an app that is not active too (PointerRelay). WebKit tracks the pointer through tracking areas of its
-// own, which each page is given behind a gate (TrackingGate), so a page under another does not answer the moves too and
-// set its own cursor.
+// it `takesKeyboard` as its document focuses an element, and not as it is pressed while its keyboard `isReserved`,
+// keeps the files of the drop last performed on it, takes the pointer only inside its `inputRegion` while it has one,
+// and hears the pointer only where it is the page under it, in a key window of an app that is not active too
+// (PointerRelay). WebKit tracks the pointer through tracking areas of its own, which each page is given behind a gate
+// (TrackingGate), so a page under another does not answer the moves too and set its own cursor.
 @MainActor
 final class WebPageView: WKWebView {
     // MARK: - Property
     var onFocus: (() -> Void)?
     var takesKeyboard = true
+    var isReserved = false // whether a press leaves the keyboard where it is
     var clearWhileBlank = false // drawing nothing where the document does not until it commits its first page
     var inputRegion: [CGRect]? // the rects that take the pointer, from its top left; nil, all of it
     private var given = false // whether the keyboard is being handed to it
@@ -101,7 +102,7 @@ final class WebPageView: WKWebView {
     static func mayTake(_ responder: NSResponder?) -> Bool {
         guard let page = responder as? WebPageView else { return true }
 
-        return page.takesKeyboard || page.given || page.isPressed()
+        return page.takesKeyboard || page.given || (!page.isReserved && page.isPressed())
     }
 
     // The keyboard handed to it, in its window.
@@ -109,6 +110,12 @@ final class WebPageView: WKWebView {
         given = true
         window?.makeFirstResponder(self)
         given = false
+    }
+
+    // A move put into it for a seat, whose pointer is not the one the window hit tests for.
+    func moved(put event: NSEvent) {
+        covered = false
+        super.mouseMoved(with: event)
     }
 
     // Whether a move of the pointer is this page's, the one under it; once it is not, the pointer has left it.
