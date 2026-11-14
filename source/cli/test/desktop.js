@@ -824,7 +824,7 @@ async function main() {
     const { createOverlay } = await import(url('deckit-shell', 'shell', 'overlay', 'main.js'));
     overlayChecks(createOverlay, check);
 
-    seatChecks({ LAYOUT, createDesktop }, check);
+    seatChecks({ LAYOUT, DOCK, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -910,7 +910,7 @@ function overlayChecks(createOverlay, check) {
 // Tiles, edge snapping, the drop a drag shows and the motion a window's frame is drawn by.
 // Two seats attached beside the local one at a desktop with three windows, each seat's devices entering as deckit
 // hands them: presses read against what is laid for the seat, keys put in the seat's key window, a window held.
-function seatChecks({ LAYOUT, createDesktop }, check) {
+function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     const desk = desktopOver(createDesktop, {});
     const page = { name: 'page-a', mod: 'a' };
     const windowOf = (id, x) => ({
@@ -1068,6 +1068,29 @@ function seatChecks({ LAYOUT, createDesktop }, check) {
         moved.over === null && nowhere.over === 'desktop',
         JSON.stringify({ moved, nowhere })
     );
+    desk.dock.items = [{ id: 'a', pinned: true, running: true }];
+    const tile = DOCK.tileOf(LAYOUT.desktopOf({ width: 1200, height: 800 }, 28), desk.dock.items, 'a');
+    const item = { x: tile.x + tile.width / 2, y: tile.y + tile.height / 2 };
+    desk.enter(me, pointer('move', { x: 600, y: 700 }));
+    const under = desk.enter(me, pointer('down', item));
+    desk.enter(me, pointer('up', item));
+    desk.enter(me, pointer('move', { x: 2, y: item.y }));
+    const onItem = desk.enter(me, pointer('down', item));
+    desk.enter(me, pointer('up', item));
+    desk.enter(me, pointer('down', item));
+    desk.enter(me, pointer('up', { x: 600, y: 700 }));
+    const left = desk.enter(me, pointer('down', item));
+    desk.enter(me, pointer('up', item));
+    check(
+        "the Dock comes out for a seat as its pointer reaches the Dock's sliver, a click on an item there is that " +
+            "seat's, and the Dock goes back in as its pointer leaves",
+        under.over !== 'dock' &&
+            onItem.over === 'dock' &&
+            left.over !== 'dock' &&
+            JSON.stringify(desk.dock.clicked) === '[["a","s1"]]',
+        JSON.stringify({ under, onItem, left, clicked: desk.dock.clicked })
+    );
+    desk.dock.items = [];
     const listed = (id) => desk.desktop.control.windows().find((one) => one.id === id);
     const stood = { ...listed(1).frame };
     desk.pagePointer(1, 'bar', 'down', { x: 0, y: 0 }, { button: 2, grabX: 10, grabY: 10 });
@@ -1398,6 +1421,7 @@ function desktopOver(createDesktop, { state = {}, clock }) {
     const seats = { open: [local], opened: null, closed: null, served: null, idle: new Set(), held: [] };
     const puts = [];
     const reserved = new Map();
+    const dock = { items: [], clicked: [] }; // the Dock's items, and each click on one with the seat it is of
     const KEY = {
         start: (press) => (heard.press = press),
         listen() {},
@@ -1507,7 +1531,7 @@ function desktopOver(createDesktop, { state = {}, clock }) {
             keyOverlay: () => null,
             pageOf: (page) => page.of ?? page,
         },
-        DOCK: { items: () => [] },
+        DOCK: { items: () => dock.items, hand: { click: (id, seat) => dock.clicked.push([id, seat]) } },
     });
     const backdrop = { name: 'backdrop' };
     allowed.get('backdrop')(backdrop);
@@ -1569,6 +1593,7 @@ function desktopOver(createDesktop, { state = {}, clock }) {
         closed,
         puts,
         reserved,
+        dock,
         request: (from, to) => heard.requests({ from, to }),
         key: (page) => heard.monitor(page, { code: 'KeyA' }),
         chord: (mod) => heard.chords(mod),
