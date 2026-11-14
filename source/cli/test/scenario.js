@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 const { seat } = require('./seat.js');
+const OUTSIDE = require('./outside.js');
 
 // The mods Deckit.app ships that are apps, which the Dock keeps from the first start: every one but the accessories,
 // such as Deckit, the Switcher and Notifications.
@@ -2949,6 +2950,12 @@ async function run({
         check('scenario ran', false, error.stack);
     }
     check('no page threw', !thrown.length, thrown.slice(0, 3).join(' | '));
+
+    try {
+        await OUTSIDE.run({ check, home, logged });
+    } catch (error) {
+        check('outside: a party attached', false, error.stack);
+    }
 
     // A core that ends is not started again: what it ended of is told, asking for the app to be restarted.
     try {
