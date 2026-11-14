@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Checks the channels between main and a page, the stage pages are laid on, what an environment gives and connect
-// answers, deck's client of the core, its runner, the exports a page opens by interface, the mods a connection
-// launches, the scope a lifecycle cuts and the events a page hears, deckit as a layer on deck, the key map, the mods as
+// answers, the seats main keeps, deck's client of the core, its runner, the exports a page opens by interface, the
+// mods a connection launches, the scope a lifecycle cuts and the events a page hears, deckit as a layer on deck, the
+// key map, the mods as
 // the core reads them, an address offered to its handlers in turn, the web pages a mod shows, what a page is told as it
 // starts, the styles a page wears, the regions mods give their children, forge's runs, the commands, urls, keymap and
 // configuration mods, the Switcher's list, the Browser's game, Settings' Activity and the Mods mod's search, runs the core's tests, then
@@ -48,6 +49,7 @@ const main = async () => {
         'window.js',
         'dock.js',
         'host.js',
+        'seats.js',
         'key.js',
         'style.js',
         'token.js',

@@ -4,21 +4,21 @@ import { OUTSIDE as RUNNER_WIRE } from '../runner/main.js';
 import { OUTSIDE as CONNECTION_WIRE } from '../connection/main.js';
 import { OUTSIDE as EVENT_WIRE } from '../event/main.js';
 import { OUTSIDE as RECORD_WIRE } from '../record/main.js';
+import { OUTSIDE as SEAT_WIRE } from '../seat/main.js';
 
 // What a run asks and is told, each module's channels by their methods.
-const WIRES = [RUNNER_WIRE, CONNECTION_WIRE, EVENT_WIRE, RECORD_WIRE];
+const WIRES = [RUNNER_WIRE, CONNECTION_WIRE, EVENT_WIRE, RECORD_WIRE, SEAT_WIRE];
 const ASKED = Object.assign({}, ...WIRES.map(({ asked }) => asked));
 const TOLD = Object.assign({}, ...WIRES.map(({ told }) => told));
 
 // The transport connections that arrive from outside. Nobody made one, so whose it is, is a claim: main relays the
 // claimant's proof to the core, which alone checks it against the keys authorized for the principal, and learns the
-// principal only from what the core answers. From then on the transport connection hosts a run of that principal's job
-// as a page hosts one, and what it sends is that run's, held to the guards a page's is held to. `transport` is the
-// environment's (environment/: MAIN.transport), `path` where it listens.
-export function createOutside({ CORE, LOG, RUNNER, transport: TRANSPORT, path }) {
+// principal only from what the core answers. The principal is a user, who sits at a seat once the core admits it, at
+// once or after the local seat was asked (seat/). From then on the transport connection hosts a run of that user's
+// job as a page hosts one, and what it sends is that run's, held to the guards a page's is held to. `transport` is
+// the environment's (environment/: MAIN.transport), `path` where it listens.
+export function createOutside({ CORE, LOG, RUNNER, SEAT, transport: TRANSPORT, path }) {
     // MARK: - Property
-    // No seat's devices are heard here, so the local seat gave no input since this began.
-    const began = Date.now();
     let sequence = 0;
 
     // MARK: - Initializer
@@ -75,7 +75,8 @@ export function createOutside({ CORE, LOG, RUNNER, transport: TRANSPORT, path })
         }
 
         // `initialize` first, once, then `authenticate`, then what a run asks. Whatever fails of the proof is one
-        // refusal, which tells nothing of the principal, and the transport connection closes.
+        // refusal, which tells nothing of the principal, and the transport connection closes. A party whose admission
+        // waits for the local seat is told `attach/asking` once, and `authenticate` answers when the seat has.
         async function respond(id, method, params) {
             if (state === 'opened' && method === 'initialize') {
                 if (params.protocol !== DECLARED.PROTOCOL) throw refusal(`protocol ${DECLARED.PROTOCOL} is spoken`);
@@ -99,21 +100,18 @@ export function createOutside({ CORE, LOG, RUNNER, transport: TRANSPORT, path })
         async function authenticate({ principal, scheme, key, signature }) {
             state = 'verifying';
             const withdraw = RUNNER.offer(transport, host);
-            const effectsOf = ({ effects = [] }) => effects;
             try {
-                const idle = (Date.now() - began) / 1000;
-                const proof = { transport, principal, scheme, key, signature, idle };
-                const verified = await RUNNER.ask('authentication/verify', proof, effectsOf);
-                // Nobody is here to ask: a user that waits for the local seat's answer is answered no.
-                const { effects } = verified.asking
-                    ? await RUNNER.ask('seat/answer', { transport, allow: false }, effectsOf)
-                    : verified;
+                const proof = { transport, principal, scheme, key, signature };
+                const { effects, seat } = await SEAT.admit(proof, {
+                    asking: () => send({ method: DECLARED.ASKING }),
+                    whenEnds: (listener) => ends.push(listener),
+                });
                 const opened = effects.find((effect) => effect.effect === 'open' && effect.transport === transport);
                 run = RUNNER.runOf(opened.mod).number;
                 state = 'bound';
                 connection.limit(DECLARED.LIMIT.after);
                 const end = CORE.timeout().end / 1000;
-                return { principal: opened.mod, run, permissions: opened.permissions, end };
+                return { principal: opened.mod, run, permissions: opened.permissions, end, seat };
             } catch (error) {
                 withdraw();
                 throw Object.assign(error, { closes: true });

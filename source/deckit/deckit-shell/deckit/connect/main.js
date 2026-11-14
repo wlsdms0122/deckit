@@ -19,6 +19,7 @@ import { createEvent } from '../event/main.js';
 import { createMods } from '../mods/main.js';
 import { createCore } from '../core/main.js';
 import { createOutside } from '../outside/main.js';
+import { createSeat } from '../seat/main.js';
 import { createOpen } from '../open/main.js';
 import { createNotification } from '../notification/main.js';
 import { createClipboard } from '../clipboard/main.js';
@@ -102,10 +103,12 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const REQUEST = createRequest();
     const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST });
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
+    const SEAT = createSeat({ CORE, LOG, IDENTITY, RUNNER, name: CONFIG.name });
     const OUTSIDE = createOutside({
         CORE,
         LOG,
         RUNNER,
+        SEAT,
         transport: ENV.transport,
         path: `${HOME.folder}/deckit.sock`,
     });
@@ -141,6 +144,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         PERMISSION,
         MANIFEST_FIELD,
         SETUP,
+        SEAT,
     });
     const starting = []; // what starts with deckit, before any mod launches: the UI on it
     let told = false; // what starts with deckit has been told
@@ -160,7 +164,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
 
     // The log starts first, then the core, which is handed the permissions the layers defined and the manifest fields
     // they named, and hands over the state it keeps, and installs what the host app ships and reads the mods, before
-    // anything reads the mods or the state. Deckit's pages are served before any loads. What follows the mods' runs
+    // anything reads the mods or the state, and the local seat opens. Deckit's pages are served before any loads. What follows the mods' runs
     // starts before the runner launches any. Resolves once the background mods have launched, or failed to. A core
     // that refuses initialize is asked nothing more: what starts with deckit starts all the same, so it shows the core
     // is down, and then the start is refused with that refusal, and no mod runs.
@@ -176,6 +180,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         if (!refusal) {
             await STORAGE.load();
             await CATALOG.load();
+            await SEAT.start();
         }
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
         OPEN.start();

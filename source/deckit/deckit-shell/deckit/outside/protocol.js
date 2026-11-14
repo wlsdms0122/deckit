@@ -8,9 +8,11 @@ const PROTOCOL = 1; // the version of this protocol
 const LIMIT = Object.freeze({ before: 4096, after: 1048576 });
 // JSON-RPC's codes, as the core answers them (deckit/core).
 const CODE = Object.freeze({ invalidRequest: -32600, methodNotFound: -32601, notInitialized: -32002, failed: -32803 });
+// What a party is told while its admission waits for the local seat's answer, before `authenticate` answers.
+const ASKING = 'attach/asking';
 
 // MARK: - Initializer
 // MARK: - Public
 // MARK: - Private
 
-export { PROTOCOL, LIMIT, CODE };
+export { PROTOCOL, LIMIT, CODE, ASKING };

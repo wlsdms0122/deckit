@@ -41,6 +41,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     let reconciled = Promise.resolve(); // settled once what the catalog's last change comes to has loaded
     const offered = new Map(); // a transport connection's name -> what hosts a run on it, while the core verifies it
     const sandboxListeners = new Set(); // told of each sandbox's page as it is made
+    const outsideListeners = new Set(); // told of a run a transport connection hosts, as the core tells of it
     let quitHold = null; // 'held' while the runs terminate as the app quits, 'free' once nothing holds it
 
     // MARK: - Initializer
@@ -115,6 +116,13 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     function onSandbox(listener) {
         sandboxListeners.add(listener);
         return () => sandboxListeners.delete(listener);
+    }
+
+    // `listener(run)` is told of a run a transport connection hosts each time the core tells of it, its state as
+    // told. Answers its off.
+    function onOutside(listener) {
+        outsideListeners.add(listener);
+        return () => outsideListeners.delete(listener);
     }
 
     // Told when a problem is kept against a run. Answers its off.
@@ -336,7 +344,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         update(sandbox, told);
         const { run } = sandbox;
         // What follows the mods' runs is told of a mod's run alone: a run a transport connection hosts is no mod's.
-        if (sandbox.outside) return;
+        if (sandbox.outside) {
+            for (const listener of outsideListeners) listener(run);
+            return;
+        }
         if (name === 'didLaunch') lastLaunched.set(run.mod.id, run);
         notifications.emit(name, run);
     }
@@ -538,6 +549,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         ask,
         offer,
         onSandbox,
+        onOutside,
         onProblem,
         handleEffect,
         whenReconciled,
