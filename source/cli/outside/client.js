@@ -8,11 +8,17 @@ const LABEL = 'deckit-authenticate-1';
 
 // A new key pair: `publicKey` as it is registered, base64 of its 32 bytes, and `privateKey`, which signs.
 function makeKey() {
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
-    return {
-        publicKey: Buffer.from(publicKey.export({ format: 'jwk' }).x, 'base64url').toString('base64'),
-        privateKey,
-    };
+    return pairOf(crypto.generateKeyPairSync('ed25519').privateKey);
+}
+
+// The key pair of a private key written as PEM, as a person keeps it in a file.
+function readKey(pem) {
+    return pairOf(crypto.createPrivateKey(pem));
+}
+
+function pairOf(privateKey) {
+    const { x } = crypto.createPublicKey(privateKey).export({ format: 'jwk' });
+    return { publicKey: Buffer.from(x, 'base64url').toString('base64'), privateKey };
 }
 
 // The transport connection to the socket at `file`, once it is open: `request(method, params)` resolves with the
@@ -83,4 +89,4 @@ function connect(file) {
     });
 }
 
-module.exports = { makeKey, connect };
+module.exports = { makeKey, readKey, connect };

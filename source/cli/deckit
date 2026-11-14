@@ -25,6 +25,10 @@ deckit: a library a host app embeds to take mods, the way a game does
   user add|remove|list [<id>] [--name <name>] [--key <file>] [--home <folder>]
                    the users that may sit at a seat of the app, kept in deckit's folder; with --key, a new key pair
                    is registered for the user and its private half written to <file>
+  seat attach <user> --key <file> [--home <folder>]
+                   sits at a seat of the app as the user, until detached or interrupted
+  seat detach | read | changes | capture | move | press | drag | scroll | key | type | watch
+                   what the attached user does and reads at its seat (deckit seat, alone, lists each)
 
 For work on deckit itself, and kept out of manifest.toml:
 

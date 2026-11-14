@@ -1,0 +1,194 @@
+#!/usr/bin/env node
+// A user at a seat of the app, from a terminal. `attach` proves the user by its key, sits until it is detached or
+// interrupted, and relays what the other commands ask (outside/relay.js): each of them asks the host one thing of the
+// seat and prints what it answered. The folder is Deckit.app's folder of deckit or the one `--home` names; the user
+// is the one `--as` or DECKIT_SEAT names, or the only one attached there. Exits 1 with why the host refused.
+const fs = require('fs');
+const path = require('path');
+
+const KEYS = require(path.join(__dirname, '..', 'outside', 'keys.js'));
+const RELAY = require(path.join(__dirname, '..', 'outside', 'relay.js'));
+const { readKey, connect } = require(path.join(__dirname, '..', 'outside', 'client.js'));
+
+const USAGE = [
+    'usage: deckit seat attach <user> --key <file>',
+    '       deckit seat detach',
+    '       deckit seat read desktop | window <id> | node <ref>  [--depth n] [--roles a,b] [--all] [--items n] [--json]',
+    '       deckit seat changes [<mark>]',
+    '       deckit seat capture [window <id> | node <ref> | <x>,<y>,<w>x<h>] --out <file.png> [--scale n]',
+    '       deckit seat move <x>,<y> | <ref>',
+    '       deckit seat press <x>,<y> | <ref>  [--button n] [--count n] [--shift] [--alt] [--control] [--meta]',
+    '       deckit seat drag <x>,<y> <x>,<y>',
+    '       deckit seat scroll <x>,<y> | <ref> <dx>,<dy>',
+    '       deckit seat key <chord>      (Enter, Meta+KeyS, ArrowDown)',
+    '       deckit seat type <text>',
+    '       deckit seat watch',
+    "(each takes --home <folder>, deckit's folder, and all but attach --as <user>)",
+].join('\n');
+const VALUED = ['key', 'home', 'as', 'depth', 'roles', 'items', 'out', 'scale', 'button', 'count'];
+const FLAGS = ['all', 'json', 'shift', 'alt', 'control', 'meta'];
+const MODIFIERS = ['alt', 'control', 'meta', 'shift'];
+const STARTED = { contributions: { exportedIn: {}, awaits: {} } };
+
+const refuse = () => {
+    console.error(USAGE);
+    process.exit(2);
+};
+const words = [];
+const options = {};
+const args = process.argv.slice(2);
+while (args.length) {
+    const arg = args.shift();
+    const name = arg.startsWith('--') ? arg.slice(2) : null;
+    if (FLAGS.includes(name)) options[name] = true;
+    else if (!VALUED.includes(name)) words.push(arg);
+    else if (!args.length || name in options) refuse();
+    else options[name] = args.shift();
+}
+const [action, ...rest] = words;
+const home = options.home ? path.resolve(options.home) : KEYS.appHome();
+const numberOf = (text) => (text !== undefined && Number.isFinite(Number(text)) ? Number(text) : refuse());
+const numbersOf = (text, count) => {
+    const numbers = String(text ?? '')
+        .split(/[,x]/)
+        .map(Number);
+    return numbers.length === count && numbers.every(Number.isFinite) ? numbers : null;
+};
+const modifiers = MODIFIERS.filter((name) => options[name]);
+
+// The terminal sits as `user` until its run ends: asked to detach, interrupted, or closed by the host.
+async function attach(user) {
+    if (!user || rest.length !== 1 || !options.key) refuse();
+    const key = readKey(fs.readFileSync(path.resolve(options.key), 'utf8'));
+    const party = await connect(path.join(home, 'deckit.sock'));
+    party.on('attach/asking', () => console.log('asking the local seat ...'));
+    party.on('runner/stop', () => true);
+    const { seat } = await party.authenticate({ principal: user, ...key });
+    await party.request('runner/started', STARTED);
+    const detach = () => party.request('runner/quit', {}).catch(() => party.close());
+    const close = await RELAY.serve({ party, file: RELAY.fileOf(home, user), detach });
+    for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, detach);
+    console.log(`attached as ${user}, seat ${seat.id}`);
+    await party.closed;
+    close();
+    console.log('detached');
+}
+
+// The relay of the user this terminal acts for.
+function relay() {
+    const there = RELAY.attached(home);
+    const user = options.as ?? process.env.DECKIT_SEAT ?? (there.length === 1 ? there[0] : null);
+    if (!user) throw new Error(there.length ? 'name the user with --as or DECKIT_SEAT' : 'no user is attached');
+    return connect(RELAY.fileOf(home, user)).catch(() => {
+        throw new Error(`${user} is not attached`);
+    });
+}
+
+// What the pointer is asked at a point, `<x>,<y>`, or on what a reading named, a ref.
+function pointed(seat, target, pointer, action) {
+    const point = numbersOf(target, 2);
+    if (!point) return seat.request('seat/act', { ref: target ?? refuse(), ...action });
+    return seat.request('seat/pointer', { x: point[0], y: point[1], modifiers, ...pointer });
+}
+
+function reached({ over = null, key = null, holder = null }) {
+    const held = key === 'held' ? `held by ${holder}` : key;
+    return [`over ${over ?? 'nothing'}`, held].filter(Boolean).join(', ');
+}
+
+// The key a chord ends in, as a key event names it: its code, and the key that code gives.
+function keyOf(code, shifted) {
+    const letter = /^Key([A-Z])$/.exec(code)?.[1];
+    if (letter) return shifted ? letter : letter.toLowerCase();
+    return /^Digit(\d)$/.exec(code)?.[1] ?? (code === 'Space' ? ' ' : code);
+}
+
+const ASKS = {
+    detach: async (seat) => void (await seat.request(RELAY.DETACH, {})),
+    read: async (seat, [level, named]) => {
+        const levels = { desktop: {}, window: { window: named }, node: { ref: named } };
+        if (!Object.hasOwn(levels, level ?? '') || (level !== 'desktop') !== (named !== undefined)) refuse();
+        const answer = await seat.request('seat/read', {
+            level,
+            ...levels[level],
+            ...('depth' in options ? { depth: numberOf(options.depth) } : {}),
+            ...('items' in options ? { items: numberOf(options.items) } : {}),
+            ...('roles' in options ? { roles: options.roles.split(',').filter(Boolean) } : {}),
+            ...(options.all ? { all: true } : {}),
+            ...(options.json ? { format: 'json' } : {}),
+        });
+        console.log(options.json ? JSON.stringify(answer.data, null, 4) : answer.text);
+    },
+    changes: async (seat, [mark]) => {
+        const answer = await seat.request('seat/changes', mark === undefined ? {} : { since: numberOf(mark) });
+        console.log(answer.text);
+    },
+    capture: async (seat, [kind, named]) => {
+        const rect = numbersOf(kind, 4);
+        const what = rect
+            ? { rect: { x: rect[0], y: rect[1], width: rect[2], height: rect[3] } }
+            : { window: { window: named }, node: { ref: named }, none: {} }[kind ?? 'none'];
+        if (!what || !options.out || (!rect && (kind === undefined) !== (named === undefined))) refuse();
+        const scale = 'scale' in options ? { scale: numberOf(options.scale) } : {};
+        const { png, width, height } = await seat.request('seat/capture', { ...what, ...scale });
+        fs.writeFileSync(path.resolve(options.out), Buffer.from(png, 'base64'));
+        console.log(`${options.out} ${width}x${height}`);
+    },
+    move: async (seat, [target]) =>
+        console.log(reached(await pointed(seat, target, { type: 'move' }, { action: 'hover' }))),
+    press: async (seat, [target]) => {
+        const button = 'button' in options ? numberOf(options.button) : 0;
+        const count = 'count' in options ? numberOf(options.count) : 1;
+        const action = button === 2 ? 'context' : count === 2 ? 'double' : 'press';
+        const down = await pointed(seat, target, { type: 'down', button, buttons: [button], count }, { action });
+        if (numbersOf(target, 2)) await pointed(seat, target, { type: 'up', button, buttons: [] });
+        console.log(reached(down));
+    },
+    drag: async (seat, [from, to]) => {
+        if (!numbersOf(from, 2) || !numbersOf(to, 2)) refuse();
+        const down = await pointed(seat, from, { type: 'down', button: 0, buttons: [0], count: 1 });
+        await pointed(seat, to, { type: 'move', buttons: [0] });
+        await pointed(seat, to, { type: 'up', button: 0, buttons: [] });
+        console.log(reached(down));
+    },
+    scroll: async (seat, [target, by]) => {
+        const [dx, dy] = numbersOf(by, 2) ?? refuse();
+        console.log(reached(await pointed(seat, target, { type: 'scroll', dx, dy }, { action: 'scroll', dx, dy })));
+    },
+    key: async (seat, [chord]) => {
+        const parts = (chord ?? refuse()).split('+');
+        const code = parts.pop();
+        const held = parts.map((part) => part.toLowerCase());
+        if (!code || !held.every((part) => MODIFIERS.includes(part))) refuse();
+        const event = { code, key: keyOf(code, held.includes('shift')), modifiers: held };
+        await seat.request('seat/key', { type: 'down', ...event });
+        await seat.request('seat/key', { type: 'up', ...event });
+    },
+    type: async (seat, [text]) => void (await seat.request('seat/text', { type: 'insert', text: text ?? refuse() })),
+    // A line a change, until interrupted: the host says that the desktop changed, and what changed is asked then.
+    watch: async (seat) => {
+        let asked = Promise.resolve();
+        seat.on('seat/changed', () => {
+            asked = asked.then(async () => console.log((await seat.request('seat/changes', {})).text)).catch(() => {});
+        });
+        await seat.request('seat/watch', { on: true });
+        const interrupted = new Promise((resolve) => process.once('SIGINT', resolve));
+        await Promise.race([interrupted, seat.closed]);
+        await Promise.race([seat.request('seat/watch', { on: false }).catch(() => {}), seat.closed]);
+    },
+};
+
+const main = async () => {
+    if (action === 'attach') return attach(rest[0]);
+    if (!Object.hasOwn(ASKS, action ?? '')) refuse();
+    const seat = await relay();
+    await ASKS[action](seat, rest);
+    seat.close();
+};
+main().then(
+    () => process.exit(0),
+    (error) => {
+        console.error(`[seat] ${error.message}`);
+        process.exit(1);
+    }
+);
