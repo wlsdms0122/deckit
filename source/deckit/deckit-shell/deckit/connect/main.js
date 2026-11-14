@@ -18,6 +18,7 @@ import { createConnection } from '../connection/main.js';
 import { createEvent } from '../event/main.js';
 import { createMods } from '../mods/main.js';
 import { createCore } from '../core/main.js';
+import { createOutside } from '../outside/main.js';
 import { createOpen } from '../open/main.js';
 import { createNotification } from '../notification/main.js';
 import { createClipboard } from '../clipboard/main.js';
@@ -101,6 +102,13 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const REQUEST = createRequest();
     const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST });
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
+    const OUTSIDE = createOutside({
+        CORE,
+        LOG,
+        RUNNER,
+        transport: ENV.transport,
+        path: `${HOME.folder}/deckit.sock`,
+    });
     const SETUP = createSetup({ IDENTITY });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, SETUP, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
@@ -190,6 +198,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         CONNECTION.start();
         EVENT.start();
         MODS.start();
+        OUTSIDE.start();
         await RUNNER.start();
     }
 }

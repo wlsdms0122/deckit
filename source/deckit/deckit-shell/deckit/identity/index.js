@@ -1,12 +1,13 @@
 import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
 
-// Which page is which mod's, or which runs none. `pages` is the environment's (environment/: MAIN.pages); a page is its
+// Which page is which mod's, or which runs none, and which transport connection hosts the run of which principal. `pages` is the environment's (environment/: MAIN.pages); a page is its
 // token, kept and compared, never read.
 export function createIdentity({ pages: PAGES }) {
     // MARK: - Property
-    const identities = new Map(); // page -> { mod }, or { page }, the name of a page that runs no mod
-    const pages = new Map(); // mod id -> its page
-    const ends = new Map(); // page -> Set of what undoes what its page set up
+    // page -> { mod }, or { page }, the name of a page that runs no mod; a transport connection -> { mod }
+    const identities = new Map();
+    const pages = new Map(); // mod id -> what hosts its run, its page or a transport connection
+    const ends = new Map(); // what hosts a run -> Set of what undoes what was set up for it
 
     // MARK: - Initializer
     // MARK: - Public
@@ -18,12 +19,6 @@ export function createIdentity({ pages: PAGES }) {
         PAGES.pin(page);
         if (identity.mod) pages.set(identity.mod.id, page);
         ends.set(page, new Set());
-        // Each undo runs whatever another throws, told how the document ended.
-        const end = (undos, ending) => {
-            const due = [...undos];
-            undos.clear();
-            for (const undo of due) LISTENER.wrap(undo, 'what a page set up')(ending);
-        };
         // A reload or a crashed renderer keeps the page, but the document that set things up is gone. A navigation
         // ends it only once it commits: one the environment refuses never does.
         PAGES.watch(page, {
@@ -35,6 +30,20 @@ export function createIdentity({ pages: PAGES }) {
                 identities.delete(page);
                 if (identity.mod && pages.get(identity.mod.id) === page) pages.delete(identity.mod.id);
             },
+        });
+    }
+
+    // A transport connection that arrived from outside is known by the principal the core verified it as, from the
+    // sandbox the core opened on it until it closes: `whenEnds(listener)` hears once that it closed.
+    function addOutside(connection, identity, whenEnds) {
+        identities.set(connection, identity);
+        pages.set(identity.mod.id, connection);
+        ends.set(connection, new Set());
+        whenEnds(() => {
+            end(ends.get(connection), { gone: 'its transport connection closed' });
+            ends.delete(connection);
+            identities.delete(connection);
+            if (pages.get(identity.mod.id) === connection) pages.delete(identity.mod.id);
         });
     }
 
@@ -70,9 +79,16 @@ export function createIdentity({ pages: PAGES }) {
     }
 
     // MARK: - Private
+    // Each undo runs whatever another throws, told how the document ended.
+    function end(undos, ending) {
+        const due = [...undos];
+        undos.clear();
+        for (const undo of due) LISTENER.wrap(undo, 'what a page set up')(ending);
+    }
 
     return {
         add,
+        addOutside,
         whenPageEnds,
         modOf,
         modFrom,

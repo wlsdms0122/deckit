@@ -5,6 +5,27 @@ import * as DECLARED from './protocol.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 const KIND = /^[A-Z][A-Z_]*$/; // a refusal's kind
 
+// Its channels as a run a transport connection hosts speaks them (outside/): `asked`, method -> the channel and whether
+// its payload carries the run's number, and `told`, channel -> method.
+export const OUTSIDE = Object.freeze({
+    asked: {
+        'connection/begin': { channel: DECLARED.begin, run: true },
+        'connection/end': { channel: DECLARED.end, run: true },
+        'connection/reach': { channel: DECLARED.reach, run: true },
+        'connection/release': { channel: DECLARED.releaseReach, run: true },
+        'connection/call': { channel: DECLARED.call, run: true },
+        'connection/let-go': { channel: DECLARED.release, run: true },
+    },
+    told: {
+        [DECLARED.connect.channel]: 'connection/connect',
+        [DECLARED.connected.channel]: 'connection/connected',
+        [DECLARED.unreached.channel]: 'connection/unreached',
+        [DECLARED.disconnected.channel]: 'connection/disconnected',
+        [DECLARED.called.channel]: 'connection/called',
+        [DECLARED.released.channel]: 'connection/let-go',
+    },
+});
+
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
 // what crosses goes from page to page through here, never read. A lifecycle connects to the interfaces it uses as it
 // begins, and to a mod by its id as it asks, until it lets it go. A connection is handed to its client while it stands,

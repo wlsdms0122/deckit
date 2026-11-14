@@ -13,6 +13,8 @@ let carrier = null;
 let identify = null; // the mod a page runs, { id, granted }, or null for one that runs none
 // What a page was asked and has not answered: channel -> Map(id -> { resolve, reject, page, timer }).
 const asked = new Map();
+// A transport connection that hosts a run -> what carries the channels to it: { tell(message), isGone(), whenEnds }.
+const outside = new WeakMap();
 const watched = new WeakSet(); // pages whose document going rejects what was asked of them
 let sequence = 0;
 
@@ -33,6 +35,22 @@ function carry(environment, { report, identify: identifyPage }) {
         asked: (page, message) => answerPage(ENVELOPE.asked, message, page),
         askedSync: (page, message) => answerPage(ENVELOPE.askedSync, message, page),
     });
+}
+
+// A transport connection carries the channels for the run it hosts, as the environment carries them for a page:
+// `tell(message)` takes what main tells and asks it, `isGone()` says whether it closed, and `whenEnds(listener)` hears
+// once that it did. Answers what takes what it sends: `told(message)`, a tell or its answer to a question, and
+// `asked(message)`, a question, each asked as its channel is declared, answered `{ value }` or `{ error }`. What it
+// sends is held to each channel's guard and fields as a page's is.
+function carryOutside(sender, carrier) {
+    outside.set(sender, carrier);
+    return {
+        told: (message) => (ENVELOPE.ofQuestion(message) ? answered(sender, message) : told(sender, message)),
+        asked: (message) => {
+            const sync = table.heardOf(message?.channel)?.copy.sync;
+            return answerPage(sync ? ENVELOPE.askedSync : ENVELOPE.asked, message, sender);
+        },
+    };
 }
 
 // MARK: - Private
@@ -56,9 +74,16 @@ function toPage(copy) {
     if (reply) return { invoke: (page, payload = {}, options) => ask(page, channel, payload, options) };
     return {
         send(page, payload = {}) {
-            carried().messages.tell(page, { channel, payload });
+            tellTo(page, { channel, payload });
         },
     };
+}
+
+// What main tells goes by what carries the sender: its transport connection, or the environment for a page.
+function tellTo(sender, message) {
+    const carrier = outside.get(sender);
+    if (carrier) carrier.tell(message);
+    else carried().messages.tell(sender, message);
 }
 
 // A page runs code main does not trust, so main holds what it says to the channel's guard, then to its fields; nothing
@@ -118,8 +143,8 @@ function answered(page, message) {
 // A question to a page is answered by that page, or rejected once it cannot be: the page is gone, crashed or
 // was replaced by a navigation, or `timeout` ran out.
 function ask(page, channel, payload, { timeout = 0 } = {}) {
-    const { messages, pages } = carried();
-    if (pages.isGone(page)) return Promise.reject(new Error(`${channel}: the page is gone`));
+    const gone = outside.get(page)?.isGone() ?? carried().pages.isGone(page);
+    if (gone) return Promise.reject(new Error(`${channel}: the page is gone`));
     if (!asked.has(channel)) asked.set(channel, new Map());
     watch(page);
     const id = ++sequence;
@@ -128,7 +153,7 @@ function ask(page, channel, payload, { timeout = 0 } = {}) {
             ? setTimeout(() => settleAsked(channel, id, { error: { message: `${channel}: no answer` } }), timeout)
             : null;
         asked.get(channel).set(id, { resolve, reject, page, timer });
-        messages.tell(page, { channel, id, payload, timeout });
+        tellTo(page, { channel, id, payload, timeout });
     });
 }
 
@@ -143,7 +168,9 @@ function watch(page) {
             }
         }
     };
-    carried().pages.watch(page, { ended: end, gone: end, destroyed: end });
+    const carrier = outside.get(page);
+    if (carrier) carrier.whenEnds(end);
+    else carried().pages.watch(page, { ended: end, gone: end, destroyed: end });
 }
 
 function settleAsked(channel, id, { value, error }) {
@@ -155,4 +182,4 @@ function settleAsked(channel, id, { value, error }) {
     else question.resolve(value);
 }
 
-export { ownChannels, layerChannels, carry };
+export { ownChannels, layerChannels, carry, carryOutside };

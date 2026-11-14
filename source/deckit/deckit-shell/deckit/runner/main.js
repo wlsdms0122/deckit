@@ -7,12 +7,26 @@ import * as RUN from './model/run.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
+// Its channels as a run a transport connection hosts speaks them (outside/): `asked`, method -> the channel and whether
+// its payload carries the run's number, and `told`, channel -> method.
+export const OUTSIDE = Object.freeze({
+    asked: {
+        'runner/started': { channel: DECLARED.started, run: true, adding: { summary: {} } },
+        'runner/problem': { channel: DECLARED.problem, run: true },
+        'runner/quit': { channel: DECLARED.quit, run: true },
+    },
+    told: {
+        [DECLARED.stop.channel]: 'runner/stop',
+    },
+});
+
 // The mods' runs, as the core decides when a mod runs: what is asked of the runs and what happens to a page is told the
 // core, and what the core answers is done here in order, its runs kept as it told them so what asks at once is answered
 // at once. `pages` and `app` are the environment's (environment/: MAIN.pages, MAIN.app).
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
-    // mod id -> { mod, page, run, update, loadedItself, lifecycles }: a mod's sandbox, the page it runs in, its latest
+    // mod id -> { mod, page, host, run, update, loadedItself, lifecycles }: a mod's sandbox, the page it runs in, what
+    // hosts it, `{ load(), kill(), close() }`, a page or a transport connection that arrived from outside, its latest
     // run and how what the core and its page tell of it is kept, whether its page is loading by itself or has just
     // loaded by itself, and how many lifecycles its latest run stacks, as its page said.
     const sandboxes = new Map();
@@ -25,6 +39,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
     let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
     let reconciled = Promise.resolve(); // settled once what the catalog's last change comes to has loaded
+    const offered = new Map(); // a transport connection's name -> what hosts a run on it, while the core verifies it
     const sandboxListeners = new Set(); // told of each sandbox's page as it is made
     let quitHold = null; // 'held' while the runs terminate as the app quits, 'free' once nothing holds it
 
@@ -67,7 +82,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     // Each mod's latest run, with the page it runs in.
     function runs() {
-        return [...sandboxes.values()].map(({ run, page }) => ({ run, page }));
+        return [...sandboxes.values()].filter(({ outside }) => !outside).map(({ run, page }) => ({ run, page }));
     }
 
     function runOf(modId) {
@@ -117,6 +132,14 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // `handler(effect)` does each effect the core answers by `name` that is another module's to do.
     function handleEffect(name, handler) {
         effectHandlers.set(name, handler);
+    }
+
+    // A transport connection that arrived offers to host a run while the core verifies whose it is: `host` is
+    // `{ sender, whenEnds(listener), load(), kill(), close() }`, `sender` what its messages come from. The core opens
+    // the sandbox on it by the name `transport`. Answers what withdraws the offer.
+    function offer(transport, host) {
+        offered.set(transport, host);
+        return () => offered.delete(transport);
     }
 
     // The mod launches as asked, and one whose run terminates once that run has ended, as the core keeps it: `by` is
@@ -265,10 +288,11 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         for (const effect of effects) {
             switch (effect.effect) {
                 case 'open':
-                    openSandbox(MOD.read(effect.found));
+                    if (effect.transport) openOutside(effect);
+                    else openSandbox(MOD.read(effect.found));
                     break;
                 case 'loadPage':
-                    loadPage(sandboxes.get(effect.mod));
+                    sandboxes.get(effect.mod).host.load();
                     break;
                 case 'tell':
                     tell(sandboxes.get(effect.mod), effect.notification, effect);
@@ -280,7 +304,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
                     stop(effect.mod, effect.run);
                     break;
                 case 'kill':
-                    kill(effect.mod);
+                    sandboxes.get(effect.mod).host.kill();
                     break;
                 case 'close':
                     closeSandbox(effect.mod);
@@ -310,12 +334,15 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         }
         update(sandbox, told);
         const { run } = sandbox;
+        // What follows the mods' runs is told of a mod's run alone: a run a transport connection hosts is no mod's.
+        if (sandbox.outside) return;
         if (name === 'didLaunch') lastLaunched.set(run.mod.id, run);
         notifications.emit(name, run);
     }
 
     function keep(sandbox, told) {
         update(sandbox, told);
+        if (sandbox.outside) return;
         for (const listener of problemListeners) listener(sandbox.run);
     }
 
@@ -336,9 +363,34 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     function openSandbox(mod) {
-        const sandbox = { mod, page: null, run: null, update: null, loadedItself: false, lifecycles: 1 };
+        const sandbox = { mod, page: null, host: null, run: null, update: null, loadedItself: false, lifecycles: 1 };
+        // A page that is loading by itself, or has just loaded by itself, is not loaded again: whatever run launches in
+        // it meanwhile, the page takes as it asks what it runs. Killed, the page closes at once, asked nothing, and a
+        // new one takes its place for the mod's next launch.
+        sandbox.host = {
+            load: () => {
+                if (!sandbox.loadedItself) PAGES.load(sandbox.page);
+            },
+            kill: () => {
+                PAGES.close(sandbox.page);
+                makePage(sandbox);
+            },
+            close: () => PAGES.close(sandbox.page),
+        };
         makePage(sandbox);
         sandboxes.set(mod.id, sandbox);
+    }
+
+    // The sandbox the core opened on a transport connection it verified: the connection is the principal's from now
+    // on, with the permissions its job holds, and a run it hosts crashes as it closes.
+    function openOutside({ mod: id, transport, permissions }) {
+        const host = offered.get(transport);
+        offered.delete(transport);
+        const mod = Object.freeze({ id, name: id, granted: Object.freeze([...permissions]) });
+        const sandbox = { mod, page: host.sender, host, outside: true, run: null, update: null, lifecycles: 1 };
+        sandboxes.set(id, sandbox);
+        IDENTITY.addOutside(host.sender, { mod }, host.whenEnds);
+        host.whenEnds(() => crash(sandbox.run, 'its transport connection closed'));
     }
 
     // The sandbox's page is made, known as the mod's and set up before it loads, so what it asks as it starts is the
@@ -364,13 +416,6 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         for (const listener of sandboxListeners) listener(page, mod);
     }
 
-    // The sandbox's page closes at once, asked nothing, and a new one takes its place for the mod's next launch.
-    function kill(modId) {
-        const sandbox = sandboxes.get(modId);
-        PAGES.close(sandbox.page);
-        makePage(sandbox);
-    }
-
     // A run whose code has not started in the time the core gives a launch has timed out.
     function limitLaunch(run) {
         const timer = setTimeout(() => {
@@ -384,13 +429,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return Object.assign(new Error(message), { stage, kind });
     }
 
-    // A page that is loading by itself, or has just loaded by itself, is not loaded again: whatever run launches in it
-    // meanwhile, the page takes as it asks what it runs.
-    function loadPage(sandbox) {
-        if (!sandbox.loadedItself) PAGES.load(sandbox.page);
-    }
-
-    // The run's end asked of its page, which ends each of its lifecycles once, however often it is asked, each within
+    // The run's end asked of what hosts it, which ends each of its lifecycles once, however often it is asked, each within
     // its own limit. The core is told once it has answered, its time ran out or the page is gone, which refuses the
     // question at once (deckit/ipc).
     function stop(modId, number) {
@@ -405,7 +444,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     // What a mod gone last launched goes with it.
     function closeSandbox(modId) {
-        PAGES.close(sandboxes.get(modId).page);
+        sandboxes.get(modId).host.close();
         sandboxes.delete(modId);
         if (!CATALOG.mods().some(({ id }) => id === modId)) lastLaunched.delete(modId);
     }
@@ -496,6 +535,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         observe,
         reportProblem,
         ask,
+        offer,
         onSandbox,
         onProblem,
         handleEffect,
