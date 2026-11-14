@@ -23,7 +23,7 @@ extension Refusal {
             case .relaunchLimit, .timedOut, .notLaunched:
                 "launch"
 
-            case .notPermitted, .notInstalled:
+            case .notPermitted, .notInstalled, .alreadyRunning:
                 "call"
             }
 

@@ -166,6 +166,46 @@ final class Server {
             try deck.erasure.cleared(principal: request.decodeParams(as: ModParams.self).mod)
             return true
 
+        case "key/add":
+            let principal = try request.decodeParams(as: PrincipalParams.self).principal
+            try deck.keys.authorize(principal: principal, key: request.decodeParams(as: AuthorizedKey.self))
+            return true
+
+        case "key/remove":
+            let params = try request.decodeParams(as: KeyParams.self)
+            try deck.keys.revoke(principal: params.principal, scheme: params.scheme, key: data(params.key))
+            return true
+
+        case "key/list":
+            return try deck.keys.keys(of: request.decodeParams(as: PrincipalParams.self).principal)
+
+        case "authentication/challenge":
+            let params = try request.decodeParams(as: ChallengeParams.self)
+            let challenge = try deck.authentication.challenge(
+                transport: params.transport,
+                nonce: data(params.nonce),
+                binding: data(params.binding ?? "")
+            )
+            return ChallengeResult(
+                challenge: challenge.base64EncodedString(),
+                schemes: deck.authentication.schemes.map(\.rawValue)
+            )
+
+        case "authentication/verify":
+            let params = try request.decodeParams(as: VerifyParams.self)
+            let effects = try deckit.admit(
+                transport: params.transport,
+                principal: params.principal,
+                scheme: params.scheme,
+                key: data(params.key),
+                signature: data(params.signature)
+            )
+            return answered(effects, by: deckit)
+
+        case "authentication/close":
+            deck.authentication.close(transport: try request.decodeParams(as: TransportParams.self).transport)
+            return true
+
         case "runner/reconnect":
             return answered(try deckit.reconnect(), by: deckit)
 
@@ -270,6 +310,11 @@ final class Server {
         guard path.hasPrefix("/") else { throw ModFolderError.notLoadable("\(path) is no absolute path") }
 
         return URL(filePath: path)
+    }
+
+    // The bytes `text` is in base64: none for text that is not, which is no nonce, no key and no signature.
+    private func data(_ text: String) -> Data {
+        Data(base64Encoded: text) ?? Data()
     }
 
     // `effects` as the driver reads them.

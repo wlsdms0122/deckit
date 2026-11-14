@@ -65,5 +65,12 @@
 {"id":59,"jsonrpc":"2.0","method":"erasure/uncleared"}
 {"id":60,"jsonrpc":"2.0","method":"erasure/cleared","params":{"mod":"d"}}
 {"id":61,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a","d"]}}
+{"id":70,"jsonrpc":"2.0","method":"key/add","params":{"key":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","name":"test","principal":"k","scheme":"ed25519"}}
+{"id":71,"jsonrpc":"2.0","method":"key/list","params":{"principal":"k"}}
+{"id":72,"jsonrpc":"2.0","method":"authentication/challenge","params":{"nonce":"AQ==","transport":"t1"}}
+{"id":73,"jsonrpc":"2.0","method":"authentication/verify","params":{"key":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","principal":"k","scheme":"ed25519","signature":"","transport":"t1"}}
+{"id":74,"jsonrpc":"2.0","method":"authentication/close","params":{"transport":"t1"}}
+{"id":75,"jsonrpc":"2.0","method":"key/remove","params":{"key":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","principal":"k","scheme":"ed25519"}}
+{"id":76,"jsonrpc":"2.0","method":"key/list","params":{"principal":"k"}}
 {"id":62,"jsonrpc":"2.0","method":"no/such"}
 {"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","fields":[],"home":"@HOME@","permissions":[],"ship":[],"sources":[]}}

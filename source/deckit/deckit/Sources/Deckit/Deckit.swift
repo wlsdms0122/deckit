@@ -249,6 +249,40 @@ public final class Deckit {
         try observed(deck.release(target, from: id, run: run, lifecycle: lifecycle))
     }
 
+    // The transport connection `transport`, which arrived from outside, is admitted as the principal its claimant
+    // proves to be, as deck verifies it: a run of that principal's job launches, hosted by the transport connection,
+    // in a sandbox no other run shares. The job of a principal that comes from outside grants nothing: no permission,
+    // no principal reached by id, no interface used or provided. Refused for a principal that runs already.
+    public func admit(
+        transport: String,
+        principal: String,
+        scheme: String,
+        key: Data,
+        signature: Data
+    ) throws -> [Effect] {
+        let principal = try deck.authentication.verify(
+            transport: transport,
+            principal: principal,
+            scheme: scheme,
+            key: key,
+            signature: signature
+        )
+        guard (deck.run(of: principal)?.state ?? .notRunning) == .notRunning else {
+            throw LaunchError.alreadyRunning(principal)
+        }
+        let job = Job(
+            principal: principal,
+            revision: "transport \(transport)",
+            host: .transport(transport),
+            permissions: [],
+            reaches: .only([]),
+            uses: [:],
+            provides: [:]
+        )
+
+        return try observed(deck.load([job]))
+    }
+
     // MARK: - Private
     private func permit(_ asker: String?) throws {
         guard let asker, !(deck.job(of: asker)?.permissions.contains(Deckit.mods.id) ?? false) else { return }

@@ -20,6 +20,18 @@ extension Refusal {
                 "INVALID_ARGUMENT"
             }
 
+        case let error as AuthenticationError:
+            switch error {
+            case .notAuthenticated:
+                "NOT_AUTHENTICATED"
+
+            case .notANonce, .notAPrincipal, .notAKey:
+                "INVALID_ARGUMENT"
+
+            case .unreadable:
+                "UNREADABLE"
+            }
+
         case let error as EventError:
             switch error {
             case .reserved:
@@ -99,6 +111,9 @@ extension Refusal {
 
             case .notLaunched:
                 "NOT_LAUNCHED"
+
+            case .alreadyRunning:
+                "ALREADY_RUNNING"
             }
 
         case let error as DeclarationError:

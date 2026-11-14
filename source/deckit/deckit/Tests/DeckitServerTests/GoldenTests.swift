@@ -18,6 +18,11 @@ struct GoldenTests {
     // MARK: - Property
     private static let refusals: [(any Refusal, String)] = [
         (ErasureError.notAPrincipal("x"), "INVALID_ARGUMENT"),
+        (AuthenticationError.notAuthenticated, "NOT_AUTHENTICATED"),
+        (AuthenticationError.notANonce, "INVALID_ARGUMENT"),
+        (AuthenticationError.notAPrincipal("X"), "INVALID_ARGUMENT"),
+        (AuthenticationError.notAKey(.ed25519), "INVALID_ARGUMENT"),
+        (AuthenticationError.unreadable("a"), "UNREADABLE"),
         (EventError.reserved("x/api:owner-changed"), "NOT_PERMITTED"),
         (ConnectionError.notRunning("a"), "NOT_RUNNING"),
         (ConnectionError.ended, "ENDED"),
@@ -35,6 +40,7 @@ struct GoldenTests {
         (LaunchError.relaunchLimit("a"), "RELAUNCH_LIMIT"),
         (LaunchError.timedOut(mod: "a", problem: "late"), "TIMED_OUT"),
         (LaunchError.notLaunched(mod: "a", problem: "threw"), "NOT_LAUNCHED"),
+        (LaunchError.alreadyRunning("a"), "ALREADY_RUNNING"),
         (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
         (PinError.notProvider(interface: "x/api", principal: "a"), "NOT_PROVIDER"),
         (LifecycleError.transition(principal: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
@@ -58,6 +64,8 @@ struct GoldenTests {
         (LaunchError.notLaunched(mod: "a", problem: "threw"), "launch"),
         (LaunchError.notPermitted(mod: "a", permission: "deckit.mods"), "call"),
         (LaunchError.notInstalled("a"), "call"),
+        (LaunchError.alreadyRunning("a"), "call"),
+        (AuthenticationError.notAuthenticated, "call"),
         (InstallError.nested, "call"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "call"),
         (RecordError.notAKey("k"), "call"),
