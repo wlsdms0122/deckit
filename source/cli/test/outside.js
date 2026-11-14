@@ -1,34 +1,76 @@
 // A party on a transport connection from outside, checked against the app under test through the client of the wire
-// (cli/outside): a key registered for a principal attaches as a run of it, any other proof is refused and told
-// nothing, a principal that runs takes no second party, and the run asks what a run asks, bounded by a job that grants
-// only the seat permission: its own records and events, no connection. The key is registered, listed and removed as a
-// host does it, by `deckit key` against the app's folder, while the app runs, and its principal is made a user by the
-// core `deckit key` asks. The app's folder is seeded with an idle time of none, so a user sits unasked.
+// (cli/outside): a key registered for a user attaches as a run of it once the local seat let it sit, any other proof is
+// refused and told nothing, a principal that runs takes no second party, and the run asks what a run asks, bounded by
+// a job that grants only the seat permission: its own records and events, no connection, and what a seat does and
+// reads. The users and the keys are made, listed and removed as a host does it, by `deckit user` and `deckit key`
+// against the app's folder, while the app runs. The app's seats are served by the test (served.js): the ask is
+// answered yes, no for one user and never for another, and what a seat does and reads gets fixed answers, which a
+// terminal attached by `deckit seat` prints.
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
-const { makeKey, connect } = require('../outside/client.js');
-const { ask } = require('../outside/keys.js');
+const { execFileSync, spawn } = require('child_process');
+const { makeKey, readKey, connect } = require('../outside/client.js');
 const { until } = require('./devtools.js');
+const SERVED = require('./served.js');
+
+// How long an admission waits for the local seat's answer, in ms (deckit-shell/deckit/seat).
+const ASK_TIME = 60000;
 
 const refusedWith = (promise) =>
     promise.then(
         () => null,
         ({ message, code, kind = null, stage = null }) => ({ message, code, kind, stage })
     );
+// What a command wrote as it exited with an error, or null for one that did not.
+const refusedBy = (run) => {
+    try {
+        run();
+        return null;
+    } catch (error) {
+        return String(error.stderr);
+    }
+};
 const settled = (promise, limit = 5000) =>
     Promise.race([promise.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), limit))]);
 
-async function run({ check, home, logged }) {
+async function run({ check, home, logged, main }) {
     const socket = path.join(home, 'deckit.sock');
     const principal = 'outside-party';
     const key = makeKey();
-    const deckit = (...args) =>
-        execFileSync(path.join(__dirname, '..', 'deckit'), ['key', ...args, '--home', home], { encoding: 'utf8' });
+    const command = path.join(__dirname, '..', 'deckit');
+    const cli = (...args) => execFileSync(command, [...args, '--home', home], { encoding: 'utf8', stdio: 'pipe' });
+    const deckit = (...args) => cli('key', ...args);
+    // A user made with a key pair of its own, the private half in a file beside the app's folder.
+    const userWithKey = (id, name) => {
+        const file = path.join(home, '..', `${id}.key`);
+        cli('user', 'add', id, '--name', name, '--key', file);
+        return { file, ...readKey(fs.readFileSync(file, 'utf8')) };
+    };
+    const served = (expression) => main(`const kept = globalThis.deckitTestSeats; return ${expression}`);
+
+    // Nobody answers the ask for this user: its party waits as long as an admission waits, while the rest goes on.
+    const waiting = userWithKey(SERVED.WAITS, 'Waits');
+    const waits = await connect(socket);
+    let waitsTold = 0;
+    waits.on('attach/asking', () => waitsTold++);
+    const began = Date.now();
+    const unanswered = refusedWith(waits.authenticate({ principal: SERVED.WAITS, ...waiting })).then((refusal) => ({
+        refusal,
+        after: Date.now() - began,
+    }));
+
     deckit('add', principal, key.publicKey, '--name', 'test');
     const keyed = await connect(socket);
     const recordless = await refusedWith(keyed.authenticate({ principal, ...key }));
-    await ask(home, 'user/add', { id: principal, name: 'Outside Party' });
+    cli('user', 'add', principal, '--name', 'Outside Party');
+    const users = cli('user', 'list');
+    check(
+        'outside: the users are listed, the local one among them',
+        users === `local Deckit\n${principal} Outside Party\n${SERVED.WAITS} Waits\n`,
+        users
+    );
+    const asMod = refusedBy(() => cli('user', 'add', 'editor', '--name', 'Editor'));
+    check('outside: no user is made under the id of a mod', /editor/.test(asMod ?? ''), String(asMod));
     const started = { contributions: { exportedIn: {}, awaits: {} } };
     const nothing = { message: 'not authenticated', code: -32803, kind: 'NOT_AUTHENTICATED', stage: 'call' };
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -57,7 +99,26 @@ async function run({ check, home, logged }) {
         JSON.stringify(unknown)
     );
 
+    const pending = await refusedWith(waits.request('seat/read', { level: 'desktop' }));
+    check(
+        'outside: a party whose admission waits sits at no seat, and what it asks of one is refused',
+        pending?.code === -32002 && waitsTold === 1,
+        JSON.stringify({ pending, waitsTold })
+    );
+    const denying = userWithKey(SERVED.DENIED, 'Denied');
+    const unwelcome = await connect(socket);
+    let deniedTold = 0;
+    unwelcome.on('attach/asking', () => deniedTold++);
+    const denied = await refusedWith(unwelcome.authenticate({ principal: SERVED.DENIED, ...denying }));
+    check(
+        'outside: a user the local seat denies is told it was asked, refused, and closed',
+        denied?.kind === 'REFUSED' && deniedTold === 1 && (await settled(unwelcome.closed)),
+        JSON.stringify({ denied, deniedTold })
+    );
+
     const party = await connect(socket);
+    let told = 0;
+    party.on('attach/asking', () => told++);
     const attached = await party.authenticate({ principal, ...key });
     check(
         'outside: a registered key of a user attaches as a run of it, granted the seat permission only',
@@ -66,6 +127,24 @@ async function run({ check, home, logged }) {
             same(attached.permissions, ['deckit.seat']) &&
             attached.end > 0,
         JSON.stringify(attached)
+    );
+    const seat = { id: 's1', local: false, user: { id: principal, name: 'Outside Party' } };
+    const open = await served(
+        `({ asked: kept.asked, opened: kept.opened, list: kept.seats.list(), local: kept.seats.local,
+            idle: kept.seats.isIdle(kept.seats.local) })`
+    );
+    check(
+        'outside: a user the local seat allows is told it was asked, then sits at a seat that opened',
+        told === 1 && same(attached.seat, seat) && same(open.asked, [SERVED.WAITS, SERVED.DENIED, principal]),
+        JSON.stringify({ told, seat: attached.seat, asked: open.asked })
+    );
+    check(
+        'outside: the shell is told of the seat, beside the local seat, which is not idle',
+        same(open.opened, ['local', 's1']) &&
+            same(open.list, [open.local, seat]) &&
+            same(open.local, { id: 'local', local: true, user: { id: 'local', name: 'Deckit' } }) &&
+            open.idle === false,
+        JSON.stringify(open)
     );
     const second = await connect(socket);
     const running = await refusedWith(second.authenticate({ principal, ...key }));
@@ -78,6 +157,38 @@ async function run({ check, home, logged }) {
     const delivered = [];
     party.on('event/deliver', (event) => delivered.push(event));
     await party.request('runner/started', started);
+    const press = { type: 'down', x: 40, y: 30, button: 0, count: 1 };
+    const pressed = await party.request('seat/pointer', press);
+    const typed = await party.request('seat/text', { type: 'insert', text: 'seen' });
+    const handed = await served('kept.handed');
+    check(
+        'outside: what a seat does is handed to what is served with its seat, and answered as that answers',
+        same(pressed, { over: 'w1', key: 'key', holder: 's1' }) &&
+            same(typed, pressed) &&
+            same(handed, [
+                { seat: 's1', event: { event: 'pointer', ...press } },
+                { seat: 's1', event: { event: 'text', type: 'insert', text: 'seen' } },
+            ]),
+        JSON.stringify({ pressed, handed })
+    );
+    const reading = await party.request('seat/read', { level: 'desktop' });
+    const unserved = await refusedWith(party.request('seat/capture', {}));
+    const malformed = await refusedWith(party.request('seat/pointer', { type: 'down' }));
+    check(
+        'outside: a reading is answered by what is served, and what nothing serves or is malformed is refused',
+        same(reading, { text: SERVED.lineOf(seat), mark: 1 }) && unserved?.kind === 'REFUSED' && !!malformed,
+        JSON.stringify({ reading, unserved, malformed })
+    );
+    const changed = [];
+    party.on('seat/changed', (change) => changed.push(change));
+    await served(`kept.tells.changed(kept.seats.list()[1], { mark: 2 })`);
+    const watching = await party.request('seat/watch', { on: true });
+    await served(`kept.tells.changed(kept.seats.list()[1], { mark: 3 })`);
+    check(
+        'outside: a seat that watches is told the desktop changed',
+        watching === true && (await until(() => changed.length > 0, 3000)) && same(changed, [{ mark: 3 }]),
+        JSON.stringify(changed)
+    );
     await party.request('record/write', { key: 'note', value: { text: 'kept' } });
     const read = await party.request('record/read', { key: 'note' });
     const keys = await party.request('record/keys', {});
@@ -109,6 +220,8 @@ async function run({ check, home, logged }) {
     party.close();
     const crashed = await until(() => logged().includes(`${principal}: its transport connection closed`), 5000);
     check('outside: a close without quit is a failed run', crashed, '');
+    const closed = await until(async () => same(await served('kept.closed'), ['s1']), 3000);
+    check('outside: a seat closes with its run', closed, JSON.stringify(await served('kept.closed')));
     const again = await connect(socket);
     const next = await until(async () => (await refusedWith(again.request('record/keys', {})))?.code === -32002, 1000);
     const reattached = next && (await again.authenticate({ principal, ...key }).catch((error) => error));
@@ -129,6 +242,42 @@ async function run({ check, home, logged }) {
         String(stopped)
     );
 
+    // A terminal: one command attaches and sits, the others ask through it. Its user's id is short, as the path of
+    // its relay, a local socket in the app's folder, is bounded by the system.
+    const terminal = 'tty';
+    const { file } = userWithKey(terminal, 'Terminal');
+    const sitting = spawn(command, ['seat', 'attach', terminal, '--key', file, '--home', home]);
+    let said = '';
+    let refused = '';
+    sitting.stdout.on('data', (chunk) => (said += chunk));
+    sitting.stderr.on('data', (chunk) => (refused += chunk));
+    const exited = new Promise((resolve) => sitting.once('exit', resolve));
+    const sat = await until(() => /^attached as tty, seat (s\d+)$/m.exec(said)?.[1], 10000);
+    const relay = path.join(home, 'seats', `${terminal}.sock`);
+    check(
+        'outside: deckit seat attach says it asks, then sits, and only its owner opens its relay',
+        sat && said.startsWith('asking the local seat ...\n') && (fs.statSync(relay).mode & 0o777) === 0o600,
+        said + refused
+    );
+    const line = SERVED.lineOf({ id: sat, user: { name: 'Terminal' } });
+    const printed = sat && [cli('seat', 'read', 'desktop'), cli('seat', 'press', '10,20'), cli('seat', 'changes')];
+    check(
+        'outside: deckit seat read desktop prints the line that is served, and a press what it reached',
+        printed && same(printed, [`${line}\n`, 'over w1, key\n', 'changes 1 to 2\n']),
+        JSON.stringify(printed)
+    );
+    if (sat) cli('seat', 'detach');
+    else sitting.kill();
+    check(
+        'outside: deckit seat detach ends the run, and its seat and its relay go',
+        sat &&
+            (await exited) === 0 &&
+            said.endsWith('detached\n') &&
+            !fs.existsSync(relay) &&
+            (await until(async () => (await served('kept.closed')).includes(sat), 3000)),
+        said
+    );
+
     const listed = deckit('list', principal);
     check('outside: a key registered is listed', listed === `ed25519 ${key.publicKey} test\n`, listed);
     deckit('remove', principal, key.publicKey);
@@ -138,6 +287,18 @@ async function run({ check, home, logged }) {
         'outside: a key removed as the app runs is refused from then on',
         same(revoked, nothing) && deckit('list', principal) === '',
         JSON.stringify(revoked)
+    );
+
+    const { refusal, after } = await unanswered;
+    const withdrawn = await served('kept.withdrawn');
+    check(
+        'outside: an ask nobody answers is answered no once its time has passed, and is over',
+        refusal?.kind === 'REFUSED' &&
+            after >= ASK_TIME &&
+            after < ASK_TIME + 5000 &&
+            waitsTold === 1 &&
+            withdrawn.includes(SERVED.WAITS),
+        JSON.stringify({ refusal, after, withdrawn })
     );
 }
 

@@ -31,17 +31,15 @@ const BEHIND_TAB = 'https://example.org/';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them declaring addresses as it may not, the window probe shipped with the app
-// assembled in `app` as a system mod, Settings placed second in the Dock, as a person would have arranged it, and what
-// REMOVED left, noted as not cleared yet.
+// assembled in `app` as a system mod, its seats served by the test, Settings placed second in the Dock, as a person
+// would have arranged it, and what REMOVED left, noted as not cleared yet.
 function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
-    // No seat's devices are heard and nobody answers an ask: with an idle time of none a user sits unasked.
-    fs.mkdirSync(path.join(data, 'deckit', 'state'), { recursive: true });
-    fs.writeFileSync(path.join(data, 'deckit', 'state', 'seats.json'), '{"idleTime":0}\n');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
     fs.rmSync(path.join(mods, PROBE), { recursive: true });
     fs.renameSync(path.join(mods, JOINS), path.join(data, JOINS));
     shipProbe({ data, app });
+    serveSeats({ app });
     const next = path.join(data, NEXT_CHILD);
     fs.cpSync(path.join(__dirname, 'mods', 'region-child'), next, { recursive: true });
     fs.appendFileSync(path.join(next, 'main.js'), '// The next revision.\n');
@@ -105,6 +103,22 @@ function shipProbe({ data, app }) {
             "const shipped = require('./shipped.js');",
             `const probe = { folder: ${JSON.stringify(folder)}, system: true };`,
             'module.exports = { ...shipped, folders: { ...shipped.folders, ship: [...shipped.folders.ship, probe] } };',
+            '',
+        ].join('\n')
+    );
+}
+
+// The app assembled in `app` serves its seats with the test's answers (served.js) as it connects: deckit's main
+// bundle is loaded through a file that hands what connect answers over.
+function serveSeats({ app }) {
+    const bundle = path.join(app, 'deckit', 'shell-main.js');
+    fs.renameSync(bundle, path.join(app, 'deckit', 'shell-main-built.js'));
+    fs.writeFileSync(
+        bundle,
+        [
+            "const built = require('./shell-main-built.js');",
+            `const { serve } = require(${JSON.stringify(path.join(__dirname, 'served.js'))});`,
+            'module.exports = { ...built, connect: (...given) => serve(built.connect(...given)) };',
             '',
         ].join('\n')
     );
@@ -2955,7 +2969,7 @@ async function run({
     check('no page threw', !thrown.length, thrown.slice(0, 3).join(' | '));
 
     try {
-        await OUTSIDE.run({ check, home, logged });
+        await OUTSIDE.run({ check, home, logged, main });
     } catch (error) {
         check('outside: a party attached', false, error.stack);
     }
