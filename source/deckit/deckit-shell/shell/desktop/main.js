@@ -422,9 +422,11 @@ export function createDesktop({
         return page && page === desktop.page ? LOCAL : null;
     }
 
-    // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` some seat's
-    // key window while neither an overlay window nor a panel window holds the keyboard, its size, and where its buttons
-    // stand over its top; a panel window is key while it holds some seat's keyboard and has no buttons.
+    // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` while the
+    // keyboard of the seat that holds it is on it, not away (`away`), its size, and where its buttons stand over its
+    // top; a panel window is key while it holds some seat's keyboard and has no buttons. A content is one page under
+    // every seat that looks at it, so it is told what is so of the one whose keyboard it has, its holder: a seat that
+    // only looks at it has no keyboard in it.
     function stateOf(window) {
         if (panels.has(window.id)) {
             const frame = panelFrameOf(window.id);
@@ -432,9 +434,10 @@ export function createDesktop({
             return { shown, key, width: frame?.width ?? 0, height: frame?.height ?? 0, titleBar: null };
         }
         const frame = MANAGER.frameOf(window.id);
+        const holder = MANAGER.holderOf(window.id);
         return {
             shown: shown && MANAGER.isShown(window.id),
-            key: MANAGER.isKey(window.id) && !keyboardAway(),
+            key: holder !== null && !away(holder),
             width: frame?.width ?? 0,
             height: frame?.height ?? 0,
             titleBar: LAYOUT.guideOf(window.bar),
@@ -644,15 +647,16 @@ export function createDesktop({
         const part = partAt(hit);
         if (part) {
             if (type === 'down') gesture(seat, type, point, part, { count: event.count, button: event.button });
-            if (type === 'down') Object.assign(hand, { panel: null, keys: null });
             if (type === 'down' && part.part === 'dock') hand.wanted = null;
+            if (type === 'down') backToKey(hand);
             if (part.part === 'dock') return { over: 'dock' };
             const made = MANAGER.keyOf(seat) === part.id ? 'key' : 'held';
             return { over: part.id, ...(type === 'down' ? { key: made, holder: MANAGER.holderOf(part.id) } : {}) };
         }
         const window = windowAt(hit.page);
         if (!window) {
-            if (type === 'down') Object.assign(hand, { panel: null, wanted: null, keys: null });
+            if (type === 'down') hand.wanted = null;
+            if (type === 'down') backToKey(hand);
             return { over: desktop.page ? 'desktop' : null };
         }
         let answer = { over: window.id };
@@ -863,7 +867,7 @@ export function createDesktop({
     // The normal windows, back to front, each `{ id, mod, name, frame, key, minimized }`, as the host app reads them:
     // none is key while an overlay window or a panel window holds the keyboard.
     function windowsNow() {
-        const key = keyboardAway() ? null : MANAGER.keyOf(LOCAL);
+        const key = away(LOCAL) ? null : MANAGER.keyOf(LOCAL);
         return MANAGER.orderOf(LOCAL).map((id) => {
             const { mod, name } = windows.get(id);
             const minimized = MANAGER.isMinimized(LOCAL, id);
@@ -993,9 +997,18 @@ export function createDesktop({
         return opened.map((window, at) => ({ window, frame: frames[at] }));
     }
 
-    // Whether an overlay window or a panel window holds the keyboard, away from the desktop's key window.
-    function keyboardAway() {
-        return held !== null || !!WINDOWS.keyOverlay();
+    // Whether a seat's keyboard is away from its key window: the machine's, the local seat's, with an overlay window
+    // or a panel window, any other's with the panel window it pressed.
+    function away(seat) {
+        if (seat === LOCAL) return held !== null || !!WINDOWS.keyOverlay();
+        return (hands.get(seat)?.panel ?? null) !== null;
+    }
+
+    // An attached seat's keyboard back with its key window, at its content, from the panel window that holds it.
+    function backToKey(hand) {
+        const had = hand.panel !== null;
+        Object.assign(hand, { panel: null, keys: null });
+        if (had) update();
     }
 
     // Where a window or a panel window is on the desktop now, or null for one that is gone.
@@ -1363,7 +1376,7 @@ export function createDesktop({
             windows: MANAGER.viewOf(LOCAL).map(({ id, frame }) => ({
                 id,
                 frame,
-                key: id === key && !keyboardAway(),
+                key: id === key && !away(LOCAL),
                 bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),

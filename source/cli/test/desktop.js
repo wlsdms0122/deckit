@@ -1168,7 +1168,37 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
             toDesk.to !== 9,
         JSON.stringify({ onSide, toSide, sideKey, toDesk })
     );
+    const pressedBy = (seat, id) => {
+        const answer = desk.enter(seat, pointer('down', middle(id)));
+        desk.enter(seat, pointer('up', middle(id)));
+        return answer.over === id && answer.key === 'key';
+    };
+    const others = desk.desktop.control
+        .windows()
+        .filter((one) => !one.key && !one.minimized)
+        .map(({ id }) => id);
+    const holds = { other: others.find((id) => pressedBy(you, id)) ?? null, local: localKey() };
+    const toldKey = () =>
+        [holds.other, holds.local].map((id) => desk.desktop.stateOf(all.find((window) => window.id === id) ?? {}).key);
+    const told = [toldKey()];
+    desk.enter(you, pointer('down', inSide));
+    desk.enter(you, pointer('up', inSide));
+    told.push(toldKey());
+    desk.enter(you, pointer('down', { x: 600, y: 780 }));
+    desk.enter(you, pointer('up', { x: 600, y: 780 }));
+    told.push(toldKey());
+    desk.desktop.orderFrontPanel(side);
+    told.push([desk.desktop.stateOf(side).key, ...toldKey()]);
     desk.desktop.closePanel(side);
+    told.push(toldKey());
+    check(
+        "a window's content is told key by the seat that holds it: a seat's keyboard on a panel window leaves that " +
+            "seat's key window not key and every other seat's key, the machine's as an attached seat's",
+        holds.other !== null &&
+            holds.other !== holds.local &&
+            told.join(' ') === 'true,true false,true true,true true,true,false true,true',
+        JSON.stringify({ holds, told })
+    );
     desk.desktop.control.hide();
     const count = desk.puts.length;
     const hidden = [pointer('down', grabbed), key('KeyH')].map((event) => refusedOf(() => desk.enter(me, event)));
