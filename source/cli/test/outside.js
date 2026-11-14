@@ -4,12 +4,15 @@
 // a job that grants only the seat permission: its own records and events, no connection, and what a seat does and
 // reads. The users and the keys are made, listed and removed as a host does it, by `deckit user` and `deckit key`
 // against the app's folder, while the app runs. The app's seats are served by the test (served.js): the ask is
-// answered yes, no for one user and never for another, and what a seat does and reads gets fixed answers, which a
-// terminal attached by `deckit seat` prints.
+// answered yes, no for one user and never for another, and what a seat reads gets fixed answers, which a terminal
+// attached by `deckit seat` prints. What a seat does the shell serves: two users, each a terminal of its own, press
+// and type in the windows of the desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the
+// local seat sees of them, and `idleTime` the seconds a seat is idle after, as the app was started with.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 const { makeKey, readKey, connect } = require('../outside/client.js');
+const RELAY = require('../outside/relay.js');
 const { until } = require('./devtools.js');
 const SERVED = require('./served.js');
 
@@ -33,7 +36,7 @@ const refusedBy = (run) => {
 const settled = (promise, limit = 5000) =>
     Promise.race([promise.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), limit))]);
 
-async function run({ check, home, logged, main }) {
+async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTime }) {
     const socket = path.join(home, 'deckit.sock');
     const principal = 'outside-party';
     const key = makeKey();
@@ -271,6 +274,164 @@ async function run({ check, home, logged, main }) {
             (await until(async () => (await served('kept.closed')).includes(sat), 3000)),
         said
     );
+
+    // Two users at once, each at a terminal, beside the local seat: the first in a window whose content alone takes
+    // its press, the second in the region parent's window, on the child laid over its content. A seat that just sat
+    // has the windows in its own order, so it looks for a point where the window shows for it, where its scroll
+    // answers the window, and its press there brings the window in front for it, the field with it.
+    const sit = async (id, name) => {
+        const { file: keyFile } = userWithKey(id, name);
+        const sits = spawn(command, ['seat', 'attach', id, '--key', keyFile, '--home', home]);
+        let told = '';
+        sits.stdout.on('data', (chunk) => (told += chunk));
+        const seat = await until(() => new RegExp(`^attached as ${id}, seat (s\\d+)$`, 'm').exec(told)?.[1], 10000);
+        const as = (...args) => {
+            try {
+                return cli('seat', ...args, '--as', id).trim();
+            } catch (error) {
+                return String(error.stderr).trim();
+            }
+        };
+        return { seat, as, gone: new Promise((resolve) => sits.once('exit', resolve)) };
+    };
+    const inPage = async (id, script) => {
+        const told = await main(`return webkit.evaluate(${id}, ${JSON.stringify(`return ${script}`)}, 'page')`);
+        try {
+            return JSON.parse(told);
+        } catch {
+            return told;
+        }
+    };
+    const FIELD = 'deckit-seat-field';
+    const field = (page) =>
+        inPage(
+            page,
+            `(() => {
+                const field = Object.assign(document.createElement('input'), { id: '${FIELD}' });
+                field.style.cssText =
+                    'position:fixed;left:8px;top:8px;width:150px;height:24px;z-index:99999;font:16px monospace';
+                document.body.append(field);
+                return true;
+            })()`
+        );
+    const valueOf = (page) => inPage(page, `document.querySelector('#${FIELD}')?.value ?? null`);
+    const focusedIn = (page) => inPage(page, `document.activeElement?.id === '${FIELD}'`);
+    // The end of the field in a page laid at `rect`, past what is typed in it.
+    const at = ({ rect }, dx = 0) => `${Math.round(rect.x + 148 + dx)},${Math.round(rect.y + 20)}`;
+    const showsFor = (seat, { id, rect }) => {
+        for (const down of [0.5, 0.25, 0.75])
+            for (let across = 12; across < rect.width - 12; across += 36) {
+                const point = `${Math.round(rect.x + across)},${Math.round(rect.y + rect.height * down)}`;
+                if (seat.as('scroll', point, '0,1') === `over ${id}`) return point;
+            }
+        return null;
+    };
+    const laid = (await desktopLaid())?.pages ?? [];
+    // The pages of a window, its content first and what is laid over it after.
+    const pagesOf = ({ id }) => {
+        const from = laid.findIndex(({ name }) => name === `frame-${id}`);
+        const to = laid.findIndex(({ name }) => name === `buttons-${id}`);
+        return from < 0 || to < from ? [] : laid.slice(from + 1, to);
+    };
+    const standing = (await windowsNow()).filter(({ scaled }) => !scaled);
+    const windowA = standing.find((window) => !window.key && pagesOf(window).length === 1);
+    const windowB = standing.find(({ key, mod }) => !key && mod === 'region-parent');
+    const child = windowB && pagesOf(windowB)[1];
+    const localKey = standing.find(({ key }) => key);
+    if (!windowA || !child || !localKey) {
+        check(
+            'outside: windows stand for two seats and the local one',
+            false,
+            JSON.stringify({ standing, laid: laid.map(({ id, name }) => ({ id, name })) })
+        );
+    } else {
+        const [seatA, seatB] = [await sit('ta', 'First'), await sit('tb', 'Second')];
+        for (const page of [windowA.content, windowB.content, child.id, localKey.content]) await field(page);
+        const texts = async () => [
+            await valueOf(windowA.content),
+            await valueOf(child.id),
+            await valueOf(windowB.content),
+            await valueOf(localKey.content),
+        ];
+        const shown = [seatA.as('press', showsFor(seatA, windowA)), seatB.as('press', showsFor(seatB, windowB))];
+        const answered = [seatA.as('press', at(windowA)), seatB.as('press', at(child))];
+        const tookPress = { content: await focusedIn(windowB.content), child: await focusedIn(child.id) };
+        const typing = [
+            seatA.as('type', 'al'),
+            seatB.as('type', 'be'),
+            seatA.as('type', 'pha'),
+            seatB.as('type', 'ta'),
+        ];
+        const inFields =
+            (await until(async () => {
+                const now = await texts();
+                return same(now.slice(0, 2), ['alpha', 'beta']) && now;
+            }, 3000)) || (await texts());
+        check(
+            'outside: two seats press two windows and type at once, and each text is in its own window',
+            seatA.seat &&
+                seatB.seat &&
+                same(answered, [`over ${windowA.id}, key`, `over ${windowB.id}, key`]) &&
+                same(inFields, ['alpha', 'beta', '', '']),
+            JSON.stringify({ shown, answered, typing, inFields })
+        );
+        check(
+            "outside: a seat's text goes to the page of its key window that took its press, a child over the content",
+            tookPress.child && !tookPress.content && inFields[1] === 'beta' && inFields[2] === '',
+            JSON.stringify({ tookPress, inFields })
+        );
+        const acted = [
+            seatA.as('scroll', at(windowA), '0,40'),
+            seatA.as('drag', at(windowA), at(windowA, -2)),
+            seatA.as('move', '2,300'),
+        ];
+        check(
+            'outside: deckit seat scroll, drag and move print what the pointer reached',
+            same(acted, [`over ${windowA.id}`, `over ${windowA.id}, key`, 'over nothing']),
+            JSON.stringify(acted)
+        );
+        // The second seat presses the first one's window right after the first typed in it: held, and typing nothing.
+        const shownToB = showsFor(seatB, windowA);
+        seatA.as('type', '!');
+        const answeredHeld = [seatB.as('press', shownToB), seatB.as('press', at(windowA))];
+        const typedHeld = seatB.as('type', 'no');
+        const afterHeld = await texts();
+        check(
+            'outside: a press on a window another seat holds answers held, and what the seat types then is refused',
+            same(answeredHeld, Array(2).fill(`over ${windowA.id}, held by ${seatA.seat}`)) &&
+                /holds the keyboard/.test(typedHeld) &&
+                same(afterHeld, ['alpha!', 'beta', '', '']),
+            JSON.stringify({ shownToB, answeredHeld, typedHeld, afterHeld })
+        );
+        // The first seat gives no input for the idle time: its window is the second one's as it presses it.
+        const hears = await connect(RELAY.fileOf(home, 'ta'));
+        const heard = [];
+        hears.on('seat/held', (told) => heard.push(told));
+        await new Promise((resolve) => setTimeout(resolve, idleTime * 1000 + 500));
+        const taken = seatB.as('press', at(windowA));
+        const told = await until(() => heard[0], 3000);
+        const typedTaken = seatB.as('type', '?');
+        const afterTaken = await until(async () => (await valueOf(windowA.content)) === 'alpha!?', 3000);
+        hears.close();
+        check(
+            "outside: an idle holder's window is taken by the seat that presses it, and the holder is told seat/held",
+            taken === `over ${windowA.id}, key` && same(told, { window: windowA.id, holder: seatB.seat }) && afterTaken,
+            JSON.stringify({ taken, heard, typedTaken, in: await valueOf(windowA.content) })
+        );
+        const chordSent = seatB.as('key', 'Meta+KeyW');
+        const closedOwn = await until(async () => !(await windowsNow()).some(({ id }) => id === windowA.id), 5000);
+        const standingAfter = (await windowsNow()).map(({ id }) => id);
+        check(
+            "outside: a seat's close chord closes its own key window, and no other",
+            closedOwn && standingAfter.includes(windowB.id) && standingAfter.includes(localKey.id),
+            JSON.stringify({ chordSent, standingAfter, windowA: windowA.id })
+        );
+        for (const page of [windowB.content, child.id, localKey.content])
+            await inPage(page, `document.querySelector('#${FIELD}')?.remove()`);
+        seatA.as('detach');
+        seatB.as('detach');
+        check('outside: both terminals detach', (await seatA.gone) === 0 && (await seatB.gone) === 0, '');
+    }
 
     const listed = deckit('list', principal);
     check('outside: a key registered is listed', listed === `ed25519 ${key.publicKey} test\n`, listed);

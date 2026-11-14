@@ -29,11 +29,13 @@ const REMOVED = 'removed-with-data';
 // The Browser's tabs brought back: the one in front, and the one behind it, asleep.
 const FRONT_TAB = 'https://example.com/';
 const BEHIND_TAB = 'https://example.org/';
+// The seconds a seat gives no input before it is idle, short so the scenario can wait it out.
+const IDLE_TIME = 8;
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them declaring addresses as it may not, the window probe shipped with the app
 // assembled in `app` as a system mod, its seats served by the test, Settings placed second in the Dock, as a person
-// would have arranged it, and what REMOVED left, noted as not cleared yet.
+// would have arranged it, what REMOVED left, noted as not cleared yet, and the idle time of a seat as a host sets it.
 function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -81,6 +83,7 @@ function seed({ data, files, app }) {
         path.join(data, 'deckit', 'state', 'shell', 'dock-pinned.json'),
         JSON.stringify(['editor', 'settings', 'bot', 'browser', 'calendar', 'finder', 'mods', 'note', PROBE])
     );
+    fs.writeFileSync(path.join(data, 'deckit', 'state', 'seats.json'), JSON.stringify({ idleTime: IDLE_TIME }));
     fs.writeFileSync(path.join(data, 'deckit', 'deck.json'), JSON.stringify({ uncleared: [REMOVED] }));
     for (const kept of [
         ['records', REMOVED, 'tabs.json'],
@@ -2976,7 +2979,7 @@ async function run({
     }
 
     try {
-        await OUTSIDE.run({ check, home, logged, main });
+        await OUTSIDE.run({ check, home, logged, main, windowsNow, desktopLaid, idleTime: IDLE_TIME });
     } catch (error) {
         check('outside: a party attached', false, error.stack);
     }
