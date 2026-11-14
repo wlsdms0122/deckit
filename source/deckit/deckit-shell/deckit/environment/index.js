@@ -116,7 +116,8 @@ const MAIN = Object.freeze({
         // onQuit(hold): `hold()` is asked as the app is about to quit, once the quit is decided; answering true keeps
         // it from quitting, until it is asked to quit again
         onQuit: 'function',
-        quit: 'function', // quit(): the app asked to quit
+        // quit(): the app asked to quit; asked while `hold` is asked, it is a quit asked once that one is decided
+        quit: 'function',
     },
 });
 

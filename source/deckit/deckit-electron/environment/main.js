@@ -218,7 +218,8 @@ function createEnvironment({ core, preload, openWindow }) {
             onQuit: (hold) => {
                 guard(app, 'will-quit', (event) => hold() && event.preventDefault());
             },
-            quit: () => app.quit(),
+            // The engine drops a quit asked while it decides one, as a hold may ask it: it is asked once that is decided.
+            quit: () => setImmediate(() => app.quit()),
         }),
         about: Object.freeze({
             app: Object.freeze({ name: app.getName(), version: app.getVersion() }),
