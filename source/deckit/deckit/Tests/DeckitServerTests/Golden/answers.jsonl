@@ -29,7 +29,7 @@
 {"id":15,"jsonrpc":"2.0","result":true}
 {"id":16,"jsonrpc":"2.0","result":"[1]"}
 {"id":17,"jsonrpc":"2.0","result":["tabs"]}
-{"id":18,"jsonrpc":"2.0","result":{"data":{"capped":false,"count":0,"hidden":false},"kept":[],"keys":0,"records":{"count":1,"hidden":false}}}
+{"id":18,"jsonrpc":"2.0","result":{"data":{"capped":false,"count":0,"hidden":false},"kept":[],"records":{"count":1,"hidden":false}}}
 {"id":19,"jsonrpc":"2.0","result":true}
 {"id":20,"jsonrpc":"2.0","result":null}
 {"error":{"code":-32803,"data":{"kind":"INVALID_ARGUMENT","stage":"call"},"message":"not a record key: Bad Key"},"id":21,"jsonrpc":"2.0"}
@@ -37,7 +37,7 @@
 {"id":23,"jsonrpc":"2.0","result":true}
 {"id":24,"jsonrpc":"2.0","result":true}
 {"id":25,"jsonrpc":"2.0","result":[{"key":"order","text":"[]"},{"folder":"b","key":"k","text":"\"dark\""}]}
-{"id":33,"jsonrpc":"2.0","result":{"data":{"capped":false,"count":0,"hidden":false},"kept":[],"keys":0,"records":{"count":0,"hidden":false}}}
+{"id":33,"jsonrpc":"2.0","result":{"data":{"capped":false,"count":0,"hidden":false},"kept":[],"records":{"count":0,"hidden":false}}}
 {"id":46,"jsonrpc":"2.0","result":{"manifest":{"api":"1.0.0","background":null,"contributes":{},"fields":{},"id":"d","main":"main.js","name":"D","permissions":[],"provides":{},"uses":{},"version":"1.0.0"},"replaces":false}}
 {"id":47,"jsonrpc":"2.0","result":{"manifest":{"api":"1.0.0","background":null,"contributes":{},"fields":{},"id":"d","main":"main.js","name":"D","permissions":[],"provides":{},"uses":{},"version":"1.0.0"},"replaces":false}}
 {"error":{"code":-32803,"data":{"kind":"NOT_LOADABLE","stage":"read"},"message":"permission \"deckit.privileged\" is granted only to a system mod"},"id":96,"jsonrpc":"2.0"}

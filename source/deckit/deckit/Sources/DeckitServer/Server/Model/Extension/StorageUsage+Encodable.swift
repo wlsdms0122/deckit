@@ -15,7 +15,6 @@ extension StorageUsage: Encodable {
         case data
         case records
         case kept
-        case keys
     }
 
     // MARK: - Initializer
@@ -25,7 +24,6 @@ extension StorageUsage: Encodable {
         try container.encode(data, forKey: .data)
         try container.encode(records, forKey: .records)
         try container.encode(kept, forKey: .kept)
-        try container.encode(keys, forKey: .keys)
     }
 
     // MARK: - Private
