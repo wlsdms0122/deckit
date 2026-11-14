@@ -967,6 +967,38 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
             localKey() === 3,
         JSON.stringify({ mine, yours, typed, puts: desk.puts })
     );
+    // A child laid over the content of window 1, in a region of it: the seat's keys go to the page it pressed last.
+    const over = { name: 'page-c', mod: 'c' };
+    desk.children.runs = [{ run: { mod: { id: 'c' }, state: 'running', summary: { view: true } }, page: over }];
+    desk.children.laid.set('a', new Map([['c', { window: 1, rect: { x: 60, y: 60, width: 80, height: 80 } }]]));
+    desk.desktop.update();
+    const pressThenKey = (at, code) => {
+        desk.enter(me, pointer('down', at));
+        desk.enter(me, pointer('up', at));
+        return desk.enter(me, key(code)).to;
+    };
+    const corner = { x: desk.frameOf(1).x + 20, y: desk.frameOf(1).y + desk.frameOf(1).height - 20 };
+    const went = [pressThenKey(middle(1), 'KeyD'), pressThenKey(corner, 'KeyE')];
+    desk.enter(me, pointer('down', middle(1)));
+    desk.enter(me, pointer('up', middle(1)));
+    went.push(pressThenKey({ x: desk.frameOf(1).x + 100, y: desk.frameOf(1).y + 10 }, 'KeyF'));
+    went.push(pressThenKey(middle(1), 'KeyG'));
+    desk.children.runs = [];
+    desk.children.laid.clear();
+    desk.desktop.update();
+    went.push(desk.enter(me, key('KeyH')).to);
+    const keysIn = (name) =>
+        desk.puts.filter((put) => put.page === name && put.event.event === 'key').map(({ event }) => event.code);
+    check(
+        "a seat's keys go to the page of its key window that took its last press, a child laid over the content as " +
+            'the content, and to the content once it presses the frame or the child is laid there no more',
+        went.join() === '1,1,1,1,1' &&
+            keysIn('page-c').join() === 'KeyD,KeyG' &&
+            keysIn('content-1').join() === 'KeyA,KeyC,KeyE,KeyF,KeyH',
+        JSON.stringify({ went, child: keysIn('page-c'), content: keysIn('content-1') })
+    );
+    desk.enter(me, pointer('down', middle(1)));
+    desk.enter(me, pointer('up', middle(1)));
     const pressAt = desk.puts.find((put) => put.page === 'content-1').event;
     check(
         "a press is put at its point from the page's top left",
