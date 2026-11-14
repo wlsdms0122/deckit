@@ -1091,6 +1091,61 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
         JSON.stringify({ under, onItem, left, clicked: desk.dock.clicked })
     );
     desk.dock.items = [];
+    const refusedOf = (enter) => {
+        try {
+            return enter();
+        } catch (error) {
+            return error;
+        }
+    };
+    const grabbed = middle(3);
+    const rested = { ...desk.frameOf(3) };
+    desk.enter(me, pointer('down', grabbed));
+    desk.desktop.move(all[2], 'began', 0, 0, { x: 100, y: 100 });
+    desk.desktop.move(all[2], 'changed', 40, 30);
+    desk.enter(me, pointer('move', { x: grabbed.x + 40, y: grabbed.y + 30 }, { buttons: [0] }));
+    desk.enter(me, pointer('up', { x: grabbed.x + 40, y: grabbed.y + 30 }));
+    desk.desktop.move(all[2], 'ended', 40, 30);
+    const [pressedAt, movedAt, letGoAt] = desk.puts.slice(-3).map(({ event }) => event);
+    check(
+        "a window its content's drag moves under a seat's press stays under the seat's pointer: its move and its up " +
+            'are put where the pointer is in the page now',
+        desk.frameOf(3).x === rested.x + 40 &&
+            desk.frameOf(3).y === rested.y + 30 &&
+            [movedAt, letGoAt].every(({ x, y }) => x === pressedAt.x && y === pressedAt.y),
+        JSON.stringify({ rested, now: desk.frameOf(3), pressedAt, movedAt, letGoAt })
+    );
+    const side = { ...windowOf(9, 0), level: 'panel', edge: 'right', size: { width: 300, height: 100 } };
+    desk.desktop.openPanel(side, { activates: false });
+    const sideFrame = desk.desktop.control.panels().find(({ id }) => id === 9).frame;
+    const inSide = { x: sideFrame.x + 20, y: sideFrame.y + 20 };
+    const onSide = desk.enter(me, pointer('down', inSide));
+    desk.enter(me, pointer('up', inSide));
+    const toSide = desk.enter(me, key('KeyP'));
+    const sideKey = desk.desktop.control.panels().find(({ id }) => id === 9).key;
+    desk.enter(me, pointer('down', { x: 600, y: 780 }));
+    desk.enter(me, pointer('up', { x: 600, y: 780 }));
+    const toDesk = desk.enter(me, key('KeyQ'));
+    check(
+        "a seat's press in a panel window at the right edge gives that window its keyboard, not the machine's, until " +
+            'it presses the desktop',
+        onSide.over === 9 &&
+            toSide.to === 9 &&
+            desk.puts.some((put) => put.page === 'content-9' && put.from === 's1' && put.event.code === 'KeyP') &&
+            sideKey === false &&
+            toDesk.to !== 9,
+        JSON.stringify({ onSide, toSide, sideKey, toDesk })
+    );
+    desk.desktop.closePanel(side);
+    desk.desktop.control.hide();
+    const count = desk.puts.length;
+    const hidden = [pointer('down', grabbed), key('KeyH')].map((event) => refusedOf(() => desk.enter(me, event)));
+    desk.desktop.control.show();
+    check(
+        "a seat's input while the host window is hidden is refused HIDDEN, and nothing is put",
+        hidden.every(({ kind, stage }) => kind === 'HIDDEN' && stage === 'call') && desk.puts.length === count,
+        JSON.stringify(hidden.map(({ kind }) => kind))
+    );
     const listed = (id) => desk.desktop.control.windows().find((one) => one.id === id);
     const stood = { ...listed(1).frame };
     desk.pagePointer(1, 'bar', 'down', { x: 0, y: 0 }, { button: 2, grabX: 10, grabY: 10 });
@@ -1393,14 +1448,14 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     );
 }
 
-// `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage
-// 1200 by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
-// desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that
-// page: `pagePointer(id, part, type, point, more)` what the pointer does on a part of window `id` at a point of the
-// screen, `pagePress(id)` a press on its frame let go there, and `pageFrames(id, frame)` the drags of its corners
-// that leave it at `frame`. `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in
-// `page`, which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it, `key(page)` a
-// key pressed in a page and `chord(mod)` a chord told to a mod.
+// `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage 1200
+// by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
+// desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that page:
+// `pagePointer(id, part, type, point, more)` what the pointer does on a part of window `id` at a point of the screen,
+// `pagePress(id)` a press on its frame let go there, and `pageFrames(id, frame)` the drags of its corners that leave
+// it at `frame`. `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in `page`,
+// which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it,
+// `key(page)` a key pressed in a page and `chord(mod)` a chord told to a mod.
 function desktopOver(createDesktop, { state = {}, clock }) {
     const handlers = {};
     const sent = [];

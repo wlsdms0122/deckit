@@ -46,10 +46,11 @@ export function createDesktop({
     // its content's drag regions moves, from the frame it had at the press, `grab` where the press was in that frame,
     // and where the pointer is on the stage now; `dropping`, the tile that window takes let go now, or null;
     // `pointer`, where its pointer is on the desktop, or null; `down`, where its press went until it lets go, a page
-    // with `origin`, the page's top left on the desktop, or a `part` of the window `id` with its `grip`, or the Dock's
-    // item `id`, its `part` 'dock'; `wanted`, the window it pressed last that another seat holds, or null; and `dock`,
-    // whether the Dock is out for it, as the desktop's page tells of the seat it shows and as its pointer says of any
-    // other
+    // of the window `id` with `inside`, the page's top left from that window's frame, or a `part` of the window `id`
+    // with its `grip`, or the Dock's item `id`, its `part` 'dock'; `wanted`, the window it pressed last that another
+    // seat holds, or null; `dock`, whether the Dock is out for it, as the desktop's page tells of the seat it shows and
+    // as its pointer says of any other; and `panel`, the id of the panel window at the edge `right` that holds its
+    // keyboard, or null, the local seat's being the machine's (`held`)
     const hands = new Map();
     let tells = null; // what deckit answered the shell's serving with: what tells a seat
     const MANAGER = WM.createWindowManager({
@@ -185,6 +186,7 @@ export function createDesktop({
     function closePanel(window) {
         if (!panels.delete(window.id)) return;
         if (held === window.id) held = null;
+        for (const hand of hands.values()) if (hand.panel === window.id) hand.panel = null;
         update();
     }
 
@@ -200,13 +202,17 @@ export function createDesktop({
         return true;
     }
 
-    // `seat` pressed in a panel window: its input reached the window's mod. For the local seat, one in the bar leaves
-    // the machine's keyboard with the key window, or with the panel window that holds it; one at the right edge takes
-    // it.
+    // `seat` pressed in a panel window: its input reached the window's mod. One in the bar leaves the seat's keyboard
+    // with its key window, or with the panel window that holds it; one at the right edge takes it, the machine's for
+    // the local seat.
     function pressPanel(seat, window) {
         if (!panels.has(window.id)) return;
         ACTIVATION.input(seat, window.mod);
-        if (seat !== LOCAL) return;
+        if (seat !== LOCAL) {
+            if (window.edge !== 'right' || hands.get(seat).panel === window.id) return;
+            Object.assign(hands.get(seat), { panel: window.id, wanted: null });
+            return update();
+        }
         if (window.edge !== 'right') return giveBack();
         if (held === window.id) return;
         held = window.id;
@@ -286,6 +292,7 @@ export function createDesktop({
         const hand = hands.get(seat);
         if (hand) hand.wanted = made === WM.HELD ? window.id : null;
         if (seat === LOCAL) held = null;
+        else if (hand) hand.panel = null;
         update();
         return made;
     }
@@ -415,11 +422,11 @@ export function createDesktop({
 
     // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` some seat's
     // key window while neither an overlay window nor a panel window holds the keyboard, its size, and where its buttons
-    // stand over its top; a panel window is key while it holds the keyboard and has no buttons.
+    // stand over its top; a panel window is key while it holds some seat's keyboard and has no buttons.
     function stateOf(window) {
         if (panels.has(window.id)) {
             const frame = panelFrameOf(window.id);
-            const key = held === window.id;
+            const key = held === window.id || [...hands.values()].some(({ panel }) => panel === window.id);
             return { shown, key, width: frame?.width ?? 0, height: frame?.height ?? 0, titleBar: null };
         }
         const frame = MANAGER.frameOf(window.id);
@@ -529,7 +536,15 @@ export function createDesktop({
         if (hands.has(seat.id)) return;
         MANAGER.addSeat(seat.id);
         ACTIVATION.addSeat(seat.id);
-        hands.set(seat.id, { moving: null, dropping: null, pointer: null, down: null, wanted: null, dock: false });
+        hands.set(seat.id, {
+            moving: null,
+            dropping: null,
+            pointer: null,
+            down: null,
+            wanted: null,
+            dock: false,
+            panel: null,
+        });
         update();
     }
 
@@ -567,10 +582,12 @@ export function createDesktop({
     // already; any other is read against what is laid for the seat and put in the page it reaches. A pointer answers
     // `{ over, key, holder }`: `over` the window it reached, 'desktop' for the desktop where no window is, or null,
     // and, for a press on a window, `key` 'key' or 'held' and `holder`, the seat that holds its keyboard. A key or
-    // text answers `{ to }`, the window it went to, or null where the seat has no key window.
+    // text answers `{ to }`, the window it went to, or null where the seat has no key window. Nothing is put while the
+    // host window is hidden, where no page takes input: that is refused HIDDEN.
     function entered(seat, event) {
         const hand = hands.get(seat.id);
         if (!hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
+        if (!event.carried && !shown) throw refusal('HIDDEN', 'the desktop is hidden: nothing of it takes input');
         if (event.event === 'pointer')
             return event.carried ? arrived(seat.id, hand, event) : pointed(seat.id, hand, event);
         if (event.event === 'key' || event.event === 'text')
@@ -592,9 +609,11 @@ export function createDesktop({
     }
 
     // A pointer event to be carried. A press and a scroll go where `stage.hit` finds a page in what is laid for the
-    // seat; a move with a button held and the up that ends it go where the press went. A move with none held moves the
-    // seat's pointer alone. The Dock comes out for the seat as its pointer reaches the Dock's sliver, and stays out
-    // while it is there or on the Dock's card.
+    // seat; a move with a button held and the up that ends it go where the press went, at the pointer's point of that
+    // page where its window is now, so a window its content's drag moves stays under the pointer. A press on the
+    // desktop or the Dock leaves the seat's keyboard with its key window, wanting no other. A move with none held
+    // moves the seat's pointer alone. The Dock comes out for the seat as its pointer reaches the Dock's sliver, and
+    // stays out while it is there or on the Dock's card.
     function pointed(seat, hand, event) {
         const { type } = event;
         const point = { x: event.x, y: event.y };
@@ -609,8 +628,10 @@ export function createDesktop({
             if (!held) return { over: null };
             if (held.part) gesture(seat, type, point, hit && partAt(hit));
             else {
-                if (type === 'up') hand.down = null;
-                INPUT.put(held.page, { ...event, x: point.x - held.origin.x, y: point.y - held.origin.y }, seat);
+                const frame = frameOn(held.id);
+                if (type === 'up' || !frame) hand.down = null;
+                const at = frame && { x: point.x - frame.x - held.inside.x, y: point.y - frame.y - held.inside.y };
+                if (at) INPUT.put(held.page, { ...event, ...at }, seat);
             }
             return { over: held.part === 'dock' ? 'dock' : held.id };
         }
@@ -618,15 +639,22 @@ export function createDesktop({
         const part = partAt(hit);
         if (part) {
             if (type === 'down') gesture(seat, type, point, part, { count: event.count, button: event.button });
+            if (type === 'down') hand.panel = null;
+            if (type === 'down' && part.part === 'dock') hand.wanted = null;
             if (part.part === 'dock') return { over: 'dock' };
             const made = MANAGER.keyOf(seat) === part.id ? 'key' : 'held';
             return { over: part.id, ...(type === 'down' ? { key: made, holder: MANAGER.holderOf(part.id) } : {}) };
         }
         const window = windowAt(hit.page);
-        if (!window) return { over: desktop.page ? 'desktop' : null };
+        if (!window) {
+            if (type === 'down') Object.assign(hand, { panel: null, wanted: null });
+            return { over: desktop.page ? 'desktop' : null };
+        }
         let answer = { over: window.id };
         if (type === 'down') {
-            hand.down = { id: window.id, page: hit.page, origin: { x: point.x - hit.x, y: point.y - hit.y } };
+            const frame = frameOn(window.id);
+            const inside = { x: point.x - hit.x - frame.x, y: point.y - hit.y - frame.y };
+            hand.down = { id: window.id, page: hit.page, inside };
             if (panels.has(window.id)) pressPanel(seat, window);
             else answer = reached(seat, window);
         }
@@ -634,8 +662,8 @@ export function createDesktop({
         return answer;
     }
 
-    // A key or text to be carried: put in the content of the seat's key window. One for a window the seat pressed
-    // that another seat still holds is refused HELD.
+    // A key or text to be carried: put in the content of the panel window that holds the seat's keyboard, or of its
+    // key window. One for a window the seat pressed that another seat still holds is refused HELD.
     function typed(seat, event) {
         const hand = hands.get(seat);
         if (hand.wanted !== null && MANAGER.makeKey(seat, hand.wanted) === WM.HELD)
@@ -644,7 +672,7 @@ export function createDesktop({
             hand.wanted = null;
             update();
         }
-        const key = keyWindow(seat);
+        const key = panels.get(hand.panel) ?? keyWindow(seat);
         if (!key?.surface) return { to: null };
         ACTIVATION.input(seat, key.mod);
         INPUT.put(key.surface, event, seat);
@@ -690,9 +718,9 @@ export function createDesktop({
     // one recognizer of every seat: a 'down' is a press on the window, a drag of its title bar from there moves it, a
     // drag of an edge resizes it, an up on the button the press was on clicks it, and a 'down' on the title bar that
     // is the second of two, `count` 2, is a double click. A 'down' of another `button` than the first is a press on
-    // the window and no more. An up on the Dock's item the press was on is the seat's click on it. `point` is in any space that holds still while the button is down, and `grab` where a
-    // 'down' is from the frame's top left, read from `point` where it is not told, which holds for a point on the
-    // desktop.
+    // the window and no more. An up on the Dock's item the press was on is the seat's click on it. `point` is in any
+    // space that holds still while the button is down, and `grab` where a 'down' is from the frame's top left, read
+    // from `point` where it is not told, which holds for a point on the desktop.
     function gesture(seat, type, point, on, { count = 1, button = 0, grab = null } = {}) {
         const hand = hands.get(seat);
         if (!hand) return;
@@ -952,6 +980,11 @@ export function createDesktop({
     // Whether an overlay window or a panel window holds the keyboard, away from the desktop's key window.
     function keyboardAway() {
         return held !== null || !!WINDOWS.keyOverlay();
+    }
+
+    // Where a window or a panel window is on the desktop now, or null for one that is gone.
+    function frameOn(id) {
+        return (windows.has(id) ? MANAGER.frameOf(id) : panelFrameOf(id)) ?? null;
     }
 
     function panelFrameOf(id) {
