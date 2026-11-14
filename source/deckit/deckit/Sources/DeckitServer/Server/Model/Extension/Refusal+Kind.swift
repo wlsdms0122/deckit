@@ -161,6 +161,18 @@ extension Refusal {
                 "RESERVED"
             }
 
+        case let error as UserError:
+            switch error {
+            case .notAPrincipal:
+                "INVALID_ARGUMENT"
+
+            case .isMod:
+                "REFUSED"
+
+            case .notAUser:
+                "NOT_FOUND"
+            }
+
         case let error as StateError:
             switch error {
             case .notAKey:

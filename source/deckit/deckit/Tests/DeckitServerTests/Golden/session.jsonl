@@ -72,5 +72,10 @@
 {"id":74,"jsonrpc":"2.0","method":"authentication/close","params":{"transport":"t1"}}
 {"id":75,"jsonrpc":"2.0","method":"key/remove","params":{"key":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","principal":"k","scheme":"ed25519"}}
 {"id":76,"jsonrpc":"2.0","method":"key/list","params":{"principal":"k"}}
+{"id":77,"jsonrpc":"2.0","method":"user/add","params":{"id":"u","name":"User"}}
+{"id":78,"jsonrpc":"2.0","method":"user/add","params":{"id":"a","name":"A"}}
+{"id":79,"jsonrpc":"2.0","method":"user/list"}
+{"id":80,"jsonrpc":"2.0","method":"user/remove","params":{"id":"u"}}
+{"id":81,"jsonrpc":"2.0","method":"user/remove","params":{"id":"u"}}
 {"id":62,"jsonrpc":"2.0","method":"no/such"}
 {"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","fields":[],"home":"@HOME@","permissions":[],"ship":[],"sources":[]}}

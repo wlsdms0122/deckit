@@ -179,6 +179,17 @@ final class Server {
         case "key/list":
             return try deck.keys.keys(of: request.decodeParams(as: PrincipalParams.self).principal)
 
+        case "user/add":
+            let user = try request.decodeParams(as: User.self)
+            try deckit.addUser(user.id, name: user.name)
+            return true
+
+        case "user/remove":
+            return answered(try deckit.removeUser(request.decodeParams(as: UserParams.self).id), by: deckit)
+
+        case "user/list":
+            return try deckit.users.all()
+
         case "authentication/challenge":
             let params = try request.decodeParams(as: ChallengeParams.self)
             let challenge = try deck.authentication.challenge(

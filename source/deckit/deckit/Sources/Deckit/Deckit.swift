@@ -15,6 +15,7 @@ public final class Deckit {
     public let catalog: Catalog
     // The state the layers above keep, each its own.
     public let state: State
+    public let users: UserRegistry
     public let runs: RunTable
     public let timeout: RunTimeout
     // A mod at the relaunch limit launches again only as its launch is asked.
@@ -85,6 +86,7 @@ public final class Deckit {
         )
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)
         let runs = RunTable()
+        self.users = try UserRegistry(principalState: deck.principalState, store: store)
         self.deck = deck
         self.catalog = catalog
         self.state = state
@@ -247,6 +249,23 @@ public final class Deckit {
     // The lifecycle lets the mod `target` go, as deck releases it.
     public func release(_ target: String, from id: String, run: Int, lifecycle: Int) throws -> [Effect] {
         try observed(deck.release(target, from: id, run: run, lifecycle: lifecycle))
+    }
+
+    // The principal `id` is a user from now on, read by `name`. Refused for an id a mod is listed under, as the catalog
+    // was last read.
+    public func addUser(_ id: String, name: String) throws {
+        guard !catalog.lastRead.contains(where: { mod in mod.manifest.id == id }) else { throw UserError.isMod(id) }
+        try users.add(User(id: id, name: name))
+    }
+
+    // The user `id` is one no more: what it runs is asked to end, and deck erases the principal, its user record and
+    // the keys authorized for it among what it keeps of it. Refused for an id that is no user.
+    public func removeUser(_ id: String) throws -> [Effect] {
+        guard users.user(of: id) != nil else { throw UserError.notAUser(id) }
+        let effects = try unload([id])
+        try deck.erasure.erase(principal: id)
+
+        return effects
     }
 
     // The transport connection `transport`, which arrived from outside, is admitted as the principal its claimant
