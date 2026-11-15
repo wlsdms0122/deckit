@@ -1,13 +1,14 @@
 // A mod that gives the status bar an item that comes and goes: a glyph's item, set as the bar connects, whose command
 // toggles a view of its own under the item's anchor. On `test-item` it sets the item the test names, or removes it
-// for none, and marks how that ended; it marks how many times its command ran. On `test-center` it toggles the
-// notification center, with no input of the person's reaching it, and marks the answer. On `test-band` it opens a
+// for none, and marks how that ended; it marks how many times its command ran, and the word its command
+// `noted` is run with, as a notification of its own names it. On `test-band` it opens a
 // band of its own in the bar as wide as the test names, which takes that much of the bar's room, or closes it for none.
 const ITEM = { name: 'Star', icon: 'star', command: 'show' };
 
 class StatusItem {
     start(deckit) {
-        deckit.exports.register({ connect: () => ({ runCommand: async () => this.show?.() }) });
+        const run = (id, args) => (id === 'noted' ? this.noted?.(args) : this.show?.());
+        deckit.exports.register({ connect: () => ({ runCommand: async (id, args) => run(id, args) }) });
     }
 
     attach(shell, deckit) {
@@ -45,17 +46,7 @@ class StatusItem {
             const content = shell.ui.element('div', { text: 'Room' });
             band = width ? shell.windows.open({ name: 'band', level: 'panel', content, width, height: 28 }) : null;
         });
-        let center = null;
-        deckit.dependencies.onConnect('notifications/center', (connected) => {
-            center = connected;
-            return () => (center = null);
-        });
-        document.addEventListener('test-center', () =>
-            center?.toggle().then(
-                (open) => (marks.center = String(open)),
-                (error) => (marks.center = 'failed: ' + error.message)
-            )
-        );
+        this.noted = ({ word }) => (marks.noted = word);
     }
 }
 

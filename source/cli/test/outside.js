@@ -742,6 +742,7 @@ async function run({
         if (bar) await barChecks({ seatA });
         await viewChecks({ seatA, seatB });
         await seatsChecks({ seatA, seatB });
+        await centerChecks({ seatA, seatB });
         seatA.as('detach');
         seatB.as('detach');
         check('outside: both terminals detach', (await seatA.gone) === 0 && (await seatB.gone) === 0, '');
@@ -886,15 +887,16 @@ async function run({
                 const now = await capsuleNow();
                 return wanted(now) && now;
             }, time)) || (await capsuleNow());
-        // Whole in the fixed region, right before the clock, which ends the capsule: whatever else the bar holds.
-        const fixedWhole = ({ bar: laid, joined, clock }) =>
+        // Whole in the fixed region, right before the fixed items a new machine starts with, the last of which, the
+        // clock, ends the capsule: whatever else the bar holds.
+        const fixedWhole = ({ bar: laid, joined, clock, fixed }) =>
             joined?.region === 'fixed' &&
             joined.width === 57 &&
-            joined.x + joined.width + 4 === clock?.x &&
+            joined.x + joined.width + 4 === fixed?.x &&
             clock.x + clock.width + 2 === laid?.width;
         const scrolls = ({ bar: laid, joined }) => joined?.region === 'scrolled' && laid?.width === room;
-        // Whether the item is in view whole, left of the clock.
-        const inView = ({ joined, clock }) => joined?.x >= 2 && joined.x + joined.width + 4 <= clock?.x;
+        // Whether the item is in view whole, left of the fixed items.
+        const inView = ({ joined, fixed }) => joined?.x >= 2 && joined.x + joined.width + 4 <= fixed?.x;
         // The local seat's context press on the item, and the press on the one entry its menu offers.
         const locally = async (wanted, shot = null) => {
             await (
@@ -992,7 +994,7 @@ async function run({
                 'seat reads it after the clock while it is fixed and before it once it is not',
             !!seatKept.entry &&
                 fixedWhole(seatKept.now) &&
-                /button "Clock"[^\n]*\n +button "Star/.test(seatReadsKept) &&
+                /button "Clock"[^\n]*\n(?: +button "Notifications[^\n]*\n)? +button "Star/.test(seatReadsKept) &&
                 !!seatFreed.entry &&
                 scrolls(seatFreed.now) &&
                 inView(seatFreed.now) &&
@@ -1006,6 +1008,36 @@ async function run({
     // its anchor toggles it for that seat alone: shown for it too, its keyboard stays the first seat's; a press outside
     // it puts it away for the seat that pressed, the second seat's next toggle for the second, and the one after shows
     // it for the second again and not for the first, which put it away.
+    // The notification center is a seat's own: a seat presses the Notifications item as it reads it in the bar, and
+    // the center stands under the item for that seat alone, which reads it as a panel window with the keyboard; the
+    // other seat reads none. Its second press on the item puts it away.
+    async function centerChecks({ seatA, seatB }) {
+        const centerOf = (seat) =>
+            /^panel (w\d+) "Notifications" notifications at [^\n]*/m.exec(seat.as('read', 'desktop')) ?? null;
+        const bar = /^panel (w\d+) .* status-bar top at /m.exec(seatA.as('read', 'desktop'))?.[1] ?? null;
+        const item = () =>
+            /^ *button "Notifications[^"]*"(?: \[[^\]]*\])? (\d+\.\d+)/m.exec(
+                bar ? seatA.as('read', 'window', bar) : ''
+            )?.[1] ?? null;
+        const pressed = item() ? seatA.as('press', item()) : '';
+        const own = await until(() => centerOf(seatA), 5000);
+        const read = own ? seatA.as('read', 'window', own[1]) : '';
+        const other = centerOf(seatB);
+        check(
+            'outside: a seat presses the Notifications item as it reads it, and the center stands under it for that ' +
+                'seat alone, which reads it with the keyboard',
+            !!own && /\[key/.test(own[0]) && /Notifications/.test(read) && !other,
+            JSON.stringify({ bar, item: item(), pressed, own: own?.[0] ?? null, read, other: other?.[0] ?? null })
+        );
+        const again = item() ? seatA.as('press', item()) : '';
+        const away = await until(() => !centerOf(seatA), 5000);
+        check(
+            "outside: the seat's second press on the item puts its center away",
+            !!own && away,
+            JSON.stringify({ again })
+        );
+    }
+
     // The Seats mod's item and its view, with two seats beside the local one: the item and its count, the view the
     // local seat's press on the item shows, a user that asks as a row there, an attached seat's press on Allow as it
     // reads it, and a seat followed by a press on its row, which an attached seat's press on that row ends.

@@ -9,8 +9,13 @@ activationPolicy = "accessory"
 "deckit.panel-windows" = "to test a view standing under its item in the status bar"
 
 [interfaces]
-uses = { "status-bar/items" = 2, "notifications/center" = 1 }
+uses = { "status-bar/items" = 2 }
 
 [[contributes."deckit/commands"]]
 id = "show"
 title = "Show Status Item"
+
+[[contributes."deckit/commands"]]
+id = "noted"
+title = "Note a Word"
+params = { type = "object", properties = { word = { type = "string", title = "Word", description = "What to mark." } }, required = ["word"] }

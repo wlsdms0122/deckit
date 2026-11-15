@@ -42,6 +42,11 @@ const IDLE_TIME = 8;
 // assembled in `app` as a system mod, Settings placed second in the Dock, as a person
 // would have arranged it, what REMOVED left, noted as not cleared yet, and the seats' settings as a host sets them:
 // the idle time, and a user that attaches asked of the local seat.
+const NOTED = [
+    ['seeded-new', 'Seeded new', 'Runs a command as it is pressed.', { command: 'noted', args: { word: 'pressed' } }],
+    ['seeded-old', 'Seeded old', '', {}],
+];
+
 function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -72,6 +77,25 @@ function seed({ data, files, app }) {
     }
     const lines = path.join(files, LINES);
     const session = { spaces: [{ root: files, open: [lines], active: lines, mode: 'files' }], active: files };
+    // Notifications' record as a run left it: nothing is posted in the walk, since the app under test is never the
+    // active one and a post would be shown as the system's. The newer names a command of the joining mod's.
+    const noted = path.join(data, 'deckit', 'records', 'notifications', 'notifications.json');
+    fs.mkdirSync(path.dirname(noted), { recursive: true });
+    fs.writeFileSync(
+        noted,
+        JSON.stringify(
+            NOTED.map(([id, title, body, more], at) => ({
+                id,
+                mod: { id: JOINS, name: 'Status Item' },
+                title,
+                body,
+                silent: false,
+                ...more,
+                actions: [],
+                posted: Date.now() - (at + 1) * 60000,
+            }))
+        )
+    );
     const record = path.join(data, 'deckit', 'records', 'editor', 'session.json');
     fs.mkdirSync(path.dirname(record), { recursive: true });
     fs.writeFileSync(record, JSON.stringify(session));
@@ -161,8 +185,9 @@ async function atRest(probe, ms = 3000) {
     }
 }
 
-// The status bar as it stands: `barPage()` is the document of its capsule, and `capsuleNow()` answers `{ bar, name,
-// clock, joined, items }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item
+// The status bar as it stands: `barPage()` is the document of its capsule, and `capsuleNow()` answers `{ fixed, bar,
+// name, clock, joined, items }`, where the fixed items a new machine starts with stand in the capsule, the
+// Notifications item and the clock as one, `{ x, width }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item
 // and the joining mod's, `{ id, name, region, x, y, width, height }` each as its button is drawn in the capsule,
 // `region` the one it stands in, `fixed` or `scrolled`, or null, and every item so, in the order they are drawn.
 function statusBar({ pages, desktopLaid }) {
@@ -186,7 +211,10 @@ function statusBar({ pages, desktopLaid }) {
             }),
         }))()`);
         const item = (id) => drawn?.items.find((each) => each.id === id) ?? null;
+        const kept = (drawn?.items ?? []).filter(({ id, region }) => region === 'fixed' && id !== JOINS);
+        const left = Math.min(...kept.map(({ x }) => x));
         return {
+            fixed: kept.length ? { x: left, width: Math.max(...kept.map(({ x, width }) => x + width)) - left } : null,
             bar: bar?.rect ?? null,
             name: drawn?.name ?? null,
             clock: item('clock'),
@@ -310,7 +338,9 @@ async function walk({
             clock?.name === 'Clock' &&
             clock.height === 24 &&
             clock.y === 2 &&
-            clock.x === 2 &&
+            capsule.fixed?.x === 2 &&
+            capsule.items.map(({ id, name: called }) => `${id} ${called}`).join() ===
+                'clock Clock,notifications Notifications, 2' &&
             clock.x + clock.width === bar.width - 2)(capsule),
         JSON.stringify({ ...capsule, screenWidth })
     );
@@ -2893,7 +2923,7 @@ async function walk({
             joined.joined?.width === 32 &&
                 joined.joined.x === 2 &&
                 joined.joined.name === 'Star' &&
-                joined.clock?.x === 38 &&
+                joined.fixed?.x === 38 &&
                 joined.bar.x + joined.bar.width === unjoined.bar.x + unjoined.bar.width,
             JSON.stringify({ unjoined, joined })
         );
@@ -2976,55 +3006,107 @@ async function walk({
             itemGone && (await mark(joinsPage, 'set')) === 'removed',
             JSON.stringify({ now: await capsuleNow(), set: await mark(joinsPage, 'set') })
         );
-        // A press on the clock runs its command, which brings the notification center out at the desktop's right edge,
-        // 8 in from it, 8 under the bar and 8 above the bottom, and it takes the keyboard; a second press puts it
-        // away. A press on a normal window takes the keyboard from it, and it closes (DECKIT-31).
-        const centerNow = async () =>
-            (await laidNow())
-                .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
-                .find(
-                    ({ opener, name }) =>
-                        opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
-                ) ?? null;
-        const stageNow = (await desktopLaid())?.rect;
-        const centerAt = { x: stageNow?.width - 368, y: 60, width: 360, height: stageNow?.height - 68 };
-        await pressItem('clock');
-        const centerOpened = await until(async () => {
-            const now = await centerNow();
-            return near(now?.rect, centerAt) && now.responder && now;
-        }, 4000);
-        check(
-            'a press on the clock opens the notification center at the right edge, and it takes the keyboard',
-            centerOpened,
-            JSON.stringify({ center: await centerNow(), centerAt })
-        );
-        await pressItem('clock');
-        const centerAway = await until(async () => !(await centerNow()), 4000);
-        check(
-            'a second press on the clock puts the notification center away',
-            centerAway,
-            JSON.stringify({ center: await centerNow() })
-        );
-        await pressItem('clock');
-        const centerAgain = await until(async () => (await centerNow())?.responder, 4000);
-        await probeWindow.press('#drop');
-        const taken = await until(async () => !(await centerNow()) && (await keyMod()) === 'window-probe', 4000);
-        check(
-            'a press on a normal window takes the keyboard from the notification center, which closes',
-            centerAgain && taken,
-            JSON.stringify({ centerAgain, center: await centerNow(), key: await keyMod() })
-        );
-        // A mod no input reached toggles the center: Notifications may not activate (DECKIT-32), and the center, where
-        // the person works, is not left open without the keyboard.
-        await joinsPage?.evaluate(`document.dispatchEvent(new CustomEvent('test-center'))`);
-        const toggled = await until(async () => await mark(joinsPage, 'center'), 4000);
-        await sleep(1000);
-        const unkeyed = await until(async () => !(await centerNow()) && (await keyMod()) === 'window-probe', 4000);
-        check(
-            'a mod that may not activate toggles the notification center, which does not stay open without the keyboard',
-            toggled && unkeyed,
-            JSON.stringify({ toggled, center: await centerNow(), key: await keyMod() })
-        );
+        {
+            // A press on the Notifications item runs its command, which stands the notification center under the item,
+            // their right edges in line, 8 under the bar, as high as the record's two rows, and it takes the keyboard.
+            const centerNow = async () =>
+                (await laidNow())
+                    .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
+                    .find(
+                        ({ opener, name }) =>
+                            opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
+                    ) ?? null;
+            const centerPage = async () => {
+                for (const each of await pages('about:blank'))
+                    if (await each.evaluate(`!!document.querySelector('.notifications-head')`)) return each;
+                return null;
+            };
+            const bell = async () => (await capsuleNow()).items.find(({ id }) => id === 'notifications') ?? null;
+            const rowsNow = async () =>
+                (await centerPage())?.evaluate(`(() => ({
+                titles: [...document.querySelectorAll('.notifications-rows .notifications-title')].map((node) => node.textContent),
+                active: [...document.querySelectorAll('.notifications-rows .notifications-card')].findIndex((node) => node.hasAttribute('data-active')),
+                high: [...document.querySelectorAll('.notifications-rows .notifications-card')].reduce((sum, node) => sum + node.getBoundingClientRect().height, 0),
+                empty: document.querySelector('.deckit-empty')?.textContent ?? null,
+            }))()`);
+            const bellAt = await bell();
+            await pressItem('notifications');
+            const centerOpened = await until(async () => {
+                const [now, bar, rows] = [await centerNow(), (await capsuleNow()).bar, await rowsNow()];
+                const right = bar && bellAt && bar.x + bellAt.x + bellAt.width;
+                const high = rows && 16 + 32 + 8 + rows.high + 8 + 16;
+                const under = now && rows?.titles.length === 2 && { x: right - 360, y: 60, width: 360, height: high };
+                return under && near(now.rect, under) && now.responder && { rect: now.rect, under, rows };
+            }, 6000);
+            check(
+                'a press on the Notifications item stands the center under it, as high as its rows, with the keyboard',
+                centerOpened &&
+                    centerOpened.rows.titles.join() === NOTED.map(([, title]) => title).join() &&
+                    bellAt?.name === 'Notifications, 2',
+                JSON.stringify({ centerOpened, center: await centerNow(), rows: await rowsNow(), bellAt })
+            );
+            // Its keys: the arrows move along the rows from the first, Command-Delete removes the row they are on,
+            // and Return runs the row's command on its sender and takes it away; the item counts what is left.
+            const center = await centerPage();
+            await center?.key('ArrowDown', 'ArrowDown', 0, 40);
+            const onFirst = await until(async () => (await rowsNow())?.active === 0, 3000);
+            await center?.key('ArrowDown', 'ArrowDown', 0, 40);
+            const moved = onFirst && (await until(async () => (await rowsNow())?.active === 1, 3000));
+            await center?.key('Backspace', 'Backspace', META, 8);
+            const removed = await until(
+                async () =>
+                    (await rowsNow())?.titles.join() === NOTED[0][1] && (await bell())?.name === 'Notifications, 1',
+                4000
+            );
+            const lower = await until(async () => {
+                const [now, rows] = [await centerNow(), await rowsNow()];
+                return now && rows && Math.abs(now.rect.height - (16 + 32 + 8 + rows.high + 16)) <= 1;
+            }, 4000);
+            check(
+                'in the center the arrows move along the rows and Command-Delete removes one: the view is as high as what is left',
+                moved && removed && lower,
+                JSON.stringify({
+                    moved,
+                    removed,
+                    lower,
+                    center: await centerNow(),
+                    rows: await rowsNow(),
+                    bell: await bell(),
+                })
+            );
+            await center?.key('Enter', 'Enter', 0, 13);
+            const ranNoted = await until(async () => (await mark(joinsPage, 'noted')) === 'pressed', 6000);
+            const emptied = await until(
+                async () => (await rowsNow())?.titles.length === 0 && (await bell())?.name === 'Notifications',
+                4000
+            );
+            check(
+                "Return runs the row's command on its sender and takes it away: the record is empty and the item has no count",
+                ranNoted && emptied,
+                JSON.stringify({ noted: await mark(joinsPage, 'noted'), rows: await rowsNow(), bell: await bell() })
+            );
+            // A second press on the item puts it away; Escape does, and a press on a normal window, by the shell's rule.
+            await pressItem('notifications');
+            const centerAway = await until(async () => !(await centerNow()), 4000);
+            await pressItem('notifications');
+            const centerAgain = await until(async () => (await centerNow())?.responder, 4000);
+            await (await centerPage())?.key('Escape', 'Escape', 0, 27);
+            const escaped = await until(async () => !(await centerNow()), 4000);
+            await pressItem('notifications');
+            const centerThird = await until(async () => (await centerNow())?.responder, 4000);
+            await probeWindow.press('#drop');
+            const taken = await until(async () => !(await centerNow()) && (await keyMod()) === 'window-probe', 4000);
+            check(
+                'a second press on the item puts the center away, and so do Escape and a press on a normal window',
+                centerAway && centerAgain && escaped && centerThird && taken,
+                JSON.stringify({ centerAway, centerAgain, escaped, centerThird, taken, key: await keyMod() })
+            );
+            // The clock says the time: a press on it runs nothing.
+            const clockTakes = await (
+                await barPage()
+            )?.evaluate(`document.querySelector('.status-bar-item[data-item="clock"]').disabled`);
+            check('the clock takes no press', clockTakes === true, JSON.stringify({ clockTakes }));
+        }
         await show('window-probe');
 
         // A folder and a file dragged in from outside the app and dropped on the probe's destination: it hears the drag
