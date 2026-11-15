@@ -11,7 +11,7 @@ import * as LAYOUT from '../desktop/model/layout.js';
 // lay pages on (environment: SHELL.stage);
 // `showWindow(control, { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on
 // screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it. A panel
-// window stands at its edge, in the host's bar over the desktop or along the desktop's right edge, or under the anchor
+// window stands at its edge, in the host's bar over the desktop, or under the anchor
 // it binds by or at the place it names, where DESKTOP places it.
 export function createWindows({
     deckit,
@@ -34,7 +34,7 @@ export function createWindows({
     const SIZE = Object.freeze({ width: 720, height: 480 });
     const WEB_SIZE = Object.freeze({ width: 520, height: 700 });
     // id -> { id, mod, page, name, level, edge, anchor, place, size, minimum, bar, surface, sent, host, title, web }:
-    // `name` null for a web page's window, which has none, `edge` that of a panel window at an edge, 'top' or 'right',
+    // `name` null for a web page's window, which has none, `edge` that of a panel window at an edge, 'top',
     // and null for any other, `anchor` what a panel window under an anchor binds by, `{ mod, id }`, and null for any
     // other, `place` the place of the stage a panel window stands at by name, and null for any other, `bar` a
     // normal window's title bar (LAYOUT.barOf), `surface` its content once the page opened it, `sent` what the page was
@@ -163,7 +163,7 @@ export function createWindows({
     // where the anchor of that name is given to another mod. One with a `place` stands there and has no edge: refused
     // INVALID_ARGUMENT for a name that is no place's (DESKTOP.isPlace), and with an anchor too.
     function open(page, options) {
-        const { name, level, edge, width, height, minWidth, minHeight, activates = true, title } = options;
+        const { name, level, width, height, minWidth, minHeight, activates = true, title } = options;
         const mod = deckit.mods.modOf(page);
         const same = [...windows.values()].find((window) => window.page === page && window.name === name);
         if (same) {
@@ -193,7 +193,7 @@ export function createWindows({
             page,
             name,
             level: [OVERLAY_LEVEL, PANEL].includes(level) ? level : NORMAL,
-            edge: level === PANEL && !anchor && !place ? (edge === 'right' ? 'right' : 'top') : null,
+            edge: level === PANEL && !anchor && !place ? 'top' : null,
             anchor,
             place,
             size: { width: width ?? SIZE.width, height: height ?? SIZE.height },
@@ -259,8 +259,7 @@ export function createWindows({
 
     // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false,
     // where the mod may activate for the local seat (DESKTOP.orderFront); an overlay window takes the keyboard only
-    // then. A panel window stands where it is: one at the right edge takes the keyboard as an overlay window does, one
-    // in the bar never, and a view, under an anchor or at a place, is shown for the seat its mod acts for
+    // then. A panel window stands where it is: one in the bar never takes the keyboard, and a view, under an anchor or at a place, is shown for the seat its mod acts for
     // (DESKTOP.orderFrontPanel).
     function orderFront(window, { activates = true } = {}) {
         if (window.level === PANEL) {
@@ -375,12 +374,11 @@ export function createWindows({
         showWindow(host.control, { activates });
     }
 
-    // The overlay window that has the keyboard has the active mod, and the key window behind it is not key, nor a panel
-    // window that held it: the desktop hears it, and tells the pages and the frames.
+    // The overlay window that has the keyboard has the active mod, and the key window behind it is not key: the desktop
+    // hears it, and tells the pages and the frames.
     function setKey(window, on) {
         if (window.host.key === on) return;
         window.host.key = on;
-        if (on) DESKTOP.toDesktop({ refocus: false });
         DESKTOP.update();
     }
 

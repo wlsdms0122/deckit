@@ -38,24 +38,6 @@ const STYLE = `
         background: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     }
-    .deckit-panel-material[data-edge='right'] {
-        animation: deckit-panel-in var(--deckit-enter) var(--deckit-enter-curve);
-    }
-    .deckit-panel-material[data-edge='right'][data-leaving] {
-        animation: deckit-panel-out var(--deckit-exit) var(--deckit-exit-curve) forwards;
-    }
-    @keyframes deckit-panel-in { from { transform: translateX(calc(100% + ${LAYOUT.PANEL.margin}px)); } }
-    @keyframes deckit-panel-out { to { transform: translateX(calc(100% + ${LAYOUT.PANEL.margin}px)); } }
-    @keyframes deckit-panel-fade-in { from { opacity: 0; } }
-    @keyframes deckit-panel-fade-out { to { opacity: 0; } }
-    @media (prefers-reduced-motion: reduce) {
-        .deckit-panel-material[data-edge='right'] {
-            animation: deckit-panel-fade-in var(--deckit-enter-fade) var(--deckit-enter-curve);
-        }
-        .deckit-panel-material[data-edge='right'][data-leaving] {
-            animation: deckit-panel-fade-out var(--deckit-exit-fade) var(--deckit-exit-curve) forwards;
-        }
-    }
     .deckit-window-material {
         position: fixed;
         inset: ${SHADOW}px;
@@ -275,7 +257,7 @@ const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-
 // showing through. Under each panel window in that strip it draws the panel's material: the backdrop is cut away there,
 // so the host window's own material shows through the panel's tint, opaque where the person asks for less transparency.
 // Main lays a material under the page where it draws glass: the Dock's card while it is out and still, and each panel's
-// material while it stands still at its frame, so what lies under them in the host window is blurred too, none where
+// material at its frame, so what lies under them in the host window is blurred too, none where
 // the person asks for less transparency. It takes the pointer only in the strip, or over all of it once deckit's core
 // is down, with a note that asks for a restart. `channels` binds the desktop's and the Dock's channels in the page.
 function boot(theme, channels) {
@@ -284,8 +266,8 @@ function boot(theme, channels) {
     KIT.addStyle(STYLE);
     let { state } = PROTOCOL.setup.invoke();
     const drawn = new Map(); // a window's id -> { material, buttons, off }, its frame's parts as drawn
-    const materials = new Map(); // a panel window's id -> { element, edge, settled }, the material drawn under it
-    const glass = { dock: null, panels: [] }; // where the page draws glass: the Dock's card, the panels standing still
+    const materials = new Map(); // a panel window's id -> { element }, the material drawn under it
+    const glass = { dock: null, panels: [] }; // where the page draws glass: the Dock's card, the panels
     let toldGlass = '[]';
 
     const backdrop = surface(PAGE.BACKDROP);
@@ -394,34 +376,19 @@ function boot(theme, channels) {
         }
     }
 
-    // Each panel window's material at its frame, rounded by its `radius`, and the backdrop cut away
-    // under it. One at the right edge slides in from past it as it opens and out as it closes, or fades where the
-    // system asks for reduced motion, the backdrop cut away only while it stands still at its frame.
+    // Each panel window's material at its frame, rounded by its `radius`, and the backdrop cut away under it.
     function drawPanels(panels) {
         const open = new Set(panels.map(({ id }) => id));
         for (const [id, material] of materials) {
             if (open.has(id)) continue;
             materials.delete(id);
-            if (material.edge !== 'right') {
-                material.element.remove();
-                continue;
-            }
-            material.element.toggleAttribute('data-leaving', true);
-            finished(material.element, () => material.element.remove());
+            material.element.remove();
         }
-        for (const { id, edge, frame, radius } of panels) {
+        for (const { id, frame, radius } of panels) {
             if (!materials.has(id)) {
-                const made = { element: element(document, 'div', 'deckit-panel-material'), edge, settled: true };
+                const made = { element: element(document, 'div', 'deckit-panel-material') };
                 document.body.insertBefore(made.element, strip);
                 materials.set(id, made);
-                if (edge === 'right') {
-                    made.element.dataset.edge = edge;
-                    made.settled = false;
-                    finished(made.element, () => {
-                        made.settled = true;
-                        drawPanels(state.panels);
-                    });
-                }
             }
             Object.assign(materials.get(id).element.style, {
                 left: frame.x + 'px',
@@ -431,15 +398,14 @@ function boot(theme, channels) {
                 borderRadius: radius + 'px',
             });
         }
-        const still = panels.filter(({ id }) => materials.get(id).settled);
-        const holes = still.map(({ frame, radius }) => {
+        const holes = panels.map(({ frame, radius }) => {
             const { x, y, width, height } = frame;
             const shape =
                 `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
                 `<rect width="${width}" height="${height}" rx="${radius}"/></svg>`;
             return { image: `url("data:image/svg+xml,${encodeURIComponent(shape)}")`, at: `${x}px ${y}px` };
         });
-        glass.panels = still.map(({ frame, radius }) => ({ material: 'popover', ...frame, cornerRadius: radius }));
+        glass.panels = panels.map(({ frame, radius }) => ({ material: 'popover', ...frame, cornerRadius: radius }));
         tellGlass();
         const masked = holes.length > 0;
         const { style } = backdropRoot;
@@ -447,7 +413,7 @@ function boot(theme, channels) {
             masked ? style.setProperty(name, values.join(', ')) : style.removeProperty(name);
         set('mask-image', [...holes.map(({ image }) => image), 'linear-gradient(#000, #000)']);
         set('mask-position', [...holes.map(({ at }) => at), '0 0']);
-        set('mask-size', [...still.map(({ frame }) => `${frame.width}px ${frame.height}px`), '100% 100%']);
+        set('mask-size', [...panels.map(({ frame }) => `${frame.width}px ${frame.height}px`), '100% 100%']);
         set('mask-repeat', ['no-repeat']);
         set('mask-composite', [...holes.map(() => 'exclude'), 'add']);
     }

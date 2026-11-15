@@ -424,7 +424,6 @@ function dockOver(
         DESKTOP: {
             seatAt: (sender) => (sender === desktopPage ? 'local' : null),
             localSeat: 'local',
-            toDesktop: () => {},
             activation: {
                 input: (seat, id) => {
                     inputs.push(`${seat}:${id}`);

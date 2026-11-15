@@ -7,27 +7,15 @@ import * as POINTER from '../ui/pointer/index.js';
 import * as PRESENTATION from '../ui/presentation/index.js';
 
 // MARK: - Property
-// What the content's document wears under the page's rules: clear, the content filling it. The content of a panel
-// window at the right edge slides in from past that edge as it first comes on screen, with the material the desktop
-// draws under it, and fades in where the system asks for reduced motion.
+// What the content's document wears under the page's rules: clear, the content filling it.
 const STYLE = `
     html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
     body { -webkit-user-select: none; user-select: none; font: var(--deckit-text-size) var(--deckit-text-font); }
     .deckit-window { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
     .deckit-window > * { flex: 1 1 auto; min-height: 0; }
-    .deckit-window[data-edge='right'][data-shown] {
-        animation: deckit-window-in var(--deckit-enter) var(--deckit-enter-curve);
-    }
-    @keyframes deckit-window-in { from { transform: translateX(calc(100% + 8px)); } }
-    @keyframes deckit-window-fade { from { opacity: 0; } }
-    @media (prefers-reduced-motion: reduce) {
-        .deckit-window[data-edge='right'][data-shown] {
-            animation: deckit-window-fade var(--deckit-enter-fade) var(--deckit-enter-curve);
-        }
-    }
 `;
 const LEVELS = Object.freeze(['normal', 'overlay', 'panel']);
-const EDGES = Object.freeze(['top', 'right']);
+const EDGES = Object.freeze(['top']);
 const CALLBACKS = Object.freeze([
     'didAppear',
     'didDisappear',
@@ -138,7 +126,6 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         document.head.replaceChildren(style);
         const root = document.createElement('div');
         root.className = 'deckit-window';
-        if (level === 'panel' && edge === 'right') root.dataset.edge = 'right';
         // A panel's content lies on the material the desktop draws under it.
         if (level === 'panel') root.dataset.deckitGlass = '';
         root.append(options.content);
@@ -255,7 +242,6 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         const was = held.state;
         held.state = { shown, key, size: { width, height }, room };
         guide(held.document, titleBar, key);
-        if (shown) held.document.querySelector('.deckit-window')?.toggleAttribute('data-shown', true);
         if (shown && !was.shown) tell(held, 'didAppear');
         if (was.key && !key) tell(held, 'didResignKey');
         if (!was.key && key) tell(held, 'didBecomeKey');

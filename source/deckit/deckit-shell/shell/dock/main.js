@@ -52,12 +52,11 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
     }
 
     // What the person does to the Dock, as the desktop's page tells it or the host app hands it, for `seat`: a click
-    // on an item, its input reaching the mod, the local seat's keyboard back on the desktop; Quit from its menu; Keep in Dock or Remove from Dock; and the items kept
+    // on an item, its input reaching the mod; Quit from its menu; Keep in Dock or Remove from Dock; and the items kept
     // there dragged into the order `ids` names. A click and Quit answer a promise, fulfilled once what they asked of
     // deckit is done, whether it was done or refused.
     const hand = Object.freeze({
         click: (id, seat) => {
-            if (seat === DESKTOP.localSeat) DESKTOP.toDesktop();
             DESKTOP.activation.input(seat, id);
             return open(id, seat).catch((error) => deckit.log.error(`${id} did not launch`, error));
         },

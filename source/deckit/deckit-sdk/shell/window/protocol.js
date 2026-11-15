@@ -4,7 +4,7 @@ import * as WINDOW_PERMISSION from './model/permission.js';
 
 // A window opens, or the one of that name open orders front: answers `{ id, surface }` at once, `surface` the name
 // the page opens its content by (window.open('', surface)). `level` is 'normal', 'overlay' or 'panel', `edge` a panel
-// window's, 'top' or 'right', or `anchor`, `{ mod, id }`, the anchor it stands under in place of an edge
+// window's, 'top', or `anchor`, `{ mod, id }`, the anchor it stands under in place of an edge
 // (model/anchor.js nameOf), refused NOT_PERMITTED where that anchor is given to another mod, or `place`, the name of
 // the place of the stage it stands at in place of both, refused INVALID_ARGUMENT where the shell knows no place of that
 // name; `activates` false leaves the key window where it is. A normal window's title bar:

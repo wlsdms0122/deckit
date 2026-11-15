@@ -94,43 +94,35 @@ function kept({ x, y, width, height }, desktop, bar = TITLE_BAR.height) {
     });
 }
 
-// The frames of panel windows, each `{ edge, size }`, in the order they opened, in a stage `width` by `height` with the
-// host's bar `bar` high across its top. Those at the edge `top` stand in the bar right to left from PANEL.margin in
-// from its right end, PANEL.gap apart, each no higher than the bar and centred on its height; those at the edge
-// `right` stand along the desktop's right edge right to left the same way, each its width wide and as tall as the
-// desktop but PANEL.margin above and below. Any other edge is `top`.
-function panelsIn(panels, { width, height, bar }) {
-    const right = { top: width - PANEL.margin, right: width - PANEL.margin };
-    const tall = Math.max(0, height - bar - 2 * PANEL.margin);
-    return panels.map(({ edge, size }) => {
-        const side = edge === 'right' ? 'right' : 'top';
+// The frames of the panel windows in the bar, each `{ size }`, in the order they opened, in a stage `width` wide with
+// the host's bar `bar` high across its top. They stand in the bar right to left from PANEL.margin in from its right
+// end, PANEL.gap apart, each no higher than the bar and centred on its height.
+function panelsIn(panels, { width, bar }) {
+    let right = width - PANEL.margin;
+    return panels.map(({ size }) => {
         const across = Math.round(size.width);
-        const high = side === 'right' ? tall : Math.min(Math.round(size.height), bar);
-        const y = side === 'right' ? bar + PANEL.margin : Math.round((bar - high) / 2);
-        const frame = { x: right[side] - across, y, width: across, height: high };
-        right[side] = frame.x - PANEL.gap;
+        const high = Math.min(Math.round(size.height), bar);
+        const frame = { x: right - across, y: Math.round((bar - high) / 2), width: across, height: high };
+        right = frame.x - PANEL.gap;
         return frame;
     });
 }
 
-// The room each of `panels`, `{ edge, size }` as panelsIn takes them, has, in their order. For one in the bar it is
-// `{ width, height }`: the bar's width past the host's controls, `controls` wide from its left end, less PANEL.margin
-// at each end and what each other panel window in the bar takes, its width and PANEL.gap, and the bar's height. For
-// one at another edge it is null.
+// The room each of `panels`, `{ size }` as panelsIn takes them, has in the bar, in their order, `{ width, height }`: the
+// bar's width past the host's controls, `controls` wide from its left end, less PANEL.margin at each end and what each
+// other panel window in the bar takes, its width and PANEL.gap, and the bar's height.
 function roomsIn(panels, { width, bar, controls }) {
-    const inBar = panels.filter(({ edge }) => edge !== 'right');
-    const taken = inBar.reduce((sum, { size }) => sum + Math.round(size.width) + PANEL.gap, 0);
+    const taken = panels.reduce((sum, { size }) => sum + Math.round(size.width) + PANEL.gap, 0);
     const whole = width - controls - 2 * PANEL.margin;
     return panels.map((panel) => {
-        if (!inBar.includes(panel)) return null;
         const others = taken - Math.round(panel.size.width) - PANEL.gap;
         return { width: Math.max(0, whole - others), height: bar };
     });
 }
 
-// The rounding of a panel window's frame at `edge`: a capsule in the bar, a window's corners along the right edge.
-function panelRadius(edge, frame) {
-    return edge === 'right' ? RADIUS : frame.height / 2;
+// The rounding of the frame of a panel window in the bar: a capsule.
+function panelRadius(frame) {
+    return frame.height / 2;
 }
 
 // The frame as a drag leaves it while it goes, kept under the host's bar: one moved stays below it, and one whose top

@@ -14,8 +14,8 @@ export const setup = CHANNEL.pageToMain(
 // the name of the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its
 // title bar
 // (model/layout.js barOf), `title` what the title bar the shell draws over a titled window's content holds, or null for
-// a window whose content draws its own; `panels`, the panel windows that stand, at their edge, 'top' in the strip or
-// 'right', or with `edge` null as a view, as they lie from the bottom, the material
+// a window whose content draws its own; `panels`, the panel windows that stand, at their edge, 'top' in the strip,
+// or with `edge` null as a view, as they lie from the bottom, the material
 // drawn under each at its frame, rounded by `radius`;
 // `seats`, `[{ id, name, colour, at, buttons, idle, shown, typing }]`, every
 // seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was
