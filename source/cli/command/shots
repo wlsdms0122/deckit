@@ -4,7 +4,7 @@
 // process's `nativeTheme.themeSource`, set in memory: the machine's appearance is left as it is. Each look is a run of
 // its own of Deckit.app, put together from the archive it builds first, with data of its own that is thrown away; the
 // app's log is left beside the shots, .build/shots/<look>.log. Notifications' list is drawn from a record the run
-// starts with, as the clock opens it; nothing is posted, so no notification reaches the system's. What the host
+// starts with, as its item in the status bar shows it; nothing is posted, so no notification reaches the system's. What the host
 // window's material shows, the machine's screen behind it blurred, cannot be drawn into a shot, so every shot is laid
 // over a stand-in for it: a wallpaper drawn from code, blurred as the material blurs (`wallpaper`). Exits 1 naming
 // each surface not drawn.
@@ -525,17 +525,18 @@ async function draw(app, look, shots, origin) {
         await mouse('up', await inPage(pressed));
         await sleep(600);
     });
-    // The status bar at the top right of the host's bar, close, and the desktop with the notification center the
-    // clock opens at its right edge, with the record's cards, then cleared, with none.
+    // The status bar at the top right of the host's bar, close, with the Notifications item and its count, and the
+    // desktop with the notification center a press on that item shows under it, with the record's cards, then
+    // cleared, with none.
     await surface('status-bar', (name) =>
         desktopShot(name, { under, crop: { x: screen.width - 320, y: 0, width: 320, height: 52 } })
     );
-    // The clock's item in the status bar's document: a press on it runs the clock's command.
-    const clock = {
+    // The Notifications item in the status bar's document: a press on it runs the mod's command.
+    const bell = {
         press: async () => {
             for (const each of await pages('about:blank'))
-                if (await each.evaluate(`!!document.querySelector('.status-bar-item[data-item="clock"]')`))
-                    return each.press('.status-bar-item[data-item="clock"]');
+                if (await each.evaluate(`!!document.querySelector('.status-bar-item[data-item="notifications"]')`))
+                    return each.press('.status-bar-item[data-item="notifications"]');
         },
     };
     const center = () =>
@@ -550,7 +551,7 @@ async function draw(app, look, shots, origin) {
             ({ opener, name }) => opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
         );
     await surface('notifications', async (name) => {
-        await clock.press();
+        await bell.press();
         const list = await center();
         await until(() => list?.evaluate(`!!document.querySelector('.notifications-card')`), 2000);
         await sleep(600);
@@ -562,9 +563,9 @@ async function draw(app, look, shots, origin) {
         await until(() => list?.evaluate(`!document.querySelector('.notifications-card')`), 2000);
         await sleep(400);
         if (list) await backed(name);
-        // The clock's press lands before the Dock's: a Dock press first takes the keyboard from the center, which
-        // closes, and the clock's then opens it again.
-        await clock.press();
+        // The item's press lands before the Dock's: a Dock press first puts the center away, and the item's then
+        // shows it again.
+        await bell.press();
         await until(async () => !(await centerOpen()), 4000);
         await show(apps[0]);
         await sleep(400);
