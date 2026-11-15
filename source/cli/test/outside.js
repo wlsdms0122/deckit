@@ -475,6 +475,32 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
             same(holders, [worn(seatA), worn(seatB)]),
             JSON.stringify({ holders, read: read.slice(0, 4) })
         );
+        // The chips as the page draws them, each from the desktop's right and bottom edges, against where the model
+        // lays them (desktop/model/seats.js CHIP): 12 from the edges, 148 by 28, 6 apart.
+        const chipsDrawn = await inPage(
+            desktopPage,
+            `[...document.querySelectorAll('.deckit-seat-chip')].map((node) => {
+                const { right, bottom, width, height } = node.getBoundingClientRect();
+                return [
+                    node.dataset.seat,
+                    node.textContent,
+                    node.style.getPropertyValue('--deckit-seat'),
+                    node.hasAttribute('data-idle'),
+                    innerWidth - right,
+                    innerHeight - bottom,
+                    width,
+                    height,
+                ].join(' ');
+            })`
+        );
+        check(
+            'outside: each attached seat has a chip at the bottom right, in its colour, with its name, not idle',
+            same(chipsDrawn, [
+                `${seatA.seat} First ${worn(seatA)} false 12 12 148 28`,
+                `${seatB.seat} Second ${worn(seatB)} false 12 46 148 28`,
+            ]),
+            JSON.stringify(chipsDrawn)
+        );
         // The second seat presses the first one's window right after the first typed in it: held, and typing nothing.
         const shownToB = showsFor(seatB, windowA);
         seatA.as('type', '!');

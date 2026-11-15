@@ -345,6 +345,11 @@ async function draw(app, look, shots, origin) {
         await sleep(1200);
         await desktopShot(name, { under, crop: around(rests) });
     });
+    // The chips of the two at the desktop's bottom right.
+    await surface('seats-chips', (name) => {
+        const crop = { x: screen.width - 360, y: screen.height - 200, width: 360, height: 200 };
+        return desktopShot(name, { under, crop });
+    });
     await surface('seats-drag', async (name) => {
         const [from, other] = rests;
         if (!other) throw new Error('no two seats are at rest');

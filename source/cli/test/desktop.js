@@ -828,6 +828,8 @@ async function main() {
     await readingChecks({ LAYOUT, createDesktop }, check);
     const COLOURS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'colours.js'));
     drawnChecks({ COLOURS, LAYOUT, createDesktop }, check);
+    const SEATS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'seats.js'));
+    chipChecks({ SEATS }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -1516,6 +1518,51 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
 // What a seat reads of the desktop, over a reader that answers one document a page: the desktop, a window and a node
 // as text and as data, what changed since a mark, a mark that is not kept, an act on a ref and a picture.
 // What the desktop's page is told of the seats: each one's colour, where its pointer is and what it holds.
+// The chips of the seats at the desktop's bottom right, as the model lays them.
+function chipChecks({ SEATS }, check) {
+    const { CHIP, chipsOf, partAt } = SEATS;
+    const stage = { width: 1200, height: 800 };
+    const chips = chipsOf(stage, ['s1', 's2'], ['ada']);
+    const [first, second, ask] = chips;
+    const right = (rect) => rect.x + rect.width;
+    check(
+        'the chips stand at the bottom right, one over another from the bottom, one that asks last',
+        chips.map(({ kind, id }) => kind + ' ' + id).join() === 'seat s1,seat s2,ask ada' &&
+            chips.every(({ rect }) => right(rect) === stage.width - CHIP.margin && rect.height === CHIP.height) &&
+            first.rect.y + first.rect.height === stage.height - CHIP.margin &&
+            second.rect.y + second.rect.height === first.rect.y - CHIP.gap &&
+            ask.rect.y + ask.rect.height === second.rect.y - CHIP.gap,
+        chips
+    );
+    const inside = (inner, outer) =>
+        inner.x >= outer.x &&
+        inner.y >= outer.y &&
+        right(inner) <= right(outer) &&
+        inner.y + inner.height <= outer.y + outer.height;
+    check(
+        'a chip that asks has its two answers inside it, apart, Allow at its end',
+        inside(ask.allow, ask.rect) && inside(ask.deny, ask.rect) && right(ask.deny) < ask.allow.x && !first.allow,
+        ask
+    );
+    const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
+    const parts = [first.rect, second.rect, ask.allow, ask.deny, { ...ask.rect, width: 8 }, { x: 0, y: 0 }].map(
+        (rect) => partAt(chips, rect.width ? middle(rect) : rect)
+    );
+    check(
+        'a point is on the chip of a seat, on an answer of one that asks, or on neither',
+        JSON.stringify(parts) ===
+            JSON.stringify([
+                { part: 'chip', id: 's1' },
+                { part: 'chip', id: 's2' },
+                { part: 'allow', id: 'ada' },
+                { part: 'deny', id: 'ada' },
+                null,
+                null,
+            ]),
+        parts
+    );
+}
+
 function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     const colours = COLOURS.createColours(['one', 'two']);
     const took = ['a', 'b', 'c', 'd'].map(colours.take);
