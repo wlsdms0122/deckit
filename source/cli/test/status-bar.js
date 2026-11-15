@@ -4,8 +4,9 @@
 // a narrow room, the scroll held in range, an item scrolled out, one brought into view and a turn of the wheel. Then
 // the mod itself and the Clock over stand-ins for the handles, the document and the connections: the frame's exports
 // reach a mod's `start`, the clock sets its label at start, the band opens as wide as the model lays, anchors are
-// told, the shell is told a size and anchors only as they change, an item comes and goes, a press runs the item's
-// command, and what stands is drawn again by a screen that comes later. Exits 1 with a line for each check that failed.
+// told, the shell is told a size and anchors only as they change, an item comes and goes, a narrow room scrolls what
+// is not fixed, a press runs the item's command, and what stands is drawn again by a screen that comes later. Exits 1
+// with a line for each check that failed.
 const path = require('path');
 
 const MODS = path.join(__dirname, '..', '..', 'deckit', 'mods');
@@ -47,6 +48,9 @@ function element(tag) {
         addEventListener(type, listener) {
             (listeners[type] ??= []).push(listener);
         },
+        fire(type, event) {
+            for (const listener of listeners[type] ?? []) listener(event);
+        },
         getBoundingClientRect() {
             return { width: this.textContent.length * LETTER };
         },
@@ -74,6 +78,9 @@ function shellStandIn() {
                     windows.push(held);
                     options.content.isConnected = true;
                     return {
+                        get room() {
+                            return held.room ?? null;
+                        },
                         resize: (width, height) => (held.told++, (held.size = [width, height])),
                         setAnchors: (anchors) => (held.told++, (held.anchors = anchors)),
                         close: () => (held.open = false),
@@ -491,6 +498,44 @@ async function modChecks(check) {
         refused.every((kind) => kind === 'INVALID_ARGUMENT') &&
             star().attributes['aria-label'] === 'Star, 99+, attention',
         refused
+    );
+    // A room that holds the clock and 34 more: a second item comes into the strip, and the wheel turns over it.
+    const room = { width: alone + BAR.CAPSULE.gap + 34, height: 52 };
+    band.room = room;
+    band.options.didChangeRoom();
+    let moon = null;
+    world.handle('moon', 'Moon', 1).dependencies.onConnect(INTERFACE, (connected) => (moon = connected));
+    await world.settle();
+    await moon.set({ name: 'Moon', icon: 'bell' });
+    const anchored = () => ({ ids: band.anchors.map(({ id }) => id), clock: anchorOf('clock').rect });
+    const narrow = {
+        width: band.size[0],
+        ...anchored(),
+        moon: anchorOf('moon')?.rect,
+        more: regionOf('scrolled').dataset.more,
+    };
+    let prevented = 0;
+    regionOf('scrolled').fire('wheel', { deltaX: 0, deltaY: 500, preventDefault: () => prevented++ });
+    const turned = { ...anchored(), star: anchorOf('star')?.rect, more: regionOf('scrolled').dataset.more };
+    turned.strip = regionOf('strip').style.transform;
+    world.leave('moon');
+    band.room = null;
+    band.options.didChangeRoom();
+    check(
+        'in a narrow room the band is as wide as the room and the clock stays; an item that comes is in view and one ' +
+            'scrolled out has no anchor, and a turn of the wheel over the strip scrolls it',
+        narrow.width === room.width &&
+            narrow.ids.join() === 'clock,moon' &&
+            JSON.stringify(narrow.moon) === JSON.stringify({ x: 2, y: 2, width: 32, height: 24 }) &&
+            narrow.more === 'right' &&
+            prevented === 1 &&
+            turned.ids.join() === 'clock,star' &&
+            JSON.stringify(turned.clock) === JSON.stringify(narrow.clock) &&
+            turned.star.width === 34 &&
+            turned.more === 'left' &&
+            turned.strip === 'translateX(-59px)' &&
+            band.size[0] === alone + 57 + BAR.CAPSULE.gap,
+        { narrow, turned, now: band.size }
     );
     world.kept.fixed = ['star'];
     const kept = frame.items.fixed();

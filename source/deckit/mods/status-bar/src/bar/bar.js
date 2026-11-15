@@ -1,7 +1,8 @@
 // The capsule: a panel window in the host's bar holding one button for each item that stands (items.js), laid as the
-// model says (model/bar.js) in two regions: the fixed items at its right end, and left of them the others in a strip.
-// A press on an item runs its command on its mod, and the rect of each item in view is told the shell as an anchor
-// given to the item's mod, which stands a view of its own under it. The capsule closes while it lays no item.
+// model says (model/bar.js) in two regions: the fixed items at its right end, and left of them the others in a strip
+// that a turn of the wheel over it scrolls sideways. A press on an item runs its command on its mod, and the rect of
+// each item in view is told the shell as an anchor given to the item's mod, which stands a view of its own under it.
+// The capsule closes while it lays no item.
 const BAR = require('./model/bar.js');
 
 const NAME = 'Status Bar';
@@ -65,10 +66,13 @@ function bar(shell, held, { commands = () => null } = {}) {
     const regions = { scrolled: part('div', '-scrolled'), fixed: part('div', '-fixed') };
     const strip = part('div', '-strip'); // what scrolls under the scrolled region
     regions.scrolled.append(strip);
+    regions.scrolled.addEventListener('wheel', turned, { passive: false });
     shell.ui.addStyle(STYLE);
     const widths = {}; // label -> the width it was measured at
     let window = null; // the panel window, while it is open
     let told = { size: '', anchors: '' }; // the size and the anchors the shell was last told of it
+    let scroll = 0; // how far the strip is scrolled (BAR.barOf)
+    let scrolled = []; // the ids of the items in the strip as it was last laid
     held.drawnBy(drawn);
     const off = held.onChange(lay);
 
@@ -93,12 +97,19 @@ function bar(shell, held, { commands = () => null } = {}) {
         }
     }
 
-    // The capsule as the model lays its items, the rect of each item in view told as an anchor given to the item's
-    // mod. The shell is told a size and the anchors only as they change.
+    // The capsule as the model lays its items in the room the shell told, an item that came into the strip scrolled
+    // into view, and the rect of each item in view told as an anchor given to the item's mod. The shell is told a size
+    // and the anchors only as they change.
     function lay() {
         const items = held.standing();
         if (content.isConnected) for (const { label } of items) if (label && !(label in widths)) measured(label);
-        const laid = BAR.barOf(items, { widths, fixed: held.fixed() });
+        const given = { widths, fixed: held.fixed(), room: window?.room ?? null };
+        let laid = BAR.barOf(items, { ...given, scroll });
+        const inStrip = laid.items.filter(({ region }) => region === 'scrolled').map(({ id }) => id);
+        const came = inStrip.filter((id) => !scrolled.includes(id)).at(-1);
+        if (came !== undefined) laid = BAR.barOf(items, { ...given, scroll: BAR.scrollTo(laid, came) });
+        scrolled = inStrip;
+        scroll = laid.scroll;
         draw(laid, items);
         if (!laid.width) {
             window?.close();
@@ -109,7 +120,8 @@ function bar(shell, held, { commands = () => null } = {}) {
         const anchors = laid.items.flatMap(({ id, rect }) => (rect ? [{ id, rect, mod: id }] : []));
         const next = { size: `${width} ${height}`, anchors: JSON.stringify(anchors) };
         if (!window) {
-            window = shell.windows.open({ name: 'bar', content, level: 'panel', width, height, didAppear: lay });
+            const heard = { didAppear: lay, didChangeRoom: lay };
+            window = shell.windows.open({ name: 'bar', content, level: 'panel', width, height, ...heard });
             told = { size: next.size, anchors: '' };
         }
         if (next.size !== told.size) window.resize(width, height);
@@ -145,6 +157,13 @@ function bar(shell, held, { commands = () => null } = {}) {
         for (const side of ['width', 'height']) element.style[side] = `${rect[side]}px`;
         element.style.left = `${rect.x}px`;
         element.style.top = `${rect.y}px`;
+    }
+
+    // A turn of the wheel over the scrolled region scrolls the strip.
+    function turned(event) {
+        event.preventDefault();
+        scroll += BAR.turnOf({ dx: event.deltaX, dy: event.deltaY });
+        lay();
     }
 
     function measured(label) {
