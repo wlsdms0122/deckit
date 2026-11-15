@@ -1,5 +1,6 @@
 import * as TEXT from './model/reading.js';
 import * as LAYOUT from './model/layout.js';
+import { noCount } from './model/routes.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as MODS from '../mods/index.js';
 
@@ -7,6 +8,8 @@ import * as MODS from '../mods/index.js';
 const KEPT = 256;
 // The knobs of a reading, handed to the reader as they are.
 const KNOBS = Object.freeze(['depth', 'roles', 'all', 'items', 'text', 'lines']);
+// Those of them that count.
+const COUNTS = Object.freeze(['depth', 'items', 'text', 'lines']);
 // The buttons of a title bar, as they read.
 const BUTTONS = Object.freeze({ close: 'Close', minimize: 'Minimize', zoom: 'Zoom' });
 // How many pixels a point a picture is made at, at most.
@@ -98,6 +101,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         if (!['text', 'json'].includes(format)) throw refusal('INVALID_ARGUMENT', 'a reading is as text or json');
         if (level === 'window' && window === undefined) throw refusal('INVALID_ARGUMENT', 'a window is read by its id');
         if (level === 'node' && ref === undefined) throw refusal('INVALID_ARGUMENT', 'a node is read by its ref');
+        counted(given, COUNTS);
         const knobs = Object.fromEntries(
             KNOBS.flatMap((knob) => (given[knob] === undefined ? [] : [[knob, given[knob]]]))
         );
@@ -114,13 +118,13 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
 
     // What reads otherwise for `seat` since the mark `since`: the desktop's lines, and the lines of the documents in
     // the windows on its screen that told a change after it. With no mark, the mark now and nothing. Each line and
-    // each element is kept with the last mark it changed at, so a mark however old is answered; one the desktop never
-    // had is refused STALE.
+    // each element is kept with the last mark it changed at, so a mark however old is answered; one above the mark
+    // now is refused STALE.
     async function changes(seat, { since = null } = {}) {
+        counted({ since }, ['since']);
         settle();
         const from = since ?? mark;
-        if (!Number.isInteger(from) || from < 0 || from > mark)
-            throw refusal('STALE', `the desktop never had the mark ${from}: read again`);
+        if (from > mark) throw refusal('STALE', `the desktop never had the mark ${from}: read again`);
         const track = tracks.get(seat.id) ?? new Map();
         const entries = [];
         for (const [ref, line] of linesOf(desktopOf(seat.id))) {
@@ -197,6 +201,12 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     // MARK: - Private
     function refusal(kind, message) {
         return Object.assign(new Error(message), { stage: 'call', kind });
+    }
+
+    // A key of `names` that `given` writes as no count is refused.
+    function counted(given, names) {
+        const name = noCount(given, names);
+        if (name) throw refusal('INVALID_ARGUMENT', `${name} is a count, an integer of 0 or more`);
     }
 
     // What the environment's reader answered, its refusals as a seat is refused; with `lenient`, null for what is gone.

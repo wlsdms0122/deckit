@@ -1740,7 +1740,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
 
 // How what a seat's devices did finds where it goes (model/routes.js), as plain data.
 function routeChecks(ROUTING, check) {
-    const { routeOf, placeOf, waits, hovers, raises } = ROUTING;
+    const { routeOf, placeOf, noCount, waits, hovers, raises } = ROUTING;
     check(
         'each kind of event has its route by the table, and what is no kind has none',
         ['pointer', 'key', 'text', 'act', undefined].map((event) => routeOf({ event })).join() ===
@@ -1754,6 +1754,15 @@ function routeChecks(ROUTING, check) {
             [{}, { x: 1 }, { x: 1, y: 2, ref: '4.2' }, { ref: '' }, { x: '1', y: 2 }].every(
                 (event) => placeOf(event) === null
             ),
+        ''
+    );
+    check(
+        'a count is an integer of 0 or more: the first key that holds another is named, one left out is none',
+        noCount({ text: 0, depth: 30 }, ['text', 'depth', 'items']) === null &&
+            noCount({ since: null }, ['since']) === null &&
+            noCount({ text: 3, depth: -1, items: -2 }, ['text', 'depth', 'items']) === 'depth' &&
+            noCount({ count: 1.5 }, ['button', 'count']) === 'count' &&
+            noCount({ button: '0' }, ['button']) === 'button',
         ''
     );
     check(
@@ -3815,6 +3824,25 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
             (await refused(served.read(me, { of: 'node' }))) === 'INVALID_ARGUMENT',
         ''
     );
+    const negative = [
+        { of: 'window', window: 'w1', text: -1 },
+        { of: 'window', window: 'w1', depth: -1 },
+        { of: 'window', window: 'w1', items: -1 },
+        { of: 'node', ref: 'w1.bar', lines: -1 },
+        { of: 'changes', since: -1 },
+    ];
+    const refusedCounts = [];
+    for (const query of negative) refusedCounts.push(await refused(served.read(me, query)));
+    for (const count of [{ button: -1 }, { count: -1 }])
+        refusedCounts.push(
+            await refused((async () => desk.enter(me, { ...pointer('down', { x: 5, y: 5 }), ...count }))())
+        );
+    check(
+        'a negative number where a reading or a pointer event takes a count is refused as no count',
+        refusedCounts.every((kind) => kind === 'INVALID_ARGUMENT') &&
+            (await served.read(me, { of: 'window', window: 'w1', text: 0, depth: 0, items: 0 })).mark >= 0,
+        refusedCounts.join()
+    );
 
     const from = (await served.read(me, { of: 'desktop' })).mark;
     const quiet = await served.read(me, { of: 'changes', since: from });
@@ -3853,8 +3881,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         'what changed since a mark 400 marks old is answered, and a mark the desktop never had refused STALE',
         old.mark - left.mark >= 400 &&
             old.text.split('\n').slice(1).join() === '~ textbox "Line" [focused s1, text 6] 4.2' &&
-            (await refused(served.read(me, { of: 'changes', since: old.mark + 5 }))) === 'STALE' &&
-            (await refused(served.read(me, { of: 'changes', since: -1 }))) === 'STALE',
+            (await refused(served.read(me, { of: 'changes', since: old.mark + 5 }))) === 'STALE',
         JSON.stringify({ left: left.mark, old })
     );
 

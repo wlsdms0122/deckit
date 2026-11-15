@@ -18,6 +18,11 @@ function placeOf({ x, y, ref }) {
     return typeof ref === 'string' && ref ? 'ref' : null;
 }
 
+// The first of `names` whose value in `given` is written and is no count, an integer of 0 or more, or null.
+function noCount(given, names) {
+    return names.find((name) => given[name] != null && !(Number.isInteger(given[name]) && given[name] >= 0)) ?? null;
+}
+
 // Whether an event waits its turn behind the seat's last: a ref is made a point over time, so one placed by a ref
 // waits, and so does every event that enters while one of the seat's still waits (`waiting`). One the environment
 // carried is in its page already and waits for nothing.
@@ -39,4 +44,4 @@ function raises(window, reached) {
     return window !== null && reached !== null && reached !== window;
 }
 
-export { ROUTES, routeOf, placeOf, waits, hovers, raises };
+export { ROUTES, routeOf, placeOf, noCount, waits, hovers, raises };

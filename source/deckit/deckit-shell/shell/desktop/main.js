@@ -869,6 +869,8 @@ export function createDesktop({
         if (event.carried) return arrived(seat, hand, event);
         const named = ROUTING.placeOf(event);
         if (!named) throw refusal('INVALID_ARGUMENT', 'a pointer event is at a point, x and y, or at a ref');
+        if (ROUTING.noCount(event, ['button', 'count']))
+            throw refusal('INVALID_ARGUMENT', 'a button and a count are integers of 0 or more');
         if (named === 'ref') return placed(seat, hand, event);
         return { ...pointed(seat, hand, event), at: { x: event.x, y: event.y } };
     }
