@@ -76,6 +76,7 @@ function bar(shell, held, { commands = () => null } = {}) {
     let scroll = 0; // how far the strip is scrolled (BAR.barOf)
     let scrolled = []; // the ids of the items in the strip as it was last laid
     let last = null; // the capsule as it was last laid (BAR.barOf)
+    const kept = new Map(); // item id -> { button, face, item }: its button, kept while the item is laid
     held.drawnBy(drawn);
     const off = held.onChange(lay);
 
@@ -134,33 +135,41 @@ function bar(shell, held, { commands = () => null } = {}) {
     }
 
     // The two regions where the model has them, each item a button where it is drawn in its region, and the strip
-    // moved by how far it is scrolled. The scrolled region says at which ends more goes on past it.
+    // moved by how far it is scrolled. The scrolled region says at which ends more goes on past it. An item's button
+    // is the same element while the item is laid, and nothing that holds what it held already is written again, so
+    // what a reader named and what has the focus stay as items are set anew.
     function draw(laid, items) {
+        const given = new Map(items.map((item) => [item.id, item]));
+        for (const id of [...kept.keys()]) if (!laid.items.some((item) => item.id === id)) kept.delete(id);
         const buttons = (region) =>
-            laid.items
-                .filter((item) => item.region === region)
-                .map(({ id, at }) =>
-                    buttonOf(
-                        items.find((item) => item.id === id),
-                        at
-                    )
-                );
+            laid.items.filter((item) => item.region === region).map(({ id, at }) => buttonOf(given.get(id), at));
         const standing = Object.keys(regions).filter((region) => laid[region]);
         for (const region of standing) place(regions[region], laid[region]);
-        regions.fixed.replaceChildren(...buttons('fixed'));
-        strip.replaceChildren(...(laid.scrolled ? buttons('scrolled') : []));
-        strip.style.width = `${laid.scrolled?.extent ?? 0}px`;
-        strip.style.transform = `translateX(${-laid.scroll}px)`;
+        hold(regions.fixed, buttons('fixed'));
+        hold(strip, laid.scrolled ? buttons('scrolled') : []);
+        write(strip.style, 'width', `${laid.scrolled?.extent ?? 0}px`);
+        write(strip.style, 'transform', `translateX(${-laid.scroll}px)`);
         const more = [...(laid.scroll > 0 ? ['left'] : []), ...(laid.scroll < laid.most ? ['right'] : [])];
-        if (more.length) regions.scrolled.dataset.more = more.join(' ');
+        if (more.length) write(regions.scrolled.dataset, 'more', more.join(' '));
         else delete regions.scrolled.dataset.more;
-        content.replaceChildren(measure, ...standing.map((region) => regions[region]));
+        hold(content, [measure, ...standing.map((region) => regions[region])]);
+    }
+
+    // `parent` holds `children` in that order: left untouched where it does already.
+    function hold(parent, children) {
+        const now = parent.children;
+        if (now.length === children.length && children.every((child, at) => now[at] === child)) return;
+        parent.replaceChildren(...children);
+    }
+
+    function write(to, name, value) {
+        if (to[name] !== value) to[name] = value;
     }
 
     function place(element, rect) {
-        for (const side of ['width', 'height']) element.style[side] = `${rect[side]}px`;
-        element.style.left = `${rect.x}px`;
-        element.style.top = `${rect.y}px`;
+        for (const side of ['width', 'height']) write(element.style, side, `${rect[side]}px`);
+        write(element.style, 'left', `${rect.x}px`);
+        write(element.style, 'top', `${rect.y}px`);
     }
 
     // A turn of the wheel over the scrolled region scrolls the strip.
@@ -185,25 +194,39 @@ function bar(shell, held, { commands = () => null } = {}) {
         if (width) widths[label] = width;
     }
 
+    // The button of `item` where it is drawn, `at`: made as the item is first laid, and from then on written only where
+    // what it shows (BAR.faceOf) differs from what it drew.
     function buttonOf(item, at) {
-        const button = part('button', '-item');
-        button.dataset.item = item.id;
-        button.dataset.tone = item.tone;
-        button.setAttribute('aria-label', BAR.titleOf(item));
-        button.disabled = item.command === null;
+        const { id } = item;
+        if (!kept.has(id)) {
+            const button = part('button', '-item');
+            button.dataset.item = id;
+            button.addEventListener('click', () => press(kept.get(id)?.item ?? item));
+            kept.set(id, { button, face: {}, item });
+        }
+        const held = kept.get(id);
+        const { button, face: drawn } = held;
+        const face = BAR.faceOf(item);
+        const differs = (...names) => names.some((name) => face[name] !== drawn[name]);
+        if (differs('title')) button.setAttribute('aria-label', face.title);
+        if (differs('tone')) button.dataset.tone = face.tone;
+        if (differs('pressable')) button.disabled = !face.pressable;
+        if (differs('icon', 'label', 'count')) fill(button, face);
+        Object.assign(held, { face, item });
         place(button, at);
-        if (item.icon) button.insertAdjacentHTML('beforeend', shell.ui.icon(item.icon, { size: ITEM.glyph }));
-        for (const [name, text] of [
-            ['label', item.label],
-            ['count', item.count === null ? '' : BAR.countText(item.count)],
-        ]) {
-            if (!text) continue;
+        return button;
+    }
+
+    // What a button holds: its glyph, its label and its count, each where the item shows one.
+    function fill(button, { icon, label, count }) {
+        const spans = Object.entries({ label, count }).flatMap(([name, text]) => {
+            if (!text) return [];
             const span = part('span', `-${name}`);
             span.textContent = text;
-            button.append(span);
-        }
-        button.addEventListener('click', () => press(item));
-        return button;
+            return [span];
+        });
+        button.replaceChildren(...spans);
+        if (icon) button.insertAdjacentHTML('afterbegin', shell.ui.icon(icon, { size: ITEM.glyph }));
     }
 
     // A press on an item runs its command on its mod, which launches the mod if it does not run.

@@ -78,6 +78,15 @@ function titleOf({ name, count, tone }) {
     return [name, ...(count === null ? [] : [countText(count)]), ...(tone === TONES[0] ? [] : [tone])].join(', ');
 }
 
+// What the button of an item shows, as plain data: `{ title, tone, pressable, icon, label, count }`, `title` what it
+// is called, `pressable` whether a press runs anything, `icon` its glyph or null, `count` as it is written, '' for
+// none. A frame keeps the button while its item stands and writes only the fields that differ from what it drew.
+function faceOf(item) {
+    const { tone, command, icon, label, count } = item;
+    const written = count === null ? '' : countText(count);
+    return { title: titleOf(item), tone, pressable: command !== null, icon, label, count: written };
+}
+
 // Whether an item shows anything: one with no glyph, no label and no count is not laid.
 function shows({ icon, label, count }) {
     return !!icon || !!label || count !== null;
@@ -201,6 +210,7 @@ module.exports = {
     orderOf,
     countText,
     titleOf,
+    faceOf,
     shows,
     widthOf,
     barOf,

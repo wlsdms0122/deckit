@@ -240,6 +240,15 @@ async function main() {
         called
     );
 
+    const face = BAR.faceOf(BAR.heldTo({ name: 'Seats', icon: 'star', command: 'show', label: 'Al', count: 250 }));
+    const still = BAR.faceOf(BAR.restOf({ name: 'Clock', icon: null, command: null }));
+    check(
+        "an item's button shows its title, tone, glyph, label and count as written, and whether a press runs",
+        same(face, { title: 'Seats, 99+', tone: 'plain', pressable: true, icon: 'star', label: 'Al', count: '99+' }) &&
+            same(still, { title: 'Clock', tone: 'plain', pressable: false, icon: null, label: '', count: '' }),
+        { face, still }
+    );
+
     const item = (id, given) => ({ id, ...BAR.heldTo({ name: id, ...given }) });
     const widths = [
         item('a', { icon: 'bell' }),
@@ -538,6 +547,31 @@ async function modChecks(check) {
         'an item set anew that leaves the capsule and its anchors as they are is drawn, and the shell is told nothing',
         same.told === 0 && drawn.told === 0 && drawn.name === 'Star, 99+' && same.name === 'Star, 99+, attention',
         { same, drawn }
+    );
+    // What a seat read of the bar names its buttons: one stands as the same element while its item does.
+    const clockButton = () => buttons().find((button) => button.dataset.item === 'clock');
+    const held = { star: star(), clock: clockButton() };
+    await item.set({ name: 'Star', icon: 'star', command: 'show', label: 'new', count: 3 });
+    const anew = {
+        star: star() === held.star,
+        clock: clockButton() === held.clock,
+        label: labelOf(star()),
+        name: star().attributes['aria-label'],
+        tone: star().dataset.tone,
+    };
+    await item.set({ name: 'Star', icon: 'star', command: 'show', count: 120, tone: 'attention' });
+    check(
+        "an item's button is the same element once the item is set in another shape, as is another item's, and it " +
+            'shows what was set',
+        anew.star && anew.clock && anew.label === 'new' && anew.name === 'Star, 3' && anew.tone === 'plain',
+        anew
+    );
+    check(
+        'a button set back shows what it showed, the same element still',
+        star() === held.star &&
+            labelOf(star()) === undefined &&
+            star().attributes['aria-label'] === 'Star, 99+, attention',
+        star().attributes
     );
     const refused = [];
     for (const given of [{ name: 'Star', label: 'x'.repeat(25) }, { name: 'Star', icon: 'comet' }, { label: 'now' }])
