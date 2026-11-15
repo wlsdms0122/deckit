@@ -97,6 +97,7 @@ function createEnvironment({ core, preload, openWindow }) {
     let script = null; // the preload's source
     const hearing = new Set(); // what hears the machine's input (listen)
     const moved = { last: null, timer: null }; // the move not told yet
+    let hardware; // the source of the machine's own pointer and keyboard, once told (machine)
     hear();
     // A page that runs no mod is named as a host is, with no dot, so its origin is never a mod's. It is clear where it
     // draws nothing, as the windows it opens are. Every page has the keyboard only as it is given it or pressed, as the
@@ -150,13 +151,13 @@ function createEnvironment({ core, preload, openWindow }) {
             countStorage: (modId) => countStorage(WEBKIT, CONFIG.id, modId),
         }),
         keys: Object.freeze({
-            capture: (page, handler) => capture(guard, page, handler),
-            unhandled: (page, handler) => unhandled(guard, page, handler),
+            capture: (page, handler) => capture(guard, page, handler, sourceOf),
+            unhandled: (page, handler) => unhandled(guard, page, handler, sourceOf),
             hotkey,
             focused: () => WEBKIT.focusedPage(),
             reserve: (page, on) => void (page.isDestroyed() || WEBKIT.native().reserveKeyboard(page.id, !!on)),
         }),
-        input: Object.freeze({ listen, put }),
+        input: Object.freeze({ listen, put, machine }),
         read: Object.freeze({
             outline: READ.outline,
             node: READ.node,
@@ -293,13 +294,26 @@ function createEnvironment({ core, preload, openWindow }) {
     }
 
     // `event`, as `listen` tells one or `{ event: 'text', type, text }`, `type` `insert`, `compose`, `commit` or
-    // `cancel`, put into `page` at a point from its top left for the seat `from` names, a token of the caller's: the
-    // page is not given the keyboard, what the page tells of the event carries `from`, and a key the page does not
-    // handle is told as its own unhandled key and reaches nothing else.
-    function put(page, event, from) {
-        if (typeof from !== 'string' || !from) throw new Error('[deckit] an event is put from a token');
+    // `cancel`, with `source`, an opaque word of the caller's for the devices it came from, put into `page` at a point
+    // from its top left: the page is not given the keyboard, what the page tells of the event carries `source`, and a
+    // key the page does not handle is told as its own unhandled key and reaches nothing else.
+    function put(page, event) {
+        if (typeof event?.source !== 'string' || !event.source)
+            throw new Error('[deckit] an event is put with a source');
         if (isGone(page)) return;
-        WEBKIT.native().putInput(page.id, { ...event, from });
+        WEBKIT.native().putInput(page.id, event);
+    }
+
+    // The source of the machine's own pointer and keyboard from now on: what a page tells of a key of theirs carries
+    // it.
+    function machine(source) {
+        if (typeof source !== 'string' || !source) throw new Error("[deckit] the machine's source is a word");
+        hardware = source;
+    }
+
+    // The source of what a page told: the one an event was put with, or the machine's.
+    function sourceOf(source) {
+        return source ?? hardware;
     }
 
     // What a page of deck's asks of main: a load of its scheme, its own files or a question, what it posts, where it
@@ -471,20 +485,20 @@ function watchInput(guard, page, listener) {
 }
 
 // A key, told before it reaches the page, taken from it when `handler` answers true. Told after what watchInput
-// watches, when that watch began first. `from` is the token of the seat it was put for, none on the machine's own.
-function capture(guard, page, handler) {
-    guard(page, 'key', ({ type, code, meta, control, alt, shift, from }, take) => {
-        const pressed = { type: INPUT[type], code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift, from };
-        if (handler(Object.freeze(pressed))) take();
+// watches, when that watch began first. Its `source` is the one it was put with, or the machine's (`sourceOf`).
+function capture(guard, page, handler, sourceOf) {
+    guard(page, 'key', ({ type, code, meta, control, alt, shift, source }, take) => {
+        const held = { meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
+        if (handler(Object.freeze({ type: INPUT[type], code, ...held, source: sourceOf(source) }))) take();
     });
 }
 
 // A key down the page did not handle, told after the page had it, taken from the rest of the app when `handler`
 // answers true.
-function unhandled(guard, page, handler) {
-    guard(page, 'unhandled', ({ code, meta, control, alt, shift, from }, take) => {
-        if (handler(Object.freeze({ code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift, from })))
-            take();
+function unhandled(guard, page, handler, sourceOf) {
+    guard(page, 'unhandled', ({ code, meta, control, alt, shift, source }, take) => {
+        const held = { meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
+        if (handler(Object.freeze({ code, ...held, source: sourceOf(source) }))) take();
     });
 }
 

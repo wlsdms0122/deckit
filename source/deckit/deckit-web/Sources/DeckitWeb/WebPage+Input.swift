@@ -75,13 +75,13 @@ extension WebPage {
         }
     }
 
-    // `event` put into the page for the seat `from` names: what the page tells of it carries `from`, and a key the
+    // `event` put into the page for what `source` names: what the page tells of it carries `source`, and a key the
     // document does not handle is handed back to this page alone (InputMonitor).
-    func put(_ event: Put, from: String, through input: InputMonitor) throws {
+    func put(_ event: Put, source: String, through input: InputMonitor) throws {
         let window = try shownWindow()
         switch event {
         case let .pointer(pointer):
-            try put(pointer, from: from, in: window)
+            try put(pointer, source: source, in: window)
 
         case let .key(key):
             let modifier = Put.modifierKeys[key.code.name]
@@ -108,12 +108,12 @@ extension WebPage {
                 view.flagsChanged(with: made)
 
             case .keyDown:
-                guard !pressed(made, from: from) else { return }
-                input.putting(made, into: self, from: from)
+                guard !pressed(made, source: source) else { return }
+                input.putting(made, into: self, source: source)
                 view.keyDown(with: made)
 
             default:
-                guard !pressed(made, from: from) else { return }
+                guard !pressed(made, source: source) else { return }
                 view.keyUp(with: made)
             }
 
@@ -182,8 +182,8 @@ extension WebPage {
 
     // The buttons the seat holds are the system's while its event is made into the page's, and no other seat's: the
     // page's event is made before the view answers (WebPageView.put).
-    private func put(_ pointer: Put.Pointer, from: String, in window: NSWindow) throws {
-        let held = HeldButtons.held(by: from) { held in
+    private func put(_ pointer: Put.Pointer, source: String, in window: NSWindow) throws {
+        let held = HeldButtons.held(by: source) { held in
             if let buttons = pointer.buttons {
                 held = buttons.reduce(0) { $0 | Put.bit(of: $1) }
             } else if pointer.kind == .down {
@@ -223,7 +223,7 @@ extension WebPage {
         ) else {
             throw NodeError(message: "no event of the pointer")
         }
-        if type == .leftMouseDown || type == .leftMouseUp { pointed(made, from: from) }
+        if type == .leftMouseDown || type == .leftMouseUp { pointed(made, source: source) }
         HeldButtons.while(held) {
             view.put {
                 switch type {
@@ -283,7 +283,7 @@ extension WebPage {
 
 // The mouse's buttons held in the input made here, which WebKit reads with the system's buttons
 // (`NSEvent.pressedMouseButtons`) as it makes a page's pointer events: the left one held as the machine's would be,
-// beside the system's own, and those each seat holds, by its token, answered alone while an event of that seat is made
+// beside the system's own, and those each seat holds, by its source, answered alone while an event of that seat is made
 // into a page's.
 enum HeldButtons {
     // MARK: - Property

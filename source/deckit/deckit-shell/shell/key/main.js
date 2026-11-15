@@ -67,8 +67,8 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
     // pressed there is taken from the page and told to its mod, and one of the shell's keys is its once the page did
     // not handle it. What `page` records hears them.
     function listen(target, page = target) {
-        KEYS.capture(target, (event) => event.type === 'keydown' && handle(target, page, copied(event), event.from));
-        KEYS.unhandled(target, (keystroke) => pass(target, copied(keystroke), keystroke.from));
+        KEYS.capture(target, (event) => event.type === 'keydown' && handle(target, page, copied(event), event.source));
+        KEYS.unhandled(target, (keystroke) => pass(target, copied(keystroke), keystroke.source));
     }
 
     // `handler(page, keystroke)` hears each key pressed in a page listened to, `page` the one it was pressed in and
@@ -130,7 +130,7 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
         const { name: holder } = KEY.KEYS.find((key) => key.id === id);
         const chord = nameOf(keystroke);
         refuseTaken(chord);
-        const one = { holder, handler: (page, _keystroke, from) => pressed(id, page, from) };
+        const one = { holder, handler: (page, _keystroke, source) => pressed(id, page, source) };
         taken.set(chord, one);
         return () => {
             if (taken.get(chord) === one) taken.delete(chord);
@@ -164,10 +164,10 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
 
     // The monitors, in order, then the recording of `owner`, the page whose document `page` is, then the chords mods
     // took: answers whether the key was taken.
-    function handle(page, owner, keystroke, from) {
+    function handle(page, owner, keystroke, source) {
         for (const handler of monitors) {
             try {
-                handler(page, keystroke, from);
+                handler(page, keystroke, source);
             } catch (error) {
                 deckit.log.error('a key monitor failed', error);
             }
@@ -177,38 +177,38 @@ export function createKey({ deckit, state: STATE, keys: KEYS }) {
             PROTOCOL.recorded.send(owner, { id: recorder.id, keystroke });
             return true;
         }
-        return press(keystroke, from);
+        return press(keystroke, source);
     }
 
     // Answers whether a chord a mod took was pressed, which is taken.
-    function press(keystroke, from) {
+    function press(keystroke, source) {
         const name = nameOf(keystroke);
         const one = taken.get(name);
         if (!one || one.handler) return false;
-        tell(name, from);
+        tell(name, source);
         return true;
     }
 
     // A key the page did not handle, to the shell's key that holds its chord: answers whether it took it. One that
     // throws takes nothing.
-    function pass(page, keystroke, from) {
+    function pass(page, keystroke, source) {
         const name = nameOf(keystroke);
         const one = taken.get(name);
         if (!one?.handler) return false;
         try {
-            return !!one.handler(page, keystroke, from);
+            return !!one.handler(page, keystroke, source);
         } catch (error) {
             deckit.log.error(`what holds ${name} failed`, error);
             return false;
         }
     }
 
-    function tell(name, from) {
+    function tell(name, source) {
         const one = taken.get(name);
         if (!one) return;
         PROTOCOL.pressed.send(one.page, { id: one.id });
         const mod = deckit.mods.modOf(one.page);
-        if (mod) for (const listener of [...told]) listener(mod, from);
+        if (mod) for (const listener of [...told]) listener(mod, source);
     }
 
     // A key pressed, copied as it lands, so nothing of what the environment or a page told is kept or read after.

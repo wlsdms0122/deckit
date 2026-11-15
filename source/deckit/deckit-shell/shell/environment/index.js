@@ -36,13 +36,13 @@ const SHELL = Object.freeze({
     },
     keys: {
         // capture(page, handler(pressed) -> boolean): each key pressed in the page, `{ type, code, meta, control, alt,
-        // shift, from }` with `type` as UI Events names it (`keydown`, `keyup`), `from` the token of the seat it was
-        // put for (`input.put`), none on the machine's own, told before the page has it and taken from
+        // shift, source }` with `type` as UI Events names it (`keydown`, `keyup`), `source` the one it was put with
+        // (`input.put`) or the machine's (`input.machine`), told before the page has it and taken from
         // the page when `handler` answers true, at once. Told after what `WEB.pages.watchInput` told of it, when that
         // watch began first
         capture: 'function',
         // unhandled(page, handler(keystroke) -> boolean): each key down pressed in the page that the page did not
-        // handle, by cancelling it or acting on it, `{ code, meta, control, alt, shift, from }`, told after the page
+        // handle, by cancelling it or acting on it, `{ code, meta, control, alt, shift, source }`, told after the page
         // had it and taken from the rest of the app when `handler` answers true. One a web page shown in an element
         // did not handle is the element's page's next: a key down at its element, then told as that page's when not
         // cancelled
@@ -67,11 +67,14 @@ const SHELL = Object.freeze({
         // the point from the window's content's, and `carried: true`, the page having it already. Moves are told once
         // a frame
         listen: 'function',
-        // put(page, event, from): such an event, or `{ event: 'text', type, text }`, `type` `insert`, `compose`,
-        // `commit` or `cancel`, put into `page` at a point from its top left for the seat the token `from` names.
-        // The page is not given the keyboard and no window's order changes; a key it tells (`keys.capture`,
-        // `keys.unhandled`) carries `from`, and one it does not handle reaches nothing else
+        // put(page, event): such an event, or `{ event: 'text', type, text }`, `type` `insert`, `compose`, `commit`
+        // or `cancel`, with `source`, an opaque word for the devices it came from, put into `page` at a point from
+        // its top left. The page is not given the keyboard and no window's order changes; a key it tells
+        // (`keys.capture`, `keys.unhandled`) carries that `source`, and one it does not handle reaches nothing else
         put: 'function',
+        // machine(source): the source of the machine's own pointer and keyboard from now on, which a key of theirs a
+        // page tells carries
+        machine: 'function',
     },
     // How a page reads to one who cannot see it, from what its document drew, its elements' roles, names and states.
     // A document has a number, another for each document a page shows, and an element a ref, `<document>.<n>`, the

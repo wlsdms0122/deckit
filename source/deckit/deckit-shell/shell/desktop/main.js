@@ -797,7 +797,7 @@ export function createDesktop({
                 const frame = frameOn(held.id);
                 if (type === 'up' || !frame) hand.down = null;
                 const at = frame && { x: point.x - frame.x - held.inside.x, y: point.y - frame.y - held.inside.y };
-                if (at) INPUT.put(held.page, { ...event, ...at }, seat);
+                if (at) INPUT.put(held.page, { ...event, ...at, source: seat });
                 reread(seat);
             }
             if (CHIP_PARTS.includes(held.part)) return { over: 'desktop' };
@@ -830,7 +830,7 @@ export function createDesktop({
             else answer = reached(seat, window);
             if ([keyboardOf(seat)?.id, hand.wanted].includes(window.id)) hand.keys = { id: window.id, page: hit.page };
         }
-        INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y }, seat);
+        INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y, source: seat });
         reread(seat);
         return answer;
     }
@@ -850,7 +850,7 @@ export function createDesktop({
         const key = keyboardOf(seat);
         if (!key?.surface) return { to: null };
         ACTIVATION.input(seat, key.mod);
-        INPUT.put(keysPageOf(seat), event, seat);
+        INPUT.put(keysPageOf(seat), { ...event, source: seat });
         reread(seat);
         return { to: key.id };
     }

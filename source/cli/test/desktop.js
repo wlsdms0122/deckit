@@ -961,7 +961,9 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     desk.enter(you, pointer('up', middle(2)));
     const typed = [desk.enter(me, key('KeyA')), desk.enter(you, key('KeyB')), desk.enter(me, key('KeyC'))];
     const putIn = (name, from) =>
-        desk.puts.filter((put) => put.page === name && put.from === from).map(({ event }) => event.code ?? event.type);
+        desk.puts
+            .filter((put) => put.page === name && put.source === from)
+            .map(({ event }) => event.code ?? event.type);
     check(
         'two seats press two windows and type at once: each has its key window, and each key is put in its own',
         mine.over === 1 &&
@@ -1171,7 +1173,7 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
             'it presses the desktop',
         onSide.over === 9 &&
             toSide.to === 9 &&
-            desk.puts.some((put) => put.page === 'content-9' && put.from === 's1' && put.event.code === 'KeyP') &&
+            desk.puts.some((put) => put.page === 'content-9' && put.source === 's1' && put.event.code === 'KeyP') &&
             sideKey === false &&
             toDesk.to !== 9,
         JSON.stringify({ onSide, toSide, sideKey, toDesk })
@@ -2309,7 +2311,7 @@ function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} } 
         actionOnDoubleClick: () => 'zoom',
         input: {
             listen: (handler) => (heard.carried = handler),
-            put: (page, event, from) => puts.push({ page: page.name, event, from }),
+            put: (page, { source, ...event }) => puts.push({ page: page.name, event, source }),
         },
         reserve: (page, on) => reserved.set(page.name, on),
         read,

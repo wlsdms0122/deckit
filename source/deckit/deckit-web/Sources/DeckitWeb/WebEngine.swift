@@ -43,7 +43,7 @@ import CNodeAPI
 //   them to each listener, `emit('input', event)`, `{ event: 'pointer', type, x, y, button, buttons, modifiers, count, dx, dy, page }`
 //   or `{ event: 'key', type, code, key, modifiers, repeat, page }` (Put), `page` the id of the page it is delivered
 //   to and the point from that page's top left, or null and the point from the window's content's;
-//   `putInput(id, event)`, such an event, or `{ event: 'text', type, text }`, put into a page for the seat its `from`
+//   `putInput(id, event)`, such an event, or `{ event: 'text', type, text }`, put into a page for what its `source`
 //   names, the keyboard and the order of the views left as they are; `reserveKeyboard(id, on)`, a press leaving the
 //   keyboard where it is while on. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
 //   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
@@ -421,10 +421,10 @@ final class WebEngine {
 
         case .putInput:
             let event = try argument(1)
-            guard let from = try node.member(event, "from").map({ try node.string($0) }), !from.isEmpty else {
-                throw NodeError(message: "an event is put from a seat's token")
+            guard let source = try node.member(event, "source").map({ try node.string($0) }), !source.isEmpty else {
+                throw NodeError(message: "an event is put with its source")
             }
-            try page().put(try put(event), from: from, through: input)
+            try page().put(try put(event), source: source, through: input)
 
         case .reserveKeyboard:
             try page().view.isReserved = try node.bool(try argument(1))

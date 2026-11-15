@@ -40,8 +40,8 @@ async function run({ check, main, laidNow, desktopLaid, windowsNow, open }) {
     const b = await open('editor');
     if (!a || !b) return check('input: two windows are open to put input into', false, `${!!a} ${!!b}`);
     for (const page of [a, b]) await page.evaluate(WATCH);
-    const put = async (page, event, from = SEAT) => {
-        const answer = await main(`return webkit.putInput(${page.id}, ${JSON.stringify({ ...event, from })})`);
+    const put = async (page, event, source = SEAT) => {
+        const answer = await main(`return webkit.putInput(${page.id}, ${JSON.stringify({ ...event, source })})`);
         await sleep(60);
         return answer;
     };
@@ -57,9 +57,9 @@ async function run({ check, main, laidNow, desktopLaid, windowsNow, open }) {
             .flatMap(({ pages }) => pages)
             .find((page) => page.responder)?.id ?? null;
     const order = async () => (await windowsNow()).map(({ id, key }) => `${id}${key ? '*' : ''}`).join(',');
-    const click = async (page, at, more = {}, from = SEAT) => {
-        await put(page, { event: 'pointer', type: 'down', ...at, ...more }, from);
-        await put(page, { event: 'pointer', type: 'up', ...at, ...more }, from);
+    const click = async (page, at, more = {}, source = SEAT) => {
+        await put(page, { event: 'pointer', type: 'down', ...at, ...more }, source);
+        await put(page, { event: 'pointer', type: 'up', ...at, ...more }, source);
     };
     const key = async (page, name, code, more = {}) => {
         await put(page, { event: 'key', type: 'down', key: name, code, ...more });

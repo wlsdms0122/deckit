@@ -11,7 +11,7 @@ import AppKit
 // keyboard, which goes no further when the page answers it took it, and a press of the mouse in it. A key down the
 // document did not handle WebKit sends to the app again, the same event, which is handed to its page as unhandled,
 // and goes no further unless the page answers at once that it did not take it. One put into a page for a seat
-// (WebPage+Input) is handed to that page as unhandled with the seat's token and never goes further, so it does not
+// (WebPage+Input) is handed to that page as unhandled with its source and never goes further, so it does not
 // reach what has the window's keyboard. Every event of the machine's pointer and keyboard is told to each of
 // `listeners` too, in a page's own terms (Put), with the page it is delivered to.
 @MainActor
@@ -24,7 +24,7 @@ final class InputMonitor {
         keyOptions: [.weakMemory, .objectPointerPersonality],
         valueOptions: .weakMemory
     )
-    // Each key down put into a page for a seat, to that page and the seat's token, while the event lives.
+    // Each key down put into a page for a seat, to that page and its source, while the event lives.
     private let put = NSMapTable<NSEvent, PutKey>(
         keyOptions: [.weakMemory, .objectPointerPersonality],
         valueOptions: .strongMemory
@@ -65,7 +65,7 @@ final class InputMonitor {
         case .keyDown, .keyUp, .flagsChanged:
             if let key = put.object(forKey: event) {
                 put.removeObject(forKey: event)
-                _ = key.page?.unhandled(event, from: key.from)
+                _ = key.page?.unhandled(event, source: key.source)
                 return true
             }
             if let page = handed.object(forKey: event) {
@@ -95,9 +95,9 @@ final class InputMonitor {
         }
     }
 
-    // A key down put into `page` for the seat `from`, known when WebKit sends it to the app again.
-    func putting(_ event: NSEvent, into page: WebPage, from: String) {
-        put.setObject(PutKey(page: page, from: from), forKey: event)
+    // A key down put into `page` for what `source` names, known when WebKit sends it to the app again.
+    func putting(_ event: NSEvent, into page: WebPage, source: String) {
+        put.setObject(PutKey(page: page, source: source), forKey: event)
     }
 
     // MARK: - Private
@@ -167,15 +167,15 @@ final class InputMonitor {
     }
 }
 
-// A page a key was put into and the token of the seat it was put for.
+// A page a key was put into and the source it was put for.
 private final class PutKey {
     // MARK: - Property
     weak var page: WebPage?
-    let from: String
+    let source: String
 
     // MARK: - Initializer
-    init(page: WebPage, from: String) {
+    init(page: WebPage, source: String) {
         self.page = page
-        self.from = from
+        self.source = source
     }
 }

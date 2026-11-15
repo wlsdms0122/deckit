@@ -68,7 +68,7 @@ async function asked(main) {
 async function run({ check, main, open }) {
     const read = await asked(main);
     const put = async (page, event) => {
-        const answer = await main(`return webkit.putInput(${page.id}, ${JSON.stringify({ ...event, from: SEAT })})`);
+        const answer = await main(`return webkit.putInput(${page.id}, ${JSON.stringify({ ...event, source: SEAT })})`);
         await sleep(80);
         return answer;
     };

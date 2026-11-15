@@ -1,10 +1,10 @@
 // Every page deckit shows is WebKit's, through the module beside the core (deckit-web.node): a page of deck's, a
 // surface one opened, or a web page. Each is a token that tells what becomes of it as events and answers what it is
 // asked: `changed`, `started`, `stopped`, `committed` (url), `failed` (code, description, url), `gone`, `focus`,
-// `close`, `mouse` (type, `mouseDown` or `mouseUp`, from), `key` (pressed, take), taken from the page once `take()` is
+// `close`, `mouse` (type, `mouseDown` or `mouseUp`, source), `key` (pressed, take), taken from the page once `take()` is
 // called, `unhandled` (pressed, take), a key down the page did not handle, taken from the rest of the app once `take()`
-// is called, and `destroyed`, once, as it closes; `from`, of `mouse` and in `pressed`, is the token of the seat an
-// event was put for, and there is none on the machine's own. A key down a page shown in another (`containerOf(page)`, that page or
+// is called, and `destroyed`, once, as it closes; `source`, of `mouse` and in `pressed`, is the one an event was put
+// with, and there is none on the machine's own. A key down a page shown in another (`containerOf(page)`, that page or
 // null) did not handle is that page's next: a key down at its element with the keyboard, which its listeners may
 // cancel, and then a key it did not handle. `path` is the module's. `always` are scripts every document of every page
 // starts with, beside its own, and `posted(page, body)` is asked of what deckit's scripts post in a page's main frame
@@ -136,7 +136,7 @@ export function createWebKit({ path, LOG, containerOf, always = [], posted = nul
                     crashed = true;
                     return void page.emit('gone');
                 case 'mouse':
-                    return void page.emit('mouse', payload.type, payload.from);
+                    return void page.emit('mouse', payload.type, payload.source);
                 case 'key': {
                     let taken = false;
                     page.emit('key', payload, () => (taken = true));
