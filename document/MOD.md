@@ -93,7 +93,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.clipboard-write` | replacing what was copied with text of its own, which the person then pastes in any app | `deckit.clipboard.writeText` |
 | `system.file-handlers` | handing files on this Mac to whatever opens them, which can start programs | `deckit.openExternal` of a `file://` address and `web.downloads.open` |
 | `system.overlay-windows` | a window of its own over every app's, on every desktop, whichever app is in front | `level: 'overlay'` on `shell.windows.open` |
-| `deckit.panel-windows` | a window of its own along an edge of the app's window, in the bar across its top | `level: 'panel'` on `shell.windows.open` |
+| `deckit.panel-windows` | a window of its own in the bar across the top of the app's window, and one over the desktop, under a spot a mod names for it or at a top corner | `level: 'panel'` on `shell.windows.open` |
 | `system.notifications` | the system's notifications | `deckit.notifications` |
 | `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `scope: 'global'` on `shell.keys.take` |
 | `deckit.app-keys` | keys that work wherever the keyboard is in the app, whatever is in front | `scope: 'app'` on `shell.keys.take` |
