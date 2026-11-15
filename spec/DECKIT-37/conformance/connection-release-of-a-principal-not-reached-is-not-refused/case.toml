@@ -1,0 +1,24 @@
+case = 25
+name = "connection-release-of-a-principal-not-reached-is-not-refused"
+note = "connection/release answers once the lifecycle reaches for target no more, which is so at once where it never did. A party of ada releases bob, which it did not reach, and is not refused."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "connection/release"
+params = { lifecycle = 0, target = "bob" }

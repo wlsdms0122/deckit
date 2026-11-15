@@ -1,0 +1,50 @@
+case = 25
+name = "record-keys-answers-the-keys-in-the-order-of-their-code-points"
+note = "record/keys answers the key of each record kept, in the order of their code points, whatever order they were written in. A party of ada writes under b, ab, a and a-b and reads the keys."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "record/write"
+params = { key = "b", value = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "record/write"
+params = { key = "ab", value = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "record/write"
+params = { key = "a", value = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "record/write"
+params = { key = "a-b", value = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "record/keys"
+
+[step.expect]
+answers = ["a", "a-b", "ab", "b"]
