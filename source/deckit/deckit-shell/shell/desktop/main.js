@@ -920,7 +920,8 @@ export function createDesktop({
             return { over: null };
         }
         if (event.type === 'down') pressedDown(seat, hand, event.page);
-        if (event.type === 'down' && hand.pointer && !onDock(seat, hand.pointer)) unmenu(seat, hand);
+        // A press in the desktop's page is forwarded by it (listen), and gesture puts the menu away or keeps it.
+        if (event.type === 'down' && event.page !== desktop.page) unmenu(seat, hand);
         const window = event.type === 'down' ? windowAt(event.page) : null;
         if (!window || !windows.has(window.id) || MANAGER.isMinimized(seat, window.id)) return { over: null };
         return reached(seat, window);
@@ -1253,12 +1254,6 @@ export function createDesktop({
     function menuOf(seat) {
         const id = hands.get(seat)?.menu ?? null;
         return id === null ? null : DOCK_MODEL.menuOf(area(), DOCK.items(), id);
-    }
-
-    // Whether `point` of the desktop is on the Dock as `seat` has it: its card while it is out, or the menu open.
-    function onDock(seat, point) {
-        const [, ...rects] = DOCK_MODEL.inputOf(area(), hands.get(seat).dock, DOCK.items(), menuOf(seat));
-        return rects.some((rect) => within(rect, point));
     }
 
     // The menu open for the seat of `hand` is put away.

@@ -1379,7 +1379,15 @@ async function dockChecks({ LAYOUT, DOCK, createDesktop }, check) {
     local('up', on('c'), { button: 2 });
     const drawn = desk.page().dock.menu;
     const takes = desk.laid().find(({ page: each }) => each === desk.desktopPage).input;
+    // The machine's press is carried too, in the desktop's page, as the page forwards it.
+    const machine = async (type, at) => {
+        desk.carried({ page: desk.desktopPage, event: 'pointer', type, ...at, button: 0, carried: true });
+        await new Promise((resolve) => setTimeout(resolve));
+    };
+    await machine('down', entry('quit'));
+    const held = desk.page().dock.menu?.item;
     local('down', entry('quit'), { count: 1 });
+    await machine('up', entry('quit'));
     local('up', entry('quit'));
     const gone = desk.page().dock.menu;
     key('dock', 'a', 2);
@@ -1388,18 +1396,32 @@ async function dockChecks({ LAYOUT, DOCK, createDesktop }, check) {
     const opened = [desk.page().dock.menu, desk.dock.chosen.at(-1)];
     key('dock', 'a', 2);
     key('dock', '');
+    const putAway = desk.page().dock.menu;
+    key('dock', 'a', 2);
+    desk.carried({
+        page: { name: 'another' },
+        event: 'pointer',
+        type: 'down',
+        x: 600,
+        y: 500,
+        button: 0,
+        carried: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve));
     check(
         "the local seat's context press on an item opens its menu on the page, as the Dock's model lays it, and the " +
             "page takes the pointer there; its press on an entry chooses it; the keyboard's presses open the menu, " +
-            'choose an entry and put it away',
+            "choose an entry and put it away, and so does the machine's press in another page",
         JSON.stringify(drawn) === JSON.stringify(menuOfC) &&
             takes.some((rect) => JSON.stringify(rect) === JSON.stringify(menuOfC.frame)) &&
+            held === 'c' &&
             gone === null &&
             byKey === 'a' &&
             JSON.stringify(opened) === '[null,["a","open","local"]]' &&
+            putAway === null &&
             desk.page().dock.menu === null &&
             JSON.stringify(desk.dock.chosen[1]) === '["c","quit","local"]',
-        JSON.stringify({ drawn, takes, gone, byKey, opened, chosen: desk.dock.chosen })
+        JSON.stringify({ drawn, takes, held, gone, byKey, opened, chosen: desk.dock.chosen })
     );
 }
 
