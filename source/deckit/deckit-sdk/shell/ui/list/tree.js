@@ -1,6 +1,8 @@
 // MARK: - Property
 // Letters typed this soon after the one before are one name to find, and a Space among them is one of its letters.
 const TYPE_AHEAD_MS = 800;
+// What the element wears while it has the keys, put back as they are taken away.
+const WORN = ['role', 'aria-label', 'aria-multiselectable'];
 
 // MARK: - Initializer
 // MARK: - Public
@@ -8,12 +10,14 @@ const TYPE_AHEAD_MS = 800;
 // keys move it: `items()` are the keys of the items the arrows move among, in order, and `lead()` the one they move
 // from, or null. A list is a tree whose items do not nest. Keys typed into something inside it (a rename) are its own.
 // It is marked `data-deckit-tree`: while the focus is in it, its chosen rows draw in `selectedFocused` (row/index.js).
+// It reads as a `tree` called `name`, unless its element was made as something other than a plain list.
 function tree(
     element,
     {
         items,
         lead,
         nameOf,
+        name = '',
         multiple = false,
         expanded = () => null,
         parentOf = () => null,
@@ -35,10 +39,17 @@ function tree(
     const tabIndexBefore = element.getAttribute('tabindex');
     element.tabIndex = 0;
     element.dataset.deckitTree = '';
+    const before = Object.fromEntries(WORN.map((attribute) => [attribute, element.getAttribute(attribute)]));
+    if ((before.role ?? 'list') === 'list') element.setAttribute('role', 'tree');
+    if (name) element.setAttribute('aria-label', name);
+    if (multiple) element.setAttribute('aria-multiselectable', 'true');
     element.addEventListener('keydown', onKey);
     return () => {
         element.removeEventListener('keydown', onKey);
         delete element.dataset.deckitTree;
+        for (const attribute of WORN)
+            if (before[attribute] === null) element.removeAttribute(attribute);
+            else element.setAttribute(attribute, before[attribute]);
         if (tabIndexBefore === null) element.removeAttribute('tabindex');
         else element.setAttribute('tabindex', tabIndexBefore);
     };

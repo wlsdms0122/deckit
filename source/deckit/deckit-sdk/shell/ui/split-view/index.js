@@ -114,7 +114,10 @@ function make(_theme, ui) {
 // sizes the sidebar by its drag, between MIN and MAX and leaving the content CONTENT_MIN, and folds or unfolds it by a
 // click. `width` and `collapsed` are how it starts; `onChange({ width, collapsed })` hears each change the person
 // makes, for the mod to keep. Answers `{ element, isCollapsed(), setCollapsed(collapsed), toggleSidebar(), width() }`.
-function splitView(ui, { sidebar, content, width: given = MIN, collapsed: folded = false, onChange = null }) {
+function splitView(
+    ui,
+    { sidebar, content, name = 'Sidebar', width: given = MIN, collapsed: folded = false, onChange = null }
+) {
     let width = clamped(given);
     let collapsed = !!folded;
     let sliding = []; // the animations of a slide under way
@@ -126,6 +129,11 @@ function splitView(ui, { sidebar, content, width: given = MIN, collapsed: folded
     const room = tag('div', 'deckit-split-content');
     const handle = tag('button', 'deckit-split-handle');
     handle.type = 'button';
+    handle.setAttribute('role', 'separator');
+    handle.setAttribute('aria-label', name);
+    column.setAttribute('role', 'complementary');
+    column.setAttribute('aria-label', name);
+    room.setAttribute('role', 'main');
     list.append(sidebar);
     card.append(list, bar);
     column.append(card);

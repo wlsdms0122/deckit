@@ -98,11 +98,20 @@ function quickPick(
     const field = element('input', 'deckit-quick-pick-field');
     field.spellcheck = false;
     field.placeholder = placeholder;
+    field.setAttribute('role', 'combobox');
+    field.setAttribute('aria-expanded', 'true');
+    if (placeholder) field.setAttribute('aria-label', placeholder);
     field.value = value;
     const box = element('div', 'deckit-quick-pick-list');
     const message = element('div', 'deckit-quick-pick-message');
     const note = element('div', 'deckit-quick-pick-note');
-    const rows = LIST.list({ element: box, key, create, update });
+    // A row that is no option, a heading, is no line of its own to whoever reads the list.
+    const made = (item) => {
+        const row = create(item);
+        if (!optionOf(item) && !row.hasAttribute('role')) row.setAttribute('role', 'presentation');
+        return row;
+    };
+    const rows = LIST.list({ element: box, key, create: made, update });
     let options = []; // the items that are options, as the listbox counts them
     const listbox = LISTBOX.listbox(box, {
         onPick: (index) => onPick(options[index], index),
@@ -198,7 +207,10 @@ function quickPick(
     return {
         text: () => field.value,
         setText: (text) => (field.value = text),
-        setPlaceholder: (text) => (field.placeholder = text),
+        setPlaceholder: (text) => {
+            field.placeholder = text;
+            field.setAttribute('aria-label', text);
+        },
         setScope,
         // The field takes the keyboard with its text selected, to type over.
         focus: () => field.select(),

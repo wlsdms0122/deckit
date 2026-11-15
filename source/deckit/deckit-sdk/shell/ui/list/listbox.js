@@ -1,12 +1,17 @@
 import * as POINTER from '../pointer/index.js';
 
 // MARK: - Property
+let named = 0; // the options given an id to be named by
 // MARK: - Initializer
 // MARK: - Public
 // A list with one active option, moved by the keys and by a pointer that travels, and picked by a press.
 // `options` are { element, disabled }. The active option carries `data-active`, which the stylesheet paints.
 // `onActivate(index, { pointer })` hears every move of the active option; `onPick(index, { keyboard })` a pick.
+// An element with no role is a `listbox` and what it is given are its options, the active one selected; under any role
+// the element names its active option.
 function listbox(element, { onPick, onActivate = () => {} }) {
+    if (!element.hasAttribute('role')) element.setAttribute('role', 'listbox');
+    const chooses = element.getAttribute('role') === 'listbox';
     let options = [];
     let active = -1;
     let pointed = false; // whether the pointer made the active option active, so it is where the pointer is
@@ -62,7 +67,16 @@ function listbox(element, { onPick, onActivate = () => {} }) {
     }
 
     function paint() {
-        options.forEach((option, index) => option.element.toggleAttribute('data-active', index === active));
+        options.forEach((option, index) => {
+            option.element.toggleAttribute('data-active', index === active);
+            if (!chooses) return;
+            if (!option.element.hasAttribute('role')) option.element.setAttribute('role', 'option');
+            option.element.setAttribute('aria-selected', String(index === active));
+        });
+        const lit = options[active]?.element;
+        if (lit && !lit.id) lit.id = `deckit-option-${++named}`;
+        if (lit) element.setAttribute('aria-activedescendant', lit.id);
+        else element.removeAttribute('aria-activedescendant');
     }
 
     return {

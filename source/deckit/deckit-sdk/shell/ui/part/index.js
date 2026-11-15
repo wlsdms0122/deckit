@@ -102,6 +102,8 @@ function selectable(element) {
 function titleBar(element, { title = null, scroller = null, hairline = false } = {}) {
     element.classList.add('deckit-title-bar');
     element.toggleAttribute('data-hairline', hairline);
+    element.setAttribute('role', 'toolbar');
+    if (title != null) element.setAttribute('aria-label', title);
     const heading = title == null ? null : element.ownerDocument.createElement('div');
     if (heading) {
         heading.className = 'deckit-title-bar-title';
@@ -111,6 +113,8 @@ function titleBar(element, { title = null, scroller = null, hairline = false } =
     const unfade = scroller ? SCROLL.edgeFade(scroller) : () => {};
     return () => {
         element.classList.remove('deckit-title-bar');
+        element.removeAttribute('role');
+        element.removeAttribute('aria-label');
         element.removeAttribute('data-hairline');
         heading?.remove();
         unfade();

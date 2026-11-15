@@ -121,12 +121,12 @@ const STYLE = `
         border-radius: var(--deckit-radius-small);
         font: 600 var(--deckit-type-small);
     }
-    .deckit-segment[aria-pressed='true'],
-    .deckit-segment[aria-pressed='true']:is(:hover, :active) {
+    .deckit-segment[aria-checked='true'],
+    .deckit-segment[aria-checked='true']:is(:hover, :active) {
         background: transparent;
         color: var(--deckit-text);
     }
-    .deckit-segmented[data-accent] .deckit-segment[aria-pressed='true'] { color: var(--deckit-segment-ink); }
+    .deckit-segmented[data-accent] .deckit-segment[aria-checked='true'] { color: var(--deckit-segment-ink); }
     /* The chosen segment's lifted part, under the segments: it slides from one to the next. */
     .deckit-segmented-thumb {
         position: absolute;
@@ -192,9 +192,9 @@ function make() {
 }
 
 // MARK: - Private
-// A button showing an icon. `muted` rests it a step back until the pointer comes.
+// A button showing an icon, named by its `title`. `muted` rests it a step back until the pointer comes.
 function iconButton({ icon, title, size = 'medium', muted = false, onClick }) {
-    const element = buttonOf('deckit-icon-button', title, size);
+    const element = named(buttonOf('deckit-icon-button', title, size), title);
     element.innerHTML = icon;
     element.toggleAttribute('data-muted', muted);
     element.addEventListener('click', unlessDisabled(element, onClick));
@@ -238,9 +238,9 @@ function barItem({ content, title = '', onClick = null }) {
 }
 
 // An action of a row, shown while the row is hovered or holds the focus, and always where no row or element marked
-// `data-deckit-row-actions` holds it. Its click is its own, not the row's.
+// `data-deckit-row-actions` holds it. Its click is its own, not the row's. It is named by its `title`.
 function rowAction({ icon = '', label = '', title, onClick }) {
-    const element = buttonOf('deckit-row-action', title, 'medium');
+    const element = named(buttonOf('deckit-row-action', title, 'medium'), title);
     if (icon) element.innerHTML = icon;
     else element.textContent = label;
     element.addEventListener('click', (event) => {
@@ -253,10 +253,12 @@ function rowAction({ icon = '', label = '', title, onClick }) {
 // One of a few choices, side by side. `items` are { key, label, title, lead }: `lead` an element before the label.
 // With `fill`, the choices share the width it is given. A press reports the choice; the caller sets it. The chosen one
 // sits on a thumb, which slides by the `move` spring to a choice the pointer pressed, from where it is now, and is
-// there at once for one a key or the caller chose.
-function segmented({ items, value = null, size = 'medium', accent = null, fill = false, onChange }) {
+// there at once for one a key or the caller chose. The choices are the radios of a group called `name`.
+function segmented({ items, value = null, size = 'medium', accent = null, fill = false, name = '', onChange }) {
     const element = document.createElement('div');
     element.className = 'deckit-segmented';
+    element.setAttribute('role', 'radiogroup');
+    if (name) element.setAttribute('aria-label', name);
     element.dataset.size = size;
     element.toggleAttribute('data-fill', fill);
     if (accent) {
@@ -285,12 +287,13 @@ function segmented({ items, value = null, size = 'medium', accent = null, fill =
         sliding = thumb.animate([{ transform: from }, { transform: 'none' }], { duration: length, easing });
     };
     const paint = (slides = false) => {
-        for (const [key, { button }] of segments) button.setAttribute('aria-pressed', String(key === current));
+        for (const [key, { button }] of segments) button.setAttribute('aria-checked', String(key === current));
         place(slides);
     };
     new ResizeObserver(() => place(false)).observe(element);
     const segmentOf = (key) => {
         const button = buttonOf('deckit-segment', '', size);
+        button.setAttribute('role', 'radio');
         const label = document.createElement('span');
         button.append(label);
         button.addEventListener('pointerdown', () => (pressed = key));
@@ -334,9 +337,9 @@ function segmented({ items, value = null, size = 'medium', accent = null, fill =
 }
 
 // A button that stays on or off, beside a text field that keeps the keyboard. A press reports the new state; the
-// caller sets it. `setMarked` lights it without turning it on.
+// caller sets it. `setMarked` lights it without turning it on. It is named by its `title`.
 function toggleButton({ icon = '', label = '', title, value = false, onChange }) {
-    const element = buttonOf('deckit-toggle-button', title, 'medium');
+    const element = named(buttonOf('deckit-toggle-button', title, 'medium'), title);
     if (icon) element.innerHTML = icon;
     else element.textContent = label;
     let current = !!value;
@@ -353,10 +356,11 @@ function toggleButton({ icon = '', label = '', title, value = false, onChange })
     return { element, set, setMarked: (on) => element.toggleAttribute('data-marked', !!on) };
 }
 
-// A switch. A press reports the new state; the caller sets it.
-function toggle({ value = false, onChange }) {
+// A switch, named by `label`, the words beside it. A press reports the new state; the caller sets it.
+function toggle({ value = false, label = '', onChange }) {
     const element = buttonOf('deckit-toggle', '', 'medium');
     element.setAttribute('role', 'switch');
+    if (label) element.setAttribute('aria-label', label);
     const knob = document.createElement('span');
     knob.className = 'deckit-toggle-knob';
     element.append(knob);
@@ -374,7 +378,9 @@ function toggle({ value = false, onChange }) {
 }
 
 // The tooltip of `element`, with the chord that does the same when there is one, read again as the pointer comes.
+// An element that shows no words of its own is named by the tooltip's text.
 function tooltip(element, { text, chord = () => '' }) {
+    if (!element.textContent.trim()) element.setAttribute('aria-label', text);
     const write = () => {
         const keys = chord();
         element.title = keys ? `${text} (${keys})` : text;
@@ -388,6 +394,12 @@ function tooltip(element, { text, chord = () => '' }) {
 function setEnabled(element, on) {
     if (on) element.removeAttribute('aria-disabled');
     else element.setAttribute('aria-disabled', 'true');
+}
+
+// A button that shows no words of its own is named by its title.
+function named(element, title) {
+    if (title) element.setAttribute('aria-label', title);
+    return element;
 }
 
 function unlessDisabled(element, onClick) {

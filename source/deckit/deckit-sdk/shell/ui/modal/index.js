@@ -96,6 +96,9 @@ function modal(
     if (clear) scrim.dataset.clear = '';
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    if (title) card.setAttribute('aria-label', title);
     if (align !== 'fill') card.style.width = width;
     if (glass !== null) {
         card.style.background = `color-mix(in srgb, var(--deckit-elevated) ${glass * 100}%, transparent)`;
