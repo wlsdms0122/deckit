@@ -146,7 +146,7 @@ class Bot {
                     section.setCollapsed(on);
                 },
             });
-            const list = ui.list({ key: (entry) => entry.key, create: navRow });
+            const list = ui.list({ role: 'listbox', name: system.name, key: (entry) => entry.key, create: navRow });
             list.set(MODES.filter((entry) => entry.system === system.name));
             section.body.append(list.element);
             sidebar.append(section.element);

@@ -55,6 +55,17 @@ separator "Sidebar"`,
     button "Add Account…"
 main
 separator "Sidebar"`,
+    bot: `complementary "Sidebar"
+  group "Forge"
+    button "Forge"
+    listbox "Forge"
+  group "LLMemory"
+    button "LLMemory"
+    listbox "LLMemory"
+main
+  toolbar
+    combobox "Forge session"
+separator "Sidebar"`,
 };
 
 // Whether the lines of `text` hold those of `golden`, in its order.
