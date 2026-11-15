@@ -75,7 +75,6 @@ const main = async () => {
         'desktop.js',
         'window.js',
         'dock.js',
-        'status.js',
         'status-bar.js',
         'host.js',
         'seats.js',

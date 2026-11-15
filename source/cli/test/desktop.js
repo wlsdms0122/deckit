@@ -875,8 +875,6 @@ async function main() {
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
     await typingChecks({ LAYOUT, createDesktop }, check);
-    const { createStatus } = await import(url('deckit-shell', 'shell', 'status', 'main.js'));
-    await statusChecks({ createStatus, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -2657,89 +2655,6 @@ async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
     check('a key ends it, and so does the seat it follows leaving', byKey === own && view() === own, [byKey, view()]);
 }
 
-// The status bar in the desktop: what its providers give is told the desktop's page for the seat it shows, its rects
-// take the pointer there, and a seat's press on an item, read by the one recognizer, opens that seat's popover alone
-// and tells the item's provider with the seat.
-async function statusChecks({ createStatus, createDesktop }, check) {
-    const status = createStatus();
-    const told = [];
-    const provider = (id, item) =>
-        status.provide({ item: () => ({ id, ...item }), press: (seat, press) => told.push([id, seat, press]) });
-    provider('clock', { label: 'now', fixed: true });
-    provider('seats', { icon: 'users', rows: [{ id: 'r1', title: 'Ada', presses: true }] });
-    const desk = desktopOver(createDesktop, { STATUS: status });
-    desk.desktop.control.present({ titleBar: { height: 52, controlsWidth: 70 } });
-    desk.desktop.control.show();
-    const other = desk.sit('s1');
-    const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
-    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
-    const machine = async (event, page = desk.desktopPage) => {
-        desk.carried({ page, ...event, carried: true });
-        await new Promise((resolve) => setTimeout(resolve));
-    };
-    const press = async (at, page) => {
-        await machine({ event: 'pointer', type: 'down', ...at, button: 0, buttons: [0] }, page);
-        await machine({ event: 'pointer', type: 'up', ...at, button: 0, buttons: [] }, page);
-    };
-    const bar = () => desk.page().bar;
-    const at = (id) => middle(bar().items.find((item) => item.id === id).rect);
-    const takes = () => JSON.stringify(desk.laid().find(({ page }) => page === desk.desktopPage).input);
-    check(
-        "the desktop's page is told the bar, the fixed item rightmost in the capsule in the host's bar",
-        bar()
-            .items.map(({ id }) => id)
-            .join() === 'clock,seats' &&
-            bar().capsule.y === 12 &&
-            bar().capsule.x + bar().capsule.width === 1192 &&
-            bar().popover === null &&
-            bar().items.every(({ rect }) => takes().includes(JSON.stringify(rect))),
-        bar()
-    );
-    const answered = desk.enter(other, pointer('down', at('seats')));
-    desk.enter(other, pointer('up', at('seats')));
-    check(
-        "an attached seat's press on an item tells the item's provider with that seat and opens it for that seat alone",
-        JSON.stringify(told) === JSON.stringify([['seats', 's1', { row: null, action: null }]]) &&
-            answered.over === 'desktop' &&
-            bar().popover === null,
-        [told, answered, bar().popover]
-    );
-    const row = { x: bar().items[1].rect.x, y: 70 };
-    desk.enter(other, pointer('down', row));
-    desk.enter(other, pointer('up', row));
-    check(
-        'its press on a row of the popover it opened tells the row',
-        JSON.stringify(told[1]) === JSON.stringify(['seats', 's1', { row: 'r1', action: null }]),
-        told
-    );
-    await press(at('seats'));
-    const open = bar().popover;
-    check(
-        "the local seat's press on the item opens its popover in the page, which takes the pointer there",
-        open?.item === 'seats' &&
-            open.rows[0].title === 'Ada' &&
-            bar().items[1].open &&
-            takes().includes(JSON.stringify(open.rect)) &&
-            told.at(-1)[1] === 'local',
-        [open, told]
-    );
-    await press({ x: 5, y: 5 }, desk.backdrop);
-    check('a press down on no part of the bar closes it', bar().popover === null && told.length === 3, bar());
-    await press(at('seats'));
-    await press(at('clock'));
-    check(
-        'a press on an item that opens nothing tells its provider and closes the one open',
-        bar().popover === null && JSON.stringify(told.at(-1)) === '["clock","local",{"row":null,"action":null}]',
-        [bar().popover, told.at(-1)]
-    );
-    const before = bar().items[0].rect.width;
-    desk.fromPage('label', { label: 'now', width: 61 });
-    check('a label is laid as wide as the page tells it draws it', before === 37 && bar().items[0].rect.width === 77, [
-        before,
-        bar().items[0].rect.width,
-    ]);
-}
-
 function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     const colours = COLOURS.createColours(['one', 'two']);
     const took = ['a', 'b', 'c', 'd'].map(colours.take);
@@ -3291,7 +3206,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
 // which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it,
 // `key(page)` a key pressed in a page and `chord(mod)` a chord told to a mod. `read` is what reads a page, and
 // `pictures` each picture the stage was asked for.
-function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} }, STATUS, overlays = () => [] }) {
+function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} }, overlays = () => [] }) {
     const handlers = {};
     const sent = [];
     const titles = [];
@@ -3433,7 +3348,6 @@ function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} },
         web: { pageFor: () => null, onPage() {} },
         host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
         ...(clock ? { clock } : {}),
-        ...(STATUS ? { STATUS } : {}),
     });
     desktop.start({
         WINDOWS: {
