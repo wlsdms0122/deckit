@@ -1,0 +1,58 @@
+case = 26
+name = "seats-follow-follows-a-seat-until-the-local-seat-is-followed"
+note = "seats.follow of a seat's id has the host app's window follow that seat and answers true, and seats.list says so under following. With the id of the local seat the window shows the local seat's desktop again, and it answers false."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.follow"
+handle = "shell"
+args = ["2"]
+
+[step.expect]
+answers = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "1", name = "Deckit conformance", colour = "blue", idle = false, following = false }, { id = "2", name = "Ada Lovelace", colour = "green", idle = false, following = true }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.follow"
+handle = "shell"
+args = ["1"]
+
+[step.expect]
+answers = false
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "1", name = "Deckit conformance", colour = "blue", idle = false, following = false }, { id = "2", name = "Ada Lovelace", colour = "green", idle = false, following = false }]

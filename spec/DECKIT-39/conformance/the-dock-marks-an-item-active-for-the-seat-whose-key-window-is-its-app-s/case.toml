@@ -1,0 +1,44 @@
+case = 26
+name = "the-dock-marks-an-item-active-for-the-seat-whose-key-window-is-its-app-s"
+note = "The Dock's marks are kept for each seat. A party's seat presses mod-a's window, which becomes its key window: mod-a's item is marked active for that seat, and for the local seat, which has no key window, no item is."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+look = "dock"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = true }, { mod = "mod-b", pinned = true, running = true, attention = false, active = false }, { mod = "mod-c", pinned = true, running = true, attention = false, active = false }]
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = true, attention = false, active = false }, { mod = "mod-c", pinned = true, running = true, attention = false, active = false }]

@@ -1,0 +1,49 @@
+case = 26
+name = "seats-follow-of-an-id-no-seat-is-told-under-answers-false"
+note = "seats.follow answers false and changes nothing where no seat is told under the id. The window follows ada's seat; seats.follow of the id 9, which was given to nothing, answers false, and the window follows ada's seat still."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.follow"
+handle = "shell"
+args = ["2"]
+
+[step.expect]
+answers = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.follow"
+handle = "shell"
+args = ["9"]
+
+[step.expect]
+answers = false
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "1", name = "Deckit conformance", colour = "blue", idle = false, following = false }, { id = "2", name = "Ada Lovelace", colour = "green", idle = false, following = true }]

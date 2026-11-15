@@ -1,0 +1,63 @@
+case = 26
+name = "the-seat-followed-is-told-nothing-and-keeps-its-desktop"
+note = "Following is a state of the host app's window and of no seat. ada's seat presses mod-a's window and is followed: its key window stands as it was, the local seat's order has no key window, and ada's party is told nothing."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.follow"
+handle = "shell"
+args = ["2"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]
+
+[[step]]
+look = "told"
+party = "p"
+part = "messages"
+
+[step.expect]
+answers = []

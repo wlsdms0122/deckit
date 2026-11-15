@@ -1,0 +1,62 @@
+case = 26
+name = "a-drag-of-a-kept-item-by-a-seat-moves-it-for-every-seat"
+note = "A drag of an item is one seat's, and the Dock's order is kept once. A party's seat presses mod-c's item, moves with the button held to the place of mod-a's item and lets go there: mod-c takes that place and mod-a and mod-b move along by one, for the local seat and for the party's seat alike."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "dock.mod-c", button = 0, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "move", ref = "dock.mod-a", buttons = [0] }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "dock.mod-c", button = 0, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-c", pinned = true, running = true, attention = false, active = false }, { mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = true, attention = false, active = false }]
+
+[[step]]
+look = "dock"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-c", pinned = true, running = true, attention = false, active = false }, { mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = true, attention = false, active = false }]

@@ -1,0 +1,35 @@
+case = 26
+name = "seats-list-answers-the-open-seats-in-the-order-they-opened"
+note = "seats.list answers the open seats in the order they opened, each with the shell's id of it, its user's name, its colour, whether it is idle and whether the host app's window follows it. With the local seat, ada's and then bob's open, mod-a, a system mod granted deckit.seats, reads three seats: the ids count from 1 and the colours are the first three names."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "1", name = "Deckit conformance", colour = "blue", idle = false, following = false }, { id = "2", name = "Ada Lovelace", colour = "green", idle = false, following = false }, { id = "3", name = "Bob Kahn", colour = "orange", idle = false, following = false }]

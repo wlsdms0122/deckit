@@ -1,0 +1,25 @@
+case = 26
+name = "seats-onchange-of-a-number-throws-invalid-argument"
+note = "seats.onChange answers at once and throws INVALID_ARGUMENT handed what is no function: handed a number for its listener, it throws at call."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.onChange"
+handle = "shell"
+args = [7]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
