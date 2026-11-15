@@ -30,7 +30,7 @@ struct ServerTests {
     }
 
     // MARK: - Test
-    @Test("initialize answers where deck keeps the mods and their data, how long a run is given and when a seat is idle")
+    @Test("initialize answers where deck keeps the mods and their data, a run's times and the seats' settings")
     func initializeAnswersFoldersAndTimes() throws {
         // Given
         // When
@@ -40,7 +40,7 @@ struct ServerTests {
         #expect(value(in: response, at: "result", "mods") == .string(home + "/mods"))
         #expect(value(in: response, at: "result", "data") == .string(home + "/data"))
         #expect(value(in: response, at: "result", "timeout") == (try json(#"{"launch":20,"end":5}"#)))
-        #expect(value(in: response, at: "result", "seats") == (try json(#"{"idleTime":300}"#)))
+        #expect(value(in: response, at: "result", "seats") == (try json(#"{"idleTime":300,"asking":false}"#)))
     }
 
     @Test("a call before initialize is refused")
@@ -655,7 +655,7 @@ struct ServerTests {
         )
     }
 
-    @Test("a user that proves its key while the local seat is not idle is answered as asking, and sits as it is let")
+    @Test("with asking set on, a user that proves its key is answered as asking, and sits as it is let")
     func admissionAsksThenSeats() throws {
         // Given
         let privateKey = Curve25519.Signing.PrivateKey()
@@ -663,6 +663,7 @@ struct ServerTests {
         let nonce = Data(repeating: 7, count: 32)
         _ = try send(initializeRequest, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"user/add","params":{"id":"fable","name":"Fable"}}"#, to: sut)
+        let settings = try send(#"{"jsonrpc":"2.0","id":7,"method":"seat/settings","params":{"asking":true}}"#, to: sut)
         _ = try send(
             #"{"jsonrpc":"2.0","id":3,"method":"key/add","params":"#
                 + #"{"principal":"fable","scheme":"ed25519","key":"\#(key)","name":"test"}}"#,
@@ -684,7 +685,7 @@ struct ServerTests {
         // When
         let asking = try send(
             #"{"jsonrpc":"2.0","id":5,"method":"authentication/verify","params":{"transport":"t1","#
-                + #""principal":"fable","scheme":"ed25519","key":"\#(key)","signature":"\#(signature)","idle":12}}"#,
+                + #""principal":"fable","scheme":"ed25519","key":"\#(key)","signature":"\#(signature)"}}"#,
             to: sut
         )
         let seated = try send(
@@ -694,6 +695,7 @@ struct ServerTests {
 
         // Then
         let user = #"{"id":"fable","name":"Fable"}"#
+        #expect(value(in: settings, at: "result") == (try json(#"{"idleTime":300,"asking":true}"#)))
         #expect(value(in: asking, at: "result") == (try json(#"{"asking":{"user":\#(user)}}"#)))
         #expect(value(in: seated, at: "result", "seat") == (try json(#"{"id":"s1","user":\#(user),"local":false}"#)))
         guard case let .array(effects)? = value(in: seated, at: "result", "effects") else {

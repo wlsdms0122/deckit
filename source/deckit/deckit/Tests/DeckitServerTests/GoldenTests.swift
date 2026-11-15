@@ -58,6 +58,7 @@ struct GoldenTests {
         (SeatError.refused, "REFUSED"),
         (SeatError.notAsking("t1"), "NOT_FOUND"),
         (SeatError.localOpen, "REFUSED"),
+        (SeatError.notATime(-1), "INVALID_ARGUMENT"),
         (StateError.notAKey("k"), "INVALID_ARGUMENT"),
         (StateError.notAFolder("f"), "FOLDER"),
         (StateError.reserved("keys"), "RESERVED"),

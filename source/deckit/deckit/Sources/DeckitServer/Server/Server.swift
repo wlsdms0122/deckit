@@ -93,7 +93,7 @@ final class Server {
                 mods: deckit.catalog.folder,
                 data: deckit.deck.dataFolder.folder,
                 timeout: deckit.timeout,
-                seats: deckit.idle
+                seats: try deckit.seatSettings()
             )
         }
 
@@ -210,8 +210,7 @@ final class Server {
                 principal: params.principal,
                 scheme: params.scheme,
                 key: data(params.key),
-                signature: data(params.signature),
-                idle: params.idle
+                signature: data(params.signature)
             )
             return AdmissionAnswer(admission, of: deckit)
 
@@ -228,6 +227,10 @@ final class Server {
 
         case "seat/list":
             return deckit.seats.all
+
+        case "seat/settings":
+            let params = try request.decodeParams(as: SeatSettingsParams.self)
+            return try deckit.setSeatSettings(idleTime: params.idleTime, asking: params.asking)
 
         case "runner/reconnect":
             return answered(try deckit.reconnect(), by: deckit)

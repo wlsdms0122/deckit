@@ -19,8 +19,6 @@ public final class Deckit {
     public let seats: SeatTable
     public let runs: RunTable
     public let timeout: RunTimeout
-    // When a seat is idle.
-    public let idle: IdleRule
     // A mod at the relaunch limit launches again only as its launch is asked.
     private var limit: RelaunchLimit
     // Interface -> what the mods declare to it, as the runs were last told.
@@ -99,7 +97,7 @@ public final class Deckit {
             store: store
         )
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)
-        state.reserve(IdleRule.key)
+        state.reserve(SeatSettings.key)
         let runs = RunTable()
         self.users = try UserRegistry(principalState: deck.principalState, store: store)
         self.seats = SeatTable()
@@ -109,7 +107,6 @@ public final class Deckit {
         self.runs = runs
         self.limit = limit
         self.timeout = timeout
-        self.idle = IdleRule(kept: try state.read(folder: nil, key: IdleRule.key))
         self.now = now
     }
 
@@ -298,16 +295,14 @@ public final class Deckit {
 
     // The transport connection `transport`, which arrived from outside, is admitted as the user its claimant proves to
     // be, as deck verifies it. A principal deckit keeps no user record for is refused as a proof that does not verify
-    // is, so nothing is told of it, and a user that sits or runs already is refused. `idle` is the seconds the local
-    // seat's devices gave no input for: while the local seat is idle the user sits at once, and otherwise it waits
-    // until the local seat answers.
+    // is, so nothing is told of it, and a user that sits or runs already is refused. The user sits at once, or, with
+    // the seats' setting `asking` on, waits until the local seat answers.
     public func admit(
         transport: String,
         principal: String,
         scheme: String,
         key: Data,
-        signature: Data,
-        idle seconds: TimeInterval
+        signature: Data
     ) throws -> Admission {
         let principal = try deck.authentication.verify(
             transport: transport,
@@ -317,7 +312,7 @@ public final class Deckit {
             signature: signature
         )
         let user = try sitter(principal)
-        guard !idle.isIdle(after: seconds) else { return try seat(user, transport: transport) }
+        guard try seatSettings().asking else { return try seat(user, transport: transport) }
         seats.ask(user, transport: transport)
 
         return .asking(user)
@@ -330,6 +325,25 @@ public final class Deckit {
         guard allow else { throw SeatError.refused }
 
         return try seat(sitter(asked.id), transport: transport)
+    }
+
+    // The seats' settings as the state keeps them now: what keeps them may be another run of deckit on the folder.
+    public func seatSettings() throws -> SeatSettings {
+        SeatSettings(kept: try state.read(folder: nil, key: SeatSettings.key))
+    }
+
+    // Each of the seats' settings that is given is set and kept, the other staying as it is kept: answers the settings
+    // from now on, which with none given are those kept. Refused for an idle time below 0.
+    public func setSeatSettings(idleTime: TimeInterval? = nil, asking: Bool? = nil) throws -> SeatSettings {
+        if let idleTime, !SeatSettings.isTime(idleTime) { throw SeatError.notATime(idleTime) }
+
+        let kept = try seatSettings()
+        guard idleTime != nil || asking != nil else { return kept }
+
+        let settings = SeatSettings(idleTime: idleTime ?? kept.idleTime, asking: asking ?? kept.asking)
+        try state.write(reserved: SeatSettings.key, text: try settings.text)
+
+        return settings
     }
 
     // The transport connection closed: its challenge is no more, and the user that waits on it waits no more.

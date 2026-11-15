@@ -23,7 +23,7 @@ struct SeatTests {
     func seatClosesAsItsRunStops() throws {
         // Given
         let sut = try fixture.deckit()
-        _ = try fixture.admit(sut, transport: "t1", idle: 400)
+        _ = try fixture.admit(sut, transport: "t1")
         let run = try #require(sut.deck.run(of: "fable"))
         _ = try sut.started("fable", run: run.number, contributions: nothing)
         let open = sut.seats.all
@@ -33,7 +33,7 @@ struct SeatTests {
         let stopping = sut.seats.all
         _ = try sut.stopped("fable", run: run.number)
         let closed = sut.seats.all
-        let next = try fixture.seated(fixture.admit(sut, transport: "t2", idle: 400)).seat
+        let next = try fixture.seated(fixture.admit(sut, transport: "t2")).seat
 
         // Then
         #expect(open == [Seat(id: "s1", user: user, local: false)])
@@ -46,7 +46,7 @@ struct SeatTests {
     func failedRunCountsTowardNoLimit() throws {
         // Given
         let sut = try fixture.deckit(limit: RelaunchLimit(burst: 1, interval: 10))
-        _ = try fixture.admit(sut, transport: "t1", idle: 400)
+        _ = try fixture.admit(sut, transport: "t1")
         let number = try #require(sut.deck.run(of: "fable")).number
         _ = try sut.started("fable", run: number, contributions: nothing)
 
@@ -62,14 +62,14 @@ struct SeatTests {
         #expect(run.failed)
         #expect(sut.refusal(of: run) == nil)
         #expect(sut.seats.all.isEmpty)
-        #expect(try fixture.seated(fixture.admit(sut, transport: "t2", idle: 400)).seat.id == "s2")
+        #expect(try fixture.seated(fixture.admit(sut, transport: "t2")).seat.id == "s2")
     }
 
     @Test("removing a user that sits asks its run to end and erases it: its record and its keys go, then its seat")
     func removeEndsWhatAUserRuns() throws {
         // Given
         let sut = try fixture.deckit()
-        _ = try fixture.admit(sut, transport: "t1", idle: 400)
+        _ = try fixture.admit(sut, transport: "t1")
         let number = try #require(sut.deck.run(of: "fable")).number
         _ = try sut.started("fable", run: number, contributions: nothing)
 
@@ -97,7 +97,7 @@ struct SeatTests {
         let seat = try sut.openLocalSeat(for: "host")
         let nobody = Result { try sut.openLocalSeat(for: "nobody") }
         let again = Result { try sut.openLocalSeat(for: "fable") }
-        let outside = Result { try fixture.admit(sut, transport: "t1", as: "host", idle: 400) }
+        let outside = Result { try fixture.admit(sut, transport: "t1", as: "host") }
 
         // Then
         #expect(seat == Seat(id: "local", user: User(id: "host", name: "Host"), local: true))
@@ -112,7 +112,7 @@ struct SeatTests {
     func localSeatRefusesAUserThatSits() throws {
         // Given
         let sut = try fixture.deckit()
-        _ = try fixture.admit(sut, transport: "t1", idle: 400)
+        _ = try fixture.admit(sut, transport: "t1")
 
         // When
         let refused = Result { try sut.openLocalSeat(for: "fable") }

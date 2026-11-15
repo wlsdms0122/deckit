@@ -48,13 +48,12 @@ struct SeatFixture {
     }
 
     // The transport connection asks its challenge, signs it as `principal` with `key`, the test's own where none is
-    // given, and is admitted with that proof while the local seat gave no input for `idle` seconds.
+    // given, and is admitted with that proof.
     func admit(
         _ sut: Deckit,
         transport: String,
         as principal: String = "fable",
-        by key: Curve25519.Signing.PrivateKey? = nil,
-        idle: TimeInterval
+        by key: Curve25519.Signing.PrivateKey? = nil
     ) throws -> Admission {
         let key = key ?? privateKey
         let challenge = try sut.deck.authentication.challenge(transport: transport, nonce: nonce, binding: Data())
@@ -65,8 +64,7 @@ struct SeatFixture {
             principal: principal,
             scheme: "ed25519",
             key: key.publicKey.rawRepresentation,
-            signature: try key.signature(for: transcript),
-            idle: idle
+            signature: try key.signature(for: transcript)
         )
     }
 

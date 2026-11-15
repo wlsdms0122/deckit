@@ -15,6 +15,8 @@ public enum SeatError: Refusal, Equatable {
     case notAsking(String)
     // The local seat is open already.
     case localOpen
+    // What is no idle time: one below 0.
+    case notATime(TimeInterval)
 
     // MARK: - Property
     public var message: String {
@@ -27,6 +29,9 @@ public enum SeatError: Refusal, Equatable {
 
         case .localOpen:
             "the local seat is open already"
+
+        case let .notATime(seconds):
+            "not an idle time: \(seconds)"
         }
     }
 

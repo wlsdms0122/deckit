@@ -11,8 +11,8 @@ import Testing
 import Deck
 import Deckit
 
-// A transport connection from outside, admitted as a user through what Deck and Deckit make public. The idle time is
-// 300 seconds: a local seat that gave no input for 400 is idle, and one that gave none for 10 is asked.
+// A transport connection from outside, admitted as a user through what Deck and Deckit make public: at once, or,
+// with the seats' setting `asking` on, once the local seat lets it.
 @Suite("Admit")
 struct AdmitTests {
     // MARK: - Property
@@ -21,13 +21,13 @@ struct AdmitTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a user that proves an authorized key while the local seat is idle sits at once, its job holding deckit.seat")
-    func admitSeatsAUserUnaskedWhileIdle() throws {
+    @Test("a user that proves an authorized key sits at once, its job holding deckit.seat")
+    func admitSeatsAUserUnasked() throws {
         // Given
         let sut = try fixture.deckit()
 
         // When
-        let admission = try fixture.admit(sut, transport: "t1", idle: 400)
+        let admission = try fixture.admit(sut, transport: "t1")
 
         // Then
         let (seat, effects) = try fixture.seated(admission)
@@ -60,7 +60,7 @@ struct AdmitTests {
         let stranger = Curve25519.Signing.PrivateKey()
 
         // When
-        let refused = Result { try fixture.admit(sut, transport: "t1", by: stranger, idle: 400) }
+        let refused = Result { try fixture.admit(sut, transport: "t1", by: stranger) }
 
         // Then
         #expect(throws: AuthenticationError.notAuthenticated) { try refused.get() }
@@ -75,7 +75,7 @@ struct AdmitTests {
         try fixture.authorize(sut, principal: "keyed")
 
         // When
-        let refused = Result { try fixture.admit(sut, transport: "t1", as: "keyed", idle: 400) }
+        let refused = Result { try fixture.admit(sut, transport: "t1", as: "keyed") }
         let asked = Result { try sut.answer(transport: "t1", allow: true) }
 
         // Then
@@ -89,11 +89,11 @@ struct AdmitTests {
     func admitRefusesAUserThatRuns() throws {
         // Given
         let sut = try fixture.deckit()
-        _ = try fixture.admit(sut, transport: "t1", idle: 400)
+        _ = try fixture.admit(sut, transport: "t1")
         let run = sut.deck.run(of: "fable")
 
         // When
-        let refused = Result { try fixture.admit(sut, transport: "t2", idle: 400) }
+        let refused = Result { try fixture.admit(sut, transport: "t2") }
 
         // Then
         #expect(throws: LaunchError.alreadyRunning("fable")) { try refused.get() }
@@ -102,13 +102,14 @@ struct AdmitTests {
         #expect(sut.seats.all.map(\.id) == ["s1"])
     }
 
-    @Test("while the local seat is not idle a user waits, and sits once the local seat lets it")
+    @Test("with asking on a user waits, and sits once the local seat lets it")
     func admitAsksAndSeatsAsAllowed() throws {
         // Given
         let sut = try fixture.deckit()
+        _ = try sut.setSeatSettings(asking: true)
 
         // When
-        let asking = try fixture.admit(sut, transport: "t1", idle: 10)
+        let asking = try fixture.admit(sut, transport: "t1")
         let waiting = sut.deck.run(of: "fable")
         let answered = try sut.answer(transport: "t1", allow: true)
 
@@ -127,7 +128,8 @@ struct AdmitTests {
     func admitRefusesAsDenied() throws {
         // Given
         let sut = try fixture.deckit()
-        _ = try fixture.admit(sut, transport: "t1", idle: 10)
+        _ = try sut.setSeatSettings(asking: true)
+        _ = try fixture.admit(sut, transport: "t1")
 
         // When
         let denied = Result { try sut.answer(transport: "t1", allow: false) }
@@ -140,11 +142,31 @@ struct AdmitTests {
         #expect(sut.seats.all.isEmpty)
     }
 
+    @Test("asking turned off while a user waits seats the next user at once, and the one that waits still waits")
+    func askingOffSeatsTheNextUserAtOnce() throws {
+        // Given
+        let sut = try fixture.deckit()
+        try sut.addUser("other", name: "Other")
+        try fixture.authorize(sut, principal: "other")
+        _ = try sut.setSeatSettings(asking: true)
+        _ = try fixture.admit(sut, transport: "t1")
+
+        // When
+        _ = try sut.setSeatSettings(asking: false)
+        let next = try fixture.admit(sut, transport: "t2", as: "other")
+        let answered = try sut.answer(transport: "t1", allow: true)
+
+        // Then
+        #expect(try fixture.seated(next).seat.id == "s1")
+        #expect(try fixture.seated(answered).seat.id == "s2")
+    }
+
     @Test("a transport connection that closes while its user waits is answered no more")
     func closeDropsAWaitingUser() throws {
         // Given
         let sut = try fixture.deckit()
-        _ = try fixture.admit(sut, transport: "t1", idle: 10)
+        _ = try sut.setSeatSettings(asking: true)
+        _ = try fixture.admit(sut, transport: "t1")
 
         // When
         sut.close(transport: "t1")
@@ -160,7 +182,8 @@ struct AdmitTests {
     func answerHoldsTheUserToAdmitAgain() throws {
         // Given
         let sut = try fixture.deckit()
-        _ = try fixture.admit(sut, transport: "t1", idle: 10)
+        _ = try sut.setSeatSettings(asking: true)
+        _ = try fixture.admit(sut, transport: "t1")
         _ = try sut.removeUser("fable")
 
         // When

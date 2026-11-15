@@ -9,7 +9,7 @@ import Foundation
 import Deckit
 
 // Where in deckit's folder deck keeps the mods it installed and the mods' data folders, one a mod named by its id, how
-// long a run is given, and when a seat is idle.
+// long a run is given, and the seats' settings.
 struct InitializeResult: Encodable, Sendable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -22,7 +22,7 @@ struct InitializeResult: Encodable, Sendable {
     let mods: URL
     let data: URL
     let timeout: RunTimeout
-    let seats: IdleRule
+    let seats: SeatSettings
 
     // MARK: - Initializer
     // MARK: - Public

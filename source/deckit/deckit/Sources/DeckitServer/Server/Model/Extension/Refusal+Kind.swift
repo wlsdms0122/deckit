@@ -180,6 +180,9 @@ extension Refusal {
 
             case .notAsking:
                 "NOT_FOUND"
+
+            case .notATime:
+                "INVALID_ARGUMENT"
             }
 
         case let error as StateError:
