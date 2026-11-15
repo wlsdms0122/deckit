@@ -360,6 +360,7 @@ async function draw(app, look, shots, origin) {
     };
     const users = [];
     const rests = [];
+    const held = []; // the window each of the two holds, tiled
     // The desktop's top right, down to under the view of Seats as it is laid.
     const underItem = ({ rect }) => {
         const x = Math.max(0, Math.round(rect.x) - 80);
@@ -368,7 +369,6 @@ async function draw(app, look, shots, origin) {
     await surface('seats', async (name) => {
         users.push(await attach('ada', 'Ada'), await attach('grace', 'Grace'));
         const behind = (await windowsNow()).filter(({ key, scaled }) => !key && !scaled);
-        const held = [];
         for (const [nth, user] of users.entries()) {
             const { at, window } = await shownTo(user, behind);
             behind.splice(behind.indexOf(window), 1);
@@ -431,6 +431,29 @@ async function draw(app, look, shots, origin) {
         await sleep(600);
         await desktopShot(name, { under, crop: around([from, to, other]) });
         await users[0].point('up', to, { button: 0, buttons: [] });
+    });
+    // One seat's cursor on its own window where the local seat has another window in front, drawn dimmed, and the
+    // other's at rest on a window that shows, drawn whole.
+    await surface('seats-dimmed', async (name) => {
+        const all = await windowsNow();
+        const shared = (one, other) => {
+            const [x, y] = [Math.max(one.x, other.x), Math.max(one.y, other.y)];
+            const width = Math.min(one.x + one.width, other.x + other.width) - x;
+            const height = Math.min(one.y + one.height, other.y + other.height) - y;
+            return width > 80 && height > 80 ? { x, y, width, height } : null;
+        };
+        for (const [nth, user] of users.entries()) {
+            const at = all.findIndex(({ id }) => id === held[nth]);
+            const covers = at < 0 ? [] : all.slice(at + 1).flatMap(({ rect }) => shared(all[at].rect, rect) ?? []);
+            if (!covers.length || !users[1 - nth]) continue;
+            const covered = { x: Math.round(covers[0].x + 40), y: Math.round(covers[0].y + 40) };
+            await user.point('move', covered);
+            await users[1 - nth].point('move', rests[1 - nth]);
+            await sleep(600);
+            await desktopShot(name, { under, crop: around([covered, rests[1 - nth]]) });
+            return;
+        }
+        throw new Error("no seat's window lies under another for the local seat");
     });
     // The two seats' cursors over what lies over the desktop's page: one on the status bar's panel window in the
     // host's bar, the other on the menu of a Dock item, which the desktop's page presents over itself.
