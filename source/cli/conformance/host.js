@@ -168,12 +168,13 @@ const pagesOn = (pages) =>
             },
         },
     });
-// The keys of the base shell: what hears a key pressed in a page kept for the input key, the app in front with the
-// page that has the keyboard, and the chords the machine gives the host app outside it held here, never with the
-// machine: one the case names unavailable, or one held already, is not given.
+// The keys of the base shell: what hears a key pressed in a page kept for the input key and hearing the page too, for
+// a key put into it, the app in front with the page that has the keyboard, and the chords the machine gives the host
+// app outside it held here, never with the machine: one the case names unavailable, or one held already, is not given.
 const keysOn = (keys) => {
-    const kept = (heard) => (page, handler) => {
+    const kept = (heard, hear) => (page, handler) => {
         heard.set(page, [...(heard.get(page) ?? []), handler]);
+        hear(page, handler);
     };
     const hotkey = (keystroke, handler) => {
         const chord = chordOf(keystroke);
@@ -182,8 +183,8 @@ const keysOn = (keys) => {
         return () => hotkeys.get(chord) === handler && hotkeys.delete(chord);
     };
     return Object.create(keys, {
-        capture: { value: kept(capturing) },
-        unhandled: { value: kept(unhandling) },
+        capture: { value: kept(capturing, keys.capture) },
+        unhandled: { value: kept(unhandling, keys.unhandled) },
         focused: { value: () => keyboard },
         hotkey: { value: hotkey },
     });
