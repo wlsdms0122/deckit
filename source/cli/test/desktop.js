@@ -922,6 +922,9 @@ async function main() {
     await viewChecks({ LAYOUT, createDesktop }, check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
+    const ROSTER = await import(url('deckit-shell', 'shell', 'seats', 'model', 'roster.js'));
+    const { createSeats } = await import(url('deckit-shell', 'shell', 'seats', 'main.js'));
+    await memberChecks({ ROSTER, createSeats, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
     await typingChecks({ LAYOUT, createDesktop }, check);
 
@@ -2534,6 +2537,141 @@ async function askChecks({ SEATS, createDesktop }, check) {
     );
 }
 
+// What a mod with deckit.seats is told of the seats, and what it does to them, whichever seat's press made it ask.
+async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
+    const roster = ROSTER.createRoster();
+    const seat = (id, more = {}) => ({
+        id,
+        name: `user ${id}`,
+        colour: 'blue',
+        idle: false,
+        following: false,
+        ...more,
+    });
+    const both = roster.told({ seats: [seat('local'), seat('s1', { idle: true })], asks: [{ id: 1, name: 'Ada' }] });
+    const ids = [...both.seats, ...both.asks].map(({ id }) => id);
+    check(
+        "a mod is told each seat and each ask as plain data in its order, under an id of the roster's own",
+        JSON.stringify(both.seats.map(({ id, ...rest }) => rest)) ===
+            JSON.stringify([
+                { name: 'user local', colour: 'blue', idle: false, following: false },
+                { name: 'user s1', colour: 'blue', idle: true, following: false },
+            ]) &&
+            JSON.stringify(both.asks.map(({ id, ...rest }) => rest)) === '[{"name":"Ada"}]' &&
+            new Set(ids).size === 3 &&
+            ids.every((id) => typeof id === 'string' && !['local', 's1'].includes(id)) &&
+            roster.seatOf(both.seats[1].id) === 's1' &&
+            roster.askOf(both.asks[0].id) === 1,
+        both
+    );
+    const again = roster.told({ seats: [seat('local'), seat('s1')], asks: [] });
+    const alone = roster.told({ seats: [seat('local')], asks: [] });
+    const back = roster.told({ seats: [seat('local'), seat('s1')], asks: [] });
+    check(
+        'an id holds while its seat sits, names nothing once it left, and a seat that sits again has a new one',
+        again.seats[1].id === both.seats[1].id &&
+            alone.seats[0].id === both.seats[0].id &&
+            roster.askOf(both.asks[0].id) === null &&
+            back.seats[1].id !== both.seats[1].id &&
+            roster.seatOf(both.seats[1].id) === null &&
+            roster.seatOf(back.seats[1].id) === 's1' &&
+            roster.seatOf('local') === null,
+        [again, alone, back]
+    );
+
+    const desk = desktopOver(createDesktop, {});
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    createSeats({ deckit: desk.deckit, DESKTOP: desk.desktop }).start();
+    const page = { name: 'page-seats', mod: 'seats' };
+    const asked = (channel, payload = {}) => desk.handlers[`deckit-shell:seats-${channel}`](payload, page);
+    const changes = () => desk.sent.filter(({ channel }) => channel === 'deckit-shell:seats-changed');
+    asked('watch');
+    const other = desk.sit('s1');
+    const third = desk.sit('s2');
+    const sat = asked('read');
+    check(
+        'the member answers who sits: its name, the name of its colour, idle or not, followed or not',
+        JSON.stringify(sat.seats.map(({ id, ...rest }) => rest)) ===
+            JSON.stringify([
+                { name: 'Local', colour: 'blue', idle: false, following: false },
+                { name: 's1', colour: 'green', idle: false, following: false },
+                { name: 's2', colour: 'orange', idle: false, following: false },
+            ]) &&
+            sat.asks.length === 0 &&
+            changes().length === 2 &&
+            changes().every((told) => told.page === page && JSON.stringify(told.payload) === '{}'),
+        [sat, changes()]
+    );
+    const asking = (id) => {
+        const control = new AbortController();
+        const waits = { control, answer: undefined };
+        desk.seats.served.onAsk({ user: { id, name: `user ${id}` } }, { signal: control.signal }).then((answer) => {
+            waits.answer = answer;
+        });
+        return waits;
+    };
+    const settled = () => new Promise((resolve) => setTimeout(resolve));
+    const [ada, grace] = [asking('ada'), asking('grace')];
+    const waiting = asked('read').asks;
+    const told = changes().length;
+    const allowed = asked('answer', { ask: waiting[0].id, allow: true });
+    const twice = asked('answer', { ask: waiting[0].id, allow: false });
+    await settled();
+    check(
+        'an ask that waits is told by its name, and an answer of allow lets its user sit, whoever pressed for it',
+        JSON.stringify(waiting.map(({ name }) => name)) === '["user ada","user grace"]' &&
+            told === 4 &&
+            allowed === true &&
+            twice === false &&
+            ada.answer === true &&
+            grace.answer === undefined &&
+            asked('read').asks.length === 1 &&
+            changes().length === 5,
+        [waiting, allowed, twice, ada.answer, grace.answer, changes().length]
+    );
+    const denied = asked('answer', { ask: waiting[1].id, allow: false });
+    await settled();
+    check(
+        'an answer of deny refuses its user, and an ask that is not told answers nothing',
+        denied === true && grace.answer === false && asked('answer', { ask: 'none', allow: true }) === false,
+        [denied, grace.answer]
+    );
+    const followed = asked('follow', { seat: sat.seats[1].id });
+    const shows = desk.page().following?.id;
+    const marks = asked('read').seats.map(({ following }) => following);
+    const ended = asked('follow', { seat: null });
+    const own = desk.page().following;
+    const local = asked('follow', { seat: sat.seats[0].id });
+    const unknown = asked('follow', { seat: 'none' });
+    check(
+        "following a seat shows its view in the host window and marks it, and following none ends it; the host's " +
+            'own seat and a seat that is not told are followed by no one',
+        followed === true &&
+            shows === 's1' &&
+            marks.join() === 'false,true,false' &&
+            ended === false &&
+            own === null &&
+            local === false &&
+            unknown === false &&
+            desk.page().following === null,
+        [followed, shows, marks, ended, own, local, unknown]
+    );
+    desk.seats.idle.add('s2');
+    desk.enter(other, { event: 'pointer', type: 'move', x: 10, y: 10, button: 0, count: 1 });
+    const idle = asked('read').seats.map(({ idle }) => idle);
+    asked('follow', { seat: sat.seats[2].id });
+    desk.leave(third);
+    const left = asked('read').seats;
+    check(
+        'a seat whose devices gave nothing for the idle time is told idle, and one that leaves is told no more',
+        idle.join() === 'false,false,true' &&
+            left.map(({ name, following }) => `${name} ${following}`).join() === 'Local false,s1 false' &&
+            left[1].id === sat.seats[1].id,
+        [idle, left]
+    );
+}
+
 // The cursors' surface: laid over every level of the stage and over what the pages present, while more than one seat
 // is at the desktop, taking the pointer nowhere.
 async function cursorChecks({ LAYOUT, createDesktop }, check) {
@@ -3436,6 +3574,9 @@ function desktopOver(
     return {
         desktop,
         desktopPage,
+        deckit,
+        handlers,
+        sent,
         state,
         titles,
         focused,

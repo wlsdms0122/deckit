@@ -4,6 +4,7 @@ import * as STYLE_PERMISSION from '../../../deckit-sdk/shell/style/model/permiss
 import * as FONTS_PERMISSION from '../../../deckit-sdk/shell/fonts/model/permission.js';
 import * as WINDOW_PERMISSION from '../../../deckit-sdk/shell/window/model/permission.js';
 import * as KEY_PERMISSION from '../../../deckit-sdk/shell/key/model/permission.js';
+import * as SEATS_PERMISSION from '../../../deckit-sdk/shell/seats/model/permission.js';
 import * as ENVIRONMENT from '../environment/index.js';
 import { createDrop } from '../drop/main.js';
 import { createPage } from '../page/main.js';
@@ -11,6 +12,7 @@ import * as SHELL_LAYER from '../../../deckit-sdk/shell/mod/model/layer.js';
 import { createRegion } from '../region/main.js';
 import { createDesktop } from '../desktop/main.js';
 import { createDock } from '../dock/main.js';
+import { createSeats } from '../seats/main.js';
 import { createStyle } from '../style/main.js';
 import { createTheme } from '../theme/main.js';
 import { createFonts } from '../fonts/main.js';
@@ -25,8 +27,9 @@ import * as FIELD from '../../../deckit-sdk/shell/mods/field.js';
 const SHELL_CONFIG = { dock: null };
 // What the host app answers the UI: where it is shown.
 const ATTACH_ANSWERS = ['start', 'show', 'desktopTitled', 'showWindow', 'closeWindow'];
-// The permissions the UI defines, in the order a person reads them: the windows', the keys', then the look's.
-const SHELL_PERMISSIONS = [WINDOW_PERMISSION, KEY_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION];
+// The permissions the UI defines, in the order a person reads them: the windows', the keys', the look's, then the
+// seats'.
+const SHELL_PERMISSIONS = [WINDOW_PERMISSION, KEY_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION, SEATS_PERMISSION];
 // The UI is attached once, to what connect answered.
 let attached = false;
 
@@ -100,6 +103,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
     const THEME = createTheme({ deckit });
     const FONTS = createFonts({ deckit, state: STATE, installed: ENV.fonts });
     const FILES = createFiles({ deckit, dialogs: ENV.dialogs, reveal: ENV.reveal });
+    const SEATS = createSeats({ deckit, DESKTOP });
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         FONTS.start({ onChange: THEME.setFonts });
@@ -109,6 +113,7 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         REGION.start();
         DROP.start();
         DESKTOP.start({ WINDOWS, DOCK });
+        SEATS.start();
         WINDOWS.start();
         DOCK.start();
         FILES.start();

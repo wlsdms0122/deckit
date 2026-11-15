@@ -92,6 +92,8 @@ export function createDesktop({
     // null, the view the local seat's own.
     let followed = null;
     let ended = false; // whether the key that ended a follow is still down: what it would do is not done
+    const seatListeners = new Set(); // what hears who sits, who asks and who is followed change
+    let seatsTold = ''; // what they were told of last, written
     // A keyboard is given up by an idle holder, which is told who took it.
     const GIVING = {
         isIdle: (seat) => seated.has(seat) && deckit.seats.isIdle(seated.get(seat)),
@@ -646,6 +648,7 @@ export function createDesktop({
         }
         layout();
         tellPage();
+        tellSeats();
         const key = keyPanel() ?? keyWindow(LOCAL);
         // A panel window's content may open after it took the keyboard.
         if (key !== focused || (key && key === keyPanel() && !focusedContent && key.surface)) {
@@ -787,6 +790,37 @@ export function createDesktop({
             });
             update();
         });
+    }
+
+    // Who sits and who asks to, as plain data: `seats`, each `{ id, name, colour, idle, following }` in the order they
+    // sat, `name` its user's, `colour` the name of the colour it is told apart by, `following` whether the host window
+    // shows its view; and `asks`, each `{ id, name }` in the order they asked, `name` the user's.
+    function seatsNow() {
+        return {
+            seats: [...hands.keys()].map((id) => ({
+                id,
+                name: seated.get(id)?.user.name ?? id,
+                colour: COLOURS.of(id),
+                idle: seated.has(id) && deckit.seats.isIdle(seated.get(id)),
+                following: id === followed,
+            })),
+            asks: [...asks].map(([id, { user }]) => ({ id, name: user.name })),
+        };
+    }
+
+    // Each listener hears that what seatsNow answers changed, once for a change.
+    function tellSeats() {
+        const written = JSON.stringify(seatsNow());
+        if (written === seatsTold) return;
+        seatsTold = written;
+        for (const listener of [...seatListeners]) listener();
+    }
+
+    // The ask `id` answered, whichever seat's press asked it: whether it waited.
+    function answerAsk(id, allow) {
+        const waiting = asks.get(id);
+        waiting?.answer(!!allow);
+        return !!waiting;
     }
 
     // The chips at the desktop's bottom right (SEATS_MODEL.chipsOf): one for each seat but the one the host window
@@ -2066,6 +2100,22 @@ export function createDesktop({
         remember,
         keepsFramesOf,
         forgetFramesOf,
+        // What the seats' member reads and does (shell/seats): `now()` answers who sits and who asks (seatsNow),
+        // `onChange(listener)` hears it change and answers its off, `answer(ask, allow)` answers the ask of that id
+        // and says whether it waited, and `follow(seat)` has the host window show that seat's view, or the local
+        // seat's own with null, and says whether it shows that seat's now.
+        seats: Object.freeze({
+            now: seatsNow,
+            onChange: (listener) => {
+                seatListeners.add(listener);
+                return () => seatListeners.delete(listener);
+            },
+            answer: answerAsk,
+            follow: (seat) => {
+                follow(seat);
+                return seat !== null && followed === seat;
+            },
+        }),
         open,
         close,
         orderFront,
