@@ -1021,7 +1021,7 @@ async function run({
         check(
             'outside: a seat reads the status bar as a panel window, a toolbar with a button for each item',
             /toolbar "Status Bar"/.test(asWindow) &&
-                /button "Clock"/.test(asWindow) &&
+                /button "Clock, [^"]+"/.test(asWindow) &&
                 /button "Star, 99\+"/.test(asWindow),
             asWindow
         );
@@ -1159,11 +1159,11 @@ async function run({
                 'seat reads it after the clock while it is fixed and before it once it is not',
             !!seatKept.entry &&
                 fixedWhole(seatKept.now) &&
-                /button "Clock"[^\n]*\n(?: +button "Notifications[^\n]*\n)? +button "Star/.test(seatReadsKept) &&
+                /button "Clock, [^\n]*\n(?: +button "Notifications[^\n]*\n)? +button "Star/.test(seatReadsKept) &&
                 !!seatFreed.entry &&
                 scrolls(seatFreed.now) &&
                 inView(seatFreed.now) &&
-                /button "Star[^\n]*\n(?: +button "[^\n]*\n)* +button "Clock"/.test(seatReadsFreed),
+                /button "Star[^\n]*\n(?: +button "[^\n]*\n)* +button "Clock, /.test(seatReadsFreed),
             JSON.stringify({ seatKept, seatReadsKept, seatFreed, seatReadsFreed })
         );
     }

@@ -73,9 +73,10 @@ function countText(count) {
     return count > COUNT.most ? `${COUNT.most}+` : String(count);
 }
 
-// What an item is called: its name, its count and whether it asks for attention.
-function titleOf({ name, count, tone }) {
-    return [name, ...(count === null ? [] : [countText(count)]), ...(tone === TONES[0] ? [] : [tone])].join(', ');
+// What an item is called: its name, what its label says, its count and whether it asks for attention.
+function titleOf({ name, label = '', count, tone }) {
+    const said = [name, label, count === null ? '' : countText(count), tone === TONES[0] ? '' : tone];
+    return said.filter(Boolean).join(', ');
 }
 
 // What the button of an item shows, as plain data: `{ title, tone, pressable, icon, label, count }`, `title` what it

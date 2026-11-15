@@ -68,29 +68,49 @@ main
 separator "Sidebar"`,
 };
 const CENTER = 'region "Notifications"';
-
-// Whether the lines of `text` hold those of `golden`, in its order.
+// The status bar's band: the clock named with the time it says, an item with its count and its attention.
+const BAND = `toolbar "Status Bar"
+  button "Clock, *"
+  button "Notifications*"`;
+// Whether the lines of `text` hold those of `golden`, in its order: a `*` in a golden line is any text there.
 const holds = (text, golden) => {
     const lines = text.split('\n');
+    const plain = (part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     let from = 0;
-    return golden.split('\n').every((line) => (from = lines.indexOf(line, from) + 1) > 0);
+    return golden.split('\n').every((line) => {
+        const shape = new RegExp(`^${line.split('*').map(plain).join('.*')}$`);
+        const at = lines.findIndex((each, index) => index >= from && shape.test(each));
+        from = at + 1;
+        return at >= 0;
+    });
 };
 
-async function run({ check, main, open, show, desktopLaid, pressIn }) {
+// How a run reads a page by role and name alone: `reading(id, { deepest, items })` answers `{ text, items }`, the
+// lines `deepest` levels deep, with what a list holds only where `items` says so, and how many items it lists.
+async function reader(main) {
     const { elementLine } = await import(MODEL);
     const read = await asked(main);
-    // A page's reading by role and name alone, and whether it lists any item.
-    const reading = async (id) => {
+    return async (id, { deepest = DEEPEST, items = false } = {}) => {
         const { lines = [] } = await read('outline', id);
         const kept = [];
         let under = null;
         for (const { depth, role, name } of lines) {
             if (under !== null && depth > under) continue;
-            under = ITEMS.has(role) ? depth : null;
-            if (under === null && depth <= DEEPEST) kept.push('  '.repeat(depth) + elementLine({ role, name }));
+            under = !items && ITEMS.has(role) ? depth : null;
+            if (under === null && depth <= deepest) kept.push('  '.repeat(depth) + elementLine({ role, name }));
         }
         return { text: kept.join('\n'), items: lines.filter(({ role }) => ITEMS.has(role)).length };
     };
+}
+
+// The windows of the mod `mod` the host window lays, on any seat's screen.
+const laidOf = async (desktopLaid, mod) =>
+    ((await desktopLaid())?.pages ?? []).filter(
+        ({ opener, name }) => opener?.startsWith(`deckit://${mod}.mod`) && /^deckit-window-/.test(name)
+    );
+
+async function run({ check, main, open, show, desktopLaid, pressIn }) {
+    const reading = await reader(main);
     for (const [mod, golden] of Object.entries(MODS)) {
         const shown = await open(mod);
         await show(mod);
@@ -101,14 +121,13 @@ async function run({ check, main, open, show, desktopLaid, pressIn }) {
         // The folder a tab of the Finder starts at holds something, and each entry is an item of the tree.
         if (mod === 'finder') check("views: the Finder's entries read as the items of its tree", items > 6, items);
     }
-    const laidOf = async (mod) =>
-        ((await desktopLaid())?.pages ?? []).filter(
-            ({ opener, name }) => opener?.startsWith(`deckit://${mod}.mod`) && /^deckit-window-/.test(name)
-        );
     const bell = '.status-bar-item[data-item="notifications"]';
-    const [bar] = await laidOf('status-bar');
+    const [bar] = await laidOf(desktopLaid, 'status-bar');
+    const band = bar ? (await reading(bar.id)).text : '';
+    console.log(`[views] the status bar\n${band}`);
+    check('views: the status bar reads as its items, the clock by the time it says', holds(band, BAND), band);
     await pressIn(bar, bell);
-    const center = await until(async () => (await laidOf('notifications'))[0], 4000);
+    const center = await until(async () => (await laidOf(desktopLaid, 'notifications'))[0], 4000);
     await sleep(500);
     const { text } = center ? await reading(center.id) : { text: '' };
     console.log(`[views] the notification center\n${text}`);

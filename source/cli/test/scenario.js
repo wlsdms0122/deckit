@@ -345,12 +345,12 @@ async function walk({
             bar.y === 12 &&
             bar.x + bar.width === screenWidth - 8 &&
             name === 'Status Bar' &&
-            clock?.name === 'Clock' &&
+            /^Clock, \S/.test(clock?.name ?? '') &&
             clock.height === 24 &&
             clock.y === 2 &&
             capsule.fixed?.x === 2 &&
-            capsule.items.map(({ id, name: called }) => `${id} ${called}`).join() ===
-                'clock Clock,notifications Notifications, 2' &&
+            capsule.items.map(({ id }) => id).join() === 'clock,notifications' &&
+            capsule.items[1].name === 'Notifications, 2' &&
             clock.x + clock.width === bar.width - 2)(capsule),
         JSON.stringify({ ...capsule, screenWidth })
     );

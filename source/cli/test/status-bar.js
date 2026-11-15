@@ -233,10 +233,12 @@ async function main() {
         BAR.titleOf({ name: 'Clock', count: null, tone: 'plain' }),
         BAR.titleOf({ name: 'Seats', count: 2, tone: 'plain' }),
         BAR.titleOf({ name: 'Seats', count: 250, tone: 'attention' }),
+        BAR.titleOf({ name: 'Clock', label: 'Mon 10:42', count: null, tone: 'plain' }),
+        BAR.titleOf({ name: 'Seats', label: 'Ada', count: 2, tone: 'attention' }),
     ];
     check(
-        'an item is called by its name, its count and its attention',
-        same(called, ['Clock', 'Seats, 2', 'Seats, 99+, attention']),
+        'an item is called by its name, what its label says, its count and its attention',
+        same(called, ['Clock', 'Seats, 2', 'Seats, 99+, attention', 'Clock, Mon 10:42', 'Seats, Ada, 2, attention']),
         called
     );
 
@@ -244,8 +246,14 @@ async function main() {
     const still = BAR.faceOf(BAR.restOf({ name: 'Clock', icon: null, command: null }));
     check(
         "an item's button shows its title, tone, glyph, label and count as written, and whether a press runs",
-        same(face, { title: 'Seats, 99+', tone: 'plain', pressable: true, icon: 'star', label: 'Al', count: '99+' }) &&
-            same(still, { title: 'Clock', tone: 'plain', pressable: false, icon: null, label: '', count: '' }),
+        same(face, {
+            title: 'Seats, Al, 99+',
+            tone: 'plain',
+            pressable: true,
+            icon: 'star',
+            label: 'Al',
+            count: '99+',
+        }) && same(still, { title: 'Clock', tone: 'plain', pressable: false, icon: null, label: '', count: '' }),
         { face, still }
     );
 
@@ -563,7 +571,7 @@ async function modChecks(check) {
     check(
         "an item's button is the same element once the item is set in another shape, as is another item's, and it " +
             'shows what was set',
-        anew.star && anew.clock && anew.label === 'new' && anew.name === 'Star, 3' && anew.tone === 'plain',
+        anew.star && anew.clock && anew.label === 'new' && anew.name === 'Star, new, 3' && anew.tone === 'plain',
         anew
     );
     check(
