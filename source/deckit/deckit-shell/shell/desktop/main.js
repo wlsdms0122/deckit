@@ -562,15 +562,16 @@ export function createDesktop({
     // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` while the
     // keyboard of the seat that holds it is on it, not away (`away`), its size, and where its buttons stand over its
     // top; a panel window is key while it holds some seat's keyboard and has no buttons, and a view under an anchor is
-    // shown only while it stands on some seat's screen, told the size it would stand at while it does not. A content is one page under
-    // every seat that looks at it, so it is told what is so of the one whose keyboard it has, its holder: a seat that
-    // only looks at it has no keyboard in it.
+    // shown only while it stands on some seat's screen, told the size it would stand at while it does not. A panel
+    // window in the host's bar is told its `room` there (LAYOUT.roomsIn), any other window none. A content is one page
+    // under every seat that looks at it, so it is told what is so of the one whose keyboard it has, its holder: a seat
+    // that only looks at it has no keyboard in it.
     function stateOf(window) {
         if (panels.has(window.id)) {
             const frame = panelFrameOf(window.id);
             const key = panelHolderOf(window.id) !== null;
             const { width, height } = frame ?? ANCHORED.sizeOf(bounds(), window.size);
-            return { shown: shown && !!frame, key, width, height, titleBar: null };
+            return { shown: shown && !!frame, key, width, height, titleBar: null, room: roomOf(window.id) };
         }
         const frame = MANAGER.frameOf(window.id);
         const holder = MANAGER.holderOf(window.id);
@@ -580,7 +581,18 @@ export function createDesktop({
             width: frame?.width ?? 0,
             height: frame?.height ?? 0,
             titleBar: LAYOUT.guideOf(window.bar),
+            room: null,
         };
+    }
+
+    // The room the panel window `id` has in the host's bar, or null for one that stands at no edge or at another.
+    function roomOf(id) {
+        const atEdge = [...panels.values()].filter(({ anchor }) => !anchor);
+        const rooms = LAYOUT.roomsIn(
+            atEdge.map(({ edge, size }) => ({ edge, size })),
+            { ...stage.size(), bar: strip.height, controls: strip.controlsWidth }
+        );
+        return rooms[atEdge.findIndex((window) => window.id === id)] ?? null;
     }
 
     // Whether the window is the local seat's key window, which an overlay window or a panel window holding the keyboard

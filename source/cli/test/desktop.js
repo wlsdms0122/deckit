@@ -762,6 +762,37 @@ async function main() {
             (desk.page().windows.find(({ key }) => key)?.id ?? null) === keyBefore,
         { panelTold, keyBefore, windows: desk.page().windows }
     );
+    const roomsNow = () => [firstPanel, secondPanel].map((panel) => desk.desktop.stateOf(panel).room);
+    const rooms = roomsNow();
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 100 } });
+    const roomsLess = roomsNow();
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    const elsewhere = LAYOUT.roomsIn(
+        [
+            { edge: 'right', size: { width: 300, height: 200 } },
+            { edge: 'top', size: { width: 900, height: 20 } },
+        ],
+        { width: 800, bar: 28, controls: 70 }
+    );
+    check(
+        "a panel window in the bar is told its room there, the bar past the host's controls less 8 at each end and " +
+            'what the other panel windows in it take, told again as the controls change; any other window has none',
+        JSON.stringify([rooms, roomsLess, roomsNow()]) ===
+            JSON.stringify([
+                [
+                    { width: 646, height: 28 },
+                    { width: 606, height: 28 },
+                ],
+                [
+                    { width: 616, height: 28 },
+                    { width: 576, height: 28 },
+                ],
+                rooms,
+            ]) &&
+            JSON.stringify(elsewhere) === JSON.stringify([null, { width: 714, height: 28 }]) &&
+            desk.desktop.stateOf(desk.page().windows.map(({ id }) => ({ id }))[0] ?? {}).room === null,
+        { rooms, roomsLess, elsewhere }
+    );
     // A child of `b` shown in its panel window's region, pressed.
     const childPage = { name: 'page-c', mod: 'c' };
     desk.children.runs = [{ run: { mod: { id: 'c' }, state: 'running', summary: { view: true } }, page: childPage }];

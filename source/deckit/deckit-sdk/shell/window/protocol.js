@@ -98,9 +98,10 @@ export const doubleClick = CHANNEL.pageToMain(
     { guard: CHANNEL.GUARD.ANY }
 );
 
-// `{ id, shown, key, width, height, titleBar }`, each time any of it changes: `shown` whether it is on some seat's
-// screen, `key` whether it is some seat's key window, `titleBar` `{ height, controlsWidth }`, the title bar over the
-// content's top and where its area starts past the buttons, or null for content under no bar of the shell's.
+// `{ id, shown, key, width, height, titleBar, room }`, each time any of it changes: `shown` whether it is on some
+// seat's screen, `key` whether it is some seat's key window, `titleBar` `{ height, controlsWidth }`, the title bar over
+// the content's top and where its area starts past the buttons, or null for content under no bar of the shell's, and
+// `room` `{ width, height }`, the room a panel window at the edge `top` has in the bar, or null for any other.
 export const state = CHANNEL.mainToPage('deckit-shell:window-state');
 // `{ id }`: the window closed.
 export const closed = CHANNEL.mainToPage('deckit-shell:window-closed');

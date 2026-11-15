@@ -28,7 +28,15 @@ const STYLE = `
 `;
 const LEVELS = Object.freeze(['normal', 'overlay', 'panel']);
 const EDGES = Object.freeze(['top', 'right']);
-const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didResize', 'didClose']);
+const CALLBACKS = Object.freeze([
+    'didAppear',
+    'didDisappear',
+    'didBecomeKey',
+    'didResignKey',
+    'didResize',
+    'didChangeRoom',
+    'didClose',
+]);
 // A normal window's title bar: its styles, the height it is never below, and the flags that say which buttons act.
 const TITLE_BARS = Object.freeze(['unified', 'titled']);
 const TITLE_BAR_HEIGHT = 48;
@@ -138,7 +146,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             options,
             document,
             scope,
-            state: { shown: false, key: false, size: null },
+            state: { shown: false, key: false, size: null, room: null },
             title,
             off: [],
         };
@@ -174,6 +182,11 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             },
             get title() {
                 return held.title;
+            },
+            // The room a panel window at the edge `top` has in the bar, `{ width, height }`: null until the shell told
+            // it, and for any other window.
+            get room() {
+                return held.state.room && { ...held.state.room };
             },
             setTitle(title) {
                 if (typeof title !== 'string')
@@ -236,9 +249,9 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
 
     // What main tells of the window, each part told as it changes: it appears before it becomes key, and resigns key
     // before it disappears.
-    function told(held, { shown, key, width, height, titleBar }) {
+    function told(held, { shown, key, width, height, titleBar, room }) {
         const was = held.state;
-        held.state = { shown, key, size: { width, height } };
+        held.state = { shown, key, size: { width, height }, room };
         guide(held.document, titleBar, key);
         if (shown) held.document.querySelector('.deckit-window')?.toggleAttribute('data-shown', true);
         if (shown && !was.shown) tell(held, 'didAppear');
@@ -246,6 +259,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         if (!was.key && key) tell(held, 'didBecomeKey');
         if (was.shown && !shown) tell(held, 'didDisappear');
         if (was.size && (was.size.width !== width || was.size.height !== height)) tell(held, 'didResize');
+        if (JSON.stringify(was.room) !== JSON.stringify(room)) tell(held, 'didChangeRoom');
     }
 
     // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons. Its safe area

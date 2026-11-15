@@ -449,7 +449,7 @@ export function createWindows({
             if (window.web || !window.surface) continue;
             const state =
                 window.level === OVERLAY_LEVEL
-                    ? { shown: true, key: window.host.key, ...window.size, titleBar: null }
+                    ? { shown: true, key: window.host.key, ...window.size, titleBar: null, room: null }
                     : DESKTOP.stateOf(window);
             const written = JSON.stringify(state);
             if (written === window.sent) continue;

@@ -113,6 +113,21 @@ function panelsIn(panels, { width, height, bar }) {
     });
 }
 
+// The room each of `panels`, `{ edge, size }` as panelsIn takes them, has, in their order. For one in the bar it is
+// `{ width, height }`: the bar's width past the host's controls, `controls` wide from its left end, less PANEL.margin
+// at each end and what each other panel window in the bar takes, its width and PANEL.gap, and the bar's height. For
+// one at another edge it is null.
+function roomsIn(panels, { width, bar, controls }) {
+    const inBar = panels.filter(({ edge }) => edge !== 'right');
+    const taken = inBar.reduce((sum, { size }) => sum + Math.round(size.width) + PANEL.gap, 0);
+    const whole = width - controls - 2 * PANEL.margin;
+    return panels.map((panel) => {
+        if (!inBar.includes(panel)) return null;
+        const others = taken - Math.round(panel.size.width) - PANEL.gap;
+        return { width: Math.max(0, whole - others), height: bar };
+    });
+}
+
 // The rounding of a panel window's frame at `edge`: a capsule in the bar, a window's corners along the right edge.
 function panelRadius(edge, frame) {
     return edge === 'right' ? RADIUS : frame.height / 2;
@@ -300,6 +315,7 @@ export {
     placed,
     kept,
     panelsIn,
+    roomsIn,
     panelRadius,
     underBar,
     resized,
