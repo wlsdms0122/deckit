@@ -2851,6 +2851,25 @@ async function walk({
             viewAway,
             JSON.stringify({ view: await itemView(), ran: await mark(joinsPage, 'ran') })
         );
+        // The switcher, an overlay window that holds the keyboard, stays open as an item is set anew to what it is:
+        // the capsule and its anchors are as they were, so the shell is told nothing and lays nothing again.
+        await show('editor');
+        await (await windowOf('editor'))?.key(' ', 'Space', ALT, 32);
+        const switcherOver = await until(async () => overlayOf(await page('deckit://switcher.mod')), 5000);
+        const switcherRows = () => switcherOver?.evaluate(`document.querySelectorAll('.switcher-row').length`);
+        const switcherListed = await until(async () => (await switcherRows()) > 0, 5000);
+        await setItem({ name: 'Star', icon: 'star', command: 'show', count: 120, tone: 'attention' });
+        const setAsItIs = await until(async () => (await mark(joinsPage, 'set')) === 'set', 4000);
+        await sleep(1000);
+        const switcherStays = (await switcherRows()) > 0;
+        check(
+            'an item set anew to what it is leaves the switcher open',
+            switcherListed && setAsItIs && switcherStays,
+            JSON.stringify({ switcherListed, setAsItIs, rows: await switcherRows() })
+        );
+        if (await switcherRows()) await switcherOver?.key('Escape', 'Escape', 0, 27);
+        await until(async () => (await switcherRows()) === 0, 3000);
+        await show(PROBE);
         await setItem(null);
         const itemGone = await until(async () => {
             const now = await capsuleNow();
