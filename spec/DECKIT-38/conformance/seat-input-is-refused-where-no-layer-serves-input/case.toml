@@ -1,0 +1,28 @@
+case = 25
+name = "seat-input-is-refused-where-no-layer-serves-input"
+note = "seat/input of an event of its table is refused at call with REFUSED where no layer serves input. The base stacks none, and a party inserts text."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "text", type = "insert", text = "a" }
+
+[step.expect]
+refuses = "call"
+kind = "REFUSED"

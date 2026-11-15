@@ -1,0 +1,27 @@
+case = 25
+name = "seat-watch-turned-off-for-an-output-told-from-the-opening-answers-true"
+note = "seat/watch answers true for an output that is told, with on false as with on true: held, which a seat is told of from the moment it opens, is watched no more."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/watch"
+params = { of = "held", on = false }
+
+[step.expect]
+answers = true

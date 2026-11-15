@@ -1,0 +1,28 @@
+case = 25
+name = "seat-input-that-names-no-type-is-refused"
+note = "seat/input is refused at call with INVALID_ARGUMENT where type is left out. A party sends a key event with its event alone."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key" }
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

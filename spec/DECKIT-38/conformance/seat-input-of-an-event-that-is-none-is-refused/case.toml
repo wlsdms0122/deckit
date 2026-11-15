@@ -1,0 +1,28 @@
+case = 25
+name = "seat-input-of-an-event-that-is-none-is-refused"
+note = "seat/input is refused at call with INVALID_ARGUMENT where event names no row of its table, and before it is asked whether a layer serves input: the base stacks none."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "wheel", type = "down" }
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

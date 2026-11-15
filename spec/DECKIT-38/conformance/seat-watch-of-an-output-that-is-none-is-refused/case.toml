@@ -1,0 +1,28 @@
+case = 25
+name = "seat-watch-of-an-output-that-is-none-is-refused"
+note = "seat/watch is refused at call with INVALID_ARGUMENT where of names no output."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/watch"
+params = { of = "nope", on = true }
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
