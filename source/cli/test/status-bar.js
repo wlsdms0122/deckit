@@ -443,7 +443,7 @@ async function modChecks(check) {
     const clockDeclared = {
         mod: { name: 'Clock' },
         credential: { mod: 'clock' },
-        entry: { name: 'Clock', command: 'toggle-center' },
+        entry: { name: 'Clock' },
     };
     const world = runs({ [INTERFACE]: [clockDeclared] });
     const shell = shellStandIn();
@@ -456,12 +456,8 @@ async function modChecks(check) {
         connect: () => ({ run: async (...args) => ran.push(args) }),
     });
     frame.attach(shell.handle, screen);
-    // The notification center's exports are opened on screen, in the second lifecycle of its mod.
-    let toggled = 0;
-    world.exported.set('notifications/center', { lifecycle: 1, connect: () => ({ toggle: async () => ++toggled }) });
     const clock = new Clock();
     clock.start(world.handle('clock', 'Clock', 0));
-    clock.attach(shell.handle, world.handle('clock', 'Clock', 1));
     await world.settle();
     check(
         "the frame's exports are opened in start, so a mod that sets its item in its own start is connected",
@@ -670,17 +666,13 @@ async function modChecks(check) {
         { away, given, freed }
     );
     await star().click();
-    await buttons()
-        .find((button) => button.dataset.item === 'clock')
-        .click();
+    const still = buttons().find((button) => button.dataset.item === 'clock');
     check(
-        "a press on an item runs its command on its mod through the commands' owner",
-        JSON.stringify(ran) ===
-            JSON.stringify([
-                ['star', 'show'],
-                ['clock', 'toggle-center'],
-            ]),
-        ran
+        "a press on an item runs its command on its mod through the commands' owner; the clock, with none, takes no press",
+        JSON.stringify(ran) === JSON.stringify([['star', 'show']]) &&
+            still.disabled === true &&
+            star().disabled === false,
+        { ran, clock: still.disabled, star: star().disabled }
     );
     await item.remove();
     const removed = band.size[0];
@@ -691,17 +683,9 @@ async function modChecks(check) {
         removed === alone && band.size[0] === alone && buttons().length === 1 && band.anchors.length === 1,
         { removed, alone, now: band.size }
     );
-    const command = world.exported.get('clock').connect({});
-    await command.runCommand('toggle-center');
-    const other = await command.runCommand('show').then(
-        () => 'ran',
-        () => 'refused'
-    );
-    check(
-        "the clock's command toggles the notification center, reached from a lifecycle its exports reach",
-        world.connected('clock', 'notifications/center') && toggled === 1 && other === 'refused',
-        { connected: world.connected('clock', 'notifications/center'), toggled, other }
-    );
+    check('the clock runs no command: it opens no exports of its own', !world.exported.has('clock'), [
+        ...world.exported.keys(),
+    ]);
     // The screen goes and another comes: what stands is held by the mod, not by the capsule.
     frame.detach();
     const closed = band.open === false;

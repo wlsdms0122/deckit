@@ -9,12 +9,7 @@ icon = "icon.svg"
 keywords = ["clock", "time", "date", "시계"]
 
 [interfaces]
-uses = { "status-bar/items" = 2, "notifications/center" = 1 }
+uses = { "status-bar/items" = 2 }
 
 [[contributes."status-bar/items"]]
 name = "Clock"
-command = "toggle-center"
-
-[[contributes."deckit/commands"]]
-id = "toggle-center"
-title = "Show or Hide Notifications"
