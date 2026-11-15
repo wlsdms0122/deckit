@@ -88,7 +88,7 @@ The run is `launching` as `authenticate` answers and `running` once the party ha
 
 ### What a party asks
 
-Each is a request the party sends once it hosts a run. None names the principal or the run: the transport connection says both. An answer is the value the table gives, `true` where it says so and a null where it says nothing. `lifecycle` is the number of one of the run's lifecycles, and a crossing value is a table `{ value, references }`: `value` what crosses, as [calls across a connection](../DECKIT-11/SPEC.md) fix what may, each function in it written as a null; `references` an array of arrays `[path, number]`, one for each function, `path` the array of keys and places that lead to it in `value` and `number` the integer the function is called by.
+Each is a request the party sends once it hosts a run. None names the principal or the run: the transport connection says both. An answer is the value the table gives, `true` where it says so and a null where it says nothing. A request's `params` is a table of the keys its row gives, each bound to a value of the kind the row gives it, and of no other key: an empty table where the row gives none. `params` left out is read as an empty table. `lifecycle`, `connection`, `number` and `count` are numbers, `target` and `key` strings, and the `value` of `record/write` what is stored. `lifecycle` is the number of one of the run's lifecycles, and a crossing value is a table `{ value, references }`: `value` what crosses, as [calls across a connection](../DECKIT-11/SPEC.md) fix what may, each function in it written as a null; `references` an array of arrays `[path, number]`, one for each function, `path` the array of keys and places that lead to it in `value` and `number` the integer the function is called by.
 
 | request | `params` | answers |
 |---|---|---|
@@ -108,7 +108,16 @@ Each is a request the party sends once it hosts a run. None names the principal 
 | `record/remove` | table `{ key }` | `true`, once no record is kept under `key` |
 | `record/keys` | none | an array of the key of each record kept, in the order of their code points |
 
-Each is refused as the rule it reads from refuses the request of a mod's run it stands for, at that stage and with that kind. `event/listen` alone refuses no name: one that is no event's name, and one the run's principal does not hear, as [events](../DECKIT-12/SPEC.md) fix who hears an event, is listened to and told the run never.
+One rule refuses the `params` of every request of the table, those answered `true` as those answered a value. A request is refused at `call` with kind `INVALID_ARGUMENT`, before the rule it reads from judges anything of it, where its `params`:
+
+1. is not a table;
+2. leaves out a key its row gives, or binds it to a null;
+3. holds a key its row does not give;
+4. binds a key to a value of another kind than the row gives it: a string, a number, an array or a table.
+
+The rule reads the kind of each value and no further: what an array or a table holds, and which string or number a value is, are judged by the rule the request reads from. A request so refused does nothing: the host takes nothing of it.
+
+A request whose `params` fit is refused as the rule it reads from refuses the request of a mod's run it stands for, at that stage and with that kind. `event/listen` alone refuses no name: one that is no event's name, and one the run's principal does not hear, as [events](../DECKIT-12/SPEC.md) fix who hears an event, is listened to and told the run never.
 
 ### What a party is told
 
@@ -160,6 +169,7 @@ The authorized keys are part of what a principal stored: erasing what a mod stor
 - Signing the challenge alone. A signature made for one use of the key would pass for another; the label, the principal and the party's own nonce make it a signature of this handshake and no other.
 - A refusal that says which part of the proof failed. A party would learn which principals exist and which keys they hold.
 - The keys in a file a person edits. An edit would grant a login, and erasing a principal would have a second place to clear.
+- A request answered `true` taking whatever its `params` hold, since the host only takes note of it. A party that wrote a key wrong would be told all went well and learn of it from what never came; one rule for every request needs no list of which requests it spares.
 - A transport connection that closes without `runner/quit` counted as a quit. A party that crashed would look like one that ended well; one rule holds for a page gone and a party gone.
 
 ## Notes
@@ -168,7 +178,7 @@ The authorized keys are part of what a principal stored: erasing what a mod stor
 
 **Note.** Another transport changes how bytes are carried and the binding in *What is signed*. The messages, the handshake and the keys stay.
 
-**Note.** No case holds these, each for its reason. An error that holds no `data` (-32600, -32002, -32601) comes to nothing in a case, which reads a refusal by its stage and kind. A party of a case asks the handshake whole, so a `protocol` other than 1, a `nonce` or a `scheme` that is none, a second `initialize`, a request before `authenticate` and a signature over other bytes are reached by no case, and neither is a line that is no JSON object or is over its bound. A party of a case answers `runner/stop` at once, so the close once the time an end is given has passed is not reached. Nothing a case reads tells `launching` from `running` for a party's run, nor shows a problem kept against it. No party's run has a connection, so what `connection/call` answers of one that stands, and a crossing value, are reached by no case. [The case format](../DECKIT-1/SPEC.md) gives a case's host its keys before the first start, reads none and erases no principal that is no mod, so a key registered or removed later, a key's `name`, a key held once, and the keys erased with what a principal stored are not reached. The mode of the socket and where a link leads are the machine's, which a case does not read.
+**Note.** No case holds these, each for its reason. An error that holds no `data` (-32600, -32002, -32601) comes to nothing in a case, which reads a refusal by its stage and kind. A party of a case asks the handshake whole, so a `protocol` other than 1, a `nonce` or a `scheme` that is none, a second `initialize`, a request before `authenticate` and a signature over other bytes are reached by no case, and neither is a line that is no JSON object or is over its bound. A party of a case answers `runner/stop` at once, so the close once the time an end is given has passed is not reached. Nothing a case reads tells `launching` from `running` for a party's run, nor shows a problem kept against it. No party's run has a connection, so what `connection/call` answers of one that stands, and a crossing value, are reached by no case. A case writes a request's `params` as a table that holds no null, so `params` that is no table and a key bound to a null are not reached. [The case format](../DECKIT-1/SPEC.md) gives a case's host its keys before the first start, reads none and erases no principal that is no mod, so a key registered or removed later, a key's `name`, a key held once, and the keys erased with what a principal stored are not reached. The mode of the socket and where a link leads are the machine's, which a case does not read.
 
 **Note.** The name `deckit.sock` is a link where the path to it is longer than a local socket's path may be on the machine; the socket then lies elsewhere, where only the same account reaches it.
 
