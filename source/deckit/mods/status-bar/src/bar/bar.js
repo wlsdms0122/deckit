@@ -1,99 +1,198 @@
-// The capsule: a panel window as wide as its row, each child of `status-bar/items` in a region of its own, in the
-// mods' order, as wide as the child last told (`setWidth`) or an icon's item until it tells. It follows the children
-// as they join and leave, and closes while there is none.
-const { CAPSULE } = require('./model/bar.js');
+// The capsule: a panel window in the host's bar holding one button for each item mods give, laid as the model says
+// (model/bar.js). A fixed item is one a mod declares in its manifest; an item that comes and goes is set and removed
+// by a running mod. A press on an item runs its command on its mod, and each item's rect is told the shell as an
+// anchor given to the item's mod, which stands a view of its own under it. The capsule closes while it lays no item.
+const BAR = require('./model/bar.js');
 
 const INTERFACE = 'status-bar/items';
-// The capsule's height, and the inset around its row of 24px items, 4 apart: concentric with the capsule's round ends.
-const { height: HEIGHT, inset: INSET, gap: GAP } = CAPSULE;
-// An item that has told no width: a 16px glyph with 8 on each side.
-const ICON_ITEM = 32;
-// The widest an item is laid.
-const WIDEST = 320;
+const NAME = 'Status Bar';
+// The signals of the interface after which what is declared to it is read again.
+const SIGNALS = ['contributions-changed', 'owner-changed'];
+const { ITEM } = BAR;
 
 const STYLE = `
-    .status-bar {
+    .status-bar { position: relative; height: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .status-bar-item {
+        position: absolute;
         display: flex;
-        align-items: stretch;
-        gap: ${GAP}px;
+        align-items: center;
+        justify-content: center;
+        gap: ${ITEM.gap}px;
         box-sizing: border-box;
-        height: 100%;
-        padding: ${INSET}px;
+        padding: 0 ${ITEM.padding}px;
+        border: 0;
+        border-radius: var(--deckit-radius-round);
+        background: transparent;
+        color: var(--deckit-text);
+        font: inherit;
+        white-space: nowrap;
     }
-    .status-bar-item { flex: 0 0 auto; border-radius: var(--deckit-radius-round); }
+    .status-bar-item:not(:disabled):hover { background: var(--deckit-hover); }
+    .status-bar-item:not(:disabled):active { background: var(--deckit-pressed); }
+    .status-bar-item[data-tone='attention'] { color: var(--deckit-accent); }
+    .status-bar-label { overflow: hidden; text-overflow: ellipsis; }
+    .status-bar-measure { position: absolute; visibility: hidden; white-space: nowrap; }
 `;
 
-function bar(shell) {
+// `commands()` is the owner of deckit/commands while one is connected, or null.
+function bar(shell, deckit, { commands = () => null } = {}) {
     // MARK: - Property
     const content = document.createElement('div');
     content.className = 'status-bar';
+    content.setAttribute('role', 'toolbar');
+    const measure = document.createElement('span');
+    measure.className = 'status-bar-measure';
     shell.ui.addStyle(STYLE);
-    const items = new Map(); // child id -> { element, region }
-    const widths = new Map(); // child id -> the width it told
-    let order = []; // the children's ids, in the mods' order
+    let declared = new Map(); // mod id -> what it declared, in the mods' order
+    const set = new Map(); // mod id -> its item as it last set it
+    let came = []; // the ids of the mods whose item comes and goes, in the order they came
+    const widths = {}; // label -> the width it was measured at
     let window = null; // the panel window, while it is open
-    const off = shell.children.onChange((named, children) => named === INTERFACE && lay(children));
+    const offs = SIGNALS.map((signal) => deckit.events.on(`${INTERFACE}:${signal}`, read));
 
     // MARK: - Initializer
-    shell.children.list(INTERFACE).then(lay, () => {});
+    read();
 
     // MARK: - Public
-    // The width the child `id` draws at: one past WIDEST is laid at WIDEST, and one that is no number above 0 is not
-    // taken.
-    function setWidth(id, width) {
-        if (typeof width !== 'number' || !(width > 0)) return;
-        widths.set(id, Math.min(Math.ceil(width), WIDEST));
-        size();
+    // The exports for a connection: `set(item)` gives the mod's item, or what changes of the one it declared, and
+    // `remove()` takes it back. Another shape is refused, kind `INVALID_ARGUMENT`.
+    function exportsFor(connection) {
+        const id = connection.credential.mod;
+        return Object.freeze({
+            set: async (given) => {
+                const held = BAR.heldTo(given, declared.get(id) ?? null);
+                if (!held || !drawn(held.icon)) throw refusal(`${connection.mod.name} set an item of another shape`);
+                set.set(id, held);
+                lay();
+            },
+            remove: async () => leave(id),
+        });
+    }
+
+    // A mod's item goes with its connection.
+    function leave(id) {
+        if (set.delete(id)) lay();
     }
 
     function end() {
-        off();
+        for (const off of offs) off();
         window?.close();
         window = null;
     }
 
     // MARK: - Private
-    // A child that left takes its region with it; one that joined is placed in a region of its own, which launches it
-    // where it does not run.
-    function lay(children) {
-        order = children.map(({ id }) => id);
-        for (const [id, { element }] of items) {
-            if (order.includes(id)) continue;
-            element.remove();
-            items.delete(id);
-            widths.delete(id);
+    // What mods declare, one item a mod, the first it declares: an entry of another shape is left out.
+    async function read() {
+        const next = new Map();
+        for (const { credential, entry } of await deckit.exports.contributions(INTERFACE).catch(() => [])) {
+            const held = BAR.declaredOf(entry);
+            if (held && drawn(held.icon) && !next.has(credential.mod)) next.set(credential.mod, held);
+            else console.warn(`[status-bar] an item ${credential.mod} declares is left out`);
         }
-        for (const id of order) {
-            if (items.has(id)) continue;
-            const element = document.createElement('div');
-            element.className = 'status-bar-item';
-            element.dataset.child = id;
-            const region = shell.region(element, INTERFACE);
-            items.set(id, { element, region });
-            region.place(id).catch(() => {});
+        // What a mod set stays over what it declares now; one that declares an item where it did not, or no more,
+        // sets its item anew.
+        for (const [id, { label, count, tone }] of set) {
+            if (declared.has(id) !== next.has(id)) set.delete(id);
+            else if (next.has(id)) set.set(id, BAR.heldTo({ label, count, tone }, next.get(id)));
         }
-        content.append(...order.map((id) => items.get(id).element));
-        size();
+        declared = next;
+        lay();
     }
 
-    // Each item as wide as its child draws, and the window as wide as the row.
-    function size() {
-        let width = INSET * 2 + Math.max(0, order.length - 1) * GAP;
-        for (const id of order) {
-            const each = widths.get(id) ?? ICON_ITEM;
-            items.get(id).element.style.width = `${each}px`;
-            width += each;
+    // Whether the kit draws the glyph `icon`, or there is none to draw.
+    function drawn(icon) {
+        try {
+            return icon === null || !!shell.ui.icon(icon);
+        } catch {
+            return false;
         }
-        if (!order.length) {
+    }
+
+    // The items in the order they stand: the fixed ones in the mods' order, then the others as they came.
+    function standing() {
+        came = BAR.orderOf(
+            came,
+            [...set.keys()].filter((id) => !declared.has(id))
+        );
+        const fixed = [...declared].map(([id, item]) => ({ id, ...(set.get(id) ?? BAR.restOf(item)) }));
+        return [...fixed, ...came.map((id) => ({ id, ...set.get(id) }))];
+    }
+
+    // The capsule as wide as the model lays its items, each item's rect told as an anchor given to the item's mod.
+    function lay() {
+        const items = standing();
+        if (content.isConnected) for (const { label } of items) if (label && !(label in widths)) measured(label);
+        const laid = BAR.barOf(items, widths, BAR.limitOf(null));
+        content.setAttribute('aria-label', BAR.nameOf(NAME, laid.hidden));
+        content.replaceChildren(
+            measure,
+            ...laid.items.map(({ id, rect }) =>
+                buttonOf(
+                    items.find((item) => item.id === id),
+                    rect
+                )
+            )
+        );
+        if (!laid.width) {
             window?.close();
             window = null;
             return;
         }
-        if (window) return window.resize(width, HEIGHT);
-        window = shell.windows.open({ name: 'bar', content, level: 'panel', width, height: HEIGHT });
+        if (window) window.resize(laid.width, laid.height);
+        else {
+            const { width, height } = laid;
+            window = shell.windows.open({ name: 'bar', content, level: 'panel', width, height, didAppear: lay });
+        }
+        window.setAnchors(laid.items.map(({ id, rect }) => ({ id, rect, mod: id })));
     }
 
-    return Object.freeze({ setWidth, end });
+    function measured(label) {
+        measure.textContent = label;
+        const { width } = measure.getBoundingClientRect();
+        if (width) widths[label] = width;
+    }
+
+    function buttonOf(item, rect) {
+        const button = document.createElement('button');
+        button.className = 'status-bar-item';
+        button.dataset.item = item.id;
+        button.dataset.tone = item.tone;
+        button.setAttribute('aria-label', BAR.titleOf(item));
+        button.disabled = item.command === null;
+        for (const side of ['width', 'height']) button.style[side] = `${rect[side]}px`;
+        button.style.left = `${rect.x}px`;
+        button.style.top = `${rect.y}px`;
+        if (item.icon) button.insertAdjacentHTML('beforeend', shell.ui.icon(item.icon, { size: ITEM.glyph }));
+        for (const [part, text] of [
+            ['label', item.label],
+            ['count', item.count === null ? '' : BAR.countText(item.count)],
+        ]) {
+            if (!text) continue;
+            const span = document.createElement('span');
+            span.className = `status-bar-${part}`;
+            span.textContent = text;
+            button.append(span);
+        }
+        button.addEventListener('click', () => press(item));
+        return button;
+    }
+
+    // A press on an item runs its command on its mod, which launches the mod if it does not run.
+    async function press({ id, name, command }) {
+        try {
+            const owner = commands();
+            if (!owner) throw new Error('no mod runs commands now');
+            await owner.run(id, command);
+        } catch (error) {
+            console.error(`[status-bar] the command of ${name} did not run`, error);
+        }
+    }
+
+    function refusal(message) {
+        return Object.assign(new Error(message), { kind: 'INVALID_ARGUMENT' });
+    }
+
+    return Object.freeze({ exportsFor, leave, end });
 }
 
 module.exports = { bar, INTERFACE };

@@ -10,6 +10,8 @@ keywords = ["status bar", "menu bar", "상태 막대"]
 
 [permissions]
 "deckit.panel-windows" = "Stands in the bar across the top of the app's window, holding what other mods show there."
+"deckit.system-services" = "Runs the command of an item you press, which launches its mod if it does not run."
 
 [interfaces]
-provides = { "status-bar/items" = [1] }
+provides = { "status-bar/items" = [2] }
+uses = { "deckit/commands" = 1 }
