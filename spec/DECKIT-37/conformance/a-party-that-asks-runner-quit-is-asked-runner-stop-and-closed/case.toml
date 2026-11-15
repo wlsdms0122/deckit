@@ -1,0 +1,30 @@
+case = 25
+name = "a-party-that-asks-runner-quit-is-asked-runner-stop-and-closed"
+note = "A run a transport connection hosts ends as the party asks runner/quit: the host asks runner/stop, a request whose params are an empty table, and closes the transport connection once the party has answered."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "runner/quit"
+
+[[step]]
+look = "told"
+party = "p"
+
+[step.expect]
+answers = { messages = [{ method = "runner/stop", params = {}, request = true }], closed = true }

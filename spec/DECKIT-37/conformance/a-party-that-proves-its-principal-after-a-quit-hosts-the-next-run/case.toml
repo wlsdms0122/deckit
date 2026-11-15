@@ -1,0 +1,33 @@
+case = 25
+name = "a-party-that-proves-its-principal-after-a-quit-hosts-the-next-run"
+note = "After a run ended the principal has no run, and a party that proves it again hosts a new one, one more than the last. A party of ada asks runner/quit; a second party proves ada and is answered run 2."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "runner/quit"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "ada"
+key = "first"
+part = "run"
+
+[step.expect]
+answers = 2

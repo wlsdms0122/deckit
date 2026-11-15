@@ -1,0 +1,48 @@
+case = 25
+name = "a-record-a-party-writes-is-its-principal-s-alone"
+note = "The run stores and reads its principal's records and no other's. A party of ada writes a record under note, answered true; a party of bob reads note and finds none, and the party of ada reads what it wrote."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "record/write"
+params = { key = "note", value = { text = "kept" } }
+
+[step.expect]
+answers = true
+
+[[step]]
+input = "ask"
+party = "q"
+method = "record/read"
+params = { key = "note" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "record/read"
+params = { key = "note" }
+
+[step.expect]
+answers = { text = "kept" }

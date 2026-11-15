@@ -1,0 +1,32 @@
+case = 25
+name = "a-transport-connection-closed-by-its-party-ends-the-run"
+note = "A transport connection that closes with no runner/stop answered ends the run it hosts, and the principal then has none. A party of ada closes its transport connection; a second party proves ada, is not refused as for a principal that runs, and is answered run 2."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "detach"
+party = "p"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "ada"
+key = "first"
+part = "run"
+
+[step.expect]
+answers = 2
