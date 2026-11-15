@@ -206,7 +206,8 @@ function make({ ui, onPointer, onOut, onGlass }) {
     const root = tag('div', 'deckit-dock-root');
     root.append(element, menuBox);
 
-    for (const node of [card, menuBox]) forward(node);
+    forward(card, true);
+    forward(menuBox, false);
     element.addEventListener('pointerenter', () => {
         pointed = true;
         settle();
@@ -264,9 +265,13 @@ function make({ ui, onPointer, onOut, onGlass }) {
     // MARK: - Private
     // What the pointer does on `node`, told as it does it: its first button's press there, and with the button held
     // each move and the up, wherever it goes; and a context press, however it is made. The document does nothing of
-    // its own with a press. A context press the keyboard makes is on the item that has the focus.
-    function forward(node) {
-        const send = (type, { clientX: x, clientY: y }, more) => onPointer({ part: 'dock', type, x, y, ...more });
+    // its own with a press. A context press the keyboard makes is on the item that has the focus. A point on what
+    // `slides` is told where it is on the Dock out, as the model lays it, however far the Dock has slid.
+    function forward(node, slides) {
+        const send = (type, { clientX, clientY: y }, more) => {
+            const x = clientX - (slides ? element.getBoundingClientRect().x : 0);
+            onPointer({ part: 'dock', type, x, y, ...more });
+        };
         const holding = (event) => node.hasPointerCapture(event.pointerId);
         node.addEventListener('pointerdown', (down) => {
             down.preventDefault();

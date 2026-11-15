@@ -478,7 +478,8 @@ async function viewChecks({ DOCK, desk, four, check }) {
     global.document = { createElement: (name) => made[made.push(element(name)) - 1] };
     global.window = { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {} };
     global.CSS = { escape: (text) => text };
-    const dock = VIEW.make({ ui: { addStyle() {} }, onPointer() {}, onOut() {}, onGlass() {} });
+    const told = [];
+    const dock = VIEW.make({ ui: { addStyle() {} }, onPointer: (event) => told.push(event), onOut() {}, onGlass() {} });
     const menu = DOCK.menuOf(desk, four, 'd');
     dock.update({ items: [], active: null, attention: [], held: null, menu });
     const one = (name) => made.find(({ className }) => className === name);
@@ -496,6 +497,20 @@ async function viewChecks({ DOCK, desk, four, check }) {
             JSON.stringify([left, top, width, height]) === JSON.stringify([`${x}px`, `${y}px`, '160px', '110px']) &&
             drawn.children.filter(({ className }) => className === 'deckit-dock-menu-entry').length === 3,
         { holders: holders.map(({ className }) => className), style: drawn.style }
+    );
+    // A press on the card as the Dock has 20 left to slide, and one on the menu.
+    const press = (node, at) => {
+        const event = { ...at, button: 0, pointerId: 1, detail: 1, preventDefault() {} };
+        for (const hears of node.heard.pointerdown) hears(event);
+    };
+    slides.rect = { x: -20, y: 28, width: 64, height: 772 };
+    press(one('deckit-dock-card'), { clientX: 12, clientY: 300 });
+    press(drawn, { clientX: 100, clientY: 500 });
+    check(
+        'a press on the card is told where it is on the Dock out, however far the Dock has slid, and one on the ' +
+            'menu where it is in the page',
+        JSON.stringify(told.map(({ type, x, y }) => [type, x, y])) === '[["down",32,300],["down",100,500]]',
+        told
     );
 }
 
@@ -531,6 +546,7 @@ function element(name) {
         querySelectorAll: () => [],
         getBoundingClientRect: () => node.rect,
         getAnimations: () => [],
+        setPointerCapture() {},
     };
     return node;
 }
