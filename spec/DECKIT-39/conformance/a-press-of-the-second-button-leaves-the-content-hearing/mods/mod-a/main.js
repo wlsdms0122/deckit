@@ -7,7 +7,7 @@ module.exports = class {
             field.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;padding:0;resize:none';
             content.append(field);
             const hear = (type, said) => content.addEventListener(type, (event) => { const what = said(event); if (typeof what === 'string') say(options.name + '/' + type + '/' + what); });
-            const held = (event) => ['alt', 'control', 'meta', 'shift'].filter((one) => event[one + 'Key']).join('+');
+            const held = (event) => ['alt', 'control', 'meta', 'shift'].filter((one) => event[(one === 'control' ? 'ctrl' : one) + 'Key']).join('+');
             for (const type of ['mousedown', 'mouseup']) hear(type, (event) => event.button + '/' + event.detail + '/' + held(event));
             hear('contextmenu', (event) => String(event.button));
             hear('mousemove', (event) => String(event.buttons));
