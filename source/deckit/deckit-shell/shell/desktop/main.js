@@ -1387,13 +1387,13 @@ export function createDesktop({
         update();
     }
 
-    // The normal windows, back to front, each `{ id, mod, name, frame, key, minimized }`, as the host app reads them:
-    // none is key while an overlay window or a panel window holds the keyboard.
-    function windowsNow() {
-        const key = away(LOCAL) ? null : MANAGER.keyOf(LOCAL);
-        return MANAGER.orderOf(LOCAL).map((id) => {
+    // The normal windows of `seat`, back to front, each `{ id, mod, name, frame, key, minimized }`, as the host app
+    // reads them: none is key while an overlay window or a panel window holds the seat's keyboard.
+    function windowsNow(seat = LOCAL) {
+        const key = away(seat) ? null : MANAGER.keyOf(seat);
+        return MANAGER.orderOf(seat).map((id) => {
             const { mod, name } = windows.get(id);
-            const minimized = MANAGER.isMinimized(LOCAL, id);
+            const minimized = MANAGER.isMinimized(seat, id);
             return { id, mod, name, frame: { ...MANAGER.frameOf(id) }, key: id === key, minimized };
         });
     }
@@ -2019,12 +2019,13 @@ export function createDesktop({
         );
     }
 
-    // The Dock's items as the desktop's page draws them, `{ id, pinned, running, attention, active }`: `attention`
-    // where the mod asks for the attention of the seat the host window shows, and `active` for the mod of that seat's
-    // key window.
-    function dockNow() {
-        const { items, active, attention } = stateOfPage().dock;
-        return items.map(({ id, pinned, running }) => ({
+    // The Dock's items as `seat` sees them, `{ id, pinned, running, attention, active }`: `attention` where the mod
+    // asks for the seat's attention, and `active` for the mod of the seat's key window. The seat is the one the host
+    // window shows where none is named.
+    function dockNow(seat = shownSeat()) {
+        const active = windows.get(MANAGER.keyOf(seat))?.mod ?? null;
+        const attention = ACTIVATION.attentionOf(seat);
+        return DOCK.items().map(({ id, pinned, running }) => ({
             id,
             pinned,
             running,
@@ -2234,19 +2235,19 @@ export function createDesktop({
             present,
             shown: () => shown,
             windows: windowsNow,
-            // The panel windows that stand, in the order they opened, each `{ id, mod, name, edge, frame }`, `edge`
-            // null for a view.
-            panels: () =>
-                panelFrames().map(({ window: { id, mod, name, edge }, frame }) => ({ id, mod, name, edge, frame })),
+            // The panel windows that stand on the screen of `seat`, or with none on some seat's, in the order they
+            // opened, each `{ id, mod, name, edge, frame }`, `edge` null for a view.
+            panels: (seat = null) =>
+                panelFrames(seat).map(({ window: { id, mod, name, edge }, frame }) => ({ id, mod, name, edge, frame })),
             // The anchors that stand, each `{ window, owner, id, rect, mod }`: the window whose content it is in, the
             // mod that told it, its id among that mod's, its rect on the stage, and the mod that may bind to it.
             anchors: () => standing().anchors,
             dock: dockNow,
             hand,
-            // The local seat's active mod, by its id, or null, and the mods that ask for its attention, in the order
-            // they first asked: what a host app shows of them.
-            active: () => ACTIVATION.activeOf(LOCAL),
-            attention: () => ACTIVATION.attentionOf(LOCAL),
+            // The active mod of `seat`, by its id, or null, and the mods that ask for its attention, in the order
+            // they first asked: what a host app shows of them, of the local seat where it names none.
+            active: (seat = LOCAL) => ACTIVATION.activeOf(seat),
+            attention: (seat = LOCAL) => ACTIVATION.attentionOf(seat),
         },
     };
 }
