@@ -60,6 +60,8 @@ function toolbar({
         title: 'Add to Favorites',
         onClick: () => onToggleFavorite(),
     });
+    // What it is called stays as its title turns with what a press does: whether it is pressed tells the rest.
+    star.element.setAttribute('aria-label', 'Favorite');
     const viewButton = ui.iconButton({ icon: '', title: 'View', onClick: showViews });
     const filter = ui.field({
         placeholder: 'Filter this folder',

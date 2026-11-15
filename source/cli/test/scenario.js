@@ -7,6 +7,7 @@ const { seat } = require('./seat.js');
 const INPUT = require('./input.js');
 const READ = require('./read.js');
 const KIT = require('./kit.js');
+const VIEWS = require('./views.js');
 const OUTSIDE = require('./outside.js');
 
 // The mods Deckit.app ships that are apps, which the Dock keeps from the first start: every one but the accessories,
@@ -3407,7 +3408,7 @@ const AREAS = [
     { name: 'outside', says: 'a party attached from outside, and the seats that sit beside the local one' },
     { name: 'reading', says: 'what a seat reads of the desktop it sits at', needs: ['desktop', 'outside'] },
     { name: 'read', says: 'what a page answers of itself, its outline, its nodes and its pictures' },
-    { name: 'kit', says: "the kit's parts as a page's reader answers them" },
+    { name: 'kit', says: "the kit's parts, and the mods built of them, as a page's reader answers them" },
     { name: 'core', says: 'the core, and the app once its core ended' },
 ];
 
@@ -3511,6 +3512,13 @@ async function run(app, named = []) {
             await KIT.run({ check, main, open, page, show });
         } catch (error) {
             check("kit: the kit's parts were read", false, error.stack);
+        }
+
+    if (runs('kit'))
+        try {
+            await VIEWS.run({ check, main, open, show, desktopLaid, pressIn: local.seatsView.pressIn });
+        } catch (error) {
+            check('views: the mods and the views were read', false, error.stack);
         }
 
     // A core that ends is not started again: what it ended of is told, asking for the app to be restarted.

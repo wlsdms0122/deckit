@@ -49,6 +49,7 @@ function selectionInput({
         items: () => entriesIn(walkedFolder()).map((entry) => entry.path),
         lead: selectedPath,
         nameOf: (path) => entryAt(path).name,
+        name: 'Files',
         multiple: true,
         parentOf: (path) => (isColumnView() && isInside(parentOf(path), location()) ? parentOf(path) : null),
         childrenOf: (path) => (isColumnView() ? childrenOf(path) : []),
