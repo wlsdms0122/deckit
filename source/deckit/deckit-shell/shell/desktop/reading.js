@@ -3,11 +3,9 @@ import * as LAYOUT from './model/layout.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as MODS from '../mods/index.js';
 
-// How many marks back what changed is kept: the pairs of a document, and what went from the desktop.
+// How many of the marks a document changed at are kept with its count.
 const KEPT = 256;
-// What a seat's pointer does on what a reading named.
-const ACTIONS = Object.freeze(['press', 'double', 'context', 'hover', 'scroll']);
-const LEVELS = Object.freeze(['desktop', 'window', 'node']);
+// The knobs of a reading, handed to the reader as they are.
 const KNOBS = Object.freeze(['depth', 'roles', 'all', 'items', 'text', 'lines']);
 // The buttons of a title bar, as they read.
 const BUTTONS = Object.freeze({ close: 'Close', minimize: 'Minimize', zoom: 'Zoom' });
@@ -19,7 +17,7 @@ const FRAME = 16;
 // What a seat reads of the desktop: the desktop itself, the seats, the Dock and the windows in the seat's order, from
 // what the desktop keeps; a window, the parts the shell draws of it and each document it shows as the environment
 // reads it; what is under one ref; what changed since a mark; and a picture. Refs: a window is `w<id>`, its parts
-// `w<id>.close`, `.minimize`, `.zoom`, `.title` and `.edge.<name>`, an item of the Dock `dock.<mod>`, and an element
+// `w<id>.close`, `.minimize`, `.zoom`, `.bar` and `.edge.<name>`, an item of the Dock `dock.<mod>`, and an element
 // `<document>.<n>` as the environment names it, the same for every seat.
 // The mark is one count for the desktop: it goes up as a line of the desktop reads otherwise for some seat, a
 // pointer's place apart, and as a document tells that what it shows changed. `READ` reads a page (environment: SHELL
@@ -27,14 +25,25 @@ const FRAME = 16;
 // and `desk` is what the desktop keeps and answers of itself.
 export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     // MARK: - Property
-    const documents = new Map(); // a document's number -> { page, born, pairs }, its marks and the reader's counts
+    // a document's number -> { page, born, first, pairs }: the mark and the reader's count it was first read at, and
+    // the last KEPT marks it changed at, each with its count
+    const documents = new Map();
     const numbers = new WeakMap(); // a page -> the number of the document it shows
     const webs = new Set(); // the web pages mods show
     const tracks = new Map(); // seat id -> ref -> { text, born, at }: its desktop lines and the marks they changed at
-    const gone = []; // { seat, ref, mark }: what went from a seat's desktop, or from every seat's where `seat` is null
+    // seat id -> ref -> the mark it last went at: what went from a seat's desktop, or from every seat's under null
+    const gone = new Map([[null, new Map()]]);
     let mark = 0;
-    let floor = 0; // the oldest mark what changed is known since
     let telling = false; // whether the seats are told of the mark as the next frame is due
+
+    // What answers each output a seat asks once, by its name.
+    const ANSWERS = Object.freeze({
+        desktop: (seat, query) => reading(seat, 'desktop', query),
+        window: (seat, query) => reading(seat, 'window', query),
+        node: (seat, query) => reading(seat, 'node', query),
+        changes,
+        picture: capture,
+    });
 
     // MARK: - Initializer
     // MARK: - Public
@@ -50,7 +59,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         for (const [number, { page }] of documents) if (!desk.windowAt(page)) documents.delete(number);
         for (const page of webs) if (!web.pageFor(page)) webs.delete(page);
         const seen = new Map([...desk.hands.keys()].map((seat) => [seat, linesOf(desktopOf(seat), { held: true })]));
-        for (const seat of [...tracks.keys()]) if (!seen.has(seat)) tracks.delete(seat);
+        for (const seat of [...tracks.keys()]) if (!seen.has(seat)) (tracks.delete(seat), gone.delete(seat));
         const differs = [...seen].some(([seat, lines]) => {
             const track = tracks.get(seat);
             return (
@@ -75,11 +84,18 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         }
     }
 
-    // A reading for `seat`: `level` 'desktop', 'window' with `window`, or 'node' with `ref`, as text or, `format`
-    // 'json', as data. The other fields are the knobs, handed to the reader as they are.
-    async function read(seat, { level = 'desktop', window, ref, format = 'text', ...given }) {
-        if (!LEVELS.includes(level) || !['text', 'json'].includes(format))
-            throw refusal('INVALID_ARGUMENT', 'a reading is of the desktop, a window or a node, as text or json');
+    // An output asked once for `seat`, `of` its name: a reading of the 'desktop', of a 'window' or of a 'node', what
+    // 'changes', or a 'picture'. What else is asked is that output's query.
+    async function read(seat, { of, ...query } = {}) {
+        if (!Object.hasOwn(ANSWERS, of))
+            throw refusal('INVALID_ARGUMENT', `what a seat reads is one of ${Object.keys(ANSWERS).join(', ')}`);
+        return ANSWERS[of](seat, query);
+    }
+
+    // A reading for `seat` at `level`: the 'desktop', a 'window' with `window`, or a 'node' with `ref`, as text or,
+    // `format` 'json', as data. The other fields are the knobs, handed to the reader as they are.
+    async function reading(seat, level, { window, ref, format = 'text', ...given }) {
+        if (!['text', 'json'].includes(format)) throw refusal('INVALID_ARGUMENT', 'a reading is as text or json');
         const knobs = Object.fromEntries(
             KNOBS.flatMap((knob) => (given[knob] === undefined ? [] : [[knob, given[knob]]]))
         );
@@ -95,21 +111,22 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     }
 
     // What reads otherwise for `seat` since the mark `since`: the desktop's lines, and the lines of the documents in
-    // the windows on its screen that told a change after it. With no mark, the mark now and nothing. A mark older
-    // than what is kept, or one the desktop never had, is refused STALE.
+    // the windows on its screen that told a change after it. With no mark, the mark now and nothing. Each line and
+    // each element is kept with the last mark it changed at, so a mark however old is answered; one the desktop never
+    // had is refused STALE.
     async function changes(seat, { since = null } = {}) {
         settle();
         const from = since ?? mark;
-        if (!Number.isInteger(from) || from < floor || from > mark)
-            throw refusal('STALE', `what changed since the mark ${from} is not kept: read again`);
+        if (!Number.isInteger(from) || from < 0 || from > mark)
+            throw refusal('STALE', `the desktop never had the mark ${from}: read again`);
         const track = tracks.get(seat.id) ?? new Map();
         const entries = [];
         for (const [ref, line] of linesOf(desktopOf(seat.id))) {
             const { born, at } = track.get(ref);
             if (at > from) entries.push({ kind: born > from ? '+' : '~', line });
         }
-        for (const { seat: of, ref, mark: at } of gone)
-            if (at > from && [null, seat.id].includes(of) && !track.has(ref)) entries.push({ kind: '-', line: ref });
+        for (const went of [gone.get(null), gone.get(seat.id) ?? new Map()])
+            for (const [ref, at] of went) if (at > from && !track.has(ref)) entries.push({ kind: '-', line: ref });
         const ids = [...desk.MANAGER.viewOf(seat.id), ...desk.panelFrames().map(({ window }) => window)];
         for (const { id } of ids) {
             for (const { page, part, name, rect, typing } of pagesOf(id)) {
@@ -122,9 +139,10 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                     entries.push({ kind: '+', line });
                     continue;
                 }
-                const pair = kept.pairs.findLast((each) => each.mark <= from);
-                if (!pair) throw refusal('STALE', `what changed since the mark ${from} is not kept: read again`);
-                const answer = await asked(READ.changes(page, { document: number, count: pair.count }), true);
+                // The count the document was at by that mark, or, for a mark older than the pairs kept, the one it
+                // was first read at: every element that changed since is told, some that changed before it too.
+                const count = kept.pairs.findLast((each) => each.mark <= from)?.count ?? kept.first;
+                const answer = await asked(READ.changes(page, { document: number, count }), true);
                 if (!answer) continue;
                 noted(page, answer.document, answer.count);
                 for (const { kind, depth: _depth, ...line } of answer.entries)
@@ -165,12 +183,13 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         };
     }
 
-    // Where the pointer of `seat` goes to act on what `ref` names, once it is scrolled into view: `{ at, by }`, `at`
-    // the desktop's point at the middle of what shows of it, and `by` a point to pass first, the Dock's sliver for an
-    // item of the Dock, which brings the Dock out, or null.
+    // Where the pointer of `seat` goes for what `ref` names, once it is scrolled into view: `{ at, by, window }`, `at`
+    // the desktop's point at the middle of what shows of it, `by` a point to pass first, the Dock's sliver for an
+    // item of the Dock, which brings the Dock out, or null, and `window` the id of the window it is of, or null.
     async function place(seat, ref) {
-        const { rect, by = null } = await placeOf(seat.id, String(ref), { scrolls: true });
-        return { at: { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) }, by };
+        const { rect, by = null, window } = await placeOf(seat.id, String(ref), { scrolls: true });
+        const at = { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+        return { at, by, window };
     }
 
     // MARK: - Private
@@ -194,13 +213,13 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         telling = true;
         setTimeout(() => {
             telling = false;
-            for (const seat of desk.seated.values()) desk.tells().changed(seat, { mark });
+            for (const seat of desk.seated.values()) desk.tells().tell(seat, { of: 'changes', mark });
         }, FRAME);
     }
 
     function went(seat, ref) {
-        gone.push({ seat, ref, mark });
-        if (gone.length > KEPT) floor = gone.shift().mark;
+        if (!gone.has(seat)) gone.set(seat, new Map());
+        gone.get(seat).set(ref, mark);
     }
 
     // A page's document is at `count`, as its reader answered or told: the mark goes up where that is news, and the
@@ -213,7 +232,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         if (kept && kept.pairs.at(-1).count >= count) return;
         raise();
         if (had !== undefined && had !== document && documents.delete(had)) went(null, `document ${had}`);
-        if (!kept) documents.set(document, (kept = { page, born: mark, pairs: [] }));
+        if (!kept) documents.set(document, (kept = { page, born: mark, first: count, pairs: [] }));
         kept.pairs.push({ mark, count });
         if (kept.pairs.length > KEPT) kept.pairs.shift();
     }
@@ -339,8 +358,9 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         return { window: own, parts: partsOf(id).map(({ rect: _rect, ...part }) => part), documents: outlines.flat() };
     }
 
-    // The parts of a normal window the shell draws that are listed: the buttons of its title bar, and the title bar
-    // of a titled one. `rect` is on the desktop.
+    // The parts of a normal window the shell draws that are listed: the buttons of its title bar, and its bar, the
+    // top of its frame, named by its title: a press there brings the window forward and a drag from there moves it.
+    // `rect` is on the desktop.
     function partsOf(id) {
         const window = desk.windows.get(id);
         if (!window) return [];
@@ -353,9 +373,10 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             ref: `w${id}.${name}`,
             rect: { x: frame.x + x, y: frame.y + y, width, height },
         }));
-        if (bar.style !== 'titled') return buttons;
+        if (!(bar.height > 0)) return buttons;
         const rect = { x: frame.x, y: frame.y, width: frame.width, height: bar.height };
-        return [...buttons, { role: 'titlebar', name: window.title, states: [], ref: `w${id}.title`, rect }];
+        const name = window.title ? { name: window.title } : {};
+        return [...buttons, { role: 'titlebar', ...name, states: [], ref: `w${id}.bar`, rect }];
     }
 
     // A part the shell draws, by its ref, with `rect` on the desktop, the window it is of, and for an item of the Dock
@@ -372,7 +393,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             const line = { role: 'item', name: item.name, states, ref };
             return { line, rect: DOCK_MODEL.tileOf(desk.area(), items, mod), window: null, by };
         }
-        const [, window, name, edge] = /^w(\d+)\.(close|minimize|zoom|title|edge\.([a-z-]+))$/.exec(ref) ?? [];
+        const [, window, name, edge] = /^w(\d+)\.(close|minimize|zoom|bar|edge\.([a-z-]+))$/.exec(ref) ?? [];
         const id = Number(window);
         if (window === undefined || !desk.windows.has(id)) return null;
         const { rect: listed = null, ...line } = partsOf(id).find((part) => part.ref === ref) ?? {};
@@ -430,7 +451,5 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         };
     }
 
-    return { start, settle, read, changes, capture, place };
+    return { start, settle, read, place };
 }
-
-export { ACTIONS };

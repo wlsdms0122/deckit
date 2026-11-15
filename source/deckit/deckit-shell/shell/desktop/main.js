@@ -10,7 +10,8 @@ import * as MODS from '../mods/index.js';
 import * as COLOURS_MODEL from './model/colours.js';
 import * as SEATS_MODEL from './model/seats.js';
 import { SEAT_COLOURS } from '../../../deckit-sdk/shell/ui/token/index.js';
-import { createReading, ACTIONS } from './reading.js';
+import * as ROUTING from './model/routes.js';
+import { createReading } from './reading.js';
 
 // How many frames a second a window's motion is drawn at.
 const FRAMES = 120;
@@ -58,6 +59,7 @@ export function createDesktop({
     // The seat at the host window, whose view it shows: `deckit.seats.local`, by its id, as every seat is named here.
     let LOCAL = 'local';
     const seated = new Map(); // seat id -> the seat as deckit tells it, while it is open
+    const sources = new Map(); // a seat's source, the word its devices' events carry -> its id
     // seat id -> what its hand holds: `moving`, `{ id, from, grab, pointer }`, the window a drag of its title bar or
     // its content's drag regions moves, from the frame it had at the press, `grab` where the press was in that frame,
     // and where the pointer is on the stage now; `dropping`, the tile that window takes let go now, or null; `pointer`,
@@ -68,8 +70,8 @@ export function createDesktop({
     // seat it shows and as its pointer says of any other; `panel`, the id of the panel window at the edge `right` that
     // holds its keyboard, or null, the local seat's being the machine's (`held`); and `keys`, `{ id, page }`, the page
     // of the window `id` that took its last press there, where its keys and text go while that window holds its
-    // keyboard, or null for the window's content, the local seat's being the machine's; and `buttons`, those of its
-    // pointer that are held now
+    // keyboard, or null for the window's content, the local seat's being the machine's; `buttons`, those of its
+    // pointer that are held now; and `waits`, a promise of the turn of its last event that is not done, or null
     const hands = new Map();
     const COLOURS = COLOURS_MODEL.createColours(SEAT_COLOURS); // the colour each seat here is told apart by
     let tells = null; // what deckit answered the shell's serving with: what tells a seat
@@ -88,7 +90,8 @@ export function createDesktop({
     let ended = false; // whether the key that ended a follow is still down: what it would do is not done
     const MANAGER = WM.createWindowManager({
         isIdle: (seat) => seated.has(seat) && deckit.seats.isIdle(seated.get(seat)),
-        onTaken: (holder, window, by) => seated.has(holder) && tells?.held(seated.get(holder), { window, holder: by }),
+        onTaken: (holder, window, by) =>
+            seated.has(holder) && tells?.tell(seated.get(holder), { of: 'held', window, holder: by }),
     });
     const ACTIVATION = ACTIVATION_MODEL.createActivation();
     // What each of the shell's keys does, by its id, to the key window of the seat that pressed it.
@@ -191,16 +194,16 @@ export function createDesktop({
         for (const seat of deckit.seats.list()) sit(seat);
         deckit.seats.onOpen(sit);
         deckit.seats.onClose(leave);
-        const { read, changes, capture } = READING;
-        tells = deckit.seats.serve({ input: entered, read, changes, capture, onAsk: ask });
+        tells = deckit.seats.serve({ input: entered, read: READING.read, onAsk: ask });
+        if (deckit.seats.local?.source) INPUT.machine(deckit.seats.local.source);
         READ.listen(({ page }) => {
             for (const [seat, typing] of typings) if (typing.page === page) reread(seat);
         });
         READING.start();
         INPUT.listen(carried);
         deckit.mods.onRequest(({ from, to }) => ACTIVATION.request(from, to));
-        KEY.monitor((page, _keystroke, from) => ACTIVATION.input(seatOf(from), modAt(page)));
-        KEY.onChord((mod, from) => ACTIVATION.input(seatOf(from), mod));
+        KEY.monitor((page, _keystroke, source) => ACTIVATION.input(seatOf(source), modAt(page)));
+        KEY.onChord((mod, source) => ACTIVATION.input(seatOf(source), mod));
         KEY.start(pressKey);
         stage = makeStage();
         stage.whenResized(resized);
@@ -610,6 +613,7 @@ export function createDesktop({
     // A seat deckit opened sits at the desktop: it sees every window open and holds none.
     function sit(seat) {
         if (seat.user) seated.set(seat.id, seat);
+        if (seat.source) sources.set(seat.source, seat.id);
         if (hands.has(seat.id)) return;
         MANAGER.addSeat(seat.id);
         ACTIVATION.addSeat(seat.id);
@@ -624,6 +628,7 @@ export function createDesktop({
             dock: false,
             panel: null,
             keys: null,
+            waits: null,
         });
         update();
     }
@@ -656,6 +661,7 @@ export function createDesktop({
         hands.delete(seat.id);
         typings.delete(seat.id);
         seated.delete(seat.id);
+        for (const [source, id] of sources) if (id === seat.id) sources.delete(source);
         for (const [id, by] of pressers) if (by === seat.id) pressers.delete(id);
         update();
     }
@@ -705,51 +711,76 @@ export function createDesktop({
         );
     }
 
-    // The entry, as deckit hands it: what the devices of `seat` did. An event the environment carried is in its page
-    // already, and the local seat's press or key that ends its following of another seat does no more; any other is
-    // read against what is laid for the seat and put in the page it reaches. A pointer answers `{ over, key, holder }`:
-    // `over` the window it reached, 'desktop' for the desktop where no window is, or null, and, for a press on a
-    // window, `key` 'key' or 'held' and `holder`, the seat that holds its keyboard. A key or text answers `{ to }`, the
-    // window it went to, or null where the seat has no key window. Nothing is put while the host window is hidden,
-    // where no page takes input: that is refused HIDDEN. An act on what a reading named is the seat's pointer going
-    // there and pressing or scrolling, answered as that pointer event is.
+    // The entry, as deckit hands it: what the devices of `seat` did, an event with the seat's `source`. It goes by the
+    // route of its kind (ROUTING.ROUTES). An event the environment carried is in its page already, and the local
+    // seat's press or key that ends its following of another seat does no more; any other is read against what is
+    // laid for the seat and put in the page it reaches. A pointer answers `{ over, key, holder, at }`: `over` the
+    // window it reached, 'desktop' for the desktop where no window is, or null, for a press on a window `key` 'key' or
+    // 'held' and `holder`, the seat that holds its keyboard, and `at`, the desktop's point it went to. A key or text
+    // answers `{ to }`, the window it went to, or null where the seat has no key window. Nothing is put while the
+    // host window is hidden, where no page takes input: that is refused HIDDEN. A seat's events keep their order: one
+    // placed by a ref takes time, and what enters meanwhile waits its turn (ROUTING.waits).
     function entered(seat, event) {
+        const route = { place, keyboard }[ROUTING.routeOf(event)];
+        if (!route) throw refusal('INVALID_ARGUMENT', "what a seat's devices do is a pointer, key or text event");
+        const turn = () => {
+            const hand = hands.get(seat.id);
+            if (!hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
+            if (!event.carried && !shown) throw refusal('HIDDEN', 'the desktop is hidden: nothing of it takes input');
+            return route(seat.id, hand, event);
+        };
         const hand = hands.get(seat.id);
-        if (!hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
-        if (!event.carried && !shown) throw refusal('HIDDEN', 'the desktop is hidden: nothing of it takes input');
-        if (event.event === 'pointer')
-            return event.carried ? arrived(seat.id, hand, event) : pointed(seat.id, hand, event);
-        if (event.event === 'key' || event.event === 'text') {
-            if (!event.carried) return typed(seat.id, event);
-            if (event.event === 'key' && seat.id === LOCAL) unfollowed(event.type);
-            return { to: keyWindow(seat.id)?.id ?? null };
-        }
-        return acted(seat, event);
+        if (!hand || !ROUTING.waits(event, hand.waits !== null)) return turn();
+        const answer = (hand.waits ?? Promise.resolve()).then(turn);
+        const done = answer.then(
+            () => {},
+            () => {}
+        );
+        hand.waits = done;
+        done.then(() => hand.waits === done && (hand.waits = null));
+        return answer;
     }
 
-    // The pointer of `seat` acting on what a reading named by `ref`: it moves to the middle of what shows of it, an
-    // item of the Dock by way of the Dock's sliver, and there presses and lets go, does so twice for `double`, with
-    // the second button for `context`, or scrolls by `dx`, `dy`, each event entering as the seat's own pointer's
-    // does. Answers what the press or the scroll answered. No page hears a pointer that only moves, so `hover` is
-    // refused.
-    async function acted(seat, { ref, action, dx = 0, dy = 0 }) {
-        if (!ACTIONS.includes(action))
-            throw refusal('INVALID_ARGUMENT', `an act is one of ${ACTIONS.join(', ')} on a ref`);
-        if (action === 'hover') throw refusal('REFUSED', 'no page hears a pointer that only moves yet');
-        const { at, by } = await READING.place(seat, ref);
-        const hand = hands.get(seat.id);
-        if (!hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
-        const put = (type, more = {}) => pointed(seat.id, hand, { event: 'pointer', type, ...at, ...more });
-        if (by) pointed(seat.id, hand, { event: 'pointer', type: 'move', ...by });
-        put('move');
-        if (action === 'scroll') return put('scroll', { dx, dy });
-        const button = action === 'context' ? 2 : 0;
-        const answer = put('down', { button, buttons: [button], count: 1 });
-        put('up', { button, buttons: [], count: 1 });
-        if (action !== 'double') return answer;
-        put('down', { button, buttons: [button], count: 2 });
-        put('up', { button, buttons: [], count: 2 });
-        return answer;
+    // The route of a pointer event: to its place, the desktop's point or what a reading named.
+    function place(seat, hand, event) {
+        if (event.carried) return arrived(seat, hand, event);
+        const named = ROUTING.placeOf(event);
+        if (!named) throw refusal('INVALID_ARGUMENT', 'a pointer event is at a point, x and y, or at a ref');
+        if (named === 'ref') return placed(seat, hand, event);
+        return { ...pointed(seat, hand, event), at: { x: event.x, y: event.y } };
+    }
+
+    // The route of a key or of text: to what holds the seat's keyboard.
+    function keyboard(seat, hand, event) {
+        if (!event.carried) return typed(seat, event);
+        if (event.event === 'key' && seat === LOCAL) unfollowed(event.type);
+        return { to: keyWindow(seat)?.id ?? null };
+    }
+
+    // A pointer event placed by `ref`, what a reading named: the pointer goes to the middle of what shows of it, an
+    // item of the Dock by way of the Dock's sliver, and the event enters there as one at that point does. Where
+    // another window covers that place in the seat's order, the window the ref is of comes to the front of that order
+    // first, as the seat's press on it brings it. No page hears a pointer that only moves, so a move with no button
+    // held is refused.
+    async function placed(seat, hand, { ref, ...event }) {
+        if (ROUTING.hovers({ ...event, ref }, hand.buttons))
+            throw refusal('REFUSED', 'no page hears a pointer that only moves yet');
+        const { at, by, window } = await READING.place({ id: seat }, ref);
+        if (hands.get(seat) !== hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
+        if (!shown) throw refusal('HIDDEN', 'the desktop is hidden: nothing of it takes input');
+        if (windows.has(window) && ROUTING.raises(window, windowUnder(seat, at))) press(seat, windows.get(window));
+        if (by) pointed(seat, hand, { event: 'pointer', type: 'move', source: event.source, ...by });
+        return { ...pointed(seat, hand, { ...event, ...at }), at };
+    }
+
+    // The id of the window a press at `point` reaches in what is laid for `seat`, its content or a part the shell
+    // draws of it; or null where it reaches the desktop, the Dock, a chip or nothing.
+    function windowUnder(seat, point) {
+        const hit = stage.hit(laidFor(seat), point);
+        if (!hit) return null;
+        const part = partAt(hit);
+        if (part) return windows.has(part.id) && hit.page !== desktop.page ? part.id : null;
+        return windowAt(hit.page)?.id ?? null;
     }
 
     function refusal(kind, message) {
@@ -797,7 +828,7 @@ export function createDesktop({
                 const frame = frameOn(held.id);
                 if (type === 'up' || !frame) hand.down = null;
                 const at = frame && { x: point.x - frame.x - held.inside.x, y: point.y - frame.y - held.inside.y };
-                if (at) INPUT.put(held.page, { ...event, ...at, source: seat });
+                if (at) INPUT.put(held.page, { ...event, ...at });
                 reread(seat);
             }
             if (CHIP_PARTS.includes(held.part)) return { over: 'desktop' };
@@ -830,7 +861,7 @@ export function createDesktop({
             else answer = reached(seat, window);
             if ([keyboardOf(seat)?.id, hand.wanted].includes(window.id)) hand.keys = { id: window.id, page: hit.page };
         }
-        INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y, source: seat });
+        INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y });
         reread(seat);
         return answer;
     }
@@ -850,7 +881,7 @@ export function createDesktop({
         const key = keyboardOf(seat);
         if (!key?.surface) return { to: null };
         ACTIVATION.input(seat, key.mod);
-        INPUT.put(keysPageOf(seat), { ...event, source: seat });
+        INPUT.put(keysPageOf(seat), event);
         reread(seat);
         return { to: key.id };
     }
@@ -1246,8 +1277,8 @@ export function createDesktop({
     }
 
     // The seat a key was pressed by, as the environment tells what it was put for: the local one's for the machine's.
-    function seatOf(from) {
-        return from ?? LOCAL;
+    function seatOf(source) {
+        return sources.get(source) ?? LOCAL;
     }
 
     // Where windows go: the stage below the host's bar.
@@ -1760,8 +1791,8 @@ export function createDesktop({
     // A press of the shell's key `id` in a page of the app that the page did not handle, by the seat it was put for or
     // by the machine's keyboard: the desktop takes it in its own pages while it is shown, for that seat. The local
     // seat's key that ends its following of another seat does no more.
-    function pressKey(id, pressedIn, from) {
-        const seat = seatOf(from);
+    function pressKey(id, pressedIn, source) {
+        const seat = seatOf(source);
         if (!shown || !pageOf(pressedIn) || !hands.has(seat)) return false;
         if (seat === LOCAL && unfollowed('down')) return true;
         KEY_ACTIONS[id](seat);

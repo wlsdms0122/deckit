@@ -66,8 +66,8 @@ export const OUTPUTS = Object.freeze({
         told: null,
         on: false,
     }),
-    // The seat's key window was taken by another seat.
-    held: Object.freeze({ query: null, told: Object.freeze({ window: 'string', holder: 'string?' }), on: true }),
+    // The seat's key window, by its id, was taken by another seat, `holder`.
+    held: Object.freeze({ query: null, told: Object.freeze({ window: 'number', holder: 'string?' }), on: true }),
 });
 
 // Every field any row of `rows` has under `part`, each optional: what a channel that carries any of them may carry.

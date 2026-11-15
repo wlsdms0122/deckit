@@ -175,7 +175,7 @@ async function main() {
     );
     const outputs = () => told.get('guest').map(({ payload }) => payload);
     tells.tell(seat, { of: 'changes', mark: 2 });
-    tells.tell(seat, { of: 'held', window: 'w1', holder: 'local' });
+    tells.tell(seat, { of: 'held', window: 1, holder: 'local' });
     const watched = await guest.ask('seat/watch', { of: 'changes', on: true });
     tells.tell(seat, { of: 'changes', mark: 3 });
     check(
@@ -183,14 +183,14 @@ async function main() {
         watched.value === true &&
             JSON.stringify(outputs()) ===
                 JSON.stringify([
-                    { of: 'held', window: 'w1', holder: 'local' },
+                    { of: 'held', window: 1, holder: 'local' },
                     { of: 'changes', mark: 3 },
                 ]),
         [watched, outputs()]
     );
     await guest.ask('seat/watch', { of: 'held', on: false });
     await guest.ask('seat/watch', { of: 'changes', on: false });
-    tells.tell(seat, { of: 'held', window: 'w1', holder: 'local' });
+    tells.tell(seat, { of: 'held', window: 1, holder: 'local' });
     tells.tell(seat, { of: 'changes', mark: 4 });
     const untold = (output) => {
         try {
