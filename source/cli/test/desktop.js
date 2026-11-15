@@ -910,8 +910,6 @@ async function main() {
     await readingChecks({ LAYOUT, createDesktop }, check);
     const COLOURS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'colours.js'));
     drawnChecks({ COLOURS, LAYOUT, createDesktop }, check);
-    const SEATS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'seats.js'));
-    chipChecks({ SEATS }, check);
     routeChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'routes.js')), check);
     levelChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'levels.js')), check);
     const ANCHOR = await import(url('deckit-sdk', 'shell', 'window', 'model', 'anchor.js'));
@@ -920,8 +918,8 @@ async function main() {
     await anchorChecks({ LAYOUT, createDesktop }, check);
     showingChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'showing.js')), check);
     await viewChecks({ LAYOUT, createDesktop }, check);
-    await askChecks({ SEATS, createDesktop }, check);
-    await followChecks({ SEATS, LAYOUT, createDesktop }, check);
+    await askChecks({ createDesktop }, check);
+    await followChecks({ LAYOUT, createDesktop }, check);
     const ROSTER = await import(url('deckit-shell', 'shell', 'seats', 'model', 'roster.js'));
     const { createSeats } = await import(url('deckit-shell', 'shell', 'seats', 'main.js'));
     await memberChecks({ ROSTER, createSeats, createDesktop }, check);
@@ -2043,7 +2041,6 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
 // What a seat reads of the desktop, over a reader that answers one document a page: the desktop, a window and a node
 // as text and as data, what changed since a mark, a mark that is not kept, an act on a ref and a picture.
 // What the desktop's page is told of the seats: each one's colour, where its pointer is and what it holds.
-// The chips of the seats at the desktop's bottom right, as the model lays them.
 // The showing rule (model/showing.js): on which seats' screens a view is after each thing that shows it and each that
 // puts it away, and which seat holds its keyboard.
 function showingChecks({ createShowing, KEY, HELD }, check) {
@@ -2400,8 +2397,7 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
         host: desk.hostShown() - hostShown,
         active: desk.desktop.control.active(),
     };
-    desk.pagePointer('s1', 'chip', 'down', { x: 0, y: 0 });
-    desk.pagePointer('s1', 'chip', 'up', { x: 0, y: 0 });
+    desk.desktop.seats.follow('s1');
     const followed = { following: desk.page().following?.id, on: await on(), key: desk.desktop.isKey(view) };
     check(
         "a view shown for the local seat is laid and drawn on its screen and takes the machine's keyboard, the host " +
@@ -2422,70 +2418,18 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
     desk.leave(s2);
 }
 
-function chipChecks({ SEATS }, check) {
-    const { CHIP, chipsOf, partAt } = SEATS;
-    const stage = { width: 1200, height: 800 };
-    const chips = chipsOf(stage, ['s1', 's2'], ['ada']);
-    const [first, second, ask] = chips;
-    const right = (rect) => rect.x + rect.width;
-    check(
-        'the chips stand at the bottom right, one over another from the bottom, one that asks last',
-        chips.map(({ kind, id }) => kind + ' ' + id).join() === 'seat s1,seat s2,ask ada' &&
-            chips.every(({ rect }) => right(rect) === stage.width - CHIP.margin && rect.height === CHIP.height) &&
-            first.rect.y + first.rect.height === stage.height - CHIP.margin &&
-            second.rect.y + second.rect.height === first.rect.y - CHIP.gap &&
-            ask.rect.y + ask.rect.height === second.rect.y - CHIP.gap,
-        chips
-    );
-    const inside = (inner, outer) =>
-        inner.x >= outer.x &&
-        inner.y >= outer.y &&
-        right(inner) <= right(outer) &&
-        inner.y + inner.height <= outer.y + outer.height;
-    check(
-        'a chip that asks has its two answers inside it, apart, Allow at its end',
-        inside(ask.allow, ask.rect) && inside(ask.deny, ask.rect) && right(ask.deny) < ask.allow.x && !first.allow,
-        ask
-    );
-    const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
-    const parts = [first.rect, second.rect, ask.allow, ask.deny, { ...ask.rect, width: 8 }, { x: 0, y: 0 }].map(
-        (rect) => partAt(chips, rect.width ? middle(rect) : rect)
-    );
-    check(
-        'a point is on the chip of a seat, on an answer of one that asks, or on neither',
-        JSON.stringify(parts) ===
-            JSON.stringify([
-                { part: 'chip', id: 's1' },
-                { part: 'chip', id: 's2' },
-                { part: 'allow', id: 'ada' },
-                { part: 'deny', id: 'ada' },
-                null,
-                null,
-            ]),
-        parts
-    );
-}
-
-// A user that asks to sit, put to the local seat: the chip the page is told of, and whose press answers it.
-async function askChecks({ SEATS, createDesktop }, check) {
+// A user that asks to sit, as the desktop tells it to what hears the seats: it waits until it is answered, once, or
+// no answer is waited for, and the desktop's page neither draws it nor takes the pointer for it.
+async function askChecks({ createDesktop }, check) {
     const desk = desktopOver(createDesktop, {});
     desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
     desk.desktop.control.show();
-    const other = desk.sit('s1');
-    const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
-    const chipsNow = () =>
-        SEATS.chipsOf(
-            { width: 1200, height: 800 },
-            ['s1'],
-            desk.page().asks.map(({ id }) => id)
-        );
-    // The machine's pointer, told as the environment tells it, in the desktop's page.
-    const machine = async (type, at) => {
-        const buttons = type === 'down' ? [0] : [];
-        desk.carried({ event: 'pointer', type, ...at, button: 0, buttons, page: desk.desktopPage, carried: true });
-        await new Promise((resolve) => setTimeout(resolve));
-    };
-    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    desk.sit('s1');
+    const { seats } = desk.desktop;
+    let heard = 0;
+    const off = seats.onChange(() => heard++);
+    const settled = () => new Promise((resolve) => setTimeout(resolve));
+    const input = () => JSON.stringify(desk.laid().find(({ page }) => page === desk.desktopPage).input);
     const asking = (id) => {
         const control = new AbortController();
         const asked = { control, answer: undefined };
@@ -2494,46 +2438,42 @@ async function askChecks({ SEATS, createDesktop }, check) {
         });
         return asked;
     };
+    const alone = input();
     const ada = asking('ada');
-    const [, chip] = chipsNow();
-    const input = desk.laid().find(({ page }) => page === desk.desktopPage).input;
+    const waiting = seats.now().asks;
     check(
-        'a user that asks to sit is told to the page, and its chip takes the pointer',
-        JSON.stringify(desk.page().asks) === JSON.stringify([{ id: 1, user: 'ada', name: 'ada' }]) &&
-            chip.kind === 'ask' &&
-            input.some((rect) => JSON.stringify(rect) === JSON.stringify(chip.rect)),
-        [desk.page().asks, input]
+        "a user that asks to sit is told to what hears the seats, and the desktop's page is told no ask and takes " +
+            'the pointer nowhere for one',
+        JSON.stringify(waiting) === JSON.stringify([{ id: 1, name: 'ada' }]) &&
+            heard === 1 &&
+            ada.answer === undefined &&
+            !('asks' in desk.page()) &&
+            input() === alone,
+        [waiting, heard, Object.keys(desk.page()), input()]
     );
-    const over = [
-        desk.enter(other, pointer('down', middle(chip.allow))),
-        desk.enter(other, pointer('up', middle(chip.allow))),
-    ];
-    await machine('down', middle(chip.allow));
-    await machine('up', middle(chip.deny));
-    await machine('down', middle({ ...chip.rect, width: 16 }));
-    await machine('up', middle({ ...chip.rect, width: 16 }));
+    const allowed = seats.answer(waiting[0].id, true);
+    const twice = seats.answer(waiting[0].id, false);
+    await settled();
     check(
-        "an attached seat's press on Allow answers nothing, nor does a press let go off the answer it began on",
-        ada.answer === undefined && desk.page().asks.length === 1 && over.every((answer) => answer.over === 'desktop'),
-        [ada.answer, over]
-    );
-    await machine('down', middle(chip.allow));
-    await machine('up', middle(chip.allow));
-    check(
-        "the local seat's press on Allow answers yes, and the ask is over",
-        ada.answer === true && desk.page().asks.length === 0,
-        [ada.answer, desk.page().asks]
+        'an answer of yes lets the user sit, and the ask is over: a second answer of it answers nothing',
+        allowed === true && twice === false && ada.answer === true && seats.now().asks.length === 0 && heard === 2,
+        [allowed, twice, ada.answer, seats.now().asks, heard]
     );
     const [grace, late] = [asking('grace'), asking('late')];
-    const [, denied] = chipsNow();
-    await machine('down', middle(denied.deny));
-    await machine('up', middle(denied.deny));
-    const left = desk.page().asks.map(({ user }) => user);
+    const denied = seats.answer(seats.now().asks[0].id, false);
+    await settled();
+    const left = seats.now().asks.map(({ name }) => name);
     late.control.abort();
+    await settled();
+    off();
     check(
-        "the local seat's press on Deny answers no, and an ask no answer is waited for goes",
-        grace.answer === false && late.answer === undefined && left.join() === 'late' && desk.page().asks.length === 0,
-        [grace.answer, late.answer, left, desk.page().asks]
+        'an answer of no refuses the user, and an ask no answer is waited for goes',
+        denied === true &&
+            grace.answer === false &&
+            late.answer === undefined &&
+            left.join() === 'late' &&
+            seats.now().asks.length === 0,
+        [denied, grace.answer, late.answer, left, seats.now().asks]
     );
 }
 
@@ -2749,7 +2689,7 @@ async function cursorChecks({ LAYOUT, createDesktop }, check) {
 }
 
 // The local seat follows another: the host window shows that seat's view until the local seat presses or types.
-async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
+async function followChecks({ LAYOUT, createDesktop }, check) {
     const desk = desktopOver(createDesktop, {});
     desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
     desk.desktop.control.show();
@@ -2774,7 +2714,8 @@ async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
     }
     desk.desktop.control.hand.move(1, 100 - desk.frameOf(1).x, 300 - desk.frameOf(1).y);
     desk.desktop.control.hand.move(2, 500 - desk.frameOf(2).x, 300 - desk.frameOf(2).y);
-    const [other, third] = [desk.sit('s1'), desk.sit('s2')];
+    const other = desk.sit('s1');
+    desk.sit('s2');
     const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
     const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
     const inWindow = (id) => middle(desk.desktop.control.windows().find((one) => one.id === id).frame);
@@ -2788,10 +2729,8 @@ async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
         await machine({ event: 'pointer', type: 'down', ...at, button: 0, buttons: [0], page });
         await machine({ event: 'pointer', type: 'up', ...at, button: 0, buttons: [], page });
     };
-    const chipOf = (seat, shown = 'local') => {
-        const others = ['local', 's1', 's2'].filter((id) => id !== shown);
-        return middle(SEATS.chipsOf({ width: 1200, height: 800 }, others, []).find(({ id }) => id === seat).rect);
-    };
+    // The host window shows the view of `seat`, as the seats' member asks it for whichever seat pressed.
+    const follow = (seat) => desk.desktop.seats.follow(seat);
     const view = () => {
         const { windows, seats, dock, following } = desk.page();
         return [
@@ -2802,19 +2741,17 @@ async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
         ].join(' ');
     };
     const own = view();
-    desk.enter(third, pointer('down', chipOf('s1')));
-    desk.enter(third, pointer('up', chipOf('s1')));
-    check("an attached seat's press on a chip follows no one", view() === own && own === ' 1,2* local b', [
-        own,
-        view(),
-    ]);
-    await press(chipOf('s1'));
+    const began = follow('s1');
     const full = { x: 0, y: 0, width: 1200, height: 800 };
     const takes = desk.laid().filter(({ page, input }) => page && (!input || input.length));
     check(
-        "the local seat's press on a seat's chip shows that seat's view: its order, its key window, its active mod",
-        view() === 's1 2,1* s1 a' && desk.page().following.name === 's1' && desk.page().following.colour === 'green',
-        [view(), desk.page().following]
+        "following a seat shows that seat's view in the host window: its order, its key window, its active mod",
+        began === true &&
+            own === ' 1,2* local b' &&
+            view() === 's1 2,1* s1 a' &&
+            desk.page().following.name === 's1' &&
+            desk.page().following.colour === 'green',
+        [began, own, view(), desk.page().following]
     );
     check(
         "while it follows, the machine's pointer and keyboard reach the desktop's page alone",
@@ -2838,7 +2775,7 @@ async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
         view() === own && desk.focused.at(-1)?.name === 'content-2',
         [view(), desk.focused.at(-1)]
     );
-    await press(chipOf('s1'));
+    follow('s1');
     const closedBefore = desk.closed.length;
     const taken = desk.press('closeWindow', all[1].surface);
     const held = desk.press('closeWindow', all[1].surface);
@@ -2848,11 +2785,11 @@ async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
         taken === true && held === true && view() === own && desk.closed.length === closedBefore,
         [taken, held, view(), desk.closed]
     );
-    await press(chipOf('s1'));
+    follow('s1');
     await machine({ event: 'key', type: 'down', code: 'KeyA', key: 'a' });
     await machine({ event: 'key', type: 'up', code: 'KeyA', key: 'a' });
     const byKey = view();
-    await press(chipOf('s1'));
+    follow('s1');
     desk.leave(other);
     check('a key ends it, and so does the seat it follows leaving', byKey === own && view() === own, [byKey, view()]);
 }

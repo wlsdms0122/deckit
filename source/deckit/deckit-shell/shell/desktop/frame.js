@@ -6,7 +6,6 @@ import * as MOD_STYLE from '../../../deckit-sdk/shell/style/renderer.js';
 import * as LAYOUT from './model/layout.js';
 import * as MOTION from './model/motion.js';
 import * as PAGE from './model/page-name.js';
-import * as SEATS from './model/seats.js';
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DOCK from '../dock/view.js';
 import * as DECLARED from './protocol.js';
@@ -15,7 +14,6 @@ import * as DECLARED from './protocol.js';
 // Each frame's surface is the window grown by its shadow: the window's material at its middle, the title bar of a
 // titled window at its top, the edges that resize it just outside it, as model/layout.js partsOf has them.
 const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
-const { CHIP } = SEATS;
 // How wide the holder's colour is drawn round a window's title bar, a seat's cursor, and the ring at its press, px.
 const HOLDER = 2;
 const CURSOR = 16;
@@ -218,57 +216,6 @@ const STYLE = `
         background: color-mix(in srgb, currentColor 60%, transparent);
         transform-origin: 0 50%;
     }
-    .deckit-seat-chips { position: fixed; inset: 0; pointer-events: none; }
-    .deckit-seat-chip {
-        position: absolute;
-        right: ${CHIP.margin}px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        box-sizing: border-box;
-        width: ${CHIP.width}px;
-        height: ${CHIP.height}px;
-        padding: 0 10px 0 8px;
-        border-radius: var(--deckit-radius-round);
-        background: var(--deckit-elevated);
-        box-shadow: var(--deckit-rim), var(--deckit-shadow-control);
-        color: var(--deckit-text);
-        font: var(--deckit-type-caption);
-        font-weight: 600;
-    }
-    .deckit-seat-chip-dot {
-        flex: none;
-        box-sizing: border-box;
-        width: 10px;
-        height: 10px;
-        border: 2px solid var(--deckit-seat);
-        border-radius: var(--deckit-radius-round);
-        background: var(--deckit-seat);
-    }
-    .deckit-seat-chip-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .deckit-seat-chip-state { flex: none; color: var(--deckit-muted); font-weight: 400; }
-    .deckit-seat-chip[data-idle] .deckit-seat-chip-dot { background: none; }
-    .deckit-seat-chip[data-idle] .deckit-seat-chip-name { color: var(--deckit-muted); }
-    .deckit-seat-chip[data-ask] {
-        width: ${CHIP.ask}px;
-        padding: 0 ${2 * (CHIP.answer + CHIP.inset) + 8}px 0 12px;
-    }
-    .deckit-seat-chip-answer {
-        position: absolute;
-        top: ${CHIP.inset}px;
-        display: grid;
-        place-items: center;
-        width: ${CHIP.answer}px;
-        height: ${CHIP.height - 2 * CHIP.inset}px;
-        border-radius: var(--deckit-radius-round);
-        background: var(--deckit-fill);
-    }
-    .deckit-seat-chip-answer[data-answer='allow'] {
-        right: ${CHIP.inset}px;
-        background: var(--deckit-accent-fill);
-        color: var(--deckit-on-accent);
-    }
-    .deckit-seat-chip-answer[data-answer='deny'] { right: ${CHIP.answer + 2 * CHIP.inset}px; }
     .deckit-following { position: fixed; inset: 0; color: var(--deckit-seat); }
     .deckit-following::after {
         content: '';
@@ -373,9 +320,6 @@ function boot(theme, channels) {
     over.document.body.append(seatsOver, pointers);
     const cursors = new Map(); // a seat's id -> { element, name, press }, its cursor and its press while it holds one
     const typings = new Map(); // a seat's id -> { ring, bars, over }, the ring and the bars drawn where it types
-    const chips = element(document, 'div', 'deckit-seat-chips');
-    chips.setAttribute('role', 'group');
-    chips.setAttribute('aria-label', 'Seats');
     // Over all but the host's bar while the page shows another seat's view: it takes every press, so none reaches
     // what the page draws, and says whose view it is, in the middle of the host's bar, over no window, or at the
     // desktop's top where the host has no bar.
@@ -387,7 +331,7 @@ function boot(theme, channels) {
     followingHint.textContent = 'Press or type to return';
     followingBar.append(followingName, followingHint);
     following.append(followingBar);
-    document.body.append(drop, seats, chips, dock.element, following, strip, down);
+    document.body.append(drop, seats, dock.element, following, strip, down);
     let dropped = null; // the tile the drop shows, or null
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const tellMotion = () => PROTOCOL.motion.send({ reduced: reduced.matches });
@@ -535,10 +479,6 @@ function boot(theme, channels) {
             put(cursor, { ...at, buttons });
         }
         drawTypings(all);
-        drawChips(
-            all.filter(({ shown }) => !shown),
-            state.asks
-        );
     }
 
     // Where each seat types in a window that does not have the machine's keyboard, in this page, over the windows, or,
@@ -582,50 +522,6 @@ function boot(theme, channels) {
                 place(drawn.bars[at], typing.caret ? { ...bar, x: bar.x - 1, width: 2 } : bar);
             });
         }
-    }
-
-    // A chip for each seat but the one shown, at the desktop's bottom right, one over another from the bottom as
-    // SEATS.chipsOf lays them: a dot in the seat's colour, its user's name, and, for a seat whose devices gave
-    // nothing for the idle time, the dot hollow, the name muted and the word for it. Over them, a chip for each user
-    // that asks to sit: its name, what it asks, and the two answers, Deny then Allow, where SEATS.chipsOf has them.
-    // The page draws them and hears no press on them: main recognizes what a seat's pointer does there.
-    function drawChips(others, asks) {
-        const chipAt = (at) => {
-            const chip = element(document, 'div', 'deckit-seat-chip');
-            chip.style.bottom = CHIP.margin + at * (CHIP.height + CHIP.gap) + 'px';
-            return chip;
-        };
-        const worded = (className, text) => {
-            const word = element(document, 'span', className);
-            word.textContent = text;
-            return word;
-        };
-        const seated = others.map(({ id, name, colour, idle }, at) => {
-            const chip = chipAt(at);
-            chip.dataset.seat = id;
-            chip.toggleAttribute('data-idle', idle);
-            chip.style.setProperty('--deckit-seat', `var(--deckit-seat-${colour})`);
-            chip.append(element(document, 'span', 'deckit-seat-chip-dot'), worded('deckit-seat-chip-name', name));
-            if (idle) chip.append(worded('deckit-seat-chip-state', 'idle'));
-            return chip;
-        });
-        const asking = asks.map(({ id, user, name }, at) => {
-            const chip = chipAt(others.length + at);
-            chip.dataset.ask = id;
-            chip.dataset.user = user;
-            chip.append(
-                worded('deckit-seat-chip-name', name),
-                worded('deckit-seat-chip-state', 'asks to sit'),
-                ...['deny', 'allow'].map((answer) => {
-                    const part = worded('deckit-seat-chip-answer', answer === 'allow' ? 'Allow' : 'Deny');
-                    part.dataset.answer = answer;
-                    part.setAttribute('role', 'button');
-                    return part;
-                })
-            );
-            return chip;
-        });
-        chips.replaceChildren(...seated, ...asking);
     }
 
     // What a seat's pointer just did, drawn as it comes: the cursor is there, gliding by the `move` spring, or at once

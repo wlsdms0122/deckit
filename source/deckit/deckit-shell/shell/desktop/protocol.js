@@ -8,7 +8,7 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame, radius }], seats, asks, following,
+// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame, radius }], seats, following,
 // drop, strip, dock, down }`: the windows on the screen of the seat whose view the host window shows, the local
 // seat's or that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `holder`
 // the name of the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its
@@ -21,8 +21,7 @@ export const setup = CHANNEL.pageToMain(
 // anywhere, the buttons it holds, whether its devices gave nothing for the idle time, whether it is the one whose view
 // the host window shows, and where it types in a window that does not have the machine's keyboard, `{ ring, bars,
 // caret }`, the rect on the stage of what has the focus there and those of what is selected in it or, `caret` true,
-// the one its caret is at, or null, each as of this telling; `asks`, `[{ id, user, name }]`, the users that ask to sit, in the order
-// they asked, each ask under a number of its own with its user's id and name; `following`, `{ id, name, colour }`, the
+// the one its caret is at, or null, each as of this telling; `following`, `{ id, name, colour }`, the
 // seat the local seat follows, whose view this is, or null for the local seat's own; `drop` `{ tile, frame }`, the tile
 // (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame, or null; `strip` `{ height,
 // controlsWidth }`, the host window's bar over the page's top, which drags the host window, and the width its controls
