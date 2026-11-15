@@ -101,20 +101,20 @@ Each is a request the party sends once it hosts a run. None names the principal 
 | `connection/release` | table `{ lifecycle, target }` | nothing, once it reaches for it no more |
 | `connection/call` | table `{ connection, number, args }`, `args` a crossing value | table `{ returned }` or `{ thrown }`, each a crossing value |
 | `connection/let-go` | table `{ connection, number, count }` | `true`: the party holds the function `number` `count` times fewer |
-| `event/listen` | table `{ names }`, an array of strings | `true`: the run hears each event named |
-| `event/emit` | table `{ name, args }` | `true`, once the event is emitted |
+| `event/listen` | table `{ names }`, an array of strings | `true`: from now on the run listens to the names given, and to no other |
+| `event/emit` | table `{ name, args }`, `name` a string and `args` the array of the event's values | `true`, once the event is emitted |
 | `record/read` | table `{ key }` | the record under `key`, or a null where there is none |
 | `record/write` | table `{ key, value }` | `true`, once the record is kept |
 | `record/remove` | table `{ key }` | `true`, once no record is kept under `key` |
 | `record/keys` | none | an array of the key of each record kept, in the order of their code points |
 
-Each is refused as the rule it reads from refuses the request of a mod's run it stands for, at that stage and with that kind.
+Each is refused as the rule it reads from refuses the request of a mod's run it stands for, at that stage and with that kind. `event/listen` alone refuses no name: one that is no event's name, and one the run's principal does not hear, as [events](../DECKIT-12/SPEC.md) fix who hears an event, is listened to and told the run never.
 
 ### What a party is told
 
 | message | `params` | when |
 |---|---|---|
-| `event/deliver`, a notification | table `{ name, args }` | an event the run hears was emitted |
+| `event/deliver`, a notification | table `{ name, args }`: `name` the event's whole name, `args` the array of its values | an event was emitted that the run listens to and its principal hears; a run is told its own |
 | `runner/stop`, a request | an empty table | the run's end is asked; it answers once it has ended what it runs |
 
 A run whose job uses and provides no interface and reaches no principal has no connection: `connection/begin` answers it an empty array, and it is told of none.
@@ -134,7 +134,7 @@ After either, the principal has no run, and a party that proves it again hosts a
 
 For each principal the system keeps its **authorized keys**: the public keys that may authenticate as it, each a table `{ scheme, key, name }`, `scheme` a signature scheme, `key` the base64 of the public key and `name` a string the host chose. They are kept as the host app quits and starts again. The system holds no private key.
 
-Only the host registers a key, removes one and reads those of a principal; no permission guards what a host asks, and no run asks it. A key registered for a principal under a `scheme` and `key` it holds already takes the new `name` and is held once. Registering is refused at `call` with kind `INVALID_ARGUMENT` where `principal` is no `id` or `key` is not a public key of `scheme`.
+Only the host registers a key, removes one and reads those of a principal; no permission guards what a host asks, and no run asks it. A key registered for a principal under a `scheme` and `key` it holds already takes the new `name` and is held once. A key is authorized for a principal and not for the system: one public key registered for two principals proves each, and proves no third. Registering is refused at `call` with kind `INVALID_ARGUMENT` where `principal` is no `id` or `key` is not a public key of `scheme`.
 
 A key is read as each proof is verified: one registered is taken, and one removed refused, from the next `authenticate` on, with the host app started or not. A run hosted on a key since removed goes on.
 
@@ -168,7 +168,7 @@ The authorized keys are part of what a principal stored: erasing what a mod stor
 
 **Note.** Another transport changes how bytes are carried and the binding in *What is signed*. The messages, the handshake and the keys stay.
 
-**Note.** No case holds these, each for its reason. An error that holds no `data` (-32600, -32002, -32601) comes to nothing in a case, which reads a refusal by its stage and kind. A party of a case asks the handshake whole, so a `protocol` other than 1, a `nonce` or a `scheme` that is none, a second `initialize`, a request before `authenticate` and a signature over other bytes are reached by no case, and neither is a line that is no JSON object or is over its bound. A party of a case answers `runner/stop` at once, so the close once the time an end is given has passed is not reached. Nothing a case reads tells `launching` from `running` for a party's run, nor shows a problem kept against it. The mode of the socket and where a link leads are the machine's, which a case does not read.
+**Note.** No case holds these, each for its reason. An error that holds no `data` (-32600, -32002, -32601) comes to nothing in a case, which reads a refusal by its stage and kind. A party of a case asks the handshake whole, so a `protocol` other than 1, a `nonce` or a `scheme` that is none, a second `initialize`, a request before `authenticate` and a signature over other bytes are reached by no case, and neither is a line that is no JSON object or is over its bound. A party of a case answers `runner/stop` at once, so the close once the time an end is given has passed is not reached. Nothing a case reads tells `launching` from `running` for a party's run, nor shows a problem kept against it. No party's run has a connection, so what `connection/call` answers of one that stands, and a crossing value, are reached by no case. [The case format](../DECKIT-1/SPEC.md) gives a case's host its keys before the first start, reads none and erases no principal that is no mod, so a key registered or removed later, a key's `name`, a key held once, and the keys erased with what a principal stored are not reached. The mode of the socket and where a link leads are the machine's, which a case does not read.
 
 **Note.** The name `deckit.sock` is a link where the path to it is longer than a local socket's path may be on the machine; the socket then lies elsewhere, where only the same account reaches it.
 
