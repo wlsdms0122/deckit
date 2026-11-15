@@ -75,17 +75,6 @@ const STYLE = `
         .deckit-text-button[data-variant='primary']:not(:disabled, [aria-disabled='true']):active {
         background: var(--deckit-pressed);
     }
-    .deckit-bar-item {
-        width: max-content;
-        height: 100%;
-        padding: 0 8px;
-        border-radius: var(--deckit-radius-round);
-        white-space: nowrap;
-        font-variant-numeric: tabular-nums;
-    }
-    .deckit-bar-item[aria-pressed='true'] { background: var(--deckit-pressed); }
-    div.deckit-bar-item { cursor: default; }
-    div.deckit-bar-item:is(:hover, :active) { background: transparent; }
     .deckit-row-action {
         width: 24px;
         height: 24px;
@@ -188,7 +177,7 @@ const STYLE = `
 // MARK: - Initializer
 // MARK: - Public
 function make() {
-    return { iconButton, button, barItem, rowAction, segmented, toggleButton, toggle, tooltip };
+    return { iconButton, button, rowAction, segmented, toggleButton, toggle, tooltip };
 }
 
 // MARK: - Private
@@ -219,22 +208,6 @@ function button({ label, title = '', icon = '', size = 'medium', variant = 'plai
         setLabel: (next) => (text.textContent = next),
         setEnabled: (on) => setEnabled(element, on),
     };
-}
-
-// An item of the status bar, a child's view the bar lays as wide as `width()` answers: what it shows in a row, as tall
-// as the page, on a round wash under the pointer and pressed where it takes a press (`onClick`), and none where not.
-// `setPressed(on)` keeps it pressed while what it opens is open.
-function barItem({ content, title = '', onClick = null }) {
-    const element = onClick ? buttonOf('deckit-bar-item', title, 'medium') : document.createElement('div');
-    if (!onClick) {
-        element.className = 'deckit-button deckit-bar-item';
-        if (title) element.title = title;
-    }
-    if (onClick) element.addEventListener('click', unlessDisabled(element, onClick));
-    const set = (next) => (typeof next === 'string' ? (element.innerHTML = next) : element.replaceChildren(next));
-    set(content);
-    const setPressed = (on) => element.setAttribute('aria-pressed', String(!!on));
-    return { element, set, setPressed, width: () => Math.ceil(element.getBoundingClientRect().width) };
 }
 
 // An action of a row, shown while the row is hovered or holds the focus, and always where no row or element marked
