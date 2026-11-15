@@ -1600,6 +1600,19 @@ async function run({
             return at && same([at.width, at.height], [320, 120]) && at;
         }, 6000);
         const smaller = placedBy(seatA, '320x120');
+        // The second seat has the view under the anchor still, and its keyboard: its Escape, which the view's page
+        // does not handle, puts the view away for it.
+        const holding = readBy(seatB);
+        const escapeSent = holding ? seatB.as('key', 'Escape') : '';
+        const escaped = await until(
+            async () => !readBy(seatB) && (await mark('mine')).endsWith('didAppear,didDisappear,'),
+            6000
+        );
+        check(
+            "outside: a seat's Escape that the page of its view does not handle puts the view away for it",
+            holding?.key === seatB.seat && escaped,
+            JSON.stringify({ holding, escapeSent, after: readBy(seatB), told: await mark('mine') })
+        );
         await mod?.evaluate(`document.dispatchEvent(new CustomEvent('test-close'))`);
         const closed = await until(
             async () => !placedBy(seatA, '320x120') && !placedBy(seatB, '320x120') && !(await laidOfMod()).Placed,
