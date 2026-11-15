@@ -831,6 +831,7 @@ async function main() {
     const SEATS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'seats.js'));
     chipChecks({ SEATS }, check);
     routeChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'routes.js')), check);
+    levelChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'levels.js')), check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
     await typingChecks({ LAYOUT, createDesktop }, check);
@@ -1560,6 +1561,62 @@ function routeChecks(ROUTING, check) {
             !raises(1, null) &&
             !raises(null, 3),
         ''
+    );
+}
+
+// The levels of the desktop's stage (model/levels.js), as plain data: their order, what lies under the pages' overlays
+// and what over them, and a level that takes the pointer for all over it.
+function levelChecks(LEVELS, check) {
+    const { ORDER, under, over, heldAt } = LEVELS;
+    const named = (layers) => layers.map(({ page }) => page).join();
+    const parts = {
+        cursors: [{ page: 'cursors', input: [] }],
+        panels: [{ page: 'panel' }, { page: 'child', input: [{ x: 1, y: 1, width: 2, height: 2 }] }],
+        desktop: [{ page: 'desktop', input: [{ x: 0, y: 0, width: 9, height: 3 }] }],
+        glass: [{ material: 'popover' }],
+        windows: [{ page: 'frame' }, { page: 'content' }, { page: 'buttons' }],
+        backdrop: [{ page: 'backdrop' }],
+        pages: [{ page: 'mod', input: [] }],
+    };
+    check(
+        "the stage's levels are, from the bottom, the mods' pages, the backdrop, the windows, the glass, the desktop's " +
+            "page, the panel windows, the pages' overlays and the cursors",
+        ORDER.join() === 'pages,backdrop,windows,glass,desktop,panels,overlays,cursors' && Object.isFrozen(ORDER),
+        ORDER
+    );
+    check(
+        "what lies under the pages' overlays is each level under them in order, a level's own layers as given, and " +
+            'what lies over them is the cursors alone',
+        named(under(parts)) === 'mod,backdrop,frame,content,buttons,,desktop,panel,child' &&
+            under(parts)[5] === parts.glass[0] &&
+            named(over(parts)) === 'cursors',
+        { under: named(under(parts)), over: named(over(parts)) }
+    );
+    check(
+        'a level left out lays nothing, and a part that is no level, or the overlays, is refused',
+        named(under({ desktop: parts.desktop })) === 'desktop' &&
+            over({ desktop: parts.desktop }).length === 0 &&
+            [{ menus: [] }, { overlays: [] }].every((wrong) =>
+                [under, over, (given) => heldAt(given, 'desktop', {})].every((asked) => {
+                    try {
+                        asked(wrong);
+                        return false;
+                    } catch {
+                        return true;
+                    }
+                })
+            ),
+        ''
+    );
+    const full = { x: 0, y: 0, width: 9, height: 9 };
+    const held = heldAt(parts, 'desktop', full);
+    check(
+        'a level held takes the pointer over the whole rect, every level over it nowhere, those under it as they did',
+        JSON.stringify([...under(held), ...over(held)].map(({ input }) => input ?? null)) ===
+            JSON.stringify([[], null, null, null, null, null, [full], [], [], []]) &&
+            held.windows === parts.windows &&
+            JSON.stringify(parts.desktop[0].input) === JSON.stringify([{ x: 0, y: 0, width: 9, height: 3 }]),
+        held
     );
 }
 

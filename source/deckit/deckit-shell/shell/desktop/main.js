@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as LAYOUT from './model/layout.js';
+import * as LEVELS from './model/levels.js';
 import * as PAGE from './model/page-name.js';
 import * as WM from './model/window-manager.js';
 import * as MOTION from './model/motion.js';
@@ -1427,36 +1428,32 @@ export function createDesktop({
         const full = { x: 0, y: 0, ...stage.size() };
         inPanels.clear();
         if (down) {
-            stage.lay(OVERLAY.withOverlays([{ page: desktop.page, rect: full }]));
+            stage.lay(whole({ desktop: [{ page: desktop.page, rect: full }] }));
             REGION.show(stage, []);
             return;
         }
         const view = MANAGER.viewOf(shownSeat());
-        const { layers: own, children } = laidOf(view, drawnNow(view), hands.get(LOCAL).dock, shownSeat());
+        const { parts: own, children } = laidOf(view, drawnNow(view), hands.get(LOCAL).dock, shownSeat());
         // In another seat's order the desktop's page takes the machine's pointer everywhere, and what is laid over it
         // nowhere.
-        const top = own.findIndex(({ page }) => page === desktop.page);
-        const layers =
-            followed === null
-                ? own
-                : own.map((layer, at) => (at < top ? layer : { ...layer, input: at === top ? [full] : [] }));
+        const parts = followed === null ? own : LEVELS.heldAt(own, 'desktop', full);
         for (const { window, page } of children) {
             if (!panels.has(window)) continue;
             inPanels.add(page);
             if (!heard.has(page)) PAGES.whenFocused(page, () => pressPanelChild(page));
             heard.add(page);
         }
-        const laid = OVERLAY.withOverlays(layers);
+        const laid = whole(parts);
         onDesktop.clear();
         for (const { page, rect } of laid) if (rect) onDesktop.set(page, rect);
         stage.lay(laid);
         REGION.show(stage, shown ? [...new Set(children.map(({ page }) => page))] : []);
     }
 
-    // What is laid of the desktop for a seat, bottom to top, as layout() tells it: `view` the windows on its screen
-    // (MANAGER.viewOf), `seen` what is drawn of each (drawnNow), `out` whether the Dock is out for it and `seat` the
-    // seat whose status bar takes the pointer, or null for none. Answers `{ layers, children }`, `children` those
-    // the windows and the panel windows show (childrenIn).
+    // What is laid of the desktop for a seat, as layout() tells it: `view` the windows on its screen (MANAGER.viewOf),
+    // `seen` what is drawn of each (drawnNow), `out` whether the Dock is out for it and `seat` the seat whose status
+    // bar takes the pointer, or null for none. Answers `{ parts, children }`, `parts` the layers of each level
+    // (model/levels.js), and `children` those the windows and the panel windows show (childrenIn).
     function laidOf(view, seen, out, seat = null) {
         const full = { x: 0, y: 0, ...stage.size() };
         const status = seat === null ? null : statusOf(seat);
@@ -1479,10 +1476,10 @@ export function createDesktop({
         const backdrop = surface(PAGE.BACKDROP);
         return {
             children,
-            layers: [
-                ...[...pages].map((page) => ({ page, rect: front.get(page) ?? area(), input: [] })),
-                ...(backdrop ? [{ page: backdrop, rect: full }] : []),
-                ...seen.flatMap(({ id, window, frame, opacity, scale, content, leaving, surfaces }) => {
+            parts: {
+                pages: [...pages].map((page) => ({ page, rect: front.get(page) ?? area(), input: [] })),
+                backdrop: backdrop ? [{ page: backdrop, rect: full }] : [],
+                windows: seen.flatMap(({ id, window, frame, opacity, scale, content, leaving, surfaces }) => {
                     const { bar } = window;
                     const parts = LAYOUT.partsOf(frame, bar);
                     const clip = { ...frame, cornerRadius: LAYOUT.RADIUS };
@@ -1529,18 +1526,20 @@ export function createDesktop({
                         },
                     ].filter(Boolean);
                 }),
-                ...glass,
-                {
-                    page: desktop.page,
-                    rect: full,
-                    input: [
-                        ...(strip.height ? [{ x: 0, y: 0, width: full.width, height: strip.height }] : []),
-                        ...DOCK_MODEL.inputOf(area(), out, DOCK.items()),
-                        ...chips().map(({ rect }) => rect),
-                        ...(status ? STATUS_MODEL.inputOf(status.bar, status.popover) : []),
-                    ],
-                },
-                ...inBar.flatMap(({ window, frame }) => {
+                glass,
+                desktop: [
+                    {
+                        page: desktop.page,
+                        rect: full,
+                        input: [
+                            ...(strip.height ? [{ x: 0, y: 0, width: full.width, height: strip.height }] : []),
+                            ...DOCK_MODEL.inputOf(area(), out, DOCK.items()),
+                            ...chips().map(({ rect }) => rect),
+                            ...(status ? STATUS_MODEL.inputOf(status.bar, status.popover) : []),
+                        ],
+                    },
+                ],
+                panels: inBar.flatMap(({ window, frame }) => {
                     const clip = { ...frame, cornerRadius: LAYOUT.panelRadius(window.edge, frame) };
                     return [
                         window.surface && { page: window.surface, rect: frame, clip, spread: full },
@@ -1549,15 +1548,21 @@ export function createDesktop({
                             .map(({ page, rect }) => ({ page, rect, clip })),
                     ].filter(Boolean);
                 }),
-            ],
+            },
         };
+    }
+
+    // The layers of `parts` as the stage takes them, bottom to top: the levels under the pages' overlays, the overlay
+    // of each page laid there that shows anything, then the levels over them.
+    function whole(parts) {
+        return [...OVERLAY.withOverlays(LEVELS.under(parts)), ...LEVELS.over(parts)];
     }
 
     // What is laid of the desktop for `seat`, each window where it rests in the seat's order: what a press of the
     // seat's pointer is read against (`stage.hit`), and what a picture for it is made of.
     function laidFor(seat) {
         const view = MANAGER.viewOf(seat);
-        return OVERLAY.withOverlays(laidOf(view, rested(view), hands.get(seat).dock, seat).layers);
+        return whole(laidOf(view, rested(view), hands.get(seat).dock, seat).parts);
     }
 
     // What is laid of one window or panel window alone, where it rests, whatever is over it and whichever seat's
@@ -1565,7 +1570,7 @@ export function createDesktop({
     function laidOfWindow(id) {
         const view = windows.has(id) ? [{ id, frame: MANAGER.frameOf(id) }] : [];
         const own = [PAGE.frameOf(id), PAGE.buttonsOf(id)].map((name) => desktop.surfaces.get(name));
-        return OVERLAY.withOverlays(laidOf(view, rested(view), false).layers).filter(
+        return whole(laidOf(view, rested(view), false).parts).filter(
             ({ page }) => page && (own.includes(page) || windowAt(page)?.id === id)
         );
     }
