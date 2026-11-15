@@ -97,7 +97,7 @@ An event names its place by `x` and `y`, both, or by `ref`, never by both. It an
 | key | value |
 |---|---|
 | `over` | what the event reached: a number, the id of a window; `dock`, the Dock; `desktop`, the desktop's own page where no window lies; or null, where it reached nothing |
-| `key` | written for a `down` on a normal window: `key` where the window is the seat's key window now, `held` where another seat holds it |
+| `key` | written for a `down` on a normal window: `key` where the window is the seat's key window now, `held` where another seat holds it; and for a `down` on a view shown for the seat by activation, of the view's keyboard, as [views](../DECKIT-41/SPEC.md) fix it |
 | `holder` | written with `key`: the id of the seat that holds the window, or null |
 | `at` | table `{ x, y }`: the point of the desktop the event went to |
 
