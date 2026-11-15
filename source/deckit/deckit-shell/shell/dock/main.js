@@ -14,6 +14,8 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
     const PINNED = 'dock-pinned';
     let pinned = []; // the ids of the mods the person keeps in the Dock, in its order
     let launched = []; // the ids of the mods running, in the order they launched
+    // While a seat drags an item kept in the Dock, `{ id, ids }`: the item, and the order the kept items show in.
+    let held = null;
 
     // MARK: - Initializer
     // MARK: - Public
@@ -39,22 +41,16 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
             DESKTOP.activation.request(from, id);
             return open(id, DESKTOP.localSeat);
         });
-        const bySeat = (handler) => (payload, sender) => {
-            const seat = DESKTOP.seatAt(sender);
-            if (seat) handler(payload, seat);
-        };
-        PROTOCOL.click.on(bySeat(({ id }, seat) => hand.click(id, seat)));
-        PROTOCOL.quit.on(bySeat(({ id }) => hand.quit(id)));
-        PROTOCOL.keep.on(bySeat(({ id, pinned: on }) => hand.keep(id, on)));
-        PROTOCOL.reorder.on(bySeat(({ ids }) => hand.reorder(ids)));
         ICONS.onChange(() => DESKTOP.update());
         DESKTOP.update();
     }
 
-    // What the person does to the Dock, as the desktop's page tells it or the host app hands it, for `seat`: a click
-    // on an item, its input reaching the mod; Quit from its menu; Keep in Dock or Remove from Dock; and the items kept
-    // there dragged into the order `ids` names. A click and Quit answer a promise, fulfilled once what they asked of
-    // deckit is done, whether it was done or refused.
+    // What a seat does to the Dock, as the desktop recognizes it of the seat's pointer or the host app hands it, for
+    // `seat`: a click on an item, its input reaching the mod; Quit from its menu; Keep in Dock or Remove from Dock;
+    // the entry `entry` of the item's menu chosen (DOCK.entriesOf), which is one of those; an item kept there dragged,
+    // the kept items showing in the order `ids` names while it is, or the drag given up with no `id`; and the items
+    // kept there let go in the order `ids` names. Every seat changes the one Dock all of them share. A click and Quit
+    // answer a promise, fulfilled once what they asked of deckit is done, whether it was done or refused.
     const hand = Object.freeze({
         click: (id, seat) => {
             DESKTOP.activation.input(seat, id);
@@ -62,13 +58,28 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
         },
         quit: (id) => quit(id),
         keep: (id, on) => setPinned(id, on),
-        reorder: (ids) => arrange(ids),
+        choose: (id, entry, seat) => {
+            if (entry === 'open') return hand.click(id, seat);
+            if (entry === 'keep') return setPinned(id, !keeps(id));
+            if (entry === 'quit') return quit(id);
+        },
+        drag: (id = null, ids = []) => show(id === null ? null : { id, ids }),
+        reorder: (ids) => {
+            held = null;
+            arrange(ids);
+        },
     });
+
+    // The id of the item a seat drags now, or null.
+    function dragged() {
+        return held?.id ?? null;
+    }
 
     // What the Dock shows, `[{ id, name, icon, pinned, running }]`: the app mods kept there, as the person arranged
     // them, then those running now, in the order they launched.
     function items() {
-        const names = new Map(apps().map(({ id, name }) => [id, name]));
+        const order = held ? LIST_ORDER.arranged(pinned, held.ids) : pinned;
+        const names = new Map(apps(order).map(({ id, name }) => [id, name]));
         return DOCK.items([...names.keys()], { pinned: new Set(pinned), running: new Set(launchOrder()) }).map(
             (item) => ({
                 ...item,
@@ -111,6 +122,13 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
     function arrange(ids) {
         pinned = LIST_ORDER.arranged(pinned, ids);
         keep(PINNED, pinned);
+        DESKTOP.update();
+    }
+
+    // The kept items show as `next` has them, `{ id, ids }` while a seat drags the item `id`, or as they are kept.
+    function show(next) {
+        if (JSON.stringify(next) === JSON.stringify(held)) return;
+        held = next;
         DESKTOP.update();
     }
 
@@ -157,11 +175,11 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
         );
     }
 
-    // The app mods in the Dock's order: those kept there, in its order, then the rest in the mods' order. The mods
+    // The app mods in the Dock's order: those kept there, in its `order`, then the rest in the mods' order. The mods
     // that load are read once for all of them.
-    function apps() {
+    function apps(order = pinned) {
         const mods = new Map(MODS.loaded(deckit.mods).map((mod) => [mod.id, mod]));
-        return LIST_ORDER.sorted([...mods.keys()], pinned)
+        return LIST_ORDER.sorted([...mods.keys()], order)
             .map((id) => mods.get(id))
             .filter(({ id }) => FIELD.activationPolicyOf(deckit.mods.fieldsOf(id)) === FIELD.REGULAR);
     }
@@ -206,5 +224,5 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
         );
     }
 
-    return { start, items, open, hand, keeps, forget };
+    return { start, items, dragged, open, hand, keeps, forget };
 }

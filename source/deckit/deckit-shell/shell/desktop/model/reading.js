@@ -24,6 +24,11 @@ function itemLine({ name, running, active, attention, ref }) {
     return joined('item', quoted(name), bracketed(states), ref);
 }
 
+// An entry of the menu of an item of the Dock.
+function entryLine({ name, ref }) {
+    return joined('menuitem', quoted(name), ref);
+}
+
 // A window or a panel window: its id, title, mod, a panel's edge, its frame, then the seat that holds its keyboard and
 // how it is on the asker's screen.
 function windowLine({ kind, id, title, mod, edge = null, frame, key = null, minimized, zoomed, tile = null }) {
@@ -63,14 +68,17 @@ function selectionLine({ start, end, line, column, length }) {
     return joined('selection', at, length ? `(${length} selected)` : null);
 }
 
-// The desktop: its size and the mark, the seats, the Dock, then the windows front to back in the asker's order and
-// the panel windows.
-function desktop({ desktop: size, mark, seats, dock, windows, panels }) {
+// The desktop: its size and the mark, the seats, the Dock, the menu of an item of it while one is open for the asker,
+// then the windows front to back in the asker's order and the panel windows.
+function desktop({ desktop: size, mark, seats, dock, menu = null, windows, panels }) {
     return [
         `desktop ${sizeOf(size)} mark ${mark}`,
         ...seats.map(seatLine),
         `dock (${dock.length} items)`,
         ...dock.map((item) => indented(1, itemLine(item))),
+        ...(menu
+            ? [joined('menu', quoted(menu.name)), ...menu.entries.map(entryLine)].map((line) => indented(1, line))
+            : []),
         ...windows.map(windowLine),
         ...panels.map(windowLine),
     ].join('\n');
@@ -105,4 +113,4 @@ function changes({ from, to, entries }) {
     return [`changes ${from} to ${to}`, ...entries.map(({ kind, line }) => `${kind} ${line}`)].join('\n');
 }
 
-export { seatLine, itemLine, windowLine, elementLine, documentLine, desktop, window, node, changes };
+export { seatLine, itemLine, entryLine, windowLine, elementLine, documentLine, desktop, window, node, changes };

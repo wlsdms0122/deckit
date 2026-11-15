@@ -298,6 +298,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                 attention: attention.includes(id),
                 ref: `dock.${id}`,
             })),
+            menu: menuOf(seat, items),
             windows: desk.MANAGER.orderOf(seat)
                 .reverse()
                 .map((id) => factOf(seat, id, names)),
@@ -305,14 +306,24 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         };
     }
 
+    // The menu of the Dock's item open for `seat`, `{ name, entries: [{ id, name, ref, rect }] }`, `name` its item's
+    // among `items`, each entry with its label and its rect on the desktop; or null with none open.
+    function menuOf(seat, items) {
+        const menu = desk.dockMenu(seat);
+        if (!menu) return null;
+        const entries = menu.entries.map(({ id, label, rect }) => ({ id, name: label, ref: `dock-menu.${id}`, rect }));
+        return { name: items.find(({ id }) => id === menu.item)?.name ?? menu.item, entries };
+    }
+
     // The desktop's lines by ref, in the order they read; `held` as they are held against what was read before, a
     // seat's line without where its pointer is and whose it is.
-    function linesOf({ desktop, seats, dock, windows, panels }, { held = false } = {}) {
+    function linesOf({ desktop, seats, dock, menu, windows, panels }, { held = false } = {}) {
         const seat = (each) => TEXT.seatLine(held ? { ...each, at: null, you: false } : each);
         return new Map([
             ['desktop', `desktop ${desktop.width}x${desktop.height}`],
             ...seats.map((each) => [each.id, seat(each)]),
             ...dock.map((item) => [item.ref, TEXT.itemLine(item)]),
+            ...(menu?.entries ?? []).map((entry) => [entry.ref, TEXT.entryLine(entry)]),
             ...[...windows, ...panels].map((window) => [window.id, TEXT.windowLine(window)]),
         ]);
     }
@@ -380,8 +391,13 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     }
 
     // A part the shell draws, by its ref, with `rect` on the desktop, the window it is of, and for an item of the Dock
-    // `by`, the middle of the Dock's sliver; or null for a ref that names none.
+    // `by`, the middle of the Dock's sliver; or null for a ref that names none. An entry of the Dock's menu is one
+    // while that menu is open for the seat.
     function partOf(seat, ref) {
+        if (ref.startsWith('dock-menu.')) {
+            const entry = desktopOf(seat).menu?.entries.find((each) => each.ref === ref);
+            return entry ? { line: { role: 'menuitem', name: entry.name, ref }, rect: entry.rect, window: null } : null;
+        }
         const [, mod] = /^dock\.(.+)$/.exec(ref) ?? [];
         if (mod !== undefined) {
             const items = desk.dock().items();

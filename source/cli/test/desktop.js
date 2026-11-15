@@ -563,11 +563,6 @@ async function main() {
         activated && names().includes('content-2') && desk.desktop.isKey(two) && !desk.desktop.activate('local', 'c'),
         names()
     );
-    check(
-        "the desktop's page is the local seat's screen, and no other page is",
-        desk.desktop.seatAt(desk.desktopPage) === 'local' && desk.desktop.seatAt(two.page) === null,
-        null
-    );
 
     desk.pageFrames(2, { x: 300, y: 200, width: 500, height: 400 });
     check(
@@ -867,6 +862,7 @@ async function main() {
     overlayChecks(createOverlay, check);
 
     seatChecks({ LAYOUT, DOCK, createDesktop }, check);
+    await dockChecks({ LAYOUT, DOCK, createDesktop }, check);
     await readingChecks({ LAYOUT, createDesktop }, check);
     const COLOURS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'colours.js'));
     drawnChecks({ COLOURS, LAYOUT, createDesktop }, check);
@@ -1186,6 +1182,7 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
             JSON.stringify(desk.dock.clicked) === '[["a","s1"]]',
         JSON.stringify({ under, onItem, left, clicked: desk.dock.clicked })
     );
+
     desk.dock.items = [];
     const refusedOf = (enter) => {
         try {
@@ -1270,6 +1267,139 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
             }
         })(),
         ''
+    );
+}
+
+// The one recognizer of the Dock: an attached seat's pointer and the page's forward of the local seat's.
+async function dockChecks({ LAYOUT, DOCK, createDesktop }, check) {
+    const desk = desktopOver(createDesktop, {});
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const me = desk.sit('s1');
+    const pointer = (type, at, more = {}) => ({ event: 'pointer', type, ...at, button: 0, count: 1, ...more });
+    desk.dock.items = [
+        { id: 'a', pinned: true, running: true },
+        { id: 'b', pinned: true, running: false },
+        { id: 'c', pinned: false, running: true },
+    ];
+    const zone = LAYOUT.desktopOf({ width: 1200, height: 800 }, 28);
+    const on = (id) => {
+        const { x, y, width, height } = DOCK.tileOf(zone, desk.dock.items, id);
+        return { x: x + width / 2, y: y + height / 2 };
+    };
+    const local = (type, at, more = {}) => desk.fromPage('pointer', { part: 'dock', type, ...at, button: 0, ...more });
+    const key = (part, item, button = 0) =>
+        ['down', 'up'].forEach((type) => desk.fromPage('pointer', { part, item, type, x: 0, y: 0, button }));
+    desk.dock.clicked.length = 0;
+    desk.enter(me, pointer('move', { x: 2, y: on('a').y }));
+    desk.enter(me, pointer('down', on('a')));
+    desk.enter(me, pointer('move', { x: on('a').x + 3, y: on('a').y + 3 }, { buttons: [0] }));
+    const short = desk.dock.shown.length;
+    desk.enter(me, pointer('move', on('b'), { buttons: [0] }));
+    const dragging = { shown: desk.dock.shown.at(-1), held: desk.page().dock.held };
+    const dropped = desk.enter(me, pointer('up', on('b')));
+    check(
+        "a seat's drag of a kept item past the slop shows the kept items in the order of its pointer, on the page " +
+            'too, and its up leaves them so, with no click',
+        short === 0 &&
+            JSON.stringify(dragging) === '{"shown":["a",["b","a"]],"held":"a"}' &&
+            dropped.over === 'dock' &&
+            JSON.stringify(desk.dock.reordered) === '[["b","a"]]' &&
+            desk.page().dock.held === null &&
+            !desk.dock.clicked.length,
+        JSON.stringify({ short, dragging, dropped, reordered: desk.dock.reordered, clicked: desk.dock.clicked })
+    );
+    local('down', on('a'), { count: 1 });
+    local('move', on('b'));
+    const localDragging = desk.page().dock.held;
+    local('up', on('b'));
+    check(
+        "the local seat's drag, forwarded by the page, gives the same order",
+        localDragging === 'a' && JSON.stringify(desk.dock.reordered) === '[["b","a"],["b","a"]]',
+        JSON.stringify({ localDragging, reordered: desk.dock.reordered })
+    );
+    desk.enter(me, pointer('down', on('a')));
+    desk.enter(me, pointer('move', on('b'), { buttons: [0] }));
+    desk.enter(me, pointer('down', on('c')));
+    desk.enter(me, pointer('move', { x: on('c').x + 9, y: on('c').y + 9 }, { buttons: [0] }));
+    desk.enter(me, pointer('up', { x: on('c').x + 9, y: on('c').y + 9 }));
+    check(
+        'a drag a new press cuts short is given up, and an item that is not kept is not dragged: its press let go ' +
+            'on it is a click',
+        desk.dock.reordered.length === 2 &&
+            JSON.stringify(desk.dock.shown.at(-1)) === '[null,[]]' &&
+            desk.page().dock.held === null &&
+            JSON.stringify(desk.dock.clicked) === '[["c","s1"]]',
+        JSON.stringify({ shown: desk.dock.shown, clicked: desk.dock.clicked })
+    );
+    local('down', on('c'), { count: 1 });
+    local('up', on('c'));
+    key('dock', 'b');
+    check(
+        "the local seat's press on an item, and its keyboard's press of one, are its clicks",
+        JSON.stringify(desk.dock.clicked.slice(1)) === '[["c","local"],["b","local"]]',
+        JSON.stringify(desk.dock.clicked)
+    );
+    const menuOfC = DOCK.menuOf(zone, desk.dock.items, 'c');
+    const entry = (id) => {
+        const { x, y, width, height } = menuOfC.entries.find((each) => each.id === id).rect;
+        return { x: x + width / 2, y: y + height / 2 };
+    };
+    desk.enter(me, pointer('down', on('c'), { button: 2 }));
+    desk.enter(me, pointer('up', on('c'), { button: 2 }));
+    const mine = desk.page().dock.menu;
+    const read = (await desk.seats.served.read(me, { of: 'desktop' })).text;
+    const offMenu = desk.enter(me, pointer('move', entry('keep')));
+    const chose = desk.enter(me, pointer('down', entry('keep')));
+    desk.enter(me, pointer('up', entry('keep')));
+    const after = (await desk.seats.served.read(me, { of: 'desktop' })).text;
+    check(
+        "a seat's press of the second button on an item opens its menu for that seat alone, the Dock staying out " +
+            'for it; the seat reads it, and its press on an entry chooses it and puts the menu away',
+        mine === null &&
+            read.includes('  menu "c"\n  menuitem "Show" dock-menu.open\n  menuitem "Keep in Dock" dock-menu.keep') &&
+            offMenu.over === null &&
+            chose.over === 'dock' &&
+            JSON.stringify(desk.dock.chosen) === '[["c","keep","s1"]]' &&
+            !after.includes('menu'),
+        JSON.stringify({ mine, read, chose, chosen: desk.dock.chosen })
+    );
+    desk.enter(me, pointer('down', on('c'), { button: 2 }));
+    desk.enter(me, pointer('up', on('c'), { button: 2 }));
+    const away = desk.enter(me, pointer('down', { x: 600, y: 700 }));
+    desk.enter(me, pointer('up', { x: 600, y: 700 }));
+    const late = desk.enter(me, pointer('down', entry('quit')));
+    desk.enter(me, pointer('up', entry('quit')));
+    check(
+        'a press off the menu puts it away: a press where an entry stood then chooses nothing',
+        away.over === 'desktop' && late.over !== 'dock' && desk.dock.chosen.length === 1,
+        JSON.stringify({ away, late, chosen: desk.dock.chosen })
+    );
+    local('down', on('c'), { button: 2 });
+    local('up', on('c'), { button: 2 });
+    const drawn = desk.page().dock.menu;
+    const takes = desk.laid().find(({ page: each }) => each === desk.desktopPage).input;
+    local('down', entry('quit'), { count: 1 });
+    local('up', entry('quit'));
+    const gone = desk.page().dock.menu;
+    key('dock', 'a', 2);
+    const byKey = desk.page().dock.menu?.item;
+    key('dock-menu', 'open');
+    const opened = [desk.page().dock.menu, desk.dock.chosen.at(-1)];
+    key('dock', 'a', 2);
+    key('dock', '');
+    check(
+        "the local seat's context press on an item opens its menu on the page, as the Dock's model lays it, and the " +
+            "page takes the pointer there; its press on an entry chooses it; the keyboard's presses open the menu, " +
+            'choose an entry and put it away',
+        JSON.stringify(drawn) === JSON.stringify(menuOfC) &&
+            takes.some((rect) => JSON.stringify(rect) === JSON.stringify(menuOfC.frame)) &&
+            gone === null &&
+            byKey === 'a' &&
+            JSON.stringify(opened) === '[null,["a","open","local"]]' &&
+            desk.page().dock.menu === null &&
+            JSON.stringify(desk.dock.chosen[1]) === '["c","quit","local"]',
+        JSON.stringify({ drawn, takes, gone, byKey, opened, chosen: desk.dock.chosen })
     );
 }
 
@@ -3789,7 +3919,9 @@ function desktopOver(
     const machine = [];
     const puts = [];
     const reserved = new Map();
-    const dock = { items: [], clicked: [] }; // the Dock's items, and each click on one with the seat it is of
+    // The Dock's items, the item dragged, and what the desktop handed it: each click on an item and each entry chosen
+    // with the seat it is of, each order shown while an item is dragged, and each order the items were let go in.
+    const dock = { items: [], held: null, clicked: [], chosen: [], shown: [], reordered: [] };
     const KEY = {
         start: (press) => (heard.press = press),
         listen() {},
@@ -3924,7 +4056,25 @@ function desktopOver(
             keyOverlay: () => null,
             pageOf: (page) => page.of ?? page,
         },
-        DOCK: { items: () => dock.items, hand: { click: (id, seat) => dock.clicked.push([id, seat]) } },
+        DOCK: {
+            items: () => dock.items,
+            dragged: () => dock.held,
+            hand: {
+                click: (id, seat) => dock.clicked.push([id, seat]),
+                choose: (id, entry, seat) => dock.chosen.push([id, entry, seat]),
+                // The Dock has the desktop drawn again as what it shows changes.
+                drag: (id = null, ids = []) => {
+                    dock.held = id;
+                    dock.shown.push([id, ids]);
+                    desktop.update();
+                },
+                reorder: (ids) => {
+                    dock.held = null;
+                    dock.reordered.push(ids);
+                    desktop.update();
+                },
+            },
+        },
     });
     const backdrop = { name: 'backdrop' };
     allowed.get('backdrop')(backdrop);

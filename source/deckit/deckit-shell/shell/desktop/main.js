@@ -18,6 +18,8 @@ import { createReading } from './reading.js';
 
 // How many frames a second a window's motion is drawn at.
 const FRAMES = 120;
+// The parts of the Dock a seat's pointer is on: an item, and an item's menu.
+const DOCK_PARTS = Object.freeze(['dock', 'dock-menu']);
 // Whether a point is in a rect.
 const within = ({ x, y, width, height }, point) =>
     point.x >= x && point.y >= y && point.x < x + width && point.y < y + height;
@@ -71,9 +73,11 @@ export function createDesktop({
     // and where the pointer is on the stage now; `dropping`, the tile that window takes let go now, or null; `pointer`,
     // where its pointer is on the desktop, or null; `down`, where its press went until it lets go, a page of the window
     // `id` with `inside`, the page's top left from that window's frame, or a `part` of the window `id` with its `grip`,
-    // the Dock's item `id`, its `part` 'dock'; `wanted`, the window it pressed
+    // the Dock's item `id`, its `part` 'dock', pressed at `from` and dragged once `drags`, or the entry `id` of an
+    // item's menu, its `part` 'dock-menu'; `wanted`, the window it pressed
     // last that another seat holds, or null; `dock`, whether the Dock is out for it, as the desktop's page tells of the
-    // seat it shows and as its pointer says of any other; and `keys`, `{ id, page }`, the page
+    // seat it shows and as its pointer says of any other; `menu`, the id of the Dock's item whose menu is open for it,
+    // or null; and `keys`, `{ id, page }`, the page
     // of the window `id` that took its last press there, where its keys and text go while that window holds its
     // keyboard, or null for the window's content, the local seat's being the machine's; `buttons`, those of its
     // pointer that are held now; `key`, its key window as update() last saw it; `waits`, a promise of the turn of
@@ -178,6 +182,7 @@ export function createDesktop({
             colourOf: COLOURS.of,
             stage: () => stage,
             dock: () => DOCK,
+            dockMenu: menuOf,
             tells: () => tells,
             area,
             panelFrames,
@@ -507,6 +512,7 @@ export function createDesktop({
         if (hand.moving) handHeld.delete(hand.moving.id);
         hand.moving = null;
         hand.dropping = null;
+        undrag(hand);
     }
 
     // A double click on the title bar does what the person set it to, where the window's button for it is enabled.
@@ -526,11 +532,6 @@ export function createDesktop({
         } else holdBack(seat, ids, mod);
         update();
         return true;
-    }
-
-    // The seat whose screen `page` is: the desktop's page is the local seat's; null for any other page.
-    function seatAt(page) {
-        return page && page === desktop.page ? LOCAL : null;
     }
 
     // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` while the
@@ -688,6 +689,7 @@ export function createDesktop({
             down: null,
             wanted: null,
             dock: false,
+            menu: null,
             keys: null,
             key: null,
             waits: null,
@@ -918,6 +920,7 @@ export function createDesktop({
             return { over: null };
         }
         if (event.type === 'down') pressedDown(seat, hand, event.page);
+        if (event.type === 'down' && hand.pointer && !onDock(seat, hand.pointer)) unmenu(seat, hand);
         const window = event.type === 'down' ? windowAt(event.page) : null;
         if (!window || !windows.has(window.id) || MANAGER.isMinimized(seat, window.id)) return { over: null };
         return reached(seat, window);
@@ -928,7 +931,8 @@ export function createDesktop({
     // page where its window is now, so a window its content's drag moves stays under the pointer. A press on the
     // desktop or the Dock leaves the seat's keyboard with its key window, wanting no other. A move with none
     // held moves the seat's pointer alone. The Dock comes out for the seat as its pointer reaches the Dock's sliver,
-    // and stays out while it is there or on the Dock's card. `how` is how the seat named the place (ROUTING.placeOf).
+    // and stays out while it is there or on the Dock's card, or an item's menu is open for it; a press off the Dock
+    // and that menu puts the menu away. `how` is how the seat named the place (ROUTING.placeOf).
     function pointed(seat, hand, event, how = 'point') {
         const { type } = event;
         const point = { x: event.x, y: event.y };
@@ -937,12 +941,18 @@ export function createDesktop({
         hand.pointer = point;
         moved(seat, hand, event, how);
         const [sliver, card] = DOCK_MODEL.inputOf(area(), true, DOCK.items());
-        hand.dock = within(sliver, point) || (hand.dock && within(card, point));
+        const out = () => within(sliver, point) || (hand.dock && within(card, point)) || hand.menu !== null;
+        hand.dock = out();
         const hit = type === 'move' ? null : stage.hit(laidFor(seat), point);
+        const part = hit && partAt(hit, seat);
+        if (type === 'down' && !DOCK_PARTS.includes(part?.part)) {
+            unmenu(seat, hand);
+            hand.dock = out();
+        }
         if (type === 'move' || type === 'up') {
             const held = hand.down;
             if (!held) return { over: null };
-            if (held.part) gesture(seat, type, point, hit && partAt(hit));
+            if (held.part) gesture(seat, type, point, part);
             else {
                 const frame = frameOn(held.id);
                 if (type === 'up' || !frame) hand.down = null;
@@ -950,16 +960,16 @@ export function createDesktop({
                 if (at) INPUT.put(held.page, { ...event, ...at });
                 reread(seat);
             }
-            return { over: held.part === 'dock' ? 'dock' : held.id };
+            return { over: DOCK_PARTS.includes(held.part) ? 'dock' : held.id };
         }
         if (type === 'down') pressedDown(seat, hand, hit?.page ?? null);
         if (!hit) return { over: null };
-        const part = partAt(hit);
         if (part) {
+            const docks = DOCK_PARTS.includes(part.part);
             if (type === 'down') gesture(seat, type, point, part, { count: event.count, button: event.button });
-            if (type === 'down' && part.part === 'dock') hand.wanted = null;
+            if (type === 'down' && docks) hand.wanted = null;
             if (type === 'down') backToKey(hand);
-            if (part.part === 'dock') return { over: 'dock' };
+            if (docks) return { over: 'dock' };
             const made = MANAGER.keyOf(seat) === part.id ? 'key' : 'held';
             return { over: part.id, ...(type === 'down' ? { key: made, holder: MANAGER.holderOf(part.id) } : {}) };
         }
@@ -1119,23 +1129,25 @@ export function createDesktop({
 
     // What stands on the screen of `seat`, `[{ id, frame, radius }]` from the back, as the stage's levels lie
     // (model/levels.js): its windows in its order; what the desktop's page draws over them, the band of the host's bar
-    // and the Dock, `out` or in as that screen has it; the panel windows at an edge; then the views there as they lie.
-    // What a page presents over itself is in none.
-    function stackOf(seat, out = hands.get(seat)?.dock ?? false) {
+    // and the Dock, out or in as the screen of the seat `docked` has it, with the menu of an item open for that seat;
+    // the panel windows at an edge; then the views there as they lie. What a page presents over itself is in none.
+    function stackOf(seat, docked = seat) {
+        const menu = menuOf(docked);
         const frames = panelFrames(seat);
         const views = frames.filter(({ window }) => ANCHORED.isView(window));
         const panes = [...frames.filter(({ window }) => !ANCHORED.isView(window)), ...stackedFor(seat, views)];
         return [
             ...MANAGER.viewOf(seat).map(({ id, frame }) => ({ id, frame, radius: LAYOUT.RADIUS })),
             { id: 'band', frame: { x: 0, y: 0, width: stage.size().width, height: strip.height }, radius: 0 },
-            { id: 'dock', ...DOCK_MODEL.coverOf(area(), out, DOCK.items()) },
+            { id: 'dock', ...DOCK_MODEL.coverOf(area(), hands.get(docked)?.dock ?? false, DOCK.items()) },
+            ...(menu ? [{ id: 'dock-menu', frame: menu.frame, radius: menu.radius }] : []),
             ...panes.map(({ window, frame }) => ({ id: window.id, frame, radius: radiusOf(window, frame) })),
         ];
     }
 
     // What stands on the screen the host window shows: the shown seat's, with the Dock as the local seat has it.
     function viewedStack() {
-        return stackOf(shownSeat(), hands.get(LOCAL)?.dock ?? false);
+        return stackOf(shownSeat(), LOCAL);
     }
 
     // `seat`'s press on a window, answered as the entry answers it.
@@ -1157,13 +1169,15 @@ export function createDesktop({
 
     // The part the shell draws that a point of a page is on, `{ id, part }`: of the window `id`, 'bar', its title bar,
     // an edge as LAYOUT.resized names it, a button by its name, or 'buttons' between them; in the desktop's page,
-    // 'dock', the Dock's item of the mod `id`; null for any other point.
-    function partAt({ page, x, y }) {
+    // 'dock-menu', the entry `id` of the menu open for `seat`, null between its entries, or 'dock', the Dock's item of
+    // the mod `id`; null for any other point.
+    function partAt({ page, x, y }, seat = null) {
         const holds = (rect) => within(rect, { x, y });
         if (page === desktop.page) {
-            const items = DOCK.items();
-            const item = items.find(({ id }) => holds(DOCK_MODEL.tileOf(area(), items, id)));
-            return item ? { id: item.id, part: 'dock' } : null;
+            const menu = menuOf(seat);
+            if (menu && holds(menu.frame)) return { id: DOCK_MODEL.entryAt(menu, { x, y }), part: 'dock-menu' };
+            const id = DOCK_MODEL.itemAt(area(), DOCK.items(), { x, y });
+            return id === null ? null : { id, part: 'dock' };
         }
         for (const [id, { bar }] of windows) {
             if (page === desktop.surfaces.get(PAGE.buttonsOf(id)))
@@ -1179,16 +1193,24 @@ export function createDesktop({
     // one recognizer of every seat: a 'down' is a press on the window, a drag of its title bar from there moves it, a
     // drag of an edge resizes it, an up on the button the press was on clicks it, and a 'down' on the title bar that
     // is the second of two, `count` 2, is a double click. A 'down' of another `button` than the first is a press on
-    // the window and no more. An up on the Dock's item the press was on is the seat's click on it. `point` is in any
-    // space that holds still while the button is down, and `grab` where a 'down' is from the frame's top left, read
-    // from `point` where it is not told, which holds for a point on the desktop.
+    // the window and no more. On the Dock (DOCK_PARTS), `on` null where nothing of it is under the pointer: an up on
+    // the item the press was on is the seat's click on it; a press on an item kept there dragged past the Dock's slop
+    // drags it, the kept items showing in the order the Dock's model answers of the pointer until the up leaves them
+    // so; a 'down' of the second button on an item opens its menu for the seat; an up on the entry of that menu the
+    // press was on chooses it, and a press on anything but the menu puts it away. `point` is in any space that holds
+    // still while the button is down, the desktop for the Dock, and `grab` where a 'down' is from the frame's top
+    // left, read from `point` where it is not told, which holds for a point on the desktop.
     function gesture(seat, type, point, on, { count = 1, button = 0, grab = null } = {}) {
         const hand = hands.get(seat);
         if (!hand) return;
         if (type === 'down') {
-            const onDock = on.part === 'dock';
-            hand.down = onDock && button === 0 ? { ...on } : null;
-            if (onDock) return;
+            undrag(hand);
+            if (!on || DOCK_PARTS.includes(on.part)) {
+                const held = button === 0 && on && on.id !== null;
+                hand.down = held ? { ...on, from: point, drags: false } : null;
+                if (on?.part !== 'dock-menu') hand.menu = button === 2 && on ? on.id : null;
+                return update();
+            }
             return byHand(seat, on.id, (window) => {
                 if (button !== 0) return press(seat, window);
                 if (on.part !== 'bar' || count === 2) press(seat, window);
@@ -1201,8 +1223,16 @@ export function createDesktop({
         }
         const held = hand.down;
         if (type === 'up') hand.down = null;
+        if (held?.part === 'dock-menu') {
+            if (type === 'up' && on?.part === held.part && on.id === held.id) chosen(seat, hand, held.id);
+            return;
+        }
         if (held?.part === 'dock') {
-            if (type === 'up' && on?.part === 'dock' && on.id === held.id) DOCK.hand.click(held.id, seat);
+            const order = DOCK_MODEL.orderOf(area(), DOCK.items(), held.id, point);
+            held.drags ||= order !== null && DOCK_MODEL.drags(held.from, point);
+            if (held.drags && order && type === 'up') DOCK.hand.reorder(order);
+            else if (held.drags) DOCK.hand.drag(type === 'up' ? null : held.id, order ?? []);
+            else if (type === 'up' && on?.part === 'dock' && on.id === held.id) DOCK.hand.click(held.id, seat);
             return;
         }
         const window = held?.part ? windows.get(held.id) : null;
@@ -1216,6 +1246,39 @@ export function createDesktop({
         }
         const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
         framed(seat, window, phase, LAYOUT.resized(held.frame, held.part, dx, dy, minimum), held.part);
+    }
+
+    // The menu of the Dock's item open for `seat`, as the Dock's model lays it; null with none, or once its item is in
+    // the Dock no more.
+    function menuOf(seat) {
+        const id = hands.get(seat)?.menu ?? null;
+        return id === null ? null : DOCK_MODEL.menuOf(area(), DOCK.items(), id);
+    }
+
+    // Whether `point` of the desktop is on the Dock as `seat` has it: its card while it is out, or the menu open.
+    function onDock(seat, point) {
+        const [, ...rects] = DOCK_MODEL.inputOf(area(), hands.get(seat).dock, DOCK.items(), menuOf(seat));
+        return rects.some((rect) => within(rect, point));
+    }
+
+    // The menu open for the seat of `hand` is put away.
+    function unmenu(seat, hand) {
+        if (hand.menu === null) return;
+        hand.menu = null;
+        update();
+    }
+
+    // The seat of `hand` chose the entry `entry` of the menu open for it: the menu goes, and the Dock does it.
+    function chosen(seat, hand, entry) {
+        const item = hand.menu;
+        unmenu(seat, hand);
+        if (item !== null) DOCK.hand.choose(item, entry, seat);
+    }
+
+    // A drag of an item of the Dock the seat of `hand` did not end is given up.
+    function undrag(hand) {
+        if (hand.down?.part === 'dock' && hand.down.drags) DOCK.hand.drag();
+        if (DOCK_PARTS.includes(hand.down?.part)) hand.down = null;
     }
 
     // A key of the machine's, `type` 'down' or 'up', while the local seat follows another: the key down ends the
@@ -1257,10 +1320,13 @@ export function createDesktop({
             return { state };
         });
         PROTOCOL.pointer.on(
-            fromPage(({ id, part, type, x, y, button, count, grabX, grabY }) => {
+            fromPage(({ id, item, part, type, x, y, button, count, grabX, grabY }) => {
                 if (!['down', 'move', 'up'].includes(type)) return;
                 const grab = Number.isFinite(grabX) && Number.isFinite(grabY) ? { x: grabX, y: grabY } : null;
-                gesture(LOCAL, type, { x, y }, { id, part }, { button, count, grab });
+                const named =
+                    item === undefined ? partAt({ page: desktop.page, x, y }, LOCAL) : item && { id: item, part };
+                const on = DOCK_PARTS.includes(part) ? named || null : { id, part };
+                gesture(LOCAL, type, { x, y }, on, { button, count, grab });
             })
         );
         PROTOCOL.dock.on(
@@ -1407,6 +1473,7 @@ export function createDesktop({
     function pageEnded({ replaced }) {
         endDrag(LOCAL);
         hands.get(LOCAL).dock = false;
+        hands.get(LOCAL).menu = null;
         glass = [];
         if (replaced) return;
         const dropped = [...desktop.surfaces.values()];
@@ -1590,7 +1657,7 @@ export function createDesktop({
             return;
         }
         const view = MANAGER.viewOf(shownSeat());
-        const { parts: own, children } = laidOf(view, drawnNow(view), hands.get(LOCAL).dock, shownSeat());
+        const { parts: own, children } = laidOf(view, drawnNow(view), LOCAL, shownSeat());
         // In another seat's order the desktop's page takes the machine's pointer everywhere, and what is laid over it
         // nowhere.
         const parts = followed === null ? own : LEVELS.heldAt(own, 'desktop', full);
@@ -1608,11 +1675,12 @@ export function createDesktop({
     }
 
     // What is laid of the desktop for a seat, as layout() tells it: `view` the windows on its screen (MANAGER.viewOf),
-    // `seen` what is drawn of each (drawnNow), `out` whether the Dock is out for it and `seat` the seat whose views
-    // are laid, or null for every view. Answers `{ parts, children }`, `parts` the layers of each level
+    // `seen` what is drawn of each (drawnNow), `docked` the seat whose Dock it has, out or in and with the menu open
+    // for that seat, or null for the Dock in, and `seat` the seat whose views are laid, or null for every view. Answers `{ parts, children }`, `parts` the layers of each level
     // (model/levels.js), and `children` those the windows and the panel windows show (childrenIn).
-    function laidOf(view, seen, out, seat = null) {
+    function laidOf(view, seen, docked, seat = null) {
         const full = { x: 0, y: 0, ...stage.size() };
+        const out = hands.get(docked)?.dock ?? false;
         const inBar = panelFrames(seat);
         const children = childrenIn([
             ...seen.filter(({ leaving }) => !leaving),
@@ -1722,7 +1790,7 @@ export function createDesktop({
                         rect: full,
                         input: [
                             ...(strip.height ? [{ x: 0, y: 0, width: full.width, height: strip.height }] : []),
-                            ...DOCK_MODEL.inputOf(area(), out, DOCK.items()),
+                            ...DOCK_MODEL.inputOf(area(), out, DOCK.items(), menuOf(docked)),
                         ],
                     },
                 ],
@@ -1743,7 +1811,7 @@ export function createDesktop({
     // seat's pointer is read against (`stage.hit`), and what a picture for it is made of.
     function laidFor(seat) {
         const view = MANAGER.viewOf(seat);
-        return whole(laidOf(view, rested(view), hands.get(seat).dock, seat).parts);
+        return whole(laidOf(view, rested(view), seat, seat).parts);
     }
 
     // What is laid of one window or panel window alone, where it rests, whatever is over it and whichever seat's
@@ -1751,7 +1819,7 @@ export function createDesktop({
     function laidOfWindow(id) {
         const view = windows.has(id) ? [{ id, frame: MANAGER.frameOf(id) }] : [];
         const own = [PAGE.frameOf(id), PAGE.buttonsOf(id)].map((name) => desktop.surfaces.get(name));
-        return whole(laidOf(view, rested(view), false).parts).filter(
+        return whole(laidOf(view, rested(view), null).parts).filter(
             ({ page }) => page && (own.includes(page) || windowAt(page)?.id === id)
         );
     }
@@ -2008,7 +2076,13 @@ export function createDesktop({
             drop:
                 moving && dropping ? { tile: dropping, frame: LAYOUT.tileOf(dropping, LAYOUT.zoomedIn(area())) } : null,
             strip,
-            dock: { items: DOCK.items(), active, attention: ACTIVATION.attentionOf(seat) },
+            dock: {
+                items: DOCK.items(),
+                active,
+                attention: ACTIVATION.attentionOf(seat),
+                held: DOCK.dragged(),
+                menu: menuOf(LOCAL),
+            },
             down: down && { name: deckit.config.name, why: down },
         };
     }
@@ -2141,7 +2215,6 @@ export function createDesktop({
         activate,
         activation,
         setTitle,
-        seatAt,
         // The seat at the host window.
         get localSeat() {
             return LOCAL;

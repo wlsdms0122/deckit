@@ -116,10 +116,10 @@ async function main() {
     );
     const guarded = (name) => listing.guards[`deckit-shell:dock-${kebab(name)}`];
     check(
-        "a mod with deckit.mods changes the Dock, any mod reads an icon, the desktop's page sends the person's hand",
+        'a mod with deckit.mods changes the Dock, any mod reads an icon, and no page sends what a seat does there',
         ['list', 'pinned', 'setPinned', 'open'].every((name) => guarded(name) === 'deckit.mods') &&
             guarded('icon') === CHANNEL.GUARD.MOD &&
-            ['click', 'quit', 'keep', 'reorder'].every((name) => guarded(name) === CHANNEL.GUARD.ANY),
+            ['click', 'quit', 'keep', 'reorder'].every((name) => guarded(name) === undefined),
         listing.guards
     );
     const iconsAsked = await Promise.all(['a', 'switcher', 'b', 'gone'].map((id) => listing.ask('icon', { id }, 'x')));
@@ -195,7 +195,7 @@ async function main() {
         accessory
     );
 
-    // The person at the desktop's page, the local seat's screen.
+    // What a seat does to the Dock, as the desktop recognizes it: the local seat and an attached one alike.
     const clicking = dockOver(createDock, {
         mods: named(ids3),
         fields: apps(),
@@ -204,9 +204,9 @@ async function main() {
         state: { 'dock-pinned': ['a', 'b'] },
     });
     clicking.DOCK.start();
-    for (const id of ids3) clicking.click('click', { id });
+    for (const id of ids3) clicking.DOCK.hand.click(id, 'local');
     check(
-        "a click on an item is the desktop page's seat's input reaching its mod: it launches, has the windows come in " +
+        "a click on an item is the seat's input reaching its mod: it launches, has the windows come in " +
             'front or reopens, the host window coming up',
         clicking.launched.join() === 'a' &&
             clicking.activated.join() === 'local:b,local:c' &&
@@ -215,16 +215,9 @@ async function main() {
             clicking.shown.length === 3,
         clicking
     );
-    clicking.ask('click', { id: 'a' }, 'b');
-    clicking.ask('quit', { id: 'b' }, 'b');
-    check(
-        "what a mod's page sends to the Dock's page channels does nothing",
-        clicking.launched.length === 1 && clicking.quit.length === 0,
-        clicking
-    );
     const drawnBefore = clicking.updates.length;
-    clicking.click('quit', { id: 'b' });
-    clicking.click('keep', { id: 'c', pinned: true });
+    clicking.DOCK.hand.choose('b', 'quit', 's1');
+    clicking.DOCK.hand.choose('c', 'keep', 's1');
     const keptC = clicking.DOCK.items()
         .map(({ id, pinned }) => `${id}:${pinned}`)
         .join();
@@ -236,16 +229,44 @@ async function main() {
             clicking.updates.length > drawnBefore,
         { quit: clicking.quit, keptC }
     );
-    clicking.click('reorder', { ids: ['c', 'a'] });
-    const reordered = clicking.DOCK.items()
-        .map(({ id }) => id)
-        .join();
+    const orderNow = () =>
+        clicking.DOCK.items()
+            .map(({ id }) => id)
+            .join();
+    const drawnAtDrag = clicking.updates.length;
+    clicking.DOCK.hand.drag('c', ['c', 'a', 'b']);
+    const whileDragged = [orderNow(), clicking.DOCK.dragged(), JSON.stringify(clicking.state['dock-pinned'])];
+    const drawnDragged = clicking.updates.length;
+    clicking.DOCK.hand.drag('c', ['c', 'a', 'b']);
+    const drawnSame = clicking.updates.length;
+    clicking.DOCK.hand.drag();
+    const givenUp = [orderNow(), clicking.DOCK.dragged()];
     check(
-        'the kept items dragged into a new order take it, as kept',
-        reordered === 'c,b,a' && JSON.stringify(clicking.state['dock-pinned']) === '["c","b","a"]',
+        'an item dragged shows the kept items in the order of the drag, drawn once for each order, with what is kept ' +
+            'as it was, and a drag given up shows them as kept again',
+        whileDragged.join(' ') === 'c,a,b c ["a","b","c"]' &&
+            drawnDragged === drawnAtDrag + 1 &&
+            drawnSame === drawnDragged &&
+            givenUp.join(' ') === 'a,b,c ',
+        { whileDragged, givenUp, drawn: [drawnAtDrag, drawnDragged, drawnSame] }
+    );
+    clicking.DOCK.hand.drag('c', ['c', 'a', 'b']);
+    clicking.DOCK.hand.reorder(['c', 'b', 'a']);
+    const reordered = orderNow();
+    check(
+        'the kept items let go in a new order take it, as kept, and none is dragged any more',
+        reordered === 'c,b,a' &&
+            clicking.DOCK.dragged() === null &&
+            JSON.stringify(clicking.state['dock-pinned']) === '["c","b","a"]',
         { reordered, kept: clicking.state['dock-pinned'] }
     );
-    clicking.click('keep', { id: 'b', pinned: false });
+    clicking.DOCK.hand.choose('a', 'open', 's1');
+    check(
+        "Open chosen from an item's menu is the click of the seat that chose it",
+        clicking.inputs.at(-1) === 's1:a' && clicking.launched.join() === 'a,a',
+        clicking
+    );
+    clicking.DOCK.hand.choose('b', 'keep', 'local');
     const unkeptB = clicking.DOCK.items()
         .map(({ id, pinned }) => `${id}:${pinned}`)
         .join();
@@ -338,12 +359,118 @@ async function main() {
         asked
     );
 
+    // What a seat's pointer means on the Dock, decided from plain data: a desktop 1200 by 772 under a bar of 28.
+    const desk = { x: 0, y: 28, width: 1200, height: 772 };
+    const four = [
+        { id: 'a', pinned: true, running: false },
+        { id: 'b', pinned: true, running: true },
+        { id: 'c', pinned: true, running: false },
+        { id: 'd', pinned: false, running: true },
+    ];
+    const middle = (id) => {
+        const tile = DOCK.tileOf(desk, four, id);
+        return { x: tile.x + tile.width / 2, y: tile.y + tile.height / 2 };
+    };
+    const between = { x: middle('a').x, y: (middle('a').y + middle('b').y) / 2 };
+    check(
+        'the item at a point is the one whose tile holds it, and none between two tiles or off the card',
+        ['a', 'b', 'c', 'd'].every((id) => DOCK.itemAt(desk, four, middle(id)) === id) &&
+            DOCK.itemAt(desk, four, between) === null &&
+            DOCK.itemAt(desk, four, { x: 300, y: middle('a').y }) === null,
+        [between, DOCK.itemAt(desk, four, between)]
+    );
+    const from = middle('a');
+    const near = (dx, dy) => DOCK.drags(from, { x: from.x + dx, y: from.y + dy });
+    check(
+        'a press drags once the pointer is the slop from it, down or across, and not before',
+        DOCK.SLOP === 4 && !near(0, 0) && !near(3, -3) && near(0, 4) && near(-4, 0) && near(3, 9),
+        DOCK.SLOP
+    );
+    const orderAt = (id, point) => DOCK.orderOf(desk, four, id, point)?.join() ?? null;
+    check(
+        'a kept item dragged shows at the place of the kept item the pointer is level with, the others shifted by ' +
+            'one; above them all it is first, below them all last; and an item that is not kept has no order',
+        orderAt('a', middle('a')) === 'a,b,c' &&
+            orderAt('a', middle('b')) === 'b,a,c' &&
+            orderAt('a', { x: 600, y: middle('c').y }) === 'b,c,a' &&
+            orderAt('c', middle('a')) === 'c,a,b' &&
+            orderAt('b', { x: 10, y: 0 }) === 'b,a,c' &&
+            orderAt('a', middle('d')) === 'b,c,a' &&
+            orderAt('a', { x: 10, y: 5000 }) === 'b,c,a' &&
+            orderAt('d', middle('a')) === null,
+        ['a', 'b', 'c', 'd'].map((id) => orderAt('a', middle(id)))
+    );
+    const shownWhile = four.map((item) => four.find(({ id }) => id === { a: 'b', b: 'a' }[item.id]) ?? item);
+    check(
+        'the drop is the order last shown: the order answered of the items as they show while dragged is the same',
+        DOCK.orderOf(desk, shownWhile, 'a', middle('b')).join() === 'b,a,c' &&
+            DOCK.orderOf(desk, shownWhile, 'a', middle('c')).join() === 'b,c,a',
+        shownWhile.map(({ id }) => id)
+    );
+    const labels = (item) =>
+        DOCK.entriesOf(item)
+            .map((entry) => (entry ? `${entry.id}:${entry.label}` : '-'))
+            .join();
+    check(
+        "an item's menu opens or shows it, keeps it in the Dock or takes it out, and quits it while it runs",
+        labels(four[0]) === 'open:Open,-,keep:Remove from Dock' &&
+            labels(four[1]) === 'open:Show,-,keep:Remove from Dock,-,quit:Quit' &&
+            labels(four[3]) === 'open:Show,-,keep:Keep in Dock,-,quit:Quit',
+        four.map(labels)
+    );
+    const menu = DOCK.menuOf(desk, four, 'd');
+    const tall = (rects) => rects.reduce((sum, { height }) => sum + height, 0);
+    const stacked = [...menu.entries.map(({ rect }) => rect), ...menu.rules].sort((one, other) => one.y - other.y);
+    check(
+        "the menu stands beside the card, its top level with its item's, as tall as its entries, its rules and its " +
+            'padding, each entry and rule under the last inside it',
+        menu.item === 'd' &&
+            menu.frame.x === DOCK.WIDTH + DOCK.MENU.beside &&
+            menu.frame.y === DOCK.tileOf(desk, four, 'd').y &&
+            menu.frame.width === DOCK.MENU.width &&
+            menu.frame.height === 2 * DOCK.MENU.padding + tall(stacked) &&
+            menu.entries.map(({ id }) => id).join() === 'open,keep,quit' &&
+            menu.rules.length === 2 &&
+            stacked[0].y === menu.frame.y + DOCK.MENU.padding &&
+            stacked.every(({ x, y, height }, at) => x === stacked[0].x && (!at || y === top(stacked[at - 1]))) &&
+            DOCK.menuOf(desk, four, 'x') === null,
+        menu
+    );
+    const low = DOCK.menuOf({ ...desk, height: 300 }, four, 'd');
+    check(
+        "a menu that would pass the desktop's bottom stands its margin inside it",
+        low.frame.y + low.frame.height === 28 + 300 - DOCK.MENU.margin && low.frame.y < DOCK.tileOf(desk, four, 'd').y,
+        low.frame
+    );
+    const inEntry = ({ rect }) => ({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 });
+    check(
+        'the entry at a point of the menu is the one whose rect holds it, and none on a rule or its padding',
+        menu.entries.every((entry) => DOCK.entryAt(menu, inEntry(entry)) === entry.id) &&
+            DOCK.entryAt(menu, inEntry({ rect: menu.rules[0] })) === null &&
+            DOCK.entryAt(menu, { x: menu.frame.x + 1, y: menu.frame.y + 1 }) === null,
+        menu.entries
+    );
+    const takes = (out, open) => DOCK.inputOf(desk, out, four, open).length;
+    check(
+        'the Dock takes the pointer at its sliver, at its card while it is out, and at the menu open',
+        takes(false) === 1 &&
+            takes(true) === 2 &&
+            takes(true, menu) === 3 &&
+            JSON.stringify(DOCK.inputOf(desk, true, four, menu)[2]) === JSON.stringify(menu.frame),
+        DOCK.inputOf(desk, true, four, menu)
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
     }
     console.log(`ok: ${count} dock checks`);
     process.exit(0);
+}
+
+// The bottom of a rect.
+function top({ y, height }) {
+    return y + height;
 }
 
 // The run of mod `id`, running, with its page, as deckit lists it.
@@ -360,8 +487,7 @@ function named(ids) {
 // may activate for the local seat, `running` the mods that run, as `runs` lists them for a test to change, `windowed`
 // those of them with a window open, `dock` as the host app hands it, `state` what the shell kept, and `refusesWrites`
 // deckit refusing every write to state, as it does state it did not read; `icons` each mod's icon as the shell read it. `guards` is the guard each channel's
-// declaration names, by its name. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`, and
-// `click(name, payload)` sends one as the desktop's page, the local seat's screen.
+// declaration names, by its name. `ask(name, payload, mod)` asks one of the Dock's channels as the page of `mod`.
 function dockOver(
     createDock,
     {
@@ -422,7 +548,6 @@ function dockOver(
             },
         },
         DESKTOP: {
-            seatAt: (sender) => (sender === desktopPage ? 'local' : null),
             localSeat: 'local',
             activation: {
                 input: (seat, id) => {
@@ -446,8 +571,6 @@ function dockOver(
         dock,
     });
     const ask = async (name, payload, mod) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, page(mod));
-    // One of the Dock's channels sent from the desktop's page.
-    const click = (name, payload) => handlers[`deckit-shell:dock-${kebab(name)}`](payload, desktopPage);
     return {
         DOCK,
         guards,
@@ -462,7 +585,6 @@ function dockOver(
         requests,
         inputs,
         ask,
-        click,
     };
 }
 

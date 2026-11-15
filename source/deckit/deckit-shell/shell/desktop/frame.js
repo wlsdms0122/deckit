@@ -281,7 +281,7 @@ const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-
 // Main lays a material under the page where it draws glass: the Dock's card while it is out and still, and each panel's
 // material at its frame, so what lies under them in the host window is blurred too, none where
 // the person asks for less transparency. It takes the pointer only in the strip, or over all of it once deckit's core
-// is down, with a note that asks for a restart. `channels` binds the desktop's and the Dock's channels in the page.
+// is down, with a note that asks for a restart. `channels` binds the desktop's channels in the page.
 function boot(theme, channels) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const ui = KIT.make(theme, { fonts: FONTS.installed({ channels }) });
@@ -289,7 +289,7 @@ function boot(theme, channels) {
     let { state } = PROTOCOL.setup.invoke();
     const drawn = new Map(); // a window's id -> { material, buttons, off }, its frame's parts as drawn
     const materials = new Map(); // a panel window's id -> { element }, the material drawn under it
-    const glass = { dock: null, panels: [] }; // where the page draws glass: the Dock's card, the panels
+    const glass = { dock: [], panels: [] }; // where the page draws glass: the Dock's card and menu, the panels
     let toldGlass = '[]';
 
     const backdrop = surface(PAGE.BACKDROP);
@@ -299,10 +299,10 @@ function boot(theme, channels) {
 
     const dock = DOCK.make({
         ui,
-        channels,
+        onPointer: (event) => PROTOCOL.pointer.send(event),
         onOut: (out) => PROTOCOL.dock.send({ out }),
-        onGlass: (material) => {
-            glass.dock = material;
+        onGlass: (found) => {
+            glass.dock = found;
             tellGlass();
         },
     });
@@ -658,7 +658,7 @@ function boot(theme, channels) {
 
     // Main hears where the page draws glass as it changes, none where the person asks for less transparency.
     function tellGlass() {
-        const materials = TOKEN.opaque() ? [] : [...(glass.dock ? [glass.dock] : []), ...glass.panels];
+        const materials = TOKEN.opaque() ? [] : [...glass.dock, ...glass.panels];
         const written = JSON.stringify(materials);
         if (written === toldGlass) return;
         toldGlass = written;
