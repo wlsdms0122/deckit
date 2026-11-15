@@ -100,8 +100,8 @@ const SHELL = Object.freeze({
         // changes(page, { document, count }) -> Promise of `{ document, from, count, entries }`: what reads otherwise
         // in the document since that count, each `{ kind: '~', ...line }`, a line as it reads now, `not in view`
         // among its states where it is out of sight, `{ kind: '+', ...line }`, a line not answered before, or
-        // `{ kind: '-', ref }`, an element gone. A count older than the document keeps, its last 256, is refused with
-        // an error whose `code` is `STALE`
+        // `{ kind: '-', ref }`, an element gone. A count however old is answered; one the document never had is refused
+        // with an error whose `code` is `STALE`
         changes: 'function',
         // place(page, ref) -> Promise of `{ x, y, width, height }`: the element's rect in the page, once it is
         // scrolled into view

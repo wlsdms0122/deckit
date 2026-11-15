@@ -1,10 +1,9 @@
 // What reads a document as a person does, run in deckit's world of every page as each of its documents starts: its
 // roles, names, states, text and places, from the elements and their ARIA attributes as the page drew them. It numbers
-// each element it answers once, the number kept while the element lives, and keeps which numbers changed at each of
-// its counts, the last `KEPT` of them. `install` is run as written, so it reaches nothing outside itself.
+// each element it answers once, the number kept while the element lives, and keeps the last of its counts each number
+// changed at. `install` is run as written, so it reaches nothing outside itself.
 function install() {
     if (globalThis.deckitReader) return;
-    const KEPT = 256;
     const FRAME = 16; // ms
     const key = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     const numbers = new WeakMap(); // element -> its number
@@ -12,8 +11,7 @@ function install() {
     const dropped = new FinalizationRegistry((number) => elements.delete(number));
     let next = 1;
     let count = 0; // goes up as what changed is sealed
-    let floor = 0; // the last count whose changes are not kept
-    const log = []; // { count, numbers }, oldest first
+    const changed = new Map(); // number -> the last count it changed at, 0 the document itself
     const open = new Set(); // the numbers changed since the last count, 0 the document itself
     let timer = null;
 
@@ -408,9 +406,9 @@ function install() {
         clearTimeout(timer);
         timer = null;
         if (!open.size) return;
-        log.push({ count: ++count, numbers: [...open] });
+        count += 1;
+        for (const number of open) changed.set(number, count);
         open.clear();
-        while (log.length > KEPT) floor = log.shift().count;
         try {
             const word = JSON.stringify({ reader: { key, count } });
             webkit.messageHandlers.deckit.postMessage(word)?.catch?.(() => {});
@@ -477,8 +475,8 @@ function install() {
         changes(asked, since) {
             if (asked !== key) return refuse('GONE');
             seal();
-            if (!Number.isInteger(since) || since < floor || since > count) return refuse('STALE');
-            const changed = new Set(log.filter((entry) => entry.count > since).flatMap((entry) => entry.numbers));
+            if (!Number.isInteger(since) || since < 0 || since > count) return refuse('STALE');
+            const numbers = [...changed].flatMap(([number, at]) => (at > since ? [number] : []));
             const entries = [];
             const told = new Set();
             const tell = (kind, line) => {
@@ -486,7 +484,7 @@ function install() {
                 told.add(line.number);
                 entries.push({ kind, ...plain(line) });
             };
-            for (const number of [...changed].sort((a, b) => a - b)) {
+            for (const number of numbers.sort((a, b) => a - b)) {
                 if (!number) {
                     for (const line of read(document.documentElement)) if (line.fresh) tell('+', line);
                     continue;

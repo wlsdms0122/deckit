@@ -296,7 +296,7 @@ async function run({ check, main, open }) {
         `${JSON.stringify(gone)} ${JSON.stringify(nowhere)} ${JSON.stringify(other)} ${JSON.stringify(removed).slice(0, 300)}`
     );
 
-    // Stale: more counts than the reader keeps.
+    // A count however old is answered: each element is kept with the last count it changed at.
     const counts = await editor.evaluate(
         `(async () => { const field = document.querySelector('#deckit-read-field');
             const { key, count } = deckitReader.outline();
@@ -308,12 +308,16 @@ async function run({ check, main, open }) {
             return { from: count, to: deckitReader.outline().count }; })()`,
         'deckit'
     );
-    const stale = await read('changes', editor.id, { document: before.document, count: typed.count });
+    const old = await read('changes', editor.id, { document: before.document, count: typed.count });
     const fresh = await read('changes', editor.id, { document: before.document, count: counts.to - 10 });
+    const never = await read('changes', editor.id, { document: before.document, count: counts.to + 5 });
     check(
-        'read: changes since a count older than the 256 a document keeps are refused as stale',
-        counts.to - counts.from >= 300 && stale.refused === 'STALE' && fresh.entries?.length === 1,
-        `${JSON.stringify(counts)} ${JSON.stringify(stale)} ${JSON.stringify(fresh).slice(0, 200)}`
+        'read: changes since a count 300 counts old are answered, and since one the document never had refused stale',
+        counts.to - counts.from >= 300 &&
+            old.entries?.length >= 1 &&
+            fresh.entries?.length === 1 &&
+            never.refused === 'STALE',
+        `${JSON.stringify(counts)} ${JSON.stringify(old).slice(0, 200)} ${JSON.stringify(fresh).slice(0, 200)}`
     );
     await editor.evaluate(TAKE);
 

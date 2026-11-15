@@ -2,8 +2,8 @@
 // the lines they are told as. A document has a number, counted up as a page's reader is first heard, so a new document
 // in the same page has another; an element's ref is `<document>.<n>`, `n` the reader's number for it, the same while
 // the element is in its document. What is asked of an element that is gone, of a document the page shows no more, or
-// of a page that is closed, is refused with an error whose `code` is `GONE`; changes asked since a count older than
-// the reader keeps, with `STALE`.
+// of a page that is closed, is refused with an error whose `code` is `GONE`; changes asked since a count the
+// document never had, with `STALE`.
 import { READER } from './reader.js';
 
 export function createRead({ LOG }) {
@@ -135,7 +135,7 @@ export function createRead({ LOG }) {
 
     function refusal(code) {
         return Object.assign(
-            new Error(`[deckit] ${code === 'STALE' ? 'the count is too old' : 'nothing to read there'}`),
+            new Error(`[deckit] ${code === 'STALE' ? 'the document never had that count' : 'nothing to read there'}`),
             {
                 code,
             }
