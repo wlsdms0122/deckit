@@ -222,8 +222,12 @@ async function main() {
         refused
     );
 
-    const order = BAR.orderOf(['seats', 'bell', 'star'], ['new', 'star', 'seats']);
-    check('the items keep the order they began in, one that went leaves it', order.join() === 'seats,star,new', order);
+    const order = BAR.orderOf(['seats', 'bell', 'star'], ['new', 'star', 'seats', 'new']);
+    check(
+        'the kept order keeps one whose item went where it was, and one that is new comes last, once',
+        order.join() === 'seats,bell,star,new',
+        order
+    );
 
     const called = [
         BAR.titleOf({ name: 'Clock', count: null, tone: 'plain' }),
@@ -707,6 +711,25 @@ async function modChecks(check) {
     frame.detach();
     frame.stop();
     check('the frame hears no signal once it has stopped', world.heard.length === 0, world.heard.length);
+    // The frame runs again over what it kept, and the mods give their items in another order than they first came in.
+    const next = new StatusBar();
+    next.start(world.handle('status-bar', 'Status Bar', 0));
+    const giver = (id, name) => next.items.exportsFor({ mod: { name }, credential: { mod: id } });
+    await giver('moon', 'Moon').set({ name: 'Moon', icon: 'bell' });
+    await giver('star', 'Star').set({ name: 'Star', icon: 'star' });
+    await giver('sun', 'Sun').set({ name: 'Sun', icon: 'star' });
+    const back = next.items.standing().map(({ id }) => id);
+    await giver('star', 'Star').remove();
+    const without = next.items.standing().map(({ id }) => id);
+    next.stop();
+    check(
+        'over a run of the frame an item that comes back takes its old place in the order the frame keeps, a new ' +
+            'one comes at the newest end, and one that goes keeps its place in what is kept',
+        back.join() === 'clock,star,moon,sun' &&
+            without.join() === 'clock,moon,sun' &&
+            world.kept.order.join() === 'clock,star,moon,sun',
+        { back, without, kept: world.kept.order }
+    );
 }
 
 main();

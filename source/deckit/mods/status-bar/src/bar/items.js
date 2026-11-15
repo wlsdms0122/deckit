@@ -1,20 +1,21 @@
 // The items of the status bar as they stand, whether a screen draws them or not: what mods declare to
-// `status-bar/items`, what each running mod set, the order they came in, and which of them are fixed, a list the
-// frame keeps and the person changes (model/bar.js). An item a mod declares in its manifest stands whether the mod runs
-// or not; one that comes and goes is set and removed by a running mod.
+// `status-bar/items`, what each running mod set, the order they came in, a list the frame keeps so an item that comes
+// back takes its old place, and which of them are fixed, a list the frame keeps and the person changes (model/bar.js).
+// An item a mod declares in its manifest stands whether the mod runs or not; one that comes and goes is set and
+// removed by a running mod.
 const BAR = require('./model/bar.js');
 
 const INTERFACE = 'status-bar/items';
 // The signals of the interface after which what is declared to it is read again.
 const SIGNALS = ['contributions-changed', 'owner-changed'];
-// The record that keeps the ids of the fixed items.
+// The records that keep the ids of the fixed items, and the ids of every item in the order they came.
 const FIXED = 'fixed';
+const ORDER = 'order';
 
 function items(deckit) {
     // MARK: - Property
     let declared = new Map(); // mod id -> what it declared, in the mods' order
     const set = new Map(); // mod id -> its item as it last set it
-    let came = []; // the ids of the mods whose item stands, in the order they came
     let draws = null; // whether the kit draws a glyph, while a screen stands to tell
     const undrawn = new Set(); // the glyphs told as not drawn
     const listeners = new Set();
@@ -35,6 +36,7 @@ function items(deckit) {
                 const held = BAR.heldTo(given, declared.get(id) ?? null);
                 if (!held || !drawn(held.icon)) throw refusal(`${connection.mod.name} set an item of another shape`);
                 set.set(id, held);
+                arrived();
                 changed();
             },
             remove: async () => leave(id),
@@ -46,11 +48,11 @@ function items(deckit) {
         if (set.delete(id)) changed();
     }
 
-    // The items in the order they came: the declared ones as they are first read, in the mods' order, and one that
-    // comes and goes as it is first set. One whose glyph the screen does not draw is left out.
+    // The items in the order they came, as it is kept: the declared ones as they are first read, in the mods' order,
+    // and one that comes and goes as it is first set. One whose glyph the screen does not draw is left out.
     function standing() {
-        came = BAR.orderOf(came, [...declared.keys(), ...[...set.keys()].filter((id) => !declared.has(id))]);
-        const items = came.map((id) => ({ id, ...(set.get(id) ?? BAR.restOf(declared.get(id))) }));
+        const stands = order().filter((id) => declared.has(id) || set.has(id));
+        const items = stands.map((id) => ({ id, ...(set.get(id) ?? BAR.restOf(declared.get(id))) }));
         return items.filter(({ id, icon }) => {
             if (drawn(icon)) return true;
             if (!undrawn.has(`${id} ${icon}`)) console.warn(`[status-bar] the glyph ${icon} of ${id} is not drawn`);
@@ -102,7 +104,20 @@ function items(deckit) {
             else if (next.has(id)) set.set(id, BAR.heldTo({ label, count, tone }, next.get(id)));
         }
         declared = next;
+        arrived();
         changed();
+    }
+
+    // The ids of every item in the order they came, the kept list: one whose item does not stand now with them.
+    function order() {
+        return deckit.storage.records.get(ORDER, []);
+    }
+
+    // The items that stand now are in the kept order from here on, one new to it at its newest end.
+    function arrived() {
+        const kept = order();
+        const next = BAR.orderOf(kept, [...declared.keys(), ...set.keys()]);
+        if (next.length !== kept.length) deckit.storage.records.set(ORDER, next);
     }
 
     function drawn(icon) {

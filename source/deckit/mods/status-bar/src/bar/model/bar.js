@@ -62,9 +62,10 @@ function restOf(declared) {
     return heldTo({}, declared);
 }
 
-// The ids in the order they began to be there: `order` as it was, without those that went, then those that are new.
+// The order kept once the items of `ids` stand: `order` as it was, whole, then those that are new to it. An id whose
+// item went stays where it was, so an item that comes back takes its old place.
 function orderOf(order, ids) {
-    return [...order.filter((id) => ids.includes(id)), ...ids.filter((id) => !order.includes(id))];
+    return [...order, ...ids.filter((id, at) => !order.includes(id) && ids.indexOf(id) === at)];
 }
 
 // What a count writes: the number, or the most with a plus beyond it.
