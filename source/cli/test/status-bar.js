@@ -91,7 +91,10 @@ function runs(declared) {
     const heard = []; // { named, listener }
     const handle = (id, name, lifecycle) => ({
         exports: {
-            register: (...given) => given.length === 2 && exported.set(given[0], { lifecycle, ...given[1] }),
+            register: (...given) =>
+                given.length === 2
+                    ? exported.set(given[0], { lifecycle, ...given[1] })
+                    : exported.set(id, { lifecycle, ...given[0] }),
             contributions: async (named) => declared[named] ?? [],
         },
         events: {
@@ -315,8 +318,12 @@ async function modChecks(check) {
         connect: () => ({ run: async (...args) => ran.push(args) }),
     });
     frame.attach(shell.handle, screen);
+    // The notification center's exports are opened on screen, in the second lifecycle of its mod.
+    let toggled = 0;
+    world.exported.set('notifications/center', { lifecycle: 1, connect: () => ({ toggle: async () => ++toggled }) });
     const clock = new Clock();
     clock.start(world.handle('clock', 'Clock', 0));
+    clock.attach(shell.handle, world.handle('clock', 'Clock', 1));
     await world.settle();
     check(
         "the frame's exports are opened in start, so a mod that sets its item in its own start is connected",
@@ -408,6 +415,17 @@ async function modChecks(check) {
         'an item goes as its mod removes it and as its connection ends, and the band narrows to what is left',
         removed === alone && band.size[0] === alone && buttons().length === 1 && band.anchors.length === 1,
         { removed, alone, now: band.size }
+    );
+    const command = world.exported.get('clock').connect({});
+    await command.runCommand('toggle-center');
+    const other = await command.runCommand('show').then(
+        () => 'ran',
+        () => 'refused'
+    );
+    check(
+        "the clock's command toggles the notification center, reached from a lifecycle its exports reach",
+        world.connected('clock', 'notifications/center') && toggled === 1 && other === 'refused',
+        { connected: world.connected('clock', 'notifications/center'), toggled, other }
     );
     // The screen goes and another comes: what stands is held by the mod, not by the capsule.
     frame.detach();
