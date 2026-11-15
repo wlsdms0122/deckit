@@ -1,11 +1,11 @@
 // The capsule: a panel window as wide as its row, each child of `status-bar/items` in a region of its own, in the
 // mods' order, as wide as the child last told (`setWidth`) or an icon's item until it tells. It follows the children
 // as they join and leave, and closes while there is none.
+const { CAPSULE } = require('./model/bar.js');
+
 const INTERFACE = 'status-bar/items';
 // The capsule's height, and the inset around its row of 24px items, 4 apart: concentric with the capsule's round ends.
-const HEIGHT = 28;
-const INSET = 2;
-const GAP = 4;
+const { height: HEIGHT, inset: INSET, gap: GAP } = CAPSULE;
 // An item that has told no width: a 16px glyph with 8 on each side.
 const ICON_ITEM = 32;
 // The widest an item is laid.
