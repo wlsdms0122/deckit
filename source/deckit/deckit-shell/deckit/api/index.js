@@ -150,6 +150,10 @@ export function createApi({
                 onClose: SEAT.onClose,
                 // Whether the seat's devices gave no input for the idle time.
                 isIdle: SEAT.isIdle,
+                // settings({ idleTime?, asking? }) -> Promise of `{ idleTime, asking }`, the seats' settings as they
+                // are kept: the seconds a seat's devices give no input for before it is idle, and whether a user that
+                // attaches waits until the local seat lets it sit. Each one named is set and kept first.
+                settings: SEAT.settings,
                 // input(seat, event) -> Promise of what the seat can see happened: the entry of what a seat's devices
                 // did, which the shell calls for what the environment's hardware tells; `event` is one of `pointer`,
                 // `key` and `text`, named under `event` beside its fields. Answered by what is served.

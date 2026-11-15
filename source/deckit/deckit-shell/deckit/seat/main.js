@@ -41,6 +41,7 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     const closeListeners = new Set();
     let served = Object.freeze({}); // what the shell serves so far, each of SERVED once it does
     let local = null; // the local seat, once it opened
+    let idleTime = null; // how long a seat gives no input before it is idle, in milliseconds, once it was asked here
 
     // MARK: - Initializer
     // MARK: - Public
@@ -78,9 +79,19 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         return () => closeListeners.delete(listener);
     }
 
-    // Whether the seat's devices gave no input for the idle time: the one judgment of a seat's clock.
+    // Whether the seat's devices gave no input for the idle time: the one judgment of a seat's clock. The time is
+    // the one the core started with until `settings` was answered another.
     function isIdle(seat) {
-        return Date.now() - clocks.get(opened(seat).id) >= CORE.seatIdleTime();
+        return Date.now() - clocks.get(opened(seat).id) >= (idleTime ?? CORE.seatIdleTime());
+    }
+
+    // The seats' settings as the core keeps them, `{ idleTime, asking }`: the seconds a seat's devices give no input
+    // for before the seat is idle, and whether a user that attaches waits until the local seat lets it sit. Each
+    // that `change` names is set and kept first; refused for what is no value of its setting.
+    async function settings(change = {}) {
+        const kept = await CORE.request('seat/settings', change);
+        idleTime = kept.idleTime * 1000;
+        return kept;
     }
 
     // The entry: what a seat's devices did, handed to what the shell serves with the seat's `source`, which answers
@@ -114,14 +125,13 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         });
     }
 
-    // A party's proof handed to the core, with how long the local seat has been idle: the core seats its user at
-    // once, or has the local seat asked. `asking()` is told once the admission waits for that answer, which is no
-    // where nothing serves the ask, none came in time, or the party left, as `whenEnds(listener)` hears. Resolves with
-    // `{ effects, seat }` once the user sits; rejects with what the core refused.
+    // A party's proof handed to the core, which seats its user at once or, as the seats' settings have it, has the
+    // local seat asked. `asking()` is told once the admission waits for that answer, which is no where nothing serves
+    // the ask, none came in time, or the party left, as `whenEnds(listener)` hears. Resolves with `{ effects, seat }`
+    // once the user sits; rejects with what the core refused.
     async function admit(proof, { asking, whenEnds }) {
         const effectsOf = ({ effects = [] }) => effects;
-        const idle = local ? (Date.now() - clocks.get(local.id)) / 1000 : 0;
-        let admitted = await RUNNER.ask('authentication/verify', { ...proof, idle }, effectsOf);
+        let admitted = await RUNNER.ask('authentication/verify', proof, effectsOf);
         if (admitted.asking) {
             asking();
             const allow = await ask(admitted.asking.user, whenEnds);
@@ -236,5 +246,5 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         });
     }
 
-    return { start, local: localSeat, list, onOpen, onClose, isIdle, input, serve, admit };
+    return { start, local: localSeat, list, onOpen, onClose, isIdle, settings, input, serve, admit };
 }

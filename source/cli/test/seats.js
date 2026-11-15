@@ -1,7 +1,8 @@
 // The seats on deckit's main side (deckit-shell/deckit/seat) over stand-ins for the core, the runner and the senders:
-// the local user kept and seated as it starts, a user seated at once or after what is served answered the ask, a seat
-// closed with its run, each method of a seat held to the seat permission and to a seat, and handed to what is served
-// with the sender's seat. Exits 1 with a line for each check that failed.
+// the local user kept and seated as it starts, a user seated at once or, as the core asks, after what is served
+// answered the ask, the seats' settings read and set, a seat closed with its run, each method of a seat held to the
+// seat permission and to a seat, and handed to what is served with the sender's seat. Exits 1 with a line for each
+// check that failed.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -38,8 +39,9 @@ async function main() {
         { report: () => {}, identify: (page) => identities.get(page) ?? null }
     );
 
-    // The core: the users it keeps, and an admission that waits unless the local seat was idle for 300 s.
+    // The core: the users it keeps, the seats' settings, and an admission that waits while `asking` is on.
     const users = [];
+    const kept = { idleTime: 300, asking: true };
     const asked = [];
     const outside = new Set();
     const seatOf = (id, name) => ({ id, user: { id: name, name: name.toUpperCase() }, local: id === 'local' });
@@ -50,6 +52,7 @@ async function main() {
             if (method === 'user/list') return users;
             if (method === 'user/add') return (users.push(params), true);
             if (method === 'seat/open-local') return seatOf('local', params.id);
+            if (method === 'seat/settings') return { ...Object.assign(kept, params) };
             throw new Error(method);
         },
     };
@@ -58,9 +61,9 @@ async function main() {
         ask: async (method, params) => {
             asked.push([method, params]);
             if (method === 'authentication/verify')
-                return params.idle >= 300
-                    ? { effects: [], seat: seatOf('s9', params.principal) }
-                    : { asking: { user: params.principal } };
+                return kept.asking
+                    ? { asking: { user: params.principal } }
+                    : { effects: [], seat: seatOf('s9', params.principal) };
             if (!params.allow) throw Object.assign(new Error('refused'), { kind: 'REFUSED', stage: 'call' });
             return { effects: [], seat: seatOf('s1', 'guest') };
         },
@@ -86,8 +89,11 @@ async function main() {
     const proof = { transport: 't1', principal: 'guest' };
     const unserved = await SEAT.admit(proof, hooks).catch((error) => error);
     check(
-        'with nothing served, an admission that waits is told so and answered no',
-        unserved.kind === 'REFUSED' && hooks.told === 1 && asked.at(-1)[1].allow === false && asked.at(-2)[1].idle < 1,
+        'with nothing served, an admission that waits is told so and answered no, and the proof is handed on as it is',
+        unserved.kind === 'REFUSED' &&
+            hooks.told === 1 &&
+            asked.at(-1)[1].allow === false &&
+            JSON.stringify(asked.at(-2)) === JSON.stringify(['authentication/verify', proof]),
         [unserved.message, asked.slice(-2)]
     );
     const guest = sender('guest', ['deckit.seat']);
@@ -212,6 +218,29 @@ async function main() {
         'a seat closes as its run reaches not running, and its sender sits at none',
         still === 2 && closed.join() === 's1' && SEAT.list().length === 1 && after.error?.kind === 'REFUSED',
         [still, closed, after]
+    );
+
+    const settings = await SEAT.settings();
+    const idleBefore = SEAT.isIdle(SEAT.local());
+    const changed = await SEAT.settings({ idleTime: 0, asking: false });
+    check(
+        "the seats' settings are read from the core and set through it, and a seat is idle by the time last answered",
+        JSON.stringify([settings, changed]) === '[{"idleTime":300,"asking":true},{"idleTime":0,"asking":false}]' &&
+            JSON.stringify(asked.at(-1)) === '["seat/settings",{"idleTime":0,"asking":false}]' &&
+            idleBefore === false &&
+            SEAT.isIdle(SEAT.local()) === true,
+        [settings, changed, asked.at(-1), idleBefore]
+    );
+    const tellsBefore = hooks.told;
+    const atOnce = await SEAT.admit({ transport: 't3', principal: 'late' }, hooks);
+    check(
+        'a user the core seats at once sits unasked: nothing is told, and no answer is asked of what is served',
+        atOnce.seat.id === 's9' &&
+            hooks.told === tellsBefore &&
+            asked.at(-1)[0] === 'authentication/verify' &&
+            asks.length === 2 &&
+            opened.at(-1) === 's9',
+        [atOnce, asked.at(-1), asks.length, opened]
     );
 
     if (failed.length) {
