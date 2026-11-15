@@ -2770,13 +2770,18 @@ async function walk({
             return typeof now === 'number' && now !== was;
         }, 8000);
         check("a shown mod's next revision loads in a page of its own", loaded, '');
-        // A mod installed that sets an item joins the status bar: a glyph's item left of the clock, the capsule wider
-        // by it and a gap. What it sets anew is drawn and named, and an item of another shape is refused.
+        // A mod installed and launched that sets an item joins the status bar: a glyph's item left of the clock, the
+        // capsule wider by it and a gap. What it sets anew is drawn and named, and an item of another shape is refused.
         const unjoined = await capsuleNow();
         await probe.evaluate(
             `document.dispatchEvent(new CustomEvent('test-install-from', { detail: ${JSON.stringify(path.join(home, '..', JOINS))} }))`
         );
+        await probe.evaluate('delete document.documentElement.dataset.installed');
         await probeWindow.press('#install');
+        await until(async () => (await mark(probe, 'installed')) === JOINS, 8000);
+        await probe.evaluate(
+            `delete document.documentElement.dataset.loaded; document.dispatchEvent(new CustomEvent('test-load', { detail: ['${JOINS}'] }))`
+        );
         const joined =
             (await until(async () => {
                 const now = await capsuleNow();
