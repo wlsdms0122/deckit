@@ -266,6 +266,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             seats: [...desk.hands].map(([id, { pointer }]) => ({
                 id,
                 name: desk.seated.get(id)?.user.name ?? id,
+                colour: desk.colourOf(id),
                 at: pointer && { x: Math.round(pointer.x), y: Math.round(pointer.y) },
                 key: desk.MANAGER.keyOf(id) === null ? null : `w${desk.MANAGER.keyOf(id)}`,
                 you: id === seat,

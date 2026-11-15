@@ -86,11 +86,13 @@ async function run({ check, reader, other, window, editor, settings, showsFor, i
     check(
         'reading: the desktop reads as its seats, the Dock and the windows, the asking seat marked and its window first',
         size &&
-            seats[0].startsWith('seat local "Deckit"') &&
+            seats[0].startsWith('seat local "Deckit" blue') &&
             seats.some((line) =>
-                new RegExp(`^seat ${reader.seat} "Second" at \\d+,\\d+ key w${window.id} \\(you\\)$`).test(line)
+                new RegExp(`^seat ${reader.seat} "Second" [a-z]+ at \\d+,\\d+ key w${window.id} \\(you\\)$`).test(line)
             ) &&
-            seats.some((line) => new RegExp(`^seat ${other.seat} "First"( at \\d+,\\d+)?( key w\\d+)?$`).test(line)) &&
+            seats.some((line) =>
+                new RegExp(`^seat ${other.seat} "First" [a-z]+( at \\d+,\\d+)?( key w\\d+)?$`).test(line)
+            ) &&
             desktop.filter((line) => /^ {2}item "[^"]+"( \[[a-z, ]+\])? dock\.\S+$/.test(line)).length === items &&
             !!frame &&
             desktop.length === 1 + seats.length + 1 + items + windows.length,

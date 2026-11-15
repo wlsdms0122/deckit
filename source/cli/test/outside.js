@@ -177,7 +177,7 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         'outside: a reading is answered by the shell, as text or as data, and what is malformed is refused',
         first === `desktop ${asData?.data?.desktop.width}x${asData?.data?.desktop.height} mark ${reading.mark}` &&
             lines.some((line) =>
-                new RegExp(`^seat ${seat.id} "Outside Party" at 40,30( key w\\d+)? \\(you\\)$`).test(line)
+                new RegExp(`^seat ${seat.id} "Outside Party" [a-z]+ at 40,30( key w\\d+)? \\(you\\)$`).test(line)
             ) &&
             asData.data.seats.some(({ id, you }) => id === seat.id && you) &&
             !!malformed,
@@ -281,7 +281,7 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         'outside: deckit seat read desktop prints the desktop with its seat, a press what it reached, changes the marks',
         printed &&
             /^desktop \d+x\d+ mark \d+\n/.test(printed[0]) &&
-            new RegExp(`^seat ${sat} "Terminal" \\(you\\)$`, 'm').test(printed[0]) &&
+            new RegExp(`^seat ${sat} "Terminal" [a-z]+ \\(you\\)$`, 'm').test(printed[0]) &&
             /^over \S+/.test(printed[1]) &&
             /^changes \d+ to \d+$/m.test(printed[2]),
         JSON.stringify(printed)

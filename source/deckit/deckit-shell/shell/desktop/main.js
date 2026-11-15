@@ -7,6 +7,8 @@ import * as MOTION from './model/motion.js';
 import * as ACTIVATION_MODEL from './model/activation.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as MODS from '../mods/index.js';
+import * as COLOURS_MODEL from './model/colours.js';
+import { SEAT_COLOURS } from '../../../deckit-sdk/shell/ui/token/index.js';
 import { createReading, ACTIONS } from './reading.js';
 
 // How many frames a second a window's motion is drawn at.
@@ -54,8 +56,10 @@ export function createDesktop({
     // as its pointer says of any other; `panel`, the id of the panel window at the edge `right` that holds its
     // keyboard, or null, the local seat's being the machine's (`held`); and `keys`, `{ id, page }`, the page of the
     // window `id` that took its last press there, where its keys and text go while that window holds its keyboard,
-    // or null for the window's content, the local seat's being the machine's
+    // or null for the window's content, the local seat's being the machine's; and `buttons`, those of its pointer
+    // that are held now
     const hands = new Map();
+    const COLOURS = COLOURS_MODEL.createColours(SEAT_COLOURS); // the colour each seat here is told apart by
     let tells = null; // what deckit answered the shell's serving with: what tells a seat
     const MANAGER = WM.createWindowManager({
         isIdle: (seat) => seated.has(seat) && deckit.seats.isIdle(seated.get(seat)),
@@ -127,6 +131,7 @@ export function createDesktop({
             panels,
             hands,
             seated,
+            colourOf: COLOURS.of,
             stage: () => stage,
             dock: () => DOCK,
             tells: () => tells,
@@ -573,7 +578,9 @@ export function createDesktop({
         if (hands.has(seat.id)) return;
         MANAGER.addSeat(seat.id);
         ACTIVATION.addSeat(seat.id);
+        COLOURS.take(seat.id);
         hands.set(seat.id, {
+            buttons: [],
             moving: null,
             dropping: null,
             pointer: null,
@@ -592,6 +599,7 @@ export function createDesktop({
         endDrag(seat.id);
         MANAGER.removeSeat(seat.id);
         ACTIVATION.removeSeat(seat.id);
+        COLOURS.give(seat.id);
         hands.delete(seat.id);
         seated.delete(seat.id);
         for (const [id, by] of pressers) if (by === seat.id) pressers.delete(id);
@@ -667,6 +675,7 @@ export function createDesktop({
     // press on that window.
     function arrived(seat, hand, event) {
         if (Number.isFinite(event.x)) hand.pointer = { x: event.x, y: event.y };
+        moved(seat, hand, event);
         const window = event.type === 'down' ? windowAt(event.page) : null;
         if (!window || !windows.has(window.id) || MANAGER.isMinimized(seat, window.id)) return { over: null };
         return reached(seat, window);
@@ -684,6 +693,7 @@ export function createDesktop({
         if (!['move', 'down', 'up', 'scroll'].includes(type) || ![point.x, point.y].every(Number.isFinite))
             throw refusal('INVALID_ARGUMENT', 'a pointer event is a move, down, up or scroll at a point');
         hand.pointer = point;
+        moved(seat, hand, event);
         const [sliver, card] = DOCK_MODEL.inputOf(area(), true, DOCK.items());
         hand.dock = within(sliver, point) || (hand.dock && within(card, point));
         const hit = type === 'move' ? null : stage.hit(laidFor(seat), point);
@@ -747,6 +757,17 @@ export function createDesktop({
         const there = pressed && laidFor(seat).some(({ page }) => page === pressed) && windowAt(pressed) === key;
         INPUT.put(there ? pressed : key.surface, event, seat);
         return { to: key.id };
+    }
+
+    // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of
+    // a seat it draws the cursor of, that event alone, `{ id, type, x, y, buttons }` and for a scroll `dx`, `dy`.
+    function moved(seat, hand, { type, button = 0, dx = 0, dy = 0 }) {
+        if (type === 'down' && !hand.buttons.includes(button)) hand.buttons = [...hand.buttons, button];
+        if (type === 'up') hand.buttons = hand.buttons.filter((each) => each !== button);
+        if (seat === LOCAL || !hand.pointer || !desktop.page || !PAGES.isAlive(desktop.page)) return;
+        const { x, y } = hand.pointer;
+        const scrolled = type === 'scroll' ? { dx, dy } : {};
+        PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, ...scrolled });
     }
 
     // `seat`'s press on a window, answered as the entry answers it.
@@ -1456,7 +1477,7 @@ export function createDesktop({
         }));
     }
 
-    // `{ windows, panels, drop, strip, dock, down }`, as the desktop's page draws it. A window's frame is key as its
+    // `{ windows, panels, seats, drop, strip, dock, down }`, as the desktop's page draws it. A window's frame is key as its
     // content is (stateOf): not while an overlay window holds the keyboard, which update() tells as it takes or gives
     // it back.
     function stateOfPage() {
@@ -1468,10 +1489,20 @@ export function createDesktop({
                 id,
                 frame,
                 key: id === key && !away(LOCAL),
+                holder: COLOURS.of(MANAGER.holderOf(id)),
                 bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),
             panels: panelFrames().map(({ window, frame }) => ({ id: window.id, edge: window.edge, frame })),
+            seats: [...hands].map(([id, { pointer, buttons }]) => ({
+                id,
+                name: seated.get(id)?.user.name ?? id,
+                colour: COLOURS.of(id),
+                at: pointer && { x: Math.round(pointer.x), y: Math.round(pointer.y) },
+                buttons,
+                idle: seated.has(id) && deckit.seats.isIdle(seated.get(id)),
+                shown: id === LOCAL,
+            })),
             drop:
                 moving && dropping ? { tile: dropping, frame: LAYOUT.tileOf(dropping, LAYOUT.zoomedIn(area())) } : null,
             strip,

@@ -7,11 +7,16 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, bar, title }], panels: [{ id, edge, frame }], drop, strip, dock, down }`: the
-// windows on the screen of the seat at the host window, `frame` on the stage, `key` whether it is that seat's key
-// window, `bar` its title bar (model/layout.js barOf), `title` what the title bar
+// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame }], seats, drop, strip, dock,
+// down }`: the windows on the screen of the seat at the host window, `frame` on the stage, `key` whether it is that
+// seat's key window, `holder` the name of the colour of the seat that holds its keyboard (a seat colour of the kit's
+// token), or null, `bar` its title bar (model/layout.js barOf), `title` what the title bar
 // the shell draws over a titled window's content holds, or null for a window whose content draws its own; `panels`,
-// the panel windows at their edge, 'top' in the strip or 'right', the material drawn under each at its frame; `drop`
+// the panel windows at their edge, 'top' in the strip or 'right', the material drawn under each at its frame; `seats`,
+// `[{ id, name, colour, at, buttons, idle, shown }]`, every seat at the desktop: its user's name, its colour's name,
+// where its pointer is on the stage, or null before it was anywhere, the buttons it holds, whether its devices gave
+// nothing for the idle time, and whether it is the one whose view the host window shows, each as of this telling;
+// `drop`
 // `{ tile, frame }`, the tile (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame,
 // or null; `strip`
 // `{ height, controlsWidth }`, the host window's bar over the page's top, which drags the host window, and the width
@@ -19,6 +24,10 @@ export const setup = CHANNEL.pageToMain(
 // (dock/main.js items), the id of the mod whose window is that seat's key window, or null, and the ids of the mods
 // that ask for that seat's attention; and `down` `{ name, why }` once deckit's core answers nothing more, or null.
 export const state = CHANNEL.mainToPage('deckit-shell:desktop-state');
+// What the pointer of a seat that is not the one shown just did, each event as it comes, between two states:
+// `{ id, type, x, y, buttons }`, `type` 'move', 'down', 'up' or 'scroll', the point on the stage, the buttons held
+// after it, and for a scroll `dx`, `dy`.
+export const seat = CHANNEL.mainToPage('deckit-shell:desktop-seat');
 // What the pointer of the seat at the host window does on a part of a window the page draws, as it does it, main
 // recognizing what it means: `id` the window, `part` 'bar', its title bar, an edge as model/layout.js resized names
 // it, a button by its name or 'buttons' between them; `type` 'down' on the part, then 'move' and 'up' wherever the

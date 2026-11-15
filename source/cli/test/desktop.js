@@ -826,6 +826,8 @@ async function main() {
 
     seatChecks({ LAYOUT, DOCK, createDesktop }, check);
     await readingChecks({ LAYOUT, createDesktop }, check);
+    const COLOURS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'colours.js'));
+    drawnChecks({ COLOURS, LAYOUT, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -1513,6 +1515,99 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
 
 // What a seat reads of the desktop, over a reader that answers one document a page: the desktop, a window and a node
 // as text and as data, what changed since a mark, a mark that is not kept, an act on a ref and a picture.
+// What the desktop's page is told of the seats: each one's colour, where its pointer is and what it holds.
+function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
+    const colours = COLOURS.createColours(['one', 'two']);
+    const took = ['a', 'b', 'c', 'd'].map(colours.take);
+    colours.give('a');
+    check(
+        'a seat takes the first colour the fewest seats have, and gives it back as it leaves',
+        took.join() === 'one,two,one,two' && colours.take('e') === 'one' && colours.of('a') === null,
+        took
+    );
+
+    const desk = desktopOver(createDesktop, {});
+    const page = { name: 'page-a', mod: 'a' };
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    desk.desktop.open({
+        id: 1,
+        mod: 'a',
+        name: 'w1',
+        level: 'normal',
+        page,
+        surface: { name: 'content-1', of: page },
+        size: { width: 200, height: 200 },
+        minimum: { width: 0, height: 0 },
+        bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+    });
+    desk.openSurfaces(1);
+    const pointer = (type, at, more = {}) => ({ event: 'pointer', type, ...at, button: 0, count: 1, ...more });
+    const [first, second] = [desk.sit('s1'), desk.sit('s2')];
+    const coloursNow = () => desk.page().seats.map(({ id, colour }) => `${id} ${colour}`);
+    const sat = coloursNow();
+    desk.leave(first);
+    const third = desk.sit('s3');
+    check(
+        'each seat has a colour as it sits, the local one too, and one that leaves gives its colour to the next',
+        sat.join() === 'local blue,s1 green,s2 orange' && coloursNow().join() === 'local blue,s2 orange,s3 green',
+        [sat, coloursNow()]
+    );
+
+    const states = desk.states();
+    const held = desk.page().windows[0].holder;
+    desk.enter(second, pointer('move', { x: 10, y: 20 }));
+    const { x, y, width, height } = desk.frameOf(1);
+    const middle = { x: x + width / 2, y: y + height / 2 };
+    check(
+        'a move of a seat that is not shown is told to the page by itself, with no state',
+        JSON.stringify(desk.told()) === '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[]}]' &&
+            desk.states() === states,
+        [desk.told(), desk.states() - states]
+    );
+    desk.enter(second, pointer('down', middle));
+    desk.enter(third, pointer('scroll', { x: 5, y: 6 }, { dx: 0, dy: 40 }));
+    desk.carried({ event: 'pointer', type: 'move', x: 1, y: 2 });
+    const seats = Object.fromEntries(desk.page().seats.map((seat) => [seat.id, seat]));
+    check(
+        "the page's state has each seat's name, colour, pointer, held buttons, idleness and whether it is shown",
+        JSON.stringify(seats.s2) ===
+            JSON.stringify({
+                id: 's2',
+                name: 's2',
+                colour: 'orange',
+                at: middle,
+                buttons: [0],
+                idle: false,
+                shown: false,
+            }) &&
+            seats.local.shown &&
+            seats.local.colour === 'blue',
+        desk.page().seats
+    );
+    check(
+        'a press and a scroll are told as they come, the buttons held after each, and the shown seat is not told',
+        desk
+            .told()
+            .slice(1)
+            .map(({ id, type, buttons, dy }) => [id, type, buttons.join('+'), dy ?? ''].join(' '))
+            .join() === 's2 down 0 ,s3 scroll  40',
+        desk.told()
+    );
+    check(
+        "a window's holder is told by its colour, and none where no seat holds it",
+        held === null && desk.page().windows[0].holder === 'orange',
+        [held, desk.page().windows]
+    );
+    desk.enter(second, pointer('up', middle));
+    desk.leave(second);
+    check(
+        'a button let go is held no more, and a seat that left is not in the state',
+        desk.told().at(-1).buttons.length === 0 && !desk.page().seats.some(({ id }) => id === 's2'),
+        [desk.told().at(-1), desk.page().seats]
+    );
+}
+
 async function readingChecks({ LAYOUT, createDesktop }, check) {
     const reader = { heard: null, counts: new Map(), asked: [] };
     const numberOf = (page) => Number(page.name.split('-')[1]) + 3;
@@ -1604,8 +1699,8 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     const first = await served.read(me, {});
     const golden = [
         `desktop 1200x800 mark ${first.mark}`,
-        'seat local "Local" key w2',
-        'seat s1 "s1" at 200,400 key w1 (you)',
+        'seat local "Local" blue key w2',
+        'seat s1 "s1" green at 200,400 key w1 (you)',
         'dock (2 items)',
         '  item "A" [running, active] dock.a',
         '  item "B" dock.b',
@@ -1691,8 +1786,8 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         moved.text ===
             [
                 `changes ${typed.mark} to ${moved.mark}`,
-                '~ seat local "Local"',
-                '+ seat s2 "s2"',
+                '~ seat local "Local" blue',
+                '+ seat s2 "s2" orange',
                 '~ window w2 "Second" a at 500,252 200x200',
             ].join('\n'),
         moved.text
@@ -1715,7 +1810,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         'an act on a ref moves the pointer to its middle and presses there, answered as the press is',
         acted.over === 1 &&
             acted.key === 'key' &&
-            after.text.includes('seat s1 "s1" at 160,335 key w1 (you)') &&
+            after.text.includes('seat s1 "s1" green at 160,335 key w1 (you)') &&
             desk.puts.map(({ page: to, event }) => [to, event.type, event.x, event.y].join()).join(' ') ===
                 'content-1,down,60,35 content-1,up,60,35',
         JSON.stringify({ acted, puts: desk.puts, text: after.text })
@@ -1961,6 +2056,8 @@ function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} } 
         seats,
         closed,
         puts,
+        told: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-seat').map(({ payload }) => payload),
+        states: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-state').length,
         pictures,
         reserved,
         dock,
