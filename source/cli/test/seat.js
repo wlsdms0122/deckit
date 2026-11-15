@@ -222,8 +222,8 @@ function seat({ main, pageById, compose, desktop }) {
             await main(`return webkit.sendMouse(${page.id}, ${JSON.stringify({ type, ...at })})`);
         return { x: page.rect.x + at.x, y: page.rect.y + at.y };
     };
-    // The Seats mod's item in the status bar as the capsule draws it, `{ name, text, x, y }`, what it is called, what
-    // it writes and its middle on the stage, or null while there is none.
+    // The Seats mod's item in the status bar as the capsule draws it, `{ name, text, cut, x, y }`, what it is called,
+    // what it writes, whether its label is drawn cut short, and its middle on the stage, or null while there is none.
     const seatsItem = async () => {
         const [bar] = await laidOf('status-bar');
         const drawn = await (bar && (await pageById(bar.id)))?.evaluate(`(() => {
@@ -231,7 +231,9 @@ function seat({ main, pageById, compose, desktop }) {
             if (!item) return null;
             const { x, y, width, height } = item.getBoundingClientRect();
             const name = item.getAttribute('aria-label');
-            return { name, text: item.textContent, x: x + width / 2, y: y + height / 2 };
+            const label = item.querySelector('.status-bar-label');
+            const cut = !!label && label.scrollWidth > label.clientWidth;
+            return { name, text: item.textContent, cut, x: x + width / 2, y: y + height / 2 };
         })()`);
         if (!drawn) return null;
         return { ...drawn, x: Math.round(bar.rect.x + drawn.x), y: Math.round(bar.rect.y + drawn.y) };

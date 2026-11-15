@@ -52,7 +52,8 @@ const STYLE = `
     .status-bar-item:not(:disabled):hover { background: var(--deckit-hover); }
     .status-bar-item:not(:disabled):active { background: var(--deckit-pressed); }
     .status-bar-item[data-tone='attention'] { color: var(--deckit-accent); }
-    .status-bar-label { overflow: hidden; text-overflow: ellipsis; }
+    /* A label is as wide as it was measured, the widest a label is laid at most: it is cut past that alone. */
+    .status-bar-label { flex: none; max-width: ${ITEM.widest}px; overflow: hidden; text-overflow: ellipsis; }
     .status-bar-measure { position: absolute; visibility: hidden; white-space: nowrap; }
 `;
 

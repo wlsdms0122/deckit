@@ -1389,7 +1389,15 @@ async function run({
         }, 8000);
         const pressed = allow ? seatA.as('press', allow) : '';
         const admitted = await Promise.race([sitting, sleep(8000)]);
-        const greeted = await until(async () => /Asker/.test((await item())?.text ?? ''), 3000);
+        const greeted = await until(async () => {
+            const now = await item();
+            return /Asker/.test(now?.text ?? '') && now;
+        }, 3000);
+        check(
+            'outside: the item says the name of the seat that sat whole, not cut short',
+            greeted && !greeted.cut && /^Seats, Asker\b/.test(greeted.name),
+            JSON.stringify(greeted)
+        );
         check(
             'outside: an attached seat reads the view, its rows buttons by name, and its press on Allow seats the ' +
                 'user that asks, whose name the item says as it sits',
