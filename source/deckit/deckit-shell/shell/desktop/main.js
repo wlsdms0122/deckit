@@ -728,9 +728,9 @@ export function createDesktop({
     }
 
     // A seat deckit closed leaves: what it held is no one's, and a view that followed it is the local seat's again.
+    // It is out of what is kept here before the desktop is laid again, as deckit answers nothing of a seat it closed.
     function leave(seat) {
         if (seat.id === LOCAL || !hands.has(seat.id)) return;
-        if (followed === seat.id) follow(null);
         endDrag(seat.id);
         MANAGER.removeSeat(seat.id);
         ACTIVATION.removeSeat(seat.id);
@@ -741,7 +741,8 @@ export function createDesktop({
         seated.delete(seat.id);
         for (const [source, id] of sources) if (id === seat.id) sources.delete(source);
         for (const [id, by] of pressers) if (by === seat.id) pressers.delete(id);
-        update();
+        if (followed === seat.id) follow(null);
+        else update();
     }
 
     // A user asks to sit: the ask waits, told to what hears the seats (seatsNow), until it is answered (answerAsk) or

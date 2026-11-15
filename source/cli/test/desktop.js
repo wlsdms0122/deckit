@@ -2518,6 +2518,17 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
         { mine, followed }
     );
     desk.leave(s1);
+    const left = {
+        following: desk.page().following,
+        drawn: desk.page().seats.map(({ id }) => id),
+        told: desk.desktop.seats.now().seats.map(({ id, following }) => `${id} ${following}`),
+    };
+    check(
+        'a seat the local seat follows leaves as deckit closes it, which answers nothing of it from then on: the ' +
+            "host window shows the local seat's view again, and the seat is drawn and told no more",
+        left.following === null && left.drawn.join() === 'local,s2' && left.told.join() === 'local false,s2 false',
+        left
+    );
     desk.leave(s2);
 }
 
@@ -3721,7 +3732,11 @@ function desktopOver(
             list: () => seats.open,
             onOpen: (listener) => (seats.opened = listener),
             onClose: (listener) => (seats.closed = listener),
-            isIdle: (seat) => seats.idle.has(seat.id),
+            // As deckit answers: nothing of a seat it closed.
+            isIdle: (seat) => {
+                if (!seats.open.includes(seat)) throw new Error('no such seat is open');
+                return seats.idle.has(seat.id);
+            },
             input: async (seat, event) => seats.served.input(seat, { ...event, source: seat.source }),
             serve: (answers) => {
                 seats.served = answers;
@@ -3885,7 +3900,10 @@ function desktopOver(
             seats.opened(seat);
             return seat;
         },
-        leave: (seat) => seats.closed(seat),
+        leave: (seat) => {
+            seats.open.splice(seats.open.indexOf(seat), 1);
+            seats.closed(seat);
+        },
         enter: (seat, event) => seats.served.input(seat, { ...event, source: seat.source }),
         machine,
         carried: (event) => heard.carried(event),
