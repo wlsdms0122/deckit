@@ -3096,6 +3096,20 @@ async function run(app, named = []) {
         if ([null, 'region-parent'].includes(await keyMod())) await show('editor');
     };
 
+    // The page of the mod that tells anchors, launched through the window probe where it does not run yet, the probe
+    // opened from the Mods mod first where it does not either.
+    const anchors = async () => {
+        const address = `deckit://${ANCHORS}.mod`;
+        const running = await page(address);
+        if (running) return running;
+        if (!(await page(`deckit://${PROBE}.mod`))) await local.openFromMods(PROBE);
+        const probe = await until(() => page(`deckit://${PROBE}.mod`), 8000);
+        await probe?.evaluate(
+            `delete document.documentElement.dataset.loaded; document.dispatchEvent(new CustomEvent('test-load', { detail: ['${ANCHORS}'] }))`
+        );
+        return until(() => page(address), 8000);
+    };
+
     if (runs('desktop')) await walk({ ...app, check, local, desktop });
 
     if (runs('input'))
@@ -3125,6 +3139,7 @@ async function run(app, named = []) {
                 answer,
                 allowed,
                 reads: runs('reading'),
+                anchors,
             });
         } catch (error) {
             check('outside: a party attached', false, error.stack);

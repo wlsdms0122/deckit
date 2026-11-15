@@ -57,6 +57,7 @@ async function run({
     answer,
     allowed,
     reads,
+    anchors,
 }) {
     const socket = path.join(home, 'deckit.sock');
     const principal = 'outside-party';
@@ -758,9 +759,103 @@ async function run({
         }
         for (const page of [windowB.content, child.id, localKey.content])
             await inPage(page, `document.querySelector('#${FIELD}')?.remove()`);
+        await viewChecks({ seatA, seatB });
         seatA.as('detach');
         seatB.as('detach');
         check('outside: both terminals detach', (await seatA.gone) === 0 && (await seatB.gone) === 0, '');
+    }
+
+    // A view under an anchor is a seat's own: the mod that tells anchors opens a band, and a seat's press on it shows
+    // the mod's view for that seat alone, which reads it as a panel window and presses in it. Shown for a second seat
+    // too, its keyboard stays the first seat's; a press outside it puts it away for the seat that pressed, and a
+    // press on its anchor, which toggles it, for the other.
+    async function viewChecks({ seatA, seatB }) {
+        const mod = await anchors();
+        const mark = (name) => mod?.evaluate(`document.documentElement.dataset.${name} ?? ''`);
+        // The mod marks the anchor it told as it attaches: it hears the test from then on.
+        await until(async () => !!(await mark('anchor')), 8000);
+        await mod?.evaluate(`document.dispatchEvent(new CustomEvent('test-seat'))`);
+        // What the host window lays of the mod's windows over the desktop's page, by the text of each: the local
+        // seat's screen. A view on another seat's screen alone lies under the backdrop and is left out.
+        const laidOfMod = async () => {
+            const found = {};
+            const pages = (await desktopLaid())?.pages ?? [];
+            const over = pages.findIndex(({ url }) => /^deckit:\/\/desktop\//.test(url ?? ''));
+            for (const { id, opener, name, rect } of pages.slice(over + 1)) {
+                if (!opener?.startsWith('deckit://anchor-user.mod') || !/^deckit-window-/.test(name)) continue;
+                found[await inPage(id, 'document.body.textContent')] = rect;
+            }
+            return found;
+        };
+        // The mod's view as a seat reads it on the desktop, `{ id, x, y, key }`, or null where it reads none.
+        const readBy = (seat) => {
+            const line = /^panel (w\d+) .* anchor-user at (\d+),(\d+) 320x200(?: \[key (\w+)\])?$/m.exec(
+                seat.as('read', 'desktop')
+            );
+            return line && { id: line[1], x: Number(line[2]), y: Number(line[3]), key: line[4] ?? null };
+        };
+        // The band alone, once it rests where the windows the mod closed left it.
+        const band = await until(async () => {
+            const [once, open] = [await laidOfMod(), await mark('seat')];
+            const again = await laidOfMod();
+            return open === 'open' && !again.View && once.Band && same(once.Band, again.Band) && again.Band;
+        }, 8000);
+        if (!band) return check('outside: the mod that tells anchors opens its band', false, await mark('seat'));
+        const onAnchor = `${Math.round(band.x + 96)},${Math.round(band.y + 14)}`;
+        const leftOfAnchor = `${Math.round(band.x + 30)},${Math.round(band.y + 14)}`;
+        seatA.as('press', onAnchor);
+        const mine = await until(() => readBy(seatA), 6000);
+        const inView = mine && `${mine.x + 160},${mine.y + 100}`;
+        const outside = mine && `${mine.x - 60},${mine.y + 320}`;
+        const alone = { mine, other: readBy(seatB), local: Object.keys(await laidOfMod()), told: await mark('mine') };
+        check(
+            "outside: a view its mod shows at a seat's press is on that seat's screen alone, its keyboard that seat's",
+            mine &&
+                mine.key === seatA.seat &&
+                alone.other === null &&
+                same(alone.local, ['Band']) &&
+                alone.told === 'didAppear,',
+            JSON.stringify(alone)
+        );
+        const asWindow = mine ? seatA.as('read', 'window', mine.id) : '';
+        const foreign = mine ? seatB.as('read', 'window', mine.id) : '';
+        const pressed = mine ? seatA.as('press', inView) : '';
+        const took = await until(async () => (await mark('pressed')) === '1', 4000);
+        check(
+            'outside: the seat reads the view as a window and presses in it, and a seat it is not shown for reads none',
+            / content 320x200$/m.test(asWindow) &&
+                /no window/.test(foreign) &&
+                pressed === `over ${mine?.id.slice(1)}, key` &&
+                took,
+            JSON.stringify({ asWindow, foreign, pressed, marked: await mark('pressed') })
+        );
+        seatB.as('press', leftOfAnchor);
+        const second = await until(() => readBy(seatB), 6000);
+        const typed = second ? seatB.as('type', 'x') : '';
+        check(
+            "outside: shown for a second seat too, the view's keyboard stays the first seat's and the second's key " +
+                'is refused',
+            second && second.key === seatA.seat && readBy(seatA) && /HELD|holds the keyboard/.test(typed),
+            JSON.stringify({ second, first: readBy(seatA), typed })
+        );
+        if (outside) seatA.as('press', outside);
+        const away = await until(() => !readBy(seatA) && readBy(seatB), 6000);
+        check(
+            'outside: a press outside a view puts it away for the seat that pressed alone',
+            away && (await mark('mine')) === 'didAppear,' && !Object.keys(await laidOfMod()).includes('Mine'),
+            JSON.stringify({ first: readBy(seatA), second: readBy(seatB), told: await mark('mine') })
+        );
+        seatB.as('press', onAnchor);
+        const gone = await until(
+            async () => !readBy(seatB) && (await mark('mine')) === 'didAppear,didDisappear,',
+            6000
+        );
+        check(
+            'outside: a press on its anchor, which toggles the view, puts it away for the last seat, and it is told',
+            gone,
+            JSON.stringify({ first: readBy(seatA), second: readBy(seatB), told: await mark('mine') })
+        );
+        await mod?.evaluate(`document.dispatchEvent(new CustomEvent('test-close'))`);
     }
 
     const listed = deckit('list', principal);
