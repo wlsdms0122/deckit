@@ -157,7 +157,7 @@ function install() {
             } else if (el.type === 'password') out.push(`text ${el.value.length}`);
             else {
                 const [head, length] = cut(el.value, most);
-                out.push(`value "${head}${length ? '…' : ''}"${length ? ` (${length})` : ''}`);
+                out.push(`value ${JSON.stringify(`${head}${length ? '…' : ''}`)}${length ? ` (${length})` : ''}`);
             }
         }
         return out;

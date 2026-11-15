@@ -223,6 +223,22 @@ async function run({ check, main, open }) {
             field.selected === undefined,
         `${JSON.stringify(partly)} ${JSON.stringify(part)}`
     );
+    // A value is written as a name is: what would end the state too early is escaped.
+    const swap = (value) =>
+        editor.evaluate(`(() => {
+            const field = document.querySelector('#deckit-read-field');
+            const had = field.value;
+            field.value = ${JSON.stringify(value)};
+            return had;
+        })()`);
+    const had = await swap('say "a", b\\c');
+    const escaped = named((await read('outline', editor.id)).lines, 'Probe');
+    await swap(had);
+    check(
+        "read: a field's value is escaped as a name is",
+        escaped?.states.includes('value "say \\"a\\", b\\\\c"'),
+        JSON.stringify(escaped)
+    );
     await press(editor, await middle(editor, 'rich'));
     await put(editor, { event: 'text', type: 'insert', text: 'one two' });
     const rich = await read('node', editor.id, named((await read('outline', editor.id)).lines, 'Rich')?.ref);
