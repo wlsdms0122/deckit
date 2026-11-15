@@ -12,6 +12,8 @@ const PARTY = require('../outside/client.js');
 
 // How long the app is given to settle after an input.
 const SETTLE = 10000;
+// What a party whose admission waits for an answer is told.
+const ASKING = 'attach/asking';
 // The keys of a manifest the system reads itself (spec/DECKIT-2).
 const MANIFEST = ['id', 'name', 'version', 'api', 'main', 'background', 'interfaces', 'permissions', 'contributes'];
 // The manifest fields each base defines itself, by the base: the shell's are those it reads of a mod, and `styles`,
@@ -197,6 +199,7 @@ async function take(step, app, paths, served, delegate, answers, downloads, part
     if (what === 'ask') return partOf(await parties.ask(step), part);
     if (what === 'detach') return parties.detach(step);
     if (what === 'told') return partOf(await parties.told(step), part);
+    if (what === 'admitted') return partOf(await parties.admitted(step), part);
     if (what === 'requested') return { answers: served.read(step.headers ?? []) };
     if (what === 'downloaded') return { answers: downloads.read() };
     if (what === 'call') {
@@ -419,36 +422,35 @@ function fileAt(folder, at) {
 // folder `home`, and what the host keeps for them before its first start, registered by the host app's own core at
 // `core`: `register()`, the users, then the keys and then the seats' settings `host` names, each key the public half of
 // a pair made here under its name, which comes to null, or to the refusal of the first one refused; `attach`, `ask`,
-// `detach` and `told`, each what that step comes to; and `close()`, every transport connection closed. A party keeps
+// `detach`, `told` and `admitted`, each what that step comes to; and `close()`, every transport connection closed. A party keeps
 // each message the host sends it that answers nothing it asked, and answers each request among them with a null at
 // once. After what a party does, the host app settles of the run each principal proved last hosts (host.js).
 function createParties({ host, core, home, app }) {
     const pairs = new Map(); // a key's name -> its pair, made as it is first named
-    const parties = new Map(); // a party's name -> { connection, principal, messages, closed }
+    const parties = new Map(); // a party's name -> { connection, principal, messages, closed, admission }
     let registered = false;
     const pairOf = (name) => pairs.get(name) ?? pairs.set(name, PARTY.makeKey()).get(name);
     // What a request of a party comes to: its result, nothing for a null, its refusal, or `{ none }` for an error that
-    // is no refusal, for a transport connection that closed first, and for no answer in time.
+    // is no refusal and for a transport connection that closed first; and, bounded, for no answer in time.
     const refusalOf = (error) =>
         error.stage && error.kind
             ? { refuses: error.stage, kind: error.kind, message: String(error.message) }
             : error.kind === 'CLOSED'
               ? { none: 'the transport connection closed' }
               : { none: `an error that is no refusal (${error.code ?? 'no code'}: ${error.message})` };
-    const bounded = (asking) =>
+    const cameOf = (asking) =>
+        asking.then((result) => (result === null || result === undefined ? {} : { answers: result }), refusalOf);
+    const bounded = (coming) =>
         new Promise((resolve) => {
             const late = { none: `the host did not answer within ${SETTLE / 1000} s` };
             const timer = setTimeout(resolve, SETTLE, late);
-            asking
-                .then((result) => (result === null || result === undefined ? {} : { answers: result }), refusalOf)
-                .then(resolve)
-                .finally(() => clearTimeout(timer));
+            coming.then(resolve).finally(() => clearTimeout(timer));
         });
     // Each message the host sent the party before now has arrived, and its close where the host closed it: a request
     // of the party's own, for the keys of its records, is answered after what was sent before it, or by the close.
     const caughtUp = async (one) => {
         if (one.closed) return;
-        await bounded(one.connection.request('record/keys'));
+        await bounded(cameOf(one.connection.request('record/keys')));
         // What closed is known a turn after what it left unanswered.
         await new Promise((resolve) => setImmediate(resolve));
     };
@@ -482,30 +484,44 @@ function createParties({ host, core, home, app }) {
         );
     }
 
-    async function attach({ party, principal, key }) {
+    // An attach that waits ends once the party is told the host asks, or its admission is answered, whichever is first,
+    // and comes to nothing: `admitted` comes to what the admission is answered.
+    async function attach({ party, principal, key, waits = false }) {
         let connection;
         try {
             connection = await PARTY.connect(path.join(home, 'deckit.sock'));
         } catch (error) {
             return { none: `no transport connection opened: ${error.message}` };
         }
-        const one = { connection, principal: null, messages: [], closed: false };
+        const one = { connection, principal: null, messages: [], closed: false, admission: null };
         parties.set(party, one);
-        connection.onMessage(({ method, params, request }) =>
-            one.messages.push({ method, ...(params === undefined ? {} : { params }), request })
-        );
+        let asked = null;
+        const asking = new Promise((resolve) => (asked = resolve));
+        connection.onMessage(({ method, params, request }) => {
+            one.messages.push({ method, ...(params === undefined ? {} : { params }), request });
+            if (method === ASKING) asked({});
+        });
         connection.closed.then(() => {
             one.closed = true;
         });
-        const came = await bounded(connection.authenticate({ principal, ...pairOf(key) }));
-        if (!came.refuses && !came.none) one.principal = principal;
-        return settle(came);
+        one.admission = cameOf(connection.authenticate({ principal, ...pairOf(key) })).then((came) => {
+            if (!came.refuses && !came.none) one.principal = principal;
+            return came;
+        });
+        if (!waits) return settle(await bounded(one.admission));
+        return settle(await bounded(Promise.race([asking, one.admission.then(() => ({}))])));
+    }
+
+    async function admitted({ party }) {
+        const one = parties.get(party);
+        if (!one) return { none: `${party} opened no transport connection` };
+        return settle(await bounded(one.admission));
     }
 
     async function ask({ party, method, params }) {
         const one = parties.get(party);
         if (!one || one.closed) return { none: `the transport connection of ${party} is not open` };
-        return settle(await bounded(one.connection.request(method, params)));
+        return settle(await bounded(cameOf(one.connection.request(method, params))));
     }
 
     async function detach({ party }) {
@@ -528,7 +544,7 @@ function createParties({ host, core, home, app }) {
         for (const { connection } of parties.values()) connection.close();
     }
 
-    return { register, attach, ask, detach, told, close };
+    return { register, attach, ask, detach, told, admitted, close };
 }
 
 // The value under the key `part` of an answer that is a table, or of each element that holds it of one that is an

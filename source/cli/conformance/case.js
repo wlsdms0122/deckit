@@ -180,6 +180,7 @@ const INPUTS = {
         party: [is.name, true],
         principal: [is.string, true],
         key: [is.name, true],
+        waits: [is.boolean, false],
         part: [is.string, false],
     },
     ask: {
@@ -205,6 +206,7 @@ const LOOKS = {
     dock: { seat: [is.string, false] },
     regions: {},
     told: { party: [is.name, true], part: [is.string, false] },
+    admitted: { party: [is.name, true], part: [is.string, false] },
     worn: {
         mod: [is.string, false],
         properties: [
@@ -252,6 +254,7 @@ const ADDED = {
     ask: 25,
     detach: 25,
     told: 25,
+    admitted: 26,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -267,6 +270,7 @@ const KEYS_ADDED = {
     answered: 14,
     outside: 20,
     seat: 26,
+    waits: 26,
 };
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = {
@@ -549,11 +553,13 @@ function stepOf(step, number, format, refuse) {
 // after a start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of
 // it, a call's `answered` an earlier call, no `of` beside `handed`, nor `handle` beside either, `delegated` beside none
 // of the three, at most one of `site`, `url` and `file`, a hand's `edge` beside a resize alone and `by` beside a
-// move or a resize alone, a Dock's `to` beside a drag alone, an attach's `party` one no earlier attach wrote, and
-// any other step's `party` one an earlier attach wrote.
+// move or a resize alone, a Dock's `to` beside a drag alone, an attach's `party` one no earlier attach wrote, any
+// other step's `party` one an earlier attach wrote, no `part` beside an attach that waits, and an admitted's `party`
+// one of an attach that waits.
 function order(steps, refuse) {
     let up = false;
     const parties = new Set();
+    const waiting = new Set();
     for (const [index, step] of steps.entries()) {
         if (index === 0 && step.what !== 'start') refuse('step 1 is no start');
         const of = step.of && steps[step.of - 1];
@@ -580,6 +586,11 @@ function order(steps, refuse) {
         if (step.what !== 'attach' && 'party' in step && !parties.has(step.party))
             refuse(`step ${step.number}: party names the party of no earlier attach`);
         if (step.what === 'attach') parties.add(step.party);
+        if (step.what === 'attach' && step.waits && 'part' in step)
+            refuse(`step ${step.number}: part is written beside no attach that waits`);
+        if (step.what === 'attach' && step.waits) waiting.add(step.party);
+        if (step.what === 'admitted' && parties.has(step.party) && !waiting.has(step.party))
+            refuse(`step ${step.number}: party names the party of no earlier attach that waits`);
         if (step.kind !== 'input' || WHILE_STARTED.includes(step.what)) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
