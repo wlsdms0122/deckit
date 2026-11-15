@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as REQUEST from '../../deckit/request/index.js';
 import * as DECLARED from './protocol.js';
+import * as ANCHOR from './model/anchor.js';
 import * as LAYER from '../ui/layer/index.js';
 import * as POINTER from '../ui/pointer/index.js';
 import * as PRESENTATION from '../ui/presentation/index.js';
@@ -186,6 +187,19 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
                 if (!positive(width) || !positive(height))
                     throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'resize takes a width and a height above 0');
                 sent('resize', () => PROTOCOL.resize.send({ id, width, height }))();
+            },
+            // The rects of the content other mods stand views under, all of them each time: `[{ id, rect, mod }]`, `id`
+            // the anchor's name among this mod's, `rect` `{ x, y, width, height }` in the content, and `mod` the id of
+            // the one mod that may bind a view to it (`open` with `anchor`).
+            setAnchors(anchors) {
+                const held = ANCHOR.heldTo(anchors);
+                if (!held)
+                    throw REQUEST.refusal(
+                        'call',
+                        'INVALID_ARGUMENT',
+                        'setAnchors takes [{ id, rect: { x, y, width, height }, mod }], each id once'
+                    );
+                sent('setAnchors', () => PROTOCOL.setAnchors.send({ id, anchors: held }))();
             },
         });
     }

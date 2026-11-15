@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as LAYOUT from './model/layout.js';
+import * as ANCHORED from './model/anchored.js';
 import * as LEVELS from './model/levels.js';
 import * as PAGE from './model/page-name.js';
 import * as WM from './model/window-manager.js';
@@ -127,6 +128,7 @@ export function createDesktop({
     const windows = new Map(); // id -> a normal window, as WINDOWS made it, while it is open
     const panels = new Map(); // id -> a panel window, as WINDOWS made it, while it is open, in the order they opened
     const inPanels = new Set(); // the children's pages the panel windows' regions show, as last laid
+    const anchors = new Map(); // a window's id -> the anchors its mod told (ANCHORED), while it is open
     const heard = new WeakSet(); // the children's pages whose presses are heard
     const listeners = new Set();
     // The desktop's page, the documents it opened by name, and what it was last told.
@@ -265,6 +267,7 @@ export function createDesktop({
 
     function closePanel(window) {
         if (!panels.delete(window.id)) return;
+        anchors.delete(window.id);
         if (held === window.id) held = null;
         for (const hand of hands.values()) if (hand.panel === window.id) hand.panel = null;
         update();
@@ -317,9 +320,20 @@ export function createDesktop({
         giveBack();
     }
 
+    // The rects the mod of a window or of a panel window names in its content, `told` as the shell's windows hold them
+    // (deckit-sdk shell/window/model/anchor.js heldTo), in place of those it told before: kept while the window is
+    // open, each standing on the stage where the window's content is (standing).
+    function setAnchors(window, told) {
+        if (!windows.has(window.id) && !panels.has(window.id)) return;
+        if (JSON.stringify(anchors.get(window.id) ?? []) === JSON.stringify(told)) return;
+        anchors.set(window.id, told);
+        update();
+    }
+
     // A mod left with no window open asks for no seat's attention.
     function close(window) {
         if (!windows.delete(window.id)) return;
+        anchors.delete(window.id);
         MANAGER.close(null, window.id);
         pressers.delete(window.id);
         if (![...windows.values()].some(({ mod }) => mod === window.mod)) ACTIVATION.cancelAttention(window.mod);
@@ -1369,6 +1383,28 @@ export function createDesktop({
         return opened.map((window, at) => ({ window, frame: frames[at] }));
     }
 
+    // What stands by anchors now (ANCHORED.standingOf): `anchors`, every anchor of a window whose content is on the
+    // stage, at its rect there, and `frames`, the frame of each view under an anchor that stands. A panel window at an
+    // edge is where LAYOUT.panelsIn has it, `edged` its frames by id; a normal window is where it rests, while some
+    // seat has it on screen.
+    function standing() {
+        const told = (id) => anchors.get(id) ?? [];
+        const atEdge = [...panels.values()].filter(({ anchor }) => !anchor);
+        const frames = LAYOUT.panelsIn(
+            atEdge.map(({ edge, size }) => ({ edge, size })),
+            { ...stage.size(), bar: strip.height }
+        );
+        const edged = new Map(atEdge.map(({ id }, at) => [id, frames[at]]));
+        const alone = (id, mod, content) => ({ id, mod, anchors: told(id), content, anchor: null, size: null });
+        const given = [...windows.values(), ...panels.values()].map(({ id, mod, bar, anchor, size }) => {
+            if (anchor) return { id, mod, anchors: told(id), content: null, anchor, size };
+            if (panels.has(id)) return alone(id, mod, edged.get(id));
+            return alone(id, mod, MANAGER.isShown(id) ? LAYOUT.contentOf(MANAGER.frameOf(id), bar) : null);
+        });
+        const opened = given.sort((one, other) => one.id - other.id);
+        return { edged, ...ANCHORED.standingOf({ stage: stage.size(), desktop: area() }, opened) };
+    }
+
     // Whether a seat's keyboard is away from its key window: the machine's, the local seat's, with an overlay window
     // or a panel window, any other's with the panel window it pressed.
     function away(seat) {
@@ -1922,6 +1958,7 @@ export function createDesktop({
         start,
         openPanel,
         closePanel,
+        setAnchors,
         orderFrontPanel,
         toDesktop,
         keyPanel,
@@ -1975,6 +2012,9 @@ export function createDesktop({
                     frame,
                     key: held === id,
                 })),
+            // The anchors that stand, each `{ window, owner, id, rect, mod }`: the window whose content it is in, the
+            // mod that told it, its id among that mod's, its rect on the stage, and the mod that may bind to it.
+            anchors: () => standing().anchors,
             dock: dockNow,
             hand,
             // The local seat's active mod, by its id, or null, and the mods that ask for its attention, in the order

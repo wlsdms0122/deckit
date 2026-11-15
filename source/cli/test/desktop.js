@@ -835,6 +835,7 @@ async function main() {
     const ANCHOR = await import(url('deckit-sdk', 'shell', 'window', 'model', 'anchor.js'));
     const ANCHORED = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'anchored.js'));
     anchoredChecks({ ANCHOR, ANCHORED }, check);
+    anchorChecks({ LAYOUT, createDesktop }, check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
@@ -1785,6 +1786,66 @@ function anchoredChecks({ ANCHOR, ANCHORED }, check) {
             circled.anchors.length === 0,
         { chained: [...chained.frames], circled: [...circled.frames] }
     );
+}
+
+// The anchors the desktop keeps (desktop/main), over the stand-ins, on a stage 1200 by 800 under a bar 28 high: each
+// on the stage where its window's content is, gone with its window.
+function anchorChecks({ LAYOUT, createDesktop }, check) {
+    const desk = desktopOver(createDesktop, {});
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const windowOf = (id, mod, more = {}) => {
+        const page = { name: `page-${mod}`, mod };
+        return {
+            id,
+            mod,
+            name: `w${id}`,
+            level: 'normal',
+            page,
+            surface: { name: `content-${id}`, of: page },
+            size: { width: 200, height: 20 },
+            minimum: { width: 0, height: 0 },
+            bar: LAYOUT.DEFAULT_BAR,
+            ...more,
+        };
+    };
+    const rect = (x, y, width, height) => ({ x, y, width, height });
+    const written = (value) => JSON.stringify(value);
+    const anchors = () => desk.desktop.control.anchors();
+    const titled = windowOf(1, 'a', {
+        size: { width: 400, height: 300 },
+        bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+    });
+    desk.desktop.open(titled);
+    desk.openSurfaces(1);
+    const band = windowOf(2, 'bar', { level: 'panel' });
+    desk.desktop.openPanel(band);
+    const items = [{ id: 'clock', rect: rect(100, 2, 60, 16), mod: 'clock' }];
+    desk.desktop.setAnchors(band, items);
+    desk.desktop.setAnchors(titled, [{ id: 'field', rect: rect(10, 10, 80, 24), mod: 'a' }]);
+    desk.desktop.setAnchors(windowOf(9, 'z'), [{ id: 'none', rect: rect(0, 0, 1, 1), mod: 'z' }]);
+    const content = desk.frameOf(1);
+    check(
+        "an anchor stands on the stage at its rect from its window's content, a titled window's under its title bar, " +
+            'and one told of a window that is not open is kept by nobody',
+        written(anchors()) ===
+            written([
+                { window: 1, owner: 'a', id: 'field', rect: rect(content.x + 10, content.y + 10, 80, 24), mod: 'a' },
+                { window: 2, owner: 'bar', id: 'clock', rect: rect(1092, 6, 60, 16), mod: 'clock' },
+            ]) && content.y === desk.desktop.control.windows()[0].frame.y + LAYOUT.DEFAULT_BAR.height,
+        { anchors: anchors(), content }
+    );
+    desk.desktop.setAnchors(band, [{ id: 'bell', rect: rect(20, 2, 24, 16), mod: 'bell' }]);
+    desk.desktop.minimize(titled);
+    check(
+        'the anchors a mod tells stand in place of those it told before, and those of a window no seat has on screen ' +
+            'stand nowhere',
+        written(anchors().map(({ id, rect: at }) => [id, at])) === written([['bell', rect(1012, 6, 24, 16)]]),
+        anchors()
+    );
+    desk.desktop.closePanel(band);
+    desk.desktop.openPanel(band);
+    check("a window's anchors go as it closes", anchors().length === 0, anchors());
 }
 
 // What a seat reads of the desktop, over a reader that answers one document a page: the desktop, a window and a node

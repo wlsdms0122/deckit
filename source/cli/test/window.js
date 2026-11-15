@@ -305,6 +305,22 @@ async function main() {
         { atSide, fronted: desktop.panelsFronted }
     );
 
+    const named = [{ id: 'item', rect: { x: 4, y: 2, width: 32, height: 24 }, mod: 'a', more: true }];
+    shell.fromPage('set-anchors', pages.b, { id: side.id, anchors: named });
+    const kept = desktop.anchors.at(-1);
+    shell.fromPage('set-anchors', pages.b, { id: side.id, anchors: [{ id: 'item', rect: {}, mod: 'a' }] });
+    shell.fromPage('set-anchors', pages.a, { id: side.id, anchors: [] });
+    shell.fromPage('set-anchors', pages.b, { id: float.id, anchors: named });
+    check(
+        "the rects a window's mod names in its content are the desktop's to keep, as an id, a rect and a mod each: " +
+            "not those of another shape, of another page's window or of an overlay window",
+        desktop.anchors.length === 1 &&
+            kept.id === side.id &&
+            JSON.stringify(kept.anchors) ===
+                JSON.stringify([{ id: 'item', rect: { x: 4, y: 2, width: 32, height: 24 }, mod: 'a' }]),
+        desktop.anchors
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
@@ -355,6 +371,7 @@ function windowsOver(createWindows) {
         panelsClosed: [],
         panelPressed: [],
         panelsFronted: [],
+        anchors: [],
         change: () => changes.forEach((listener) => listener()),
     };
     const host = { shown: [], closed: [] };
@@ -398,6 +415,7 @@ function windowsOver(createWindows) {
         pressPanel: (window) => desktop.panelPressed.push(window.id),
         orderFrontPanel: (window, { activates = true } = {}) =>
             desktop.panelsFronted.push({ id: window.id, activates }),
+        setAnchors: (window, anchors) => desktop.anchors.push({ id: window.id, anchors }),
         keyPanel: () => null,
         toDesktop: () => {},
         localSeat: 'local',

@@ -1,5 +1,6 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from '../../../deckit-sdk/shell/window/protocol.js';
+import * as ANCHOR from '../../../deckit-sdk/shell/window/model/anchor.js';
 import * as SURFACE from './model/surface.js';
 import * as LAYOUT from '../desktop/model/layout.js';
 
@@ -54,6 +55,7 @@ export function createWindows({
         PROTOCOL.makeKeyAndOrderFront.on(bySender((window) => orderFront(window)));
         PROTOCOL.resize.on(bySender(resize));
         PROTOCOL.setTitle.on(bySender((window, { title }) => retitle(window, title)));
+        PROTOCOL.setAnchors.on(bySender((window, { anchors }) => setAnchors(window, anchors)));
         PROTOCOL.move.on(
             bySender(
                 (window, { phase, dx, dy, x, y }) =>
@@ -270,6 +272,14 @@ export function createWindows({
     function retitle(window, title) {
         if (window.level === NORMAL) DESKTOP.setTitle(window, title);
         else window.title = String(title);
+    }
+
+    // The rects a window's mod names in its content, all of them each time: the desktop keeps those of a window that
+    // stands on it, until the window closes. A telling of another shape leaves those kept as they are, and an overlay
+    // window, which is on no stage of the desktop's, has none.
+    function setAnchors(window, anchors) {
+        const held = ANCHOR.heldTo(anchors);
+        if (held && window.level !== OVERLAY_LEVEL) DESKTOP.setAnchors(window, held);
     }
 
     // A page's document that ends takes its windows with it.

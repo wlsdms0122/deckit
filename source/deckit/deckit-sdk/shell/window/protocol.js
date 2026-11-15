@@ -65,6 +65,13 @@ export const setTitle = CHANNEL.pageToMain(
     { id: 'number', title: 'string' },
     { guard: CHANNEL.GUARD.ANY }
 );
+// The rects the window's mod names in its content, each for one mod to stand a view of its own under: `anchors`,
+// `[{ id, rect, mod }]` (model/anchor.js heldTo), all of them each time, in place of those told before.
+export const setAnchors = CHANNEL.pageToMain(
+    'deckit-shell:window-set-anchors',
+    { id: 'number', anchors: 'array' },
+    { guard: CHANNEL.GUARD.ANY }
+);
 // A press in the content's drag regions moves the window: `phase` 'began' at the press, then 'changed' and 'ended',
 // `dx`, `dy` how far the pointer went since the press, on the screen, `x`, `y` where it pressed in the content.
 export const move = CHANNEL.pageToMain(
