@@ -1,0 +1,17 @@
+case = 26
+name = "an-idle-time-below-0-is-refused"
+note = "Setting the idle time below 0 is refused at call with INVALID_ARGUMENT. The host sets it before the first start, so the refusal is what the start comes to."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+seats = { idleTime = -1 }
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

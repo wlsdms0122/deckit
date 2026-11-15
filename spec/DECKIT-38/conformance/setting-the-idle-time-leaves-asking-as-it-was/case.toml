@@ -1,0 +1,30 @@
+case = 26
+name = "setting-the-idle-time-leaves-asking-as-it-was"
+note = "Setting one setting leaves the other as it was, and an idle time of 0 is taken. The host set the idle time to 0 and nothing of asking, which stands false as where none is kept: ada sits at once and is told nothing."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+seats = { idleTime = 0 }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+part = "seat"
+
+[step.expect]
+answers = { id = "s1", local = false, user = { id = "ada", name = "Ada Lovelace" } }
+
+[[step]]
+look = "told"
+party = "p"
+
+[step.expect]
+answers = { messages = [], closed = false }

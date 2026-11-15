@@ -1,0 +1,31 @@
+case = 26
+name = "an-ask-no-layer-serves-is-answered-no"
+note = "With asking true, an ask is answered no where no layer serves the ask: authenticate is refused at call with REFUSED, and the host closes the transport connection. The base stacks no layer."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+seats = { asking = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[step.expect]
+refuses = "call"
+kind = "REFUSED"
+
+[[step]]
+look = "told"
+party = "p"
+part = "closed"
+
+[step.expect]
+answers = true
