@@ -1,0 +1,39 @@
+case = 26
+name = "a-press-of-the-person-changes-no-other-seat-s-order"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800. ada sits at s1. mod-a opens main and then second. The person presses main: the look windows of the local seat answers second then main, key, and that of s1 answers the order they opened in, neither key."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+look = "windows"
+seat = "local"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "second", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "second", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }]

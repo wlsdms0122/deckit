@@ -1,0 +1,44 @@
+case = 26
+name = "a-down-at-a-ref-goes-to-the-middle-of-what-it-names"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800. ada sits at s1. It sends a down at the ref w1.bar, main's title bar, 720 by 48 at 283, 107: the down answers at 643, 131, the bar's middle, over the window 1, which is its key window, and the up at the same ref answers the same point."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "w1.bar", button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = "key", holder = "s1", at = { x = 643, y = 131 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "w1.bar", button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, at = { x = 643, y = 131 } }
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]

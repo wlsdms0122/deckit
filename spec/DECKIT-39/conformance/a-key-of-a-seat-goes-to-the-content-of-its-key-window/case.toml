@@ -1,0 +1,61 @@
+case = 26
+name = "a-key-of-a-seat-goes-to-the-content-of-its-key-window"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800. ada sits at s1. mod-a opens main and then second, in front. ada presses at 600, 300, which reaches second, the window 2, and sends the key a down and up: each answers to the window 2, and second's content hears the press and the keys, and main's hears nothing."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 2, key = "key", holder = "s1", at = { x = 600, y = 300 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 2, at = { x = 600, y = 300 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "down", code = "KeyA", key = "a" }
+
+[step.expect]
+answers = { to = 2 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "up", code = "KeyA", key = "a" }
+
+[step.expect]
+answers = { to = 2 }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/second/mousedown/0/1/", activates = true }, { url = "https://said.test/second/mouseup/0/1/", activates = true }, { url = "https://said.test/second/keydown/KeyA/a//false", activates = true }, { url = "https://said.test/second/inserted/a", activates = true }, { url = "https://said.test/second/keyup/KeyA/a//false", activates = true }]
