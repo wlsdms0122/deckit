@@ -1271,16 +1271,32 @@ async function run({
 
     // The notification center is a seat's own: a seat presses the Notifications item as it reads it in the bar, and
     // the center stands under the item for that seat alone, which reads it as a panel window with the keyboard; the
-    // other seat reads none. Its second press on the item puts it away.
+    // other seat reads none. Its second press on the item puts it away. Between the seat's read and its first press
+    // the mod that joins the bar sets its own item anew, so the bar is laid again: what the seat read names the
+    // item still.
     async function centerChecks({ seatA, seatB }) {
         const centerOf = (seat) =>
             /^panel (w\d+) "Notifications" notifications at [^\n]*/m.exec(seat.as('read', 'desktop')) ?? null;
-        const bar = /^panel (w\d+) .* status-bar top at /m.exec(seatA.as('read', 'desktop'))?.[1] ?? null;
-        const item = () =>
-            /^ *button "Notifications[^"]*"(?: \[[^\]]*\])? (\d+\.\d+)/m.exec(
-                bar ? seatA.as('read', 'window', bar) : ''
-            )?.[1] ?? null;
-        const pressed = item() ? seatA.as('press', item()) : '';
+        const band = /^panel (w\d+) .* status-bar top at /m.exec(seatA.as('read', 'desktop'))?.[1] ?? null;
+        const bandNow = () => (band ? seatA.as('read', 'window', band) : '');
+        const item = () => /^ *button "Notifications[^"]*"(?: \[[^\]]*\])? (\d+\.\d+)/m.exec(bandNow())?.[1] ?? null;
+        const asRead = item();
+        const mod = bar ? await bar.joins() : null;
+        const star = { name: 'Star', icon: 'star', command: 'show' };
+        const set = (given) =>
+            mod?.evaluate(
+                `document.dispatchEvent(new CustomEvent('test-item', { detail: ${JSON.stringify({ ...star, ...given })} }))`
+            );
+        await set({ count: 7, tone: 'attention' });
+        const laidAnew = !!mod && (await until(() => /button "Star, 7, attention"/.test(bandNow()), 6000));
+        const pressed = asRead ? seatA.as('press', asRead) : '';
+        if (mod)
+            check(
+                'outside: what a seat read of the bar names its item still once another mod set its own item anew',
+                laidAnew && asRead === item() && /^over /.test(pressed),
+                JSON.stringify({ laidAnew, asRead, now: item(), pressed })
+            );
+        await set({ count: 120 });
         const own = await until(() => centerOf(seatA), 5000);
         const read = own ? seatA.as('read', 'window', own[1]) : '';
         const other = centerOf(seatB);
@@ -1288,7 +1304,7 @@ async function run({
             'outside: a seat presses the Notifications item as it reads it, and the center stands under it for that ' +
                 'seat alone, which reads it with the keyboard',
             !!own && /\[key/.test(own[0]) && /Notifications/.test(read) && !other,
-            JSON.stringify({ bar, item: item(), pressed, own: own?.[0] ?? null, read, other: other?.[0] ?? null })
+            JSON.stringify({ band, item: item(), pressed, own: own?.[0] ?? null, read, other: other?.[0] ?? null })
         );
         const again = item() ? seatA.as('press', item()) : '';
         const away = await until(() => !centerOf(seatA), 5000);
