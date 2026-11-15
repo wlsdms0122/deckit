@@ -28,6 +28,9 @@ const USAGE = [
 const VALUED = ['key', 'home', 'as', 'depth', 'roles', 'items', 'out', 'scale', 'button', 'count'];
 const FLAGS = ['all', 'json', 'shift', 'alt', 'control', 'meta'];
 const MODIFIERS = ['alt', 'control', 'meta', 'shift'];
+// How far a drag's pointer goes between two moves, in points, and how long it waits between them.
+const DRAG_STEP = 8;
+const FRAME_MS = 16;
 const STARTED = { contributions: { exportedIn: {}, awaits: {} } };
 
 const refuse = () => {
@@ -147,7 +150,15 @@ const ASKS = {
     drag: async (seat, [from, to]) => {
         if (!numbersOf(from, 2) || !numbersOf(to, 2)) refuse();
         const down = await pointed(seat, from, { type: 'down', button: 0, buttons: [0], count: 1 });
-        await pointed(seat, to, { type: 'move', buttons: [0] });
+        // A drag is seen as it goes: the pointer moves through the points between, a frame apart.
+        const [fx, fy] = numbersOf(from, 2);
+        const [tx, ty] = numbersOf(to, 2);
+        const steps = Math.max(1, Math.ceil(Math.hypot(tx - fx, ty - fy) / DRAG_STEP));
+        for (let step = 1; step <= steps; step++) {
+            const at = `${Math.round(fx + ((tx - fx) * step) / steps)},${Math.round(fy + ((ty - fy) * step) / steps)}`;
+            await pointed(seat, at, { type: 'move', buttons: [0] });
+            await new Promise((resolve) => setTimeout(resolve, FRAME_MS));
+        }
         await pointed(seat, to, { type: 'up', button: 0, buttons: [] });
         console.log(reached(down));
     },
