@@ -109,7 +109,13 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
     }
 
     function tabList() {
-        const list = ui.list({ key: (item) => item.file, create: tabOf, update: refresh, animated: true });
+        const list = ui.tabs({
+            name: 'Open files',
+            key: (item) => item.file,
+            create: tabOf,
+            update: refresh,
+            animated: true,
+        });
         list.element.classList.add('editor-tab-list');
         ui.sortable(list, { onReorder });
         return list;
@@ -142,6 +148,7 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
 
     function refresh(tab, item) {
         tab.toggleAttribute('data-active', item.active);
+        rows.select(tab, item.active);
         tab.toggleAttribute('data-preview', item.preview);
         tab.toggleAttribute('data-unsaved', item.unsaved);
         if (tab.dataset.path === item.path) return;

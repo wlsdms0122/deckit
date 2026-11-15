@@ -15,6 +15,7 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
     const typeface = new engine.Compartment();
     // A compartment, so a file renamed to another type is coloured as that type.
     const language = new engine.Compartment();
+    const named = new engine.Compartment();
     // A compartment, so a new theme recolours the open files in place.
     const look = new engine.Compartment();
     let lookExtensions = themeExtensions;
@@ -66,7 +67,12 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
     }
 
     function setLanguage(view, path) {
-        view.dispatch({ effects: language.reconfigure(languageOf(path)) });
+        view.dispatch({ effects: [language.reconfigure(languageOf(path)), named.reconfigure(nameOf(path))] });
+    }
+
+    // The text is named by its file, to whoever reads the page.
+    function nameOf(path) {
+        return engine.EditorView.contentAttributes.of({ 'aria-label': path.slice(path.lastIndexOf('/') + 1) });
     }
 
     // Centred, unless all of it is in sight already, where moving the text only loses the place.
@@ -113,6 +119,7 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
                 ]),
                 separatorExtension(text),
                 language.of(languageOf(path)),
+                named.of(nameOf(path)),
                 look.of(lookExtensions),
                 wrapping.of(settings.get('wrap') ? engine.EditorView.lineWrapping : []),
                 typeface.of(typefaceNow()),

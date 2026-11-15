@@ -33,6 +33,7 @@ function fileTree({ ui, theme, store, fileSystem, isUnsaved, onOpen, onFindIn, o
         },
     });
     ui.tree(element, {
+        name: 'Files',
         items: () => [...element.querySelectorAll('[data-path]')].map((row) => row.dataset.path),
         // A selected entry since gone from the disk is no lead.
         lead: () => (selected && entryAt(selected) ? selected : null),
