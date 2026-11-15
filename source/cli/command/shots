@@ -522,21 +522,27 @@ async function draw(app, look, shots, origin) {
     await surface('status-bar', (name) =>
         desktopShot(name, { under, crop: { x: screen.width - 320, y: 0, width: 320, height: 52 } })
     );
-    const clock = await page('deckit://clock.mod');
+    // The clock's item in the status bar's document: a press on it runs the clock's command.
+    const clock = {
+        press: async () => {
+            for (const each of await pages('about:blank'))
+                if (await each.evaluate(`!!document.querySelector('.status-bar-item[data-item="clock"]')`))
+                    return each.press('.status-bar-item[data-item="clock"]');
+        },
+    };
     const center = () =>
         until(async () => {
             for (const each of await pages('about:blank'))
                 if (await each.evaluate(`!!document.querySelector('.notifications-head')`)) return each;
             return null;
         }, 4000);
-    // Whether the center is laid on the desktop or the clock shows it open.
+    // Whether the center is laid on the desktop.
     const centerOpen = async () =>
         ((await desktopLaid())?.pages || []).some(
             ({ opener, name }) => opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
-        ) ||
-        (await clock?.evaluate(`document.querySelector('.deckit-bar-item')?.getAttribute('aria-pressed')`)) === 'true';
+        );
     await surface('notifications', async (name) => {
-        await clock?.press('.deckit-bar-item');
+        await clock.press();
         const list = await center();
         await until(() => list?.evaluate(`!!document.querySelector('.notifications-card')`), 2000);
         await sleep(600);
@@ -550,7 +556,7 @@ async function draw(app, look, shots, origin) {
         if (list) await backed(name);
         // The clock's press lands before the Dock's: a Dock press first takes the keyboard from the center, which
         // closes, and the clock's then opens it again.
-        await clock?.press('.deckit-bar-item');
+        await clock.press();
         await until(async () => !(await centerOpen()), 4000);
         await show(apps[0]);
         await sleep(400);

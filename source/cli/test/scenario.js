@@ -241,15 +241,29 @@ async function walk({
         windowsAtLaunch.every(({ mod }) => runsAtStart(mod)) && (await stripText()) === '',
         JSON.stringify({ windows: windowsAtLaunch.map(({ mod }) => mod), strip: await stripText() })
     );
-    // The status bar: a capsule 28 high in the host's bar, 8 in from its right end and centred on it, its children's
-    // views in a row in it, 24 high, the clock first, told wider than an icon's item.
+    // The status bar: a capsule 28 high in the host's bar, 8 in from its right end and centred on it, one button an
+    // item in its document, 24 high, the clock's the rightmost, its label wider than a glyph's item.
+    const barPage = async () => {
+        for (const each of await pages('about:blank'))
+            if (await each.evaluate(`!!document.querySelector('.status-bar')`)) return each;
+        return null;
+    };
     const capsuleNow = async () => {
         const stack = await stackNow();
         const bar = stack.find(
             ({ opener, name }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(name)
         );
-        const item = (id) => stack.find(({ url }) => url.startsWith(`deckit://${id}.mod`))?.rect ?? null;
-        return { bar: bar?.rect ?? null, clock: item('clock'), joined: item(JOINS) };
+        const drawn = await (
+            await barPage()
+        )?.evaluate(`(() => ({
+            name: document.querySelector('.status-bar').getAttribute('aria-label'),
+            items: [...document.querySelectorAll('.status-bar-item')].map((item) => {
+                const { x, y, width, height } = item.getBoundingClientRect();
+                return { id: item.dataset.item, name: item.getAttribute('aria-label'), x, y, width, height };
+            }),
+        }))()`);
+        const item = (id) => drawn?.items.find((each) => each.id === id) ?? null;
+        return { bar: bar?.rect ?? null, name: drawn?.name ?? null, clock: item('clock'), joined: item(JOINS) };
     };
     const screenWidth = (await desktopLaid())?.rect.width;
     const capsule =
@@ -258,15 +272,17 @@ async function walk({
             return now.bar && now.clock && now.clock.width > 32 && now;
         }, 8000)) || (await capsuleNow());
     check(
-        'the status bar stands at the top right of the host bar, the clock first in its row',
-        (({ bar, clock }) =>
+        'the status bar stands at the top right of the host bar, the clock an item in it',
+        (({ bar, name, clock }) =>
             bar?.height === 28 &&
             bar.y === 12 &&
             bar.x + bar.width === screenWidth - 8 &&
-            clock?.height === 24 &&
-            clock.y === bar.y + 2 &&
-            clock.x === bar.x + 2 &&
-            clock.x + clock.width === bar.x + bar.width - 2)(capsule),
+            name === 'Status Bar' &&
+            clock?.name === 'Clock' &&
+            clock.height === 24 &&
+            clock.y === 2 &&
+            clock.x === 2 &&
+            clock.x + clock.width === bar.width - 2)(capsule),
         JSON.stringify({ ...capsule, screenWidth })
     );
     // The Dock slides out as the pointer comes to its sliver at the desktop's edge, the only part of the desktop's page
@@ -2754,8 +2770,8 @@ async function walk({
             return typeof now === 'number' && now !== was;
         }, 8000);
         check("a shown mod's next revision loads in a page of its own", loaded, '');
-        // A mod installed that names the status bar's interface as its view's parent joins it, an icon's item at the
-        // end of the row, and the capsule grows by it and a gap.
+        // A mod installed that sets an item joins the status bar: a glyph's item left of the clock, the capsule wider
+        // by it and a gap. What it sets anew is drawn and named, and an item of another shape is refused.
         const unjoined = await capsuleNow();
         await probe.evaluate(
             `document.dispatchEvent(new CustomEvent('test-install-from', { detail: ${JSON.stringify(path.join(home, '..', JOINS))} }))`
@@ -2767,15 +2783,75 @@ async function walk({
                 return now.joined && now.bar?.width === unjoined.bar?.width + 36 && now;
             }, 8000)) || (await capsuleNow());
         check(
-            'a mod that joins the status bar is laid at the end of its row, and the capsule grows to hold it',
+            'an item a mod sets comes into the status bar left of the clock, and the capsule grows to hold it',
             joined.joined?.width === 32 &&
-                joined.joined.x === joined.bar.x + joined.bar.width - 34 &&
+                joined.joined.x === 2 &&
+                joined.joined.name === 'Star' &&
+                joined.clock?.x === 38 &&
                 joined.bar.x + joined.bar.width === unjoined.bar.x + unjoined.bar.width,
             JSON.stringify({ unjoined, joined })
         );
-        // A press on the clock brings the notification center out at the desktop's right edge, 8 in from it, 8 under
-        // the bar and 8 above the bottom, and it takes the keyboard; the clock shows pressed while it is open, and a
-        // second press puts it away. A press on a normal window takes the keyboard from it, and it closes (DECKIT-31).
+        const joinsPage = await page(`deckit://${JOINS}.mod`);
+        const setItem = (item) =>
+            joinsPage?.evaluate(
+                `delete document.documentElement.dataset.set; document.dispatchEvent(new CustomEvent('test-item', { detail: ${JSON.stringify(item)} }))`
+            );
+        await setItem({ name: 'Star', icon: 'star', command: 'show', count: 120, tone: 'attention' });
+        const itemCounted = await until(async () => {
+            const now = await capsuleNow();
+            return now.joined?.name === 'Star, 99+, attention' && now;
+        }, 4000);
+        check(
+            'an item set anew is named by its name, its count and its attention, and laid as wide as it draws',
+            itemCounted && itemCounted.joined.width === 57 && itemCounted.bar.width === unjoined.bar.width + 61,
+            JSON.stringify({ itemCounted, now: await capsuleNow() })
+        );
+        await setItem({ name: 'Star', label: 'x'.repeat(25) });
+        const refusedItem = await until(async () => await mark(joinsPage, 'set'), 4000);
+        check(
+            'an item of another shape is refused, and the one set before stands',
+            refusedItem === 'INVALID_ARGUMENT' && (await capsuleNow()).joined?.name === 'Star, 99+, attention',
+            JSON.stringify({ refusedItem, now: await capsuleNow() })
+        );
+        // A press on the item runs its command on its mod, which toggles a view of its own under the item's anchor:
+        // their right edges in line, 8 under the bar. A second press puts it away.
+        const itemView = async () =>
+            (await laidNow())
+                .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
+                .find(({ opener, name }) => opener.startsWith(`deckit://${JOINS}.mod`) && /^deckit-window-/.test(name))
+                ?.rect ?? null;
+        const pressItem = async (id) => (await barPage())?.press(`.status-bar-item[data-item="${id}"]`);
+        await pressItem(JOINS);
+        const viewUnder = await until(async () => {
+            const [view, now] = [await itemView(), await capsuleNow()];
+            const right = now.bar && now.joined && now.bar.x + now.joined.x + now.joined.width;
+            return view && near(view, { x: right - 320, y: 60, width: 320, height: 200 }) && view;
+        }, 6000);
+        check(
+            'a press on an item runs its command, and its mod stands a view under the item',
+            viewUnder && (await mark(joinsPage, 'ran')) === '1',
+            JSON.stringify({ view: await itemView(), now: await capsuleNow(), ran: await mark(joinsPage, 'ran') })
+        );
+        await pressItem(JOINS);
+        const viewAway = await until(async () => !(await itemView()) && (await mark(joinsPage, 'ran')) === '2', 6000);
+        check(
+            'a second press on the item puts its view away',
+            viewAway,
+            JSON.stringify({ view: await itemView(), ran: await mark(joinsPage, 'ran') })
+        );
+        await setItem(null);
+        const itemGone = await until(async () => {
+            const now = await capsuleNow();
+            return !now.joined && now.bar?.width === unjoined.bar?.width && now;
+        }, 4000);
+        check(
+            'an item its mod removes goes, and the capsule narrows to what is left',
+            itemGone && (await mark(joinsPage, 'set')) === 'removed',
+            JSON.stringify({ now: await capsuleNow(), set: await mark(joinsPage, 'set') })
+        );
+        // A press on the clock runs its command, which brings the notification center out at the desktop's right edge,
+        // 8 in from it, 8 under the bar and 8 above the bottom, and it takes the keyboard; a second press puts it
+        // away. A press on a normal window takes the keyboard from it, and it closes (DECKIT-31).
         const centerNow = async () =>
             (await laidNow())
                 .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
@@ -2783,60 +2859,44 @@ async function walk({
                     ({ opener, name }) =>
                         opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
                 ) ?? null;
-        const clockPage = await page('deckit://clock.mod');
-        const clockPressed = async () =>
-            (await clockPage?.evaluate(`document.querySelector('.deckit-bar-item')?.getAttribute('aria-pressed')`)) ===
-            'true';
         const stageNow = (await desktopLaid())?.rect;
         const centerAt = { x: stageNow?.width - 368, y: 60, width: 360, height: stageNow?.height - 68 };
-        await clockPage?.press('.deckit-bar-item');
+        await pressItem('clock');
         const centerOpened = await until(async () => {
             const now = await centerNow();
             return near(now?.rect, centerAt) && now.responder && now;
         }, 4000);
         check(
             'a press on the clock opens the notification center at the right edge, and it takes the keyboard',
-            centerOpened && (await until(clockPressed, 2000)),
-            JSON.stringify({ center: await centerNow(), centerAt, pressed: await clockPressed() })
+            centerOpened,
+            JSON.stringify({ center: await centerNow(), centerAt })
         );
-        await clockPage?.press('.deckit-bar-item');
-        const centerAway = await until(async () => !(await centerNow()) && !(await clockPressed()), 4000);
+        await pressItem('clock');
+        const centerAway = await until(async () => !(await centerNow()), 4000);
         check(
             'a second press on the clock puts the notification center away',
             centerAway,
-            JSON.stringify({ center: await centerNow(), pressed: await clockPressed() })
+            JSON.stringify({ center: await centerNow() })
         );
-        await clockPage?.press('.deckit-bar-item');
+        await pressItem('clock');
         const centerAgain = await until(async () => (await centerNow())?.responder, 4000);
         await probeWindow.press('#drop');
-        const taken = await until(
-            async () => !(await centerNow()) && (await keyMod()) === 'window-probe' && !(await clockPressed()),
-            4000
-        );
+        const taken = await until(async () => !(await centerNow()) && (await keyMod()) === 'window-probe', 4000);
         check(
             'a press on a normal window takes the keyboard from the notification center, which closes',
             centerAgain && taken,
-            JSON.stringify({
-                centerAgain,
-                center: await centerNow(),
-                key: await keyMod(),
-                pressed: await clockPressed(),
-            })
+            JSON.stringify({ centerAgain, center: await centerNow(), key: await keyMod() })
         );
         // A mod no input reached toggles the center: Notifications may not activate (DECKIT-32), and the center, where
         // the person works, is not left open without the keyboard.
-        const joinsPage = await page(`deckit://${JOINS}.mod`);
         await joinsPage?.evaluate(`document.dispatchEvent(new CustomEvent('test-center'))`);
         const toggled = await until(async () => await mark(joinsPage, 'center'), 4000);
         await sleep(1000);
-        const unkeyed = await until(
-            async () => !(await centerNow()) && (await keyMod()) === 'window-probe' && !(await clockPressed()),
-            4000
-        );
+        const unkeyed = await until(async () => !(await centerNow()) && (await keyMod()) === 'window-probe', 4000);
         check(
             'a mod that may not activate toggles the notification center, which does not stay open without the keyboard',
             toggled && unkeyed,
-            JSON.stringify({ toggled, center: await centerNow(), key: await keyMod(), pressed: await clockPressed() })
+            JSON.stringify({ toggled, center: await centerNow(), key: await keyMod() })
         );
         await show('window-probe');
 
