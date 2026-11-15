@@ -82,6 +82,22 @@ async function main() {
         ['event/emit', { name: 'ping' }, 'event/emit needs args'],
         ['connection/end', { lifecycle: 0, run: 1 }, 'connection/end has no field run'],
         ['runner/started', { contributions: {}, summary: {} }, 'runner/started has no field summary'],
+        ['connection/begin', { lifecycle: 0.5 }, "connection/begin's lifecycle is number, not integer"],
+        [
+            'connection/call',
+            { connection: 1.5, number: 0, args: {} },
+            "connection/call's connection is number, not integer",
+        ],
+        [
+            'connection/call',
+            { connection: 1, number: 1e30, args: {} },
+            "connection/call's number is number, not integer",
+        ],
+        [
+            'connection/let-go',
+            { connection: 1, number: 0, count: 2.5 },
+            "connection/let-go's count is number, not integer",
+        ],
         ['record/keys', 'all', 'record/keys carries an object, not string'],
         ['runner/quit', [], 'runner/quit carries an object, not array'],
         ['record/keys', null, 'record/keys carries an object, not null'],

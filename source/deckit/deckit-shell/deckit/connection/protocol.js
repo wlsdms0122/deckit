@@ -10,13 +10,13 @@ import * as MOD_PERMISSION from '../../../deckit-sdk/deckit/permission/index.js'
 // service refused.
 export const begin = CHANNEL.pageToMain(
     'deckit-shell:connection-begin',
-    { run: 'number', lifecycle: 'number' },
+    { run: 'number', lifecycle: 'integer' },
     { reply: true, guard: CHANNEL.GUARD.MOD }
 );
 // A lifecycle of the page's run has ended, its end method run and what its handles made cut.
 export const end = CHANNEL.pageToMain(
     'deckit-shell:connection-end',
-    { run: 'number', lifecycle: 'number' },
+    { run: 'number', lifecycle: 'integer' },
     { guard: CHANNEL.GUARD.MOD }
 );
 // A lifecycle of the page's run asks to reach the mod `target` by its id, until it lets it go or ends: answered once
@@ -26,13 +26,13 @@ export const end = CHANNEL.pageToMain(
 // or ended.
 export const reach = CHANNEL.pageToMain(
     'deckit-shell:connection-reach',
-    { run: 'number', lifecycle: 'number', target: 'string' },
+    { run: 'number', lifecycle: 'integer', target: 'string' },
     { reply: true, guard: MOD_PERMISSION.REACH_MODS }
 );
 // The lifecycle lets the mod `target` go: its connection by the id ends, told with `disconnected`.
 export const releaseReach = CHANNEL.pageToMain(
     'deckit-shell:connection-release-reach',
-    { run: 'number', lifecycle: 'number', target: 'string' },
+    { run: 'number', lifecycle: 'integer', target: 'string' },
     { reply: true, guard: CHANNEL.GUARD.MOD }
 );
 // A function the other end handed over is called: answered with `{ returned }`, or `{ thrown: { stage, kind, message }
@@ -40,7 +40,7 @@ export const releaseReach = CHANNEL.pageToMain(
 // once the connection has ended or the function is let go.
 export const call = CHANNEL.pageToMain(
     'deckit-shell:connection-call',
-    { run: 'number', connection: 'number', number: 'number', args: 'object' },
+    { run: 'number', connection: 'integer', number: 'integer', args: 'object' },
     { reply: true, guard: CHANNEL.GUARD.MOD }
 );
 // A function the other end handed over is held no more: `count` is how many times it was handed over, so one handed
@@ -49,9 +49,9 @@ export const release = CHANNEL.pageToMain(
     'deckit-shell:connection-release',
     {
         run: 'number',
-        connection: 'number',
-        number: 'number',
-        count: 'number',
+        connection: 'integer',
+        number: 'integer',
+        count: 'integer',
     },
     { guard: CHANNEL.GUARD.MOD }
 );
