@@ -1,6 +1,6 @@
 # Status Bar
 
-A capsule at the top right of the app, in the bar across the top of its window, that holds in a row the items other mods give it: the clock, whose press opens the notification center. A row longer than the bar has room for scrolls sideways, but for the fixed items at its right end. It runs in the background from the start, and is the app's own chrome, not an app: it has no Dock item and is not listed among the apps.
+A capsule at the top right of the app, in the bar across the top of its window, that holds in a row the items other mods give it: the clock, and the Notifications item, whose press shows the notification center under it. A row longer than the bar has room for scrolls sideways, but for the fixed items at its right end. It runs in the background from the start, and is the app's own chrome, not an app: it has no Dock item and is not listed among the apps.
 
 ## Giving it an item: `status-bar/items`
 
