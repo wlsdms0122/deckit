@@ -133,7 +133,7 @@ Each seat is told apart by a **colour**, one of six names, in this order: `blue`
 
 ### The member seats
 
-`shell.seats` reads the seats and acts on them. Each member is a request, as [the shell](../DECKIT-29/SPEC.md) fixes one, guarded by `deckit.seats`, but `onChange`, a registration.
+`shell.seats` reads the seats and acts on them. Each member is a request, as [the shell](../DECKIT-29/SPEC.md) fixes one, guarded by `deckit.seats`, but `onChange`, which answers at once.
 
 | member | takes | answers |
 |---|---|---|
@@ -145,11 +145,11 @@ Each seat is told apart by a **colour**, one of six names, in this order: `blue`
 
 In what `list()` answers, `name` is the name of the seat's user, `colour` the seat's colour, `idle` whether the seat is idle, and `following` whether the host app's window follows it. In what `asks()` answers, `name` is the name of the user that asks.
 
-An `id` here is the shell's own, a string, and no seat's id of [users and seats](../DECKIT-38/SPEC.md): the shell gives one to each seat as it opens and to each ask as it begins to wait, the count of the ids it gave since the host app started, from 1, written in decimal digits. A seat or an ask keeps its id until the seat closes or the ask is answered or its party left, and no id is given twice in a start. An id says nothing of what it names: none tells one seat from another by its form.
+An `id` here is the shell's own, a string, and not the seat's id of [users and seats](../DECKIT-38/SPEC.md): the shell gives one to each seat as it opens and to each ask as it begins to wait, the count of the ids it gave since the host app started, from 1, written in decimal digits. A seat or an ask keeps its id until the seat closes or the ask is answered or its party left, and no id is given twice in a start. An id says nothing of what it names: none tells one seat from another by its form.
 
 `seats.answer` answers the ask whichever seat's press made the mod call it, and `seats.follow` likewise: no member is handed a seat, and no member says which seat acts.
 
-A request is refused at `call` with kind `NOT_PERMITTED` for a mod not granted `deckit.seats`, then with kind `INVALID_ARGUMENT` where `ask` is no string, `allow` no boolean, or `seat` neither a string nor null. `onChange` handed what is no function throws at `call` with kind `INVALID_ARGUMENT`. Through a cut handle each is refused with kind `ENDED`, as [the shell](../DECKIT-29/SPEC.md) refuses a member of one.
+A request is refused at `call` with kind `NOT_PERMITTED` for a mod not granted `deckit.seats`, then with kind `INVALID_ARGUMENT` where `ask` is no string, `allow` no boolean, or `seat` neither a string nor null. `onChange` throws at `call` with kind `NOT_PERMITTED` for such a mod, then with kind `INVALID_ARGUMENT` handed what is no function. Through a cut handle each is refused with kind `ENDED`, as [the shell](../DECKIT-29/SPEC.md) refuses a member of one.
 
 **Note.** Who may answer an ask and who may have the window follow is not settled. As it stands, whoever sits at any seat does both through a mod granted `deckit.seats`, and the permission is the whole of the rule. A later DECKIT that parts what a seat may do moves this decision, and nothing here should be read as deciding that every seat may.
 
