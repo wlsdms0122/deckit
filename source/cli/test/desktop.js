@@ -1424,7 +1424,9 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     // The desktop over a clock of its own, the desktop's page telling it the system asks for no reduced motion.
     let now = 0;
     const due = [];
-    const desk = desktopOver(createDesktop, { clock: { now: () => now, later: (next) => due.push(next) } });
+    const desk = desktopOver(createDesktop, {
+        clock: { now: () => now, later: (next) => due.push(next), after() {} },
+    });
     const run = (ms) => {
         for (let t = 0; t < ms; t += 8) {
             now += 8;
@@ -2939,7 +2941,8 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     const middle = { x: x + width / 2, y: y + height / 2 };
     check(
         'a move of a seat that is not shown is told to the page by itself, with no state',
-        JSON.stringify(desk.told()) === '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[],"dimmed":false}]' &&
+        JSON.stringify(desk.told()) ===
+            '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[],"dimmed":false,"named":true}]' &&
             desk.states() === states,
         [desk.told(), desk.states() - states]
     );
@@ -2959,6 +2962,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
                 idle: false,
                 shown: false,
                 dimmed: false,
+                named: true,
                 typing: null,
             }) &&
             seats.local.shown &&
@@ -3064,13 +3068,82 @@ async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
     desk.pagePress(under);
     check(
         'the page is told a cursor is dimmed as it comes over a window of its own order that the shown seat has ' +
-            'under another, in the event and in the state, and not dimmed off it or once the shown seat has it in front',
+            'under another, in the event and in the state, not off it and not once the shown seat has it in front',
         moved.dimmed === true &&
             pressed.dimmed === true &&
             away.dimmed === false &&
             of('s1').dimmed === false &&
             of('local').dimmed === false,
         { moved, pressed, away, now: desk.page().seats, windows: desk.page().windows }
+    );
+
+    const { NAME } = MARKS;
+    const left = [
+        MARKS.nameLeft(null, 5000),
+        MARKS.nameLeft(100, 100),
+        MARKS.nameLeft(100, 99 + NAME),
+        MARKS.nameLeft(100, 100 + NAME),
+        MARKS.nameLeft(100, 9000),
+    ];
+    check(
+        "a cursor's name shows for a set time from its pointer's last act, and not for a pointer that did nothing",
+        NAME > 0 && left.join() === `0,${NAME},1,0,0`,
+        left
+    );
+    // The desktop over a clock of its own: what is due after a time runs as the clock reaches it.
+    let now = 0;
+    const timers = [];
+    const timed = desktopOver(createDesktop, {
+        clock: { now: () => now, later() {}, after: (next, ms) => timers.push({ next, at: now + ms }) },
+    });
+    const run = (to) => {
+        for (now = Math.min(now, to); now <= to; now += 1)
+            for (const due of timers.filter(({ at }) => at <= now)) {
+                timers.splice(timers.indexOf(due), 1);
+                due.next();
+            }
+        now = to;
+    };
+    timed.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    timed.desktop.control.show();
+    const guest = timed.sit('s1');
+    const stateOf = () => timed.page().seats.find(({ id }) => id === 's1');
+    const sat = stateOf().named;
+    const types = () =>
+        timed
+            .told()
+            .map(({ type, named }) => `${type} ${named}`)
+            .join();
+    timed.enter(guest, pointer('move', { x: 10, y: 20 }));
+    run(NAME - 500);
+    timed.enter(guest, pointer('down', { x: 30, y: 40 }));
+    const second = timed.sit('s2');
+    const shown = stateOf().named;
+    timed.enter(guest, pointer('up', { x: 30, y: 40 }));
+    run(NAME);
+    const early = types();
+    run(2 * NAME - 501);
+    const before = types();
+    run(2 * NAME - 500);
+    const rest = timed.told().at(-1);
+    run(4 * NAME);
+    const after = types();
+    timed.leave(second);
+    const folded = stateOf().named;
+    timed.enter(guest, pointer('scroll', { x: 30, y: 40 }));
+    check(
+        "the page is told a seat's name shows with each thing its pointer does, and once that the pointer rests, the " +
+            'name folded, when the time passed since the last of them; the state says the same',
+        sat === false &&
+            shown === true &&
+            early === 'move true,down true,up true' &&
+            before === early &&
+            JSON.stringify(rest) ===
+                '{"id":"s1","type":"rest","x":30,"y":40,"buttons":[],"dimmed":false,"named":false}' &&
+            after === `${early},rest false` &&
+            folded === false &&
+            types() === `${after},scroll true`,
+        { sat, shown, early, before, rest, after, folded, told: types() }
     );
 }
 

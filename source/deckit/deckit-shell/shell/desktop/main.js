@@ -37,7 +37,8 @@ const REREAD = 16;
 // `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL), `input` what
 // tells the machine's input and puts a seat's in a page, `reserve` what keeps a page from the machine's keyboard
 // (environment: SHELL `input`, `keys.reserve`), `read` what reads a page (environment: SHELL `read`), and `clock`
-// what draws a frame's motion: `now()` in ms and `later(next)`, next called once the next frame is due.
+// what tells time: `now()` in ms, `later(next)`, next called once the next frame is due, and `after(next, ms)`, next
+// called once `ms` passed.
 export function createDesktop({
     REGION,
     PAGES,
@@ -52,7 +53,11 @@ export function createDesktop({
     state: STATE,
     web,
     host,
-    clock = { now: () => performance.now(), later: (next) => setTimeout(next, 1000 / FRAMES) },
+    clock = {
+        now: () => performance.now(),
+        later: (next) => setTimeout(next, 1000 / FRAMES),
+        after: (next, ms) => setTimeout(next, ms),
+    },
 }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -71,8 +76,10 @@ export function createDesktop({
     // seat it shows and as its pointer says of any other; and `keys`, `{ id, page }`, the page
     // of the window `id` that took its last press there, where its keys and text go while that window holds its
     // keyboard, or null for the window's content, the local seat's being the machine's; `buttons`, those of its
-    // pointer that are held now; `key`, its key window as update() last saw it; and `waits`, a promise of the turn of
-    // its last event that is not done, or null. The view shown for it is SHOWING's.
+    // pointer that are held now; `key`, its key window as update() last saw it; `waits`, a promise of the turn of
+    // its last event that is not done, or null; `acted`, when on the clock its pointer last did something while the
+    // page drew its cursor, or null; and `rests`, whether the fold of its name is due. The view shown for it is
+    // SHOWING's.
     const hands = new Map();
     const COLOURS = COLOURS_MODEL.createColours(SEAT_COLOURS); // the colour each seat here is told apart by
     let tells = null; // what deckit answered the shell's serving with: what tells a seat
@@ -684,6 +691,8 @@ export function createDesktop({
             keys: null,
             key: null,
             waits: null,
+            acted: null,
+            rests: false,
         });
         update();
     }
@@ -1068,15 +1077,39 @@ export function createDesktop({
 
     // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of
     // a seat it draws the cursor of, any but the one whose view it shows, that event alone, `{ id, type, x, y, buttons,
-    // dimmed }` and for a scroll `dx`, `dy`.
+    // dimmed, named }` and for a scroll `dx`, `dy`. The seat's name shows from then, and its fold is due once.
     function moved(seat, hand, { type, button = 0, dx = 0, dy = 0 }) {
         if (type === 'down' && !hand.buttons.includes(button)) hand.buttons = [...hand.buttons, button];
         if (type === 'up') hand.buttons = hand.buttons.filter((each) => each !== button);
-        if (seat === shownSeat() || !hand.pointer || !desktop.page || !PAGES.isAlive(desktop.page)) return;
+        if (!isDrawn(seat, hand)) return;
+        hand.acted = clock.now();
+        if (!hand.rests) clock.after(() => foldDue(seat, hand), MARKS.NAME);
+        hand.rests = true;
+        tellSeat(seat, hand, type, type === 'scroll' ? { dx, dy } : {});
+    }
+
+    // Whether the desktop's page draws the cursor of `seat`: of any but the one whose view it shows, once its pointer
+    // is somewhere.
+    function isDrawn(seat, hand) {
+        return seat !== shownSeat() && !!hand.pointer && !!desktop.page && PAGES.isAlive(desktop.page);
+    }
+
+    // The desktop's page is told what the pointer of `seat` did where it is, and how its cursor is drawn there.
+    function tellSeat(seat, hand, type, more = {}) {
         const { x, y } = hand.pointer;
-        const scrolled = type === 'scroll' ? { dx, dy } : {};
         const dimmed = MARKS.isDimmed(hand.pointer, stackOf(seat), stackOf(shownSeat()));
-        PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, dimmed, ...scrolled });
+        const named = MARKS.nameLeft(hand.acted, clock.now()) > 0;
+        PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, dimmed, named, ...more });
+    }
+
+    // The fold of the name of `seat` is due: it waits on where the pointer did something since, and the page is told
+    // the pointer rests once the name shows no longer.
+    function foldDue(seat, hand) {
+        if (hands.get(seat) !== hand) return;
+        const left = MARKS.nameLeft(hand.acted, clock.now());
+        if (left > 0) return clock.after(() => foldDue(seat, hand), left);
+        hand.rests = false;
+        if (isDrawn(seat, hand)) tellSeat(seat, hand, 'rest');
     }
 
     // What stands on the screen of `seat`, `[{ id, frame }]` from the back: its windows in its order, then the panel
@@ -1938,7 +1971,7 @@ export function createDesktop({
                 frame,
                 radius: radiusOf(window, frame),
             })),
-            seats: [...hands].map(([id, { pointer, buttons }]) => ({
+            seats: [...hands].map(([id, { pointer, buttons, acted }]) => ({
                 id,
                 name: seated.get(id)?.user.name ?? id,
                 colour: COLOURS.of(id),
@@ -1947,6 +1980,7 @@ export function createDesktop({
                 idle: seated.has(id) && deckit.seats.isIdle(seated.get(id)),
                 shown: id === seat,
                 dimmed: MARKS.isDimmed(pointer, stackOf(id), viewed),
+                named: MARKS.nameLeft(acted, clock.now()) > 0,
                 typing: typingOf(id),
             })),
             following:
