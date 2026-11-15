@@ -61,6 +61,7 @@ const revealed = []; // each path handed to show where it lies, in the order han
 // person's screen.
 const SCREEN = Object.freeze({ width: 1280, height: 800 });
 let controls = null; // what the host drives of the shell, handed as it starts, on the base shell
+const LOCAL_SEAT = 'local'; // the id of the seat at the host window
 // Each overlay window the shell asks the host to show, back to front: `{ control, frame, key, holder }`, `frame` on
 // SCREEN, `holder` the window of the host's off every screen its stage is placed in.
 const floating = [];
@@ -440,9 +441,11 @@ async function told() {
 
 // The windows the person sees, back to front: those on the desktop, then the panel windows, in the order they opened,
 // none of them key, then those floating over every app, each `{ mod, name, level, frame, key, minimized }`, `name` null
-// for a web page's window, which has none.
-function windowsSeen() {
-    const normal = (controls?.desktop.windows() ?? []).map(({ mod, name, frame, key, minimized }) => ({
+// for a web page's window, which has none. With `seat`, those the user at that seat sees: its own order, key window
+// and minimized windows, the panel windows on its screen, and those floating for the local seat alone, whose screen
+// the machine's is.
+function windowsSeen(seat) {
+    const normal = (controls?.desktop.windows(seat) ?? []).map(({ mod, name, frame, key, minimized }) => ({
         mod,
         name,
         level: 'normal',
@@ -450,7 +453,7 @@ function windowsSeen() {
         key,
         minimized,
     }));
-    const inBar = (controls?.desktop.panels() ?? []).map(({ mod, name, frame }) => ({
+    const inBar = (controls?.desktop.panels(seat) ?? []).map(({ mod, name, frame }) => ({
         mod,
         name,
         level: 'panel',
@@ -458,7 +461,7 @@ function windowsSeen() {
         key: false,
         minimized: false,
     }));
-    const over = floating.map(({ control, frame, key }) => ({
+    const over = (seat && seat !== LOCAL_SEAT ? [] : floating).map(({ control, frame, key }) => ({
         mod: control.mod,
         name: control.name,
         level: 'overlay',
@@ -470,10 +473,12 @@ function windowsSeen() {
 }
 
 // The desktop as the person sees it: `{ active, attention, title }`, the active mod by its id, left out where there is
-// none, the mods that ask for attention, and the title the shell gives the desktop.
-function desktopSeen() {
-    const active = controls.desktop.active();
-    return { ...(active === null ? {} : { active }), attention: controls.desktop.attention(), title };
+// none, the mods that ask for attention, and the title the shell gives the desktop. With `seat`, the active mod of the
+// user at that seat and the mods that ask for its attention, and no title, which is the host window's.
+function desktopSeen(seat) {
+    const active = controls.desktop.active(seat);
+    const seen = { ...(active === null ? {} : { active }), attention: controls.desktop.attention(seat) };
+    return seat ? seen : { ...seen, title };
 }
 
 // What a person's hand on a window comes to: `{}`, or `{ none }` where the mod has no window of the name on screen,
@@ -523,9 +528,10 @@ function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
     return { none: `${mod} has no window ${name} on screen` };
 }
 
-// The Dock as the person sees it, its items in order, each `{ mod, pinned, running, attention, active }`.
-function dockSeen() {
-    return controls.desktop.dock().map(({ id, ...marks }) => ({ mod: id, ...marks }));
+// The Dock as the person sees it, its items in order, each `{ mod, pinned, running, attention, active }`. With `seat`,
+// as the user at that seat sees it.
+function dockSeen(seat) {
+    return controls.desktop.dock(seat).map(({ id, ...marks }) => ({ mod: id, ...marks }));
 }
 
 // What a person's hand on the Dock's item of `mod` comes to: `{}`, or `{ none }` where the Dock has no item of it, its
@@ -636,14 +642,16 @@ async function partiesSettled({ attached }) {
 
 // What a look comes to: `{ answers }`, `{ refuses, kind, message }` for a bundle found and not taken or a run refused,
 // or `{ none }` with what the host was given instead. deckit.mods.list() holds every bundle found, in its order.
-function look({ look: what, mod }) {
+function look({ look: what, mod, seat: named = null }) {
     if (!deckit) return { none: 'deckit was not connected' };
+    const seat = named ?? undefined;
+    if (seat && !deckit.seats.list().some(({ id }) => id === seat)) return { none: `no seat ${seat} is open` };
     if (what === 'opened') return { answers: opened };
     if (what === 'shown') return { answers: shown.map(({ notification }) => notification) };
     if (what === 'revealed') return { answers: revealed };
-    if (what === 'windows') return { answers: windowsSeen() };
-    if (what === 'desktop') return controls ? { answers: desktopSeen() } : { none: 'no desktop is shown' };
-    if (what === 'dock') return controls ? { answers: dockSeen() } : { none: 'no desktop is shown' };
+    if (what === 'windows') return { answers: windowsSeen(seat) };
+    if (what === 'desktop') return controls ? { answers: desktopSeen(seat) } : { none: 'no desktop is shown' };
+    if (what === 'dock') return controls ? { answers: dockSeen(seat) } : { none: 'no desktop is shown' };
     if (what === 'regions') return controls ? { answers: regionsSeen() } : { none: 'no desktop is shown' };
     if (what === 'heard' || what === 'delegated') {
         const running = runningOf(mod);

@@ -184,8 +184,8 @@ function ownerOf(name, mods) {
 // for an input answered with nothing. A call is handed the path of each bundle its folders name, the address of each
 // site its sites name, what the call its `answered` names answered, each element of it where it is an array, then its
 // args, then a listener where it writes one, names the handle its member is read from, `deckit` where it names none,
-// and names its place so that a later call can reach what it answered. The first start is refused as the host's users
-// and keys are, where one is, and the host app does not start.
+// and names its place so that a later call can reach what it answered. The first start is refused as the host's users,
+// keys and seats' settings are, where one is, and the host app does not start.
 async function take(step, app, paths, served, delegate, answers, downloads, parties) {
     if (step.what === 'start') {
         served.requests.length = 0;
@@ -235,7 +235,8 @@ async function take(step, app, paths, served, delegate, answers, downloads, part
         const { name, folders, at } = step;
         return app.ask({ input: what, mod, name, paths: folders.map((one) => paths[one]), at });
     }
-    return partOf(await app.ask({ look: what, mod, properties: step.properties }), part);
+    const { properties, seat = null } = step;
+    return partOf(await app.ask({ look: what, mod, properties, seat }), part);
 }
 
 // The folder the host app writes downloads in: `read()`, each file in it, `{ name, body }`, by its name's code points,
@@ -416,11 +417,11 @@ function fileAt(folder, at) {
 
 // The parties of a case, each the runner itself on a transport connection of its own to the socket in the system's
 // folder `home`, and what the host keeps for them before its first start, registered by the host app's own core at
-// `core`: `register()`, the users and then the keys `host` names, each key the public half of a pair made here under
-// its name, which comes to null, or to the refusal of the first one refused; `attach`, `ask`, `detach` and `told`, each
-// what that step comes to; and `close()`, every transport connection closed. A party keeps each message the host
-// sends it that answers nothing it asked, and answers each request among them with a null at once. After what a party
-// does, the host app settles of the run each principal proved last hosts (host.js).
+// `core`: `register()`, the users, then the keys and then the seats' settings `host` names, each key the public half of
+// a pair made here under its name, which comes to null, or to the refusal of the first one refused; `attach`, `ask`,
+// `detach` and `told`, each what that step comes to; and `close()`, every transport connection closed. A party keeps
+// each message the host sends it that answers nothing it asked, and answers each request among them with a null at
+// once. After what a party does, the host app settles of the run each principal proved last hosts (host.js).
 function createParties({ host, core, home, app }) {
     const pairs = new Map(); // a key's name -> its pair, made as it is first named
     const parties = new Map(); // a party's name -> { connection, principal, messages, closed }
@@ -469,6 +470,7 @@ function createParties({ host, core, home, app }) {
                 'key/add',
                 { principal, scheme: KEYS.SCHEME, key: pairOf(key).publicKey, name: key },
             ]),
+            ...(Object.keys(host.seats).length ? [['seat/settings', host.seats]] : []),
         ];
         if (!requests.length) return null;
         return KEYS.asksOf({ core, api: host.api }, home, requests).then(
@@ -476,7 +478,7 @@ function createParties({ host, core, home, app }) {
             (error) =>
                 error.stage && error.kind
                     ? { refuses: error.stage, kind: error.kind, message: String(error.message) }
-                    : { none: `the host's users and keys were not registered: ${error.message}` }
+                    : { none: `the host's users, keys and settings were not kept: ${error.message}` }
         );
     }
 
