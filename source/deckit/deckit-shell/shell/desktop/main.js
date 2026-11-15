@@ -1197,7 +1197,8 @@ export function createDesktop({
     // one recognizer of every seat: a 'down' is a press on the window, a drag of its title bar from there moves it, a
     // drag of an edge resizes it, an up on the button the press was on clicks it, and a 'down' on the title bar that
     // is the second of two, `count` 2, is a double click. A 'down' of another `button` than the first is a press on
-    // the window and no more. On the Dock (DOCK_PARTS), `on` null where nothing of it is under the pointer: an up on
+    // the window and no more. The hand keeps what each 'down' reached until its up (`hand.down`), and only one that
+    // `acts`, the first button's on a part that does something, goes on to a click or a drag. On the Dock (DOCK_PARTS), `on` null where nothing of it is under the pointer: an up on
     // the item the press was on is the seat's click on it; a press on an item kept there dragged past the Dock's slop
     // drags it, the kept items showing in the order the Dock's model answers of the pointer until the up leaves them
     // so; a 'down' of the second button on an item opens its menu for the seat; an up on the entry of that menu the
@@ -1210,24 +1211,25 @@ export function createDesktop({
         if (type === 'down') {
             undrag(hand);
             if (!on || DOCK_PARTS.includes(on.part)) {
-                const held = button === 0 && on && on.id !== null;
-                hand.down = held ? { ...on, from: point, drags: false } : null;
+                hand.down = on && { ...on, from: point, drags: false, acts: button === 0 && on.id !== null };
                 if (on?.part !== 'dock-menu') hand.menu = button === 2 && on ? on.id : null;
                 return update();
             }
             return byHand(seat, on.id, (window) => {
+                hand.down = { ...on, from: point, acts: false };
                 if (button !== 0) return press(seat, window);
                 if (on.part !== 'bar' || count === 2) press(seat, window);
                 if (on.part === 'bar' && count === 2) return doubleClick(seat, window);
                 const frame = MANAGER.frameOf(on.id);
-                hand.down = { ...on, from: point, frame };
+                hand.down = { ...on, from: point, frame, acts: true };
                 if (on.part === 'bar')
                     move(seat, window, 'began', 0, 0, grab ?? { x: point.x - frame.x, y: point.y - frame.y });
             });
         }
         const held = hand.down;
         if (type === 'up') hand.down = null;
-        if (held?.part === 'dock-menu') {
+        if (!held?.acts) return;
+        if (held.part === 'dock-menu') {
             if (type === 'up' && on?.part === held.part && on.id === held.id) chosen(seat, hand, held.id);
             return;
         }
