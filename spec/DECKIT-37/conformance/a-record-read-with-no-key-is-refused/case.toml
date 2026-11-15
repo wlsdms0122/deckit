@@ -1,6 +1,6 @@
 case = 25
 name = "a-record-read-with-no-key-is-refused"
-note = "A request is refused as the rule it reads from refuses a mod's run: storage refuses a key that is not a string at call with INVALID_ARGUMENT. A party of ada asks record/read with no params."
+note = "One rule refuses the params of every request a party asks, at call with INVALID_ARGUMENT: params left out are an empty table, which leaves out a key of the row. A party of ada asks record/read with no params."
 
 [host]
 base = "system"

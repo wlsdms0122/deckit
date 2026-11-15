@@ -1,0 +1,28 @@
+case = 25
+name = "event-emit-with-a-key-it-does-not-take-is-refused"
+note = "One rule refuses the params of every request a party asks, at call with INVALID_ARGUMENT: params that hold a key the row does not give. A party of ada asks event/emit with to beside name and args."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "event/emit"
+params = { name = "ping", args = [], to = "ada" }
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
