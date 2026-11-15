@@ -67,7 +67,7 @@ The shell has these keys, in this order:
 
 | id | name | default | what a press does |
 |---|---|---|---|
-| `closeWindow` | `Close Window` | `{ code = "KeyW", meta = true }` | closes the desktop's key window, as a click of its button `close` of [windows](../DECKIT-31/SPEC.md) does |
+| `closeWindow` | `Close Window` | `{ code = "KeyW", meta = true }` | closes the desktop's key window, as a click of its button `close` of [windows](../DECKIT-31/SPEC.md) does; where a view is shown by activation for the seat that pressed, puts that view away and closes nothing, as [views](../DECKIT-41/SPEC.md) fix it |
 | `minimizeWindow` | `Minimize Window` | `{ code = "KeyM", meta = true }` | minimizes the desktop's key window, as a click of its button `minimize` does |
 | `cycleWindows` | `Cycle Through Windows` | `{ code = "Backquote", meta = true }` | brings in front, as the key window, the back-most window on screen of the mod of the desktop's key window, where that mod has two or more on screen |
 | `tileLeft` | `Tile Window to Left Half` | `{ code = "ArrowLeft", control = true, alt = true }` | has the desktop's key window take the tile `left`, as *Tiles* of [windows](../DECKIT-31/SPEC.md) says, where it is resizable |
@@ -117,6 +117,8 @@ The pages the keys are heard in are every page of the host app: a mod's page and
 3. where its chord was taken by a mod, it is told to that mod and taken from the page, which does not have it;
 4. the page has it;
 5. where the page did not handle it, the shell's key whose chord it is, if any, runs.
+
+Escape, with no modifier, that the page of a view did not handle puts that view away, as [views](../DECKIT-41/SPEC.md) fix it.
 
 A key pressed in another app goes to the chord of `global` the machine gave the host app, if one was taken, and is told to its mod. A key is told and runs alike whoever pressed it.
 

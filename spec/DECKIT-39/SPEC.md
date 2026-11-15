@@ -107,7 +107,7 @@ An event at a `ref` goes to the place the ref names. Where another window covers
 
 ### Where a seat's keys go
 
-A key or text event of a seat goes to the window that holds the seat's keyboard: its key window, or the panel window it pressed last. It goes to the page there that took the seat's last press, a page laid over the content as the content itself, while that page is still laid there, and to the window's content otherwise. It is input of that seat to the window's mod.
+A key or text event of a seat goes to the window that holds the seat's keyboard: its key window, or the view whose keyboard the seat holds, as [views](../DECKIT-41/SPEC.md) fix a view's keyboard. A panel window in the bar is never key and holds no seat's keyboard. It goes to the page there that took the seat's last press, a page laid over the content as the content itself, while that page is still laid there, and to the window's content otherwise. It is input of that seat to the window's mod.
 
 A chord the event makes is read as [the shell's keys](../DECKIT-34/SPEC.md) read one, for that seat.
 
@@ -125,7 +125,7 @@ A `seat/input` is refused at `call` with the first of these that is so, after wh
 2. kind `INVALID_ARGUMENT`, where a pointer event names no place, names one by both `x`, `y` and `ref`, writes an `x` or a `y` that is no finite number, or writes a `button` or a `count` below 0, which is no count;
 3. kind `REFUSED`, where it is a `move` at a `ref` with no button of the seat held: no page hears a pointer that only moves;
 4. kind `GONE`, where its `ref` names nothing, as [what a seat reads](../DECKIT-40/SPEC.md) fixes when a ref does: nothing a reading named, or what one named and is there no more;
-5. kind `HELD`, where it is a key or text event, the window the seat pressed last is held from it, and that window's holder is not idle.
+5. kind `HELD`, where it is a key or text event, and either the window the seat pressed last is held from it and that window's holder is not idle, or a view is shown for the seat by activation while another seat that is not idle holds its keyboard, as [views](../DECKIT-41/SPEC.md) fix it.
 
 A seat's events are done in the order its party sent them: one that takes time, as an event at a `ref` does, is answered before the next is begun.
 
