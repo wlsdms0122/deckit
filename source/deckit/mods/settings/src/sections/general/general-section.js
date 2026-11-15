@@ -42,8 +42,8 @@ function generalSection({ ui, theme, fonts }) {
         rows.size.set(kept.size ?? theme.textSize);
     }
 
-    // `optionsOf()` answers the choices; a value kept that is not among them (a face chosen on another Mac) is labeled
-    // so it does not read as nothing chosen.
+    // `optionsOf()` answers the choices; a value kept that is not among them (a face chosen on another machine) is
+    // labeled so it does not read as nothing chosen.
     function choiceRow(key, { label, hint, optionsOf }) {
         const select = ui.select({
             label,
