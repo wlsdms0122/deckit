@@ -1,0 +1,24 @@
+case = 23
+name = "a-view-under-an-anchor-of-a-panel-window-stands-under-it-their-right-edges-in-line"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view under an anchor stands with its right edge in line with the anchor's and y 8 under the anchor's bottom, the anchor standing at its rect moved by the top left of its window's content: mod-a, granted deckit.panel-windows, opens p 120 by 32 in the bar, at { x = 1152, y = 10 }, and is told to name the anchor spot of it at { x = 20, y = 0, width = 40, height = 32 } for mod-a, then to open v 320 by 240 at the level panel under the anchor { mod = \"mod-a\", id = \"spot\" }, activates false: the anchor's right edge is 1212 and its bottom 42, so v stands at x 892 and, no higher than the desktop's top plus 8, at y 60."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "setAnchors", name = "p", args = [[{ id = "spot", rect = { x = 20, y = 0, width = 40, height = 32 }, mod = "mod-a" }]] }, { open = { name = "v", level = "panel", activates = false, width = 320, height = 240, anchor = { mod = "mod-a", id = "spot" } } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 892, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
