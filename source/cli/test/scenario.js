@@ -764,9 +764,10 @@ async function run({
             return { inside, box, at, window: front?.rect };
         };
         const openedIn = await menuIn();
+        // Every row but Default, which has no face, wore its own.
         await until(async () => {
             const now = await facedNow();
-            return now && now.worn === now.rows;
+            return now && now.worn === now.rows - 1;
         }, 8000);
         await sleep(300);
         const grownIn = await menuIn();
