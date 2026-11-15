@@ -319,11 +319,18 @@ async function draw(app, look, shots, origin) {
         });
         const party = await connect(path.join(app.home, 'deckit.sock'));
         await allowed(id, party.authenticate({ principal: id, ...readKey(fs.readFileSync(file, 'utf8')) }));
-        const point = (type, { x, y }, more = {}) => party.request('seat/pointer', { type, x, y, ...more });
+        const point = (type, { x, y }, more = {}) =>
+            party.request('seat/input', { event: 'pointer', type, x, y, ...more });
         // The shell's key that tiles the seat's key window, by the arrow it is.
         const tile = async (code) => {
             for (const type of ['down', 'up'])
-                await party.request('seat/key', { type, code, key: code, modifiers: ['control', 'alt'] });
+                await party.request('seat/input', {
+                    event: 'key',
+                    type,
+                    code,
+                    key: code,
+                    modifiers: ['control', 'alt'],
+                });
         };
         return { point, tile, leave: () => party.close() };
     };
