@@ -42,6 +42,7 @@ function bar(shell, held, { commands = () => null } = {}) {
     shell.ui.addStyle(STYLE);
     const widths = {}; // label -> the width it was measured at
     let window = null; // the panel window, while it is open
+    let told = { size: '', anchors: '' }; // the size and the anchors the shell was last told of it
     held.drawnBy(drawn);
     const off = held.onChange(lay);
 
@@ -66,7 +67,8 @@ function bar(shell, held, { commands = () => null } = {}) {
         }
     }
 
-    // The capsule as wide as the model lays its items, each item's rect told as an anchor given to the item's mod.
+    // The capsule as wide as the model lays its items, each item's rect told as an anchor given to the item's mod. The
+    // shell is told a size and the anchors only as they change.
     function lay() {
         const items = held.standing();
         if (content.isConnected) for (const { label } of items) if (label && !(label in widths)) measured(label);
@@ -86,12 +88,16 @@ function bar(shell, held, { commands = () => null } = {}) {
             window = null;
             return;
         }
-        if (window) window.resize(laid.width, laid.height);
-        else {
-            const { width, height } = laid;
+        const { width, height } = laid;
+        const anchors = laid.items.map(({ id, rect }) => ({ id, rect, mod: id }));
+        const next = { size: `${width} ${height}`, anchors: JSON.stringify(anchors) };
+        if (!window) {
             window = shell.windows.open({ name: 'bar', content, level: 'panel', width, height, didAppear: lay });
+            told = { size: next.size, anchors: '' };
         }
-        window.setAnchors(laid.items.map(({ id, rect }) => ({ id, rect, mod: id })));
+        if (next.size !== told.size) window.resize(width, height);
+        if (next.anchors !== told.anchors) window.setAnchors(anchors);
+        told = next;
     }
 
     function measured(label) {

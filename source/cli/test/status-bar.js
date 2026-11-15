@@ -3,8 +3,9 @@
 // capsule and its items from the right, an item going, one that shows nothing, the capsule's limit and what does not
 // fit told as a count. Then the mod itself and the Clock over stand-ins for the handles, the document and the
 // connections: the frame's exports reach a mod's `start`, the clock sets its label at start, the band opens as wide
-// as the model lays, anchors are told, an item comes and goes, a press runs the item's command, and what stands is
-// drawn again by a screen that comes later. Exits 1 with a line for each check that failed.
+// as the model lays, anchors are told, the shell is told a size and anchors only as they change, an item comes and
+// goes, a press runs the item's command, and what stands is drawn again by a screen that comes later. Exits 1 with a
+// line for each check that failed.
 const path = require('path');
 
 const MODS = path.join(__dirname, '..', '..', 'deckit', 'mods');
@@ -69,11 +70,12 @@ function shellStandIn() {
             windows: {
                 open(options) {
                     const held = { options, size: [options.width, options.height], anchors: null, open: true };
+                    held.told = 0; // how many times the window was resized or told anchors
                     windows.push(held);
                     options.content.isConnected = true;
                     return {
-                        resize: (width, height) => (held.size = [width, height]),
-                        setAnchors: (anchors) => (held.anchors = anchors),
+                        resize: (width, height) => (held.told++, (held.size = [width, height])),
+                        setAnchors: (anchors) => (held.told++, (held.anchors = anchors)),
                         close: () => (held.open = false),
                     };
                 },
@@ -381,6 +383,17 @@ async function modChecks(check) {
         'an item set anew is drawn with its count and its tone, and named by them',
         star().attributes['aria-label'] === 'Star, 99+, attention' && star().dataset.tone === 'attention',
         star().attributes
+    );
+    const before = band.told;
+    await item.set({ name: 'Star', icon: 'star', command: 'show', count: 120, tone: 'attention' });
+    const same = { told: band.told - before, name: star().attributes['aria-label'] };
+    await item.set({ name: 'Star', icon: 'star', command: 'show', count: 120 });
+    const drawn = { told: band.told - before, name: star().attributes['aria-label'] };
+    await item.set({ name: 'Star', icon: 'star', command: 'show', count: 120, tone: 'attention' });
+    check(
+        'an item set anew that leaves the capsule and its anchors as they are is drawn, and the shell is told nothing',
+        same.told === 0 && drawn.told === 0 && drawn.name === 'Star, 99+' && same.name === 'Star, 99+, attention',
+        { same, drawn }
     );
     const refused = [];
     for (const given of [{ name: 'Star', label: 'x'.repeat(25) }, { name: 'Star', icon: 'comet' }, { label: 'now' }])
