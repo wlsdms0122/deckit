@@ -766,9 +766,10 @@ async function run({
     }
 
     // A view under an anchor is a seat's own: the mod that tells anchors opens a band, and a seat's press on it shows
-    // the mod's view for that seat alone, which reads it as a panel window and presses in it. Shown for a second seat
-    // too, its keyboard stays the first seat's; a press outside it puts it away for the seat that pressed, and a
-    // press on its anchor, which toggles it, for the other.
+    // the mod's view for that seat alone, which reads it as a panel window and presses in it. A second seat's press on
+    // its anchor toggles it for that seat alone: shown for it too, its keyboard stays the first seat's; a press outside
+    // it puts it away for the seat that pressed, the second seat's next toggle for the second, and the one after shows
+    // it for the second again and not for the first, which put it away.
     async function viewChecks({ seatA, seatB }) {
         const mod = await anchors();
         const mark = (name) => mod?.evaluate(`document.documentElement.dataset.${name} ?? ''`);
@@ -802,7 +803,6 @@ async function run({
         }, 8000);
         if (!band) return check('outside: the mod that tells anchors opens its band', false, await mark('seat'));
         const onAnchor = `${Math.round(band.x + 96)},${Math.round(band.y + 14)}`;
-        const leftOfAnchor = `${Math.round(band.x + 30)},${Math.round(band.y + 14)}`;
         seatA.as('press', onAnchor);
         const mine = await until(() => readBy(seatA), 6000);
         const inView = mine && `${mine.x + 160},${mine.y + 100}`;
@@ -829,12 +829,12 @@ async function run({
                 took,
             JSON.stringify({ asWindow, foreign, pressed, marked: await mark('pressed') })
         );
-        seatB.as('press', leftOfAnchor);
+        seatB.as('press', onAnchor);
         const second = await until(() => readBy(seatB), 6000);
         const typed = second ? seatB.as('type', 'x') : '';
         check(
-            "outside: shown for a second seat too, the view's keyboard stays the first seat's and the second's key " +
-                'is refused',
+            "outside: toggled by a second seat it is shown for that seat too and stays on the first seat's screen, " +
+                "its keyboard the first seat's, and the second's key is refused",
             second && second.key === seatA.seat && readBy(seatA) && /HELD|holds the keyboard/.test(typed),
             JSON.stringify({ second, first: readBy(seatA), typed })
         );
@@ -854,6 +854,14 @@ async function run({
             'outside: a press on its anchor, which toggles the view, puts it away for the last seat, and it is told',
             gone,
             JSON.stringify({ first: readBy(seatA), second: readBy(seatB), told: await mark('mine') })
+        );
+        seatB.as('press', onAnchor);
+        const again = await until(() => readBy(seatB), 6000);
+        const apart = { first: readBy(seatA), second: again, told: await mark('mine') };
+        check(
+            "outside: a seat that put the view away does not get it by another seat's toggle",
+            again && again.key === seatB.seat && apart.first === null && apart.told.endsWith('didDisappear,didAppear,'),
+            JSON.stringify(apart)
         );
         await mod?.evaluate(`document.dispatchEvent(new CustomEvent('test-close'))`);
     }

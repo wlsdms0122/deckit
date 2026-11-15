@@ -2,8 +2,8 @@
 // for everyone, and OTHERS, given to another mod. On `test-anchor` it tells OWN at the rect the test names, or drops it
 // for none; on `test-foreign` it binds a view to OTHERS and marks how the try ended; on `test-close` it closes its
 // windows. It marks the rect it told OWN at last, and what its view is told, in turn.
-// On `test-seat` it closes those and opens a band alone, which tells OWN. A press on that band left of OWN shows a second view, MINE,
-// under OWN, for whoever pressed, and one on OWN toggles it. It marks what MINE is told, in turn, and how many presses
+// On `test-seat` it closes those and opens a band alone, which tells OWN. The first press on that band opens a second
+// view, MINE, under OWN, and each press after toggles it. It marks what MINE is told, in turn, and how many presses
 // MINE took.
 const MOD = 'anchor-user';
 const OWN = 'own';
@@ -58,9 +58,8 @@ class AnchorUser {
             view.close();
             band.close();
             const content = labelled('Band');
-            content.addEventListener('click', ({ clientX }) => {
+            content.addEventListener('click', () => {
                 if (!mine) mine = openMine();
-                else if (clientX < OWN_RECT.x) mine.makeKeyAndOrderFront();
                 else mine.toggle();
             });
             band = bandOf('seat-band', content);
