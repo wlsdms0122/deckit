@@ -1,0 +1,38 @@
+case = 26
+name = "desktop-that-writes-seat-answers-of-that-seat-and-no-title"
+note = "mod-a, in attach, opens the window main on the desktop of the base shell. The person presses main, so mod-a is the active mod of the local seat. ada attaches and sits at s1, which has no active mod: the look desktop with seat s1 leaves active out and holds no title, and with no seat it answers the three keys."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+look = "desktop"
+seat = "s1"
+
+[step.expect]
+answers = { attention = [] }
+
+[[step]]
+look = "desktop"
+
+[step.expect]
+answers = { active = "mod-a", attention = [], title = "mod-a" }
