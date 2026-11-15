@@ -1674,8 +1674,9 @@ export function createDesktop({
 
     // What is laid of the desktop for a seat, as layout() tells it: `view` the windows on its screen (MANAGER.viewOf),
     // `seen` what is drawn of each (drawnNow), `docked` the seat whose Dock it has, out or in and with the menu open
-    // for that seat, or null for the Dock in, and `seat` the seat whose views are laid, or null for every view. Answers `{ parts, children }`, `parts` the layers of each level
-    // (model/levels.js), and `children` those the windows and the panel windows show (childrenIn).
+    // for that seat, or null for the Dock in, and `seat` the seat whose views are laid, or null for every view.
+    // Answers `{ parts, children }`, `parts` the layers of each level (model/levels.js), and `children` those the
+    // windows and the panel windows show (childrenIn).
     function laidOf(view, seen, docked, seat = null) {
         const full = { x: 0, y: 0, ...stage.size() };
         const out = hands.get(docked)?.dock ?? false;
