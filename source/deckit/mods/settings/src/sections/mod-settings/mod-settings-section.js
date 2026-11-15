@@ -217,20 +217,24 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf, iconOf 
 
     function controlOf(item, change) {
         const value = valueOf(item);
-        if (item.type === 'boolean') return ui.toggle({ value, onChange: change });
+        const { label } = item;
+        if (item.type === 'boolean') return ui.toggle({ label, value, onChange: change });
         // Choices whose labels together are long take a select: side by side they would crowd out the words.
         const short = item.options.reduce((length, option) => length + option.label.length, 0) <= SEGMENTED_LENGTH;
         if (item.options.length && !item.listed && item.options.length <= 4 && short)
             return ui.segmented({
+                name: label,
                 items: item.options.map((option) => ({ key: option.value, label: option.label })),
                 value,
                 size: 'small',
                 onChange: change,
             });
-        if (item.options.length || item.listed) return ui.select({ options: item.options, value, onChange: change });
+        if (item.options.length || item.listed)
+            return ui.select({ label, options: item.options, value, onChange: change });
         // A number with no default may be left unset, stepping from what it inherits.
         if (item.type === 'number')
             return ui.stepper({
+                label,
                 value,
                 min: item.minimum,
                 max: item.maximum,
@@ -240,6 +244,7 @@ function modSettingsSection({ ui, theme, configuration, sources, nameOf, iconOf 
                 onChange: change,
             });
         const field = ui.field({
+            label,
             value,
             placeholder: item.placeholder,
             size: 'small',
