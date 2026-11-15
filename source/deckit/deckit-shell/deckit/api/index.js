@@ -135,8 +135,9 @@ export function createApi({
                 // the mod `id` and before it loads, so what its owner sets up is in place before the mod's code runs.
                 onSandbox: (listener) => RUNNER.onSandbox((page, mod) => listener(page, mod.id)),
             }),
-            // The seats: where a user sits while a run of theirs is hosted, each `{ id, user: { id, name }, local }`,
-            // `local` for the one whose devices are this machine's hardware.
+            // The seats: where a user sits while a run of theirs is hosted, each `{ id, user: { id, name }, local,
+            // source }`, `local` for the one whose devices are this machine's hardware and `source` the word every
+            // event of its devices carries.
             seats: Object.freeze({
                 // The local seat, or null where it did not open.
                 get local() {
@@ -151,15 +152,15 @@ export function createApi({
                 isIdle: SEAT.isIdle,
                 // input(seat, event) -> Promise of what the seat can see happened: the entry of what a seat's devices
                 // did, which the shell calls for what the environment's hardware tells; `event` is one of `pointer`,
-                // `key`, `text` and `act`, named under `event` beside its fields. Answered by what is served.
+                // `key` and `text`, named under `event` beside its fields. Answered by what is served.
                 input: SEAT.input,
-                // serve({ input, read, changes, capture, onAsk }): what the shell answers the entry and the users at
-                // the seats with, each once: `input(seat, event)`, `read(seat, query)`, `changes(seat, { since })`,
-                // `capture(seat, what)`, each handed plain data and answering what the user is answered, and
+                // serve({ input, read, onAsk }): what the shell answers the entry and the users at the seats with,
+                // each once: `input(seat, event)`, `event` with the seat's `source`, and `read(seat, { of, ...query
+                // })`, an output asked once, each handed plain data and answering what the user is answered, and
                 // `onAsk({ user }, { signal }) -> Promise of boolean`, whether the local seat lets `user` sit, `signal`
                 // aborted once no answer is waited for. What is not served is refused, and so is a user that waits
-                // for an ask nothing serves. Answers `{ changed(seat, { mark }), held(seat, { window, holder }) }`,
-                // what the shell tells a seat: `changed` reaches a seat that watches.
+                // for an ask nothing serves. Answers `{ tell(seat, output) }`, what the shell tells a seat: `output`
+                // is `{ of: 'changes', mark }` or `{ of: 'held', window, holder }`, and reaches a seat that watches it.
                 serve: SEAT.serve,
             }),
             permissions: Object.freeze({ define: PERMISSION.define }),

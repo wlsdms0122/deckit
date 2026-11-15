@@ -92,9 +92,9 @@ async function main() {
     );
     const guest = sender('guest', ['deckit.seat']);
     const mod = sender('a-mod', ['deckit.mods']);
-    const pointer = { type: 'down', x: 4, y: 8 };
-    const seatless = await guest.ask('seat/pointer', pointer);
-    const unpermitted = await mod.ask('seat/read', {});
+    const pointer = { event: 'pointer', type: 'down', x: 4, y: 8 };
+    const seatless = await guest.ask('seat/input', pointer);
+    const unpermitted = await mod.ask('seat/read', { of: 'desktop' });
     check(
         'a sender without the seat permission, and one with it at no seat, are refused',
         unpermitted.error?.kind === 'NOT_PERMITTED' && seatless.error?.kind === 'REFUSED',
@@ -127,38 +127,87 @@ async function main() {
         [denied.message, admitted]
     );
     check('a seat opens as its user is seated', opened.join() === 'local,s1' && SEAT.list().length === 2, opened);
-    const pressed = await guest.ask('seat/pointer', pointer);
-    const read = await guest.ask('seat/read', { level: 'desktop' });
-    const captured = await guest.ask('seat/capture', {});
-    const malformed = await guest.ask('seat/pointer', { type: 'down' });
+    const [seat] = SEAT.list().slice(1);
+    const pressed = await guest.ask('seat/input', pointer);
+    const read = await guest.ask('seat/read', { of: 'desktop' });
+    const malformed = await guest.ask('seat/input', { event: 'key', type: 'down' });
+    const mistyped = await guest.ask('seat/input', { event: 'key', type: 'scroll', code: 'KeyA', key: 'a' });
+    const unknown = await guest.ask('seat/input', { event: 'act', type: 'press', ref: 'w1.e1' });
+    const misplaced = await guest.ask('seat/input', { event: 'text', type: 'insert', text: 'a', x: 1 });
     check(
         'what a seat does and reads is handed to what is served with the seat, and answered as it answers',
         pressed.value?.holder === 's1' &&
-            JSON.stringify(handed) === JSON.stringify([['s1', { event: 'pointer', ...pointer }]]) &&
-            read.value?.text === 'desktop for s1 {"level":"desktop"}',
+            JSON.stringify(handed) === JSON.stringify([['s1', { ...pointer, source: seat.source }]]) &&
+            read.value?.text === 'desktop for s1 {"of":"desktop"}',
         [pressed, handed, read]
     );
     check(
-        'what is not served, and what is not the fields of its method, is refused',
-        captured.error?.kind === 'REFUSED' && !!malformed.error && handed.length === 1,
-        [captured, malformed]
+        'every seat has a source of its own, which says who to no one and every event of the seat carries',
+        typeof seat.source === 'string' &&
+            seat.source.length > 8 &&
+            seat.source !== SEAT.local().source &&
+            ![seat.id, seat.user.id].some((word) => seat.source.includes(word)) &&
+            handed[0][1].source === seat.source,
+        [seat, SEAT.local()]
     );
-    const [seat] = SEAT.list().slice(1);
-    tells.changed(seat, { mark: 2 });
-    const watched = await guest.ask('seat/watch', { on: true });
-    tells.changed(seat, { mark: 3 });
-    tells.held(seat, { window: 'w1', holder: 'local' });
     check(
-        'a seat is told of a change while it watches, and that its key window was taken',
+        'an event of no kind, of a type its kind has not, or with fields that are not its kind is refused',
+        [malformed, mistyped, unknown, misplaced].every((answer) => answer.error?.kind === 'INVALID_ARGUMENT') &&
+            handed.length === 1,
+        [malformed, mistyped, unknown, misplaced]
+    );
+    const sent = await Promise.all(
+        ['source', 'carried', 'page'].map((field) => guest.ask('seat/input', { ...pointer, [field]: 'x' }))
+    );
+    check(
+        'a party sends no source, carried or page',
+        sent.every((answer) => !!answer.error) && handed.length === 1,
+        sent
+    );
+    const readHeld = await guest.ask('seat/read', { of: 'held' });
+    const readNone = await guest.ask('seat/read', { of: 'weather' });
+    const readOther = await guest.ask('seat/read', { of: 'changes', scale: 2 });
+    const watchPicture = await guest.ask('seat/watch', { of: 'picture', on: true });
+    check(
+        'the half an output has not, an output there is not, and a query that is not its output are refused',
+        [readHeld, readNone, readOther, watchPicture].every((answer) => answer.error?.kind === 'INVALID_ARGUMENT'),
+        [readHeld, readNone, readOther, watchPicture]
+    );
+    const outputs = () => told.get('guest').map(({ payload }) => payload);
+    tells.tell(seat, { of: 'changes', mark: 2 });
+    tells.tell(seat, { of: 'held', window: 'w1', holder: 'local' });
+    const watched = await guest.ask('seat/watch', { of: 'changes', on: true });
+    tells.tell(seat, { of: 'changes', mark: 3 });
+    check(
+        'a seat is told of an output while it watches it, by its name, and of a window taken from the attach on',
         watched.value === true &&
-            JSON.stringify(told.get('guest').map(({ payload }) => payload)) ===
-                JSON.stringify([{ mark: 3 }, { window: 'w1', holder: 'local' }]),
-        told.get('guest')
+            JSON.stringify(outputs()) ===
+                JSON.stringify([
+                    { of: 'held', window: 'w1', holder: 'local' },
+                    { of: 'changes', mark: 3 },
+                ]),
+        [watched, outputs()]
+    );
+    await guest.ask('seat/watch', { of: 'held', on: false });
+    await guest.ask('seat/watch', { of: 'changes', on: false });
+    tells.tell(seat, { of: 'held', window: 'w1', holder: 'local' });
+    tells.tell(seat, { of: 'changes', mark: 4 });
+    const untold = (output) => {
+        try {
+            tells.tell(seat, output);
+        } catch {
+            return true;
+        }
+    };
+    check(
+        'an output a seat turned off is told it no more, and what is no output is not told',
+        outputs().length === 2 && untold({ of: 'picture' }) && untold({ of: 'changes' }) && untold({ mark: 1 }),
+        outputs()
     );
     for (const listener of outside) listener({ mod: { id: 'guest' }, state: 'running' });
     const still = SEAT.list().length;
     for (const listener of outside) listener({ mod: { id: 'guest' }, state: 'notRunning' });
-    const after = await guest.ask('seat/pointer', pointer);
+    const after = await guest.ask('seat/input', pointer);
     check(
         'a seat closes as its run reaches not running, and its sender sits at none',
         still === 2 && closed.join() === 's1' && SEAT.list().length === 1 && after.error?.kind === 'REFUSED',

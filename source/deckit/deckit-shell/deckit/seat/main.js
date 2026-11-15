@@ -3,45 +3,40 @@ import * as REFUSAL from '../../../deckit-sdk/deckit/request/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
+const { EVENTS, OUTPUTS, ...CHANNELS } = DECLARED;
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, CHANNELS);
 // The user whose devices are this machine's hardware.
 const LOCAL = 'local';
 // How long an admission waits for the local seat's answer, in milliseconds.
 const ASK_TIME = 60000;
-// What the shell may serve: `input(seat, event) -> result`, the entry, `event` one of `pointer`, `key`, `text` and
-// `act` under `event` beside its fields; `read(seat, query)`, `changes(seat, { since })` and `capture(seat, what)`,
-// the reading; and `onAsk({ user }, { signal }) -> Promise of boolean`, whether the local seat lets `user` sit,
-// `signal` aborted once no answer is waited for.
-const SERVED = Object.freeze(['input', 'read', 'changes', 'capture', 'onAsk']);
+// What the shell may serve: `input(seat, event) -> result`, the entry, `event` a row of EVENTS named under `event` with
+// its fields and `source`; `read(seat, { of, ...query })`, an output of OUTPUTS asked once; and `onAsk({ user }, {
+// signal }) -> Promise of boolean`, whether the local seat lets `user` sit, `signal` aborted once no answer is waited
+// for.
+const SERVED = Object.freeze(['input', 'read', 'onAsk']);
 
 // Its channels as a run a transport connection hosts speaks them (outside/): `asked`, method -> the channel, and
 // `told`, channel -> method.
 export const OUTSIDE = Object.freeze({
     asked: {
-        'seat/pointer': { channel: DECLARED.pointer },
-        'seat/key': { channel: DECLARED.key },
-        'seat/text': { channel: DECLARED.text },
-        'seat/act': { channel: DECLARED.act },
+        'seat/input': { channel: DECLARED.input },
         'seat/read': { channel: DECLARED.read },
-        'seat/changes': { channel: DECLARED.changes },
-        'seat/capture': { channel: DECLARED.capture },
         'seat/watch': { channel: DECLARED.watch },
     },
-    told: {
-        [DECLARED.changed.channel]: 'seat/changed',
-        [DECLARED.held.channel]: 'seat/held',
-    },
+    told: { [DECLARED.output.channel]: 'seat/output' },
 });
 
 // The seats, as the core opens and closes them: where a user sits while a run of theirs is hosted, and the local one,
 // whose devices are this machine's hardware. Main keeps each seat's clock and whose seat a sender's is, and hands what
 // a seat does and reads to what the shell serves, as plain data with the seat; it handles no input and reads nothing
-// itself. `name` is what a person reads of the local user until one is kept.
+// itself. A seat's `source` names its set of devices, a word made as it opens that says who to no one: every event
+// that enters for the seat carries it. `name` is what a person reads of the local user until one is kept.
 export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     // MARK: - Property
-    const seats = new Map(); // a user's id -> its seat, `{ id, user: { id, name }, local }`, in the order they opened
+    // a user's id -> its seat, `{ id, user: { id, name }, local, source }`, in the order they opened
+    const seats = new Map();
     const clocks = new Map(); // a seat's id -> when its devices last gave input, in milliseconds
-    const watching = new Set(); // the ids of the seats told as the desktop changes
+    const watching = new Map(); // a seat's id -> the names of the outputs it is told of
     const openListeners = new Set();
     const closeListeners = new Set();
     let served = Object.freeze({}); // what the shell serves so far, each of SERVED once it does
@@ -88,18 +83,18 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         return Date.now() - clocks.get(opened(seat).id) >= CORE.seatIdleTime();
     }
 
-    // The entry: what a seat's devices did, handed to what the shell serves, which answers what the seat can see
-    // happened. It is the seat's input whatever carried it, so its clock is stamped here and nowhere else.
+    // The entry: what a seat's devices did, handed to what the shell serves with the seat's `source`, which answers
+    // what the seat can see happened. It is the seat's input whatever carried it, so its clock is stamped here and
+    // nowhere else.
     async function input(seat, event) {
         const at = opened(seat);
         clocks.set(at.id, Date.now());
-        return need('input')(at, event);
+        return need('input')(at, { ...event, source: at.source });
     }
 
-    // What the shell answers the entry, the readings and the ask with from now on: each of SERVED is handed over once,
-    // together or by the part of the shell that answers it. Answers what the shell tells a seat a transport
-    // connection opened: `changed(seat, { mark })`, told while
-    // the seat watches, and `held(seat, { window, holder })`.
+    // What the shell answers the entry, the outputs and the ask with from now on: each of SERVED is handed over once,
+    // together or by the part of the shell that answers it. Answers `{ tell(seat, output) }`, what the shell tells a
+    // seat: `output` is `{ of, ... }` with what the row of OUTPUTS tells, and reaches a seat that watches it.
     function serve(answers) {
         if (CHANNEL.kindOf(answers) !== 'object') throw new Error('[deckit] what serves the seats is an object');
         for (const [key, answer] of Object.entries(answers)) {
@@ -109,8 +104,13 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         }
         served = Object.freeze({ ...served, ...answers });
         return Object.freeze({
-            changed: (seat, { mark }) => watching.has(seat.id) && tell(seat, PROTOCOL.changed, { mark }),
-            held: (seat, { window, holder }) => tell(seat, PROTOCOL.held, { window, holder }),
+            tell: (seat, { of, ...data } = {}) => {
+                const told = Object.hasOwn(OUTPUTS, of) ? OUTPUTS[of].told : null;
+                if (!told) throw new Error(`[deckit] a seat is told no output ${of}`);
+                const problem = CHANNEL.problemOf({ channel: `the output ${of}`, fields: told }, data);
+                if (problem) throw new Error(`[deckit] ${problem}`);
+                if (watching.get(seat?.id)?.has(of)) send(seat, { of, ...data });
+            },
         });
     }
 
@@ -133,9 +133,12 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
 
     // MARK: - Private
     function open(seat) {
-        const opening = Object.freeze({ ...seat, user: Object.freeze({ ...seat.user }) });
+        const source = crypto.randomUUID();
+        const opening = Object.freeze({ ...seat, user: Object.freeze({ ...seat.user }), source });
         seats.set(opening.user.id, opening);
         clocks.set(opening.id, Date.now());
+        const told = Object.entries(OUTPUTS).filter(([, row]) => row.told && row.on);
+        watching.set(opening.id, new Set(told.map(([name]) => name)));
         for (const listener of openListeners) listener(opening);
         return opening;
     }
@@ -191,25 +194,44 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     }
 
     // What main tells a seat goes to what hosts its user's run; the local seat is told nothing, the shell draws it.
-    function tell(seat, channel, payload) {
+    function send(seat, output) {
         const sender = seats.get(seat?.user?.id) === seat && !seat.local ? IDENTITY.pageOf(seat.user.id) : null;
-        if (sender) channel.send(sender, payload);
+        if (sender) PROTOCOL.output.send(sender, output);
+    }
+
+    // The row of `table` that `name` names, which has the `part` asked for: refused for a name the table has not and
+    // for a row without that part.
+    function rowOf(table, name, part, what) {
+        if (!Object.hasOwn(table, name) || !table[name][part])
+            throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', `${what} is not ${name}`);
+        return table[name];
+    }
+
+    // What was sent beside a row's name is that row's `fields` and no other.
+    function hold(name, fields, sent) {
+        const problem = CHANNEL.problemOf({ channel: name, fields }, sent);
+        if (problem) throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', problem);
     }
 
     function listen() {
-        const enters = (event) => async (payload, sender) => input(seatFrom(sender), { event, ...payload });
-        const reads = (answer) => async (payload, sender) => need(answer)(seatFrom(sender), payload);
-        PROTOCOL.pointer.handle(enters('pointer'));
-        PROTOCOL.key.handle(enters('key'));
-        PROTOCOL.text.handle(enters('text'));
-        PROTOCOL.act.handle(enters('act'));
-        PROTOCOL.read.handle(reads('read'));
-        PROTOCOL.changes.handle(reads('changes'));
-        PROTOCOL.capture.handle(reads('capture'));
-        PROTOCOL.watch.handle(({ on }, sender) => {
-            const { id } = seatFrom(sender);
-            if (on) watching.add(id);
-            else watching.delete(id);
+        PROTOCOL.input.handle(async ({ event, type, ...fields }, sender) => {
+            const seat = seatFrom(sender);
+            const row = rowOf(EVENTS, event, 'fields', "what a seat's devices do");
+            hold(event, row.fields, fields);
+            if (!row.types.includes(type))
+                throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', `a ${event} event is one of ${row.types.join(', ')}`);
+            return input(seat, { event, type, ...fields });
+        });
+        PROTOCOL.read.handle(async ({ of, ...query }, sender) => {
+            const seat = seatFrom(sender);
+            hold(of, rowOf(OUTPUTS, of, 'query', 'what a seat reads').query, query);
+            return need('read')(seat, { of, ...query });
+        });
+        PROTOCOL.watch.handle(({ of, on }, sender) => {
+            const seat = seatFrom(sender);
+            rowOf(OUTPUTS, of, 'told', 'what a seat is told of');
+            if (on) watching.get(seat.id).add(of);
+            else watching.get(seat.id).delete(of);
             return true;
         });
     }
