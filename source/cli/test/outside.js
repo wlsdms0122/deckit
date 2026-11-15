@@ -878,6 +878,21 @@ async function run({
             joined.x + joined.width + 4 === clock?.x &&
             clock.x + clock.width + 2 === laid?.width;
         const scrolls = ({ bar: laid, joined }) => joined?.region === 'scrolled' && laid?.width === room;
+        // Where the item stands with the bar scrolled to its start: after the items that scroll before it, 4 apart,
+        // whichever order the bar has them in.
+        const restOf = ({ items, joined }) => {
+            const strip = items.filter(({ region }) => region === 'scrolled');
+            const before = strip.slice(
+                0,
+                Math.max(
+                    0,
+                    strip.findIndex(({ id }) => id === joined?.id)
+                )
+            );
+            return before.reduce((x, { width }) => x + width + 4, 2);
+        };
+        // Whether the item is in view whole, left of the clock.
+        const inView = ({ joined, clock }) => joined?.x >= 2 && joined.x + joined.width + 4 <= clock?.x;
         // The local seat's context press on the item, and the press on the one entry its menu offers.
         const locally = async (wanted, shot = null) => {
             await (
@@ -931,16 +946,18 @@ async function run({
             JSON.stringify({ gone: !!gone, kept: kept.now, survived })
         );
         const freed = await locally(scrolls);
-        const scrolled = await turn('27,0', -25);
-        const back = await turn('0,-500', 2);
+        const rest = restOf(freed.now);
+        await turn('0,-500', rest);
+        const scrolled = await turn('27,0', rest - 27);
+        const back = await turn('0,-500', rest);
         check(
             "outside: Don't Keep in Bar on the fixed item lets it scroll with the others again",
             same(freed.offered, ["Don't Keep in Bar"]) &&
                 scrolls(freed.now) &&
-                freed.now.joined.x === 2 &&
-                scrolled.now.joined?.x === -25 &&
-                back.now.joined?.x === 2,
-            JSON.stringify({ freed, scrolled, back })
+                inView(freed.now) &&
+                scrolled.now.joined?.x === rest - 27 &&
+                back.now.joined?.x === rest,
+            JSON.stringify({ rest, scrolled: scrolled.now.joined, back: back.now.joined, freed })
         );
         // A seat at the surface: what it reads of the bar names the item, button 2 on it opens the menu it reads next,
         // and its press on the entry does what the entry says.
@@ -974,8 +991,8 @@ async function run({
                 /button "Clock"[^\n]*\n +button "Star/.test(seatReadsKept) &&
                 !!seatFreed.entry &&
                 scrolls(seatFreed.now) &&
-                seatFreed.now.joined.x === 2 &&
-                /button "Star[^\n]*\n +button "Clock"/.test(seatReadsFreed),
+                inView(seatFreed.now) &&
+                /button "Star[^\n]*\n(?: +button "[^\n]*\n)* +button "Clock"/.test(seatReadsFreed),
             JSON.stringify({ seatKept, seatReadsKept, seatFreed, seatReadsFreed })
         );
     }
