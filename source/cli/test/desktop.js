@@ -2963,7 +2963,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     desk.carried({ event: 'pointer', type: 'move', x: 1, y: 2 });
     const seats = Object.fromEntries(desk.page().seats.map((seat) => [seat.id, seat]));
     check(
-        "the page's state has each seat's name, colour, pointer, held buttons, idleness and whether it is shown",
+        "the page's state has each seat's name, colour, pointer, held buttons and whether it is shown, and no more",
         JSON.stringify(seats.s2) ===
             JSON.stringify({
                 id: 's2',
@@ -2971,7 +2971,6 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
                 colour: 'orange',
                 at: middle,
                 buttons: [0],
-                idle: false,
                 shown: false,
                 dimmed: false,
                 named: true,

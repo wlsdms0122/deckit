@@ -1981,7 +1981,6 @@ export function createDesktop({
                 colour: COLOURS.of(id),
                 at: pointer && { x: Math.round(pointer.x), y: Math.round(pointer.y) },
                 buttons,
-                idle: seated.has(id) && deckit.seats.isIdle(seated.get(id)),
                 shown: id === seat,
                 dimmed: MARKS.isDimmed(pointer, stackOf(id), viewed),
                 named: MARKS.nameLeft(acted, clock.now()) > 0,

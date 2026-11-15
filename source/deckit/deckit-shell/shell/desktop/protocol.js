@@ -17,9 +17,9 @@ export const setup = CHANNEL.pageToMain(
 // a window whose content draws its own; `panels`, the panel windows that stand, at their edge, 'top' in the strip,
 // or with `edge` null as a view, as they lie from the bottom, the material
 // drawn under each at its frame, rounded by `radius`;
-// `seats`, `[{ id, name, colour, at, buttons, idle, shown, dimmed, named, typing }]`, every
+// `seats`, `[{ id, name, colour, at, buttons, shown, dimmed, named, typing }]`, every
 // seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was
-// anywhere, the buttons it holds, whether its devices gave nothing for the idle time, whether it is the one whose view
+// anywhere, the buttons it holds, whether it is the one whose view
 // the host window shows, whether its cursor is drawn dimmed (model/marks.js isDimmed), whether its name shows beside
 // its cursor (model/marks.js nameLeft), and where it types in a window that does not have the machine's keyboard,
 // `{ ring, bars, caret, over }`, the ring round what has the focus there, `{ x, y, width, height, radius, line }` on
