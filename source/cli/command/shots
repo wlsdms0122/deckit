@@ -218,6 +218,7 @@ async function draw(app, look, shots, origin) {
         answerOf,
         answer,
         pressAt,
+        seatsView,
     } = seat({
         main,
         pageById,
@@ -307,7 +308,7 @@ async function draw(app, look, shots, origin) {
     await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
     await surface('desktop-windows', backed);
     // Two users sit beside the local seat, each at a transport connection of its own with a key of its own, let in by
-    // the local seat's press on Allow where it is asked, and each presses a window where it shows for it, so it holds
+    // the local seat's press on Allow in the view of Seats where it is asked, and each presses a window where it shows for it, so it holds
     // that window's keyboard, and tiles it by the shell's key, one to each half, so the title bars of both show: their
     // cursors at rest under them, a third user asking to sit, the view of one of them followed, then one of them mid
     // drag, its button held. Each window is put back at its frame after.
@@ -318,7 +319,7 @@ async function draw(app, look, shots, origin) {
             stdio: 'pipe',
         });
         const party = await connect(path.join(app.home, 'deckit.sock'));
-        await allowed(id, party.authenticate({ principal: id, ...readKey(fs.readFileSync(file, 'utf8')) }));
+        await allowed(name, party.authenticate({ principal: id, ...readKey(fs.readFileSync(file, 'utf8')) }));
         const point = (type, { x, y }, more = {}) =>
             party.request('seat/input', { event: 'pointer', type, x, y, ...more });
         // The shell's key that tiles the seat's key window, by the arrow it is.
@@ -359,7 +360,11 @@ async function draw(app, look, shots, origin) {
     };
     const users = [];
     const rests = [];
-    const corner = { x: screen.width - 360, y: screen.height - 200, width: 360, height: 200 };
+    // The desktop's top right, down to under the view of Seats as it is laid.
+    const underItem = ({ rect }) => {
+        const x = Math.max(0, Math.round(rect.x) - 80);
+        return { x, y: 0, width: screen.width - x, height: Math.round(rect.y + rect.height) + 40 };
+    };
     await surface('seats', async (name) => {
         users.push(await attach('ada', 'Ada'), await attach('grace', 'Grace'));
         const behind = (await windowsNow()).filter(({ key, scaled }) => !key && !scaled);
@@ -383,9 +388,15 @@ async function draw(app, look, shots, origin) {
         const bottom = Math.max(...rests.map(({ y }) => y)) + 80;
         await desktopShot(name, { under, crop: { x: 0, y: 0, width: screen.width, height: bottom } });
     });
-    // The chips of the two at the desktop's bottom right.
-    await surface('seats-chips', (name) => desktopShot(name, { under, crop: corner }));
-    // A third user asks to sit: its chip over theirs, with its two answers, until the local seat denies it.
+    // The view of Seats under its item in the status bar: a row for the local seat and for each of the two.
+    await surface('seats-view', async (name) => {
+        const view = await seatsView.shown();
+        if (!view) throw new Error('the view of Seats is not shown');
+        await sleep(400);
+        await desktopShot(name, { under, crop: underItem(view) });
+        await seatsView.away();
+    });
+    // A third user asks to sit: its row over theirs, with its two answers, until the local seat denies it.
     await surface('seats-ask', async (name) => {
         const file = path.join(app.data, 'lin.key');
         const command = path.join(__dirname, '..', 'deckit');
@@ -397,18 +408,15 @@ async function draw(app, look, shots, origin) {
             () => party.close(),
             () => {}
         );
-        if (await answerOf('lin', 'deny', 5000)) await desktopShot(name, { under, crop: corner });
-        await answer('lin', 'deny', 1000);
+        const asked = await answerOf('Lin', 'deny', 5000);
+        if (asked) await desktopShot(name, { under, crop: underItem(asked.view) });
+        await answer('Lin', 'deny', 1000);
         await refused;
     });
-    // The local seat follows the first of the two: the whole desktop as that seat has it, and the bar that says so.
+    // The local seat follows the first of the two by a press on its row: the whole desktop as that seat has it, and
+    // the bar that says so.
     await surface('seats-followed', async (name) => {
-        const chip = await desktop.evaluate(`(() => {
-            const chip = document.querySelector('.deckit-seat-chip[data-seat]');
-            const { x, y, width, height } = chip.getBoundingClientRect();
-            return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) };
-        })()`);
-        await pressAt(chip);
+        await seatsView.pressIn(await seatsView.shown(), '.seats-seat[aria-label^="Ada"]');
         await sleep(1200);
         await desktopShot(name, { under });
         await pressAt({ x: Math.round(screen.width / 2), y: Math.round(screen.height / 2) });

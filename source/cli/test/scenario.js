@@ -3236,7 +3236,7 @@ async function run(app, named = []) {
 
     if (runs('outside'))
         try {
-            const { asksNow, answerOf, pressAt, answer, allowed } = local;
+            const { asksNow, pressAt, answer, allowed } = local;
             await windowsStand();
             await OUTSIDE.run({
                 check,
@@ -3247,7 +3247,6 @@ async function run(app, named = []) {
                 desktopLaid,
                 idleTime: IDLE_TIME,
                 asksNow,
-                answerOf,
                 pressAt,
                 pageAt,
                 desktopShot,

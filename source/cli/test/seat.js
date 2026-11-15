@@ -1,10 +1,13 @@
 // The desktop of the app under test as its local seat sees it, read through WebKit's module: the windows and stages
-// laid, the pages on them, the Dock, and the desktop drawn as a person sees it.
+// laid, the pages on them, the Dock, the Seats mod's item and view, and the desktop drawn as a person sees it.
 const { sleep, until } = require('./devtools.js');
 
 // What the test reads of a document a page opened beside itself: its name, its opener's address, and whether it draws
 // a window's frame as the key window's.
 const SURFACE = `return ([window.name, window.opener?.location.href ?? '', !!document.querySelector('.deckit-window-material[data-key]')])`;
+
+// What the Seats mod's view writes on the two answers of a user that asks (mods/seats).
+const ANSWERS = { allow: 'Allow', deny: 'Deny' };
 
 // A line of WebKit's module's `tree`, a view indented under its superview: its type, its frame in its superview,
 // whether it is hidden, whether it has its window's keyboard, the radius of the corners it cuts what is in it to, if
@@ -242,11 +245,26 @@ function seat({ main, pageById, compose, desktop }) {
         if (!(await pressIn(bar, '.status-bar-item[data-item="seats"]'))) return null;
         return until(async () => (await laidOf('seats'))[0], within);
     };
-    // The rows of that view as it draws them, `{ asks, seats }`: each ask's user's name, and each seat's `{ name,
-    // says, colour, idle, following }`; both empty where the view is not shown.
-    const seatsRows = async () => {
-        const view = await seatsShown();
-        const rows = await (view && (await pageById(view.id)))?.evaluate(`({
+    // That view put away where it is on the local seat's screen, by the machine's press on the mod's item, which
+    // toggles it: the local seat's keyboard is its key window's again. It is looked for once more after a while, since
+    // a view whose item went and came back comes back with it.
+    const seatsAway = async () => {
+        for (let tries = 0; tries < 3; tries++) {
+            if ((await laidOf('seats')).length) {
+                const [bar] = await laidOf('status-bar');
+                await pressIn(bar, '.status-bar-item[data-item="seats"]');
+                await until(async () => !(await laidOf('seats')).length, 3000);
+            }
+            await sleep(300);
+            if (!(await laidOf('seats')).length) return;
+        }
+    };
+    // The rows of the Seats mod's view as it draws them, `{ asks, seats }`: each ask's user's name, and each seat's
+    // `{ name, says, colour, idle, following }`; of `view`, a view `seatsShown` answered, read where it stands or not,
+    // or of the one shown now, both empty where none is.
+    const seatsRows = async (view = null) => {
+        const from = view ?? (await seatsShown());
+        const rows = await (from && (await pageById(from.id)))?.evaluate(`({
             asks: [...document.querySelectorAll('.seats-ask .seats-name')].map((node) => node.textContent),
             seats: [...document.querySelectorAll('.seats-seat')].map((node) => ({
                 name: node.querySelector('.seats-name').textContent,
@@ -258,46 +276,47 @@ function seat({ main, pageById, compose, desktop }) {
         })`);
         return rows || { asks: [], seats: [] };
     };
-    // The users that ask to sit, by id, as the desktop's page draws their chips at its bottom right.
-    const asksNow = () =>
-        desktop().evaluate(
-            `[...document.querySelectorAll('.deckit-seat-chip[data-ask]')].map((node) => node.dataset.user)`
-        );
-    // The middle of an answer, 'allow' or 'deny', of the chip of the user that asks, once the page draws it within
-    // `within` ms, or null.
-    const answerOf = (user, word, within) =>
-        until(
-            () =>
-                desktop().evaluate(`(() => {
-                    const chip = document.querySelector('.deckit-seat-chip[data-user="${user}"]');
-                    const part = chip?.querySelector('[data-answer="${word}"]');
-                    if (!part) return null;
-                    const { x, y, width, height } = part.getBoundingClientRect();
-                    return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) };
-                })()`),
-            within
-        );
+    // The users that ask to sit, by name, as that view has a row of each; none while the bar has no Seats item. The
+    // view is put away again.
+    const asksNow = async () => {
+        const { asks } = await seatsRows();
+        await seatsAway();
+        return asks;
+    };
+    // An answer, 'allow' or 'deny', of the row of the user named `name` that asks, once the view draws it within
+    // `within` ms: `{ view, selector }`, the view and what finds the answer's button in it, or null.
+    const answerOf = (name, word, within) => {
+        const selector = `[data-answer="${word}"][aria-label="${ANSWERS[word]} ${name}"]`;
+        return until(async () => {
+            const view = await seatsShown();
+            const session = view && (await pageById(view.id));
+            const drawn = await session?.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`);
+            return drawn ? { view, selector } : null;
+        }, within);
+    };
     // The machine's press at a point of the desktop's page, the local seat's.
     const pressAt = async (at) => {
         for (const type of ['down', 'up'])
             await main(`return webkit.sendMouse(${desktop().id}, ${JSON.stringify({ type, ...at })})`);
     };
-    // The local seat's answer to `user`, as the machine presses it on the chip: the users that asked as it did, or
-    // null where the user did not ask in time.
-    const answer = async (user, word, within = 10000) => {
-        const at = await answerOf(user, word, within);
-        if (!at) return null;
-        const asking = await asksNow();
-        await pressAt(at);
+    // The local seat's answer to the user named `name`, as the machine presses it in the view, which is put away
+    // after: the users that asked as it did, by name, or null where the user did not ask in time.
+    const answer = async (name, word, within = 10000) => {
+        const found = await answerOf(name, word, within);
+        const asking = found && (await seatsRows(found.view)).asks;
+        if (found) await pressIn(found.view, found.selector);
+        await seatsAway();
         return asking;
     };
-    // What `attaching` comes to, the local seat allowing `user` where it is asked.
-    const allowed = async (user, attaching) => {
+    // What `attaching` comes to, the local seat allowing the user named `name` where it is asked.
+    const allowed = async (name, attaching) => {
         let over = false;
         const come = Promise.resolve(attaching).finally(() => (over = true));
         come.catch(() => {});
-        while (!over) if (await answer(user, 'allow', 300)) break;
-        return come;
+        while (!over) if (await answer(name, 'allow', 300)) break;
+        const came = await come;
+        await seatsAway();
+        return came;
     };
     return {
         laidNow,
@@ -317,7 +336,7 @@ function seat({ main, pageById, compose, desktop }) {
         pressAt,
         answer,
         allowed,
-        seatsView: { item: seatsItem, shown: seatsShown, rows: seatsRows, pressIn },
+        seatsView: { item: seatsItem, shown: seatsShown, away: seatsAway, rows: seatsRows, pressIn },
     };
 }
 
