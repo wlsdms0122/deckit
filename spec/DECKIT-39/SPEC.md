@@ -83,7 +83,7 @@ It is told from the moment a seat opens, and watched and turned off by `seat/wat
 | key | value | read for |
 |---|---|---|
 | `x`, `y` | numbers: a point of the desktop, from its top left | every type |
-| `ref` | a string: what a reading named, as the DECKIT of readings fixes a ref | every type |
+| `ref` | a string: what a reading named, a ref as [what a seat reads](../DECKIT-40/SPEC.md) fixes one | every type |
 | `button` | an integer: 0 the main button, 1 the middle, 2 the second | `down`, `up` |
 | `buttons` | an array of such integers: the buttons held once the event is | every type |
 | `modifiers` | an array of `alt`, `control`, `meta`, `shift` | every type |
@@ -124,7 +124,7 @@ A `seat/input` is refused at `call` with the first of these that is so, after wh
 1. kind `HIDDEN`, where the host app's window is hidden: no page takes input;
 2. kind `INVALID_ARGUMENT`, where a pointer event names no place, names one by both `x`, `y` and `ref`, or writes an `x` or a `y` that is no finite number;
 3. kind `REFUSED`, where it is a `move` at a `ref` with no button of the seat held: no page hears a pointer that only moves;
-4. kind `GONE`, where its `ref` names nothing: nothing a reading named, or what one named and is there no more;
+4. kind `GONE`, where its `ref` names nothing, as [what a seat reads](../DECKIT-40/SPEC.md) fixes when a ref does: nothing a reading named, or what one named and is there no more;
 5. kind `HELD`, where it is a key or text event, the window the seat pressed last is held from it, and that window's holder is not idle.
 
 A seat's events are done in the order its party sent them: one that takes time, as an event at a `ref` does, is answered before the next is begun.
@@ -188,6 +188,7 @@ It guards every member of `shell.seats`.
 - A chord and the shell's own keys: [the shell's keys](../DECKIT-34/SPEC.md).
 - The handle `shell`, a request, a registration, `ENDED` and how the shell defines a permission: [the shell](../DECKIT-29/SPEC.md). A privileged permission and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md).
 - `[host] seats`, the key `seat` of the looks `windows`, `desktop` and `dock`, a party of a case and the look `told`: [the case format](../DECKIT-1/SPEC.md).
+- A reading, a ref and when it names nothing, the mark and the output `changes`: [what a seat reads](../DECKIT-40/SPEC.md).
 - `HIDDEN`, `HELD` and `REFUSED` of an input: here.
 
 ## Alternatives considered

@@ -120,7 +120,7 @@ A request is refused at `call` with the first of these that is so:
 1. kind `INVALID_ARGUMENT`, where its `params` are refused by the one rule [a party from outside](../DECKIT-37/SPEC.md) holds the `params` of every request to, the keys a request takes being those of its row and what its event or its output is asked with besides, or where `event` names no row of its table, `type` is none of the event's, or `of` names no output that `seat/read` reads or, for `seat/watch`, none that is told;
 2. kind `REFUSED`, where it is `seat/input` or `seat/read` and no layer serves it.
 
-What each event and each output holds beside these keys, what each answers and what it is refused with besides are fixed by the DECKIT of the layer that serves it: for the shell's input and the output `held`, [seats at the desktop](../DECKIT-39/SPEC.md).
+What each event and each output holds beside these keys, what each answers and what it is refused with besides are fixed by the DECKIT of the layer that serves it: for the shell's input and the output `held`, [seats at the desktop](../DECKIT-39/SPEC.md); for the shell's readings, a picture and the output `changes`, [what a seat reads](../DECKIT-40/SPEC.md).
 
 ### What a layer serves
 
