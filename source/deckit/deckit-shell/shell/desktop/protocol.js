@@ -1,4 +1,5 @@
-// Between main and the desktop's page, deckit://desktop/, where the backdrop and the windows' frames are drawn.
+// Between main and the desktop's page, deckit://desktop/, where the backdrop, the windows' frames and the seats'
+// cursors are drawn.
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 
 // Answers { state } at once: the page is built in one pass.

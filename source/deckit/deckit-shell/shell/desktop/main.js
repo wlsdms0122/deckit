@@ -1291,14 +1291,15 @@ export function createDesktop({
         }),
     });
 
-    // The desktop's page is the shell's own, made once: it opens the backdrop, and each window's frame and buttons as
-    // the window opens. A press there is the person's on a window, so the keyboard goes back to the key window. It
-    // lays out off screen too, and the desktop has no frames without it: a page that crashed is loaded again.
+    // The desktop's page is the shell's own, made once: it opens the backdrop, the cursors' surface, and each window's
+    // frame and buttons as the window opens. A press there is the person's on a window, so the keyboard goes back to
+    // the key window. It lays out off screen too, and the desktop has no frames without it: a page that crashed is
+    // loaded again.
     function makePage() {
         const page = PAGES.open(PAGE.PAGE_NAME, {
             keepsDrawing: true,
             reloadsOnCrash: true,
-            surfaces: { names: [PAGE.BACKDROP], onOpen: openSurface },
+            surfaces: { names: [PAGE.BACKDROP, PAGE.CURSORS], onOpen: openSurface },
         });
         KEY.listen(page);
         PAGES.whenFocused(page, giveBack);
@@ -1422,8 +1423,10 @@ export function createDesktop({
     // over, then that page, taking the pointer only at the host's bar, the chips and the Dock, its sliver down the edge
     // and its card while it is out, and the panel windows in that bar with the children their regions show. Over all of
     // it, the overlay of each page laid that shows anything, at its page's rect, or over the whole stage for a panel
-    // window's content, so what it presents is not cut to the panel. With deckit's core down the desktop's page alone
-    // covers it all.
+    // window's content, so what it presents is not cut to the panel. Over those, while more than one seat is at the
+    // desktop, the cursors' surface, where the desktop's page draws each seat's cursor: it covers the stage and takes
+    // the pointer nowhere, so a press, a move and a scroll go to what is under it, and it is given no keyboard. With
+    // deckit's core down the desktop's page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
         inPanels.clear();
@@ -1474,6 +1477,7 @@ export function createDesktop({
         );
         const surface = (name) => desktop.surfaces.get(name);
         const backdrop = surface(PAGE.BACKDROP);
+        const cursors = hands.size > 1 && surface(PAGE.CURSORS);
         return {
             children,
             parts: {
@@ -1548,6 +1552,7 @@ export function createDesktop({
                             .map(({ page, rect }) => ({ page, rect, clip })),
                     ].filter(Boolean);
                 }),
+                cursors: cursors ? [{ page: cursors, rect: full, input: [] }] : [],
             },
         };
     }

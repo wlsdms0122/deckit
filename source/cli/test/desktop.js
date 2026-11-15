@@ -834,6 +834,7 @@ async function main() {
     levelChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'levels.js')), check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
+    await cursorChecks({ LAYOUT, createDesktop }, check);
     await typingChecks({ LAYOUT, createDesktop }, check);
     const { createStatus } = await import(url('deckit-shell', 'shell', 'status', 'main.js'));
     await statusChecks({ createStatus, createDesktop }, check);
@@ -1739,6 +1740,70 @@ async function askChecks({ SEATS, createDesktop }, check) {
     );
 }
 
+// The cursors' surface: laid over every level of the stage and over what the pages present, while more than one seat
+// is at the desktop, taking the pointer nowhere.
+async function cursorChecks({ LAYOUT, createDesktop }, check) {
+    const menu = { name: 'menu' };
+    const full = { x: 0, y: 0, width: 1200, height: 800 };
+    // The content of window 1 presents a menu, its overlay laid over the whole stage.
+    const overlays = (layers) =>
+        layers.some(({ page }) => page?.name === 'content-1')
+            ? [{ page: menu, rect: full, input: [{ x: 0, y: 400, width: 100, height: 100 }] }]
+            : [];
+    const desk = desktopOver(createDesktop, { overlays });
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const windowOf = (id, mod, level) => {
+        const page = { name: `page-${mod}`, mod };
+        return {
+            id,
+            mod,
+            name: `w${id}`,
+            level,
+            page,
+            surface: { name: `content-${id}`, of: page },
+            size: { width: 200, height: 20 },
+            minimum: { width: 0, height: 0 },
+            bar: LAYOUT.DEFAULT_BAR,
+        };
+    };
+    desk.desktop.open(windowOf(1, 'a', 'normal'));
+    desk.openSurfaces(1);
+    desk.desktop.openPanel(windowOf(2, 'b', 'panel'));
+    desk.openCursors();
+    const names = () => desk.laid().map(({ page }) => page?.name);
+    const alone = names();
+    const other = desk.sit('s1');
+    const laid = desk.laid();
+    check(
+        "the cursors' surface is laid while more than one seat is at the desktop, not for the local seat alone",
+        !alone.includes('cursors') && names().includes('cursors'),
+        { alone, laid: names() }
+    );
+    check(
+        "the cursors' surface covers the stage over every window, the desktop's page, the panel windows and what a " +
+            'page presents over itself, and takes the pointer nowhere',
+        names().slice(-4).join() === 'desktop,content-2,menu,cursors' &&
+            JSON.stringify(laid.at(-1).rect) === JSON.stringify(full) &&
+            JSON.stringify(laid.at(-1).input) === '[]',
+        { laid: names(), cursors: laid.at(-1) }
+    );
+    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    const panel = desk.desktop.control.panels()[0].frame;
+    const onPanel = { x: panel.x + panel.width / 2, y: panel.y + panel.height / 2 };
+    const before = desk.puts.length;
+    await desk.enter(other, pointer('down', onPanel));
+    await desk.enter(other, pointer('up', onPanel));
+    const reached = desk.puts.slice(before).map(({ page }) => page);
+    check(
+        "a seat's press under the cursors' surface reaches what is laid under it",
+        reached.join() === 'content-2,content-2',
+        reached
+    );
+    desk.leave(other);
+    check("the cursors' surface is taken off as the last other seat leaves", !names().includes('cursors'), names());
+}
+
 // The local seat follows another: the host window shows that seat's view until the local seat presses or types.
 async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
     const desk = desktopOver(createDesktop, {});
@@ -2426,14 +2491,15 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
 
 // `createDesktop` over stand-ins: `state` what the shell kept. Mods `a` and `b` load, named `A` and `B`. A stage 1200
 // by 800 lays the pages; `laid()` is what it laid last, `resize(size)` sizes it again. `openSurfaces(id)` has the
-// desktop's page open window `id`'s frame and buttons; `fromPage(name, payload)` sends a desktop channel as that page:
+// desktop's page open window `id`'s frame and buttons, `openCursors()` the cursors' surface, and `overlays(layers)` is
+// what the pages laid present over themselves; `fromPage(name, payload)` sends a desktop channel as that page:
 // `pagePointer(id, part, type, point, more)` what the pointer does on a part of window `id` at a point of the screen,
 // `pagePress(id)` a press on its frame let go there, and `pageFrames(id, frame)` the drags of its corners that leave
 // it at `frame`. `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in `page`,
 // which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it,
 // `key(page)` a key pressed in a page and `chord(mod)` a chord told to a mod. `read` is what reads a page, and
 // `pictures` each picture the stage was asked for.
-function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} }, STATUS }) {
+function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} }, STATUS, overlays = () => [] }) {
     const handlers = {};
     const sent = [];
     const titles = [];
@@ -2551,7 +2617,11 @@ function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} },
             shownElsewhere: () => false,
         },
         PAGES,
-        OVERLAY: { onChange() {}, withOverlays: (layers) => layers, ownerOf: (page) => page },
+        OVERLAY: {
+            onChange() {},
+            withOverlays: (layers) => [...layers, ...overlays(layers)],
+            ownerOf: (page) => page,
+        },
         KEY,
         makeStage: () => stage,
         actionOnDoubleClick: () => 'zoom',
@@ -2608,6 +2678,7 @@ function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} },
         openSurfaces: (id) => {
             for (const name of [`frame-${id}`, `buttons-${id}`]) allowed.get(name)({ name });
         },
+        openCursors: () => allowed.get('cursors')({ name: 'cursors' }),
         fromPage,
         pagePointer,
         pagePress: (id) => {

@@ -180,9 +180,12 @@ function seat({ main, pageById, compose, desktop }) {
         await until(() => mods?.evaluate(`!!${item}`), 4000);
         await mods?.evaluate(`${item}.click()`);
     };
-    // The desktop as a person sees it, its pages laid one over another from the backdrop up, with `compose`'s options.
+    // The desktop as a person sees it, its pages laid one over another from the backdrop up, with `compose`'s options:
+    // those that take the pointer somewhere, and the cursors' surface, which takes it nowhere.
     const desktopShot = async (name, options) => {
-        const laid = ((await desktopLaid())?.pages || []).filter(({ input }) => !Array.isArray(input) || input.length);
+        const laid = ((await desktopLaid())?.pages || []).filter(
+            ({ name: each, input }) => each === 'cursors' || !Array.isArray(input) || input.length
+        );
         const from = laid.findIndex(({ name: each }) => each === 'backdrop');
         if (from < 0) return;
         const layers = [];

@@ -524,19 +524,27 @@ async function run({
             same(acted, [`over ${windowA.id}`, `over ${windowA.id}, key`, 'over nothing']),
             JSON.stringify(acted)
         );
-        // What the desktop's page draws of the two seats: a cursor each where its pointer last went, a ring where a
-        // press began, noted as it is drawn since it fades, and its colour round the title bar of its key window.
+        // What the desktop's page draws of the two seats: in the cursors' surface, the last page laid on the desktop,
+        // which takes the pointer nowhere, a cursor each where its pointer last went and a ring where a press began,
+        // noted as it is drawn since it fades; and its colour round the title bar of its key window.
         const pageNamed = (test) => laid.find(test)?.id;
         const desktopPage = pageNamed(({ url }) => /^deckit:\/\/desktop\//.test(url ?? ''));
+        const over = ((await desktopLaid())?.pages ?? []).filter(({ hidden }) => !hidden).at(-1);
+        const cursorsPage = over?.name === 'cursors' ? over.id : null;
+        check(
+            "outside: the seats' cursors are in a surface laid over everything on the desktop, which takes no pointer",
+            cursorsPage !== null && Array.isArray(over.input) && over.input.length === 0,
+            JSON.stringify({ name: over?.name, input: over?.input, rect: over?.rect })
+        );
         await inPage(
-            desktopPage,
+            cursorsPage,
             `(() => {
                 window.deckitRings = [];
                 new MutationObserver((records) => {
                     for (const { addedNodes } of records)
                         for (const node of addedNodes)
                             if (node.className === 'deckit-seat-press') window.deckitRings.push(node.style.transform);
-                }).observe(document.querySelector('.deckit-seats'), { childList: true });
+                }).observe(document.querySelector('.deckit-seat-cursors'), { childList: true });
                 return true;
             })()`
         );
@@ -548,7 +556,7 @@ async function run({
         const worn = (seat) => `var(--deckit-seat-${colourOf(seat)})`;
         const drawnSeats = await until(async () => {
             const seen = await inPage(
-                desktopPage,
+                cursorsPage,
                 `({ rings: window.deckitRings, cursors: [...document.querySelectorAll('.deckit-seat-cursor')].map(
                     (node) => [
                         node.dataset.seat,
@@ -621,10 +629,13 @@ async function run({
                 `({
                     bar: document.querySelector('.deckit-following:not([hidden]) span')?.textContent ?? '',
                     chips: [...document.querySelectorAll('.deckit-seat-chip[data-seat]')].map((n) => n.dataset.seat),
-                    cursors: [...document.querySelectorAll('.deckit-seat-cursor')].map((n) => n.dataset.seat),
                 })`
             );
-            return { front: standing.at(-1)?.id, key: standing.find(({ key }) => key)?.id, ...drawn };
+            const cursors = await inPage(
+                cursorsPage,
+                `[...document.querySelectorAll('.deckit-seat-cursor')].map((n) => n.dataset.seat)`
+            );
+            return { front: standing.at(-1)?.id, key: standing.find(({ key }) => key)?.id, ...drawn, cursors };
         };
         const chipOf = (seat) =>
             inPage(

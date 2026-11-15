@@ -147,7 +147,7 @@ const STYLE = `
             opacity var(--deckit-exit-fade) var(--deckit-exit-curve),
             transform var(--deckit-exit) var(--deckit-exit-curve);
     }
-    .deckit-seats { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+    .deckit-seats, .deckit-seat-cursors { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
     .deckit-seat-cursor {
         position: absolute;
         top: 0;
@@ -323,17 +323,16 @@ const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-
 
 // MARK: - Initializer
 // MARK: - Public
-// The desktop, in the desktop's own page: the backdrop under every window, and each window's frame under its content
-// and its buttons over it, each a document this page opens beside itself and main lays where the window is. The page
-// itself is laid over the whole desktop, with the Dock at its left edge and the host window's bar at its top, an empty
-// strip that drags the host window, its controls in it, the backdrop showing through. Under each panel window in that
-// strip it draws the panel's material: the backdrop is cut away there, so the host window's own material shows
-// through the panel's tint, opaque where the person asks for less transparency. Main lays a material under the page
-// where it draws glass: the Dock's card while it is out and still, and each panel's material while it stands still at
-// its frame, so what lies under them in the host window is blurred too, none where the person asks for less
-// transparency. It takes the pointer only in the
-// strip, or over all of it once deckit's core is down, with a note that asks for a restart. `channels` binds the
-// desktop's and the Dock's channels in the page.
+// The desktop, in the desktop's own page: the backdrop under every window, each window's frame under its content and
+// its buttons over it, and the seats' cursors over everything on the stage, each a document this page opens beside
+// itself and main lays where it belongs. The page itself is laid over the whole desktop, with the Dock at its left edge
+// and the host window's bar at its top, an empty strip that drags the host window, its controls in it, the backdrop
+// showing through. Under each panel window in that strip it draws the panel's material: the backdrop is cut away there,
+// so the host window's own material shows through the panel's tint, opaque where the person asks for less transparency.
+// Main lays a material under the page where it draws glass: the Dock's card while it is out and still, and each panel's
+// material while it stands still at its frame, so what lies under them in the host window is blurred too, none where
+// the person asks for less transparency. It takes the pointer only in the strip, or over all of it once deckit's core
+// is down, with a note that asks for a restart. `channels` binds the desktop's and the Dock's channels in the page.
 function boot(theme, channels) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const ui = KIT.make(theme, { fonts: FONTS.installed({ channels }) });
@@ -368,6 +367,11 @@ function boot(theme, channels) {
     down.append(downNote.element);
     const drop = element(document, 'div', 'deckit-drop');
     const seats = element(document, 'div', 'deckit-seats');
+    // What marks a seat on the screen is drawn in a document of its own, laid over everything on the stage, where it
+    // takes no pointer and no keyboard: so a cursor shows on a panel window and on what a page presents over itself.
+    const over = surface(PAGE.CURSORS);
+    const pointers = element(over.document, 'div', 'deckit-seat-cursors');
+    over.document.body.append(pointers);
     const cursors = new Map(); // a seat's id -> { element, name, press }, its cursor and its press while it holds one
     const typings = new Map(); // a seat's id -> { ring, bars }, the ring and the bars drawn where it types
     const chips = element(document, 'div', 'deckit-seat-chips');
@@ -508,8 +512,8 @@ function boot(theme, channels) {
         set('mask-composite', [...holes.map(() => 'exclude'), 'add']);
     }
 
-    // A cursor for each seat but the one shown, over the windows and under the Dock: an arrow in the seat's colour at
-    // its pointer, its user's name beside it.
+    // A cursor for each seat but the one shown, in the cursors' surface: an arrow in the seat's colour at its pointer,
+    // its user's name beside it.
     function drawSeats(all) {
         const seen = new Map(all.filter(({ shown, at }) => !shown && at).map((seat) => [seat.id, seat]));
         for (const [id, cursor] of cursors) {
@@ -520,11 +524,11 @@ function boot(theme, channels) {
         }
         for (const { id, name, colour, at, buttons } of seen.values()) {
             if (!cursors.has(id)) {
-                const made = { element: element(document, 'div', 'deckit-seat-cursor'), press: null };
+                const made = { element: element(over.document, 'div', 'deckit-seat-cursor'), press: null };
                 made.element.innerHTML = ARROW;
-                made.name = element(document, 'span', 'deckit-seat-name');
+                made.name = element(over.document, 'span', 'deckit-seat-name');
                 made.element.append(made.name);
-                seats.append(made.element);
+                pointers.append(made.element);
                 cursors.set(id, made);
             }
             const cursor = cursors.get(id);
@@ -541,9 +545,10 @@ function boot(theme, channels) {
         );
     }
 
-    // Where each seat types in a window that does not have the machine's keyboard, under the cursors: a ring in the
-    // seat's colour round what has the focus there, 2 px outside it, and a bar in that colour at its caret, 2 px
-    // wide, or over each rect of what is selected in it. The ring goes to another place by the `move` spring.
+    // Where each seat types in a window that does not have the machine's keyboard, in this page, over the windows: a
+    // ring in the seat's colour round what has the focus there, 2 px outside it, and a bar in that colour at its
+    // caret, 2 px wide, or over each rect of what is selected in it. The ring goes to another place by the `move`
+    // spring.
     function drawTypings(all) {
         const seen = new Map(all.filter(({ typing }) => typing).map((seat) => [seat.id, seat]));
         for (const [id, drawn] of typings) {
@@ -637,7 +642,7 @@ function boot(theme, channels) {
         put(cursor, { x, y, buttons });
         if (type !== 'scroll') return;
         cursor.element.querySelector('.deckit-seat-tick')?.remove();
-        const tick = element(document, 'span', 'deckit-seat-tick');
+        const tick = element(over.document, 'span', 'deckit-seat-tick');
         tick.innerHTML = TICK;
         tick.dataset.way = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
         cursor.element.append(tick);
@@ -653,12 +658,12 @@ function boot(theme, channels) {
         cursor.element.toggleAttribute('data-held', held);
         cursor.element.style.transform = `translate(${x}px, ${y}px)`;
         if (held && !cursor.press) {
-            const press = element(document, 'div', 'deckit-seat-press');
+            const press = element(over.document, 'div', 'deckit-seat-press');
             press.style.setProperty('--deckit-seat', cursor.colour);
             press.style.transform = `translate(${x}px, ${y}px)`;
-            const ring = element(document, 'div', 'deckit-seat-ring');
-            press.append(element(document, 'div', 'deckit-seat-drag'), ring);
-            seats.insertBefore(press, seats.firstChild);
+            const ring = element(over.document, 'div', 'deckit-seat-ring');
+            press.append(element(over.document, 'div', 'deckit-seat-drag'), ring);
+            pointers.insertBefore(press, pointers.firstChild);
             const { length, easing } = TOKEN.MOTION.press;
             if (length)
                 ring.animate([{ transform: 'scale(0.5)' }, { transform: 'none' }], { duration: length, easing });
