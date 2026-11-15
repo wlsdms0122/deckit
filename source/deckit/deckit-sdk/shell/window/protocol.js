@@ -53,6 +53,8 @@ export const makeKeyAndOrderFront = CHANNEL.pageToMain(
     },
     { guard: CHANNEL.GUARD.ANY }
 );
+// A view under an anchor, put away where it is shown and shown where it is not.
+export const toggle = CHANNEL.pageToMain('deckit-shell:window-toggle', { id: 'number' }, { guard: CHANNEL.GUARD.ANY });
 export const resize = CHANNEL.pageToMain(
     'deckit-shell:window-resize',
     {

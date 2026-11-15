@@ -56,6 +56,7 @@ export function createWindows({
         PROTOCOL.zoom.on(bySender((window) => window.level === NORMAL && DESKTOP.zoom(window)));
         PROTOCOL.orderFront.on(bySender((window) => orderFront(window, { activates: false })));
         PROTOCOL.makeKeyAndOrderFront.on(bySender((window) => orderFront(window)));
+        PROTOCOL.toggle.on(bySender((window) => window.level === PANEL && DESKTOP.togglePanel(window)));
         PROTOCOL.resize.on(bySender(resize));
         PROTOCOL.setTitle.on(bySender((window, { title }) => retitle(window, title)));
         PROTOCOL.setAnchors.on(bySender((window, { anchors }) => setAnchors(window, anchors)));
@@ -250,10 +251,11 @@ export function createWindows({
     // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false,
     // where the mod may activate for the local seat (DESKTOP.orderFront); an overlay window takes the keyboard only
     // then. A panel window stands where it is: one at the right edge takes the keyboard as an overlay window does, one
-    // in the bar or under an anchor never.
+    // in the bar never, and a view under an anchor is shown for the seats its mod may activate for
+    // (DESKTOP.orderFrontPanel).
     function orderFront(window, { activates = true } = {}) {
         if (window.level === PANEL) {
-            if (window.edge === 'right') DESKTOP.orderFrontPanel(window, { activates });
+            if (window.edge === 'right' || window.anchor) DESKTOP.orderFrontPanel(window, { activates });
             return;
         }
         if (window.level === NORMAL) DESKTOP.orderFront(window, { activates });

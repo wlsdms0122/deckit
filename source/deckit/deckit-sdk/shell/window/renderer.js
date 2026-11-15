@@ -188,6 +188,10 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             zoom: sent('zoom', () => PROTOCOL.zoom.send({ id })),
             orderFront: sent('orderFront', () => PROTOCOL.orderFront.send({ id })),
             makeKeyAndOrderFront: sent('makeKeyAndOrderFront', () => PROTOCOL.makeKeyAndOrderFront.send({ id })),
+            // A view under an anchor is on a person's screen where it was shown for that person: `open` and
+            // `makeKeyAndOrderFront()` show it for whoever the mod may activate for, and `toggle()` puts it away where
+            // it is shown and shows it where it is not. Nothing for any other window.
+            toggle: sent('toggle', () => PROTOCOL.toggle.send({ id })),
             resize(width, height) {
                 if (!positive(width) || !positive(height))
                     throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'resize takes a width and a height above 0');

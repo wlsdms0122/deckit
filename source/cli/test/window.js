@@ -327,17 +327,30 @@ async function main() {
     const bound = desktop.panels.at(-1);
     const frontedBefore = desktop.panelsFronted.length;
     shell.fromPage('make-key-and-order-front', pages.b, { id: view.id });
+    shell.fromPage('order-front', pages.b, { id: view.id });
     const plain = shell.fromPage('open', pages.b, { name: 'unbound', anchor: under });
     check(
-        'a panel window opened with an anchor stands under it, as the desktop places it, with no edge, and is ' +
-            'ordered front by nothing; a window at another level has no anchor',
+        'a panel window opened with an anchor stands under it, as the desktop places it, with no edge, and the ' +
+            'desktop is asked to show it as its mod makes it key; a window at another level has no anchor',
         bound?.id === view.id &&
             bound.edge === null &&
             JSON.stringify(bound.anchor) === JSON.stringify({ mod: 'a', id: 'item' }) &&
             atSide.anchor === null &&
-            desktop.panelsFronted.length === frontedBefore &&
+            JSON.stringify(desktop.panelsFronted.slice(frontedBefore)) ===
+                JSON.stringify([
+                    { id: view.id, activates: true },
+                    { id: view.id, activates: false },
+                ]) &&
             desktop.opened.find(({ id }) => id === plain.id)?.anchor === null,
         bound
+    );
+    for (const id of [view.id, plain.id, side.id]) shell.fromPage('toggle', pages.b, { id });
+    shell.fromPage('toggle', pages.a, { id: view.id });
+    check(
+        "a panel window's toggle is the desktop's to do, asked by its own mod's page; a window at another level " +
+            'has none',
+        JSON.stringify(desktop.panelsToggled) === JSON.stringify([view.id, side.id]),
+        desktop.panelsToggled
     );
     const refusalOf = (options) => {
         try {
@@ -413,6 +426,7 @@ function windowsOver(createWindows) {
         panelsClosed: [],
         panelPressed: [],
         panelsFronted: [],
+        panelsToggled: [],
         anchors: [],
         foreign: new Set(),
         change: () => changes.forEach((listener) => listener()),
@@ -458,6 +472,7 @@ function windowsOver(createWindows) {
         pressPanel: (window) => desktop.panelPressed.push(window.id),
         orderFrontPanel: (window, { activates = true } = {}) =>
             desktop.panelsFronted.push({ id: window.id, activates }),
+        togglePanel: (window) => desktop.panelsToggled.push(window.id),
         setAnchors: (window, anchors) => desktop.anchors.push({ id: window.id, anchors }),
         refusesAnchor: (mod, name) => desktop.foreign.has(`${mod}:${name.mod}/${name.id}`),
         keyPanel: () => null,
