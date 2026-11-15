@@ -14,8 +14,8 @@ const READING = Object.freeze({
     roles: 'array?',
     all: 'boolean?',
     items: 'integer?',
-    text: 'any?',
-    lines: 'any?',
+    text: 'integer?',
+    lines: 'integer?',
     format: 'string?',
 });
 

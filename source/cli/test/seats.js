@@ -176,9 +176,11 @@ async function main() {
         guest.ask('seat/read', { of: 'changes', since: 0.5 }),
         guest.ask('seat/read', { of: 'desktop', depth: 1.5 }),
         guest.ask('seat/read', { of: 'desktop', items: 2.5 }),
+        guest.ask('seat/read', { of: 'window', window: 'w1', text: 1.5 }),
+        guest.ask('seat/read', { of: 'node', ref: 'w1.bar', lines: '2' }),
     ]);
     check(
-        'a button, a count, a mark, a depth and a number of items that is no integer are refused',
+        'a button, a count, a mark, a depth and a number of items, characters or lines that is no integer are refused',
         fractions.every((answer) => answer.error?.kind === 'INVALID_ARGUMENT') && handed.length === 1,
         fractions
     );
