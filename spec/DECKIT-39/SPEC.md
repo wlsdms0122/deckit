@@ -42,6 +42,8 @@ What the content of a window asks of its own window where [windows](../DECKIT-31
 
 The local seat's desktop is what the host app's window shows, but while it follows another seat, under *Following*.
 
+An overlay window, which the host floats outside the desktop as [windows](../DECKIT-31/SPEC.md) fixes it, is on no seat's desktop: it stands in no seat's order, and only the machine's own devices reach it. A seat a transport connection opened neither reads it nor points at it.
+
 ### The seat a mod acts for
 
 A mod is told nothing of seats. Where a rule has a mod act for one seat, as a view shown by activation is shown, that seat is: of the seats the mod may activate for, the one whose input reached the mod last, itself or handed on by a request; where input of none of them reached it, the one of them that opened first; and none where the mod may activate for no seat.
