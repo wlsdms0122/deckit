@@ -830,6 +830,7 @@ async function main() {
     drawnChecks({ COLOURS, LAYOUT, createDesktop }, check);
     const SEATS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'seats.js'));
     chipChecks({ SEATS }, check);
+    await askChecks({ SEATS, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -1560,6 +1561,77 @@ function chipChecks({ SEATS }, check) {
                 null,
             ]),
         parts
+    );
+}
+
+// A user that asks to sit, put to the local seat: the chip the page is told of, and whose press answers it.
+async function askChecks({ SEATS, createDesktop }, check) {
+    const desk = desktopOver(createDesktop, {});
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const other = desk.sit('s1');
+    const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
+    const chipsNow = () =>
+        SEATS.chipsOf(
+            { width: 1200, height: 800 },
+            ['s1'],
+            desk.page().asks.map(({ id }) => id)
+        );
+    // The machine's pointer, told as the environment tells it, in the desktop's page.
+    const machine = async (type, at) => {
+        const buttons = type === 'down' ? [0] : [];
+        desk.carried({ event: 'pointer', type, ...at, button: 0, buttons, page: desk.desktopPage, carried: true });
+        await new Promise((resolve) => setTimeout(resolve));
+    };
+    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    const asking = (id) => {
+        const control = new AbortController();
+        const asked = { control, answer: undefined };
+        desk.seats.served.onAsk({ user: { id, name: id } }, { signal: control.signal }).then((answer) => {
+            asked.answer = answer;
+        });
+        return asked;
+    };
+    const ada = asking('ada');
+    const [, chip] = chipsNow();
+    const input = desk.laid().find(({ page }) => page === desk.desktopPage).input;
+    check(
+        'a user that asks to sit is told to the page, and its chip takes the pointer',
+        JSON.stringify(desk.page().asks) === JSON.stringify([{ id: 1, user: 'ada', name: 'ada' }]) &&
+            chip.kind === 'ask' &&
+            input.some((rect) => JSON.stringify(rect) === JSON.stringify(chip.rect)),
+        [desk.page().asks, input]
+    );
+    const over = [
+        desk.enter(other, pointer('down', middle(chip.allow))),
+        desk.enter(other, pointer('up', middle(chip.allow))),
+    ];
+    await machine('down', middle(chip.allow));
+    await machine('up', middle(chip.deny));
+    await machine('down', middle({ ...chip.rect, width: 16 }));
+    await machine('up', middle({ ...chip.rect, width: 16 }));
+    check(
+        "an attached seat's press on Allow answers nothing, nor does a press let go off the answer it began on",
+        ada.answer === undefined && desk.page().asks.length === 1 && over.every((answer) => answer.over === 'desktop'),
+        [ada.answer, over]
+    );
+    await machine('down', middle(chip.allow));
+    await machine('up', middle(chip.allow));
+    check(
+        "the local seat's press on Allow answers yes, and the ask is over",
+        ada.answer === true && desk.page().asks.length === 0,
+        [ada.answer, desk.page().asks]
+    );
+    const [grace, late] = [asking('grace'), asking('late')];
+    const [, denied] = chipsNow();
+    await machine('down', middle(denied.deny));
+    await machine('up', middle(denied.deny));
+    const left = desk.page().asks.map(({ user }) => user);
+    late.control.abort();
+    check(
+        "the local seat's press on Deny answers no, and an ask no answer is waited for goes",
+        grace.answer === false && late.answer === undefined && left.join() === 'late' && desk.page().asks.length === 0,
+        [grace.answer, late.answer, left, desk.page().asks]
     );
 }
 

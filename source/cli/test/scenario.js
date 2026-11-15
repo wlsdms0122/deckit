@@ -36,7 +36,7 @@ const IDLE_TIME = 8;
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them declaring addresses as it may not, the window probe shipped with the app
-// assembled in `app` as a system mod, its seats served by the test, Settings placed second in the Dock, as a person
+// assembled in `app` as a system mod, Settings placed second in the Dock, as a person
 // would have arranged it, what REMOVED left, noted as not cleared yet, and the idle time of a seat as a host sets it.
 function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
@@ -44,7 +44,6 @@ function seed({ data, files, app }) {
     fs.rmSync(path.join(mods, PROBE), { recursive: true });
     fs.renameSync(path.join(mods, JOINS), path.join(data, JOINS));
     shipProbe({ data, app });
-    serveSeats({ app });
     const next = path.join(data, NEXT_CHILD);
     fs.cpSync(path.join(__dirname, 'mods', 'region-child'), next, { recursive: true });
     fs.appendFileSync(path.join(next, 'main.js'), '// The next revision.\n');
@@ -114,22 +113,6 @@ function shipProbe({ data, app }) {
     );
 }
 
-// The app assembled in `app` has the ask of its seats answered by the test (served.js) as it connects: deckit's main
-// bundle is loaded through a file that hands what connect answers over.
-function serveSeats({ app }) {
-    const bundle = path.join(app, 'deckit', 'shell-main.js');
-    fs.renameSync(bundle, path.join(app, 'deckit', 'shell-main-built.js'));
-    fs.writeFileSync(
-        bundle,
-        [
-            "const built = require('./shell-main-built.js');",
-            `const { serve } = require(${JSON.stringify(path.join(__dirname, 'served.js'))});`,
-            'module.exports = { ...built, connect: (...given) => serve(built.connect(...given)) };',
-            '',
-        ].join('\n')
-    );
-}
-
 // The data store WebKit keeps the session `partition` spells in: a UUID made from its name.
 function storeOf(partition) {
     const hash = require('crypto').createHash('sha1').update(`deckit-web:${partition}`).digest();
@@ -177,12 +160,8 @@ async function run({
 }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
-    const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = seat({
-        main,
-        pageById,
-        compose,
-        desktop: () => desktop,
-    });
+    const local = seat({ main, pageById, compose, desktop: () => desktop });
+    const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = local;
     const asksAttention = async (id) => !!(await dockNow()).find((item) => item.id === id)?.attention;
     // What the strip over the desktop holds: nothing but the host's controls.
     const stripText = () => desktop.evaluate(`document.querySelector('.deckit-desktop-strip')?.textContent ?? null`);
@@ -2982,7 +2961,20 @@ async function run({
     }
 
     try {
-        await OUTSIDE.run({ check, home, logged, main, windowsNow, desktopLaid, idleTime: IDLE_TIME });
+        const { asksNow, answerOf, answer, allowed } = local;
+        await OUTSIDE.run({
+            check,
+            home,
+            logged,
+            main,
+            windowsNow,
+            desktopLaid,
+            idleTime: IDLE_TIME,
+            asksNow,
+            answerOf,
+            answer,
+            allowed,
+        });
     } catch (error) {
         check('outside: a party attached', false, error.stack);
     }
@@ -3017,4 +3009,4 @@ async function run({
     return report;
 }
 
-module.exports = { seed, run, serveSeats };
+module.exports = { seed, run };

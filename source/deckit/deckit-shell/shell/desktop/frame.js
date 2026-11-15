@@ -239,6 +239,26 @@ const STYLE = `
     .deckit-seat-chip-state { flex: none; color: var(--deckit-muted); font-weight: 400; }
     .deckit-seat-chip[data-idle] .deckit-seat-chip-dot { background: none; }
     .deckit-seat-chip[data-idle] .deckit-seat-chip-name { color: var(--deckit-muted); }
+    .deckit-seat-chip[data-ask] {
+        width: ${CHIP.ask}px;
+        padding: 0 ${2 * (CHIP.answer + CHIP.inset) + 8}px 0 12px;
+    }
+    .deckit-seat-chip-answer {
+        position: absolute;
+        top: ${CHIP.inset}px;
+        display: grid;
+        place-items: center;
+        width: ${CHIP.answer}px;
+        height: ${CHIP.height - 2 * CHIP.inset}px;
+        border-radius: var(--deckit-radius-round);
+        background: var(--deckit-fill);
+    }
+    .deckit-seat-chip-answer[data-answer='allow'] {
+        right: ${CHIP.inset}px;
+        background: var(--deckit-accent-fill);
+        color: var(--deckit-on-accent);
+    }
+    .deckit-seat-chip-answer[data-answer='deny'] { right: ${CHIP.answer + 2 * CHIP.inset}px; }
     .deckit-drop[data-shown] {
         opacity: 1;
         transform: none;
@@ -457,27 +477,54 @@ function boot(theme, channels) {
             cursor.name.textContent = name;
             put(cursor, { ...at, buttons });
         }
-        drawChips(all.filter(({ shown }) => !shown));
+        drawChips(
+            all.filter(({ shown }) => !shown),
+            state.asks
+        );
     }
 
     // A chip for each seat but the one shown, at the desktop's bottom right, one over another from the bottom as
     // SEATS.chipsOf lays them: a dot in the seat's colour, its user's name, and, for a seat whose devices gave
-    // nothing for the idle time, the dot hollow, the name muted and the word for it.
-    function drawChips(others) {
-        const made = others.map(({ id, name, colour, idle }, at) => {
+    // nothing for the idle time, the dot hollow, the name muted and the word for it. Over them, a chip for each user
+    // that asks to sit: its name, what it asks, and the two answers, Deny then Allow, where SEATS.chipsOf has them.
+    // The page draws them and hears no press on them: main recognizes what a seat's pointer does there.
+    function drawChips(others, asks) {
+        const chipAt = (at) => {
             const chip = element(document, 'div', 'deckit-seat-chip');
+            chip.style.bottom = CHIP.margin + at * (CHIP.height + CHIP.gap) + 'px';
+            return chip;
+        };
+        const worded = (className, text) => {
+            const word = element(document, 'span', className);
+            word.textContent = text;
+            return word;
+        };
+        const seated = others.map(({ id, name, colour, idle }, at) => {
+            const chip = chipAt(at);
             chip.dataset.seat = id;
             chip.toggleAttribute('data-idle', idle);
-            chip.style.bottom = CHIP.margin + at * (CHIP.height + CHIP.gap) + 'px';
             chip.style.setProperty('--deckit-seat', `var(--deckit-seat-${colour})`);
-            const text = element(document, 'span', 'deckit-seat-chip-name');
-            text.textContent = name;
-            chip.append(element(document, 'span', 'deckit-seat-chip-dot'), text);
-            if (idle) chip.append(element(document, 'span', 'deckit-seat-chip-state'));
-            if (idle) chip.lastChild.textContent = 'idle';
+            chip.append(element(document, 'span', 'deckit-seat-chip-dot'), worded('deckit-seat-chip-name', name));
+            if (idle) chip.append(worded('deckit-seat-chip-state', 'idle'));
             return chip;
         });
-        chips.replaceChildren(...made);
+        const asking = asks.map(({ id, user, name }, at) => {
+            const chip = chipAt(others.length + at);
+            chip.dataset.ask = id;
+            chip.dataset.user = user;
+            chip.append(
+                worded('deckit-seat-chip-name', name),
+                worded('deckit-seat-chip-state', 'asks to sit'),
+                ...['deny', 'allow'].map((answer) => {
+                    const part = worded('deckit-seat-chip-answer', answer === 'allow' ? 'Allow' : 'Deny');
+                    part.dataset.answer = answer;
+                    part.setAttribute('role', 'button');
+                    return part;
+                })
+            );
+            return chip;
+        });
+        chips.replaceChildren(...seated, ...asking);
     }
 
     // What a seat's pointer just did, drawn as it comes: the cursor is there, gliding by the `move` spring, or at once

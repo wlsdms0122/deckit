@@ -7,7 +7,7 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame }], seats, drop, strip, dock,
+// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame }], seats, asks, drop, strip, dock,
 // down }`: the windows on the screen of the seat at the host window, `frame` on the stage, `key` whether it is that
 // seat's key window, `holder` the name of the colour of the seat that holds its keyboard (a seat colour of the kit's
 // token), or null, `bar` its title bar (model/layout.js barOf), `title` what the title bar
@@ -16,7 +16,8 @@ export const setup = CHANNEL.pageToMain(
 // `[{ id, name, colour, at, buttons, idle, shown }]`, every seat at the desktop: its user's name, its colour's name,
 // where its pointer is on the stage, or null before it was anywhere, the buttons it holds, whether its devices gave
 // nothing for the idle time, and whether it is the one whose view the host window shows, each as of this telling;
-// `drop`
+// `asks`, `[{ id, user, name }]`, the users that ask to sit, in the order they asked, each ask under a number of its
+// own with its user's id and name; `drop`
 // `{ tile, frame }`, the tile (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame,
 // or null; `strip`
 // `{ height, controlsWidth }`, the host window's bar over the page's top, which drags the host window, and the width

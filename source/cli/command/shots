@@ -19,7 +19,6 @@ const { execFileSync } = require('child_process');
 const { start } = require(path.join(root, 'source', 'cli', 'test', 'start.js'));
 const { seat } = require(path.join(root, 'source', 'cli', 'test', 'seat.js'));
 const { until, sleep, ALT, CTRL, META } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
-const { serveSeats } = require(path.join(root, 'source', 'cli', 'test', 'scenario.js'));
 const { readKey, connect } = require(path.join(root, 'source', 'cli', 'outside', 'client.js'));
 const OUT = path.join(root, '.build', 'shots');
 const LOOKS = ['light', 'dark'];
@@ -157,8 +156,7 @@ function site() {
 // record, each record a value the app's storage takes (`valueProblem`, deckit-sdk/deckit/request), so a mod can write
 // back what it read.
 function seedOf(origin, valueProblem) {
-    return ({ data, files: given, app }) => {
-        serveSeats({ app });
+    return ({ data, files: given }) => {
         const files = path.join(given, FOLDER);
         for (const [name, text] of Object.entries(FILES)) {
             fs.mkdirSync(path.dirname(path.join(files, name)), { recursive: true });
@@ -204,7 +202,7 @@ function seedOf(origin, valueProblem) {
 // Every surface in `look`, each into `shots`; the names of those not drawn.
 async function draw(app, look, shots, origin) {
     const { page, pages, pageById, overlayOf, compose, main } = app;
-    const { desktopLaid, windowsNow, keyMod, windowOf, dockNow, show, desktopShot } = seat({
+    const { desktopLaid, windowsNow, keyMod, windowOf, dockNow, show, desktopShot, allowed } = seat({
         main,
         pageById,
         compose,
@@ -292,8 +290,8 @@ async function draw(app, look, shots, origin) {
     await sleep(400);
     await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
     await surface('desktop-windows', backed);
-    // Two users sit beside the local seat, each at a transport connection of its own with a key of its own, and each
-    // presses a window where it shows for it, so it holds that window's keyboard: their cursors at rest, then one of
+    // Two users sit beside the local seat, each at a transport connection of its own with a key of its own, let in by
+    // the local seat's press on Allow where it is asked, and each presses a window where it shows for it, so it holds that window's keyboard: their cursors at rest, then one of
     // them mid drag, its button held. Each shot is cut to what the two do, with a margin.
     const attach = async (id, name) => {
         const file = path.join(app.data, `${id}.key`);
@@ -302,7 +300,7 @@ async function draw(app, look, shots, origin) {
             stdio: 'pipe',
         });
         const party = await connect(path.join(app.home, 'deckit.sock'));
-        await party.authenticate({ principal: id, ...readKey(fs.readFileSync(file, 'utf8')) });
+        await allowed(id, party.authenticate({ principal: id, ...readKey(fs.readFileSync(file, 'utf8')) }));
         const point = (type, { x, y }, more = {}) => party.request('seat/pointer', { type, x, y, ...more });
         return { point, leave: () => party.close() };
     };

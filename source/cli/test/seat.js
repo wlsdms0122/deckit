@@ -178,7 +178,64 @@ function seat({ main, pageById, compose, desktop }) {
         }
         await compose(name, layers, options);
     };
-    return { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot };
+    // The users that ask to sit, by id, as the desktop's page draws their chips at its bottom right.
+    const asksNow = () =>
+        desktop().evaluate(
+            `[...document.querySelectorAll('.deckit-seat-chip[data-ask]')].map((node) => node.dataset.user)`
+        );
+    // The middle of an answer, 'allow' or 'deny', of the chip of the user that asks, once the page draws it within
+    // `within` ms, or null.
+    const answerOf = (user, word, within) =>
+        until(
+            () =>
+                desktop().evaluate(`(() => {
+                    const chip = document.querySelector('.deckit-seat-chip[data-user="${user}"]');
+                    const part = chip?.querySelector('[data-answer="${word}"]');
+                    if (!part) return null;
+                    const { x, y, width, height } = part.getBoundingClientRect();
+                    return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) };
+                })()`),
+            within
+        );
+    // The machine's press at a point of the desktop's page, the local seat's.
+    const pressAt = async (at) => {
+        for (const type of ['down', 'up'])
+            await main(`return webkit.sendMouse(${desktop().id}, ${JSON.stringify({ type, ...at })})`);
+    };
+    // The local seat's answer to `user`, as the machine presses it on the chip: the users that asked as it did, or
+    // null where the user did not ask in time.
+    const answer = async (user, word, within = 10000) => {
+        const at = await answerOf(user, word, within);
+        if (!at) return null;
+        const asking = await asksNow();
+        await pressAt(at);
+        return asking;
+    };
+    // What `attaching` comes to, the local seat allowing `user` where it is asked: an idle one is not.
+    const allowed = async (user, attaching) => {
+        let over = false;
+        const come = Promise.resolve(attaching).finally(() => (over = true));
+        come.catch(() => {});
+        while (!over) if (await answer(user, 'allow', 300)) break;
+        return come;
+    };
+    return {
+        laidNow,
+        desktopLaid,
+        pageAt,
+        windowsNow,
+        keyMod,
+        windowOf,
+        dockNow,
+        dockClick,
+        show,
+        desktopShot,
+        asksNow,
+        answerOf,
+        pressAt,
+        answer,
+        allowed,
+    };
 }
 
 module.exports = { seat };

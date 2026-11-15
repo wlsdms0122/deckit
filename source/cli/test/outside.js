@@ -3,22 +3,24 @@
 // refused and told nothing, a principal that runs takes no second party, and the run asks what a run asks, bounded by
 // a job that grants only the seat permission: its own records and events, no connection, and what a seat does and
 // reads. The users and the keys are made, listed and removed as a host does it, by `deckit user` and `deckit key`
-// against the app's folder, while the app runs. The app's seats are served by the test (served.js): the ask is
-// answered yes, no for one user and never for another, and what a seat reads gets fixed answers, which a terminal
-// attached by `deckit seat` prints. What a seat does the shell serves: two users, each a terminal of its own, press
-// and type in the windows of the desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the
-// local seat sees of them, and `idleTime` the seconds a seat is idle after, as the app was started with.
+// against the app's folder, while the app runs. The shell serves the seats: a user that asks to sit is a chip on the
+// desktop's page, which the local seat answers as the machine presses, yes, no for one user and never for another,
+// and an idle local seat is not asked. Two users, each a terminal of its own, press and type in the windows of the
+// desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the local seat sees of them, and
+// `idleTime` the seconds a seat is idle after, as the app was started with.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 const { makeKey, readKey, connect } = require('../outside/client.js');
 const RELAY = require('../outside/relay.js');
 const { sleep, until } = require('./devtools.js');
-const SERVED = require('./served.js');
 const READING = require('./reading.js');
 
 // How long an admission waits for the local seat's answer, in ms (deckit-shell/deckit/seat).
 const ASK_TIME = 60000;
+// The users the local seat answers no, and never.
+const DENIED = 'outside-denied';
+const WAITS = 'outside-waiting';
 
 const refusedWith = (promise) =>
     promise.then(
@@ -37,7 +39,19 @@ const refusedBy = (run) => {
 const settled = (promise, limit = 5000) =>
     Promise.race([promise.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), limit))]);
 
-async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTime }) {
+async function run({
+    check,
+    home,
+    logged,
+    main,
+    windowsNow,
+    desktopLaid,
+    idleTime,
+    asksNow,
+    answerOf,
+    answer,
+    allowed,
+}) {
     const socket = path.join(home, 'deckit.sock');
     const principal = 'outside-party';
     const key = makeKey();
@@ -50,18 +64,30 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         cli('user', 'add', id, '--name', name, '--key', file);
         return { file, ...readKey(fs.readFileSync(file, 'utf8')) };
     };
-    const served = (expression) => main(`const kept = globalThis.deckitTestSeats; return ${expression}`);
+    const inPage = async (id, script) => {
+        const told = await main(`return webkit.evaluate(${id}, ${JSON.stringify(`return ${script}`)}, 'page')`);
+        try {
+            return JSON.parse(told);
+        } catch {
+            return told;
+        }
+    };
+    // The seats the desktop's page draws a chip of at its bottom right, by id.
+    const desk = (await desktopLaid())?.pages.find(({ url }) => /^deckit:\/\/desktop\//.test(url ?? ''))?.id;
+    const seatsNow = () =>
+        inPage(desk, `[...document.querySelectorAll('.deckit-seat-chip[data-seat]')].map((node) => node.dataset.seat)`);
 
     // Nobody answers the ask for this user: its party waits as long as an admission waits, while the rest goes on.
-    const waiting = userWithKey(SERVED.WAITS, 'Waits');
+    const waiting = userWithKey(WAITS, 'Waits');
     const waits = await connect(socket);
     let waitsTold = 0;
+    let waitsAnswered = false;
     waits.on('attach/asking', () => waitsTold++);
     const began = Date.now();
-    const unanswered = refusedWith(waits.authenticate({ principal: SERVED.WAITS, ...waiting })).then((refusal) => ({
-        refusal,
-        after: Date.now() - began,
-    }));
+    const unanswered = refusedWith(waits.authenticate({ principal: WAITS, ...waiting })).then((refusal) => {
+        waitsAnswered = true;
+        return { refusal, after: Date.now() - began };
+    });
 
     deckit('add', principal, key.publicKey, '--name', 'test');
     const keyed = await connect(socket);
@@ -70,7 +96,7 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
     const users = cli('user', 'list');
     check(
         'outside: the users are listed, the local one among them',
-        users === `local Deckit\n${principal} Outside Party\n${SERVED.WAITS} Waits\n`,
+        users === `local Deckit\n${principal} Outside Party\n${WAITS} Waits\n`,
         users
     );
     const asMod = refusedBy(() => cli('user', 'add', 'editor', '--name', 'Editor'));
@@ -109,21 +135,28 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         pending?.code === -32002 && waitsTold === 1,
         JSON.stringify({ pending, waitsTold })
     );
-    const denying = userWithKey(SERVED.DENIED, 'Denied');
+    const denying = userWithKey(DENIED, 'Denied');
     const unwelcome = await connect(socket);
     let deniedTold = 0;
     unwelcome.on('attach/asking', () => deniedTold++);
-    const denied = await refusedWith(unwelcome.authenticate({ principal: SERVED.DENIED, ...denying }));
+    const refusing = refusedWith(unwelcome.authenticate({ principal: DENIED, ...denying }));
+    const askedDenied = await answer(DENIED, 'deny');
+    const denied = await refusing;
     check(
-        'outside: a user the local seat denies is told it was asked, refused, and closed',
-        denied?.kind === 'REFUSED' && deniedTold === 1 && (await settled(unwelcome.closed)),
-        JSON.stringify({ denied, deniedTold })
+        "outside: a user the local seat's press on Deny denies is told it was asked, refused, and closed",
+        same(askedDenied, [WAITS, DENIED]) &&
+            denied?.kind === 'REFUSED' &&
+            deniedTold === 1 &&
+            (await settled(unwelcome.closed)),
+        JSON.stringify({ askedDenied, denied, deniedTold })
     );
 
     const party = await connect(socket);
     let told = 0;
     party.on('attach/asking', () => told++);
-    const attached = await party.authenticate({ principal, ...key });
+    const attaching = party.authenticate({ principal, ...key });
+    const askedParty = await answer(principal, 'allow');
+    const attached = await attaching;
     check(
         'outside: a registered key of a user attaches as a run of it, granted the seat permission only',
         attached.principal === principal &&
@@ -133,21 +166,18 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         JSON.stringify(attached)
     );
     const seat = { id: 's1', local: false, user: { id: principal, name: 'Outside Party' } };
-    const open = await served(
-        `({ asked: kept.asked, opened: kept.opened, list: kept.seats.list(), local: kept.seats.local,
-            idle: kept.seats.isIdle(kept.seats.local) })`
-    );
     check(
-        'outside: a user the local seat allows is told it was asked, then sits at a seat that opened',
-        told === 1 && same(attached.seat, seat) && same(open.asked, [SERVED.WAITS, SERVED.DENIED, principal]),
-        JSON.stringify({ told, seat: attached.seat, asked: open.asked })
+        "outside: a user the local seat's press on Allow allows is told it was asked, then sits at a seat that opened",
+        told === 1 && same(attached.seat, seat) && same(askedParty, [WAITS, principal]),
+        JSON.stringify({ told, seat: attached.seat, askedParty })
     );
+    const open = {
+        seats: await until(async () => same(await seatsNow(), ['s1']) && seatsNow(), 3000),
+        asks: await until(async () => same(await asksNow(), [WAITS]) && asksNow(), 3000),
+    };
     check(
-        'outside: the shell is told of the seat, beside the local seat, which is not idle',
-        same(open.opened, ['local', 's1']) &&
-            same(open.list, [open.local, seat]) &&
-            same(open.local, { id: 'local', local: true, user: { id: 'local', name: 'Deckit' } }) &&
-            open.idle === false,
+        'outside: the seat that opened has a chip on the desktop, and the ask that was answered is gone from it',
+        same(open, { seats: ['s1'], asks: [WAITS] }),
         JSON.stringify(open)
     );
     const second = await connect(socket);
@@ -162,6 +192,18 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
     party.on('event/deliver', (event) => delivered.push(event));
     await party.request('runner/started', started);
     const press = { type: 'down', x: 40, y: 30, button: 0, count: 1 };
+    // The ask is put to the local seat: an attached seat's press on Allow reaches the desktop and answers nothing.
+    const allowOfWaits = await answerOf(WAITS, 'allow', 1000);
+    const byOther = allowOfWaits && [
+        await party.request('seat/pointer', { ...press, ...allowOfWaits }),
+        await party.request('seat/pointer', { ...press, ...allowOfWaits, type: 'up' }),
+    ];
+    await sleep(500);
+    check(
+        "outside: an attached seat's press on Allow answers nothing",
+        byOther?.[0]?.over === 'desktop' && same(await asksNow(), [WAITS]) && !waitsAnswered,
+        JSON.stringify({ allowOfWaits, byOther, asks: await asksNow(), waitsAnswered })
+    );
     const pressed = await party.request('seat/pointer', press);
     const typed = await party.request('seat/text', { type: 'insert', text: 'seen' });
     check(
@@ -180,6 +222,7 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
                 new RegExp(`^seat ${seat.id} "Outside Party" [a-z]+ at 40,30( key w\\d+)? \\(you\\)$`).test(line)
             ) &&
             asData.data.seats.some(({ id, you }) => id === seat.id && you) &&
+            asData.data.seats.some(({ id, name }) => id === 'local' && name === 'Deckit') &&
             !!malformed,
         JSON.stringify({ reading, asData, malformed })
     );
@@ -237,11 +280,16 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
     party.close();
     const crashed = await until(() => logged().includes(`${principal}: its transport connection closed`), 5000);
     check('outside: a close without quit is a failed run', crashed, '');
-    const closed = await until(async () => same(await served('kept.closed'), ['s1']), 3000);
-    check('outside: a seat closes with its run', closed, JSON.stringify(await served('kept.closed')));
+    const closed = await until(async () => same(await seatsNow(), []), 3000);
+    check('outside: a seat closes with its run, and its chip goes', closed, JSON.stringify(await seatsNow()));
     const again = await connect(socket);
     const next = await until(async () => (await refusedWith(again.request('record/keys', {})))?.code === -32002, 1000);
-    const reattached = next && (await again.authenticate({ principal, ...key }).catch((error) => error));
+    const reattached =
+        next &&
+        (await allowed(
+            principal,
+            again.authenticate({ principal, ...key }).catch((error) => error)
+        ));
     check(
         'outside: its principal runs again in a new run',
         reattached?.run === 2,
@@ -269,7 +317,10 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
     sitting.stdout.on('data', (chunk) => (said += chunk));
     sitting.stderr.on('data', (chunk) => (refused += chunk));
     const exited = new Promise((resolve) => sitting.once('exit', resolve));
-    const sat = await until(() => /^attached as tty, seat (s\d+)$/m.exec(said)?.[1], 10000);
+    const sat = await allowed(
+        terminal,
+        until(() => /^attached as tty, seat (s\d+)$/m.exec(said)?.[1], 10000)
+    );
     const relay = path.join(home, 'seats', `${terminal}.sock`);
     check(
         'outside: deckit seat attach says it asks, then sits, and only its owner opens its relay',
@@ -294,7 +345,7 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
             (await exited) === 0 &&
             said.endsWith('detached\n') &&
             !fs.existsSync(relay) &&
-            (await until(async () => (await served('kept.closed')).includes(sat), 3000)),
+            (await until(async () => !(await seatsNow()).includes(sat), 3000)),
         said
     );
 
@@ -307,7 +358,10 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         const sits = spawn(command, ['seat', 'attach', id, '--key', keyFile, '--home', home]);
         let told = '';
         sits.stdout.on('data', (chunk) => (told += chunk));
-        const seat = await until(() => new RegExp(`^attached as ${id}, seat (s\\d+)$`, 'm').exec(told)?.[1], 10000);
+        const seat = await allowed(
+            id,
+            until(() => new RegExp(`^attached as ${id}, seat (s\\d+)$`, 'm').exec(told)?.[1], 10000)
+        );
         const as = (...args) => {
             try {
                 return cli('seat', ...args, '--as', id).trim();
@@ -316,14 +370,6 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
             }
         };
         return { seat, as, gone: new Promise((resolve) => sits.once('exit', resolve)) };
-    };
-    const inPage = async (id, script) => {
-        const told = await main(`return webkit.evaluate(${id}, ${JSON.stringify(`return ${script}`)}, 'page')`);
-        try {
-            return JSON.parse(told);
-        } catch {
-            return told;
-        }
     };
     const FIELD = 'deckit-seat-field';
     const field = (page) =>
@@ -479,7 +525,7 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
         // lays them (desktop/model/seats.js CHIP): 12 from the edges, 148 by 28, 6 apart.
         const chipsDrawn = await inPage(
             desktopPage,
-            `[...document.querySelectorAll('.deckit-seat-chip')].map((node) => {
+            `[...document.querySelectorAll('.deckit-seat-chip[data-seat]')].map((node) => {
                 const { right, bottom, width, height } = node.getBoundingClientRect();
                 return [
                     node.dataset.seat,
@@ -584,15 +630,11 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
     );
 
     const { refusal, after } = await unanswered;
-    const withdrawn = await served('kept.withdrawn');
+    const asking = await until(async () => same(await asksNow(), []), 3000);
     check(
-        'outside: an ask nobody answers is answered no once its time has passed, and is over',
-        refusal?.kind === 'REFUSED' &&
-            after >= ASK_TIME &&
-            after < ASK_TIME + 5000 &&
-            waitsTold === 1 &&
-            withdrawn.includes(SERVED.WAITS),
-        JSON.stringify({ refusal, after, withdrawn })
+        'outside: an ask nobody answers is answered no once its time has passed, and its chip goes',
+        refusal?.kind === 'REFUSED' && after >= ASK_TIME && after < ASK_TIME + 5000 && waitsTold === 1 && asking,
+        JSON.stringify({ refusal, after, asks: await asksNow() })
     );
 }
 
