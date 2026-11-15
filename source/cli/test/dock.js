@@ -8,8 +8,9 @@
 // the mod that opens it, the host window coming up only as the mod may activate, any other mod refused; what the
 // person does to it in the desktop's page, done by the seat whose screen that is: an item clicked, a mod quit, kept or
 // taken out, the kept ones reordered, each drawn again, and nothing a mod's page sends there; and `shell.mods` in a
-// mod's page (dock/renderer), each member a request refused as the shell's handle refuses one. Exits 1 with a line for
-// each check that failed. The packages are ES modules, so they are imported as such.
+// mod's page (dock/renderer), each member a request refused as the shell's handle refuses one; and the Dock's page
+// (dock/view) over a stand-in for the document. Exits 1 with a line for each check that failed. The packages are ES
+// modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -460,12 +461,78 @@ async function main() {
         DOCK.inputOf(desk, true, four, menu)
     );
 
+    await viewChecks({ DOCK, desk, four, check });
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
     }
     console.log(`ok: ${count} dock checks`);
     process.exit(0);
+}
+
+// The Dock's page (dock/view) over a stand-in for the document: where it draws the menu main tells it.
+async function viewChecks({ DOCK, desk, four, check }) {
+    const VIEW = await import(url('deckit-shell', 'shell', 'dock', 'view.js'));
+    const made = [];
+    global.document = { createElement: (name) => made[made.push(element(name)) - 1] };
+    global.window = { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {} };
+    global.CSS = { escape: (text) => text };
+    const dock = VIEW.make({ ui: { addStyle() {} }, onPointer() {}, onOut() {}, onGlass() {} });
+    const menu = DOCK.menuOf(desk, four, 'd');
+    dock.update({ items: [], active: null, attention: [], held: null, menu });
+    const one = (name) => made.find(({ className }) => className === name);
+    const [slides, drawn] = [one('deckit-dock'), one('deckit-dock-menu')];
+    const holders = [];
+    for (let node = drawn.parent; node; node = node.parent) holders.push(node);
+    const { left, top, width, height } = drawn.style;
+    const { x, y } = menu.frame;
+    check(
+        "the Dock's page draws a menu at the model's frame, in the page and not in what slides, which is what its " +
+            'descendants are placed against while it moves',
+        !holders.includes(slides) &&
+            holders.includes(dock.element) &&
+            slides.parent === dock.element &&
+            JSON.stringify([left, top, width, height]) === JSON.stringify([`${x}px`, `${y}px`, '160px', '110px']) &&
+            drawn.children.filter(({ className }) => className === 'deckit-dock-menu-entry').length === 3,
+        { holders: holders.map(({ className }) => className), style: drawn.style }
+    );
+}
+
+// A stand-in for an element of a page: what holds it and what it holds, its attributes and style, and what listens.
+function element(name) {
+    const attributes = new Map();
+    const node = {
+        name,
+        className: '',
+        dataset: {},
+        style: {},
+        hidden: false,
+        parent: null,
+        children: [],
+        heard: {},
+        rect: { x: 0, y: 0, width: 0, height: 0 },
+        setAttribute: (key, value) => attributes.set(key, String(value)),
+        getAttribute: (key) => attributes.get(key) ?? null,
+        hasAttribute: (key) => attributes.has(key),
+        removeAttribute: (key) => attributes.delete(key),
+        toggleAttribute: (key, on) => (on ? attributes.set(key, '') : attributes.delete(key)),
+        append(...nodes) {
+            for (const each of nodes) each.parent = node;
+            node.children.push(...nodes);
+        },
+        replaceChildren(...nodes) {
+            node.children = [];
+            node.append(...nodes);
+        },
+        addEventListener: (type, listener) => (node.heard[type] ??= []).push(listener),
+        closest: () => null,
+        querySelector: () => null,
+        querySelectorAll: () => [],
+        getBoundingClientRect: () => node.rect,
+        getAnimations: () => [],
+    };
+    return node;
 }
 
 // The bottom of a rect.

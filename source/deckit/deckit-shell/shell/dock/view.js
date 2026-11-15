@@ -200,7 +200,11 @@ function make({ ui, onPointer, onOut, onGlass }) {
     menuBox.hidden = true;
     TOKEN.whenOpaque(glaze);
     card.append(keptList.element, divider, runningList.element);
-    element.append(card, menuBox);
+    element.append(card);
+    // The menu stands beside what slides, not in it: what moves is what its fixed descendants are placed against, so
+    // a menu in it would stand off the model's rects until the slide is over.
+    const root = tag('div', 'deckit-dock-root');
+    root.append(element, menuBox);
 
     for (const node of [card, menuBox]) forward(node);
     element.addEventListener('pointerenter', () => {
@@ -433,7 +437,7 @@ function make({ ui, onPointer, onOut, onGlass }) {
         ]);
     }
 
-    return { element, update, setTop };
+    return { element: root, update, setTop };
 }
 
 // MARK: - Private
