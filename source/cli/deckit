@@ -30,6 +30,9 @@ deckit: a library a host app embeds to take mods, the way a game does
                    sits at a seat of the app as the user, until detached or interrupted
   seat detach | read | changes | capture | move | press | drag | scroll | key | type | watch
                    what the attached user does and reads at its seat (deckit seat, alone, lists each)
+  seat asking [on | off] [--home <folder>]
+                   whether a user that attaches waits until the local seat lets it sit: prints which, set first
+                   where a word says so
 
 For work on deckit itself, and kept out of manifest.toml:
 

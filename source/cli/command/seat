@@ -2,7 +2,9 @@
 // A user at a seat of the app, from a terminal. `attach` proves the user by its key, sits until it is detached or
 // interrupted, and relays what the other commands ask (outside/relay.js): each of them asks the host one thing of the
 // seat and prints what it answered. The folder is Deckit.app's folder of deckit or the one `--home` names; the user
-// is the one `--as` or DECKIT_SEAT names, or the only one attached there. Exits 1 with why the host refused.
+// is the one `--as` or DECKIT_SEAT names, or the only one attached there. `asking` is the host's own: whether a user
+// that attaches waits until the local seat lets it sit, set and read through the core the last build made, as the
+// users are (outside/keys.js), and held to from the next attach on. Exits 1 with why the host refused.
 const fs = require('fs');
 const path = require('path');
 
@@ -23,7 +25,8 @@ const USAGE = [
     '       deckit seat key <chord>      (Enter, Meta+KeyS, ArrowDown)',
     '       deckit seat type <text>',
     '       deckit seat watch',
-    "(each takes --home <folder>, deckit's folder, and all but attach --as <user>)",
+    '       deckit seat asking [on | off]',
+    "(each takes --home <folder>, deckit's folder, and all but attach and asking --as <user>)",
 ].join('\n');
 const VALUED = ['key', 'home', 'as', 'depth', 'roles', 'items', 'out', 'scale', 'button', 'count'];
 const FLAGS = ['all', 'json', 'shift', 'alt', 'control', 'meta'];
@@ -75,6 +78,14 @@ async function attach(user) {
     await party.closed;
     close();
     console.log('detached');
+}
+
+// Whether a user that attaches is asked of the local seat, printed as `on` or `off`, set first where a word says so.
+async function asking(word) {
+    const words = { on: true, off: false };
+    if (rest.length > 1 || (word !== undefined && !Object.hasOwn(words, word))) refuse();
+    const kept = await KEYS.ask(home, 'seat/settings', word === undefined ? {} : { asking: words[word] });
+    console.log(kept.asking ? 'on' : 'off');
 }
 
 // The relay of the user this terminal acts for.
@@ -202,6 +213,7 @@ const ASKS = {
 
 const main = async () => {
     if (action === 'attach') return attach(rest[0]);
+    if (action === 'asking') return asking(rest[0]);
     if (!Object.hasOwn(ASKS, action ?? '')) refuse();
     const seat = await relay();
     await ASKS[action](seat, rest);
