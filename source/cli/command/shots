@@ -432,10 +432,13 @@ async function draw(app, look, shots, origin) {
         await desktopShot(name, { under, crop: around([from, to, other]) });
         await users[0].point('up', to, { button: 0, buttons: [] });
     });
-    // One seat's cursor on its own window where the local seat has another window in front, drawn dimmed, and the
-    // other's at rest on a window that shows, drawn whole.
-    await surface('seats-dimmed', async (name) => {
+    // Three seats' cursors by what covers them for the local seat. One of the two is on its own window where the
+    // local seat has another window in front, so it is not seen; a third user, who has that same window in front, is
+    // at the edge of the window that covers it, cut there; the other of the two is at rest on a window that shows,
+    // whole. The third leaves after.
+    await surface('seats-under', async (name) => {
         const all = await windowsNow();
+        const within = ({ x, y, width, height }, at) => at.x >= x && at.y >= y && at.x < x + width && at.y < y + height;
         const shared = (one, other) => {
             const [x, y] = [Math.max(one.x, other.x), Math.max(one.y, other.y)];
             const width = Math.min(one.x + one.width, other.x + other.width) - x;
@@ -444,16 +447,33 @@ async function draw(app, look, shots, origin) {
         };
         for (const [nth, user] of users.entries()) {
             const at = all.findIndex(({ id }) => id === held[nth]);
-            const covers = at < 0 ? [] : all.slice(at + 1).flatMap(({ rect }) => shared(all[at].rect, rect) ?? []);
-            if (!covers.length || !users[1 - nth]) continue;
-            const covered = { x: Math.round(covers[0].x + 40), y: Math.round(covers[0].y + 40) };
+            const above = at < 0 ? [] : all.slice(at + 1).map(({ rect }) => rect);
+            const cover = above.flatMap((rect) => shared(all[at].rect, rect) ?? [])[0];
+            if (!cover || !users[1 - nth]) continue;
+            const covered = { x: Math.round(cover.x + 40), y: Math.round(cover.y + 40) };
+            // A point of the seat's window 9 px outside an edge of what covers it, where nothing else covers it.
+            const [across, down] = [Math.round(cover.x + 60), Math.round(cover.y + 100)];
+            const edge = [
+                { x: Math.round(cover.x) - 9, y: down },
+                { x: Math.round(cover.x + cover.width) - 9, y: down },
+                { x: across, y: Math.round(cover.y) - 9 },
+                { x: across, y: Math.round(cover.y + cover.height) - 9 },
+            ].find((each) => within(all[at].rect, each) && !above.some((rect) => within(rect, each)));
+            if (!edge) continue;
+            const third = await attach('alan', 'Alan');
+            const shown = await shownTo(third, [all[at]]);
+            await third.point('down', shown.at, { button: 0, buttons: [0], count: 1 });
+            await third.point('up', shown.at, { button: 0, buttons: [] });
             await user.point('move', covered);
+            await third.point('move', edge);
             await users[1 - nth].point('move', rests[1 - nth]);
             await sleep(600);
-            await desktopShot(name, { under, crop: around([covered, rests[1 - nth]]) });
+            await desktopShot(name, { under, crop: around([covered, edge, rests[1 - nth]]) });
+            third.leave();
+            await sleep(600);
             return;
         }
-        throw new Error("no seat's window lies under another for the local seat");
+        throw new Error("no seat's window lies under another for the local seat with an edge of that one on it");
     });
     // The two seats' cursors over what lies over the desktop's page: one on the status bar's panel window in the
     // host's bar, the other on the menu of a Dock item, which the desktop's page presents over itself.
