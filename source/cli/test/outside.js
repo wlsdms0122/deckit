@@ -751,7 +751,9 @@ async function run({
     // the status bar room for its clock and 30 more. The capsule is as wide as that room, the clock where it was from
     // the right end, and the item under what is left, from its left end. A seat's turn of the wheel over the item
     // scrolls it sideways, by a sideways turn and by a vertical one, the clock staying, and the seat reads the bar as a
-    // panel window: a toolbar, a button an item.
+    // panel window: a toolbar, a button an item. The clock's label changes width as the time does, so what is held of
+    // a reading is said from that reading: how wide the capsule is in its room and how far its strip scrolls by the
+    // items it has then (`widthIn`, `mostOf`), and how far it is scrolled by where the item stands (`scrollOf`).
     async function barChecks({ seatA }) {
         const { capsuleNow, joins } = bar;
         const mod = await joins();
@@ -774,41 +776,79 @@ async function run({
                 return now.bar?.width === room && now.joined && now;
             }, 6000)) || (await capsuleNow());
         const fromRight = ({ bar: laid, clock }) => laid.width - clock.x - clock.width;
+        // How wide a region's items are in a reading, 4 apart.
+        const spanOf = ({ items }, region) => {
+            const row = items.filter((item) => item.region === region);
+            return row.reduce((sum, { width }) => sum + width + 4, row.length ? -4 : 0);
+        };
+        // How wide the capsule of a reading is in a room `within` wide, the narrow one unless given: as wide as its
+        // items, no wider than the room, and never narrower than its fixed items.
+        const widthIn = (now, within = room) => {
+            const [least, strip] = [4 + spanOf(now, 'fixed'), spanOf(now, 'scrolled')];
+            return Math.max(least, Math.min(least + (strip ? 4 + strip : 0), within));
+        };
+        // How far the strip of a reading scrolls at most: what the capsule does not show of it.
+        const mostOf = (now) =>
+            Math.max(0, spanOf(now, 'scrolled') - Math.max(0, now.bar.width - 4 - spanOf(now, 'fixed') - 4));
+        // Where the item stands with the strip scrolled to its start: after the items that scroll left of it, 4 apart,
+        // whichever order the bar has them in. And how far the strip of a reading is scrolled, by where it stands.
+        const restOf = ({ items, joined }) => {
+            const before = items.filter(({ region, x }) => region === 'scrolled' && x < joined?.x);
+            return before.reduce((x, { width }) => x + width + 4, 2);
+        };
+        const scrollOf = (now) => restOf(now) - now.joined?.x;
         check(
             'outside: in a narrow room the status bar is as wide as its room, the clock where it was from the right ' +
                 'end and the item under what is left, from its left end',
             narrow.bar?.width === room &&
                 narrow.bar.x + narrow.bar.width === wide.bar.x + wide.bar.width &&
                 fromRight(narrow) === 2 &&
-                narrow.clock.width === wide.clock.width &&
                 narrow.joined.x === 2 &&
                 narrow.joined.width === 57,
             JSON.stringify({ wide, room, narrow })
         );
         const over = `${Math.round(narrow.bar.x + 12)},${Math.round(narrow.bar.y + 14)}`;
-        const turn = async (by, x) => {
+        // A turn of the wheel by `by`, "dx,dy": `stood` once the strip is scrolled by its larger part from where it
+        // was, held from its start to the most it scrolls in the reading that has it so.
+        const turn = async (by) => {
+            const [dx, dy] = by.split(',').map(Number);
+            const turned = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
+            const from = scrollOf(await capsuleNow());
             const said = seatA.as('scroll', over, by);
             const now = await until(async () => {
                 const each = await capsuleNow();
-                return each.joined?.x === x && each;
+                if (!each.bar || !each.joined) return false;
+                const most = mostOf(each);
+                return scrollOf(each) === Math.max(0, Math.min(Math.min(from, most) + turned, most)) && each;
             }, 4000);
-            return { said, now: now || (await capsuleNow()) };
+            const read = now || (await capsuleNow());
+            return {
+                said,
+                from,
+                stood: !!now,
+                scroll: scrollOf(read),
+                most: read.bar ? mostOf(read) : null,
+                now: read,
+            };
         };
-        const sideways = await turn('27,0', -25);
+        const sideways = await turn('27,0');
         await desktopShot('status-bar-scrolled', {
             crop: { x: narrow.bar.x - 60, y: 0, width: narrow.bar.width + 68, height: 52 },
         });
         const read = seatA.as('read', 'desktop');
         const panel = /^panel (w\d+) .* status-bar top at /m.exec(read)?.[1];
         const asWindow = panel ? seatA.as('read', 'window', panel) : read;
-        const back = await turn('0,-10', -15);
-        const held = await turn('0,-500', 2);
+        const back = await turn('0,-10');
+        const held = await turn('0,-500');
         check(
             "outside: a seat's turn of the wheel over the status bar scrolls its items sideways, by a sideways turn " +
                 'and by a vertical one, held at the ends, and the clock stays',
-            sideways.now.joined?.x === -25 &&
-                back.now.joined?.x === -15 &&
-                held.now.joined?.x === 2 &&
+            sideways.stood &&
+                sideways.scroll > 0 &&
+                back.stood &&
+                back.scroll === sideways.scroll - 10 &&
+                held.stood &&
+                held.scroll === 0 &&
                 [sideways, back, held].every(({ now }) => now.bar?.width === room && fromRight(now) === 2),
             JSON.stringify({ sideways, back, held })
         );
@@ -819,17 +859,17 @@ async function run({
                 /button "Star, 99\+"/.test(asWindow),
             asWindow
         );
-        await fixChecks({ seatA, send, wide, room, band, over, turn });
+        await fixChecks({ seatA, send, room, band, over, turn, widthIn });
         await send('test-band', null);
         await send('test-item', null);
         const alone = await until(async () => {
             const now = await capsuleNow();
-            return !now.joined && now.bar?.width === wide.bar.width - 57 - 4 && now;
+            return !now.joined && !!now.clock && now.bar?.width === widthIn(now, Infinity);
         }, 6000);
         check(
             'outside: as the room is given back and the item goes the status bar is as wide as what is left in it',
             alone,
-            JSON.stringify(await capsuleNow())
+            JSON.stringify({ wide, now: await capsuleNow() })
         );
     }
 
@@ -838,7 +878,7 @@ async function run({
     // the clock, where no turn of the wheel moves it. The frame's mod run again has it fixed still. Don't Keep in Bar
     // lets it scroll again. A seat does the same at the surface: button 2 on the item as it reads it, then the entry
     // as it reads it in the frame's overlay, and the one bar every screen shows has it fixed, and scrolling again.
-    async function fixChecks({ seatA, send, wide, room, band, over, turn }) {
+    async function fixChecks({ seatA, send, room, band, over, turn, widthIn }) {
         const { capsuleNow, barPage, frame, overlay } = bar;
         const ENTRY = `.deckit-menu[data-state="open"] [role="menuitem"]`;
         const stands = async (wanted, time = 5000) =>
@@ -853,12 +893,6 @@ async function run({
             joined.x + joined.width + 4 === clock?.x &&
             clock.x + clock.width + 2 === laid?.width;
         const scrolls = ({ bar: laid, joined }) => joined?.region === 'scrolled' && laid?.width === room;
-        // Where the item stands with the bar scrolled to its start: after the items that scroll left of it, 4 apart,
-        // whichever order the bar has them in.
-        const restOf = ({ items, joined }) => {
-            const before = items.filter(({ region, x }) => region === 'scrolled' && x < joined?.x);
-            return before.reduce((x, { width }) => x + width + 4, 2);
-        };
         // Whether the item is in view whole, left of the clock.
         const inView = ({ joined, clock }) => joined?.x >= 2 && joined.x + joined.width + 4 <= clock?.x;
         // The local seat's context press on the item, and the press on the one entry its menu offers.
@@ -907,25 +941,27 @@ async function run({
         await stands(({ joined }) => !!joined, 10000);
         await send('test-item', { name: 'Star', icon: 'star', command: 'show', count: 120 });
         await send('test-band', band);
-        const survived = await stands((now) => fixedWhole(now) && now.bar.x === kept.now.bar?.x, 8000);
+        const inRoom = (now) => fixedWhole(now) && now.bar.width === widthIn(now);
+        const survived = await stands(inRoom, 8000);
         check(
             "outside: the item is fixed still once the status bar's mod ran again",
-            fixedWhole(survived) && survived.bar.x === kept.now.bar?.x,
+            inRoom(survived),
             JSON.stringify({ gone: !!gone, kept: kept.now, survived })
         );
         const freed = await locally(scrolls);
-        const rest = restOf(freed.now);
-        await turn('0,-500', rest);
-        const scrolled = await turn('27,0', rest - 27);
-        const back = await turn('0,-500', rest);
+        await turn('0,-500');
+        const scrolled = await turn('27,0');
+        const back = await turn('0,-500');
         check(
             "outside: Don't Keep in Bar on the fixed item lets it scroll with the others again",
             same(freed.offered, ["Don't Keep in Bar"]) &&
                 scrolls(freed.now) &&
                 inView(freed.now) &&
-                scrolled.now.joined?.x === rest - 27 &&
-                back.now.joined?.x === rest,
-            JSON.stringify({ rest, scrolled: scrolled.now.joined, back: back.now.joined, freed })
+                scrolled.stood &&
+                scrolled.scroll > 0 &&
+                back.stood &&
+                back.scroll === 0,
+            JSON.stringify({ scrolled, back, freed })
         );
         // A seat at the surface: what it reads of the bar names the item, button 2 on it opens the menu it reads next,
         // and its press on the entry does what the entry says.
