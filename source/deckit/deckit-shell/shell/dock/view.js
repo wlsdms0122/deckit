@@ -156,9 +156,10 @@ const STYLE = `
 // does not ask for less transparency, and so is the menu: `onGlass(materials)` hears `[{ material, x, y, width,
 // height, cornerRadius }]`, the card's rounded at every corner and reaching past the desktop's left edge by its radius
 // so its square corners stay so, none as it slides. The page recognizes nothing: `onPointer(event)` hears what the
-// pointer does on the Dock and on the menu, `{ part: 'dock', type, x, y, button, count }` in the page, a context press
-// as a press of button 2, and what the keyboard presses with `item` (desktop/protocol.js pointer); the menu of an
-// item is drawn where main tells it, its entries at the rects the Dock's model gave them. `ui` is the page's kit.
+// pointer does on the Dock and on the menu, `{ part: 'dock', type, x, y, button, count }` in the page, on the card as
+// the Dock out has it, a context press as a press of button 2, and what the keyboard presses with `item`
+// (desktop/protocol.js pointer); the menu of an item is drawn where main tells it, beside what slides, its entries at
+// the rects the Dock's model gave them. `ui` is the page's kit.
 function make({ ui, onPointer, onOut, onGlass }) {
     ui.addStyle(STYLE);
     let items = [];

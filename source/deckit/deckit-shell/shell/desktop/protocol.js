@@ -50,9 +50,10 @@ export const seat = CHANNEL.mainToPage('deckit-shell:desktop-seat');
 // pointer goes with the button held, `part` then what of the window is under it; `x`, `y` on the screen, which holds
 // still as the frame moves; `button` the one pressed or let go; and for a 'down', `count`, its click count, and
 // `grabX`, `grabY`, where it is from the frame's top left. On the Dock or an item's menu: `part` 'dock' and `x`, `y`
-// in the page, main finding what stands there; a context press is a 'down' and an 'up' of `button` 2; and what the
-// keyboard presses, which is at no point, is named by `item`, an item's mod or with `part` 'dock-menu' an entry of
-// the menu, '' for the press that puts the menu away.
+// in the page, a point on the Dock's card where it is with the Dock out, however far it has slid, main finding what
+// stands there; a context press is a 'down' and an 'up' of `button` 2; and what the keyboard presses, which is at
+// no point, is named by `item`, an item's mod or with `part` 'dock-menu' an entry of the menu, '' for the press that
+// puts the menu away.
 export const pointer = CHANNEL.pageToMain(
     'deckit-shell:desktop-pointer',
     {
