@@ -9,7 +9,9 @@
 // a terminal of its own, press and type in the windows of the
 // desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the local seat sees of them, and
 // `idleTime` the seconds a seat is idle after, as the app was started with. With `reads`, the second user reads the
-// desktop it sits at too (reading.js).
+// desktop it sits at too (reading.js). With `bar`, the status bar as the walk through the desktop left it, `{ barPage,
+// capsuleNow, joins }`, `joins()` the page of the mod that joins it, a user scrolls the bar in a narrow room and reads
+// it.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
@@ -58,6 +60,7 @@ async function run({
     allowed,
     reads,
     anchors,
+    bar,
 }) {
     const socket = path.join(home, 'deckit.sock');
     const principal = 'outside-party';
@@ -759,10 +762,95 @@ async function run({
         }
         for (const page of [windowB.content, child.id, localKey.content])
             await inPage(page, `document.querySelector('#${FIELD}')?.remove()`);
+        if (bar) await barChecks({ seatA });
         await viewChecks({ seatA, seatB });
         seatA.as('detach');
         seatB.as('detach');
         check('outside: both terminals detach', (await seatA.gone) === 0 && (await seatB.gone) === 0, '');
+    }
+
+    // The status bar in a narrow room: the joining mod sets an item 57 wide and opens a band of its own that leaves
+    // the status bar room for its clock and 30 more. The capsule is as wide as that room, the clock where it was from
+    // the right end, and the item under what is left, from its left end. A seat's turn of the wheel over the item
+    // scrolls it sideways, by a sideways turn and by a vertical one, the clock staying, and the seat reads the bar as a
+    // panel window: a toolbar, a button an item.
+    async function barChecks({ seatA }) {
+        const { capsuleNow, joins } = bar;
+        const mod = await joins();
+        const send = (name, detail) =>
+            mod?.evaluate(`document.dispatchEvent(new CustomEvent('${name}', { detail: ${JSON.stringify(detail)} }))`);
+        const [CONTROLS, MARGIN, GAP, SHOWN] = [92, 8, 8, 30];
+        await send('test-item', { name: 'Star', icon: 'star', command: 'show', count: 120 });
+        const wide = await until(async () => {
+            const now = await capsuleNow();
+            return now.joined?.width === 57 && now.bar?.width === now.clock.x + now.clock.width + 2 && now;
+        }, 6000);
+        if (!wide) return check('outside: the status bar holds the item of the mod that joins it', false, '');
+        const stage = (await desktopLaid())?.rect.width;
+        const room = wide.bar.width - (57 - SHOWN);
+        await send('test-band', stage - CONTROLS - 2 * MARGIN - GAP - room);
+        const narrow =
+            (await until(async () => {
+                const now = await capsuleNow();
+                return now.bar?.width === room && now.joined && now;
+            }, 6000)) || (await capsuleNow());
+        const fromRight = ({ bar: laid, clock }) => laid.width - clock.x - clock.width;
+        check(
+            'outside: in a narrow room the status bar is as wide as its room, the clock where it was from the right ' +
+                'end and the item under what is left, from its left end',
+            narrow.bar?.width === room &&
+                narrow.bar.x + narrow.bar.width === wide.bar.x + wide.bar.width &&
+                fromRight(narrow) === 2 &&
+                narrow.clock.width === wide.clock.width &&
+                narrow.joined.x === 2 &&
+                narrow.joined.width === 57,
+            JSON.stringify({ wide, room, narrow })
+        );
+        const over = `${Math.round(narrow.bar.x + 12)},${Math.round(narrow.bar.y + 14)}`;
+        const turn = async (by, x) => {
+            const said = seatA.as('scroll', over, by);
+            const now = await until(async () => {
+                const each = await capsuleNow();
+                return each.joined?.x === x && each;
+            }, 4000);
+            return { said, now: now || (await capsuleNow()) };
+        };
+        const sideways = await turn('27,0', -25);
+        await desktopShot('status-bar-scrolled', {
+            crop: { x: narrow.bar.x - 60, y: 0, width: narrow.bar.width + 68, height: 52 },
+        });
+        const read = seatA.as('read', 'desktop');
+        const panel = /^panel (w\d+) .* status-bar top at /m.exec(read)?.[1];
+        const asWindow = panel ? seatA.as('read', 'window', panel) : read;
+        const back = await turn('0,-10', -15);
+        const held = await turn('0,-500', 2);
+        check(
+            "outside: a seat's turn of the wheel over the status bar scrolls its items sideways, by a sideways turn " +
+                'and by a vertical one, held at the ends, and the clock stays',
+            sideways.now.joined?.x === -25 &&
+                back.now.joined?.x === -15 &&
+                held.now.joined?.x === 2 &&
+                [sideways, back, held].every(({ now }) => now.bar?.width === room && fromRight(now) === 2),
+            JSON.stringify({ sideways, back, held })
+        );
+        check(
+            'outside: a seat reads the status bar as a panel window, a toolbar with a button for each item',
+            /toolbar "Status Bar"/.test(asWindow) &&
+                /button "Clock"/.test(asWindow) &&
+                /button "Star, 99\+"/.test(asWindow),
+            asWindow
+        );
+        await send('test-band', null);
+        await send('test-item', null);
+        const alone = await until(async () => {
+            const now = await capsuleNow();
+            return !now.joined && now.bar?.width === wide.clock.width + 4 && now;
+        }, 6000);
+        check(
+            'outside: as the room is given back and the item goes the status bar is its clock alone',
+            alone,
+            JSON.stringify(await capsuleNow())
+        );
     }
 
     // A view under an anchor is a seat's own: the mod that tells anchors opens a band, and a seat's press on it shows

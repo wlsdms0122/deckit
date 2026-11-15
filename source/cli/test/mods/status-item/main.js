@@ -1,7 +1,8 @@
 // A mod that gives the status bar an item that comes and goes: a glyph's item, set as the bar connects, whose command
 // toggles a view of its own under the item's anchor. On `test-item` it sets the item the test names, or removes it
 // for none, and marks how that ended; it marks how many times its command ran. On `test-center` it toggles the
-// notification center, with no input of the person's reaching it, and marks the answer.
+// notification center, with no input of the person's reaching it, and marks the answer. On `test-band` it opens a
+// band of its own in the bar as wide as the test names, which takes that much of the bar's room, or closes it for none.
 const ITEM = { name: 'Star', icon: 'star', command: 'show' };
 
 class StatusItem {
@@ -38,6 +39,12 @@ class StatusItem {
         document.addEventListener('test-item', ({ detail }) =>
             detail ? set(detail) : bar?.remove().then(() => (marks.set = 'removed'))
         );
+        let band = null;
+        document.addEventListener('test-band', ({ detail: width }) => {
+            band?.close();
+            const content = shell.ui.element('div', { text: 'Room' });
+            band = width ? shell.windows.open({ name: 'band', level: 'panel', content, width, height: 28 }) : null;
+        });
         let center = null;
         deckit.dependencies.onConnect('notifications/center', (connected) => {
             center = connected;

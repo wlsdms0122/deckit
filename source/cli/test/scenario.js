@@ -147,6 +147,34 @@ async function atRest(probe, ms = 3000) {
     }
 }
 
+// The status bar as it stands: `barPage()` is the document of its capsule, and `capsuleNow()` answers `{ bar, name,
+// clock, joined }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item and the
+// joining mod's, `{ id, name, x, y, width, height }` each as its button is drawn in the capsule, or null.
+function statusBar({ pages, desktopLaid }) {
+    const barPage = async () => {
+        for (const each of await pages('about:blank'))
+            if (await each.evaluate(`!!document.querySelector('.status-bar')`)) return each;
+        return null;
+    };
+    const capsuleNow = async () => {
+        const bar = ((await desktopLaid())?.pages || []).find(
+            ({ opener, name }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(name)
+        );
+        const drawn = await (
+            await barPage()
+        )?.evaluate(`(() => ({
+            name: document.querySelector('.status-bar').getAttribute('aria-label'),
+            items: [...document.querySelectorAll('.status-bar-item')].map((item) => {
+                const { x, y, width, height } = item.getBoundingClientRect();
+                return { id: item.dataset.item, name: item.getAttribute('aria-label'), x, y, width, height };
+            }),
+        }))()`);
+        const item = (id) => drawn?.items.find((each) => each.id === id) ?? null;
+        return { bar: bar?.rect ?? null, name: drawn?.name ?? null, clock: item('clock'), joined: item(JOINS) };
+    };
+    return { barPage, capsuleNow };
+}
+
 // The desktop and the shipped apps, as a person walks through them from the app's start. `logged()` is the app's log so
 // far; `home` the app's folder; `id` the id it runs under; `local` the local seat, `desktop` the desktop's page.
 async function walk({
@@ -243,28 +271,7 @@ async function walk({
     );
     // The status bar: a capsule 28 high in the host's bar, 8 in from its right end and centred on it, one button an
     // item in its document, 24 high, the clock's the rightmost, its label wider than a glyph's item.
-    const barPage = async () => {
-        for (const each of await pages('about:blank'))
-            if (await each.evaluate(`!!document.querySelector('.status-bar')`)) return each;
-        return null;
-    };
-    const capsuleNow = async () => {
-        const stack = await stackNow();
-        const bar = stack.find(
-            ({ opener, name }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(name)
-        );
-        const drawn = await (
-            await barPage()
-        )?.evaluate(`(() => ({
-            name: document.querySelector('.status-bar').getAttribute('aria-label'),
-            items: [...document.querySelectorAll('.status-bar-item')].map((item) => {
-                const { x, y, width, height } = item.getBoundingClientRect();
-                return { id: item.dataset.item, name: item.getAttribute('aria-label'), x, y, width, height };
-            }),
-        }))()`);
-        const item = (id) => drawn?.items.find((each) => each.id === id) ?? null;
-        return { bar: bar?.rect ?? null, name: drawn?.name ?? null, clock: item('clock'), joined: item(JOINS) };
-    };
+    const { barPage, capsuleNow } = statusBar({ pages, desktopLaid });
     const screenWidth = (await desktopLaid())?.rect.width;
     const capsule =
         (await until(async () => {
@@ -3205,6 +3212,9 @@ async function run(app, named = []) {
                 allowed,
                 reads: runs('reading'),
                 anchors,
+                bar: runs('desktop')
+                    ? { ...statusBar({ pages: app.pages, desktopLaid }), joins: () => page(`deckit://${JOINS}.mod`) }
+                    : null,
             });
         } catch (error) {
             check('outside: a party attached', false, error.stack);
