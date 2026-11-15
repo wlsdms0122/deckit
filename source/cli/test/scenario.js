@@ -474,6 +474,24 @@ async function walk({
             await keyMod()
         );
 
+        // What has the keyboard, for a check of the switcher to say as it fails: the time, the rows `list` shows, the
+        // windows of the host app's the switcher's page is laid in, which window of the app's is key, `desktop`,
+        // `switcher`, another's id, or `none` where the app has none and another app has the keyboard, and the mod of
+        // the desktop's key window.
+        const keyboardNow = async (list) => {
+            const [laid, key] = [await laidNow(), await main('return webkit.keyWindow() ?? null')];
+            const holding = (test) =>
+                laid.filter(({ stages }) => stages.some(({ pages: each }) => each.some(test))).map(({ id }) => id);
+            const own = holding(({ opener }) => opener.startsWith('deckit://switcher.mod'));
+            const where = holding(({ url }) => url.startsWith('deckit://desktop')).includes(key) ? 'desktop' : key;
+            return {
+                at: new Date().toISOString(),
+                rows: (await list?.evaluate(`document.querySelectorAll('.switcher-row').length`)) ?? null,
+                windows: own,
+                key: key === null ? 'none' : own.includes(key) ? 'switcher' : where,
+                mod: await keyMod(),
+            };
+        };
         await editor.key(' ', 'Space', ALT, 32);
         const switcherPage = await until(() => page('deckit://switcher.mod'));
         // The switcher is a quick pick, a layer: drawn in its page's overlay, which has the keys while it is open.
@@ -533,13 +551,22 @@ async function walk({
                 first && second && first !== second && third === first,
                 `${first} -> ${second} -> ${third}`
             );
+            const asOpen = await keyboardNow(switcher);
             await switcher.type('Show Notes');
-            await sleep(1200);
+            // The row of what was typed is the active one once the list ranked its rows by it.
+            const picked = await until(async () => {
+                const label = await switcher.evaluate(activeLabel);
+                return /^Show Notes/.test(label || '') && label;
+            }, 4000);
+            const asTyped = picked ? null : await keyboardNow(switcher);
             await switcher.shot('switcher-typed');
-            const picked = await switcher.evaluate(activeLabel);
             await switcher.key('Enter', 'Enter', 0, 13);
             await until(async () => (await keyMod()) === 'note', 4000);
-            check('switcher shows Notes', (await keyMod()) === 'note', `${picked}: ${await keyMod()} key`);
+            check(
+                'switcher shows Notes',
+                (await keyMod()) === 'note',
+                `${picked}: ${await keyMod()} key ${JSON.stringify({ asOpen, asTyped })}`
+            );
             // It goes as the mod it showed takes the keyboard, which no page of an app in the background has: put
             // away by its key here.
             const rows = `document.querySelectorAll('.switcher-row').length`;
@@ -2042,7 +2069,13 @@ async function walk({
         await until(async () => (await rowsOf()) === 0, 3000);
         const windowed = await page('deckit://window-user.mod');
         await services?.evaluate(`document.dispatchEvent(new CustomEvent('test-switcher'))`);
-        check('the switcher opens by its command', await until(async () => (await rowsOf()) > 0, 3000), await rowsOf());
+        const asAsked = await keyboardNow(query);
+        const byCommand = await until(async () => (await rowsOf()) > 0, 3000);
+        check(
+            'the switcher opens by its command',
+            byCommand,
+            JSON.stringify(byCommand ? {} : { asAsked, after: await keyboardNow(query) })
+        );
         await query?.key('Escape', 'Escape', 0, 27);
         await until(async () => (await rowsOf()) === 0, 3000);
         // A mod's windows on the desktop, as the window user opens them by name: the first, opened on its own while
