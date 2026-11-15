@@ -96,6 +96,8 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     // `format` 'json', as data. The other fields are the knobs, handed to the reader as they are.
     async function reading(seat, level, { window, ref, format = 'text', ...given }) {
         if (!['text', 'json'].includes(format)) throw refusal('INVALID_ARGUMENT', 'a reading is as text or json');
+        if (level === 'window' && window === undefined) throw refusal('INVALID_ARGUMENT', 'a window is read by its id');
+        if (level === 'node' && ref === undefined) throw refusal('INVALID_ARGUMENT', 'a node is read by its ref');
         const knobs = Object.fromEntries(
             KNOBS.flatMap((knob) => (given[knob] === undefined ? [] : [[knob, given[knob]]]))
         );
@@ -105,7 +107,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                 ? desktopOf(seat.id)
                 : level === 'window'
                   ? await windowOf(seat.id, idOf(window), knobs)
-                  : await nodeOf(seat.id, String(ref), knobs);
+                  : await nodeOf(seat.id, ref, knobs);
         const data = { ...read, mark };
         return format === 'json' ? { data, mark } : { text: TEXT[level](data), mark };
     }

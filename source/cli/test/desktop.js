@@ -3809,6 +3809,12 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
             (await refused(served.read(me, { of: 'all' }))) === 'INVALID_ARGUMENT',
         ''
     );
+    check(
+        'a window read with no window and a node read with no ref are a key missing',
+        (await refused(served.read(me, { of: 'window' }))) === 'INVALID_ARGUMENT' &&
+            (await refused(served.read(me, { of: 'node' }))) === 'INVALID_ARGUMENT',
+        ''
+    );
 
     const from = (await served.read(me, { of: 'desktop' })).mark;
     const quiet = await served.read(me, { of: 'changes', since: from });
