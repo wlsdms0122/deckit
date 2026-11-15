@@ -1,0 +1,28 @@
+case = 26
+name = "a-window-reads-as-its-parts-its-document-and-its-elements"
+note = "mod-a opens the window 1 at 283, 107, 720 by 480, with no title. Its content holds, each in a box of its own: the heading Notes, the button Bold, not pressed, the field Name with the value say \"a\", b, the empty field Find, the checkbox Done, the list Days of Mon, Tue and Wed, and the region Log, 60 high, that scrolls three paragraphs 40 high each. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the window: its line with the mark, the buttons of its title bar and the bar, each with its ref, then its document with its number, content and its size, and under it each element with a role: its role, its name, its states and its ref, the items of the list under the list with their count."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[step.expect]
+answers = { text = "window w1 \"mod-a\" mod-a at 283,107 720x480 mark 7\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  document 7 content 720x480\n    heading \"Notes\" [level 1] 7.1\n    button \"Bold\" [not pressed] 7.2\n    textbox \"Name\" [value \"say \\\"a\\\", b\"] 7.3\n    textbox \"Find\" [value \"\"] 7.4\n    checkbox \"Done\" [unchecked] 7.5\n    list \"Days\" (3 items, 3 in view) 7.6\n      listitem \"Mon\" 7.7\n      listitem \"Tue\" 7.8\n      listitem \"Wed\" 7.9\n    region \"Log\" 7.10", mark = 7 }

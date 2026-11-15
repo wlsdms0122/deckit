@@ -1,0 +1,50 @@
+case = 26
+name = "a-field-the-seat-pressed-is-focused-with-the-seat"
+note = "mod-a opens the window 1 at 283, 107, 720 by 480, with no title. Its content holds, each in a box of its own: the heading Notes, the button Bold, not pressed, the field Name with the value say \"a\", b, the empty field Find, the checkbox Done, the list Days of Mon, Tue and Wed, and the region Log, 60 high, that scrolls three paragraphs 40 high each. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the window, presses the field Find by its ref and reads that node: the field has the state focused with the id of the seat whose keys go to its document, then its place on the desktop, and under it its selection, the caret at 0."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+part = "mark"
+
+[step.expect]
+answers = 7
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "7.4", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "7.4", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "7.4" }
+
+[step.expect]
+answers = { text = "textbox \"Find\" [focused s1, value \"\"] 7.4 at 283,287 200x30\n  selection 0", mark = 9 }
