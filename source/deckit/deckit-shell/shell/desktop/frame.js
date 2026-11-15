@@ -18,8 +18,8 @@ const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
 const HOLDER = 2;
 const CURSOR = 16;
 const RING = 20;
-// The path of everything a seat's mark may be drawn in, from which what covers it is taken out.
-const EVERYWHERE = 'M-100000 -100000H100000V100000H-100000Z';
+// The path of all of the stage, however large it is, from which what covers a seat's mark is taken out.
+const EVERYWHERE = 'M0 0H16384V16384H0Z';
 // How high the bar that says whose view the page shows is, px.
 const FOLLOWING = 22;
 const STYLE = `
@@ -128,6 +128,7 @@ const STYLE = `
             transform var(--deckit-exit) var(--deckit-exit-curve);
     }
     .deckit-seats, .deckit-seat-cursors { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+    .deckit-seat-under { position: absolute; inset: 0; }
     .deckit-seat-cursor {
         position: absolute;
         top: 0;
@@ -325,7 +326,9 @@ function boot(theme, channels) {
     clips.setAttribute('class', 'deckit-seat-clips');
     over.document.body.append(seatsOver, pointers, clips);
     let clipped = 0; // how many marks were given clip paths, each naming its own by its number
-    const cursors = new Map(); // a seat's id -> { element, name, press }, its cursor and its press while it holds one
+    // A seat's id -> { element, name, under, press }: its cursor, in what lies over the stage and is cut by what covers
+    // it, and its press while it holds one, in one of its own.
+    const cursors = new Map();
     const typings = new Map(); // a seat's id -> { ring, bars, over }, the ring and the bars drawn where it types
     // Over all but the host's bar while the page shows another seat's view: it takes every press, so none reaches
     // what the page draws, and says whose view it is, in the middle of the host's bar, over no window, or at the
@@ -450,8 +453,8 @@ function boot(theme, channels) {
         const seen = new Map(all.filter(({ shown, at }) => !shown && at).map((seat) => [seat.id, seat]));
         for (const [id, cursor] of cursors) {
             if (seen.has(id)) continue;
-            unclipped(cursor.element).remove();
-            if (cursor.press) unclipped(cursor.press).remove();
+            unclipped(cursor.under).remove();
+            if (cursor.press) unclipped(cursor.press.under).remove();
             cursors.delete(id);
         }
         for (const { id, name, colour, at, buttons, under, named } of seen.values()) {
@@ -460,7 +463,9 @@ function boot(theme, channels) {
                 made.element.innerHTML = ARROW;
                 made.name = element(over.document, 'span', 'deckit-seat-name');
                 made.element.append(made.name);
-                pointers.append(made.element);
+                made.under = element(over.document, 'div', 'deckit-seat-under');
+                made.under.append(made.element);
+                pointers.append(made.under);
                 cursors.set(id, made);
             }
             const cursor = cursors.get(id);
@@ -547,14 +552,16 @@ function boot(theme, channels) {
         cursor.element.toggleAttribute('data-held', held);
         cursor.element.toggleAttribute('data-named', named);
         cursor.element.style.transform = `translate(${x}px, ${y}px)`;
-        clip(cursor.element, under, { x, y });
+        clip(cursor.under, under);
         if (held && !cursor.press) {
             const press = element(over.document, 'div', 'deckit-seat-press');
             press.style.setProperty('--deckit-seat', cursor.colour);
             press.style.transform = `translate(${x}px, ${y}px)`;
             const ring = element(over.document, 'div', 'deckit-seat-ring');
             press.append(element(over.document, 'div', 'deckit-seat-drag'), ring);
-            pointers.insertBefore(press, pointers.firstChild);
+            press.under = element(over.document, 'div', 'deckit-seat-under');
+            press.under.append(press);
+            pointers.insertBefore(press.under, pointers.firstChild);
             const { length, easing } = TOKEN.MOTION.press;
             if (length)
                 ring.animate([{ transform: 'scale(0.5)' }, { transform: 'none' }], { duration: length, easing });
@@ -565,17 +572,17 @@ function boot(theme, channels) {
         const line = cursor.press.firstChild;
         line.style.width = Math.hypot(x - from.x, y - from.y) + 'px';
         line.style.transform = `rotate(${Math.atan2(y - from.y, x - from.x)}rad)`;
-        if (held) return clip(cursor.press, under, from);
+        if (held) return clip(cursor.press.under, under);
         const gone = cursor.press;
         cursor.press = null;
         gone.toggleAttribute('data-leaving', true);
-        finished(gone, () => unclipped(gone).remove());
+        finished(gone, () => unclipped(gone.under).remove());
     }
 
-    // `made`, drawn from `at` on the stage, shows nothing of itself inside the rects of `under`, `[{ x, y, width,
-    // height, radius }]` on the stage, and nothing at all for null. Each rect is taken out by a clip path of its own,
-    // the next one clipping it, so rects that overlap take out all they cover.
-    function clip(made, under, at) {
+    // `made`, which lies over all of the stage and holds a mark of a seat, shows nothing of it inside the rects of
+    // `under`, `[{ x, y, width, height, radius }]` on the stage, and nothing at all for null. Each rect is taken out
+    // by a clip path of its own, the next one clipping it, so rects that overlap take out all they cover.
+    function clip(made, under) {
         made.clips ??= { name: `deckit-seat-clip-${(clipped += 1)}`, links: [] };
         const { name, links } = made.clips;
         const rects = under ?? [];
@@ -588,7 +595,7 @@ function boot(theme, channels) {
                 links[nth].firstChild.setAttribute('clip-rule', 'evenodd');
                 clips.append(links[nth]);
             }
-            links[nth].firstChild.setAttribute('d', EVERYWHERE + rounded(rect, at));
+            links[nth].firstChild.setAttribute('d', EVERYWHERE + rounded(rect));
             if (nth + 1 < rects.length) links[nth].setAttribute('clip-path', `url(#${name}-${nth + 1})`);
             else links[nth].removeAttribute('clip-path');
         });
@@ -601,13 +608,12 @@ function boot(theme, channels) {
         return made;
     }
 
-    // The path of a rect of the stage with round corners, as it lies from `at`.
-    function rounded({ x, y, width, height, radius }, at) {
+    // The path of a rect with round corners.
+    function rounded({ x, y, width, height, radius }) {
         const r = Math.max(0, Math.min(radius, width / 2, height / 2));
-        const [left, top] = [x - at.x, y - at.y];
         const arc = (dx, dy) => `a${r} ${r} 0 0 1 ${dx} ${dy}`;
         return (
-            `M${left + r} ${top}h${width - 2 * r}${arc(r, r)}v${height - 2 * r}${arc(-r, r)}` +
+            `M${x + r} ${y}h${width - 2 * r}${arc(r, r)}v${height - 2 * r}${arc(-r, r)}` +
             `h${2 * r - width}${arc(-r, -r)}v${2 * r - height}${arc(r, -r)}Z`
         );
     }

@@ -543,8 +543,10 @@ async function run({
                 window.deckitRings = [];
                 new MutationObserver((records) => {
                     for (const { addedNodes } of records)
-                        for (const node of addedNodes)
-                            if (node.className === 'deckit-seat-press') window.deckitRings.push(node.style.transform);
+                        for (const node of addedNodes) {
+                            const press = node.querySelector?.('.deckit-seat-press');
+                            if (press) window.deckitRings.push(press.style.transform);
+                        }
                 }).observe(document.querySelector('.deckit-seat-cursors'), { childList: true });
                 return true;
             })()`
