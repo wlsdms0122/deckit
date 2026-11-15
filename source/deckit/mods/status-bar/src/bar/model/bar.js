@@ -1,11 +1,13 @@
 // MARK: - Property
-// The status bar as plain data: the items mods give it, the order they came in, which of them are fixed, and where
-// each is laid in the capsule's two regions, the fixed one at its right end and the one that scrolls sideways left of
-// it. Sizes are constants here and a label's width is handed in, so every rect is known without asking a page.
+// The status bar as plain data: the items mods give it, the order they came in, which of them are fixed and how the
+// person fixes one, and where each is laid in the capsule's two regions, the fixed one at its right end and the one
+// that scrolls sideways left of it. Sizes are constants here and a label's width is handed in, so every rect is known without asking a page.
 // The capsule: its height, the inset around its regions, and the room between items and between the regions.
 const CAPSULE = Object.freeze({ height: 28, inset: 2, gap: 4 });
 // The items that are fixed until the person names others: the ids of their mods, the first rightmost.
 const FIXED = Object.freeze(['clock', 'notifications']);
+// What the one entry of an item's menu says: on an item that is not fixed, and on one that is.
+const KEEP = Object.freeze({ on: 'Keep in Bar', off: 'Remove from Bar' });
 // An item: its height, the glyph it shows, the padding at each side and the room between its parts. A label holds
 // `letters` characters at most and is laid as wide as it was measured, `widest` at most, `letter` a character until
 // it is measured.
@@ -148,6 +150,28 @@ function turnOf({ dx, dy }) {
     return Math.abs(dx) >= Math.abs(dy) ? dx : dy;
 }
 
+// The list of fixed ids once the item `id` is fixed, `on`, or not: one fixed comes last, the leftmost of the fixed
+// region, one that is fixed no more leaves, and the others keep their order, an id whose item does not stand now with
+// them.
+function fixedBy(list, id, on) {
+    if (on) return list.includes(id) ? [...list] : [...list, id];
+    return list.filter((each) => each !== id);
+}
+
+// The menu a context press at `point`, `{ x, y }` in the capsule, opens on the bar `bar` (barOf), or null where no
+// item is in view there: `{ id, label, on, point }`, one entry on the item `id`, `on` what choosing it makes of the
+// item, fixed where it is not in `list`, the fixed ids, and fixed no more where it is, and `point` where the menu
+// opens, under the capsule at the left end of what shows of the item.
+function menuOf(bar, list, { x, y }) {
+    const holds = ({ rect }) =>
+        rect && x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height;
+    const item = bar.items.find(holds);
+    if (!item) return null;
+    const on = !list.includes(item.id);
+    const point = { x: item.rect.x, y: bar.height + CAPSULE.gap };
+    return { id: item.id, label: on ? KEEP.on : KEEP.off, on, point };
+}
+
 // MARK: - Private
 // How wide a row of items is, CAPSULE.gap apart.
 function spanOf(row, widths) {
@@ -181,4 +205,6 @@ module.exports = {
     barOf,
     scrollTo,
     turnOf,
+    fixedBy,
+    menuOf,
 };

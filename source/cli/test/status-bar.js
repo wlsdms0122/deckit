@@ -1,12 +1,13 @@
 // The Status Bar's model (mods/status-bar/src/bar/model/bar.js): the item a mod declares and the one it sets, each of
 // another shape refused, the order the items came in, what an item is called, widths, the capsule's two regions, the
 // fixed one in the kept list's order and the others from the right in a strip, an item going, one that shows nothing,
-// a narrow room, the scroll held in range, an item scrolled out, one brought into view and a turn of the wheel. Then
-// the mod itself and the Clock over stand-ins for the handles, the document and the connections: the frame's exports
-// reach a mod's `start`, the clock sets its label at start, the band opens as wide as the model lays, anchors are
-// told, the shell is told a size and anchors only as they change, an item comes and goes, a narrow room scrolls what
-// is not fixed, a press runs the item's command, and what stands is drawn again by a screen that comes later. Exits 1
-// with a line for each check that failed.
+// a narrow room, the scroll held in range, an item scrolled out, one brought into view, a turn of the wheel, the list
+// as an item is fixed or fixed no more, and the menu of a context press. Then the mod itself and the Clock over
+// stand-ins for the handles, the document and the connections: the frame's exports reach a mod's `start`, the clock
+// sets its label at start, the band opens as wide as the model lays, anchors are told, the shell is told a size and
+// anchors only as they change, an item comes and goes, a narrow room scrolls what is not fixed, a context press and
+// its menu's entry fix an item and fix it no more, a press runs the item's command, and what stands is drawn again by a
+// screen that comes later. Exits 1 with a line for each check that failed.
 const path = require('path');
 
 const MODS = path.join(__dirname, '..', '..', 'deckit', 'mods');
@@ -58,14 +59,18 @@ function element(tag) {
     };
 }
 
-// The shell's handle: a kit that draws GLYPHS, and windows that remember what they were opened and told with.
+// The shell's handle: a kit that draws GLYPHS and remembers the menus asked of it, and windows that remember what they
+// were opened and told with.
 function shellStandIn() {
     const windows = [];
+    const menus = []; // each menu as the frame asked for it
     return {
         windows,
+        menus,
         handle: {
             ui: {
                 addStyle() {},
+                menu: (given) => menus.push(given),
                 icon(name) {
                     if (!GLYPHS.includes(name)) throw new Error(`no glyph ${name}`);
                     return `<svg data-glyph="${name}"></svg>`;
@@ -100,7 +105,9 @@ function runs(declared) {
     const heard = []; // { named, listener }
     const kept = {}; // what the mod under test keeps in its records
     const handle = (id, name, lifecycle) => ({
-        storage: { records: { get: (key, fallback) => kept[key] ?? fallback } },
+        storage: {
+            records: { get: (key, fallback) => kept[key] ?? fallback, set: (key, value) => (kept[key] = value) },
+        },
         exports: {
             register: (...given) =>
                 given.length === 2
@@ -372,6 +379,53 @@ async function main() {
         same(turns, [12, -40, -5]),
         turns
     );
+    const start = ['clock', 'notifications'];
+    const fixedNext = [
+        BAR.fixedBy(start, 'bell', true),
+        BAR.fixedBy(start, 'clock', true),
+        BAR.fixedBy(['clock', 'bell', 'seats'], 'bell', false),
+        BAR.fixedBy(start, 'bell', false),
+        BAR.fixedBy(BAR.fixedBy(start, 'gone', true), 'notifications', false),
+    ];
+    check(
+        'an item fixed comes last in the list and one fixed no more leaves it; the others keep their order, one fixed ' +
+            'already or not fixed leaves the list as it is, an id whose item does not stand is kept, and the list ' +
+            'given is not changed',
+        same(fixedNext, [
+            ['clock', 'notifications', 'bell'],
+            ['clock', 'notifications'],
+            ['clock', 'seats'],
+            ['clock', 'notifications'],
+            ['clock', 'gone'],
+        ]) && same(start, ['clock', 'notifications']),
+        fixedNext
+    );
+    const absent = BAR.barOf([clock, bell], { widths: measured, fixed: ['clock', 'gone', 'bell'] });
+    check(
+        'an item fixed whose mod gives nothing shows nothing and keeps its place in the list: the others stand as ' +
+            'the list has them',
+        absent.items.map(({ id, region }) => `${id} ${region}`).join() === 'clock fixed,bell fixed' &&
+            absent.scrolled === null &&
+            absent.items[1].rect.x < absent.items[0].rect.x,
+        absent
+    );
+    const asked = [
+        BAR.menuOf(narrow, ['clock'], { x: 60, y: 14 }),
+        BAR.menuOf(narrow, ['clock'], { x: 10, y: 14 }),
+        BAR.menuOf(narrow, ['clock'], { x: 47, y: 14 }),
+        BAR.menuOf(narrow, ['clock'], { x: 10, y: 27 }),
+    ];
+    check(
+        'a context press on an item opens one entry under the capsule, at the left end of what shows of the item: ' +
+            'Remove from Bar on a fixed one, Keep in Bar on another, and none where no item is in view',
+        same(asked, [
+            { id: 'clock', label: 'Remove from Bar', on: false, point: { x: 52, y: 32 } },
+            { id: 'seats', label: 'Keep in Bar', on: true, point: { x: 2, y: 32 } },
+            null,
+            null,
+        ]),
+        asked
+    );
 
     await modChecks(check);
 
@@ -544,6 +598,76 @@ async function modChecks(check) {
         'what is fixed is the list the frame keeps, and the clock and the notifications item where it keeps none',
         kept.join() === 'star' && frame.items.fixed().join() === 'clock,notifications',
         kept
+    );
+    // A context press on the item in the strip, and its menu's entry taken: the item is fixed, left of the clock.
+    const regionIds = (name) => (regionOf(name)?.children ?? []).map((child) => child.dataset.item).join();
+    let stopped = 0;
+    const context = (id) => {
+        const { x, y } = anchorOf(id).rect;
+        band.options.content.fire('contextmenu', { clientX: x + 1, clientY: y + 1, preventDefault: () => stopped++ });
+        return shell.menus.at(-1);
+    };
+    band.options.content.fire('contextmenu', { clientX: 1, clientY: 1, preventDefault: () => stopped++ });
+    const nowhere = { menus: shell.menus.length, prevented: stopped };
+    const loose = { strip: regionIds('strip'), fixed: regionIds('fixed'), kept: world.kept.fixed ?? null };
+    const keeps = context('star');
+    keeps.items[0].run();
+    const fixed = {
+        label: keeps.items[0].label,
+        point: keeps.point,
+        strip: regionIds('strip'),
+        fixed: regionIds('fixed'),
+        kept: world.kept.fixed,
+        width: band.size[0],
+        right: anchorOf('star').rect.x < anchorOf('clock').rect.x,
+    };
+    check(
+        'a context press on an item opens its menu under the capsule, and Keep in Bar fixes it: the list is kept ' +
+            'from the one a new machine starts with, and the item stands in the fixed region left of the clock',
+        nowhere.menus === 0 &&
+            nowhere.prevented === 0 &&
+            stopped === 1 &&
+            loose.strip === 'star' &&
+            loose.fixed === 'clock' &&
+            loose.kept === null &&
+            keeps.items.length === 1 &&
+            fixed.label === 'Keep in Bar' &&
+            fixed.point.x === 2 &&
+            fixed.point.y === BAR.CAPSULE.height + BAR.CAPSULE.gap &&
+            fixed.strip === '' &&
+            fixed.fixed === 'clock,star' &&
+            fixed.kept.join() === 'clock,notifications,star' &&
+            fixed.width === alone + 57 + BAR.CAPSULE.gap &&
+            fixed.right,
+        { nowhere, loose, fixed }
+    );
+    // A fixed item whose mod takes it back shows nothing and stays in the list: it stands fixed again as it is set.
+    await item.remove();
+    const away = { fixed: regionIds('fixed'), kept: world.kept.fixed.join(), width: band.size[0] };
+    await item.set({ name: 'Star', icon: 'star', command: 'show', count: 120, tone: 'attention' });
+    const given = { fixed: regionIds('fixed'), strip: regionIds('strip') };
+    const removes = context('star');
+    removes.items[0].run();
+    const freed = {
+        label: removes.items[0].label,
+        strip: regionIds('strip'),
+        fixed: regionIds('fixed'),
+        kept: world.kept.fixed.join(),
+    };
+    delete world.kept.fixed;
+    check(
+        'an item fixed while its mod gives nothing keeps its place in the list and stands fixed again as it is given; ' +
+            'Remove from Bar on a fixed item lets it scroll with the others again',
+        away.fixed === 'clock' &&
+            away.kept === 'clock,notifications,star' &&
+            away.width === alone &&
+            given.fixed === 'clock,star' &&
+            given.strip === '' &&
+            freed.label === 'Remove from Bar' &&
+            freed.strip === 'star' &&
+            freed.fixed === 'clock' &&
+            freed.kept === 'clock,notifications',
+        { away, given, freed }
     );
     await star().click();
     await buttons()

@@ -1,7 +1,7 @@
 // The items of the status bar as they stand, whether a screen draws them or not: what mods declare to
-// `status-bar/items`, what each running mod set, the order they came in, and which of them are fixed, a list of the
-// frame's own kept state (model/bar.js). An item a mod declares in its manifest stands whether the mod runs or not; one
-// that comes and goes is set and removed by a running mod.
+// `status-bar/items`, what each running mod set, the order they came in, and which of them are fixed, a list the
+// frame keeps and the person changes (model/bar.js). An item a mod declares in its manifest stands whether the mod runs
+// or not; one that comes and goes is set and removed by a running mod.
 const BAR = require('./model/bar.js');
 
 const INTERFACE = 'status-bar/items';
@@ -64,6 +64,12 @@ function items(deckit) {
         return deckit.storage.records.get(FIXED, [...BAR.FIXED]);
     }
 
+    // The item `id` fixed, `on`, or fixed no more: the list is kept whole from then on, and what stands is laid anew.
+    function fix(id, on) {
+        deckit.storage.records.set(FIXED, BAR.fixedBy(fixed(), id, on));
+        changed();
+    }
+
     // `listener()` is called each time what stands may have changed, until its off.
     function onChange(listener) {
         listeners.add(listener);
@@ -111,7 +117,7 @@ function items(deckit) {
         return Object.assign(new Error(message), { kind: 'INVALID_ARGUMENT' });
     }
 
-    return Object.freeze({ exportsFor, leave, standing, fixed, onChange, drawnBy, end });
+    return Object.freeze({ exportsFor, leave, standing, fixed, fix, onChange, drawnBy, end });
 }
 
 module.exports = { items, INTERFACE };

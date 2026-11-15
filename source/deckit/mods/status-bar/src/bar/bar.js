@@ -1,8 +1,8 @@
 // The capsule: a panel window in the host's bar holding one button for each item that stands (items.js), laid as the
 // model says (model/bar.js) in two regions: the fixed items at its right end, and left of them the others in a strip
-// that a turn of the wheel over it scrolls sideways. A press on an item runs its command on its mod, and the rect of
-// each item in view is told the shell as an anchor given to the item's mod, which stands a view of its own under it.
-// The capsule closes while it lays no item.
+// that a turn of the wheel over it scrolls sideways. A press on an item runs its command on its mod, a context press
+// on it opens the menu that fixes it or fixes it no more, and the rect of each item in view is told the shell as an
+// anchor given to the item's mod, which stands a view of its own under it. The capsule closes while it lays no item.
 const BAR = require('./model/bar.js');
 
 const NAME = 'Status Bar';
@@ -48,6 +48,7 @@ const STYLE = `
         font: inherit;
         white-space: nowrap;
     }
+    .status-bar-item:disabled { pointer-events: none; }
     .status-bar-item:not(:disabled):hover { background: var(--deckit-hover); }
     .status-bar-item:not(:disabled):active { background: var(--deckit-pressed); }
     .status-bar-item[data-tone='attention'] { color: var(--deckit-accent); }
@@ -67,12 +68,14 @@ function bar(shell, held, { commands = () => null } = {}) {
     const strip = part('div', '-strip'); // what scrolls under the scrolled region
     regions.scrolled.append(strip);
     regions.scrolled.addEventListener('wheel', turned, { passive: false });
+    content.addEventListener('contextmenu', asked);
     shell.ui.addStyle(STYLE);
     const widths = {}; // label -> the width it was measured at
     let window = null; // the panel window, while it is open
     let told = { size: '', anchors: '' }; // the size and the anchors the shell was last told of it
     let scroll = 0; // how far the strip is scrolled (BAR.barOf)
     let scrolled = []; // the ids of the items in the strip as it was last laid
+    let last = null; // the capsule as it was last laid (BAR.barOf)
     held.drawnBy(drawn);
     const off = held.onChange(lay);
 
@@ -110,6 +113,7 @@ function bar(shell, held, { commands = () => null } = {}) {
         if (came !== undefined) laid = BAR.barOf(items, { ...given, scroll: BAR.scrollTo(laid, came) });
         scrolled = inStrip;
         scroll = laid.scroll;
+        last = laid;
         draw(laid, items);
         if (!laid.width) {
             window?.close();
@@ -164,6 +168,15 @@ function bar(shell, held, { commands = () => null } = {}) {
         event.preventDefault();
         scroll += BAR.turnOf({ dx: event.deltaX, dy: event.deltaY });
         lay();
+    }
+
+    // A context press on an item opens its menu under the capsule: one entry, which fixes the item or fixes it no more.
+    function asked(event) {
+        const menu = last && BAR.menuOf(last, held.fixed(), { x: event.clientX, y: event.clientY });
+        if (!menu) return;
+        event.preventDefault();
+        const { id, label, on, point } = menu;
+        shell.ui.menu({ items: [{ label, run: () => held.fix(id, on) }], point });
     }
 
     function measured(label) {
