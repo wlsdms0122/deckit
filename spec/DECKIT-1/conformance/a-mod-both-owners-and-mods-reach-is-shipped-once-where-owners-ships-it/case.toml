@@ -1,0 +1,25 @@
+case = 27
+name = "a-mod-both-owners-and-mods-reach-is-shipped-once-where-owners-ships-it"
+note = "A mod that owns an interface owners names and is of an id mods names is shipped once, where owners ships it, and the case is a case: an interface and an id are two names, neither written twice. This implementation's owner of deckit/notifications is its mod notifications, and mods names status-bar before notifications: the catalog lists notifications first, and it runs."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/notifications"]
+mods = ["status-bar", "notifications"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["notifications", "status-bar"]
+
+[[step]]
+look = "run"
+mod = "notifications"
+
+[step.expect]
+answers = "running"

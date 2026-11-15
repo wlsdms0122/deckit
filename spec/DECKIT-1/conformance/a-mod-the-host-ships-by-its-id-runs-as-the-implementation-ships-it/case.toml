@@ -1,0 +1,25 @@
+case = 27
+name = "a-mod-the-host-ships-by-its-id-runs-as-the-implementation-ships-it"
+note = "The host ships the mod the implementation ships of each id mods names, as it ships it, marked system. This implementation ships a mod status-bar, which provides status-bar/items, and a mod seats, which provides nothing and uses status-bar/items; each is listed under its id and runs from the start, as each writes a background."
+
+[host]
+base = "shell"
+api = "1.0.0"
+mods = ["status-bar", "seats"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "run"
+mod = "status-bar"
+
+[step.expect]
+answers = "running"
+
+[[step]]
+look = "run"
+mod = "seats"
+
+[step.expect]
+answers = "running"

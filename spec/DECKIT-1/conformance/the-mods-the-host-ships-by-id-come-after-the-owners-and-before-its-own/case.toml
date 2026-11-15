@@ -1,0 +1,19 @@
+case = 27
+name = "the-mods-the-host-ships-by-id-come-after-the-owners-and-before-its-own"
+note = "The host ships the mods mods names after the owners owners names and before the bundles ship names, in the order each key writes them, and the catalog lists the bundles shipped in the order they were installed. This implementation's owner of deckit/notifications is listed under notifications, and it ships a mod status-bar and a mod clock: the catalog lists notifications, then status-bar before clock, though clock's name comes first, then mod-a."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/notifications"]
+mods = ["status-bar", "clock"]
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "mods"
+
+[step.expect]
+answers = ["notifications", "status-bar", "clock", "mod-a"]
