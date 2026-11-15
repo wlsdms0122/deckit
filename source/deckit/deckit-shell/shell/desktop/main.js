@@ -889,8 +889,8 @@ export function createDesktop({
         if (hands.get(seat) !== hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
         if (!shown) throw refusal('HIDDEN', 'the desktop is hidden: nothing of it takes input');
         if (windows.has(window) && ROUTING.raises(window, windowUnder(seat, at))) press(seat, windows.get(window));
-        if (by) pointed(seat, hand, { event: 'pointer', type: 'move', source: event.source, ...by });
-        return { ...pointed(seat, hand, { ...event, ...at }), at };
+        if (by) pointed(seat, hand, { event: 'pointer', type: 'move', source: event.source, ...by }, 'ref');
+        return { ...pointed(seat, hand, { ...event, ...at }, 'ref'), at };
     }
 
     // The id of the window a press at `point` reaches in what is laid for `seat`, its content or a part the shell
@@ -927,14 +927,14 @@ export function createDesktop({
     // page where its window is now, so a window its content's drag moves stays under the pointer. A press on the
     // desktop or the Dock leaves the seat's keyboard with its key window, wanting no other. A move with none
     // held moves the seat's pointer alone. The Dock comes out for the seat as its pointer reaches the Dock's sliver,
-    // and stays out while it is there or on the Dock's card.
-    function pointed(seat, hand, event) {
+    // and stays out while it is there or on the Dock's card. `how` is how the seat named the place (ROUTING.placeOf).
+    function pointed(seat, hand, event, how = 'point') {
         const { type } = event;
         const point = { x: event.x, y: event.y };
         if (!['move', 'down', 'up', 'scroll'].includes(type) || ![point.x, point.y].every(Number.isFinite))
             throw refusal('INVALID_ARGUMENT', 'a pointer event is a move, down, up or scroll at a point');
         hand.pointer = point;
-        moved(seat, hand, event);
+        moved(seat, hand, event, how);
         const [sliver, card] = DOCK_MODEL.inputOf(area(), true, DOCK.items());
         hand.dock = within(sliver, point) || (hand.dock && within(card, point));
         const hit = type === 'move' ? null : stage.hit(laidFor(seat), point);
@@ -1079,15 +1079,16 @@ export function createDesktop({
 
     // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of
     // a seat it draws the cursor of, any but the one whose view it shows, that event alone, `{ id, type, x, y, buttons,
-    // dimmed, named }` and for a scroll `dx`, `dy`. The seat's name shows from then, and its fold is due once.
-    function moved(seat, hand, { type, button = 0, dx = 0, dy = 0 }) {
+    // dimmed, named, glide }` and for a scroll `dx`, `dy`, `glide` by how the seat named the place, `how`. The seat's
+    // name shows from then, and its fold is due once.
+    function moved(seat, hand, { type, button = 0, dx = 0, dy = 0 }, how = 'point') {
         if (type === 'down' && !hand.buttons.includes(button)) hand.buttons = [...hand.buttons, button];
         if (type === 'up') hand.buttons = hand.buttons.filter((each) => each !== button);
         if (!isDrawn(seat, hand)) return;
         hand.acted = clock.now();
         if (!hand.rests) clock.after(() => foldDue(seat, hand), MARKS.NAME);
         hand.rests = true;
-        tellSeat(seat, hand, type, type === 'scroll' ? { dx, dy } : {});
+        tellSeat(seat, hand, type, { glide: MARKS.glides(how), ...(type === 'scroll' ? { dx, dy } : {}) });
     }
 
     // Whether the desktop's page draws the cursor of `seat`: of any but the one whose view it shows, once its pointer
@@ -1097,7 +1098,7 @@ export function createDesktop({
     }
 
     // The desktop's page is told what the pointer of `seat` did where it is, and how its cursor is drawn there.
-    function tellSeat(seat, hand, type, more = {}) {
+    function tellSeat(seat, hand, type, more) {
         const { x, y } = hand.pointer;
         const dimmed = MARKS.isDimmed(hand.pointer, stackOf(seat), stackOf(shownSeat()));
         const named = MARKS.nameLeft(hand.acted, clock.now()) > 0;
@@ -1111,7 +1112,7 @@ export function createDesktop({
         const left = MARKS.nameLeft(hand.acted, clock.now());
         if (left > 0) return clock.after(() => foldDue(seat, hand), left);
         hand.rests = false;
-        if (isDrawn(seat, hand)) tellSeat(seat, hand, 'rest');
+        if (isDrawn(seat, hand)) tellSeat(seat, hand, 'rest', { glide: false });
     }
 
     // What stands on the screen of `seat`, `[{ id, frame }]` from the back: its windows in its order, then the panel

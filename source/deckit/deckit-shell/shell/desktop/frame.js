@@ -135,11 +135,13 @@ const STYLE = `
         display: flex;
         align-items: flex-start;
         color: var(--deckit-seat);
+        transition: opacity var(--deckit-exit-fade) var(--deckit-exit-curve);
+    }
+    .deckit-seat-cursor[data-glide] {
         transition:
             transform var(--deckit-move) var(--deckit-move-curve),
             opacity var(--deckit-exit-fade) var(--deckit-exit-curve);
     }
-    .deckit-seat-cursor[data-held] { transition: opacity var(--deckit-exit-fade) var(--deckit-exit-curve); }
     .deckit-seat-cursor[data-dimmed] { opacity: ${DIMMED}; }
     .deckit-seat-arrow {
         flex: none;
@@ -511,14 +513,15 @@ function boot(theme, channels) {
         }
     }
 
-    // What a seat's pointer just did, or that it rests, drawn as it comes: the cursor is there, gliding by the `move`
-    // spring, or at once with a button held, as what the hand holds follows it. A scroll shows a tick beside it,
-    // pointing its way, that fades.
-    function pointed({ id, type, x, y, buttons, dimmed, named, dx = 0, dy = 0 }) {
+    // What a seat's pointer just did, or that it rests, drawn as it comes: the cursor is there at once, so one that
+    // moves is where its pointer is, or gliding by the `move` spring where the event says `glide`. A scroll shows a
+    // tick beside it, pointing its way, that fades.
+    function pointed({ id, type, x, y, buttons, dimmed, named, glide, dx = 0, dy = 0 }) {
         const told = state.seats.find((seat) => seat.id === id);
         if (!told || told.shown) return;
         if (!cursors.has(id)) drawSeats(state.seats.map((seat) => (seat === told ? { ...seat, at: { x, y } } : seat)));
         const cursor = cursors.get(id);
+        cursor.element.toggleAttribute('data-glide', glide);
         put(cursor, { x, y, buttons, dimmed, named });
         if (type !== 'scroll') return;
         cursor.element.querySelector('.deckit-seat-tick')?.remove();

@@ -34,9 +34,10 @@ export const setup = CHANNEL.pageToMain(
 // `down` `{ name, why }` once deckit's core answers nothing more, or null.
 export const state = CHANNEL.mainToPage('deckit-shell:desktop-state');
 // What the pointer of a seat that is not the one shown just did, each event as it comes, between two states:
-// `{ id, type, x, y, buttons, dimmed, named }`, `type` 'move', 'down', 'up' or 'scroll', or 'rest' once it did nothing
-// for as long as the seat's name shows, the point on the stage, the buttons held after it, whether the cursor is drawn
-// dimmed there, whether the seat's name shows beside it, and for a scroll `dx`, `dy`.
+// `{ id, type, x, y, buttons, dimmed, named, glide }`, `type` 'move', 'down', 'up' or 'scroll', or 'rest' once it did
+// nothing for as long as the seat's name shows, the point on the stage, the buttons held after it, whether the cursor
+// is drawn dimmed there, whether the seat's name shows beside it, whether the cursor glides there or is there at once
+// (model/marks.js glides), and for a scroll `dx`, `dy`.
 export const seat = CHANNEL.mainToPage('deckit-shell:desktop-seat');
 // What the pointer of the seat at the host window does on a part of a window the page draws, as it does it, main
 // recognizing what it means: `id` the window, `part` 'bar', its title bar, an edge as model/layout.js resized names

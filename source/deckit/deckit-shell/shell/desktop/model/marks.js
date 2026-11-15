@@ -45,4 +45,11 @@ function ringOf({ x, y, width, height }, radius = null) {
     };
 }
 
-export { NAME, RING, topAt, isDimmed, nameLeft, ringOf };
+// Whether a seat's cursor glides to where a pointer event puts it, by how the event named its place (model/routes.js
+// placeOf): only for 'ref', where the pointer jumps to what a reading named. A pointer that moves is drawn where it
+// is at once, each event as it comes.
+function glides(place) {
+    return place === 'ref';
+}
+
+export { NAME, RING, topAt, isDimmed, nameLeft, ringOf, glides };

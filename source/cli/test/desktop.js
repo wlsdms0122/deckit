@@ -17,6 +17,7 @@
 // left key, whatever edge it names; and the anchors a window's mod tells, with the panel
 // windows that stand under them. Exits 1 with a line for each check that failed. The packages are ES modules, so they
 // are imported as such.
+const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -2942,7 +2943,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     check(
         'a move of a seat that is not shown is told to the page by itself, with no state',
         JSON.stringify(desk.told()) ===
-            '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[],"dimmed":false,"named":true}]' &&
+            '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[],"dimmed":false,"named":true,"glide":false}]' &&
             desk.states() === states,
         [desk.told(), desk.states() - states]
     );
@@ -3077,6 +3078,31 @@ async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
         { moved, pressed, away, now: desk.page().seats, windows: desk.page().windows }
     );
 
+    // The rules the desktop's page writes for a seat's cursor, each by its selector.
+    const style = fs.readFileSync(
+        path.join(__dirname, '..', '..', 'deckit', 'deckit-shell', 'shell', 'desktop', 'frame.js'),
+        'utf8'
+    );
+    const ruleOf = (selector) => style.split(`\n    ${selector} {`)[1]?.split('}\n')[0] ?? '';
+    const glide = 'transform var(--deckit-move)';
+    check(
+        'a cursor glides only by how its place was named: at a ref, and at once at a point',
+        MARKS.glides('ref') && !MARKS.glides('point') && !MARKS.glides(null),
+        [MARKS.glides('ref'), MARKS.glides('point')]
+    );
+    check(
+        "the page's style places a cursor with no transition of its place but where it glides, dims one, and folds " +
+            'its name but where it shows',
+        ruleOf('.deckit-seat-cursor').includes('transition: opacity') &&
+            !ruleOf('.deckit-seat-cursor').includes(glide) &&
+            ruleOf('.deckit-seat-cursor[data-glide]').includes(glide) &&
+            ruleOf('.deckit-seat-cursor[data-dimmed]').includes('opacity') &&
+            ruleOf('.deckit-seat-name').includes('opacity: 0') &&
+            ruleOf('.deckit-seat-cursor[data-named] .deckit-seat-name').includes('opacity: 1') &&
+            ruleOf('.deckit-seat-focus').includes('var(--deckit-seat)'),
+        ['.deckit-seat-cursor', '.deckit-seat-cursor[data-glide]', '.deckit-seat-name'].map(ruleOf)
+    );
+
     const { NAME } = MARKS;
     const left = [
         MARKS.nameLeft(null, 5000),
@@ -3139,7 +3165,7 @@ async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
             early === 'move true,down true,up true' &&
             before === early &&
             JSON.stringify(rest) ===
-                '{"id":"s1","type":"rest","x":30,"y":40,"buttons":[],"dimmed":false,"named":false}' &&
+                '{"id":"s1","type":"rest","x":30,"y":40,"buttons":[],"dimmed":false,"named":false,"glide":false}' &&
             after === `${early},rest false` &&
             folded === false &&
             types() === `${after},scroll true`,
@@ -3534,8 +3560,19 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     desk.puts.length = 0;
     const entering = async (event) => desk.enter(me, event);
     const byRef = (type, ref) => entering({ ...pointer(type, {}), ref });
+    const toldBefore = desk.told().length;
     const acted = await byRef('down', '4.2');
     const lifted = await desk.enter(me, pointer('up', acted.at));
+    const glided = desk
+        .told()
+        .slice(toldBefore)
+        .map(({ type, glide }) => `${type} ${glide}`)
+        .join();
+    check(
+        'the page is told a cursor glides to where an event at a ref puts it, and is there at once by one at a point',
+        glided === 'down true,up false',
+        glided
+    );
     const after = await served.read(me, { of: 'desktop' });
     check(
         'a pointer event at a ref goes to the middle of what shows of it, answered as one at that point with the point',
