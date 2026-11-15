@@ -801,11 +801,11 @@ async function run({
         const scrollOf = (now) => restOf(now) - now.joined?.x;
         check(
             'outside: in a narrow room the status bar is as wide as its room, the clock where it was from the right ' +
-                'end and the item under what is left, from its left end',
+                'end and the item under what is left, where it stands among those that scroll, the strip at its start',
             narrow.bar?.width === room &&
                 narrow.bar.x + narrow.bar.width === wide.bar.x + wide.bar.width &&
                 fromRight(narrow) === 2 &&
-                narrow.joined.x === 2 &&
+                narrow.joined.x === restOf(narrow) &&
                 narrow.joined.width === 57,
             JSON.stringify({ wide, room, narrow })
         );
