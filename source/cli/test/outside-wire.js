@@ -80,6 +80,11 @@ async function main() {
         ['connection/let-go', { connection: 1, number: 0 }, 'connection/let-go needs count'],
         ['event/listen', { names: 'ada:ping' }, "event/listen's names is string, not array"],
         ['event/emit', { name: 'ping' }, 'event/emit needs args'],
+        ['connection/end', { lifecycle: 0, run: 1 }, 'connection/end has no field run'],
+        ['runner/started', { contributions: {}, summary: {} }, 'runner/started has no field summary'],
+        ['record/keys', 'all', 'record/keys carries an object, not string'],
+        ['runner/quit', [], 'runner/quit carries an object, not array'],
+        ['record/keys', null, 'record/keys carries an object, not null'],
     ];
     for (const [method, params, message] of malformed) {
         const { error } = await ask(method, params);
@@ -89,6 +94,8 @@ async function main() {
             { params, error }
         );
     }
+    const keys = await ask('record/keys');
+    check('params left out are an empty object', !keys.error, keys);
     const read = await ask('record/read', { key: 'note' });
     check('what is well formed reaches what answers it', read.result === null && !read.error, read);
     const told = await ask('event/listen', { names: ['ada:ping'] });

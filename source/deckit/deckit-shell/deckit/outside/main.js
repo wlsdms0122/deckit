@@ -65,7 +65,7 @@ export function createOutside({ CORE, LOG, RUNNER, SEAT, transport: TRANSPORT, p
             if (!message || typeof message !== 'object') return connection.close();
             if (typeof message.method !== 'string') return answeredBy(message);
             const { id = null, method, params = {} } = message;
-            respond(id, method, params && typeof params === 'object' ? params : {}).then(
+            respond(method, params).then(
                 (result) => id !== null && send({ id, result }),
                 (error) => {
                     const data = error.kind ? { data: { stage: error.stage ?? 'call', kind: error.kind } } : {};
@@ -79,25 +79,27 @@ export function createOutside({ CORE, LOG, RUNNER, SEAT, transport: TRANSPORT, p
         // `initialize` first, once, then `authenticate`, then what a run asks. Whatever fails of the proof is one
         // refusal, which tells nothing of the principal, and the transport connection closes. A party whose admission
         // waits for an answer is told `attach/asking` once, and `authenticate` answers once it has one.
-        async function respond(id, method, params) {
+        async function respond(method, params) {
+            const proof = CHANNEL.kindOf(params) === 'object' ? params : {};
             if (state === 'opened' && method === 'initialize') {
-                if (params.protocol !== DECLARED.PROTOCOL) throw refusal(`protocol ${DECLARED.PROTOCOL} is spoken`);
-                const answer = await CORE.request('authentication/challenge', { transport, nonce: params.nonce });
+                if (proof.protocol !== DECLARED.PROTOCOL) throw refusal(`protocol ${DECLARED.PROTOCOL} is spoken`);
+                const answer = await CORE.request('authentication/challenge', { transport, nonce: proof.nonce });
                 state = 'challenged';
                 return { protocol: DECLARED.PROTOCOL, ...answer };
             }
             if (method === 'initialize') throw refusal('a transport connection is initialized once');
-            if (state === 'challenged' && method === 'authenticate') return authenticate(params);
+            if (state === 'challenged' && method === 'authenticate') return authenticate(proof);
             if (state !== 'bound') throw refusal(`${method} before authenticate`, DECLARED.CODE.notInitialized);
             const declared = Object.hasOwn(ASKED, method) ? ASKED[method] : null;
             if (!declared) throw refusal(`no method ${method}`, DECLARED.CODE.methodNotFound);
-            const payload = { ...params, ...(declared.adding ?? {}), ...(declared.run ? { run } : {}) };
             // What a party asks is held to the method's fields here, under the method's name, as a page's own code
             // holds what it is handed before it asks: no party is answered in a channel's name, and what is only told
-            // main is held as what main answers is.
-            const problem = CHANNEL.problemOf({ channel: method, fields: declared.channel.fields }, payload);
+            // main is held as what main answers is. A field main adds is none of the method's.
+            const added = { ...(declared.adding ?? {}), ...(declared.run ? { run } : {}) };
+            const own = Object.entries(declared.channel.fields).filter(([key]) => !Object.hasOwn(added, key));
+            const problem = CHANNEL.problemOf({ channel: method, fields: Object.fromEntries(own) }, params);
             if (problem) throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', problem);
-            const message = { channel: declared.channel.channel, payload };
+            const message = { channel: declared.channel.channel, payload: { ...params, ...added } };
             if (!declared.channel.reply) return (carried.told(message), true);
             const answer = await carried.asked(message);
             if (answer.error) throw Object.assign(new Error(answer.error.message), answer.error);
