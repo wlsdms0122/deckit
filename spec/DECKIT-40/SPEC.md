@@ -26,8 +26,8 @@ A seat perceives the desktop by **reading** it: `seat/read` answers the desktop,
 | `items` | an integer: how many items of one element that holds items are listed; 30 where it is left out | `window`, `node` |
 | `roles` | an array of strings: only the elements of these roles are listed, and those that hold them | `window`, `node` |
 | `all` | a boolean: the whole of a document is read, and not only what is in view | `window`, `node` |
-| `text` | a number: how many characters of a name are listed; 80 for a `window` and 200 for a `node` where it is left out | `window`, `node` |
-| `lines` | a number: how many lines of text under a node are listed; all of them where it is left out | `node` |
+| `text` | an integer: how many characters of a name are listed; 80 for a `window` and 200 for a `node` where it is left out | `window`, `node` |
+| `lines` | an integer: how many lines of text under a node are listed; all of them where it is left out | `node` |
 
 | `of` | keys beside `of` | answers |
 |---|---|---|
@@ -41,10 +41,10 @@ Every reading is **for the seat that asks**: the desktop of that seat, as [seats
 
 A `seat/read` is refused at `call` with the first of these that is so, after what [users and seats](../DECKIT-38/SPEC.md) refuses of its `params`:
 
-1. kind `INVALID_ARGUMENT`, where `format` is neither `text` nor `json`; where `of` is `window`, or `picture` with `window`, and `window` is not `w` and digits or digits alone, or is left out of a `window`; or where a picture is asked as *A picture* refuses it;
+1. kind `INVALID_ARGUMENT`, where `format` is neither `text` nor `json`; where `of` is `window`, or `picture` with `window`, and `window` is not `w` and digits or digits alone; where `window` is left out of a `window` or `ref` of a `node`; or where a picture is asked as *A picture* refuses it;
 2. kind `STALE`, where `since` is a mark the desktop never had, under *Changes and the mark*;
 3. kind `NOT_FOUND`, where `window` names no normal window open and no panel window on the seat's screen;
-4. kind `GONE`, where a `ref` names nothing, under *Refs*, or is left out of a `node`.
+4. kind `GONE`, where a `ref` names nothing, under *Refs*.
 
 ### The lines
 
@@ -170,7 +170,7 @@ An element that names a node and has no role reads as `generic`.
 | `required`, `readonly` | the element is so |
 | `level` and a number | a `heading`: its `aria-level`, or the digit of its element |
 | `focused` and a seat's id | the element has its document's focus; the id is that of the seat whose keys go to the document, left out where none's do |
-| `value`, a space, and a text between two DQUOTE | a `textbox`, `searchbox`, `combobox` or `spinbutton` that holds a value, an empty one too: the value as a name is flattened, written as it is with nothing escaped, cut to `text` characters and 40 at most as a name is cut |
+| `value`, a space, and a `quoted` | a `textbox`, `searchbox`, `combobox` or `spinbutton` that holds a value, an empty one too: the value, flattened as a name is, cut to `text` characters and 40 at most as a name is cut, and escaped as a name is |
 | `text` and a count | such a field that hides what is typed, or editable content: how many characters it holds |
 | `not in view` | in what `changes` lists alone: the element changed and is out of sight |
 
@@ -290,4 +290,4 @@ An element's table is `{ depth, role, name, length, states, items, inView, below
 
 **Note.** What this costs an implementation: it keeps for each seat the lines of its desktop and the mark each last changed at, and what went with the mark it went at; numbers each document and each element it lists and keeps the numbers while they stand; hears each document tell that it changed; and reads a document by its elements' roles, names and states, not by how it is drawn.
 
-**Note.** No case holds these, each for its reason. A picture's bytes: a case holds a value whole and no two machines draw the same pixels, so the cases hold a picture's width and its refusals. The lines of the Dock's menu, and a choice of it as a node: a case holds a text whole, and the words of the menu are fixed by no DECKIT, as [the Dock](../DECKIT-33/SPEC.md) leaves them; its refs are held by the cases of [seats at the desktop](../DECKIT-39/SPEC.md) that press them. The mark at 0: a party reads only once it sits, and a seat that opens raised the mark. A `scale`, a member of `rect`, a `text` or a `lines` that holds a fraction or is no finite number: a case writes no number but an integer. `REFUSED` for a picture of an element of a `web` document: the base `shell` of [the case format](../DECKIT-1/SPEC.md) shows no web page inside a window's content. What a seat that watches `changes` is told: a case holds what a party was told whole, one input of a case may raise the mark more than once, and whether two raises close together are told once or twice is the moment's, so the same case would be told one message on one run and two on the next.
+**Note.** No case holds these, each for its reason. A picture's bytes: a case holds a value whole and no two machines draw the same pixels, so the cases hold a picture's width and its refusals. The lines of the Dock's menu, and a choice of it as a node: a case holds a text whole, and the words of the menu are fixed by no DECKIT, as [the Dock](../DECKIT-33/SPEC.md) leaves them; its refs are held by the cases of [seats at the desktop](../DECKIT-39/SPEC.md) that press them. The mark at 0: a party reads only once it sits, and a seat that opens raised the mark. A `scale` or a member of `rect` that holds a fraction or is no finite number, and a fraction where a key takes an integer: a case writes no number but an integer. `caret` and `selected`, and a selection after a press in a field that holds text: where text is drawn is each machine's fonts. `REFUSED` for a picture of an element of a `web` document: the base `shell` of [the case format](../DECKIT-1/SPEC.md) shows no web page inside a window's content. What a seat that watches `changes` is told: a case holds what a party was told whole, one input of a case may raise the mark more than once, and whether two raises close together are told once or twice is the moment's, so the same case would be told one message on one run and two on the next.
