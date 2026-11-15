@@ -98,6 +98,8 @@ A **click** on an item is input reaching its app, as [activation](../DECKIT-32/S
 | keep in the Dock | where the app is not kept | keeps it in the Dock |
 | take out of the Dock | where the app is kept | takes it out of the Dock |
 
+The menu of an item opens on a press of the second button on the item, as the button goes down. A press of the main button on a kept item becomes a drag once the pointer is 4 or more to a side of the point it was pressed at, or 4 or more above or below it; let go on the item before that, it is a click. An item that is not kept is not dragged.
+
 ### mods
 
 The handle `shell` has these members, each a request as [the shell](../DECKIT-29/SPEC.md) fixes one. `mods.icon` is open to every mod, since an icon names a mod and reaches nothing of it; each other is guarded by `deckit.mods`, which [the permissions](../DECKIT-3/SPEC.md) define:
