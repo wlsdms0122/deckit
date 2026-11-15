@@ -1643,12 +1643,20 @@ export function createDesktop({
                     .map(({ page, rect }) => ({ page, rect, clip })),
             ].filter(Boolean);
         };
+        // A view on another seat's screen alone lies under the backdrop at its frame, so its content has its size and
+        // takes that seat's input while this screen shows nothing of it.
+        const elsewhere = panelFrames().filter(
+            ({ window }) => window.surface && !inBar.some((one) => one.window === window)
+        );
         const backdrop = surface(PAGE.BACKDROP);
         const cursors = hands.size > 1 && surface(PAGE.CURSORS);
         return {
             children,
             parts: {
-                pages: [...pages].map((page) => ({ page, rect: front.get(page) ?? area(), input: [] })),
+                pages: [
+                    ...[...pages].map((page) => ({ page, rect: front.get(page) ?? area(), input: [] })),
+                    ...elsewhere.map(({ window, frame }) => ({ page: window.surface, rect: frame, input: [] })),
+                ],
                 backdrop: backdrop ? [{ page: backdrop, rect: full }] : [],
                 windows: seen.flatMap(({ id, window, frame, opacity, scale, content, leaving, surfaces }) => {
                     const { bar } = window;

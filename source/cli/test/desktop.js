@@ -2135,7 +2135,15 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
         return seats.join();
     };
     const drawn = () => desk.page().panels.some(({ id }) => id === 3);
-    const laid = () => desk.laid().some(({ page }) => page?.name === 'content-3');
+    // Where the view's content is on the host's stage: 'over' the desktop, 'under' the backdrop taking no pointer, or
+    // null.
+    const laid = () => {
+        const names = desk.laid().map(({ page }) => page?.name);
+        const at = names.indexOf('content-3');
+        if (at < 0) return null;
+        if (at > names.indexOf('desktop')) return 'over';
+        return at < names.indexOf('backdrop') && desk.laid()[at].input?.length === 0 ? 'under' : null;
+    };
     const told = () => desk.desktop.stateOf(view);
 
     await asks(s1);
@@ -2143,11 +2151,12 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
     const opened = { on: await on(), drawn: drawn(), laid: laid(), told: told(), over: await press(s1, inView) };
     const typed = await key(s1);
     check(
-        "a view its mod opens after a seat's press is on that seat's screen alone: the local seat's does not lay or " +
-            'draw it, the seat reads it, presses in it and types in it, and its content is told shown and key',
+        "a view its mod opens after a seat's press is on that seat's screen alone: the local seat's does not draw it " +
+            'and lays its content under the backdrop, the seat reads it, presses in it and types in it, and its ' +
+            'content is told shown and key',
         opened.on === 's1' &&
             !opened.drawn &&
-            !opened.laid &&
+            opened.laid === 'under' &&
             opened.told.shown &&
             opened.told.key &&
             opened.over.over === 3 &&
@@ -2266,7 +2275,7 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
             'window coming up, and is put away as the local seat begins to follow another',
         mine.on === 'local' &&
             mine.drawn &&
-            mine.laid &&
+            mine.laid === 'over' &&
             mine.key &&
             mine.focused === 'content-3' &&
             mine.host === 1 &&
