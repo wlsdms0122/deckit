@@ -853,17 +853,10 @@ async function run({
             joined.x + joined.width + 4 === clock?.x &&
             clock.x + clock.width + 2 === laid?.width;
         const scrolls = ({ bar: laid, joined }) => joined?.region === 'scrolled' && laid?.width === room;
-        // Where the item stands with the bar scrolled to its start: after the items that scroll before it, 4 apart,
+        // Where the item stands with the bar scrolled to its start: after the items that scroll left of it, 4 apart,
         // whichever order the bar has them in.
         const restOf = ({ items, joined }) => {
-            const strip = items.filter(({ region }) => region === 'scrolled');
-            const before = strip.slice(
-                0,
-                Math.max(
-                    0,
-                    strip.findIndex(({ id }) => id === joined?.id)
-                )
-            );
+            const before = items.filter(({ region, x }) => region === 'scrolled' && x < joined?.x);
             return before.reduce((x, { width }) => x + width + 4, 2);
         };
         // Whether the item is in view whole, left of the clock.
