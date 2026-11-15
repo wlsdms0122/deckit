@@ -134,6 +134,20 @@ function near(a, b) {
     return !!a && !!b && ['x', 'y', 'width', 'height'].every((key) => Math.abs(a[key] - b[key]) <= 1);
 }
 
+// What a reading of the capsule (`capsuleNow`) says of the bar beside its clock, whose label changes width as the time
+// does: `{ right, y, height, room }`, where the band's right edge, its top and its height are, and `room`, how wide it
+// is less the clock; null where either is not there.
+function besideClock({ bar, clock }) {
+    if (!bar || !clock) return null;
+    return { right: bar.x + bar.width, y: bar.y, height: bar.height, room: bar.width - clock.width };
+}
+
+// Whether two readings of the capsule have the bar the same beside its clock, to a point.
+function sameBesideClock(one, other) {
+    const [a, b] = [besideClock(one), besideClock(other)];
+    return !!a && !!b && Object.keys(a).every((key) => Math.abs(a[key] - b[key]) <= 1);
+}
+
 // Polls `probe` until it answers something, the same twice 100 ms apart, as a window's rect does once its motion has
 // come to rest, or gives up after `ms`: answers what it answered last.
 async function atRest(probe, ms = 3000) {
@@ -148,9 +162,9 @@ async function atRest(probe, ms = 3000) {
 }
 
 // The status bar as it stands: `barPage()` is the document of its capsule, and `capsuleNow()` answers `{ bar, name,
-// clock, joined }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item and the
-// joining mod's, `{ id, name, region, x, y, width, height }` each as its button is drawn in the capsule, `region` the
-// one it stands in, `fixed` or `scrolled`, or null.
+// clock, joined, items }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item
+// and the joining mod's, `{ id, name, region, x, y, width, height }` each as its button is drawn in the capsule,
+// `region` the one it stands in, `fixed` or `scrolled`, or null, and every item so, in the order they are drawn.
 function statusBar({ pages, desktopLaid }) {
     const barPage = async () => {
         for (const each of await pages('about:blank'))
@@ -172,7 +186,13 @@ function statusBar({ pages, desktopLaid }) {
             }),
         }))()`);
         const item = (id) => drawn?.items.find((each) => each.id === id) ?? null;
-        return { bar: bar?.rect ?? null, name: drawn?.name ?? null, clock: item('clock'), joined: item(JOINS) };
+        return {
+            bar: bar?.rect ?? null,
+            name: drawn?.name ?? null,
+            clock: item('clock'),
+            joined: item(JOINS),
+            items: drawn?.items ?? [],
+        };
     };
     return { barPage, capsuleNow };
 }
@@ -2794,7 +2814,7 @@ async function walk({
         const joined =
             (await until(async () => {
                 const now = await capsuleNow();
-                return now.joined && now.bar?.width === unjoined.bar?.width + 36 && now;
+                return now.joined && besideClock(now)?.room === besideClock(unjoined)?.room + 36 && now;
             }, 8000)) || (await capsuleNow());
         check(
             'an item a mod sets comes into the status bar left of the clock, and the capsule grows to hold it',
@@ -2817,7 +2837,9 @@ async function walk({
         }, 4000);
         check(
             'an item set anew is named by its name, its count and its attention, and laid as wide as it draws',
-            itemCounted && itemCounted.joined.width === 57 && itemCounted.bar.width === unjoined.bar.width + 61,
+            itemCounted &&
+                itemCounted.joined.width === 57 &&
+                besideClock(itemCounted)?.room === besideClock(unjoined)?.room + 61,
             JSON.stringify({ itemCounted, now: await capsuleNow() })
         );
         await setItem({ name: 'Star', label: 'x'.repeat(25) });
@@ -2875,7 +2897,7 @@ async function walk({
         await setItem(null);
         const itemGone = await until(async () => {
             const now = await capsuleNow();
-            return !now.joined && now.bar?.width === unjoined.bar?.width && now;
+            return !now.joined && besideClock(now)?.room === besideClock(unjoined)?.room && now;
         }, 4000);
         check(
             'an item its mod removes goes, and the capsule narrows to what is left',
@@ -3045,7 +3067,7 @@ async function walk({
         const barAgain = await until(async () => {
             const { band, view } = await anchoredNow();
             const now = await capsuleNow();
-            return !band && !view && near(now.bar, barAlone.bar) && now;
+            return !band && !view && sameBesideClock(now, barAlone) && now;
         }, 6000);
         check(
             'a band and the view under its anchor close, and the status bar stands as before',
