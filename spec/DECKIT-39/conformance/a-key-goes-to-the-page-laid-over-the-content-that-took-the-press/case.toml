@@ -1,0 +1,61 @@
+case = 26
+name = "a-key-goes-to-the-page-laid-over-the-content-that-took-the-press"
+note = "A key of a seat goes to the page of its key window that took the seat's last press, a page laid over the content as the content itself. mod-a's window shows mod-b's view in a region at 100, 100, 200 by 150. A party's seat presses at 450, 250, inside that view, and sends a key: it answers the window 1, and the page of mod-b hears the key."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", "mod-b"]
+
+[[step]]
+look = "regions"
+
+[step.expect]
+answers = [{ mod = "mod-b", parent = "mod-a", window = "main", frame = { x = 383, y = 207, width = 200, height = 150 } }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 450, y = 250, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = "key", holder = "s1", at = { x = 450, y = 250 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 450, y = 250, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "down", code = "KeyA", key = "a" }
+
+[step.expect]
+answers = { to = 1 }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/mod-b/keydown/KeyA", activates = true }]
