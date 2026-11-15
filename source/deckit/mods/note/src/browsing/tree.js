@@ -79,6 +79,7 @@ function tree({
         items: () => shown.map((item) => item.path),
         lead: () => shown.find((item) => item.active)?.path ?? null,
         nameOf: (path) => nameOf(itemOf(path)),
+        name: 'Notes',
         expanded: (path) => (itemOf(path).folds ? expanded.has(path) : null),
         parentOf: (path) => parentOf(path) || null,
         childrenOf: (path) => shown.filter((item) => parentOf(item.path) === path).map((item) => item.path),

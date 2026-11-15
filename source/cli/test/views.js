@@ -34,6 +34,21 @@ main
     textbox "Filter this folder"
   tree "Files"
 separator "Sidebar"`,
+    note: `complementary "Sidebar"
+  group "All Notes"
+    button "All Notes"
+    tree "Notes"
+  button "New Folder"
+main
+  toolbar
+    button "Back"
+    button "Forward"
+    navigation "Path"
+    button "New note"
+    textbox "Search all notes"
+  list "Folders"
+  list "Notes"
+separator "Sidebar"`,
 };
 
 // Whether the lines of `text` hold those of `golden`, in its order.
