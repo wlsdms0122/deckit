@@ -14,6 +14,10 @@ import * as DECLARED from './protocol.js';
 // Each frame's surface is the window grown by its shadow: the window's material at its middle, the title bar of a
 // titled window at its top, the edges that resize it just outside it, as model/layout.js partsOf has them.
 const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
+// How wide the holder's colour is drawn round a window's title bar, a seat's cursor, and the ring at its press, px.
+const HOLDER = 2;
+const CURSOR = 16;
+const RING = 20;
 const STYLE = `
     .deckit-desktop-strip { position: fixed; top: 0; left: 0; right: 0; --app-region: drag; }
     .deckit-window-title-text {
@@ -217,10 +221,6 @@ const GLYPHS = Object.freeze({
     minimize: 'M1.5 4h5',
     zoom: 'M4 1.5v5M1.5 4h5',
 });
-// How wide the holder's colour is drawn round a window's title bar, a seat's cursor, and the ring at its press, px.
-const HOLDER = 2;
-const CURSOR = 16;
-const RING = 20;
 const ARROW =
     `<svg class="deckit-seat-arrow" viewBox="0 0 16 16" fill="currentColor" stroke="var(--deckit-background)" ` +
     'stroke-linejoin="round"><path d="M1.5 1.5l4.6 12.2 2-5.6 5.6-2z"/></svg>';
