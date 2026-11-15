@@ -89,7 +89,7 @@ An app is **opened** for the person in these steps:
 
 ### The person's hand
 
-A **click** on an item is input reaching its app, as [activation](../DECKIT-32/SPEC.md) fixes input, and opens the app. Each item has a menu, whose choices are these, each in the implementation's words and offered where the table says:
+A **click** on an item is input reaching its app, as [activation](../DECKIT-32/SPEC.md) fixes input, and opens the app. Where more than one seat is open, a click, a menu and a drag are one seat's, and the app is opened for that seat, as [seats at the desktop](../DECKIT-39/SPEC.md) reads these rules for each seat. Each item has a menu, whose choices are these, each in the implementation's words and offered where the table says:
 
 | choice | offered | what it does |
 |---|---|---|

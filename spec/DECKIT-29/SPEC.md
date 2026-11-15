@@ -76,6 +76,8 @@ The shell's lifecycle ends as [the entry](../DECKIT-6/SPEC.md) ends a layer's li
 | `styles.register(styles)` | the styles the mod lays over pages | registration | [the look](../DECKIT-35/SPEC.md) |
 | `region(element, interface)`, `children.onChange(listener)`, `dropDestination(element, options)` | a place a child's view is shown in, being told the children changed, and the files a person drops | answers at once | [regions and drops](../DECKIT-36/SPEC.md) |
 | `children.list(interface)` | the mod's children of an interface | request | [regions and drops](../DECKIT-36/SPEC.md) |
+| `seats.list()`, `seats.asks()`, `seats.answer(ask, allow)`, `seats.follow(seat)` | the seats at the desktop and the users that ask to sit, an ask answered, and the host app's window following a seat | request | [seats at the desktop](../DECKIT-39/SPEC.md) |
+| `seats.onChange(listener)` | being told that the seats or the asks changed | answers at once | [seats at the desktop](../DECKIT-39/SPEC.md) |
 | `view.register(view)` | the mod's view, shown in a region of its parent's | registration | [regions and drops](../DECKIT-36/SPEC.md) |
 
 The shapes are these:

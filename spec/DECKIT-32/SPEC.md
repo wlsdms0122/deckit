@@ -31,6 +31,8 @@ At most one window is **key** at a time: the window whose content the keyboard g
 
 The **active mod** is the mod of the key window. Where no window is key, no mod is active.
 
+Where more than one seat is open, each seat has a key window, an active mod and a record of who may activate of its own, and a window is key for the one seat that holds it, as [seats at the desktop](../DECKIT-39/SPEC.md) reads these rules for each seat.
+
 The host app's window has a **title**, the name the system lists the window by, which is the name the mod of the desktop's key window is listed by, as [the bundle](../DECKIT-2/SPEC.md) fixes `name`, or the host's name, as [the embedding](../DECKIT-22/SPEC.md) fixes it, where the desktop has no key window.
 
 ### Who may activate
@@ -70,6 +72,7 @@ A mod is **held back** where its window is to come in front as the key window, a
 - `name`: [the bundle](../DECKIT-2/SPEC.md). The host's name: [the embedding](../DECKIT-22/SPEC.md).
 - Reaching a mod and a call through a connection: [the connections](../DECKIT-9/SPEC.md). `launch` and `relaunch`: [the lifecycle](../DECKIT-5/SPEC.md).
 - A chord a mod takes and when it is told, and a key a mod records: [the shell's keys](../DECKIT-34/SPEC.md). The Dock, a click on an item, `mods.open(id)` and the item marked for attention: [the Dock](../DECKIT-33/SPEC.md).
+- The desktop of each seat, and which seat holds a window: [seats at the desktop](../DECKIT-39/SPEC.md).
 - The input `key`, the look `desktop`, and the base `shell`'s keyboard and the app in front: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered
@@ -87,5 +90,3 @@ A mod is **held back** where its window is to come in front as the key window, a
 **Note.** Some sentences above are held by no case under `conformance/`, each for its reason. The keyboard going to the key window's content: no look reads where a key goes but through what it reaches. A click on the Dock and `mods.open(id)`: [the Dock](../DECKIT-33/SPEC.md) holds them with its inputs. A `launch` and a `relaunch` request handing activation, and a call through a connection of the service to the client: cases hold reaching and a call of the client, and the rest is the same sentence. A key pressed in a page of a mod with no window, and a chord's key pressed in the page of the mod that took it: the base `shell` of [the case format](../DECKIT-1/SPEC.md) presses a key where the keyboard is, which is a window's content or the desktop's page. The Dock's item marked for attention: [the Dock](../DECKIT-33/SPEC.md) holds it with its look. `ENDED` of `active()`: no `call` reaches a cut handle, as [the shell](../DECKIT-29/SPEC.md) says of its cases. `active()` answering `false`: the base `shell` is the only app on its stand-in for a screen, in front from its start.
 
 **Note.** What this costs an implementation: it keeps, for the person, which mods may activate, ended by each input and added to by each request, and tells every request of one mod to another to that record before it goes on; it tells a normal window it is key no more as an overlay window takes the keyboard; and it tells apart the keyboard a host gives an overlay window as asked from the keyboard the person gives it with a press.
-
-**Note.** The rules above are for one person at the host app, whose input and keyboard they follow. A host that gave several people the desktop at once would keep a key window, an active mod and who may activate for each; the specification fixes none of that, since a mod cannot tell one person from another and which person a host gives the desktop to is the host's.
