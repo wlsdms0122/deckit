@@ -1,0 +1,38 @@
+case = 25
+name = "told-reads-a-part-of-what-a-party-was-told"
+note = "A told that writes part answers the value under that key. A party listens to an event of ada and sends it, and the step reads messages."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "event/listen"
+params = { names = ["ada:ping"] }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "event/emit"
+params = { name = "ping", args = [1] }
+
+[[step]]
+look = "told"
+party = "p"
+part = "messages"
+
+[step.expect]
+answers = [{ method = "event/deliver", params = { name = "ada:ping", args = [1] }, request = false }]
