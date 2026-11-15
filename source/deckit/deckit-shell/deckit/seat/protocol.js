@@ -10,10 +10,10 @@ const SEAT = { reply: true, guard: 'deckit.seat' };
 const READING = Object.freeze({
     window: 'string?',
     ref: 'string?',
-    depth: 'number?',
+    depth: 'integer?',
     roles: 'array?',
     all: 'boolean?',
-    items: 'number?',
+    items: 'integer?',
     text: 'any?',
     lines: 'any?',
     format: 'string?',
@@ -29,10 +29,10 @@ export const EVENTS = Object.freeze({
             x: 'number?',
             y: 'number?',
             ref: 'string?',
-            button: 'number?',
+            button: 'integer?',
             buttons: 'array?',
             modifiers: 'array?',
-            count: 'number?',
+            count: 'integer?',
             dx: 'number?',
             dy: 'number?',
         }),
@@ -56,8 +56,8 @@ export const OUTPUTS = Object.freeze({
     node: Object.freeze({ query: READING, told: null, on: false }),
     // What changed since a mark; told, the desktop changed: the mark it is at now.
     changes: Object.freeze({
-        query: Object.freeze({ since: 'number?' }),
-        told: Object.freeze({ mark: 'number' }),
+        query: Object.freeze({ since: 'integer?' }),
+        told: Object.freeze({ mark: 'integer' }),
         on: false,
     }),
     // A picture of the desktop, or of the window, the node or the rect named.
@@ -67,7 +67,7 @@ export const OUTPUTS = Object.freeze({
         on: false,
     }),
     // The seat's key window, by its id, was taken by another seat, `holder`.
-    held: Object.freeze({ query: null, told: Object.freeze({ window: 'number', holder: 'string?' }), on: true }),
+    held: Object.freeze({ query: null, told: Object.freeze({ window: 'integer', holder: 'string?' }), on: true }),
 });
 
 // Every field any row of `rows` has under `part`, each optional: what a channel that carries any of them may carry.

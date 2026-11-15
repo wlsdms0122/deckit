@@ -170,6 +170,18 @@ async function main() {
         sent.every((answer) => !!answer.error) && handed.length === 1,
         sent
     );
+    const fractions = await Promise.all([
+        guest.ask('seat/input', { ...pointer, button: 0.5 }),
+        guest.ask('seat/input', { ...pointer, count: 1.5 }),
+        guest.ask('seat/read', { of: 'changes', since: 0.5 }),
+        guest.ask('seat/read', { of: 'desktop', depth: 1.5 }),
+        guest.ask('seat/read', { of: 'desktop', items: 2.5 }),
+    ]);
+    check(
+        'a button, a count, a mark, a depth and a number of items that is no integer are refused',
+        fractions.every((answer) => answer.error?.kind === 'INVALID_ARGUMENT') && handed.length === 1,
+        fractions
+    );
     const readHeld = await guest.ask('seat/read', { of: 'held' });
     const readNone = await guest.ask('seat/read', { of: 'weather' });
     const readOther = await guest.ask('seat/read', { of: 'changes', scale: 2 });
