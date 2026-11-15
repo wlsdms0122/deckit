@@ -29,10 +29,11 @@ export function createRead({ LOG }) {
         return { document, count, width, height, lines: lines.map((line) => withRef(document, line)) };
     }
 
-    // What is under one ref: `{ document, count, line, rect, scroll, lines, more, selection, caret }`: its own line,
-    // its rect in the page, `{ top, height, left, width }` where it scrolls, the lines under it, text too (`role`
-    // `text`), `more` the lines left out, `selection`, `{ start, end }` in a field's value or `{ line, column, length
-    // }` in editable content, and `caret`, the rect its caret is drawn at while it has its document's focus. `knobs` as
+    // What is under one ref: `{ document, count, line, rect, scroll, lines, more, selection, caret, selected }`: its
+    // own line, its rect in the page, `{ top, height, left, width }` where it scrolls, the lines under it, text too
+    // (`role` `text`), `more` the lines left out, `selection`, `{ start, end }` in a field's value or `{ line, column,
+    // length }` in editable content, and, while it has its document's focus, `caret`, the rect its caret is drawn at,
+    // and `selected`, the rects what is selected in it is drawn at, one a line of text, where anything is. `knobs` as
     // of `outline`, `text` 200, and `lines`, the text lines listed, those in view where it is not given.
     async function node(page, ref, knobs = {}) {
         const { document, number, key } = named(page, ref);

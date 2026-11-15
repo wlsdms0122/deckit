@@ -203,6 +203,32 @@ async function run({ check, main, windowOf, dockClick }) {
             field.rect?.width > 200,
         `${JSON.stringify(field)} ${JSON.stringify(expected)}`
     );
+    // What is selected, as rects: a part of a field's value, then nothing.
+    const part = await editor.evaluate(`(() => {
+        const field = document.querySelector('#deckit-read-field');
+        field.setSelectionRange(2, 7);
+        const span = document.createElement('span');
+        span.style.cssText = 'position:fixed;visibility:hidden;white-space:pre;font:16px monospace';
+        span.textContent = field.value.slice(0, 2);
+        document.body.append(span);
+        const before = span.getBoundingClientRect().width;
+        span.textContent = field.value.slice(2, 7);
+        const width = span.getBoundingClientRect().width;
+        span.remove();
+        return { x: field.getBoundingClientRect().x + 1 + 6 + before, width };
+    })()`);
+    const partly = await read('node', editor.id, probe?.ref);
+    await editor.evaluate(`document.querySelector('#deckit-read-field').setSelectionRange(11, 11)`);
+    check(
+        "read: a field's node has the rect its selected text is drawn at, and none with nothing selected",
+        partly.selected?.length === 1 &&
+            Math.abs(partly.selected[0].x - part.x) <= 2 &&
+            Math.abs(partly.selected[0].width - part.width) <= 2 &&
+            partly.selected[0].y === partly.caret?.y &&
+            partly.selected[0].height === partly.caret.height &&
+            field.selected === undefined,
+        `${JSON.stringify(partly)} ${JSON.stringify(part)}`
+    );
     await press(editor, await middle(editor, 'rich'));
     await put(editor, { event: 'text', type: 'insert', text: 'one two' });
     const rich = await read('node', editor.id, named((await read('outline', editor.id)).lines, 'Rich')?.ref);
@@ -216,6 +242,37 @@ async function run({ check, main, windowOf, dockClick }) {
             rich.caret.x < rich.rect.x + rich.rect.width &&
             rich.line.states.includes('text 7'),
         JSON.stringify(rich)
+    );
+
+    // What is selected in editable content, a line of text broken in two: a rect a line, top to bottom.
+    const broken = await editor.evaluate(`(() => {
+        const rich = document.querySelector('#deckit-read-rich');
+        const text = rich.firstChild;
+        rich.append(document.createElement('br'), 'three');
+        getSelection().setBaseAndExtent(text, 4, rich.lastChild, 3);
+        const rects = [[text, 4, 7], [rich.lastChild, 0, 3]].map(([node, from, to]) => {
+            const range = document.createRange();
+            range.setStart(node, from);
+            range.setEnd(node, to);
+            const { x, y, width, height } = range.getBoundingClientRect();
+            return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
+        });
+        return { rects, text: rich.textContent };
+    })()`);
+    const across = await read('node', editor.id, named((await read('outline', editor.id)).lines, 'Rich')?.ref);
+    await editor.evaluate(`(() => {
+        const rich = document.querySelector('#deckit-read-rich');
+        rich.lastChild.remove();
+        rich.lastChild.remove();
+        getSelection().collapse(rich.firstChild, 7);
+    })()`);
+    check(
+        "read: editable content's node has a rect for each line of what is selected, and none with nothing selected",
+        JSON.stringify(across.selected) === JSON.stringify(broken.rects) &&
+            across.selected.length === 2 &&
+            across.selected[1].y > across.selected[0].y &&
+            rich.selected === undefined,
+        `${JSON.stringify(across)} ${JSON.stringify(broken)}`
     );
 
     // An element's place, once it is in view.

@@ -87,10 +87,11 @@ const SHELL = Object.freeze({
         // those of one container listed, `text` (80)
         outline: 'function',
         // node(page, ref, knobs) -> Promise of `{ document, count, line, rect, scroll, lines, more, selection,
-        // caret }`: the element's own line, its rect in the page, `{ top, height, left, width }` where it scrolls, the
-        // lines under it, its text too as lines of role `text`, `more` those left out, what is selected in a field,
-        // `{ start, end }` in its value or `{ line, column, length }` in editable content, and the rect its caret is
-        // at while it has its document's focus. `knobs` as of `outline`, `text` 200, and `lines`, the text lines
+        // caret, selected }`: the element's own line, its rect in the page, `{ top, height, left, width }` where it
+        // scrolls, the lines under it, its text too as lines of role `text`, `more` those left out, what is selected
+        // in a field, `{ start, end }` in its value or `{ line, column, length }` in editable content, and, while it
+        // has its document's focus, the rect its caret is at and `selected`, the rects what is selected in it is
+        // drawn at, one a line of text. `knobs` as of `outline`, `text` 200, and `lines`, the text lines
         // listed, those in view without
         node: 'function',
         // changes(page, { document, count }) -> Promise of `{ document, from, count, entries }`: what reads otherwise

@@ -277,27 +277,37 @@ function install() {
     // A line as it is answered, without what only the reader holds.
     const plain = ({ fresh: _fresh, element: _element, ...line }) => line;
 
+    // How a field of one line draws its text: `at(offset)`, the x in the page of the place before the character at
+    // `offset` of its value, measured from the text before it, and `y`, `height`, `left`, `right` of the box the text
+    // is drawn in.
+    function drawnIn(el) {
+        const style = getComputedStyle(el);
+        const pen = (drawnIn.canvas ??= document.createElement('canvas')).getContext('2d');
+        pen.font = style.font;
+        pen.letterSpacing = style.letterSpacing;
+        const drawn = el.type === 'password' ? '\u2022'.repeat(el.value.length) : el.value;
+        const rect = el.getBoundingClientRect();
+        const left = rect.x + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft);
+        const top = parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop);
+        const bottom = parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom);
+        return {
+            at: (offset) => left + pen.measureText(drawn.slice(0, offset)).width - el.scrollLeft,
+            y: rect.y + top,
+            height: rect.height - top - bottom,
+            left,
+            right: rect.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight),
+        };
+    }
+
+    const focusIn = (el) => el === document.activeElement || el.contains(document.activeElement);
+
     // Where the caret of a field with the document's focus is drawn, a rect in the page, or null: read from the
     // selection in editable content, and measured from the text before it in a field of one line.
     function caretOf(el) {
-        if (el !== document.activeElement && !el.contains(document.activeElement)) return null;
+        if (!focusIn(el)) return null;
         if (typeof el.selectionEnd === 'number' && el.nodeName === 'INPUT') {
-            const style = getComputedStyle(el);
-            const pen = (caretOf.canvas ??= document.createElement('canvas')).getContext('2d');
-            pen.font = style.font;
-            pen.letterSpacing = style.letterSpacing;
-            const drawn = el.type === 'password' ? '\u2022'.repeat(el.value.length) : el.value;
-            const before = pen.measureText(drawn.slice(0, el.selectionEnd)).width;
-            const rect = el.getBoundingClientRect();
-            const left = parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft);
-            const top = parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop);
-            const bottom = parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom);
-            return rectOf({
-                x: rect.x + left + before - el.scrollLeft,
-                y: rect.y + top,
-                width: 1,
-                height: rect.height - top - bottom,
-            });
+            const { at, y, height } = drawnIn(el);
+            return rectOf({ x: at(el.selectionEnd), y, width: 1, height });
         }
         const selection = getSelection();
         if (!selection.rangeCount || !el.contains(selection.focusNode)) return null;
@@ -308,6 +318,59 @@ function install() {
         const holder = selection.focusNode.nodeType === 1 ? selection.focusNode : selection.focusNode.parentElement;
         const rect = holder?.getBoundingClientRect();
         return rect ? rectOf({ x: rect.x, y: rect.y, width: 1, height: rect.height }) : null;
+    }
+
+    // Where what is selected in a field with the document's focus is drawn, rects in the page, one a line of text,
+    // top to bottom, each cut to what shows of the field; none where nothing is selected. Measured in a field of one
+    // line, and read from the selection's text in editable content.
+    function selectedOf(el) {
+        if (!focusIn(el)) return [];
+        const box = el.getBoundingClientRect();
+        if (typeof el.selectionEnd === 'number' && el.nodeName === 'INPUT') {
+            if (el.selectionStart === el.selectionEnd) return [];
+            const { at, y, height, left, right } = drawnIn(el);
+            const from = Math.max(left, at(el.selectionStart));
+            const to = Math.min(right, at(el.selectionEnd));
+            return to > from ? [rectOf({ x: from, y, width: to - from, height })] : [];
+        }
+        const selection = getSelection();
+        if (!selection.rangeCount || selection.isCollapsed || !el.contains(selection.focusNode)) return [];
+        const whole = selection.getRangeAt(0);
+        const walker = document.createTreeWalker(whole.commonAncestorContainer, NodeFilter.SHOW_TEXT);
+        const rows = []; // { left, right, top, bottom }, one a line of text
+        const texts = whole.commonAncestorContainer.nodeType === 3 ? [whole.commonAncestorContainer] : [];
+        while (walker.nextNode()) texts.push(walker.currentNode);
+        for (const text of texts) {
+            if (!whole.intersectsNode(text)) continue;
+            const part = document.createRange();
+            part.setStart(text, text === whole.startContainer ? whole.startOffset : 0);
+            part.setEnd(text, text === whole.endContainer ? whole.endOffset : text.length);
+            for (const drawn of part.getClientRects()) {
+                const cut = {
+                    left: Math.max(drawn.left, box.left),
+                    right: Math.min(drawn.right, box.right),
+                    top: Math.max(drawn.top, box.top),
+                    bottom: Math.min(drawn.bottom, box.bottom),
+                };
+                if (cut.right <= cut.left || cut.bottom <= cut.top) continue;
+                // A rect is of the line that holds its middle.
+                const middle = (cut.top + cut.bottom) / 2;
+                const row = rows.find((each) => middle > each.top && middle < each.bottom);
+                if (!row) rows.push(cut);
+                else
+                    Object.assign(row, {
+                        left: Math.min(row.left, cut.left),
+                        right: Math.max(row.right, cut.right),
+                        top: Math.min(row.top, cut.top),
+                        bottom: Math.max(row.bottom, cut.bottom),
+                    });
+            }
+        }
+        return rows
+            .sort((one, other) => one.top - other.top)
+            .map((row) =>
+                rectOf({ x: row.left, y: row.top, width: row.right - row.left, height: row.bottom - row.top })
+            );
     }
 
     // What is selected in a field: `{ start, end }`, counted in its value, or, in editable content, `{ line, column,
@@ -378,7 +441,8 @@ function install() {
             return { key, count, width: innerWidth, height: innerHeight, lines };
         },
         // What is under one element: its own line, its place, how far it is scrolled, its lines, text too, the first
-        // `lines` of them where that is given, `more` counting the rest, what is selected in it and its caret.
+        // `lines` of them where that is given, `more` counting the rest, what is selected in it, its caret and the
+        // rects what is selected is drawn at.
         node(asked, number, { lines: most = Infinity, ...knobs } = {}) {
             const el = found(asked, number);
             if (!el) return refuse('GONE');
@@ -402,6 +466,8 @@ function install() {
                 if (selection) answer.selection = selection;
                 const caret = caretOf(el);
                 if (caret) answer.caret = caret;
+                const selected = selectedOf(el);
+                if (selected.length) answer.selected = selected;
             }
             return answer;
         },
