@@ -832,6 +832,9 @@ async function main() {
     chipChecks({ SEATS }, check);
     routeChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'routes.js')), check);
     levelChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'levels.js')), check);
+    const ANCHOR = await import(url('deckit-sdk', 'shell', 'window', 'model', 'anchor.js'));
+    const ANCHORED = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'anchored.js'));
+    anchoredChecks({ ANCHOR, ANCHORED }, check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
@@ -1618,6 +1621,169 @@ function levelChecks(LEVELS, check) {
             held.windows === parts.windows &&
             JSON.stringify(parts.desktop[0].input) === JSON.stringify([{ x: 0, y: 0, width: 9, height: 3 }]),
         held
+    );
+}
+
+// The anchors a window's mod tells (deckit-sdk shell/window/model/anchor) and the views that stand under them
+// (model/anchored), as plain data: the shape kept, whose an anchor is, a view's size held to its limits, its place
+// under its anchor and inside the stage, and what stands as an anchor moves, goes or is another mod's.
+function anchoredChecks({ ANCHOR, ANCHORED }, check) {
+    const { VIEW, toldBy, isForeign, sizeOf, placeOf, standingOf } = ANCHORED;
+    const rect = (x, y, width, height) => ({ x, y, width, height });
+    const written = (value) => JSON.stringify(value);
+    const told = [{ id: 'clock', rect: { ...rect(100, 2, 60, 16), more: 1 }, mod: 'clock', extra: true }];
+    check(
+        "the anchors a window's mod tells are kept as an id, a rect and the mod that may bind, and nothing else",
+        written(ANCHOR.heldTo(told)) === written([{ id: 'clock', rect: rect(100, 2, 60, 16), mod: 'clock' }]) &&
+            written(ANCHOR.heldTo([])) === '[]',
+        ANCHOR.heldTo(told)
+    );
+    const wrong = [
+        null,
+        'clock',
+        { id: 'clock' },
+        [null],
+        [{ id: 'clock', rect: rect(0, 0, 1, 1) }],
+        [{ id: '', rect: rect(0, 0, 1, 1), mod: 'clock' }],
+        [{ id: 7, rect: rect(0, 0, 1, 1), mod: 'clock' }],
+        [{ id: 'clock', rect: rect(0, 0, -1, 1), mod: 'clock' }],
+        [{ id: 'clock', rect: rect(0, NaN, 1, 1), mod: 'clock' }],
+        [{ id: 'clock', rect: [0, 0, 1, 1], mod: 'clock' }],
+        [{ id: 'x'.repeat(129), rect: rect(0, 0, 1, 1), mod: 'clock' }],
+        [
+            { id: 'clock', rect: rect(0, 0, 1, 1), mod: 'clock' },
+            { id: 'clock', rect: rect(9, 0, 1, 1), mod: 'bell' },
+        ],
+    ];
+    check(
+        'anchors of another shape, or with an id named twice, are none',
+        wrong.every((each) => ANCHOR.heldTo(each) === null),
+        wrong.map((each) => ANCHOR.heldTo(each))
+    );
+    check(
+        'a view binds by the mod that tells the anchor and its id, and another shape is no name',
+        written(ANCHOR.nameOf({ mod: 'bar', id: 'clock', more: 1 })) === written({ mod: 'bar', id: 'clock' }) &&
+            [null, 'bar', {}, { mod: 'bar' }, { mod: 'bar', id: '' }, { mod: 7, id: 'clock' }].every(
+                (each) => ANCHOR.nameOf(each) === null
+            ),
+        ANCHOR.nameOf({ mod: 'bar', id: 'clock' })
+    );
+
+    // A stage 800 by 500 with the host's bar 28 high: the band of `bar` in it, a window of `app` under it.
+    const bounds = { stage: { width: 800, height: 500 }, desktop: rect(0, 28, 800, 472) };
+    const band = (content, anchors) => ({ id: 1, mod: 'bar', anchors, content, anchor: null, size: null });
+    const items = [
+        { id: 'clock', rect: rect(100, 2, 60, 16), mod: 'clock' },
+        { id: 'bell', rect: rect(20, 2, 24, 16), mod: 'bell' },
+    ];
+    const inBar = band(rect(600, 4, 192, 20), items);
+    const second = { id: 2, mod: 'bar', anchors: [{ id: 'clock', rect: rect(0, 0, 9, 9), mod: 'bell' }] };
+    const all = toldBy([inBar, second]);
+    check(
+        'every anchor told is named by its mod and its id, and of one id a mod names in two windows the first stands',
+        written(all.map(({ window, owner, id, mod }) => [window, owner, id, mod])) ===
+            written([
+                [1, 'bar', 'clock', 'clock'],
+                [1, 'bar', 'bell', 'bell'],
+            ]) && written(all[0].rect) === written(rect(100, 2, 60, 16)),
+        all
+    );
+    check(
+        'an anchor given to another mod is refused, and one given to the asker or told by no window is not',
+        isForeign(all, { mod: 'bar', id: 'clock' }, 'bell') &&
+            !isForeign(all, { mod: 'bar', id: 'clock' }, 'clock') &&
+            !isForeign(all, { mod: 'bar', id: 'gone' }, 'bell') &&
+            !isForeign(all, { mod: 'clock', id: 'clock' }, 'bell'),
+        all
+    );
+    check(
+        'a view is as wide as asked between 240 and 480 and as high as asked from 80 to the desktop less 16, and ' +
+            'never wider than the stage less 16',
+        written(sizeOf(bounds, { width: 100, height: 10 })) === written({ width: 240, height: 80 }) &&
+            written(sizeOf(bounds, { width: 900, height: 900 })) === written({ width: 480, height: 456 }) &&
+            written(sizeOf(bounds, { width: 320.4, height: 200.6 })) === written({ width: 320, height: 201 }) &&
+            written(
+                sizeOf(
+                    { stage: { width: 200, height: 60 }, desktop: rect(0, 28, 200, 32) },
+                    { width: 320, height: 200 }
+                )
+            ) === written({ width: 184, height: 16 }) &&
+            VIEW.margin === 8 &&
+            VIEW.radius === 12,
+        sizeOf(bounds, { width: 900, height: 900 })
+    );
+    const size = { width: 320, height: 200 };
+    const inWindow = placeOf(bounds, rect(300, 100, 40, 20), size);
+    const inStrip = placeOf(bounds, rect(700, 6, 60, 16), size);
+    check(
+        'a view stands 8 under its anchor, their right edges in line, and one under an anchor in the bar 8 under ' +
+            "the desktop's top",
+        written(inWindow) === written(rect(20, 128, 320, 200)) && written(inStrip) === written(rect(440, 36, 320, 200)),
+        { inWindow, inStrip }
+    );
+    const atRight = placeOf(bounds, rect(780, 6, 40, 16), size);
+    const atLeft = placeOf(bounds, rect(0, 100, 20, 20), size);
+    const low = placeOf(bounds, rect(400, 450, 50, 30), size);
+    check(
+        "a view is kept 8 inside the stage's sides and 8 above the desktop's bottom, over its anchor where no room " +
+            'is under it',
+        written(atRight) === written(rect(472, 36, 320, 200)) &&
+            written(atLeft) === written(rect(8, 128, 320, 200)) &&
+            written(low) === written(rect(130, 292, 320, 200)),
+        { atRight, atLeft, low }
+    );
+
+    const view = (id, mod, anchor, anchors = []) => ({ id, mod, anchors, content: null, anchor, size });
+    const ofClock = view(3, 'clock', { mod: 'bar', id: 'clock' });
+    const stood = standingOf(bounds, [inBar, ofClock]);
+    check(
+        "an anchor stands on the stage at its rect from its window's content, and the view bound to it under it",
+        written(stood.anchors.map(({ id, rect: at }) => [id, at])) ===
+            written([
+                ['clock', rect(700, 6, 60, 16)],
+                ['bell', rect(620, 6, 24, 16)],
+            ]) && written([...stood.frames]) === written([[3, rect(440, 36, 320, 200)]]),
+        { anchors: stood.anchors, frames: [...stood.frames] }
+    );
+    const moved = standingOf(bounds, [band(rect(500, 4, 192, 20), items), ofClock]);
+    const regrown = standingOf(bounds, [inBar, { ...ofClock, size: { width: 400, height: 300 } }]);
+    check(
+        'a view moves as its anchor does, and stands anew at the size it asks',
+        written(moved.frames.get(3)) === written(rect(340, 36, 320, 200)) &&
+            written(regrown.frames.get(3)) === written(rect(360, 36, 400, 300)),
+        { moved: moved.frames.get(3), regrown: regrown.frames.get(3) }
+    );
+    const gone = standingOf(bounds, [band(rect(600, 4, 192, 20), [items[1]]), ofClock]);
+    const away = standingOf(bounds, [band(null, items), ofClock]);
+    check(
+        'a view stands nowhere once its anchor is told no more, or while the window that tells it is not on the stage',
+        gone.frames.size === 0 && gone.anchors.length === 1 && away.frames.size === 0 && away.anchors.length === 0,
+        { gone: [...gone.frames], away: [...away.frames] }
+    );
+    const foreign = standingOf(bounds, [inBar, view(4, 'clock', { mod: 'bar', id: 'bell' })]);
+    check(
+        'a view bound to an anchor given to another mod stands nowhere',
+        foreign.frames.size === 0 && foreign.anchors.length === 2,
+        [...foreign.frames]
+    );
+    // The view of `clock` names an anchor in its own content for `bell`, whose view opened first; and two views
+    // each bound to an anchor the other tells.
+    const nested = view(3, 'clock', { mod: 'bar', id: 'clock' }, [
+        { id: 'more', rect: rect(10, 20, 100, 30), mod: 'bell' },
+    ]);
+    const chained = standingOf(bounds, [inBar, view(2, 'bell', { mod: 'clock', id: 'more' }), nested]);
+    const circled = standingOf(bounds, [
+        view(5, 'a', { mod: 'b', id: 'one' }, [{ id: 'one', rect: rect(0, 0, 9, 9), mod: 'b' }]),
+        view(6, 'b', { mod: 'a', id: 'one' }, [{ id: 'one', rect: rect(0, 0, 9, 9), mod: 'a' }]),
+    ]);
+    check(
+        'an anchor a view tells stands once the view does, whichever opened first, and views bound to one another ' +
+            'stand nowhere',
+        written(chained.frames.get(2)) === written(rect(230, 94, 320, 200)) &&
+            written(chained.anchors.at(-1).rect) === written(rect(450, 56, 100, 30)) &&
+            circled.frames.size === 0 &&
+            circled.anchors.length === 0,
+        { chained: [...chained.frames], circled: [...circled.frames] }
     );
 }
 
