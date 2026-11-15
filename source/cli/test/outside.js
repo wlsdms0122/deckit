@@ -413,6 +413,68 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
             same(acted, [`over ${windowA.id}`, `over ${windowA.id}, key`, 'over nothing']),
             JSON.stringify(acted)
         );
+        // What the desktop's page draws of the two seats: a cursor each where its pointer last went, a ring where a
+        // press began, noted as it is drawn since it fades, and its colour round the title bar of its key window.
+        const pageNamed = (test) => laid.find(test)?.id;
+        const desktopPage = pageNamed(({ url }) => /^deckit:\/\/desktop\//.test(url ?? ''));
+        await inPage(
+            desktopPage,
+            `(() => {
+                window.deckitRings = [];
+                new MutationObserver((records) => {
+                    for (const { addedNodes } of records)
+                        for (const node of addedNodes)
+                            if (node.className === 'deckit-seat-press') window.deckitRings.push(node.style.transform);
+                }).observe(document.querySelector('.deckit-seats'), { childList: true });
+                return true;
+            })()`
+        );
+        const pressedAt = at(windowA);
+        seatA.as('press', pressedAt);
+        const read = seatB.as('read', 'desktop').split('\n');
+        const colourOf = ({ seat }) => new RegExp(`^seat ${seat} "\\w+" ([a-z]+) `, 'm').exec(read.join('\n'))?.[1];
+        const placed = (point) => `translate(${point.split(',').join('px, ')}px)`;
+        const worn = (seat) => `var(--deckit-seat-${colourOf(seat)})`;
+        const drawnSeats = await until(async () => {
+            const seen = await inPage(
+                desktopPage,
+                `({ rings: window.deckitRings, cursors: [...document.querySelectorAll('.deckit-seat-cursor')].map(
+                    (node) => [
+                        node.dataset.seat,
+                        node.querySelector('.deckit-seat-name').textContent,
+                        node.style.getPropertyValue('--deckit-seat'),
+                        node.style.transform,
+                    ].join(' ')
+                ) })`
+            );
+            return seen?.rings?.length > 0 && seen.cursors?.length === 2 && seen;
+        }, 3000);
+        const holderOf = ({ id }) =>
+            inPage(
+                pageNamed(({ name }) => name === `frame-${id}`),
+                `(() => {
+                    const holder = document.querySelector('.deckit-window-holder');
+                    return !!holder && !holder.hidden && holder.style.getPropertyValue('--deckit-seat');
+                })()`
+            );
+        const holders = [await holderOf(windowA), await holderOf(windowB)];
+        check(
+            'outside: each seat has a cursor in its colour where its pointer last went, and a press leaves a ring',
+            drawnSeats &&
+                colourOf(seatA) &&
+                colourOf(seatA) !== colourOf(seatB) &&
+                same(drawnSeats.cursors, [
+                    `${seatA.seat} First ${worn(seatA)} ${placed(pressedAt)}`,
+                    `${seatB.seat} Second ${worn(seatB)} ${placed(at(child))}`,
+                ]) &&
+                same(drawnSeats.rings, [placed(pressedAt)]),
+            JSON.stringify({ drawnSeats, read: read.slice(0, 4), pressedAt, child: at(child) })
+        );
+        check(
+            "outside: a key window's frame wears its holder's colour, each seat's own",
+            same(holders, [worn(seatA), worn(seatB)]),
+            JSON.stringify({ holders, read: read.slice(0, 4) })
+        );
         // The second seat presses the first one's window right after the first typed in it: held, and typing nothing.
         const shownToB = showsFor(seatB, windowA);
         seatA.as('type', '!');

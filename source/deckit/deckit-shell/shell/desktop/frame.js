@@ -74,6 +74,19 @@ const STYLE = `
     }
     .deckit-window-title[hidden] { display: none; }
     .deckit-window-title[data-key] .deckit-window-title-text { color: var(--deckit-text); }
+    .deckit-window-holder {
+        position: fixed;
+        top: ${SHADOW - HOLDER}px;
+        left: ${SHADOW - HOLDER}px;
+        right: ${SHADOW - HOLDER}px;
+        box-sizing: border-box;
+        border: ${HOLDER}px solid var(--deckit-seat);
+        border-bottom: 0;
+        border-radius: ${RADIUS + HOLDER}px ${RADIUS + HOLDER}px 0 0;
+        mask-image: linear-gradient(#000 40%, transparent);
+        pointer-events: none;
+    }
+    .deckit-window-holder[hidden] { display: none; }
     .deckit-window-edge { position: fixed; }
     .deckit-window-edge[hidden] { display: none; }
     .deckit-window-edge[data-edge='top'] { top: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
@@ -126,6 +139,69 @@ const STYLE = `
             opacity var(--deckit-exit-fade) var(--deckit-exit-curve),
             transform var(--deckit-exit) var(--deckit-exit-curve);
     }
+    .deckit-seats { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+    .deckit-seat-cursor {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: flex;
+        align-items: flex-start;
+        color: var(--deckit-seat);
+        transition: transform var(--deckit-move) var(--deckit-move-curve);
+    }
+    .deckit-seat-cursor[data-held] { transition: none; }
+    .deckit-seat-arrow {
+        flex: none;
+        width: ${CURSOR}px;
+        height: ${CURSOR}px;
+        transform-origin: 0 0;
+        filter: var(--deckit-shadow-icon);
+        transition: transform var(--deckit-press) var(--deckit-press-curve);
+    }
+    .deckit-seat-cursor[data-held] .deckit-seat-arrow { transform: scale(0.85); }
+    .deckit-seat-name {
+        margin: ${CURSOR - 4}px 0 0 2px;
+        padding: 1px 6px;
+        border-radius: var(--deckit-radius-round);
+        background: var(--deckit-seat);
+        box-shadow: var(--deckit-shadow-control);
+        color: var(--deckit-background);
+        font: var(--deckit-type-caption);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .deckit-seat-tick { position: absolute; left: ${-CURSOR}px; top: 0; width: 12px; height: 12px; }
+    .deckit-seat-tick[data-way='up'] { transform: rotate(180deg); }
+    .deckit-seat-tick[data-way='left'] { transform: rotate(90deg); }
+    .deckit-seat-tick[data-way='right'] { transform: rotate(-90deg); }
+    .deckit-seat-press {
+        position: absolute;
+        top: 0;
+        left: 0;
+        color: var(--deckit-seat);
+        transition: opacity var(--deckit-exit-fade) var(--deckit-exit-curve);
+    }
+    .deckit-seat-press[data-leaving] { opacity: 0; }
+    .deckit-seat-ring {
+        position: absolute;
+        left: ${-RING / 2}px;
+        top: ${-RING / 2}px;
+        box-sizing: border-box;
+        width: ${RING}px;
+        height: ${RING}px;
+        border: 2px solid currentColor;
+        border-radius: var(--deckit-radius-round);
+        background: color-mix(in srgb, currentColor 16%, transparent);
+    }
+    .deckit-seat-drag {
+        position: absolute;
+        left: 0;
+        top: -1px;
+        height: 2px;
+        border-radius: var(--deckit-radius-round);
+        background: color-mix(in srgb, currentColor 60%, transparent);
+        transform-origin: 0 50%;
+    }
     .deckit-drop[data-shown] {
         opacity: 1;
         transform: none;
@@ -141,6 +217,16 @@ const GLYPHS = Object.freeze({
     minimize: 'M1.5 4h5',
     zoom: 'M4 1.5v5M1.5 4h5',
 });
+// How wide the holder's colour is drawn round a window's title bar, a seat's cursor, and the ring at its press, px.
+const HOLDER = 2;
+const CURSOR = 16;
+const RING = 20;
+const ARROW =
+    `<svg class="deckit-seat-arrow" viewBox="0 0 16 16" fill="currentColor" stroke="var(--deckit-background)" ` +
+    'stroke-linejoin="round"><path d="M1.5 1.5l4.6 12.2 2-5.6 5.6-2z"/></svg>';
+const TICK =
+    '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round"><path d="M2.5 4.5l3.5 3.5 3.5-3.5"/></svg>';
 const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right']);
 
 // MARK: - Initializer
@@ -189,7 +275,9 @@ function boot(theme, channels) {
     });
     down.append(downNote.element);
     const drop = element(document, 'div', 'deckit-drop');
-    document.body.append(drop, dock.element, strip, down);
+    const seats = element(document, 'div', 'deckit-seats');
+    const cursors = new Map(); // a seat's id -> { element, name, press }, its cursor and its press while it holds one
+    document.body.append(drop, seats, dock.element, strip, down);
     let dropped = null; // the tile the drop shows, or null
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const tellMotion = () => PROTOCOL.motion.send({ reduced: reduced.matches });
@@ -203,11 +291,13 @@ function boot(theme, channels) {
         state = next;
         draw();
     });
+    PROTOCOL.seat.on(pointed);
 
     function draw() {
         strip.style.height = state.strip.height + 'px';
         drawDrop(state.drop);
         drawPanels(state.panels);
+        drawSeats(state.seats);
         dock.setTop(state.strip.height);
         dock.update(state.dock);
         // The page of a desktop down fades in, a rare sign of the system's own; it goes at once once it is back.
@@ -223,8 +313,11 @@ function boot(theme, channels) {
         }
         for (const window of state.windows) {
             if (!drawn.has(window.id)) drawn.set(window.id, frameOf(window.id));
-            const { material, bar, text, buttons, edges } = drawn.get(window.id);
+            const { material, holder, bar, text, buttons, edges } = drawn.get(window.id);
             const laid = window.bar;
+            holder.hidden = !window.holder;
+            holder.style.height = laid.height + 'px';
+            holder.style.setProperty('--deckit-seat', `var(--deckit-seat-${window.holder})`);
             material.toggleAttribute('data-key', window.key);
             buttons.toggleAttribute('data-key', window.key);
             bar.toggleAttribute('data-key', window.key);
@@ -302,6 +395,84 @@ function boot(theme, channels) {
         set('mask-composite', [...holes.map(() => 'exclude'), 'add']);
     }
 
+    // A cursor for each seat but the one shown, over the windows and under the Dock: an arrow in the seat's colour at
+    // its pointer, its user's name beside it.
+    function drawSeats(all) {
+        const seen = new Map(all.filter(({ shown, at }) => !shown && at).map((seat) => [seat.id, seat]));
+        for (const [id, cursor] of cursors) {
+            if (seen.has(id)) continue;
+            cursor.element.remove();
+            cursor.press?.remove();
+            cursors.delete(id);
+        }
+        for (const { id, name, colour, at, buttons } of seen.values()) {
+            if (!cursors.has(id)) {
+                const made = { element: element(document, 'div', 'deckit-seat-cursor'), press: null };
+                made.element.innerHTML = ARROW;
+                made.name = element(document, 'span', 'deckit-seat-name');
+                made.element.append(made.name);
+                seats.append(made.element);
+                cursors.set(id, made);
+            }
+            const cursor = cursors.get(id);
+            cursor.colour = `var(--deckit-seat-${colour})`;
+            cursor.element.style.setProperty('--deckit-seat', cursor.colour);
+            cursor.element.dataset.seat = id;
+            cursor.name.textContent = name;
+            put(cursor, { ...at, buttons });
+        }
+    }
+
+    // What a seat's pointer just did, drawn as it comes: the cursor is there, gliding by the `move` spring, or at once
+    // with a button held, as what the hand holds follows it. A scroll shows a tick beside it, pointing its way, that
+    // fades.
+    function pointed({ id, type, x, y, buttons, dx = 0, dy = 0 }) {
+        const told = state.seats.find((seat) => seat.id === id);
+        if (!told || told.shown) return;
+        if (!cursors.has(id)) drawSeats(state.seats.map((seat) => (seat === told ? { ...seat, at: { x, y } } : seat)));
+        const cursor = cursors.get(id);
+        put(cursor, { x, y, buttons });
+        if (type !== 'scroll') return;
+        cursor.element.querySelector('.deckit-seat-tick')?.remove();
+        const tick = element(document, 'span', 'deckit-seat-tick');
+        tick.innerHTML = TICK;
+        tick.dataset.way = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+        cursor.element.append(tick);
+        const { fade, easing } = TOKEN.MOTION.exit;
+        tick.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade, easing, fill: 'forwards' });
+        finished(tick, () => tick.remove());
+    }
+
+    // A cursor at a point with the buttons it holds: a press leaves a ring where it began, which stays while a button
+    // is held, the line of the drag running from it to the cursor, and both fade as the last button is let go.
+    function put(cursor, { x, y, buttons }) {
+        const held = buttons.length > 0;
+        cursor.element.toggleAttribute('data-held', held);
+        cursor.element.style.transform = `translate(${x}px, ${y}px)`;
+        if (held && !cursor.press) {
+            const press = element(document, 'div', 'deckit-seat-press');
+            press.style.setProperty('--deckit-seat', cursor.colour);
+            press.style.transform = `translate(${x}px, ${y}px)`;
+            const ring = element(document, 'div', 'deckit-seat-ring');
+            press.append(element(document, 'div', 'deckit-seat-drag'), ring);
+            seats.insertBefore(press, seats.firstChild);
+            const { length, easing } = TOKEN.MOTION.press;
+            if (length)
+                ring.animate([{ transform: 'scale(0.5)' }, { transform: 'none' }], { duration: length, easing });
+            cursor.press = Object.assign(press, { from: { x, y } });
+        }
+        if (!cursor.press) return;
+        const { from } = cursor.press;
+        const line = cursor.press.firstChild;
+        line.style.width = Math.hypot(x - from.x, y - from.y) + 'px';
+        line.style.transform = `rotate(${Math.atan2(y - from.y, x - from.x)}rad)`;
+        if (held) return;
+        const gone = cursor.press;
+        cursor.press = null;
+        gone.toggleAttribute('data-leaving', true);
+        finished(gone, () => gone.remove());
+    }
+
     // The tile a window dragged by its title bar takes let go now, drawn at its frame over the windows: it grows in
     // from a little smaller at the side the pointer is at as it comes, goes from one tile to the next by the `move`
     // spring from where it stands, and shrinks back out as the pointer leaves the side or the drag ends.
@@ -354,6 +525,7 @@ function boot(theme, channels) {
     function frameOf(id) {
         const frame = surface(PAGE.frameOf(id));
         const material = element(frame.document, 'div', 'deckit-window-material');
+        const holder = element(frame.document, 'div', 'deckit-window-holder');
         const bar = element(frame.document, 'div', 'deckit-window-title');
         const text = element(frame.document, 'span', 'deckit-window-title-text');
         bar.append(text);
@@ -364,7 +536,7 @@ function boot(theme, channels) {
             forward(id, band, () => edge, { takes: true });
             return band;
         });
-        frame.document.body.append(material, bar, ...edges);
+        frame.document.body.append(material, holder, bar, ...edges);
 
         const held = surface(PAGE.buttonsOf(id));
         const buttons = element(held.document, 'div', 'deckit-window-buttons');
@@ -389,7 +561,7 @@ function boot(theme, channels) {
             buttons.append(button);
         });
         held.document.body.append(buttons);
-        return { material, bar, text, buttons, edges, off: [frame.off, held.off] };
+        return { material, holder, bar, text, buttons, edges, off: [frame.off, held.off] };
     }
 
     // What the pointer does on `node`, a part of the window `id`, told to main as it does it: its press there, and
