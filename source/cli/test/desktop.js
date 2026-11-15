@@ -884,6 +884,8 @@ async function main() {
     await memberChecks({ ROSTER, createSeats, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
     await typingChecks({ LAYOUT, createDesktop }, check);
+    const MARKS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'marks.js'));
+    await marksChecks({ MARKS, LAYOUT, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -2937,7 +2939,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     const middle = { x: x + width / 2, y: y + height / 2 };
     check(
         'a move of a seat that is not shown is told to the page by itself, with no state',
-        JSON.stringify(desk.told()) === '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[]}]' &&
+        JSON.stringify(desk.told()) === '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[],"dimmed":false}]' &&
             desk.states() === states,
         [desk.told(), desk.states() - states]
     );
@@ -2956,6 +2958,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
                 buttons: [0],
                 idle: false,
                 shown: false,
+                dimmed: false,
                 typing: null,
             }) &&
             seats.local.shown &&
@@ -2982,6 +2985,92 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
         'a button let go is held no more, and a seat that left is not in the state',
         desk.told().at(-1).buttons.length === 0 && !desk.page().seats.some(({ id }) => id === 's2'),
         [desk.told().at(-1), desk.page().seats]
+    );
+}
+
+// What marks a seat on the viewer's screen: the model's answers, and what the desktop's page is told of them.
+async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
+    const rect = (x, y, width, height) => ({ x, y, width, height });
+    const [back, front] = [
+        { id: 1, frame: rect(0, 0, 100, 100) },
+        { id: 2, frame: rect(50, 0, 100, 100) },
+    ];
+    check(
+        'what is in front at a point of a stack is the last of it the point is in, and nothing where none is',
+        MARKS.topAt([back, front], { x: 60, y: 10 }) === 2 &&
+            MARKS.topAt([front, back], { x: 60, y: 10 }) === 1 &&
+            MARKS.topAt([back, front], { x: 10, y: 10 }) === 1 &&
+            MARKS.topAt([back, front], { x: 150, y: 10 }) === null &&
+            MARKS.topAt([], { x: 0, y: 0 }) === null,
+        [MARKS.topAt([back, front], { x: 60, y: 10 }), MARKS.topAt([back, front], { x: 150, y: 10 })]
+    );
+    const dimmed = [
+        MARKS.isDimmed({ x: 60, y: 10 }, [front, back], [back, front]),
+        MARKS.isDimmed({ x: 60, y: 10 }, [back, front], [back, front]),
+        MARKS.isDimmed({ x: 10, y: 10 }, [front, back], [back, front]),
+        MARKS.isDimmed({ x: 60, y: 10 }, [front, back], [back]),
+        MARKS.isDimmed({ x: 120, y: 10 }, [back], [back, front]),
+        MARKS.isDimmed({ x: 60, y: 10 }, [back], []),
+        MARKS.isDimmed(null, [back], [front]),
+    ];
+    check(
+        "a seat's cursor is dimmed where it is over a window in its own order and another covers the point in the " +
+            "viewer's, and nowhere else: not on the same window, on no window, or where the viewer has none there",
+        dimmed.join() === 'true,false,false,false,false,false,false',
+        dimmed
+    );
+
+    const desk = desktopOver(createDesktop, {});
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    for (const [id, mod] of [
+        [1, 'a'],
+        [2, 'b'],
+    ]) {
+        const page = { name: `page-${mod}`, mod };
+        desk.desktop.open({
+            id,
+            mod,
+            name: `w${id}`,
+            level: 'normal',
+            page,
+            surface: { name: `content-${id}`, of: page },
+            size: { width: 200, height: 200 },
+            minimum: { width: 0, height: 0 },
+            bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+        });
+        desk.openSurfaces(id);
+    }
+    desk.desktop.control.hand.move(1, 100 - desk.frameOf(1).x, 300 - desk.frameOf(1).y);
+    desk.desktop.control.hand.move(2, 200 - desk.frameOf(2).x, 300 - desk.frameOf(2).y);
+    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    const other = desk.sit('s1');
+    // The window at the back of the local seat's order, where the other covers it and where it shows alone.
+    const [under, over] = desk.page().windows.map(({ id }) => id);
+    const [low, high] = [desk.frameOf(under), desk.frameOf(over)];
+    const covered = { x: Math.max(low.x, high.x) + 20, y: low.y + 100 };
+    const alone = { x: under === 1 ? low.x + 20 : low.x + low.width - 20, y: low.y + 100 };
+    const of = (seat) => desk.page().seats.find(({ id }) => id === seat);
+    desk.enter(other, pointer('down', alone));
+    desk.enter(other, pointer('up', alone));
+    desk.enter(other, pointer('move', covered));
+    const moved = desk.told().at(-1);
+    desk.enter(other, pointer('down', covered));
+    desk.enter(other, pointer('up', covered));
+    const pressed = of('s1');
+    desk.enter(other, pointer('move', alone));
+    const away = desk.told().at(-1);
+    desk.enter(other, pointer('move', covered));
+    desk.pagePress(under);
+    check(
+        'the page is told a cursor is dimmed as it comes over a window of its own order that the shown seat has ' +
+            'under another, in the event and in the state, and not dimmed off it or once the shown seat has it in front',
+        moved.dimmed === true &&
+            pressed.dimmed === true &&
+            away.dimmed === false &&
+            of('s1').dimmed === false &&
+            of('local').dimmed === false,
+        { moved, pressed, away, now: desk.page().seats, windows: desk.page().windows }
     );
 }
 

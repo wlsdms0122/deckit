@@ -18,6 +18,8 @@ const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
 const HOLDER = 2;
 const CURSOR = 16;
 const RING = 20;
+// How much of a dimmed cursor shows.
+const DIMMED = 0.4;
 // How high the bar that says whose view the page shows is, px.
 const FOLLOWING = 22;
 const STYLE = `
@@ -133,9 +135,12 @@ const STYLE = `
         display: flex;
         align-items: flex-start;
         color: var(--deckit-seat);
-        transition: transform var(--deckit-move) var(--deckit-move-curve);
+        transition:
+            transform var(--deckit-move) var(--deckit-move-curve),
+            opacity var(--deckit-exit-fade) var(--deckit-exit-curve);
     }
-    .deckit-seat-cursor[data-held] { transition: none; }
+    .deckit-seat-cursor[data-held] { transition: opacity var(--deckit-exit-fade) var(--deckit-exit-curve); }
+    .deckit-seat-cursor[data-dimmed] { opacity: ${DIMMED}; }
     .deckit-seat-arrow {
         flex: none;
         width: ${CURSOR}px;
@@ -419,7 +424,7 @@ function boot(theme, channels) {
     }
 
     // A cursor for each seat but the one shown, in the cursors' surface: an arrow in the seat's colour at its pointer,
-    // its user's name beside it.
+    // its user's name beside it, dimmed where the state says so.
     function drawSeats(all) {
         const seen = new Map(all.filter(({ shown, at }) => !shown && at).map((seat) => [seat.id, seat]));
         for (const [id, cursor] of cursors) {
@@ -428,7 +433,7 @@ function boot(theme, channels) {
             cursor.press?.remove();
             cursors.delete(id);
         }
-        for (const { id, name, colour, at, buttons } of seen.values()) {
+        for (const { id, name, colour, at, buttons, dimmed } of seen.values()) {
             if (!cursors.has(id)) {
                 const made = { element: element(over.document, 'div', 'deckit-seat-cursor'), press: null };
                 made.element.innerHTML = ARROW;
@@ -442,7 +447,7 @@ function boot(theme, channels) {
             cursor.element.style.setProperty('--deckit-seat', cursor.colour);
             cursor.element.dataset.seat = id;
             cursor.name.textContent = name;
-            put(cursor, { ...at, buttons });
+            put(cursor, { ...at, buttons, dimmed });
         }
         drawTypings(all);
     }
@@ -493,12 +498,12 @@ function boot(theme, channels) {
     // What a seat's pointer just did, drawn as it comes: the cursor is there, gliding by the `move` spring, or at once
     // with a button held, as what the hand holds follows it. A scroll shows a tick beside it, pointing its way, that
     // fades.
-    function pointed({ id, type, x, y, buttons, dx = 0, dy = 0 }) {
+    function pointed({ id, type, x, y, buttons, dimmed, dx = 0, dy = 0 }) {
         const told = state.seats.find((seat) => seat.id === id);
         if (!told || told.shown) return;
         if (!cursors.has(id)) drawSeats(state.seats.map((seat) => (seat === told ? { ...seat, at: { x, y } } : seat)));
         const cursor = cursors.get(id);
-        put(cursor, { x, y, buttons });
+        put(cursor, { x, y, buttons, dimmed });
         if (type !== 'scroll') return;
         cursor.element.querySelector('.deckit-seat-tick')?.remove();
         const tick = element(over.document, 'span', 'deckit-seat-tick');
@@ -510,11 +515,13 @@ function boot(theme, channels) {
         finished(tick, () => tick.remove());
     }
 
-    // A cursor at a point with the buttons it holds: a press leaves a ring where it began, which stays while a button
-    // is held, the line of the drag running from it to the cursor, and both fade as the last button is let go.
-    function put(cursor, { x, y, buttons }) {
+    // A cursor at a point with the buttons it holds, dimmed or not: a press leaves a ring where it began, which stays
+    // while a button is held, the line of the drag running from it to the cursor, and both fade as the last button is
+    // let go.
+    function put(cursor, { x, y, buttons, dimmed }) {
         const held = buttons.length > 0;
         cursor.element.toggleAttribute('data-held', held);
+        cursor.element.toggleAttribute('data-dimmed', dimmed);
         cursor.element.style.transform = `translate(${x}px, ${y}px)`;
         if (held && !cursor.press) {
             const press = element(over.document, 'div', 'deckit-seat-press');

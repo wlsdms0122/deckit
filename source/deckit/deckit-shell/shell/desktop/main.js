@@ -3,6 +3,7 @@ import * as DECLARED from './protocol.js';
 import * as LAYOUT from './model/layout.js';
 import * as ANCHORED from './model/anchored.js';
 import * as LEVELS from './model/levels.js';
+import * as MARKS from './model/marks.js';
 import * as PAGE from './model/page-name.js';
 import * as WM from './model/window-manager.js';
 import * as MOTION from './model/motion.js';
@@ -1066,15 +1067,23 @@ export function createDesktop({
     }
 
     // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of
-    // a seat it draws the cursor of, any but the one whose view it shows, that event alone, `{ id, type, x, y, buttons
-    // }` and for a scroll `dx`, `dy`.
+    // a seat it draws the cursor of, any but the one whose view it shows, that event alone, `{ id, type, x, y, buttons,
+    // dimmed }` and for a scroll `dx`, `dy`.
     function moved(seat, hand, { type, button = 0, dx = 0, dy = 0 }) {
         if (type === 'down' && !hand.buttons.includes(button)) hand.buttons = [...hand.buttons, button];
         if (type === 'up') hand.buttons = hand.buttons.filter((each) => each !== button);
         if (seat === shownSeat() || !hand.pointer || !desktop.page || !PAGES.isAlive(desktop.page)) return;
         const { x, y } = hand.pointer;
         const scrolled = type === 'scroll' ? { dx, dy } : {};
-        PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, ...scrolled });
+        const dimmed = MARKS.isDimmed(hand.pointer, stackOf(seat), stackOf(shownSeat()));
+        PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, dimmed, ...scrolled });
+    }
+
+    // What stands on the screen of `seat`, `[{ id, frame }]` from the back: its windows in its order, then the panel
+    // windows there as they lie.
+    function stackOf(seat) {
+        const over = stackedFor(seat, panelFrames(seat)).map(({ window, frame }) => ({ id: window.id, frame }));
+        return [...MANAGER.viewOf(seat), ...over];
     }
 
     // `seat`'s press on a window, answered as the entry answers it.
@@ -1913,6 +1922,7 @@ export function createDesktop({
         const key = MANAGER.keyOf(seat);
         const { moving, dropping } = hands.get(seat) ?? {};
         const active = windows.get(key)?.mod ?? null;
+        const viewed = stackOf(seat);
         return {
             windows: MANAGER.viewOf(seat).map(({ id, frame }) => ({
                 id,
@@ -1936,6 +1946,7 @@ export function createDesktop({
                 buttons,
                 idle: seated.has(id) && deckit.seats.isIdle(seated.get(id)),
                 shown: id === seat,
+                dimmed: MARKS.isDimmed(pointer, stackOf(id), viewed),
                 typing: typingOf(id),
             })),
             following:
