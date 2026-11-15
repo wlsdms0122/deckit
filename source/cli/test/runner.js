@@ -73,7 +73,8 @@ async function main() {
     let catalog = [{ id: 'a', revision: '1' }];
     let changed = null;
     const CATALOG = { onChange: (listener) => (changed = listener), mods: () => catalog, sourceOf: async () => '' };
-    const LOG = { warn: () => {}, error: () => {} };
+    const errors = []; // what the runner logged as an error
+    const LOG = { warn: () => {}, error: (message) => errors.push(message) };
     // The core answers each request with what the test queued for its method, a list of effects or a function that
     // answers, and otherwise as the core does when nothing changes: no effects.
     const asked = [];
@@ -509,6 +510,24 @@ async function main() {
     await tick();
     check('a core that ended frees the quit, and the quit is asked again', done.at(-1)?.[0] === 'quit', done.at(-1));
     check('a freed quit is held no more', hold() === false, null);
+
+    // An effect whose doing throws keeps none after it from being done: the core answers with three effects, the
+    // first's handler throwing.
+    const applied = [];
+    RUNNER.handleEffect('first', () => {
+        throw new Error('a listener threw');
+    });
+    for (const name of ['second', 'third']) RUNNER.handleEffect(name, ({ effect }) => applied.push(effect));
+    answers.set('runner/problem', [[{ effect: 'first' }, { effect: 'second' }, { effect: 'third' }]]);
+    errors.length = 0;
+    RUNNER.reportProblem({ mod: { id: 'a' }, number: 1 }, 'a problem');
+    await tick();
+    const logged = [...errors];
+    check(
+        'an effect whose doing throws is logged once, and those after it are done',
+        applied.join() === 'second,third' && logged.length === 1 && /first/.test(logged[0]),
+        { applied, logged }
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);

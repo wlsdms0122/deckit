@@ -293,39 +293,49 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         ask(method, params).catch((error) => LOG.error(`the core did not take ${method}`, error));
     }
 
+    // Every effect is done: what doing one throws, a listener's throw as a run is told, is logged, once, and keeps
+    // none of those after it from being done.
     function apply(effects) {
         for (const effect of effects) {
-            switch (effect.effect) {
-                case 'open':
-                    if (effect.transport) openOutside(effect);
-                    else openSandbox(MOD.read(effect.found));
-                    break;
-                case 'loadPage':
-                    sandboxes.get(effect.mod).host.load();
-                    break;
-                case 'tell':
-                    tell(sandboxes.get(effect.mod), effect.notification, effect);
-                    break;
-                case 'keep':
-                    keep(sandboxes.get(effect.mod), effect);
-                    break;
-                case 'stop':
-                    stop(effect.mod, effect.run);
-                    break;
-                case 'kill':
-                    sandboxes.get(effect.mod).host.kill();
-                    break;
-                case 'close':
-                    closeSandbox(effect.mod);
-                    break;
-                default:
-                    effectHandlers.get(effect.effect)?.(effect);
+            try {
+                act(effect);
+            } catch (error) {
+                LOG.error(`the effect ${effect.effect} was not done whole`, error);
             }
         }
         for (const wait of waiting) {
             if (!wait.done()) continue;
             waiting.delete(wait);
             wait.resolve();
+        }
+    }
+
+    function act(effect) {
+        switch (effect.effect) {
+            case 'open':
+                if (effect.transport) openOutside(effect);
+                else openSandbox(MOD.read(effect.found));
+                break;
+            case 'loadPage':
+                sandboxes.get(effect.mod).host.load();
+                break;
+            case 'tell':
+                tell(sandboxes.get(effect.mod), effect.notification, effect);
+                break;
+            case 'keep':
+                keep(sandboxes.get(effect.mod), effect);
+                break;
+            case 'stop':
+                stop(effect.mod, effect.run);
+                break;
+            case 'kill':
+                sandboxes.get(effect.mod).host.kill();
+                break;
+            case 'close':
+                closeSandbox(effect.mod);
+                break;
+            default:
+                effectHandlers.get(effect.effect)?.(effect);
         }
     }
 
