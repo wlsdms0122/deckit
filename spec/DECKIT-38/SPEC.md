@@ -117,7 +117,7 @@ A seat is told of an output while it watches it: from a `seat/watch` with `on` t
 
 A request is refused at `call` with the first of these that is so:
 
-1. kind `INVALID_ARGUMENT`, where `event`, `type` or `of` is left out or is no string, `on` is left out or is no boolean, `event` names no row of its table, `type` is none of the event's, `of` names no output that `seat/read` reads or, for `seat/watch`, none that is told, or `params` hold a key the event or the output is not asked with;
+1. kind `INVALID_ARGUMENT`, where its `params` are refused by the one rule [a party from outside](../DECKIT-37/SPEC.md) holds the `params` of every request to, the keys a request takes being those of its row and what its event or its output is asked with besides, or where `event` names no row of its table, `type` is none of the event's, or `of` names no output that `seat/read` reads or, for `seat/watch`, none that is told;
 2. kind `REFUSED`, where it is `seat/input` or `seat/read` and no layer serves it.
 
 What each event and each output holds beside these keys, what each answers and what it is refused with besides are fixed by the DECKIT of the layer that serves it.
