@@ -216,6 +216,36 @@ async function main() {
             !activation.mayActivate('me', 'b'),
         ''
     );
+    // The one seat a mod acts for as it activates.
+    const causes = ACTIVATION.createActivation();
+    for (const seat of ['me', 'you']) causes.addSeat(seat);
+    const unasked = causes.causeOf('view');
+    causes.input('me', 'band');
+    causes.input('you', 'band');
+    causes.request('band', 'view');
+    const last = causes.causeOf('view');
+    causes.input('me', 'band');
+    causes.request('band', 'registry');
+    causes.request('registry', 'view');
+    const handedOn = [causes.causeOf('view'), causes.mayActivate('you', 'view')];
+    check(
+        'a mod acts for one seat of those it may activate for, the one whose input reached it last, itself or handed ' +
+            'on, and for none where it may activate for none',
+        unasked === null && last === 'you' && handedOn.join() === 'me,true',
+        { unasked, last, handedOn }
+    );
+    causes.setActive('you', 'view');
+    causes.input('you', null);
+    const active = [causes.causeOf('view'), causes.mayActivate('you', 'band')];
+    causes.input('me', 'other');
+    const left = causes.causeOf('view');
+    causes.setActive('you', null);
+    check(
+        'the seat a mod acts for is the later of one whose input was handed on to it and one it is the active mod ' +
+            "of, and a seat's input elsewhere ends what it handed",
+        active.join() === 'me,false' && left === 'you' && causes.causeOf('view') === null,
+        { active, left, none: causes.causeOf('view') }
+    );
     activation.requestAttention('me', 'e');
     activation.requestAttention('me', 'f');
     activation.requestAttention('you', 'e');
