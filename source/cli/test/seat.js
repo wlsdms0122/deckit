@@ -1,6 +1,6 @@
 // The desktop of the app under test as its local seat sees it, read through WebKit's module: the windows and stages
 // laid, the pages on them, the Dock, and the desktop drawn as a person sees it.
-const { until } = require('./devtools.js');
+const { sleep, until } = require('./devtools.js');
 
 // What the test reads of a document a page opened beside itself: its name, its opener's address, and whether it draws
 // a window's frame as the key window's.
@@ -166,6 +166,27 @@ function seat({ main, pageById, compose, desktop }) {
         await dockClick(id);
         await until(async () => (await keyMod()) === id, 3000);
     };
+    // The window of the mod `id`, opened from its Dock item where none stands and left a second to settle.
+    const open = async (id) => {
+        if (!(await windowOf(id))) await dockClick(id);
+        await until(async () => !!(await windowOf(id)), 8000);
+        await sleep(1000);
+        return windowOf(id);
+    };
+    // The item of the mod `id` pressed in the Mods mod's window, as a person opens a mod the Dock does not keep.
+    const openFromMods = async (id) => {
+        const mods = await windowOf('mods');
+        const item = `document.querySelector('.mods-item[data-mod-id="${id}"]')`;
+        await until(() => mods?.evaluate(`!!${item}`), 4000);
+        await mods?.evaluate(`${item}.click()`);
+    };
+    // The local seat's pointer moved at the desktop's right edge, as the machine moves it: input of the seat, which
+    // is not idle from then on for the idle time.
+    const stir = async () => {
+        const { rect } = (await desktopLaid()).pages.find(({ url }) => url.startsWith('deckit://desktop'));
+        const at = { x: Math.round(rect.width - 4), y: Math.round(rect.height / 2) };
+        await main(`return webkit.sendMouse(${desktop().id}, ${JSON.stringify({ type: 'moved', ...at })})`);
+    };
     // The desktop as a person sees it, its pages laid one over another from the backdrop up, with `compose`'s options.
     const desktopShot = async (name, options) => {
         const laid = ((await desktopLaid())?.pages || []).filter(({ input }) => !Array.isArray(input) || input.length);
@@ -229,6 +250,9 @@ function seat({ main, pageById, compose, desktop }) {
         dockNow,
         dockClick,
         show,
+        open,
+        openFromMods,
+        stir,
         desktopShot,
         asksNow,
         answerOf,

@@ -140,9 +140,9 @@ async function atRest(probe, ms = 3000) {
     }
 }
 
-// `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder; `id`
-// the id it runs under.
-async function run({
+// The desktop and the shipped apps, as a person walks through them from the app's start. `logged()` is the app's log so
+// far; `home` the app's folder; `id` the id it runs under; `local` the local seat, `desktop` the desktop's page.
+async function walk({
     page,
     pageById,
     pages,
@@ -152,15 +152,14 @@ async function run({
     main,
     webPage,
     thrown,
-    endCore,
     logged,
     home,
     files,
     id: appId,
+    check,
+    local,
+    desktop,
 }) {
-    const report = [];
-    const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
-    const local = seat({ main, pageById, compose, desktop: () => desktop });
     const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = local;
     const asksAttention = async (id) => !!(await dockNow()).find((item) => item.id === id)?.attention;
     // What the strip over the desktop holds: nothing but the host's controls.
@@ -189,8 +188,6 @@ async function run({
     };
     const namesOf = (stack) => stack.map(({ url, name }) => name || url.replace(/\/$/, ''));
 
-    await sleep(9000);
-    const desktop = await until(() => page('deckit://desktop'));
     // Only the background mods, and the mods whose interfaces they use, run as the app starts. The Dock keeps the
     // shipped apps, running or not, the window probe among them, and each is opened from it as a person opens it, the
     // Editor last, so it is in front. The region parent is opened from the Mods mod, and comes into the Dock as it
@@ -328,7 +325,7 @@ async function run({
     );
     await allMods?.shot('mods');
     await allMods?.evaluate(`document.querySelector('.mods-search .deckit-field-clear')?.click()`);
-    await allMods?.evaluate(`document.querySelector('.mods-item[data-mod-id="region-parent"]').click()`);
+    await local.openFromMods('region-parent');
     await until(() => page('deckit://region-parent.mod'), 4000);
     await sleep(300);
     const docked = await until(async () => (await dockNow()).length === APPS + 2 && dockNow(), 4000);
@@ -2953,63 +2950,119 @@ async function run({
         check('scenario ran', false, error.stack);
     }
     check('no page threw', !thrown.length, thrown.slice(0, 3).join(' | '));
+}
 
-    try {
-        await INPUT.run({ check, main, laidNow, desktopLaid, windowsNow, windowOf, dockClick });
-    } catch (error) {
-        check("input: a seat's input was put", false, error.stack);
-    }
+// The scenario's areas in the order they run, each under the name its checks carry before a colon, where they carry
+// one: what it checks, and the areas it cannot run without, which run before it. An area needs no other area's checks
+// to have run beyond those. `reading` holds the Editor to what the walk left open in it, as the seats `outside` sat
+// read it.
+const AREAS = [
+    { name: 'desktop', says: 'the desktop and the shipped apps, as a person walks through them from the start' },
+    { name: 'input', says: "a seat's input, put into the pages of two windows" },
+    { name: 'outside', says: 'a party attached from outside, and the seats that sit beside the local one' },
+    { name: 'reading', says: 'what a seat reads of the desktop it sits at', needs: ['desktop', 'outside'] },
+    { name: 'read', says: 'what a page answers of itself, its outline, its nodes and its pictures' },
+    { name: 'kit', says: "the kit's parts as a page's reader answers them" },
+    { name: 'core', says: 'the core, and the app once its core ended' },
+];
 
-    try {
-        const { asksNow, answerOf, pressAt, answer, allowed } = local;
-        await OUTSIDE.run({
-            check,
-            home,
-            logged,
-            main,
-            windowsNow,
-            desktopLaid,
-            idleTime: IDLE_TIME,
-            asksNow,
-            answerOf,
-            pressAt,
-            pageAt,
-            desktopShot,
-            answer,
-            allowed,
-        });
-    } catch (error) {
-        check('outside: a party attached', false, error.stack);
-    }
+// The areas that run for those `named`, each with the areas it needs, in the scenario's order: all for none named.
+function areasFor(named = []) {
+    const wanted = new Set(named);
+    for (const { name, needs = [] } of AREAS) if (wanted.has(name)) for (const need of needs) wanted.add(need);
+    return AREAS.map(({ name }) => name).filter((name) => !named.length || wanted.has(name));
+}
 
-    try {
-        await READ.run({ check, main, windowOf, dockClick });
-    } catch (error) {
-        check('read: a page was read', false, error.stack);
-    }
+// Runs the areas `named`, with those they need, on the app as it just started: all of them for none named. `endCore()`
+// kills the app's core, as a crash would. Answers the checks, `{ name, ok, detail }` each.
+async function run(app, named = []) {
+    const { page, main, pageById, compose, endCore, logged, home } = app;
+    const chosen = areasFor(named);
+    const runs = (name) => chosen.includes(name);
+    const report = [];
+    const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
+    const local = seat({ main, pageById, compose, desktop: () => desktop });
+    const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, show, open, desktopShot } = local;
+    await sleep(9000);
+    const desktop = await until(() => page('deckit://desktop'));
+    // The windows the seats sit at: one whose content is its only page, the region parent's, opened from the Mods mod
+    // as the Dock does not keep it, and the Editor's last, the local seat's key window where it has none or the region
+    // parent's, which a seat from outside is to press. The local seat is asked about who sits while it is not idle, so
+    // its pointer moves before the parties come.
+    const windowsStand = async () => {
+        for (const id of ['settings', 'mods']) await open(id);
+        if (!(await windowOf('region-parent'))) await local.openFromMods('region-parent');
+        await until(async () => !!(await windowOf('region-parent')), 8000);
+        await open('editor');
+        if ([null, 'region-parent'].includes(await keyMod())) await show('editor');
+    };
 
-    try {
-        await KIT.run({ check, main, windowOf, page, show });
-    } catch (error) {
-        check("kit: the kit's parts were read", false, error.stack);
-    }
+    if (runs('desktop')) await walk({ ...app, check, local, desktop });
+
+    if (runs('input'))
+        try {
+            await INPUT.run({ check, main, laidNow, desktopLaid, windowsNow, open });
+        } catch (error) {
+            check("input: a seat's input was put", false, error.stack);
+        }
+
+    if (runs('outside'))
+        try {
+            const { asksNow, answerOf, pressAt, answer, allowed } = local;
+            await windowsStand();
+            await local.stir();
+            await OUTSIDE.run({
+                check,
+                home,
+                logged,
+                main,
+                windowsNow,
+                desktopLaid,
+                idleTime: IDLE_TIME,
+                asksNow,
+                answerOf,
+                pressAt,
+                pageAt,
+                desktopShot,
+                answer,
+                allowed,
+                reads: runs('reading'),
+            });
+        } catch (error) {
+            check('outside: a party attached', false, error.stack);
+        }
+
+    if (runs('read'))
+        try {
+            await READ.run({ check, main, open });
+        } catch (error) {
+            check('read: a page was read', false, error.stack);
+        }
+
+    if (runs('kit'))
+        try {
+            await KIT.run({ check, main, open, page, show });
+        } catch (error) {
+            check("kit: the kit's parts were read", false, error.stack);
+        }
 
     // A core that ends is not started again: what it ended of is told, asking for the app to be restarted.
-    try {
-        endCore();
-        const told = await until(() => /deckit's core ended \(.+\): restart the app/.test(logged()), 5000);
-        check('a core that ends asks for the app to be restarted', told, '');
-        const notice = `(() => { const down = document.querySelector('.deckit-desktop-down'); return down && !down.hidden ? down.textContent : ''; })()`;
-        const asked = await until(
-            async () => /needs a restart/.test((await (await page('deckit://desktop'))?.evaluate(notice)) || ''),
-            3000
-        );
-        check("the desktop's page asks the person to restart once the core is down", asked, '');
-        await (await page('deckit://desktop'))?.shot('desktop-down');
-    } catch (error) {
-        check('the core was ended', false, error.stack);
-    }
+    if (runs('core'))
+        try {
+            endCore();
+            const told = await until(() => /deckit's core ended \(.+\): restart the app/.test(logged()), 5000);
+            check('a core that ends asks for the app to be restarted', told, '');
+            const notice = `(() => { const down = document.querySelector('.deckit-desktop-down'); return down && !down.hidden ? down.textContent : ''; })()`;
+            const asked = await until(
+                async () => /needs a restart/.test((await (await page('deckit://desktop'))?.evaluate(notice)) || ''),
+                3000
+            );
+            check("the desktop's page asks the person to restart once the core is down", asked, '');
+            await (await page('deckit://desktop'))?.shot('desktop-down');
+        } catch (error) {
+            check('the core was ended', false, error.stack);
+        }
     return report;
 }
 
-module.exports = { seed, run };
+module.exports = { seed, run, areas: AREAS, areasFor };

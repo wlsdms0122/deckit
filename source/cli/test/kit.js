@@ -45,10 +45,10 @@ navigation "Path"
   button "Here" [current=page]
 toolbar "Bar"`;
 
-async function run({ check, main, windowOf, page, show }) {
+async function run({ check, main, open, page, show }) {
+    const shown = await open(PROBE);
     await show(PROBE);
     const probe = await page(`deckit://${PROBE}.mod`);
-    const shown = await windowOf(PROBE);
     const { elementLine } = await import(MODEL);
     const read = await asked(main);
     const draw = (on) => probe.evaluate(`document.dispatchEvent(new CustomEvent('test-kit', { detail: ${on} }))`);

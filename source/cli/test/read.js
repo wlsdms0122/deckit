@@ -4,7 +4,7 @@
 // made of pages in an order that is not the one shown.
 const path = require('path');
 const { pathToFileURL } = require('url');
-const { sleep, until } = require('./devtools.js');
+const { sleep } = require('./devtools.js');
 
 const READ = pathToFileURL(path.join(__dirname, '..', '..', 'deckit', 'deckit-electron', 'read', 'main.js')).href;
 const SEAT = 'seat-a';
@@ -65,13 +65,7 @@ async function asked(main) {
     return read;
 }
 
-async function run({ check, main, windowOf, dockClick }) {
-    const open = async (mod) => {
-        if (!(await windowOf(mod))) await dockClick(mod);
-        await until(async () => !!(await windowOf(mod)), 8000);
-        await sleep(1000);
-        return windowOf(mod);
-    };
+async function run({ check, main, open }) {
     const read = await asked(main);
     const put = async (page, event) => {
         const answer = await main(`return webkit.putInput(${page.id}, ${JSON.stringify({ ...event, from: SEAT })})`);

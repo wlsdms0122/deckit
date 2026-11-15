@@ -35,13 +35,7 @@ const UNWATCH = `(() => {
     return true;
 })()`;
 
-async function run({ check, main, laidNow, desktopLaid, windowsNow, windowOf, dockClick }) {
-    const open = async (mod) => {
-        if (!(await windowOf(mod))) await dockClick(mod);
-        await until(async () => !!(await windowOf(mod)), 8000);
-        await sleep(1000);
-        return windowOf(mod);
-    };
+async function run({ check, main, laidNow, desktopLaid, windowsNow, open }) {
     const a = await open('mods');
     const b = await open('editor');
     if (!a || !b) return check('input: two windows are open to put input into', false, `${!!a} ${!!b}`);

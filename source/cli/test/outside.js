@@ -7,7 +7,8 @@
 // desktop's page, which the local seat answers as the machine presses, yes, no for one user and never for another,
 // and an idle local seat is not asked. Two users, each a terminal of its own, press and type in the windows of the
 // desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the local seat sees of them, and
-// `idleTime` the seconds a seat is idle after, as the app was started with.
+// `idleTime` the seconds a seat is idle after, as the app was started with. With `reads`, the second user reads the
+// desktop it sits at too (reading.js).
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
@@ -54,6 +55,7 @@ async function run({
     desktopShot,
     answer,
     allowed,
+    reads,
 }) {
     const socket = path.join(home, 'deckit.sock');
     const principal = 'outside-party';
@@ -700,20 +702,21 @@ async function run({
         };
         try {
             if (back[1] !== `over ${windowB.id}, key`) throw new Error(`the seat is not back: ${back}`);
-            await READING.run({
-                check,
-                reader: seatB,
-                other: seatA,
-                window: (await windowsNow()).find(({ id }) => id === windowB.id),
-                editor: (await windowsNow()).find(({ mod }) => mod === 'editor'),
-                settings: (await windowsNow()).find(({ mod }) => mod === 'settings'),
-                showsFor,
-                inPage,
-                page: child.id,
-                field: FIELD,
-                folder: path.join(home, '..'),
-                watch,
-            });
+            if (reads)
+                await READING.run({
+                    check,
+                    reader: seatB,
+                    other: seatA,
+                    window: (await windowsNow()).find(({ id }) => id === windowB.id),
+                    editor: (await windowsNow()).find(({ mod }) => mod === 'editor'),
+                    settings: (await windowsNow()).find(({ mod }) => mod === 'settings'),
+                    showsFor,
+                    inPage,
+                    page: child.id,
+                    field: FIELD,
+                    folder: path.join(home, '..'),
+                    watch,
+                });
         } catch (error) {
             check('reading: a seat read the desktop', false, error.stack);
         }
