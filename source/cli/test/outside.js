@@ -858,7 +858,7 @@ async function run({
 
     // The person fixes an item, in the narrow room `room` wide where the item scrolls: the local seat's context press on
     // it opens a menu of one entry in the frame's overlay, and Keep in Bar stands it whole in the fixed region left of
-    // the clock, where no turn of the wheel moves it. The frame's mod run again has it fixed still. Remove from Bar
+    // the clock, where no turn of the wheel moves it. The frame's mod run again has it fixed still. Don't Keep in Bar
     // lets it scroll again. A seat does the same at the surface: button 2 on the item as it reads it, then the entry
     // as it reads it in the frame's overlay, and the one bar every screen shows has it fixed, and scrolling again.
     async function fixChecks({ seatA, send, wide, room, band, over, turn }) {
@@ -928,8 +928,8 @@ async function run({
         const scrolled = await turn('27,0', -25);
         const back = await turn('0,-500', 2);
         check(
-            'outside: Remove from Bar on the fixed item lets it scroll with the others again',
-            same(freed.offered, ['Remove from Bar']) &&
+            "outside: Don't Keep in Bar on the fixed item lets it scroll with the others again",
+            same(freed.offered, ["Don't Keep in Bar"]) &&
                 scrolls(freed.now) &&
                 freed.now.joined.x === 2 &&
                 scrolled.now.joined?.x === -25 &&
@@ -957,11 +957,11 @@ async function run({
         };
         const seatKept = await bySeat('Keep in Bar', fixedWhole);
         const seatReadsKept = seatKept.asRead ? seatA.as('read', 'window', seatKept.asRead) : '';
-        const seatFreed = await bySeat('Remove from Bar', scrolls);
+        const seatFreed = await bySeat("Don't Keep in Bar", scrolls);
         const seatReadsFreed = seatFreed.asRead ? seatA.as('read', 'window', seatFreed.asRead) : '';
         check(
             'outside: a seat fixes the item by button 2 on it as it reads it and the entry Keep in Bar as it reads ' +
-                'that, and lets it scroll again by Remove from Bar: the bar the local seat sees has it so, and the ' +
+                "that, and lets it scroll again by Don't Keep in Bar: the bar the local seat sees has it so, and the " +
                 'seat reads it after the clock while it is fixed and before it once it is not',
             !!seatKept.entry &&
                 fixedWhole(seatKept.now) &&

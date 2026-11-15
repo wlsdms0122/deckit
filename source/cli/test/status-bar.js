@@ -417,9 +417,9 @@ async function main() {
     ];
     check(
         'a context press on an item opens one entry under the capsule, at the left end of what shows of the item: ' +
-            'Remove from Bar on a fixed one, Keep in Bar on another, and none where no item is in view',
+            "Don't Keep in Bar on a fixed one, Keep in Bar on another, and none where no item is in view",
         same(asked, [
-            { id: 'clock', label: 'Remove from Bar', on: false, point: { x: 52, y: 32 } },
+            { id: 'clock', label: "Don't Keep in Bar", on: false, point: { x: 52, y: 32 } },
             { id: 'seats', label: 'Keep in Bar', on: true, point: { x: 2, y: 32 } },
             null,
             null,
@@ -657,13 +657,13 @@ async function modChecks(check) {
     delete world.kept.fixed;
     check(
         'an item fixed while its mod gives nothing keeps its place in the list and stands fixed again as it is given; ' +
-            'Remove from Bar on a fixed item lets it scroll with the others again',
+            "Don't Keep in Bar on a fixed item lets it scroll with the others again",
         away.fixed === 'clock' &&
             away.kept === 'clock,notifications,star' &&
             away.width === alone &&
             given.fixed === 'clock,star' &&
             given.strip === '' &&
-            freed.label === 'Remove from Bar' &&
+            freed.label === "Don't Keep in Bar" &&
             freed.strip === 'star' &&
             freed.fixed === 'clock' &&
             freed.kept === 'clock,notifications',

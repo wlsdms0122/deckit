@@ -7,7 +7,7 @@ const CAPSULE = Object.freeze({ height: 28, inset: 2, gap: 4 });
 // The items that are fixed until the person names others: the ids of their mods, the first rightmost.
 const FIXED = Object.freeze(['clock', 'notifications']);
 // What the one entry of an item's menu says: on an item that is not fixed, and on one that is.
-const KEEP = Object.freeze({ on: 'Keep in Bar', off: 'Remove from Bar' });
+const KEEP = Object.freeze({ on: 'Keep in Bar', off: "Don't Keep in Bar" });
 // An item: its height, the glyph it shows, the padding at each side and the room between its parts. A label holds
 // `letters` characters at most and is laid as wide as it was measured, `widest` at most, `letter` a character until
 // it is measured.
