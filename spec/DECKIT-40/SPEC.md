@@ -35,14 +35,14 @@ A seat perceives the desktop by **reading** it: `seat/read` answers the desktop,
 | `changes` | `since`, an integer | table `{ text, mark }` |
 | `picture` | `window`, `ref`, `rect`, `scale`, under *A picture* | table `{ png, width, height, at }` |
 
-`text` is a string, the reading in the grammar its rule gives; `data` is the same content as *The data form* gives it; `mark` is an integer, the desktop's mark as the answer was made. An integer is one as [a party from outside](../DECKIT-37/SPEC.md) fixes an integer.
+`text` is a string, the reading in the grammar its rule gives; `data` is the same content as *The data form* gives it; `mark` is an integer, the desktop's mark as the answer was made. An integer is one as [a party from outside](../DECKIT-37/SPEC.md) fixes an integer. A `depth`, an `items`, a `text`, a `lines` and a `since` are counts: one below 0 is none.
 
 Every reading is **for the seat that asks**: the desktop of that seat, as [seats at the desktop](../DECKIT-39/SPEC.md) gives each seat one, and no key names another.
 
 A `seat/read` is refused at `call` with the first of these that is so, after what [users and seats](../DECKIT-38/SPEC.md) refuses of its `params`:
 
-1. kind `INVALID_ARGUMENT`, where `format` is neither `text` nor `json`; where `of` is `window`, or `picture` with `window`, and `window` is not `w` and digits or digits alone; where `window` is left out of a `window` or `ref` of a `node`; or where a picture is asked as *A picture* refuses it;
-2. kind `STALE`, where `since` is a mark the desktop never had, under *Changes and the mark*;
+1. kind `INVALID_ARGUMENT`, where `format` is neither `text` nor `json`; where `of` is `window`, or `picture` with `window`, and `window` is not `w` and digits or digits alone; where `window` is left out of a `window` or `ref` of a `node`; where `depth`, `items`, `text`, `lines` or `since` is below 0; or where a picture is asked as *A picture* refuses it;
+2. kind `STALE`, where `since` is above the mark now, under *Changes and the mark*;
 3. kind `NOT_FOUND`, where `window` names no normal window open and no panel window on the seat's screen;
 4. kind `GONE`, where a `ref` names nothing, under *Refs*.
 
@@ -174,7 +174,7 @@ An element that names a node and has no role reads as `generic`.
 | `text` and a count | such a field that hides what is typed, or editable content: how many characters it holds |
 | `not in view` | in what `changes` lists alone: the element changed and is out of sight |
 
-**The counts.** An element that holds **items**, lines of the roles `listitem`, `row`, `option`, `treeitem`, `tab`, `menuitem`, `menuitemcheckbox`, `menuitemradio`, `cell`, `gridcell`, `columnheader` and `rowheader` with no line between, writes `n items`, how many it holds, and, unless `all` is asked, `n in view`, how many of them are listed. Only the first `items` of them are listed. An element at the level `depth` lists nothing under it and writes `n elements below`, how many elements it holds, where it holds any.
+**The counts.** An element that holds **items**, lines of the roles `listitem`, `row`, `option`, `treeitem`, `tab`, `menuitem`, `menuitemcheckbox`, `menuitemradio`, `cell`, `gridcell`, `columnheader` and `rowheader` with no line between, writes `n items`, how many it holds, and, unless `all` is asked, `n in view`, how many of them a reading of what is in view lists. Only the first `items` of those are listed, and the counts stay what they are: a seat tells a list that was cut by counting its lines against `n in view`, or against `n items` where `all` is asked. An element at the level `depth` lists nothing under it and writes `n elements below`, how many elements it holds, where it holds any.
 
 **What is read.** Unless `all` is asked, an element is read only where it is shown and some of it lies in what its document shows of it, inside every element around it that scrolls; an element that draws no box of its own and only passes its children on to its parent's layout is read with them. An element with `aria-hidden` `true` is never read, nor what it holds. With `roles`, a line is listed only where its role is one of them or it holds a line whose role is.
 
@@ -226,7 +226,7 @@ gone       = "desktop" / seat-id / window-id / ref / "document " count
 
 The first line holds `since` and the mark now. `+` is a line that was not there at `since`, `~` a line that was and changed after it, each as it reads now, and `-` what was there and is gone, by its ref, a seat by its id, a window by its `window-id`, and by its number a document whose page loaded another. A window that closed is told gone, and its documents with it by no line. They come in this order: the lines of the desktop's reading that are new or changed, in its order; what is gone of the desktop; then, for each window on the seat's screen and each panel window on it, the documents first read since, each with the window it is in, and the elements that changed, came or went in the others.
 
-With no `since`, the answer is `changes <mark> to <mark>` alone. A `since` the desktop never had, below 0 or above the mark now, is refused at `call` with kind `STALE`.
+With no `since`, the answer is `changes <mark> to <mark>` alone. A `since` above the mark now is a mark the desktop never had, and is refused at `call` with kind `STALE`.
 
 A seat that watches `changes`, as [users and seats](../DECKIT-38/SPEC.md) fixes watching, is told `{ of = "changes", mark }`, `mark` an integer, after the mark goes up: raises that follow one another before it is told are told once, with the mark the desktop is at then.
 
@@ -267,7 +267,7 @@ A window's table is `{ kind, id, title, mod, frame, key, minimized, zoomed, tile
 
 An element's table is `{ depth, role, name, length, states, items, inView, below, ref }`: `depth` an integer, 0 for a line right under its document; `states` an array of strings, each as the text writes it; and each of `name`, `length`, the whole length of a name that was cut, `items`, `inView` and `below` written where the text writes it. A line of `text` has no `states` and no `ref`.
 
-**A node:** `{ node, rect, size, scroll, lines, more, selection, caret, selected, mark }`: `node` an element's table with no `depth`; `rect` where it is on the desktop, or, for an element of a `web` document, `size`, table `{ width, height }`, in its place; `scroll` table `{ top, height, left, width }`, written where it scrolls; `lines` an array of an element's table, `depth` 1 for a line right under the node; `more` an integer, written where lines were left out; `selection` table `{ start, end }` or `{ line, column, length }`, written for a field; and, while the field has its document's focus and is in no `web` document, `caret`, the rect its caret is drawn at, and `selected`, an array of the rects what is selected is drawn at, one a line of text. A part the shell draws answers `{ node, rect, mark }`.
+**A node:** `{ node, rect, size, scroll, lines, more, selection, caret, selected, mark }`: `node` an element's table, its `depth` 0; `rect` where it is on the desktop, or, for an element of a `web` document, `size`, table `{ width, height }`, in its place; `scroll` table `{ top, height, left, width }`, written where it scrolls; `lines` an array of an element's table, `depth` 1 for a line right under the node; `more` an integer, written where lines were left out; `selection` table `{ start, end }` or `{ line, column, length }`, written for a field; and, while the field has its document's focus and is in no `web` document, `caret`, the rect its caret is drawn at, and `selected`, an array of the rects what is selected is drawn at, one a line of text. A part the shell draws answers `{ node, rect, mark }`, `node` its table as a window's `parts` holds one, with no `depth`.
 
 `changes` and `picture` have one form each and take no `format`.
 

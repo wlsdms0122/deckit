@@ -1,6 +1,6 @@
 case = 26
-name = "changes-since-a-mark-below-0-are-refused-stale"
-note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads changes since -1. It is refused at call with kind STALE."
+name = "changes-since-a-mark-below-0-are-refused-as-no-count"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads changes since -1. A mark below 0 is no count. It is refused at call with kind INVALID_ARGUMENT."
 
 [host]
 base = "shell"
@@ -26,4 +26,4 @@ params = { of = "changes", since = -1 }
 
 [step.expect]
 refuses = "call"
-kind = "STALE"
+kind = "INVALID_ARGUMENT"

@@ -122,7 +122,7 @@ Each answers a table `{ to }`: the id of the window the event went to, or null w
 A `seat/input` is refused at `call` with the first of these that is so, after what [users and seats](../DECKIT-38/SPEC.md) refuses of it:
 
 1. kind `HIDDEN`, where the host app's window is hidden: no page takes input;
-2. kind `INVALID_ARGUMENT`, where a pointer event names no place, names one by both `x`, `y` and `ref`, or writes an `x` or a `y` that is no finite number;
+2. kind `INVALID_ARGUMENT`, where a pointer event names no place, names one by both `x`, `y` and `ref`, writes an `x` or a `y` that is no finite number, or writes a `button` or a `count` below 0, which is no count;
 3. kind `REFUSED`, where it is a `move` at a `ref` with no button of the seat held: no page hears a pointer that only moves;
 4. kind `GONE`, where its `ref` names nothing, as [what a seat reads](../DECKIT-40/SPEC.md) fixes when a ref does: nothing a reading named, or what one named and is there no more;
 5. kind `HELD`, where it is a key or text event, the window the seat pressed last is held from it, and that window's holder is not idle.
