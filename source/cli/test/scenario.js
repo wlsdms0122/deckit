@@ -3267,7 +3267,7 @@ async function walk({
         const followed = await standsUnder(shifted);
         check(
             'a view under an anchor moves as the anchor does',
-            followed && stood && followed.view.x === stood.view.x - 60,
+            followed && stood && followed.view.x - followed.band.x === stood.view.x - stood.band.x - 60,
             JSON.stringify({ shifted, stood, now: await anchoredNow() })
         );
         await tellAnchor(null);
