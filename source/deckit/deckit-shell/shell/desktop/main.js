@@ -814,8 +814,11 @@ export function createDesktop({
     }
 
     // A press down of `seat` on `part` (partAt), or on none, in `page`, or in none: its open popover closes where that
-    // is no part of the bar, and the view shown for it is put away unless the press spares it (sparedBy).
+    // is no part of the bar, and the view shown for it is put away unless the press spares it (sparedBy). One in the
+    // desktop's page, on the Dock, a chip or the status bar, or on its backdrop, in no window, reached no mod: what
+    // the seat handed is over.
     function pressedDown(seat, hand, part, page) {
+        if (page && [desktop.page, desktop.surfaces.get(PAGE.BACKDROP)].includes(page)) ACTIVATION.input(seat, null);
         const put = SHOWING.pressed(seat, sparedBy(page, hand.pointer));
         const next = STATUS_MODEL.downOutside(hand.bar, part?.part === STATUS_PART ? part.on : null);
         if (next === hand.bar && !put) return;

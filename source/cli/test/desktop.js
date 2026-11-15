@@ -2320,7 +2320,18 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
         JSON.stringify(toggled) === JSON.stringify(['s2', 's1,s2', 's2', '', 's2']),
         toggled
     );
+    await elsewhere(s1);
     await press(s2, outside);
+    const put = await on();
+    desk.desktop.togglePanel(view);
+    desk.desktop.orderFrontPanel(view);
+    check(
+        'a press down on the desktop ends what a seat handed: the view it put away so is shown for it by no toggle ' +
+            'and no request that follows no input',
+        put === '' && (await on()) === '',
+        { put, on: await on() }
+    );
+
     // The local seat: the machine's keyboard goes to the view shown for it and comes back as it is put away.
     const hostShown = desk.hostShown();
     await elsewhere(s1);
