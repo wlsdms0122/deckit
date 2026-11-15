@@ -224,12 +224,15 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         return Number(id);
     }
 
-    function nameOf(mod) {
-        return MODS.loaded(deckit.mods).find(({ id }) => id === mod)?.name || mod;
+    // The name of each mod that loads, by its id: read once for all the windows of a reading.
+    function namesNow() {
+        return new Map(MODS.loaded(deckit.mods).map(({ id, name }) => [id, name]));
     }
 
-    // A window or a panel window as `seat` reads it, refused NOT_FOUND for an id none has.
-    function factOf(seat, id) {
+    // A window or a panel window as `seat` reads it, refused NOT_FOUND for an id none has; `names` as namesNow has
+    // them.
+    function factOf(seat, id, names = namesNow()) {
+        const nameOf = (mod) => names.get(mod) || mod;
         const window = desk.windows.get(id);
         if (window) {
             return {
@@ -257,6 +260,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         const active = desk.windows.get(desk.MANAGER.keyOf(seat))?.mod ?? null;
         const attention = desk.ACTIVATION.attentionOf(seat);
         const { width, height } = desk.stage().size();
+        const names = namesNow();
         return {
             desktop: { width, height },
             seats: [...desk.hands].map(([id, { pointer }]) => ({
@@ -276,8 +280,8 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             })),
             windows: desk.MANAGER.orderOf(seat)
                 .reverse()
-                .map((id) => factOf(seat, id)),
-            panels: desk.panelFrames().map(({ window }) => factOf(seat, window.id)),
+                .map((id) => factOf(seat, id, names)),
+            panels: desk.panelFrames().map(({ window }) => factOf(seat, window.id, names)),
         };
     }
 

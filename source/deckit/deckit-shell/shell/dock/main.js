@@ -69,8 +69,7 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
     // What the Dock shows, `[{ id, name, icon, pinned, running }]`: the app mods kept there, as the person arranged
     // them, then those running now, in the order they launched.
     function items() {
-        const apps = inOrder().filter(({ id }) => isApp(id));
-        const names = new Map(apps.map(({ id, name }) => [id, name]));
+        const names = new Map(apps().map(({ id, name }) => [id, name]));
         return DOCK.items([...names.keys()], { pinned: new Set(pinned), running: new Set(launchOrder()) }).map(
             (item) => ({
                 ...item,
@@ -159,33 +158,34 @@ export function createDock({ deckit, state: STATE, DESKTOP, WINDOWS, ICONS, host
         );
     }
 
-    // The mods in the Dock's order: those kept there, in its order, then the rest in the mods' order.
-    function inOrder() {
+    // The app mods in the Dock's order: those kept there, in its order, then the rest in the mods' order. The mods
+    // that load are read once for all of them.
+    function apps() {
         const mods = new Map(MODS.loaded(deckit.mods).map((mod) => [mod.id, mod]));
-        return LIST_ORDER.sorted([...mods.keys()], pinned).map((id) => mods.get(id));
+        return LIST_ORDER.sorted([...mods.keys()], pinned)
+            .map((id) => mods.get(id))
+            .filter(({ id }) => FIELD.activationPolicyOf(deckit.mods.fieldsOf(id)) === FIELD.REGULAR);
     }
 
     // The ids of the app mods kept in the Dock, in its order.
     function keptApps() {
-        return pinned.filter((id) => isApp(id));
+        return apps().flatMap(({ id }) => (pinned.includes(id) ? [id] : []));
     }
 
     // Every app mod, in the Dock's order, marked as the Dock marks them.
     function listed() {
         const running = runningIds();
-        return inOrder()
-            .filter(({ id }) => isApp(id))
-            .map(({ id, name }) => {
-                const fields = deckit.mods.fieldsOf(id);
-                return {
-                    id,
-                    name,
-                    icon: ICONS.of(id),
-                    keywords: FIELD.keywordsOf(fields),
-                    pinned: pinned.includes(id),
-                    running: running.has(id),
-                };
-            });
+        return apps().map(({ id, name }) => {
+            const fields = deckit.mods.fieldsOf(id);
+            return {
+                id,
+                name,
+                icon: ICONS.of(id),
+                keywords: FIELD.keywordsOf(fields),
+                pinned: pinned.includes(id),
+                running: running.has(id),
+            };
+        });
     }
 
     // The ids of the mods running, in the order they launched: those that ran before keep their places, and those
