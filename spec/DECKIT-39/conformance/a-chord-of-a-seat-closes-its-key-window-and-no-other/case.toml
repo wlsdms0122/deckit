@@ -1,0 +1,68 @@
+case = 26
+name = "a-chord-of-a-seat-closes-its-key-window-and-no-other"
+note = "A chord a seat's key event makes is read as the shell's keys read one, for that seat. mod-a has the windows main and second. The person presses main, the local seat's key window, and a party's seat presses second, its own, and sends the key KeyW with meta held, the chord that closes the key window: the event answers the window 2, second is closed, for every seat, and main stays open and the local seat's key window."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 2, key = "key", holder = "s1", at = { x = 600, y = 300 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "down", code = "KeyW", key = "w", modifiers = ["meta"] }
+
+[step.expect]
+answers = { to = 2 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "up", code = "KeyW", key = "w", modifiers = ["meta"] }
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]

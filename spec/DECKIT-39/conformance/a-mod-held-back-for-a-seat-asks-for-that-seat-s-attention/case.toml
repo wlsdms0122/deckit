@@ -1,0 +1,56 @@
+case = 26
+name = "a-mod-held-back-for-a-seat-asks-for-that-seat-s-attention"
+note = "A mod held back for a seat asks for that seat's attention, and the Dock marks its item for that seat alone. A party's seat presses mod-a's window, its key window, and mod-b, which no input of the seat reached, brings its own window in front as the key window: for that seat the Dock marks mod-a active and mod-b for attention; for the local seat, whose desktop has no key window, it marks neither."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { name = "main" }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "w1.bar", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "w1.bar", button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["do", "main", "makeKeyAndOrderFront"]
+
+[[step]]
+look = "dock"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = true }, { mod = "mod-b", pinned = true, running = true, attention = true, active = false }]
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = true, attention = false, active = false }]
