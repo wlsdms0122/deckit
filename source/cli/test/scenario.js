@@ -3485,6 +3485,7 @@ async function run(app, named = []) {
                 seatsView: local.seatsView,
                 reads: runs('reading'),
                 anchors,
+                dock: { now: local.dockNow, inDesktop: local.inDesktop, mouseAt: local.mouseAt },
                 bar: runs('desktop')
                     ? {
                           ...statusBar({ pages: app.pages, desktopLaid }),

@@ -299,6 +299,11 @@ function seat({ main, pageById, compose, desktop }) {
         for (const type of ['down', 'up'])
             await main(`return webkit.sendMouse(${desktop().id}, ${JSON.stringify({ type, ...at })})`);
     };
+    // What the machine's pointer does at a point of the desktop's page, the local seat's: `type` 'down', 'dragged',
+    // a move with the button held, or 'up'.
+    const mouseAt = (type, at) => main(`return webkit.sendMouse(${desktop().id}, ${JSON.stringify({ type, ...at })})`);
+    // What `script` answers in the desktop's page.
+    const inDesktop = (script) => desktop()?.evaluate(script);
     // The local seat's answer to the user named `name`, as the machine presses it in the view, which is put away
     // after: the users that asked as it did, by name, or null where the user did not ask in time.
     const answer = async (name, word, within = 10000) => {
@@ -334,6 +339,8 @@ function seat({ main, pageById, compose, desktop }) {
         asksNow,
         answerOf,
         pressAt,
+        mouseAt,
+        inDesktop,
         answer,
         allowed,
         seatsView: { item: seatsItem, shown: seatsShown, away: seatsAway, rows: seatsRows, pressIn },

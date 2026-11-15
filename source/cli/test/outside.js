@@ -65,6 +65,7 @@ async function run({
     reads,
     anchors,
     bar,
+    dock,
 }) {
     const socket = path.join(home, 'deckit.sock');
     const principal = 'outside-party';
@@ -746,9 +747,170 @@ async function run({
         await seatsChecks({ seatA, seatB });
         if (bar) await toastChecks({ seatA, seatB });
         await centerChecks({ seatA, seatB });
+        await dockChecks({ seatA });
         seatA.as('detach');
         seatB.as('detach');
         check('outside: both terminals detach', (await seatA.gone) === 0 && (await seatB.gone) === 0, '');
+    }
+
+    // The Dock under the one recognizer. The local seat's context press on an item that runs and is not kept, made as
+    // the Dock slides out, opens its menu on the page where it stays, and Keep in Dock keeps it; its drag of the last
+    // kept item to the first place shows it lifted there and leaves it there. An attached seat opens the menu of
+    // another such item, which the page does not draw, reads it and chooses Keep in Dock; quits that app from its menu
+    // and opens it again from its item; and drags the first kept item to the last place. The local seat's Dock shows
+    // each, and the seat reads the same order.
+    async function dockChecks({ seatA }) {
+        const { now, inDesktop, mouseAt } = dock;
+        const drawn = () =>
+            inDesktop(`(() => {
+                const at = (node) => {
+                    const { x, y, width, height } = node.getBoundingClientRect();
+                    return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) };
+                };
+                const items = (list) => [...(list?.children ?? [])].map((item) => ({ id: item.dataset.modId, ...at(item) }));
+                const [kept, running] = document.querySelectorAll('.deckit-dock-list');
+                const entries = document.querySelectorAll('.deckit-dock-menu:not([hidden]) .deckit-dock-menu-entry');
+                const dock = document.querySelector('.deckit-dock');
+                return {
+                    out: dock.hasAttribute('data-out'),
+                    left: Math.round(dock.getBoundingClientRect().x),
+                    kept: items(kept),
+                    running: items(running),
+                    held: document.querySelector('.deckit-dock-item[data-held]')?.dataset.modId ?? null,
+                    menu: [...entries].map((entry) => ({ id: entry.dataset.entry, label: entry.textContent, ...at(entry) })),
+                };
+            })()`);
+        const stands = async (wanted, time = 6000) =>
+            (await until(async () => {
+                const seen = await drawn();
+                return wanted(seen) && seen;
+            }, time)) || (await drawn());
+        const point = ({ x, y }) => ({ x, y });
+        const ids = (items) => items.map(({ id }) => id);
+        const read = () => seatA.as('read', 'desktop');
+        const readIds = (text) => [...text.matchAll(/^ {2}item .* dock\.(\S+)$/gm)].map(([, id]) => id);
+        const pointer = (type) =>
+            inDesktop(`document.querySelector('.deckit-dock').dispatchEvent(new PointerEvent('${type}'))`);
+        // The local seat's Dock out and done sliding, as its pointer over it brings it: its items stand where the
+        // machine's pointer reaches them.
+        const comesOut = async () => {
+            await pointer('pointerenter');
+            return stands(({ out, left }) => out && left === 0);
+        };
+        const start = await drawn();
+        const [mine, theirs] = ids(start.running);
+
+        // The context press comes with the pointer, the Dock sliding out yet: it is on the item drawn under it.
+        await inDesktop(`(() => {
+            document.querySelector('.deckit-dock').dispatchEvent(new PointerEvent('pointerenter'));
+            const item = document.querySelector('.deckit-dock-item[data-mod-id="${mine}"]');
+            const { x, y, width, height } = item.getBoundingClientRect();
+            const at = { clientX: x + width / 2, clientY: y + height / 2 };
+            item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...at }));
+        })()`);
+        const atFirst = await stands(({ menu }) => menu.length > 0);
+        const offered = await stands(({ out, left, menu }) => out && left === 0 && menu.length > 0);
+        const keep = offered.menu.find(({ id }) => id === 'keep');
+        if (offered.menu.length) await desktopShot('dock-menu', { crop: { x: 0, y: 0, width: 320, height: 700 } });
+        for (const type of keep ? ['down', 'up'] : []) await mouseAt(type, point(keep));
+        const keptMine = await stands(({ kept, menu }) => ids(kept).at(-1) === mine && !menu.length);
+        check(
+            "outside: the local seat's context press on a Dock item as the Dock comes out opens its menu beside the " +
+                'Dock, where it stays, and Keep in Dock keeps the item after those kept',
+            !!mine &&
+                same(atFirst.menu, offered.menu) &&
+                same(
+                    offered.menu.map(({ label }) => label),
+                    ['Show', 'Keep in Dock', 'Quit']
+                ) &&
+                offered.menu.every(({ x }) => x > 72) &&
+                ids(keptMine.kept).at(-1) === mine &&
+                !keptMine.menu.length,
+            JSON.stringify({
+                mine,
+                from: start.left,
+                first: atFirst.menu,
+                menu: offered.menu,
+                kept: ids(keptMine.kept).slice(-3),
+                left: keptMine.menu.length,
+            })
+        );
+
+        const still = await comesOut();
+        const [from, to] = [still.kept.at(-1), still.kept[0]];
+        await mouseAt('down', point(from));
+        await mouseAt('dragged', { x: from.x, y: from.y - 20 });
+        await mouseAt('dragged', point(to));
+        const dragging = await stands(({ held, kept }) => held === from.id && kept[0]?.id === from.id, 3000);
+        const readWhile = readIds(read());
+        await mouseAt('up', point(to));
+        const first = await stands(({ held, kept }) => held === null && kept[0]?.id === from.id, 3000);
+        check(
+            "outside: the local seat's drag of a kept item shows it lifted where the pointer is, every seat reading " +
+                'that order, and its up keeps the order',
+            dragging.held === from.id &&
+                same(ids(dragging.kept), [from.id, ...ids(still.kept).slice(0, -1)]) &&
+                readWhile[0] === from.id &&
+                first.held === null &&
+                same(ids(first.kept), ids(dragging.kept)),
+            JSON.stringify({
+                held: [dragging.held, first.held],
+                while: ids(dragging.kept).slice(0, 2),
+                read: readWhile.slice(0, 2),
+                after: ids(first.kept).slice(0, 2),
+            })
+        );
+
+        const asked = seatA.as('press', `dock.${theirs}`, '--button', '2');
+        const menuRead = read();
+        const notDrawn = (await drawn()).menu.length;
+        const chose = seatA.as('press', 'dock-menu.keep');
+        const keptTheirs = await stands(({ kept }) => ids(kept).at(-1) === theirs);
+        check(
+            "outside: a seat's context press on a Dock item opens its menu for that seat alone, which it reads, and " +
+                "its Keep in Dock keeps the item on the local seat's Dock",
+            !!theirs &&
+                /^ {2}menu "[^"]+"\n {2}menuitem "Show" dock-menu\.open\n {2}menuitem "Keep in Dock" dock-menu\.keep/m.test(
+                    menuRead
+                ) &&
+                notDrawn === 0 &&
+                ids(keptTheirs.kept).at(-1) === theirs &&
+                !/menuitem/.test(read()),
+            JSON.stringify({ asked, menuRead, notDrawn, chose, keptTheirs })
+        );
+
+        const runs = async () => !!(await now()).find((item) => item.id === theirs)?.running;
+        const quitting = [seatA.as('press', `dock.${theirs}`, '--button', '2'), seatA.as('press', 'dock-menu.quit')];
+        const quit = await until(async () => !(await runs()), 10000);
+        const opening = seatA.as('press', `dock.${theirs}`);
+        const opened = await until(runs, 10000);
+        check(
+            "outside: a seat's Quit from the menu of a Dock item quits its app, the kept item staying, and its " +
+                "press on the item opens the app again, the local seat's Dock showing each",
+            !!quit && !!opened && ids((await drawn()).kept).includes(theirs),
+            JSON.stringify({ quitting, quit, opening, opened, dock: await now() })
+        );
+        await sleep(1000);
+
+        // Where the items stand on a Dock that is out, as the seat's is once its pointer is at the sliver: the local
+        // seat's page draws them that far from its own Dock, which may be in.
+        const before = await drawn();
+        const [head, tail] = [before.kept[0], before.kept.at(-1)].map(({ x, y }) => ({ x: x - before.left, y }));
+        seatA.as('move', '2,300');
+        const dragged = seatA.as('drag', `${head.x},${head.y}`, `${tail.x},${tail.y}`);
+        const kept = ids(before.kept);
+        const last = await stands((seen) => seen.kept.at(-1)?.id === kept[0], 4000);
+        const readAfter = readIds(read());
+        check(
+            "outside: a seat's drag of a kept item to a new place puts it there on the local seat's Dock, as the " +
+                'seat reads it',
+            same(ids(last.kept), [...kept.slice(1), kept[0]]) &&
+                same(readAfter.slice(0, last.kept.length), ids(last.kept)) &&
+                last.held === null,
+            JSON.stringify({ before, dragged, last, readAfter })
+        );
+        seatA.as('move', '600,500');
+        await pointer('pointerleave');
     }
 
     // The status bar in a narrow room: the joining mod sets an item 57 wide and opens a band of its own that leaves
