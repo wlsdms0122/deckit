@@ -1,6 +1,6 @@
 # Notifications
 
-What mods tell you, in one place: the notifications they post, shown at the top right of the app while you are in it and as the system's while you are in another, and the recent ones in the notification center, under its item in the status bar, when you ask. It runs in the background from the start, so a notification posted before you open anything is not missed.
+What mods tell you, in one place: the notifications they post, shown at the top right of the app, and as the system's besides while you are in another, and the recent ones in the notification center, under its item in the status bar, when you ask. It runs in the background from the start, so a notification posted before you open anything is not missed.
 
 ## Providing `deckit/notifications`
 
@@ -39,7 +39,7 @@ A command a notification names is always the sender's own: Notifications runs it
 |---|---|
 | The record | each post is kept, newest first, up to 100: the oldest goes as a new one comes. It is kept across runs, in Notifications' storage, and `list()` reads a sender's own of it |
 | The rate | a sender is shown at most 3 notifications within 10 seconds; one past that is kept and listed, and not shown |
-| The queue | what is let through is shown in the order posted. While the app is in front, as a toast; otherwise, and while Notifications has no screen, as the system's (`deckit.notifications.show`) |
+| The queue | what is let through is shown in the order posted: as a toast while Notifications has a screen, whoever looks at it, and as the system's besides (`deckit.notifications.show`) while the app is not in front, which waits for no room among the toasts |
 | Toasts | at most 3 at once, stacked in a view Notifications draws at the top right of the app, 360 wide and as high as they are, open while it holds any. Everyone who sits at the desktop reads it and presses in it, and it takes nobody's keyboard; one more waits in the queue until one goes. Each goes after 6 seconds or as you close it, one with actions as you press one or close it, and stays in the record |
 | A press | on a toast, on the system's notification, on a row of the notification center, or on one of its actions, it takes the notification away and runs the command it names on its sender through `deckit/commands` (`run(mod, command, args)`), which launches the sender if it is not running. One with no command is taken away, and brings nothing forward. A command that does not run, or one pressed while no mod provides `deckit/commands`, is logged |
 | Taking away | by a press, by the close button on a row of the notification center, by Clear All, or by its sender's `remove`: it leaves the record, the queue and the screen |

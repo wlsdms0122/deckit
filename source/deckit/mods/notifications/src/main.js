@@ -3,9 +3,9 @@ const { item } = require('./item/item.js');
 const { screen } = require('./screen/screen.js');
 
 // The owner of deckit/notifications: `start` takes what mods post, keeps it and shows it, as the system's notifications
-// with no screen, and keeps the mod's item in the status bar; `attach` draws the toasts in a view at the top right of
-// the stage, open while it holds any, and the notification center, the list of recent notifications, in a view under
-// the item.
+// while the app is not in front, and keeps the mod's item in the status bar; `attach` draws each as a toast too, in a
+// view at the top right of the stage, open while it holds any, and the notification center, the list of recent
+// notifications, in a view under the item.
 class Notifications {
     // The item's holder, while the mod runs.
     item = null;

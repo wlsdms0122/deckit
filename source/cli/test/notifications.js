@@ -1,8 +1,8 @@
 // The Notifications mod's center (mods/notifications/src/center/center.js) over a stand-in for deckit: what a sender
 // posts through its connection is kept and listed to its sender alone, removed only by its sender, refused for what it
 // does not take, let through at the rate and
-// queued behind the toasts on screen, shown as the system's while the app is not in front, and a press runs the
-// sender's command through deckit/commands. Then a sender, Calendar's notices, with an owner to post to and with none;
+// shown as a toast while a drawer is there, queued behind the toasts on screen, and as the system's besides while the
+// app is not in front, and a press runs the sender's command through deckit/commands. Then a sender, Calendar's notices, with an owner to post to and with none;
 // the mod's item in the status bar (src/item), what it declares held to what the bar takes, its count and its
 // attention as one arrives; the sizes of its two views (src/screen/model/screen.js); and the screen itself
 // (src/screen/screen.js) over stand-ins for the document, the kit and the shell's windows: the toasts in one view at
@@ -60,7 +60,7 @@ async function main() {
     const calendar = sut.exportsFor({ mod: { name: 'Calendar' }, credential: { mod: 'calendar', permissions: [] } });
     const browser = sut.exportsFor({ mod: { name: 'Browser' }, credential: { mod: 'browser', permissions: [] } });
 
-    // While the app is not in front, the system shows it.
+    // With no drawer and the app not in front, the system shows it.
     const first = await calendar.post({
         title: 'Standup',
         body: 'in 5 min',
@@ -134,15 +134,58 @@ async function main() {
     await ticks();
     check('once the window has passed a sender is shown again', system.at(-1)?.title === 'later', system);
 
-    // While the app is in front and a drawer is there, toasts, as many as fit, the rest queued.
-    active = true;
+    // While a drawer is there and the app is not in front, each is a toast and the system's too: the toasts as many
+    // as fit, the system's waiting for no room.
     const drawn = [];
     const hidden = [];
-    sut.drawWith({
+    const drawer = {
         show: (notification) => drawn.push(notification.id),
         hide: (id) => hidden.push(id),
         active: async () => active,
-    });
+    };
+    let off = sut.drawWith(drawer);
+    system.length = 0;
+    const away = [];
+    for (let index = 0; index < TOASTS + 1; index++) {
+        time += RATE.within;
+        away.push(await browser.post({ title: `away ${index}`, command: 'open' }));
+    }
+    await ticks(20);
+    check(
+        'while the app is not in front a post is a toast all the same, as many as fit',
+        drawn.join() === away.slice(0, TOASTS).join(),
+        drawn
+    );
+    check(
+        'and the system’s besides, each at once in the order posted',
+        system.map(({ title }) => title).join() === away.map((_, index) => `away ${index}`).join(),
+        system
+    );
+    system[0].press();
+    await ticks();
+    check(
+        'a press on the system’s takes its toast off the screen and lets the queued one out',
+        hidden.join() === away[0] &&
+            drawn.at(-1) === away[TOASTS] &&
+            json(ran.at(-1)) === json(['browser', 'open', {}]),
+        { hidden, drawn, ran: ran.at(-1) }
+    );
+    time += RATE.within;
+    const waiting = await browser.post({ title: 'waits' });
+    await ticks();
+    off();
+    off = sut.drawWith(drawer);
+    await ticks();
+    check(
+        'a drawer’s off lets go of what waited for room: the next drawer draws none of it',
+        !drawn.includes(waiting) && (await browser.list()).some(({ id }) => id === waiting),
+        drawn
+    );
+    for (const { id } of await browser.list()) await browser.remove(id);
+
+    // While the app is in front, toasts alone.
+    active = true;
+    drawn.length = hidden.length = system.length = 0;
     const posts = [];
     for (let index = 0; index < TOASTS + 1; index++) {
         time += RATE.within;
@@ -160,6 +203,7 @@ async function main() {
         drawn.join() === posts.slice(0, TOASTS).join(),
         drawn
     );
+    check('and the system shows none of them', system.length === 0, system);
     sut.toastGone(posts[0]);
     await ticks();
     check('a toast gone lets the queued one out', drawn.at(-1) === posts[TOASTS], drawn);
