@@ -2974,6 +2974,7 @@ async function run({
             answerOf,
             pressAt,
             pageAt,
+            desktopShot,
             answer,
             allowed,
         });

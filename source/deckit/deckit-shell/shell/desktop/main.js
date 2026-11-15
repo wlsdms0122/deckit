@@ -17,6 +17,15 @@ const FRAMES = 120;
 // Whether a point is in a rect.
 const within = ({ x, y, width, height }, point) =>
     point.x >= x && point.y >= y && point.x < x + width && point.y < y + height;
+// What of the rect `one` is in the rect `other`, or null where nothing is.
+const cut = (one, other) => {
+    const [x, y] = [Math.max(one.x, other.x), Math.max(one.y, other.y)];
+    const width = Math.min(one.x + one.width, other.x + other.width) - x;
+    const height = Math.min(one.y + one.height, other.y + other.height) - y;
+    return width > 0 && height > 0 ? { x, y, width, height } : null;
+};
+// How long after it is asked where a seat types is read again, in ms: a frame, by which the page took the input.
+const REREAD = 16;
 // The parts of the chips of the seats (model/seats.js partAt).
 const CHIP_PARTS = Object.freeze(['chip', 'allow', 'deny']);
 
@@ -64,6 +73,11 @@ export function createDesktop({
     const hands = new Map();
     const COLOURS = COLOURS_MODEL.createColours(SEAT_COLOURS); // the colour each seat here is told apart by
     let tells = null; // what deckit answered the shell's serving with: what tells a seat
+    // seat id -> where it types, as the reader last answered of the page its keys go to: `{ page, ring, bars, caret }`,
+    // `ring` the rect of what has the focus there, or null with nothing focused, and `bars` the rects of what is
+    // selected in it or, `caret` true, the one its caret is at, each in the page.
+    const typings = new Map();
+    const unread = new Set(); // the seats whose typing is read again as the next frame is due
     // The users that ask to sit, in the order they asked, each under a number of its own: `{ user, answer }`, `answer`
     // what tells deckit yes or no.
     const asks = new Map();
@@ -179,6 +193,9 @@ export function createDesktop({
         deckit.seats.onClose(leave);
         const { read, changes, capture } = READING;
         tells = deckit.seats.serve({ input: entered, read, changes, capture, onAsk: ask });
+        READ.listen(({ page }) => {
+            for (const [seat, typing] of typings) if (typing.page === page) reread(seat);
+        });
         READING.start();
         INPUT.listen(carried);
         deckit.mods.onRequest(({ from, to }) => ACTIVATION.request(from, to));
@@ -524,6 +541,11 @@ export function createDesktop({
             ACTIVATION.setActive(seat, away ?? keyWindow(seat)?.mod ?? null);
             // The keyboard of a seat comes to a window it did not press at its content.
             if (hand.keys && ![keyboardOf(seat)?.id, hand.wanted].includes(hand.keys.id)) hand.keys = null;
+            // Where a seat types is drawn of the page its keys go to now, and of no other.
+            const page = typingPageOf(seat);
+            if ((typings.get(seat)?.page ?? null) === page) continue;
+            typings.delete(seat);
+            if (page) reread(seat);
         }
         // The machine's press on a window another seat holds leaves the machine's keyboard where it is.
         for (const { id, surface } of windows.values()) {
@@ -632,6 +654,7 @@ export function createDesktop({
         ACTIVATION.removeSeat(seat.id);
         COLOURS.give(seat.id);
         hands.delete(seat.id);
+        typings.delete(seat.id);
         seated.delete(seat.id);
         for (const [id, by] of pressers) if (by === seat.id) pressers.delete(id);
         update();
@@ -775,6 +798,7 @@ export function createDesktop({
                 if (type === 'up' || !frame) hand.down = null;
                 const at = frame && { x: point.x - frame.x - held.inside.x, y: point.y - frame.y - held.inside.y };
                 if (at) INPUT.put(held.page, { ...event, ...at }, seat);
+                reread(seat);
             }
             if (CHIP_PARTS.includes(held.part)) return { over: 'desktop' };
             return { over: held.part === 'dock' ? 'dock' : held.id };
@@ -807,6 +831,7 @@ export function createDesktop({
             if ([keyboardOf(seat)?.id, hand.wanted].includes(window.id)) hand.keys = { id: window.id, page: hit.page };
         }
         INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y }, seat);
+        reread(seat);
         return answer;
     }
 
@@ -825,10 +850,74 @@ export function createDesktop({
         const key = keyboardOf(seat);
         if (!key?.surface) return { to: null };
         ACTIVATION.input(seat, key.mod);
+        INPUT.put(keysPageOf(seat), event, seat);
+        reread(seat);
+        return { to: key.id };
+    }
+
+    // The page the keys and text of `seat` go to, as typed puts them; or null where no window holds its keyboard.
+    function keysPageOf(seat) {
+        const key = keyboardOf(seat);
+        if (!key?.surface) return null;
+        const hand = hands.get(seat);
         const pressed = hand.keys?.id === key.id ? hand.keys.page : null;
         const there = pressed && laidFor(seat).some(({ page }) => page === pressed) && windowAt(pressed) === key;
-        INPUT.put(there ? pressed : key.surface, event, seat);
-        return { to: key.id };
+        return there ? pressed : key.surface;
+    }
+
+    // The page where `seat` types that the desktop's page draws its focus and its caret over: the one its keys go to,
+    // for a seat whose key window does not have the machine's keyboard, which is every seat but the local one, and
+    // the local one too while the host window shows another seat's view; or null.
+    function typingPageOf(seat) {
+        if (seat === LOCAL && followed === null) return null;
+        return keysPageOf(seat);
+    }
+
+    // Where `seat` types is read again as the next frame is due, once however often it is asked before.
+    function reread(seat) {
+        if (!unread.size) setTimeout(readTypings, REREAD);
+        unread.add(seat);
+    }
+
+    // The reader's answer of where each seat that waits for it types: what has the focus in the page its keys go to,
+    // and its caret or what is selected in it. A page that reads as nothing, or is gone, leaves nothing drawn.
+    async function readTypings() {
+        const seats = [...unread].filter((seat) => hands.has(seat));
+        unread.clear();
+        await Promise.all(
+            seats.map(async (seat) => {
+                const page = typingPageOf(seat);
+                if (!page) return typings.delete(seat);
+                const read = await (async () => {
+                    const { lines } = await READ.outline(page, {});
+                    const focused = lines.findLast(({ states }) => states?.includes('focused'));
+                    return focused ? READ.node(page, focused.ref, { lines: 0 }) : null;
+                })().catch(() => null);
+                // The seat's keys went to another page while this one was read: that one is read after.
+                if (typingPageOf(seat) !== page || !hands.has(seat)) return;
+                const bars = read?.selected ?? (read?.caret ? [read.caret] : []);
+                typings.set(seat, { page, ring: read?.rect ?? null, bars, caret: !read?.selected && bars.length > 0 });
+            })
+        );
+        tellPage();
+    }
+
+    // Where `seat` types as the host window shows it, `{ ring, bars, caret }` on the desktop, or null: what shows in
+    // its page of the rects the reader answered, from where the page lies in its window, and nothing where a window
+    // in front of that one for the shown seat covers a part of what has the focus.
+    function typingOf(seat) {
+        const typing = typings.get(seat);
+        const window = typing?.ring && windowAt(typing.page);
+        if (!window) return null;
+        const on = laidOfWindow(window.id).find(({ page }) => page === typing.page)?.rect;
+        if (!on) return null;
+        const moved = ({ x, y, width, height }) => cut({ x: on.x + x, y: on.y + y, width, height }, on);
+        const ring = moved(typing.ring);
+        if (!ring) return null;
+        const view = MANAGER.viewOf(shownSeat());
+        const at = view.findIndex(({ id }) => id === window.id);
+        if (windows.has(window.id) && (at < 0 || view.slice(at + 1).some(({ frame }) => cut(frame, ring)))) return null;
+        return { ring, bars: typing.bars.flatMap((bar) => moved(bar) ?? []), caret: typing.caret };
     }
 
     // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of
@@ -1614,6 +1703,7 @@ export function createDesktop({
                 buttons,
                 idle: seated.has(id) && deckit.seats.isIdle(seated.get(id)),
                 shown: id === seat,
+                typing: typingOf(id),
             })),
             asks: [...asks].map(([id, { user }]) => ({ id, user: user.id, name: user.name })),
             following:

@@ -51,6 +51,7 @@ async function run({
     answerOf,
     pressAt,
     pageAt,
+    desktopShot,
     answer,
     allowed,
 }) {
@@ -446,6 +447,41 @@ async function run({
                 same(inFields, ['alpha', 'beta', '', '']),
             JSON.stringify({ shown, answered, typing, inFields })
         );
+        // Where each of the two types, as the desktop's page draws it over a window the machine's keyboard is not in:
+        // a ring round the field and a caret in it, where no window in front of it for the local seat is over the
+        // field, and nothing where one is.
+        const typingOf = async ({ seat }, { id, rect }) => {
+            const [left, top, right, bottom] = [rect.x + 10, rect.y + 10, rect.x + 150, rect.y + 28];
+            const corners = [left, right].flatMap((x) => [top, bottom].map((y) => ({ x, y })));
+            const reached = await Promise.all(corners.map(pageAt));
+            const drawn = await inPage(
+                desk,
+                `(() => {
+                    const rects = (name) => [...document.querySelectorAll(name + '[data-seat="${seat}"]')].map((node) => {
+                        const { x, y, width, height } = node.getBoundingClientRect();
+                        return { x, y, right: x + width, bottom: y + height };
+                    });
+                    return { rings: rects('.deckit-seat-focus'), carets: rects('.deckit-seat-bar[data-caret]') };
+                })()`
+            );
+            const [ring] = drawn.rings ?? [];
+            const [caret] = drawn.carets ?? [];
+            const inPlace =
+                ring && caret && ring.x <= left && ring.y <= top && ring.right >= right && ring.bottom >= bottom;
+            const inRing = inPlace && caret.x >= ring.x && caret.right <= ring.right && caret.y >= ring.y;
+            const shows = reached.every((page) => page === id);
+            return { ok: shows ? !!inRing : drawn.rings?.length === 0, inRing: !!inRing, shows, reached, drawn };
+        };
+        const ofA = { id: windowA.content, rect: windowA.rect };
+        const typings = (await until(async () => {
+            const now = [await typingOf(seatA, ofA), await typingOf(seatB, child)];
+            return now.every(({ ok }) => ok) && now;
+        }, 3000)) || [await typingOf(seatA, ofA), await typingOf(seatB, child)];
+        check(
+            'outside: where each of two seats types is drawn on the desktop, a ring round its field and its caret in it',
+            typings.every(({ ok }) => ok),
+            JSON.stringify(typings)
+        );
         check(
             "outside: a seat's text goes to the page of its key window that took its press, a child over the content",
             tookPress.child && !tookPress.content && inFields[1] === 'beta' && inFields[2] === '',
@@ -588,6 +624,17 @@ async function run({
                 same(followedView.chips, ['local', seatB.seat]) &&
                 !followedView.cursors.includes(seatA.seat),
             JSON.stringify({ ownView, followedView: followedView || (await viewNow()) })
+        );
+        // The followed seat's window is in front in the view shown, so where it types is drawn there.
+        const followedTyping = await until(async () => {
+            const now = await typingOf(seatA, ofA);
+            return now.inRing && now;
+        }, 3000);
+        await desktopShot('seats-typing');
+        check(
+            'outside: in the view of a seat that is followed, a ring is round the field it types in and its caret in it',
+            !!followedTyping,
+            JSON.stringify(followedTyping || (await typingOf(seatA, ofA)))
         );
         const inA = {
             x: Math.round(windowA.rect.x + windowA.rect.width / 2),

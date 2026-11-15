@@ -832,6 +832,7 @@ async function main() {
     chipChecks({ SEATS }, check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
+    await typingChecks({ LAYOUT, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -1809,6 +1810,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
                 buttons: [0],
                 idle: false,
                 shown: false,
+                typing: null,
             }) &&
             seats.local.shown &&
             seats.local.colour === 'blue',
@@ -1834,6 +1836,111 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
         'a button let go is held no more, and a seat that left is not in the state',
         desk.told().at(-1).buttons.length === 0 && !desk.page().seats.some(({ id }) => id === 's2'),
         [desk.told().at(-1), desk.page().seats]
+    );
+}
+
+// Where a seat types, as the desktop's page is told it: read of the page its keys go to after its input and as the
+// reader tells that the page changed, and gone with its key window.
+async function typingChecks({ LAYOUT, createDesktop }, check) {
+    const hearing = [];
+    const asked = [];
+    // What has the focus is at the left edge of its page, where the window in front of the first one is not over it.
+    const caret = { x: 4, y: 42, width: 1, height: 16 };
+    const focus = { rect: { x: 2, y: 40, width: 16, height: 40 }, caret };
+    let answer = focus;
+    const read = {
+        listen: (handler) => hearing.push(handler),
+        outline: async (page) => {
+            asked.push(page.name);
+            const lines = answer ? [{ depth: 0, role: 'textbox', states: ['focused'], ref: '1.1' }] : [];
+            return { document: 1, count: 1, width: 200, height: 172, lines };
+        },
+        node: async () => answer,
+    };
+    const desk = desktopOver(createDesktop, { read });
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    for (const id of [1, 2]) {
+        const page = { name: `page-${id}`, mod: `m${id}` };
+        desk.desktop.open({
+            id,
+            mod: page.mod,
+            name: `w${id}`,
+            level: 'normal',
+            page,
+            surface: { name: `content-${id}`, of: page },
+            size: { width: 200, height: 200 },
+            minimum: { width: 0, height: 0 },
+            bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+        });
+        desk.openSurfaces(id);
+    }
+    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    const seat = desk.sit('s1');
+    const typing = () => desk.page().seats.find(({ id }) => id === 's1').typing;
+    const read1 = () => new Promise((done) => setTimeout(done, 60));
+    // The seat's press in the content of the window `id`, at its left edge or its right, where the other window, laid
+    // a step down and across from it, is never over it.
+    const pressIn = (id) => {
+        const { x, y, width, height } = desk.frameOf(id);
+        const at = { x: id === 1 ? x + 10 : x + width - 10, y: y + height / 2 };
+        desk.enter(seat, pointer('down', at));
+        desk.enter(seat, pointer('up', at));
+    };
+    pressIn(1);
+    const before = typing();
+    await read1();
+    const content = desk.laid().find(({ page }) => page.name === 'content-1');
+    const first = typing();
+    const moved = (rect) => ({ ...rect, x: content.rect.x + rect.x, y: content.rect.y + rect.y });
+    check(
+        'where a seat types is told once its page is read after its press: the focus and its caret, on the stage',
+        before === null &&
+            asked.join() === 'content-1' &&
+            JSON.stringify(first) === JSON.stringify({ ring: moved(answer.rect), bars: [moved(caret)], caret: true }) &&
+            desk.page().seats.find(({ id }) => id === 'local').typing === null,
+        JSON.stringify({ before, asked, first, content: content?.rect })
+    );
+    const selected = [
+        { x: 4, y: 42, width: 10, height: 16 },
+        { x: 2, y: 58, width: 8, height: 16 },
+    ];
+    answer = { ...answer, selected };
+    for (const handler of hearing) handler({ page: content.page, document: 1, count: 2 });
+    await read1();
+    const second = typing();
+    answer = null;
+    desk.enter(seat, { event: 'key', type: 'down', code: 'KeyA', key: 'a' });
+    await read1();
+    const third = typing();
+    check(
+        'what is selected is told as the reader tells that the page changed, and nothing once nothing has the focus',
+        JSON.stringify(second?.bars) === JSON.stringify(selected.map(moved)) &&
+            second.caret === false &&
+            third === null,
+        JSON.stringify({ second, third })
+    );
+    answer = { rect: { x: 2, y: 40, width: 100, height: 40 }, caret };
+    desk.enter(seat, { event: 'key', type: 'down', code: 'KeyB', key: 'b' });
+    await read1();
+    const covered = typing();
+    answer = focus;
+    desk.enter(seat, { event: 'key', type: 'down', code: 'KeyC', key: 'c' });
+    await read1();
+    const back = typing();
+    pressIn(2);
+    const atOnce = typing();
+    await read1();
+    const other = desk.laid().find(({ page }) => page.name === 'content-2');
+    check(
+        "a seat's typing is told of no focus a window in front covers, is gone as its key window changes, and comes of the new one",
+        covered === null &&
+            back !== null &&
+            atOnce === null &&
+            asked.at(-1) === 'content-2' &&
+            typing()?.ring.x === other.rect.x + 2 &&
+            typing().ring.y === other.rect.y + 40,
+        JSON.stringify({ covered, back, atOnce, asked, now: typing(), other: other?.rect })
     );
 }
 

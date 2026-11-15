@@ -13,10 +13,12 @@ export const setup = CHANNEL.pageToMain(
 // the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its title bar
 // (model/layout.js barOf), `title` what the title bar the shell draws over a titled window's content holds, or null for
 // a window whose content draws its own; `panels`, the panel windows at their edge, 'top' in the strip or 'right', the
-// material drawn under each at its frame; `seats`, `[{ id, name, colour, at, buttons, idle, shown }]`, every seat at
-// the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was anywhere,
-// the buttons it holds, whether its devices gave nothing for the idle time, and whether it is the one whose view the
-// host window shows, each as of this telling; `asks`, `[{ id, user, name }]`, the users that ask to sit, in the order
+// material drawn under each at its frame; `seats`, `[{ id, name, colour, at, buttons, idle, shown, typing }]`, every
+// seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was
+// anywhere, the buttons it holds, whether its devices gave nothing for the idle time, whether it is the one whose view
+// the host window shows, and where it types in a window that does not have the machine's keyboard, `{ ring, bars,
+// caret }`, the rect on the stage of what has the focus there and those of what is selected in it or, `caret` true,
+// the one its caret is at, or null, each as of this telling; `asks`, `[{ id, user, name }]`, the users that ask to sit, in the order
 // they asked, each ask under a number of its own with its user's id and name; `following`, `{ id, name, colour }`, the
 // seat the local seat follows, whose view this is, or null for the local seat's own; `drop` `{ tile, frame }`, the tile
 // (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame, or null; `strip` `{ height,

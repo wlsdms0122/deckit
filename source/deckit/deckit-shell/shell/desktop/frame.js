@@ -178,6 +178,16 @@ const STYLE = `
         font-weight: 600;
         white-space: nowrap;
     }
+    .deckit-seat-focus, .deckit-seat-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        box-sizing: border-box;
+        transition: transform var(--deckit-move) var(--deckit-move-curve);
+    }
+    .deckit-seat-focus { border: 2px solid var(--deckit-seat); border-radius: var(--deckit-radius-small); }
+    .deckit-seat-bar { background: var(--deckit-seat); opacity: 0.3; }
+    .deckit-seat-bar[data-caret] { opacity: 1; }
     .deckit-seat-tick { position: absolute; left: ${-CURSOR}px; top: 0; width: 12px; height: 12px; }
     .deckit-seat-tick[data-way='up'] { transform: rotate(180deg); }
     .deckit-seat-tick[data-way='left'] { transform: rotate(90deg); }
@@ -359,6 +369,7 @@ function boot(theme, channels) {
     const drop = element(document, 'div', 'deckit-drop');
     const seats = element(document, 'div', 'deckit-seats');
     const cursors = new Map(); // a seat's id -> { element, name, press }, its cursor and its press while it holds one
+    const typings = new Map(); // a seat's id -> { ring, bars }, the ring and the bars drawn where it types
     const chips = element(document, 'div', 'deckit-seat-chips');
     chips.setAttribute('role', 'group');
     chips.setAttribute('aria-label', 'Seats');
@@ -523,10 +534,52 @@ function boot(theme, channels) {
             cursor.name.textContent = name;
             put(cursor, { ...at, buttons });
         }
+        drawTypings(all);
         drawChips(
             all.filter(({ shown }) => !shown),
             state.asks
         );
+    }
+
+    // Where each seat types in a window that does not have the machine's keyboard, under the cursors: a ring in the
+    // seat's colour round what has the focus there, 2 px outside it, and a bar in that colour at its caret, 2 px
+    // wide, or over each rect of what is selected in it. The ring goes to another place by the `move` spring.
+    function drawTypings(all) {
+        const seen = new Map(all.filter(({ typing }) => typing).map((seat) => [seat.id, seat]));
+        for (const [id, drawn] of typings) {
+            if (seen.has(id)) continue;
+            for (const each of [drawn.ring, ...drawn.bars]) each.remove();
+            typings.delete(id);
+        }
+        const place = (made, { x, y, width, height }) =>
+            Object.assign(made.style, {
+                transform: `translate(${x}px, ${y}px)`,
+                width: `${width}px`,
+                height: `${height}px`,
+            });
+        for (const { id, colour, typing } of seen.values()) {
+            if (!typings.has(id)) {
+                const ring = element(document, 'div', 'deckit-seat-focus');
+                ring.dataset.seat = id;
+                seats.insertBefore(ring, seats.firstChild);
+                typings.set(id, { ring, bars: [] });
+            }
+            const drawn = typings.get(id);
+            const { ring, bars } = typing;
+            drawn.ring.style.setProperty('--deckit-seat', `var(--deckit-seat-${colour})`);
+            place(drawn.ring, { x: ring.x - 2, y: ring.y - 2, width: ring.width + 4, height: ring.height + 4 });
+            for (const gone of drawn.bars.splice(bars.length)) gone.remove();
+            bars.forEach((bar, at) => {
+                if (!drawn.bars[at]) {
+                    drawn.bars[at] = element(document, 'div', 'deckit-seat-bar');
+                    drawn.bars[at].dataset.seat = id;
+                    drawn.ring.after(drawn.bars[at]);
+                }
+                drawn.bars[at].style.setProperty('--deckit-seat', `var(--deckit-seat-${colour})`);
+                drawn.bars[at].toggleAttribute('data-caret', typing.caret);
+                place(drawn.bars[at], typing.caret ? { ...bar, x: bar.x - 1, width: 2 } : bar);
+            });
+        }
     }
 
     // A chip for each seat but the one shown, at the desktop's bottom right, one over another from the bottom as
