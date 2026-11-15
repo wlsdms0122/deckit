@@ -11,7 +11,71 @@ const sizeOfPng = (file) => {
     return png.subarray(1, 4).toString() === 'PNG' ? `${png.readUInt32BE(16)}x${png.readUInt32BE(20)}` : null;
 };
 
-async function run({ check, reader, other, window, editor, showsFor, inPage, page, field, folder, watch }) {
+// A window's reading without what differs from run to run: its id, frame, holder and mark, each ref, each document's
+// number and size, the seat a focus is of, how long a text is, a field's value and the folder the test made.
+const masked = (text) =>
+    text
+        .replace(/^window w\d+ ("[^"]*" \S+) at .* mark \d+$/m, 'window $1')
+        .replace(/ (w\d+\.[a-z.]+|\d+\.\d+)$/gm, '')
+        .replace(/^( *document) \d+ (.*) \d+x\d+$/gm, '$1 $2')
+        .replace(/focused \w+/g, 'focused')
+        .replace(/text \d+/g, 'text N')
+        .replace(/value "[^"]*"/g, 'value "*"')
+        .replace(/deckit-test-files-\w+/g, 'deckit-test-files');
+// The last line is the field the outside checks put into the window the local seat types in.
+const EDITOR = `window "Editor" editor
+  button "Close"
+  button "Minimize"
+  button "Zoom"
+  document content
+    complementary "Sidebar"
+      group "Workspaces"
+        button "Open"
+        listbox "Workspaces" (1 items, 1 in view)
+          option "deckit-test-files" [selected]
+            button "Close workspace"
+      radiogroup "Navigator"
+        radio "Files" [checked]
+        radio "Find" [unchecked]
+      tree "Files" (4 items, 4 in view)
+        treeitem "source" [expanded]
+          button "Find in this folder"
+        treeitem "other.js" [selected]
+        treeitem "quick-open-target.js"
+        treeitem "lines.txt"
+    main
+      toolbar
+        tablist "Open files" (2 items, 2 in view)
+          tab "lines.txt"
+          tab "other.js" [selected]
+      navigation "Path"
+        button "deckit-test-files"
+        button "source"
+        button "other.js" [current=page]
+      textbox "other.js" [focused, text N]
+    separator "Sidebar" [expanded]
+    textbox [value "*"]`;
+// What is in view under the General section's rows is other sections', which is not held here.
+const SETTINGS = `window "Settings" settings
+  button "Close"
+  button "Minimize"
+  button "Zoom"
+  document content
+    complementary "Sidebar"
+      navigation "Sections"
+        listbox [focused] (7 items, 7 in view)
+          option "Mods"
+          option "Activity"
+          option "General" [selected]
+          option "Mod Settings"
+          option "URL Schemes"
+          option "Interfaces"
+          option "Keyboard"
+    main
+      combobox "Font" [not expanded, haspopup=listbox, value "*"]
+      spinbutton "Text size" [value "*"]`;
+
+async function run({ check, reader, other, window, editor, settings, showsFor, inPage, page, field, folder, watch }) {
     const desktop = reader.as('read', 'desktop').split('\n');
     const [, size] = /^desktop (\d+x\d+) mark \d+$/.exec(desktop[0]) ?? [];
     const items = Number(/^dock \((\d+) items\)$/.exec(desktop.find((line) => line.startsWith('dock ')))?.[1]);
@@ -130,7 +194,7 @@ async function run({ check, reader, other, window, editor, showsFor, inPage, pag
     const shown = editor && showsFor(other, editor);
     const pressed = shown && other.as('press', shown);
     const texts = editor ? other.as('read', 'window', `w${editor.id}`, '--roles', 'textbox') : '';
-    const [, text] = /^ +textbox \[text \d+\] (\d+\.\d+)$/m.exec(texts) ?? [];
+    const [, text] = /^ +textbox "[^"]+" \[text \d+\] (\d+\.\d+)$/m.exec(texts) ?? [];
     const byRef = text && other.as('press', text);
     const inEditor = editor ? reader.as('read', 'window', `w${editor.id}`, '--roles', 'textbox') : '';
     check(
@@ -139,8 +203,29 @@ async function run({ check, reader, other, window, editor, showsFor, inPage, pag
             new RegExp(`^window w${editor?.id} "Editor" editor .*\\[key ${other.seat}\\] mark \\d+$`, 'm').test(
                 inEditor
             ) &&
-            new RegExp(`^ +textbox \\[focused ${other.seat}, text \\d+\\] ${text}$`, 'm').test(inEditor),
+            new RegExp(`^ +textbox "[^"]+" \\[focused ${other.seat}, text \\d+\\] ${text}$`, 'm').test(inEditor),
         JSON.stringify({ shown, pressed, texts, byRef, inEditor })
+    );
+
+    // The Editor and Settings as a seat reads them, each part by its role and its name. Settings is read once the
+    // seat brought it in front by the Dock and pressed one of its sections, so what is in view is that section's rows.
+    const inAll = editor ? masked(reader.as('read', 'window', `w${editor.id}`)) : '';
+    console.log(`[reading] the Editor\n${inAll}`);
+    check('reading: the Editor reads as its sidebar, its tree, its tabs and its text by name', inAll === EDITOR, inAll);
+    const inFront = settings && reader.as('press', 'dock.settings');
+    await sleep(800);
+    const sections = settings ? reader.as('read', 'window', `w${settings.id}`, '--roles', 'option') : '';
+    const [, first] = /^ +option "General".* (\d+\.\d+)$/m.exec(sections) ?? [];
+    if (first) reader.as('press', first);
+    await sleep(1500);
+    const rows = settings
+        ? masked(reader.as('read', 'window', `w${settings.id}`, '--roles', 'option,combobox,spinbutton'))
+        : '';
+    console.log(`[reading] Settings\n${rows}`);
+    check(
+        'reading: Settings reads as its sections, a navigation, and each row by its control named as the row is',
+        rows === SETTINGS || rows.startsWith(`${SETTINGS}\n`),
+        JSON.stringify({ inFront, first, rows })
     );
 }
 

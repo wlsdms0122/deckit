@@ -466,6 +466,7 @@ async function run({ check, home, logged, main, windowsNow, desktopLaid, idleTim
                 other: seatA,
                 window: (await windowsNow()).find(({ id }) => id === windowB.id),
                 editor: (await windowsNow()).find(({ mod }) => mod === 'editor'),
+                settings: (await windowsNow()).find(({ mod }) => mod === 'settings'),
                 showsFor,
                 inPage,
                 page: child.id,
