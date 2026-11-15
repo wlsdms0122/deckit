@@ -1528,8 +1528,8 @@ export function createDesktop({
     // over, then that page, taking the pointer only at the host's bar, the chips and the Dock, its sliver down the edge
     // and its card while it is out, the panel windows at an edge with the children their regions show, and over them
     // the views under anchors on that seat's screen. Over all of it, the overlay of each page laid that shows anything,
-    // at its page's rect, or over the whole stage for a panel window's content, so what it presents is not cut to the
-    // panel. Over those, while more than one seat is at the
+    // at its page's rect, or over the whole stage for a page whose front window is a panel window, so what it presents
+    // is not cut to the panel. Over those, while more than one seat is at the
     // desktop, the cursors' surface, where the desktop's page draws each seat's cursor: it covers the stage and takes
     // the pointer nowhere, so a press, a move and a scroll go to what is under it, and it is given no keyboard. With
     // deckit's core down the desktop's page alone covers it all.
@@ -1574,7 +1574,11 @@ export function createDesktop({
         for (const { window, page } of children) inWindows.set(page, window);
         const front = new Map(); // a mod's page -> the frame of its front window on screen
         for (const { window, frame } of inBar) if (!front.has(window.page)) front.set(window.page, frame);
-        for (const { id, frame } of view) front.set(windows.get(id).page, frame);
+        const ofPanels = new Set(front.keys()); // the pages whose front window on screen is a panel window
+        for (const { id, frame } of view) {
+            front.set(windows.get(id).page, frame);
+            ofPanels.delete(windows.get(id).page);
+        }
         const pages = new Set(
             [...windows.values(), ...panels.values()]
                 .map(({ page }) => page)
@@ -1584,7 +1588,7 @@ export function createDesktop({
         const laidPanel = ({ window, frame }) => {
             const clip = { ...frame, cornerRadius: radiusOf(window, frame) };
             return [
-                window.surface && { page: window.surface, rect: frame, clip, spread: full },
+                window.surface && { page: window.surface, rect: frame, clip },
                 ...children
                     .filter(({ window: holder }) => holder === window.id)
                     .map(({ page, rect }) => ({ page, rect, clip })),
@@ -1601,7 +1605,12 @@ export function createDesktop({
             children,
             parts: {
                 pages: [
-                    ...[...pages].map((page) => ({ page, rect: front.get(page) ?? area(), input: [] })),
+                    ...[...pages].map((page) => ({
+                        page,
+                        rect: front.get(page) ?? area(),
+                        ...(ofPanels.has(page) ? { spread: full } : {}),
+                        input: [],
+                    })),
                     ...elsewhere.map(({ window, frame }) => ({ page: window.surface, rect: frame, input: [] })),
                 ],
                 backdrop: backdrop ? [{ page: backdrop, rect: full }] : [],

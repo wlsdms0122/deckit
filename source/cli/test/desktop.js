@@ -746,10 +746,28 @@ async function main() {
                 JSON.stringify(inBar.map(({ id, frame }) => ({ id, frame, radius: frame.height / 2 }))),
         { laidNames, content, panels: desk.page().panels }
     );
+    // A mod whose one window is a panel window, beside two whose front window is a normal one.
+    const lonePanel = panelOf(23, 'c', { width: 40, height: 20 });
+    desk.desktop.openPanel(lonePanel);
+    const spreads = Object.fromEntries(
+        desk
+            .laid()
+            .filter(({ page }) => /^(page|content)-/.test(page.name))
+            .map(({ page, rect, spread = null }) => [page.name, { rect, spread }])
+    );
+    desk.desktop.closePanel(lonePanel);
     check(
-        "a panel window's content has its overlay laid over the whole stage, what it presents not cut to the panel",
-        JSON.stringify(content.spread) === JSON.stringify({ x: 0, y: 0, width: 800, height: 500 }),
-        content
+        'a page whose front window is a panel window is laid at that panel with its overlay over the whole stage, ' +
+            'what it presents not cut to the panel; a page with a normal window in front, and a content, has none',
+        JSON.stringify(spreads['page-c']) ===
+            JSON.stringify({
+                rect: { x: 576, y: 4, width: 40, height: 20 },
+                spread: { x: 0, y: 0, width: 800, height: 500 },
+            }) &&
+            Object.entries(spreads).every(([name, { spread }]) => name === 'page-c' || spread === null) &&
+            'content-23' in spreads &&
+            'page-a' in spreads,
+        spreads
     );
     const panelTold = desk.desktop.stateOf(firstPanel);
     desk.desktop.pressPanel(firstPanel);
@@ -1954,15 +1972,18 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
             told.titleBar === null,
         { at: standsAt(), laid, told }
     );
+    const viewPage = desk.laid().find(({ page }) => page?.name === 'page-clock');
     check(
-        "a view's content is laid over the panel windows at an edge, cut to its corners, its overlay over the whole " +
-            "stage and its material under it in the desktop's page",
+        "a view's content is laid over the panel windows at an edge, cut to its corners, its material under it in " +
+            "the desktop's page, and its mod's page at the view with its overlay over the whole stage",
         names().indexOf('content-3') > names().indexOf('content-4') &&
             names().indexOf('content-4') > names().indexOf('content-2') &&
             laid.clip.cornerRadius === 12 &&
-            written(laid.spread) === written(rect(0, 0, 1200, 800)) &&
+            !('spread' in laid) &&
+            written(viewPage?.rect) === written(standsAt()) &&
+            written(viewPage?.spread) === written(rect(0, 0, 1200, 800)) &&
             written(drawnAt()) === written({ id: 3, edge: null, frame: standsAt(), radius: 12 }),
-        { names: names(), laid, drawn: drawnAt() }
+        { names: names(), laid, viewPage, drawn: drawnAt() }
     );
     const other = desk.sit('s1');
     const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
