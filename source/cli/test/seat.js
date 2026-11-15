@@ -180,13 +180,6 @@ function seat({ main, pageById, compose, desktop }) {
         await until(() => mods?.evaluate(`!!${item}`), 4000);
         await mods?.evaluate(`${item}.click()`);
     };
-    // The local seat's pointer moved at the desktop's right edge, as the machine moves it: input of the seat, which
-    // is not idle from then on for the idle time.
-    const stir = async () => {
-        const { rect } = (await desktopLaid()).pages.find(({ url }) => url.startsWith('deckit://desktop'));
-        const at = { x: Math.round(rect.width - 4), y: Math.round(rect.height / 2) };
-        await main(`return webkit.sendMouse(${desktop().id}, ${JSON.stringify({ type: 'moved', ...at })})`);
-    };
     // The desktop as a person sees it, its pages laid one over another from the backdrop up, with `compose`'s options.
     const desktopShot = async (name, options) => {
         const laid = ((await desktopLaid())?.pages || []).filter(({ input }) => !Array.isArray(input) || input.length);
@@ -232,7 +225,7 @@ function seat({ main, pageById, compose, desktop }) {
         await pressAt(at);
         return asking;
     };
-    // What `attaching` comes to, the local seat allowing `user` where it is asked: an idle one is not.
+    // What `attaching` comes to, the local seat allowing `user` where it is asked.
     const allowed = async (user, attaching) => {
         let over = false;
         const come = Promise.resolve(attaching).finally(() => (over = true));
@@ -252,7 +245,6 @@ function seat({ main, pageById, compose, desktop }) {
         show,
         open,
         openFromMods,
-        stir,
         desktopShot,
         asksNow,
         answerOf,

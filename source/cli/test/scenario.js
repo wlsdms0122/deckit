@@ -37,7 +37,8 @@ const IDLE_TIME = 8;
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them declaring addresses as it may not, the window probe shipped with the app
 // assembled in `app` as a system mod, Settings placed second in the Dock, as a person
-// would have arranged it, what REMOVED left, noted as not cleared yet, and the idle time of a seat as a host sets it.
+// would have arranged it, what REMOVED left, noted as not cleared yet, and the seats' settings as a host sets them:
+// the idle time, and a user that attaches asked of the local seat.
 function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -84,7 +85,10 @@ function seed({ data, files, app }) {
         path.join(data, 'deckit', 'state', 'shell', 'dock-pinned.json'),
         JSON.stringify(['editor', 'settings', 'bot', 'browser', 'calendar', 'finder', 'mods', 'note', PROBE])
     );
-    fs.writeFileSync(path.join(data, 'deckit', 'state', 'seats.json'), JSON.stringify({ idleTime: IDLE_TIME }));
+    fs.writeFileSync(
+        path.join(data, 'deckit', 'state', 'seats.json'),
+        JSON.stringify({ idleTime: IDLE_TIME, asking: true })
+    );
     fs.writeFileSync(path.join(data, 'deckit', 'deck.json'), JSON.stringify({ uncleared: [REMOVED] }));
     for (const kept of [
         ['records', REMOVED, 'tabs.json'],
@@ -2987,8 +2991,7 @@ async function run(app, named = []) {
     const desktop = await until(() => page('deckit://desktop'));
     // The windows the seats sit at: one whose content is its only page, the region parent's, opened from the Mods mod
     // as the Dock does not keep it, and the Editor's last, the local seat's key window where it has none or the region
-    // parent's, which a seat from outside is to press. The local seat is asked about who sits while it is not idle, so
-    // its pointer moves before the parties come.
+    // parent's, which a seat from outside is to press.
     const windowsStand = async () => {
         for (const id of ['settings', 'mods']) await open(id);
         if (!(await windowOf('region-parent'))) await local.openFromMods('region-parent');
@@ -3010,7 +3013,6 @@ async function run(app, named = []) {
         try {
             const { asksNow, answerOf, pressAt, answer, allowed } = local;
             await windowsStand();
-            await local.stir();
             await OUTSIDE.run({
                 check,
                 home,

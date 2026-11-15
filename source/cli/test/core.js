@@ -137,7 +137,7 @@ async function main() {
         mods: '/home/deckit/mods',
         data: '/home/deckit/data',
         timeout: { launch: 20, end: 5 },
-        seats: { idleTime: 300 },
+        seats: { idleTime: 300, asking: false },
     });
     check('the start resolves once the core answered initialize', 'value' in (await initialized), await initialized);
     check(

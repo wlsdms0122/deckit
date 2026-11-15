@@ -4,8 +4,9 @@
 // a job that grants only the seat permission: its own records and events, no connection, and what a seat does and
 // reads. The users and the keys are made, listed and removed as a host does it, by `deckit user` and `deckit key`
 // against the app's folder, while the app runs. The shell serves the seats: a user that asks to sit is a chip on the
-// desktop's page, which the local seat answers as the machine presses, yes, no for one user and never for another,
-// and an idle local seat is not asked. Two users, each a terminal of its own, press and type in the windows of the
+// desktop's page, which the local seat answers as the machine presses, yes, no for one user and never for another:
+// the app is started with asking on, and while `deckit seat asking` has it off a user sits unasked. Two users, each
+// a terminal of its own, press and type in the windows of the
 // desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the local seat sees of them, and
 // `idleTime` the seconds a seat is idle after, as the app was started with. With `reads`, the second user reads the
 // desktop it sits at too (reading.js).
@@ -315,7 +316,7 @@ async function run({
     // A terminal: one command attaches and sits, the others ask through it. Its user's id is short, as the path of
     // its relay, a local socket in the app's folder, is bounded by the system.
     const terminal = 'tty';
-    const { file } = userWithKey(terminal, 'Terminal');
+    const { file, ...terminalKey } = userWithKey(terminal, 'Terminal');
     const sitting = spawn(command, ['seat', 'attach', terminal, '--key', file, '--home', home]);
     let said = '';
     let refused = '';
@@ -352,6 +353,30 @@ async function run({
             !fs.existsSync(relay) &&
             (await until(async () => !(await seatsNow()).includes(sat), 3000)),
         said
+    );
+
+    // Asking is the host's to turn off as the app runs: the next user sits at once, and no chip asks for it.
+    const words = [cli('seat', 'asking'), cli('seat', 'asking', 'off')];
+    const unasked = await connect(socket);
+    let unaskedTold = 0;
+    unasked.on('attach/asking', () => unaskedTold++);
+    const proving = unasked.authenticate({ principal: terminal, ...terminalKey }).catch((error) => error);
+    const atOnce = await Promise.race([proving, sleep(5000)]);
+    const unaskedAsks = await asksNow();
+    words.push(cli('seat', 'asking', 'on'), cli('seat', 'asking'));
+    if (atOnce?.seat) {
+        await unasked.request('runner/started', started);
+        await unasked.request('runner/quit', {});
+    } else unasked.close();
+    check(
+        'outside: with asking turned off as the app runs a user sits at once, unasked, until it is turned on again',
+        same(words, ['on\n', 'off\n', 'on\n', 'on\n']) &&
+            atOnce?.seat?.user.id === terminal &&
+            unaskedTold === 0 &&
+            !unaskedAsks.includes(terminal) &&
+            (await settled(unasked.closed)) &&
+            (await until(async () => !(await seatsNow()).includes(atOnce.seat.id), 3000)),
+        JSON.stringify({ words, atOnce: atOnce?.message ?? atOnce, unaskedTold, unaskedAsks })
     );
 
     // Two users at once, each at a terminal, beside the local seat: the first in a window whose content alone takes
