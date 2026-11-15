@@ -85,8 +85,9 @@ function row({ size = 'medium', glyph = null } = {}) {
 }
 
 // The kit's keyed list (`key(item)`, `create(item)`, `update(element, item)`, `animated`). With `maxRows`, as tall as
-// that many rows, scrolling past them. `role` is what it is to whoever reads the page, `list`, or `listbox` where its
-// rows are chosen, and `name` what it is called there.
+// that many rows, scrolling past them. `role` is what it is to whoever reads the page, `list`, `listbox` where its
+// rows are chosen, or `presentation` where what holds it is what its rows are items of, and `name` what it is called
+// there.
 function list({
     maxRows = 0,
     size = 'medium',
