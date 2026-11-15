@@ -132,10 +132,12 @@ function connect({ port, shots, module }) {
     }
 
     // What `expression` comes to in page `id`'s `world`, its own (`page`) or deckit's (`deckit`), awaited, by value;
-    // what it threw as `{ error }`. Statements that are no expression are run, and come to nothing.
+    // what it threw as `{ error }`, in the exception's own words. Statements that are no expression are run, and come
+    // to nothing.
     async function evaluateIn(id, expression, world = 'page') {
-        const returned = `return (\n${expression}\n)`;
-        const source = parses(returned) ? returned : expression;
+        const returned = `return await (\n${expression}\n)`;
+        const body = parses(returned) ? returned : expression;
+        const source = `try {\n${body}\n} catch (error) {\nreturn { error: String(error) };\n}`;
         const json = await main(`return webkit.evaluate(${id}, ${JSON.stringify(source)}, ${JSON.stringify(world)})`);
         return typeof json === 'string' ? JSON.parse(json) : json;
     }
