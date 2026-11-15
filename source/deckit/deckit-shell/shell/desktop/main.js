@@ -920,8 +920,11 @@ export function createDesktop({
             return { over: null };
         }
         if (event.type === 'down') pressedDown(seat, hand, event.page);
-        // A press in the desktop's page is forwarded by it (listen), and gesture puts the menu away or keeps it.
-        if (event.type === 'down' && event.page !== desktop.page) unmenu(seat, hand);
+        // A press on the Dock or its menu is forwarded by the desktop's page (listen), and gesture puts the menu away
+        // or keeps it; a press anywhere else, the host's bar in that page too, puts it away.
+        const onDock =
+            event.page === desktop.page && hand.pointer && partAt({ page: event.page, ...hand.pointer }, seat);
+        if (event.type === 'down' && !onDock) unmenu(seat, hand);
         const window = event.type === 'down' ? windowAt(event.page) : null;
         if (!window || !windows.has(window.id) || MANAGER.isMinimized(seat, window.id)) return { over: null };
         return reached(seat, window);

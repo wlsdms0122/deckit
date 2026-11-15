@@ -1423,6 +1423,16 @@ async function dockChecks({ LAYOUT, DOCK, createDesktop }, check) {
             JSON.stringify(desk.dock.chosen[1]) === '["c","quit","local"]',
         JSON.stringify({ drawn, takes, held, gone, byKey, opened, chosen: desk.dock.chosen })
     );
+    key('dock', 'a', 2);
+    const open = desk.page().dock.menu?.item;
+    await machine('down', { x: 600, y: 10 });
+    const afterBar = desk.page().dock.menu;
+    await machine('up', { x: 600, y: 10 });
+    check(
+        "the machine's press on the host's bar, in the desktop's page and on no part of the Dock, puts the menu away",
+        open === 'a' && afterBar === null,
+        JSON.stringify({ open, afterBar })
+    );
 }
 
 function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
