@@ -110,6 +110,25 @@ async function main() {
             keyPresses[0][1] === pageA,
         keyPresses
     );
+    const left = [];
+    const offLeft = KEY.onUnhandled(
+        (page, keystroke) => left.push([page, keystroke.code]) > 0 && keystroke.code === 'Escape'
+    );
+    const tookEscape = passing.get(pageA)(full({ code: 'Escape' }));
+    const tookOther = passing.get(pageA)(full({ code: 'KeyQ' }));
+    holder({ code: 'KeyM', meta: true });
+    offLeft();
+    const tookAfter = passing.get(pageA)(full({ code: 'Escape' }));
+    check(
+        "a key no page handled that none of the shell's keys holds is asked of what hears such keys, taken where " +
+            'that answers so, until it is off',
+        tookEscape === true &&
+            tookOther === false &&
+            tookAfter === false &&
+            JSON.stringify(left.map(([, code]) => code)) === '["Escape","KeyQ"]' &&
+            left[0][0] === pageA,
+        { tookEscape, tookOther, tookAfter, left }
+    );
     const listed = channel('list')({}, 'settings');
     check(
         "the shell's keys are listed in order, each with its default and the chord set for it, as kept",
