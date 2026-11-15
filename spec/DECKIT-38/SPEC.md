@@ -21,7 +21,7 @@ A **user** is a principal for which the system keeps a table `{ id, name }`: `id
 
 A user is part of what its principal stored: erasing what the principal stored, as [storage](../DECKIT-13/SPEC.md) fixes it, erases the user with the keys authorized for it, as [a party from outside](../DECKIT-37/SPEC.md) fixes those.
 
-No rule tells a user a person acts through from one a program acts through.
+No rule tells a user that a person acts through from one that a program acts through.
 
 ### A user's job
 
@@ -34,7 +34,7 @@ A proof of the handshake, as [a party from outside](../DECKIT-37/SPEC.md) fixes 
 | interfaces used | none |
 | interfaces provided | none |
 
-So a user's run stores and reads its own records, listens for and emits events, and asks what `deckit.seat` guards. A request another permission guards is refused it at `call` with kind `NOT_PERMITTED`, as [the permissions](../DECKIT-3/SPEC.md) refuse one.
+So a user's run stores and reads its own records, emits events and hears those named after its own id, and no other's, as [events](../DECKIT-12/SPEC.md) fix who hears one, and asks what `deckit.seat` guards. A request another permission guards is refused it at `call` with kind `NOT_PERMITTED`, as [the permissions](../DECKIT-3/SPEC.md) refuse one.
 
 `deckit.seat` is held by a user's job and granted to no mod. No manifest is read against it: a mod that asks for it is answered `usable` false for it, marked system or not, as [the bundle](../DECKIT-2/SPEC.md) answers a permission nothing defines. A host or a layer that defines a permission of that id is refused the start with kind `PERMISSION`, as [embedding](../DECKIT-22/SPEC.md) refuses a permission the system does not take.
 
@@ -44,7 +44,7 @@ A **seat** is where one user is at the system: one pointer, one keyboard and one
 
 | key | value |
 |---|---|
-| `id` | a string: `local` for the local seat, and `s` and a number for any other, below |
+| `id` | a string: `local` for the local seat, and `s` followed by the seat's number for any other |
 | `user` | table `{ id, name }`: the user that sits at it |
 | `local` | a boolean: whether it is the local seat |
 
@@ -79,7 +79,7 @@ The system keeps two settings of the seats, as the host app quits and starts aga
 | `idleTime` | a number, 0 or more: how many seconds a seat's devices give no input for before the seat is idle | 300 |
 | `asking` | a boolean: whether a user that attaches waits for an answer before it sits, under *Admission* | `false` |
 
-A seat is **idle** once `idleTime` seconds have passed since its devices last gave input, or since it opened where they gave none. For a seat a transport connection opened, its devices give input as its party asks `seat/input`. Whether a seat is idle decides nothing of admission. What it decides is the layer's that serves the seats.
+A seat is **idle** once `idleTime` seconds have passed since its devices last gave input, or since it opened where they gave none. For a seat a transport connection opened, its devices give input as its party asks `seat/input`. Whether a seat is idle decides nothing of admission. What it decides is fixed by the DECKIT of the layer that serves the seats.
 
 `asking` is read as each proof verifies, so a change holds from the next `authenticate` on, and a user that waits for an answer as `asking` turns false waits on for it.
 
@@ -117,7 +117,7 @@ A seat is told of an output while it watches it: from a `seat/watch` with `on` t
 
 A request is refused at `call` with the first of these that is so:
 
-1. kind `INVALID_ARGUMENT`, where `event` names no row of its table, `type` is none of the event's, `of` names no output that `seat/read` reads or, for `seat/watch`, none that is told, or `params` hold a key the event or the output is not asked with;
+1. kind `INVALID_ARGUMENT`, where `event`, `type` or `of` is left out or is no string, `on` is left out or is no boolean, `event` names no row of its table, `type` is none of the event's, `of` names no output that `seat/read` reads or, for `seat/watch`, none that is told, or `params` hold a key the event or the output is not asked with;
 2. kind `REFUSED`, where it is `seat/input` or `seat/read` and no layer serves it.
 
 What each event and each output holds beside these keys, what each answers and what it is refused with besides are fixed by the DECKIT of the layer that serves it.
@@ -142,7 +142,7 @@ Only the host makes a user, removes one, reads the users, the seats and the sett
 
 - **Making a user** `{ id, name }` keeps it; one kept already under `id` takes the new `name`. It is refused at `call` with kind `INVALID_ARGUMENT` where `id` is no `id`, and with kind `REFUSED` where a mod is listed under `id`, as [the catalog](../DECKIT-4/SPEC.md) lists one.
 - **Removing a user** by its id asks the end of the run it has, if any, and erases what its principal stored, the user and its keys among it. It is refused at `call` with kind `NOT_FOUND` where no user is kept under the id.
-- **The users** are read as an array of `{ id, name }`, in the order of their ids.
+- **The users** are read as an array of `{ id, name }`, in the order of the code points of their ids.
 - **The seats** are read as an array of seats, in the order they opened.
 - **The settings** are read as `{ idleTime, asking }`. Setting one keeps it and leaves the other as it was. It is refused at `call` with kind `INVALID_ARGUMENT` where `idleTime` is below 0.
 
@@ -154,6 +154,7 @@ A user is made, removed and read, and a setting set, with the host app started o
 - The `id` grammar, and what a manifest is answered of a permission nothing defines: [the bundle](../DECKIT-2/SPEC.md).
 - `NOT_PERMITTED`, and the permissions a mod is granted: [the permissions](../DECKIT-3/SPEC.md).
 - A run's states and the relaunch limit: [the lifecycle](../DECKIT-5/SPEC.md).
+- Who hears an event: [events](../DECKIT-12/SPEC.md).
 - Erasing what a principal stored: [storage](../DECKIT-13/SPEC.md).
 - A layer a host stacks, and `PERMISSION` at the start: [embedding](../DECKIT-22/SPEC.md).
 - The users and keys a case's host makes, and a party of a case: [the case format](../DECKIT-1/SPEC.md).
@@ -164,14 +165,12 @@ A user is made, removed and read, and a setting set, with the host app started o
 - A party that runs as a mod. A key would then reach a mod's records and connections from outside its sandbox, and a mod's run would have two hosts; a user is a principal of its own, with a job that holds one permission.
 - A seat named in every request. A party would name another's seat; the transport connection says whose it is, as it says the principal and the run.
 - The local seat as a thing apart from seats. Every rule of a seat would gain a second case for the machine's own devices; the local seat is a seat whose devices are the machine's, and whoever attaches stands as the one at the machine does.
-- A permission for each of input and reading. A user that could see and not act, or act and not see, is a decision for whoever admits it, not a property of a job every user runs; one permission holds until that decision has a rule.
 - Admission decided by how long the local seat gave no input. Whoever attaches while nobody is at the machine would sit unasked or never, by a clock; the setting says which, and the idle time decides nothing of it.
-- An ask the system answers itself. The system draws nothing and knows no one at a seat; a layer that shows the seats asks whoever sits.
 
 ## Notes
 
 **Note.** What this costs an implementation: it keeps a user record with what a principal stored, launches a run for a user with a job no bundle gave, keeps a table of seats for a start, holds an `authenticate` open while an ask is answered, and carries a seat's requests to whichever layer serves them.
 
-**Note.** No case holds these, each for its reason. The 60 seconds of an ask, since a case does not wait a minute. An admission with `asking` true, a setting set or read, a user removed or made after the start, a user under a mod's id, the users and the seats read, and a seat idle: [the case format](../DECKIT-1/SPEC.md) gives a case's host its users and keys before the first start and nothing later, so a case reaches the settings only as they stand where none is kept. That the local user is made under the host's name: no party reads a user it is not.
+**Note.** No case holds these, each for its reason. The 60 seconds of an ask, since a case does not wait a minute. An admission with `asking` true, a setting set or read, a user removed or made after the start, a user under a mod's id, the users and the seats read, and a seat idle: [the case format](../DECKIT-1/SPEC.md) gives a case's host its users and keys before the first start and nothing later, so a case reaches the settings only as they stand where none is kept, and a party that waits for an answer, or closes while it waits, is reached by none. A user erased with what its principal stored: a case's host erases no principal that is no mod. That the local user is made under the host's name: no party reads a user it is not.
 
-**Note.** The base `system` of a case stacks no layer that serves a seat, so its cases hold the refusals of *What a seat asks and is told* and nothing a layer answers.
+**Note.** The base `system` of a case stacks no layer that serves a seat, so its cases hold the refusals of *What a seat asks and is told* and what `seat/watch` answers, and nothing a layer answers or tells: no `seat/output`, that of `held` from the moment a seat opens among them, and no second layer that serves what one serves already.
