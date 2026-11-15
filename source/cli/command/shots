@@ -424,6 +424,40 @@ async function draw(app, look, shots, origin) {
         await desktopShot(name, { under, crop: around([from, to, other]) });
         await users[0].point('up', to, { button: 0, buttons: [] });
     });
+    // The two seats' cursors over what lies over the desktop's page: one on the status bar's panel window in the
+    // host's bar, the other on the menu of a Dock item, which the desktop's page presents over itself.
+    await surface('seats-over', async (name) => {
+        const [first, second] = users;
+        if (!second) throw new Error('no two seats are at the desktop');
+        const middle = ({ x, y, width, height }) => ({ x: Math.round(x + width / 2), y: Math.round(y + height / 2) });
+        const panel = ((await desktopLaid())?.pages || []).find(
+            ({ opener, name: each }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(each)
+        );
+        if (!panel) throw new Error('no panel window of the status bar is laid');
+        await desktop.evaluate(`(() => {
+            const item = document.querySelector('.deckit-dock-item');
+            const { x, y } = item.getBoundingClientRect();
+            item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x + 8, clientY: y + 8 }));
+        })()`);
+        const overlay = await overlayOf(desktop);
+        const menu = await until(
+            () =>
+                overlay?.evaluate(`(() => {
+                    const menu = document.querySelector('.deckit-menu[data-state="open"]');
+                    if (!menu) return null;
+                    const { x, y, width, height } = menu.getBoundingClientRect();
+                    return { x, y, width, height };
+                })()`),
+            3000
+        );
+        if (!menu) throw new Error("the Dock's menu did not open");
+        await first.point('move', middle(menu));
+        await second.point('move', middle(panel.rect));
+        await sleep(600);
+        await desktopShot(name, { under });
+        await escape(overlay);
+        await sleep(300);
+    });
     for (const user of users) await user.tile('ArrowDown').catch(() => {});
     for (const user of users) user.leave();
     await sleep(1000);
