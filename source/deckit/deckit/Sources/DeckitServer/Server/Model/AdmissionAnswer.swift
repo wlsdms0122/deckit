@@ -10,7 +10,7 @@ import Deck
 import Deckit
 
 // An admission as the driver reads it: `{ effects, seat }` for a user that sits, or `{ asking: { user } }` for one
-// that waits for the local seat's answer.
+// that waits for an answer.
 struct AdmissionAnswer {
     // MARK: - Property
     let effects: [EffectAnswer]?

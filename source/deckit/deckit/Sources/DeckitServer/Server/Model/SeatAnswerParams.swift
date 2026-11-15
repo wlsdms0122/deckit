@@ -7,7 +7,7 @@
 
 import Foundation
 
-// What the local seat answers the user that waits on a transport connection.
+// What the user that waits on a transport connection is answered, whoever answered.
 struct SeatAnswerParams: Decodable {
     // MARK: - Property
     let transport: String

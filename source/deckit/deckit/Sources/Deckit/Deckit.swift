@@ -296,7 +296,7 @@ public final class Deckit {
     // The transport connection `transport`, which arrived from outside, is admitted as the user its claimant proves to
     // be, as deck verifies it. A principal deckit keeps no user record for is refused as a proof that does not verify
     // is, so nothing is told of it, and a user that sits or runs already is refused. The user sits at once, or, with
-    // the seats' setting `asking` on, waits until the local seat answers.
+    // the seats' setting `asking` on, waits until `answer` says whether it may: whom the caller asks is the caller's.
     public func admit(
         transport: String,
         principal: String,
@@ -318,8 +318,9 @@ public final class Deckit {
         return .asking(user)
     }
 
-    // The local seat answers whether the user that waits on the transport connection may sit: it sits, held to what
-    // `admit` holds it to as it is answered, or is refused. Refused for a transport connection none waits on.
+    // What the caller was answered of the user that waits on the transport connection, whether it may sit: it sits,
+    // held to what `admit` holds it to as it is answered, or is refused. Deckit knows no one who answered. Refused for
+    // a transport connection none waits on.
     public func answer(transport: String, allow: Bool) throws -> Admission {
         guard let asked = seats.answer(transport: transport) else { throw SeatError.notAsking(transport) }
         guard allow else { throw SeatError.refused }

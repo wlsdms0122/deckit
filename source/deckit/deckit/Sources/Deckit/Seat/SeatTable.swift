@@ -7,7 +7,7 @@
 
 import Foundation
 
-// The seats open, one a user, and the users that wait for the local seat's answer before they sit, by the transport
+// The seats open, one a user, and the users that wait for an answer before they sit, each by the transport
 // connection each arrived on. In memory only.
 public final class SeatTable {
     // MARK: - Property
