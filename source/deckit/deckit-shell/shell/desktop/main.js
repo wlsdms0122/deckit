@@ -199,8 +199,8 @@ export function createDesktop({
     // that window. The machine's keyboard is the local seat's: a key pressed in a page reaches the mod whose page it
     // is, a chord the mod that took it, for the seat that pressed it. Every seat deckit opens sits here, and what a
     // seat's devices do enters through `deckit.seats.input`, the machine's as the local seat's. A user that asks to
-    // sit is put to the local seat (ask). The host window shows the local seat's view, or that of the seat the local
-    // one follows (follow).
+    // sit waits for a seated user's answer (ask). The host window shows the local seat's view, or that of the seat
+    // the local one follows (follow).
     function start(given) {
         WINDOWS = given.WINDOWS;
         DOCK = given.DOCK;

@@ -152,7 +152,7 @@ export function createApi({
                 isIdle: SEAT.isIdle,
                 // settings({ idleTime?, asking? }) -> Promise of `{ idleTime, asking }`, the seats' settings as they
                 // are kept: the seconds a seat's devices give no input for before it is idle, and whether a user that
-                // attaches waits until the local seat lets it sit. Each one named is set and kept first.
+                // attaches waits until a seated user lets it sit. Each one named is set and kept first.
                 settings: SEAT.settings,
                 // input(seat, event) -> Promise of what the seat can see happened: the entry of what a seat's devices
                 // did, which the shell calls for what the environment's hardware tells; `event` is one of `pointer`,
@@ -161,7 +161,7 @@ export function createApi({
                 // serve({ input, read, onAsk }): what the shell answers the entry and the users at the seats with,
                 // each once: `input(seat, event)`, `event` with the seat's `source`, and `read(seat, { of, ...query
                 // })`, an output asked once, each handed plain data and answering what the user is answered, and
-                // `onAsk({ user }, { signal }) -> Promise of boolean`, whether the local seat lets `user` sit, `signal`
+                // `onAsk({ user }, { signal }) -> Promise of boolean`, whether a seated user lets `user` sit, `signal`
                 // aborted once no answer is waited for. What is not served is refused, and so is a user that waits
                 // for an ask nothing serves. Answers `{ tell(seat, output) }`, what the shell tells a seat: `output`
                 // is `{ of: 'changes', mark }` or `{ of: 'held', window, holder }`, and reaches a seat that watches it.

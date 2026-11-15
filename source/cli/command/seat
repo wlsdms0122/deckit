@@ -3,7 +3,7 @@
 // interrupted, and relays what the other commands ask (outside/relay.js): each of them asks the host one thing of the
 // seat and prints what it answered. The folder is Deckit.app's folder of deckit or the one `--home` names; the user
 // is the one `--as` or DECKIT_SEAT names, or the only one attached there. `asking` is the host's own: whether a user
-// that attaches waits until the local seat lets it sit, set and read through the core the last build made, as the
+// that attaches waits until a seated user lets it sit, set and read through the core the last build made, as the
 // users are (outside/keys.js), and held to from the next attach on. Exits 1 with why the host refused.
 const fs = require('fs');
 const path = require('path');
@@ -67,7 +67,7 @@ async function attach(user) {
     if (!user || rest.length !== 1 || !options.key) refuse();
     const key = readKey(fs.readFileSync(path.resolve(options.key), 'utf8'));
     const party = await connect(path.join(home, 'deckit.sock'));
-    party.on('attach/asking', () => console.log('asking the local seat ...'));
+    party.on('attach/asking', () => console.log('asking to sit ...'));
     party.on('runner/stop', () => true);
     const { seat } = await party.authenticate({ principal: user, ...key });
     await party.request('runner/started', STARTED);
@@ -80,7 +80,7 @@ async function attach(user) {
     console.log('detached');
 }
 
-// Whether a user that attaches is asked of the local seat, printed as `on` or `off`, set first where a word says so.
+// Whether a user that attaches asks to sit, printed as `on` or `off`, set first where a word says so.
 async function asking(word) {
     const words = { on: true, off: false };
     if (rest.length > 1 || (word !== undefined && !Object.hasOwn(words, word))) refuse();

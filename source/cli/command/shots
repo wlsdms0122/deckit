@@ -179,7 +179,7 @@ function seedOf(origin, valueProblem) {
             { id: 2, url: origin + '/behind', title: 'Behind', icon: '' },
         ];
         write('browser/session.json', { tabs, front: 1, closed: [] });
-        // A user that attaches is asked of the local seat, so the one that asks is drawn.
+        // A user that attaches asks to sit, so the one that asks is drawn.
         const state = path.join(data, 'deckit', 'state');
         fs.mkdirSync(state, { recursive: true });
         fs.writeFileSync(path.join(state, 'seats.json'), JSON.stringify({ asking: true }));

@@ -22,7 +22,7 @@ const RELAY = require('../outside/relay.js');
 const { sleep, until } = require('./devtools.js');
 const READING = require('./reading.js');
 
-// How long an admission waits for the local seat's answer, in ms (deckit-shell/deckit/seat).
+// How long an admission waits for an answer, in ms (deckit-shell/deckit/seat).
 const ASK_TIME = 60000;
 // The users the local seat answers no, and never.
 const DENIED = 'outside-denied';
@@ -330,7 +330,7 @@ async function run({
     const relay = path.join(home, 'seats', `${terminal}.sock`);
     check(
         'outside: deckit seat attach says it asks, then sits, and only its owner opens its relay',
-        sat && said.startsWith('asking the local seat ...\n') && (fs.statSync(relay).mode & 0o777) === 0o600,
+        sat && said.startsWith('asking to sit ...\n') && (fs.statSync(relay).mode & 0o777) === 0o600,
         said + refused
     );
     const printed = sat && [cli('seat', 'read', 'desktop'), cli('seat', 'press', '10,20'), cli('seat', 'changes')];

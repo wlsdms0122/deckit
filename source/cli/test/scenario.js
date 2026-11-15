@@ -41,7 +41,7 @@ const IDLE_TIME = 8;
 // The test's own mods, installed, one of them declaring addresses as it may not, the window probe shipped with the app
 // assembled in `app` as a system mod, Settings placed second in the Dock, as a person
 // would have arranged it, what REMOVED left, noted as not cleared yet, and the seats' settings as a host sets them:
-// the idle time, and a user that attaches asked of the local seat.
+// the idle time, and a user that attaches asking to sit.
 const NOTED = [
     ['seeded-new', 'Seeded new', 'Runs a command as it is pressed.', { command: 'noted', args: { word: 'pressed' } }],
     ['seeded-old', 'Seeded old', '', {}],

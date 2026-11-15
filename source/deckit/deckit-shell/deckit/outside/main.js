@@ -14,7 +14,7 @@ const TOLD = Object.assign({}, ...WIRES.map(({ told }) => told));
 // The transport connections that arrive from outside. Nobody made one, so whose it is, is a claim: main relays the
 // claimant's proof to the core, which alone checks it against the keys authorized for the principal, and learns the
 // principal only from what the core answers. The principal is a user, who sits at a seat once the core admits it, at
-// once or after the local seat was asked (seat/). From then on the transport connection hosts a run of that user's
+// once or after it asked to sit (seat/). From then on the transport connection hosts a run of that user's
 // job as a page hosts one, and what it sends is that run's, held to the guards a page's is held to. `transport` is
 // the environment's (environment/: MAIN.transport), `path` where it listens.
 export function createOutside({ CORE, LOG, RUNNER, SEAT, transport: TRANSPORT, path }) {
@@ -76,7 +76,7 @@ export function createOutside({ CORE, LOG, RUNNER, SEAT, transport: TRANSPORT, p
 
         // `initialize` first, once, then `authenticate`, then what a run asks. Whatever fails of the proof is one
         // refusal, which tells nothing of the principal, and the transport connection closes. A party whose admission
-        // waits for the local seat is told `attach/asking` once, and `authenticate` answers when the seat has.
+        // waits for an answer is told `attach/asking` once, and `authenticate` answers once it has one.
         async function respond(id, method, params) {
             if (state === 'opened' && method === 'initialize') {
                 if (params.protocol !== DECLARED.PROTOCOL) throw refusal(`protocol ${DECLARED.PROTOCOL} is spoken`);
