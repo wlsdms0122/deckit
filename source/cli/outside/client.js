@@ -24,14 +24,17 @@ function pairOf(privateKey) {
 
 // The transport connection to the socket named `file` (socket.js), once it is open: `request(method, params)` resolves
 // with the result or rejects with the error, its `code`, `kind` and `stage` on it; `notify(method, params)` asks for no
-// answer; `on(method, handler(params))` hears what the host tells, and answers what it asks; `authenticate({
-// principal, publicKey, privateKey })` proves the principal and resolves with what the host answers; `close()` closes
-// it, and `closed` settles once it is closed, by either end.
+// answer; `on(method, handler(params))` hears what the host tells, and answers what it asks, a null where no handler
+// answers; `onMessage(listener({ method, params, request }))` hears each message the host sends that answers nothing
+// the party asked, `request` whether it is one the party answers, before its handler; `authenticate({ principal,
+// publicKey, privateKey })` proves the principal and resolves with what the host answers; `close()` closes it, and
+// `closed` settles once it is closed, by either end.
 function connect(file) {
     return new Promise((resolve, reject) => {
         const socket = net.createConnection(SOCKET.placeOf(file));
         const pending = new Map();
         const handlers = new Map();
+        const listeners = [];
         let sequence = 0;
         let rest = '';
         const closed = new Promise((done) => socket.once('close', done));
@@ -49,6 +52,7 @@ function connect(file) {
                 else asked?.answered(result);
                 return;
             }
+            for (const listener of listeners) listener({ method, params, request: id !== null });
             const answer = await handlers.get(method)?.(params);
             if (id !== null) send({ id, result: answer ?? null });
         };
@@ -82,6 +86,7 @@ function connect(file) {
                 request,
                 notify: (method, params) => send({ method, params }),
                 on: (method, handler) => handlers.set(method, handler),
+                onMessage: (listener) => listeners.push(listener),
                 authenticate,
                 close: () => socket.destroy(),
                 closed,
