@@ -26,6 +26,9 @@ const BROKEN = 'opens-everything';
 const NEXT_CHILD = 'region-child-next';
 // A mod that joins the status bar, which the window probe installs.
 const JOINS = 'status-item';
+// A mod with a band in the bar and a view under an anchor it tells there, opened as its checks come and its windows
+// closed after them, so the bar holds the status bar alone before and after.
+const ANCHORS = 'anchor-user';
 // A mod removed with its data whose web sessions were not cleared then, so what deck keeps of it is erased at start.
 const REMOVED = 'removed-with-data';
 // The Browser's tabs brought back: the one in front, and the one behind it, asleep.
@@ -2863,6 +2866,99 @@ async function walk({
         );
         const targeted = await probe.evaluate('document.documentElement.dataset.targeted');
         check('a drop destination hears a drag of files come over it and go', targeted === 'on off ', targeted);
+
+        // A mod with a band in the bar tells an anchor in it for itself, and its view stands under that anchor: their
+        // right edges in line, 8 under the bar, its corners 12 round. The view moves as the anchor is told elsewhere,
+        // goes as it is dropped and comes back as it is told again, and the mod is refused a view under an anchor its
+        // band gives another mod.
+        const barAlone = await capsuleNow();
+        await probe.evaluate(
+            `delete document.documentElement.dataset.loaded; document.dispatchEvent(new CustomEvent('test-load', { detail: ['${ANCHORS}'] }))`
+        );
+        const anchorPage = await until(() => page(`deckit://${ANCHORS}.mod`), 8000);
+        const anchoredNow = async () => {
+            const laid = (await desktopLaid())?.pages || [];
+            const found = { band: null, view: null, others: 0 };
+            for (const { id, opener, name, rect, clips } of laid) {
+                if (!opener.startsWith(`deckit://${ANCHORS}.mod`) || !/^deckit-window-/.test(name)) continue;
+                const text = await (await pageById(id))?.evaluate('document.body.textContent');
+                if (text === 'Band') found.band = rect;
+                else if (text === 'View') found.view = { ...rect, radius: clips.at(-1)?.radius ?? 0 };
+                else found.others += 1;
+            }
+            return found;
+        };
+        const anchorTold = async () => JSON.parse((await mark(anchorPage, 'anchor')) || 'null');
+        const tellAnchor = (rect) =>
+            anchorPage?.evaluate(
+                `document.dispatchEvent(new CustomEvent('test-anchor', { detail: ${JSON.stringify(rect)} }))`
+            );
+        const underOf = (band, anchor) =>
+            band &&
+            anchor && {
+                x: Math.max(8, Math.min(band.x + anchor.x + anchor.width - 320, screenWidth - 328)),
+                y: 60,
+                width: 320,
+                height: 200,
+            };
+        const standsUnder = (anchor, ms = 6000) =>
+            until(async () => {
+                const now = await anchoredNow();
+                return near(now.view, underOf(now.band, anchor)) && now;
+            }, ms);
+        const first = await until(anchorTold, 6000);
+        const stood = await standsUnder(first);
+        check(
+            'a view stands under the anchor its mod told in its band, their right edges in line, its corners round',
+            stood && stood.view.radius === 12 && (await mark(anchorPage, 'told')) === 'didAppear,',
+            JSON.stringify({ first, now: await anchoredNow(), told: await mark(anchorPage, 'told') })
+        );
+        await desktopShot('anchored-view', {
+            crop: stood && { x: stood.view.x - 40, y: 0, width: stood.view.width + 80, height: 300 },
+        });
+        const shifted = first && { ...first, x: first.x - 60 };
+        await tellAnchor(shifted);
+        const followed = await standsUnder(shifted);
+        check(
+            'a view under an anchor moves as the anchor does',
+            followed && stood && followed.view.x === stood.view.x - 60,
+            JSON.stringify({ shifted, stood, now: await anchoredNow() })
+        );
+        await tellAnchor(null);
+        const went = await until(async () => {
+            const now = await anchoredNow();
+            return now.band && !now.view && (await mark(anchorPage, 'told')) === 'didAppear,didDisappear,';
+        }, 6000);
+        check(
+            'a view under an anchor goes as the anchor goes, its band left standing',
+            went,
+            JSON.stringify({ now: await anchoredNow(), told: await mark(anchorPage, 'told') })
+        );
+        await tellAnchor(first);
+        const returned = await standsUnder(first);
+        check(
+            'a view under an anchor comes back as the anchor returns',
+            returned && (await mark(anchorPage, 'told')) === 'didAppear,didDisappear,didAppear,',
+            JSON.stringify({ first, now: await anchoredNow(), told: await mark(anchorPage, 'told') })
+        );
+        await anchorPage?.evaluate(`document.dispatchEvent(new CustomEvent('test-foreign'))`);
+        const foreign = await until(async () => await mark(anchorPage, 'foreign'), 4000);
+        check(
+            'a mod is refused a view under an anchor given to another mod',
+            foreign === 'NOT_PERMITTED' && (await anchoredNow()).others === 0,
+            JSON.stringify({ foreign, now: await anchoredNow() })
+        );
+        await anchorPage?.evaluate(`document.dispatchEvent(new CustomEvent('test-close'))`);
+        const barAgain = await until(async () => {
+            const { band, view } = await anchoredNow();
+            const now = await capsuleNow();
+            return !band && !view && near(now.bar, barAlone.bar) && now;
+        }, 6000);
+        check(
+            'a band and the view under its anchor close, and the status bar stands as before',
+            barAgain,
+            JSON.stringify({ barAlone, now: await capsuleNow(), anchored: await anchoredNow() })
+        );
         await show('region-parent');
         const relaid = await until(async () => {
             const fresh = await page('deckit://region-child.mod');
