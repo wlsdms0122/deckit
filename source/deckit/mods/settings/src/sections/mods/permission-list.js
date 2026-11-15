@@ -63,6 +63,7 @@ const PERMISSION_ICONS = {
     'deckit.shell-keys': 'keyboard',
     'deckit.styles': 'eye',
     'deckit.fonts': 'pencil',
+    'deckit.seats': 'users',
 };
 const PERMISSION_ICON = 'info';
 

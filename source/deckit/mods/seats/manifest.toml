@@ -1,0 +1,20 @@
+id = "seats"
+name = "Seats"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+activationPolicy = "accessory"
+background = "Shows who sits at the desktop with you in the status bar, from the start."
+icon = "icon.svg"
+keywords = ["seats", "users", "attach", "자리"]
+
+[permissions]
+"deckit.seats" = "Shows who sits at the desktop and who asks to, answers one that asks, and follows a seat you press."
+"deckit.panel-windows" = "Shows who sits under its item in the status bar when you ask."
+
+[interfaces]
+uses = { "status-bar/items" = 2 }
+
+[[contributes."deckit/commands"]]
+id = "show"
+title = "Show or Hide Seats"

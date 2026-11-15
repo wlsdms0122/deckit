@@ -18,6 +18,7 @@ const SHIPS = [
     'status-bar',
     'notifications',
     'clock',
+    'seats',
     'commands',
     'keymap',
     'urls',

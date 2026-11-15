@@ -78,6 +78,7 @@ const main = async () => {
         'status-bar.js',
         'host.js',
         'seats.js',
+        'seats-mod.js',
         'key.js',
         'style.js',
         'token.js',
