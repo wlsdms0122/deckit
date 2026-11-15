@@ -416,7 +416,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         const { page, rect: on, typing } = pageOf(ref);
         const answer = await asked(READ.node(page, ref, knobs));
         noted(page, answer.document, answer.count);
-        const { line, rect, scroll, lines, more, selection, caret } = answer;
+        const { line, rect, scroll, lines, more, selection, caret, selected } = answer;
         const moved = (each) => (on ? { ...each, x: on.x + each.x, y: on.y + each.y } : null);
         return {
             node: withSeat(line, typing),
@@ -426,6 +426,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             ...(more ? { more } : {}),
             ...(selection ? { selection } : {}),
             ...(caret && on ? { caret: moved(caret) } : {}),
+            ...(selected && on ? { selected: selected.map(moved) } : {}),
         };
     }
 
