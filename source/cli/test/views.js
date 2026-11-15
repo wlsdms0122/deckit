@@ -72,6 +72,10 @@ const CENTER = 'region "Notifications"';
 const BAND = `toolbar "Status Bar"
   button "Clock, *"
   button "Notifications*"`;
+// Mods: the mods a named list, each an item.
+const LAUNCHER = `toolbar "Mods"
+  textbox "Search"
+list "Mods"`;
 // The views read where the checks of another area have them stand, whole, their items too: `*` is any text.
 const STANDING = {
     seats: `group "Seats"
@@ -132,6 +136,16 @@ async function run({ check, main, open, show, desktopLaid, pressIn }) {
         // The folder a tab of the Finder starts at holds something, and each entry is an item of the tree.
         if (mod === 'finder') check("views: the Finder's entries read as the items of its tree", items > 6, items);
     }
+    const launcher = await open('mods');
+    await show('mods');
+    await sleep(800);
+    const listed = await reading(launcher.id);
+    console.log(`[views] mods, ${listed.items} items\n${(await reading(launcher.id, { items: true })).text}`);
+    check(
+        'views: the window of mods reads as a named list of the mods, each an item',
+        holds(listed.text, LAUNCHER) && listed.items > 6,
+        listed.text
+    );
     const bell = '.status-bar-item[data-item="notifications"]';
     const [bar] = await laidOf(desktopLaid, 'status-bar');
     const band = bar ? (await reading(bar.id)).text : '';
