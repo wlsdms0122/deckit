@@ -1,11 +1,11 @@
 // The Status Bar's model (mods/status-bar/src/bar/model/bar.js): the item a mod declares and the one it sets, each of
-// another shape refused, the order the items began to be there in, what an item and the bar are called, widths, the
-// capsule and its items from the right, an item going, one that shows nothing, the capsule's limit and what does not
-// fit told as a count. Then the mod itself and the Clock over stand-ins for the handles, the document and the
-// connections: the frame's exports reach a mod's `start`, the clock sets its label at start, the band opens as wide
-// as the model lays, anchors are told, the shell is told a size and anchors only as they change, an item comes and
-// goes, a press runs the item's command, and what stands is drawn again by a screen that comes later. Exits 1 with a
-// line for each check that failed.
+// another shape refused, the order the items came in, what an item is called, widths, the capsule's two regions, the
+// fixed one in the kept list's order and the others from the right in a strip, an item going, one that shows nothing,
+// a narrow room, the scroll held in range, an item scrolled out, one brought into view and a turn of the wheel. Then
+// the mod itself and the Clock over stand-ins for the handles, the document and the connections: the frame's exports
+// reach a mod's `start`, the clock sets its label at start, the band opens as wide as the model lays, anchors are
+// told, the shell is told a size and anchors only as they change, an item comes and goes, a press runs the item's
+// command, and what stands is drawn again by a screen that comes later. Exits 1 with a line for each check that failed.
 const path = require('path');
 
 const MODS = path.join(__dirname, '..', '..', 'deckit', 'mods');
@@ -91,7 +91,9 @@ function runs(declared) {
     const exported = new Map(); // interface -> { lifecycle, connect, disconnect }
     const listening = []; // { id, name, lifecycle, named, listener, connection, cleanup }
     const heard = []; // { named, listener }
+    const kept = {}; // what the mod under test keeps in its records
     const handle = (id, name, lifecycle) => ({
+        storage: { records: { get: (key, fallback) => kept[key] ?? fallback } },
         exports: {
             register: (...given) =>
                 given.length === 2
@@ -126,7 +128,7 @@ function runs(declared) {
         }
     };
     const connected = (id, named) => listening.some((one) => one.id === id && one.named === named && one.connection);
-    return { handle, settle, leave, connected, heard, exported };
+    return { handle, settle, leave, connected, heard, exported, kept };
 }
 
 async function main() {
@@ -213,12 +215,10 @@ async function main() {
         BAR.titleOf({ name: 'Clock', count: null, tone: 'plain' }),
         BAR.titleOf({ name: 'Seats', count: 2, tone: 'plain' }),
         BAR.titleOf({ name: 'Seats', count: 250, tone: 'attention' }),
-        BAR.nameOf('Status Bar', 0),
-        BAR.nameOf('Status Bar', 2),
     ];
     check(
-        'an item is called by its name, its count and its attention, the bar by its name and what it does not show',
-        same(called, ['Clock', 'Seats, 2', 'Seats, 99+, attention', 'Status Bar', 'Status Bar, 2 more']),
+        'an item is called by its name, its count and its attention',
+        same(called, ['Clock', 'Seats, 2', 'Seats, 99+, attention']),
         called
     );
 
@@ -240,56 +240,131 @@ async function main() {
     const bell = item('bell', { icon: 'bell' });
     const seats = item('seats', { icon: 'users', count: 2 });
     const measured = { 'Sun 3:04 PM': 80 };
-    const bar = BAR.barOf([clock, bell, seats], measured);
+    const rect = (x, width) => ({ x, y: 2, width, height: 24 });
+    const at = (x, width) => ({ x, y: 0, width, height: 24 });
+    const bar = BAR.barOf([clock, bell, seats], { widths: measured, fixed: ['clock'] });
     check(
-        'the items stand from the right in the order given, 4 apart, 2 inside a capsule 28 high',
+        'the fixed item stands at the right end, the others from the right of a strip left of it, 4 apart, 2 inside',
         same(bar, {
             width: 183,
             height: 28,
+            scroll: 0,
+            most: 0,
+            fixed: rect(85, 96),
+            scrolled: { ...rect(2, 79), extent: 79 },
             items: [
-                { id: 'clock', rect: { x: 85, y: 2, width: 96, height: 24 } },
-                { id: 'bell', rect: { x: 49, y: 2, width: 32, height: 24 } },
-                { id: 'seats', rect: { x: 2, y: 2, width: 43, height: 24 } },
+                { id: 'clock', at: at(0, 96), region: 'fixed', rect: rect(85, 96) },
+                { id: 'bell', at: at(47, 32), region: 'scrolled', rect: rect(49, 32) },
+                { id: 'seats', at: at(0, 43), region: 'scrolled', rect: rect(2, 43) },
             ],
-            hidden: 0,
         }),
         bar
     );
-    const without = BAR.barOf([clock, seats], measured);
+    const listed = BAR.barOf([clock, bell, seats], { widths: measured, fixed: ['gone', 'seats', 'clock'] });
+    check(
+        "the fixed items stand in the kept list's order, the first rightmost, one that does not stand left out",
+        same(
+            listed.items.map(({ id, region, rect: { x } }) => [id, region, x]),
+            [
+                ['seats', 'fixed', 138],
+                ['clock', 'fixed', 38],
+                ['bell', 'scrolled', 2],
+            ]
+        ) &&
+            same(listed.fixed, rect(38, 143)) &&
+            BAR.FIXED.join() === 'clock,notifications',
+        listed
+    );
+    const loose = BAR.barOf([clock, bell], { widths: measured });
+    check(
+        'with nothing fixed every item is in the strip and there is no fixed region',
+        loose.fixed === null && loose.width === 136 && loose.items.every(({ region }) => region === 'scrolled'),
+        loose
+    );
+    const without = BAR.barOf([clock, seats], { widths: measured, fixed: ['clock'] });
     check(
         'as an item goes the capsule narrows by it and those left of it keep their place from its left end',
-        without.width === 147 && same(without.items[1], { id: 'seats', rect: { x: 2, y: 2, width: 43, height: 24 } }),
+        without.width === 147 && same(without.items[1].rect, rect(2, 43)),
         without
     );
-    const none = BAR.barOf([]);
-    check('with no item there is no capsule', none.width === 0 && none.items.length === 0 && none.hidden === 0, none);
+    const none = BAR.barOf([], { fixed: ['clock'] });
+    check(
+        'with no item there is no capsule',
+        none.width === 0 && none.items.length === 0 && none.fixed === null && none.scrolled === null,
+        none
+    );
     const blank = BAR.barOf([{ id: 'blank', ...BAR.restOf(BAR.declaredOf({ name: 'Blank' })) }, bell]);
     check(
-        'an item that shows nothing is neither laid nor counted',
-        blank.width === 36 && blank.items.length === 1 && blank.items[0].id === 'bell' && blank.hidden === 0,
+        'an item that shows nothing is not laid',
+        blank.width === 36 && blank.items.length === 1 && blank.items[0].id === 'bell',
         blank
     );
 
+    // A room 150 wide: the clock's region stays, and 48 are left for a strip 79 wide.
+    const room = { width: 150, height: 52 };
+    const narrow = BAR.barOf([clock, bell, seats], { widths: measured, fixed: ['clock'], room });
     check(
-        'the capsule is at most half the room a band has, and has no limit where none is told',
-        BAR.limitOf({ width: 901, height: 52 }) === 450 && BAR.limitOf(null) === Infinity,
-        BAR.limitOf({ width: 901, height: 52 })
+        'in a narrow room the capsule is as wide as the room, the fixed region whole and the strip scrolled under ' +
+            'what is left: an item partly in view has the part in view as its rect, one scrolled out has none',
+        narrow.width === 150 &&
+            same(narrow.fixed, rect(52, 96)) &&
+            same(narrow.scrolled, { ...rect(2, 46), extent: 79 }) &&
+            narrow.most === 33 &&
+            same(
+                narrow.items.map(({ rect: laid }) => laid),
+                [rect(52, 96), null, rect(2, 43)]
+            ),
+        narrow
     );
-    const held = BAR.barOf([clock, bell, seats], measured, 182);
+    const turned = [-20, 10, 33, 900].map((scroll) =>
+        BAR.barOf([clock, bell, seats], { widths: measured, fixed: ['clock'], room, scroll })
+    );
     check(
-        'an item that does not fit is not laid, and is counted',
-        held.width === 136 && held.items.map(({ id }) => id).join() === 'clock,bell' && held.hidden === 1,
-        held
+        'the scroll is held from 0 to the most, and the strip moves left by it: what was scrolled out comes into view',
+        same(
+            turned.map(({ scroll }) => scroll),
+            [0, 10, 33, 33]
+        ) &&
+            same(
+                turned[1].items.map(({ rect: laid }) => laid),
+                [rect(52, 96), rect(39, 9), rect(2, 33)]
+            ) &&
+            same(
+                turned[2].items.map(({ rect: laid }) => laid),
+                [rect(52, 96), rect(16, 32), rect(2, 10)]
+            ) &&
+            same(turned[2].items[1].at, at(47, 32)),
+        turned
     );
-    const wide = item('wide', { icon: 'bell', label: 'x'.repeat(20) });
-    const stopped = BAR.barOf([clock, wide, bell, seats], measured, 183);
+    const brought = [
+        BAR.scrollTo(narrow, 'bell'),
+        BAR.scrollTo(turned[2], 'seats'),
+        BAR.scrollTo(turned[1], 'seats'),
+        BAR.scrollTo(narrow, 'seats'),
+        BAR.scrollTo(narrow, 'clock'),
+        BAR.scrollTo(BAR.barOf([clock, bell], { widths: measured, room: { width: 60 } }), 'clock'),
+    ];
     check(
-        'from the first item that does not fit on none is laid, though a later one would fit',
-        stopped.items.map(({ id }) => id).join() === 'clock' && stopped.hidden === 3 && stopped.width === 100,
-        stopped
+        'an item is brought into view whole by the least scroll, a fixed one by none, one wider than the strip shows ' +
+            'from its left end',
+        same(brought, [33, 0, 0, 0, 0, 36]),
+        brought
     );
-    const tight = BAR.barOf([clock, bell], measured, 99);
-    check('where not even the first fits there is no capsule', tight.width === 0 && tight.hidden === 2, tight);
+    const tight = BAR.barOf([clock, bell], { widths: measured, fixed: ['clock'], room: { width: 90, height: 52 } });
+    check(
+        'a room that holds no more than the fixed items leaves the fixed region whole and no scrolled region',
+        tight.width === 100 &&
+            same(tight.fixed, rect(2, 96)) &&
+            tight.scrolled === null &&
+            tight.items[1].rect === null,
+        tight
+    );
+    const turns = [BAR.turnOf({ dx: 12, dy: 3 }), BAR.turnOf({ dx: 0, dy: -40 }), BAR.turnOf({ dx: -5, dy: 5 })];
+    check(
+        'a turn of the wheel scrolls by its sideways part, or by the vertical one where that is the larger',
+        same(turns, [12, -40, -5]),
+        turns
+    );
 
     await modChecks(check);
 
@@ -334,7 +409,9 @@ async function modChecks(check) {
     );
     const band = shell.windows[0];
     const labelOf = (button) => button.children.find((child) => child.className === 'status-bar-label')?.textContent;
-    const buttons = () => band.options.content.children.filter((child) => child.tag === 'button');
+    const within = (node) => [node, ...node.children.flatMap(within)];
+    const buttons = () => within(band.options.content).filter((child) => child.tag === 'button');
+    const regionOf = (name) => within(band.options.content).find((child) => child.className === `status-bar-${name}`);
     const label = buttons()[0] && labelOf(buttons()[0]);
     check(
         'the clock sets its label at start, and the band opens at the top as a panel, as wide as the model lays it',
@@ -356,10 +433,15 @@ async function modChecks(check) {
     );
     // The band appears: the label is measured in the frame's document and laid as wide as it draws.
     band.options.didAppear();
-    const measured = BAR.barOf([{ id: 'clock', icon: null, label, count: null }], { [label]: label.length * LETTER });
+    const measured = BAR.barOf([{ id: 'clock', icon: null, label, count: null }], {
+        widths: { [label]: label.length * LETTER },
+        fixed: frame.items.fixed(),
+    });
     check(
-        'as the band appears a label is laid as wide as it is measured',
-        band.size[0] === measured.width && anchorOf('clock').rect.width === measured.items[0].rect.width,
+        'as the band appears a label is laid as wide as it is measured, the clock fixed as a new machine has it',
+        band.size[0] === measured.width &&
+            anchorOf('clock').rect.width === measured.items[0].rect.width &&
+            regionOf('fixed').children[0]?.dataset.item === 'clock',
         { size: band.size, measured }
     );
     // A mod with no declared item gives one from a lifecycle of its own screen, sets it anew, and takes it back.
@@ -372,7 +454,8 @@ async function modChecks(check) {
     check(
         'an item a mod sets comes left of the declared one, the band wider by it and a gap, its anchor told',
         came.width === alone + 32 + BAR.CAPSULE.gap &&
-            came.ids.join() === 'clock,star' &&
+            came.ids.join() === 'star,clock' &&
+            regionOf('strip').children[0]?.dataset.item === 'star' &&
             anchorOf('star').mod === 'star' &&
             anchorOf('star').rect.x < anchorOf('clock').rect.x,
         came
@@ -409,8 +492,18 @@ async function modChecks(check) {
             star().attributes['aria-label'] === 'Star, 99+, attention',
         refused
     );
+    world.kept.fixed = ['star'];
+    const kept = frame.items.fixed();
+    delete world.kept.fixed;
+    check(
+        'what is fixed is the list the frame keeps, and the clock and the notifications item where it keeps none',
+        kept.join() === 'star' && frame.items.fixed().join() === 'clock,notifications',
+        kept
+    );
     await star().click();
-    await buttons()[0].click();
+    await buttons()
+        .find((button) => button.dataset.item === 'clock')
+        .click();
     check(
         "a press on an item runs its command on its mod through the commands' owner",
         JSON.stringify(ran) ===

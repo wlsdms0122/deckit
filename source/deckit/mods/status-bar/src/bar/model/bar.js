@@ -1,8 +1,11 @@
 // MARK: - Property
-// The status bar as plain data: the items mods give it, the order they stand in and where each is laid in the capsule.
-// Sizes are constants here and a label's width is handed in, so every rect is known without asking a page.
-// The capsule: its height, the inset around its row of items and the room between them.
+// The status bar as plain data: the items mods give it, the order they came in, which of them are fixed, and where
+// each is laid in the capsule's two regions, the fixed one at its right end and the one that scrolls sideways left of
+// it. Sizes are constants here and a label's width is handed in, so every rect is known without asking a page.
+// The capsule: its height, the inset around its regions, and the room between items and between the regions.
 const CAPSULE = Object.freeze({ height: 28, inset: 2, gap: 4 });
+// The items that are fixed until the person names others: the ids of their mods, the first rightmost.
+const FIXED = Object.freeze(['clock', 'notifications']);
 // An item: its height, the glyph it shows, the padding at each side and the room between its parts. A label holds
 // `letters` characters at most and is laid as wide as it was measured, `widest` at most, `letter` a character until
 // it is measured.
@@ -72,11 +75,6 @@ function titleOf({ name, count, tone }) {
     return [name, ...(count === null ? [] : [countText(count)]), ...(tone === TONES[0] ? [] : [tone])].join(', ');
 }
 
-// What the bar is called: `name`, and how many items it does not show.
-function nameOf(name, hidden) {
-    return hidden ? `${name}, ${hidden} more` : name;
-}
-
 // Whether an item shows anything: one with no glyph, no label and no count is not laid.
 function shows({ icon, label, count }) {
     return !!icon || !!label || count !== null;
@@ -93,40 +91,84 @@ function widthOf({ icon, label, count }, widths = {}) {
     return 2 * ITEM.padding + parts.reduce((sum, each) => sum + each, 0) + (parts.length - 1) * ITEM.gap;
 }
 
-// The most the capsule is wide in `room`, `{ width }`, the room a band has in the host's bar: half of it. With no
-// room told there is no limit.
-function limitOf(room) {
-    return room ? Math.floor(room.width / 2) : Infinity;
+// The capsule laid: `{ width, height, scroll, most, fixed, scrolled, items }`, of `items`, `[{ id, ...item }]` in the
+// order they came. Those whose id is in `fixed`, a list of ids, stand in the fixed region at the capsule's right end in
+// that list's order, the first rightmost, and never scroll. The others stand left of it in the order they came, the
+// first rightmost, in a strip `extent` wide that scrolls sideways under the scrolled region, `scroll` px of its left
+// end past the region's, held from 0 to `most`. The capsule is as wide as its items, and no wider than `room`,
+// `{ width }`, the room it has, where one is told; the fixed region is never narrower than its items, so a room that
+// holds no more leaves the scrolled region none. `fixed` and `scrolled` are the regions' rects in the capsule, or null
+// for one that holds nothing, `scrolled` with `extent`. Each of `items` is `{ id, region, at, rect }`: `at` where it
+// is drawn in its region, in the strip for one that scrolls, and `rect` the part of it in view, in the capsule, or
+// null for one scrolled out. One that shows nothing is not laid. With no item laid the width is 0: there is no capsule.
+function barOf(items, { widths = {}, fixed = [], room = null, scroll = 0 } = {}) {
+    const standing = items.filter(shows);
+    const held = fixed.flatMap((id) => standing.filter((item) => item.id === id));
+    const loose = standing.filter(({ id }) => !fixed.includes(id));
+    const [across, extent] = [held, loose].map((row) => spanOf(row, widths));
+    const between = held.length && loose.length ? CAPSULE.gap : 0;
+    const least = 2 * CAPSULE.inset + across;
+    const whole = least + between + extent;
+    const width = standing.length ? Math.max(least, Math.min(whole, room?.width ?? Infinity)) : 0;
+    const view = Math.max(0, width - least - between);
+    const most = Math.max(0, extent - view);
+    const at = Math.min(Math.max(0, scroll), most);
+    const region = (x, across) => ({ x, y: CAPSULE.inset, width: across, height: ITEM.height });
+    const regions = {
+        fixed: held.length ? region(width - CAPSULE.inset - across, across) : null,
+        scrolled: loose.length && view ? { ...region(CAPSULE.inset, view), extent } : null,
+    };
+    const laid = [
+        ...rowOf(held, widths, across).map((item) => {
+            const { x, y } = regions.fixed;
+            return { ...item, region: 'fixed', rect: { ...item.at, x: x + item.at.x, y } };
+        }),
+        ...rowOf(loose, widths, extent).map((item) => {
+            const left = Math.max(0, item.at.x - at);
+            const shown = Math.min(view, item.at.x + item.at.width - at) - left;
+            const rect = shown > 0 ? { ...item.at, x: CAPSULE.inset + left, y: CAPSULE.inset, width: shown } : null;
+            return { ...item, region: 'scrolled', rect };
+        }),
+    ];
+    return { width, height: CAPSULE.height, scroll: at, most, ...regions, items: laid };
 }
 
-// `{ width, height, items: [{ id, rect }], hidden }`: the capsule's size, and each item's rect in it, of `items`,
-// `[{ id, ...item }]` in the order they stand, the first rightmost: the fixed ones in the mods' order, then those that
-// come and go in the order they came. Items are taken from the right while the capsule stays within `limit`; from the
-// first that does not fit on none is laid, and `hidden` counts them. One that shows nothing is neither laid nor
-// counted. With no item laid the width is 0: there is no capsule.
-function barOf(items, widths = {}, limit = Infinity) {
-    const standing = items.filter(shows);
-    const sized = standing.map((item) => widthOf(item, widths));
-    let width = 2 * CAPSULE.inset;
-    let fit = 0;
-    for (; fit < sized.length; fit++) {
-        const next = width + sized[fit] + (fit ? CAPSULE.gap : 0);
-        if (next > limit) break;
-        width = next;
-    }
-    let right = width - CAPSULE.inset;
-    const laid = standing.slice(0, fit).map(({ id }, at) => {
-        const rect = { x: right - sized[at], y: CAPSULE.inset, width: sized[at], height: ITEM.height };
-        right = rect.x - CAPSULE.gap;
-        return { id, rect };
-    });
-    return { width: fit ? width : 0, height: CAPSULE.height, items: laid, hidden: standing.length - fit };
+// How far the bar `bar` (barOf) is scrolled once the item `id` is in view whole: as it is where it is already, else
+// the least from there. An item wider than the scrolled region shows from its left end.
+function scrollTo(bar, id) {
+    const item = bar.items.find((each) => each.id === id && each.region === 'scrolled');
+    if (!item || !bar.scrolled) return bar.scroll;
+    const { x, width } = item.at;
+    return Math.min(x, Math.max(bar.scroll, x + width - bar.scrolled.width));
+}
+
+// How far a turn of the wheel `{ dx, dy }` scrolls the bar: by its sideways part, or by the vertical one where that
+// is the larger.
+function turnOf({ dx, dy }) {
+    return Math.abs(dx) >= Math.abs(dy) ? dx : dy;
 }
 
 // MARK: - Private
+// How wide a row of items is, CAPSULE.gap apart.
+function spanOf(row, widths) {
+    return row.reduce((sum, item) => sum + widthOf(item, widths), 0) + Math.max(0, row.length - 1) * CAPSULE.gap;
+}
+
+// Where each item of a row `across` wide is drawn in it, `{ id, at }`: from the right, the first rightmost.
+function rowOf(row, widths, across) {
+    let right = across;
+    return row.map((item) => {
+        const width = widthOf(item, widths);
+        const at = { x: right - width, y: 0, width, height: ITEM.height };
+        right = at.x - CAPSULE.gap;
+        return { id: item.id, at };
+    });
+}
+
 module.exports = {
     CAPSULE,
     ITEM,
+    FIXED,
     TONES,
     declaredOf,
     heldTo,
@@ -134,9 +176,9 @@ module.exports = {
     orderOf,
     countText,
     titleOf,
-    nameOf,
     shows,
     widthOf,
-    limitOf,
     barOf,
+    scrollTo,
+    turnOf,
 };

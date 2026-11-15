@@ -1,17 +1,20 @@
 // The items of the status bar as they stand, whether a screen draws them or not: what mods declare to
-// `status-bar/items`, what each running mod set, and the order the ones that come and go came in (model/bar.js). A
-// fixed item is one a mod declares in its manifest; an item that comes and goes is set and removed by a running mod.
+// `status-bar/items`, what each running mod set, the order they came in, and which of them are fixed, a list of the
+// frame's own kept state (model/bar.js). An item a mod declares in its manifest stands whether the mod runs or not; one
+// that comes and goes is set and removed by a running mod.
 const BAR = require('./model/bar.js');
 
 const INTERFACE = 'status-bar/items';
 // The signals of the interface after which what is declared to it is read again.
 const SIGNALS = ['contributions-changed', 'owner-changed'];
+// The record that keeps the ids of the fixed items.
+const FIXED = 'fixed';
 
 function items(deckit) {
     // MARK: - Property
     let declared = new Map(); // mod id -> what it declared, in the mods' order
     const set = new Map(); // mod id -> its item as it last set it
-    let came = []; // the ids of the mods whose item comes and goes, in the order they came
+    let came = []; // the ids of the mods whose item stands, in the order they came
     let draws = null; // whether the kit draws a glyph, while a screen stands to tell
     const undrawn = new Set(); // the glyphs told as not drawn
     const listeners = new Set();
@@ -43,20 +46,22 @@ function items(deckit) {
         if (set.delete(id)) changed();
     }
 
-    // The items in the order they stand: the fixed ones in the mods' order, then the others as they came. One whose
-    // glyph the screen does not draw is left out.
+    // The items in the order they came: the declared ones as they are first read, in the mods' order, and one that
+    // comes and goes as it is first set. One whose glyph the screen does not draw is left out.
     function standing() {
-        came = BAR.orderOf(
-            came,
-            [...set.keys()].filter((id) => !declared.has(id))
-        );
-        const fixed = [...declared].map(([id, item]) => ({ id, ...(set.get(id) ?? BAR.restOf(item)) }));
-        return [...fixed, ...came.map((id) => ({ id, ...set.get(id) }))].filter(({ id, icon }) => {
+        came = BAR.orderOf(came, [...declared.keys(), ...[...set.keys()].filter((id) => !declared.has(id))]);
+        const items = came.map((id) => ({ id, ...(set.get(id) ?? BAR.restOf(declared.get(id))) }));
+        return items.filter(({ id, icon }) => {
             if (drawn(icon)) return true;
             if (!undrawn.has(`${id} ${icon}`)) console.warn(`[status-bar] the glyph ${icon} of ${id} is not drawn`);
             undrawn.add(`${id} ${icon}`);
             return false;
         });
+    }
+
+    // The ids of the fixed items, the first rightmost: the list kept, or the one a new machine starts with.
+    function fixed() {
+        return deckit.storage.records.get(FIXED, [...BAR.FIXED]);
     }
 
     // `listener()` is called each time what stands may have changed, until its off.
@@ -106,7 +111,7 @@ function items(deckit) {
         return Object.assign(new Error(message), { kind: 'INVALID_ARGUMENT' });
     }
 
-    return Object.freeze({ exportsFor, leave, standing, onChange, drawnBy, end });
+    return Object.freeze({ exportsFor, leave, standing, fixed, onChange, drawnBy, end });
 }
 
 module.exports = { items, INTERFACE };

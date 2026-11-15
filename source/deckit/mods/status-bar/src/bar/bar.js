@@ -1,14 +1,37 @@
 // The capsule: a panel window in the host's bar holding one button for each item that stands (items.js), laid as the
-// model says (model/bar.js). A press on an item runs its command on its mod, and each item's rect is told the shell as
-// an anchor given to the item's mod, which stands a view of its own under it. The capsule closes while it lays no
-// item.
+// model says (model/bar.js) in two regions: the fixed items at its right end, and left of them the others in a strip.
+// A press on an item runs its command on its mod, and the rect of each item in view is told the shell as an anchor
+// given to the item's mod, which stands a view of its own under it. The capsule closes while it lays no item.
 const BAR = require('./model/bar.js');
 
 const NAME = 'Status Bar';
 const { ITEM } = BAR;
+// How far from an end of the scrolled region what goes on past that end fades.
+const FADE = 12;
 
 const STYLE = `
     .status-bar { position: relative; height: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .status-bar-fixed, .status-bar-scrolled, .status-bar-strip { position: absolute; }
+    .status-bar-scrolled { overflow: hidden; --status-bar-left: #000; --status-bar-right: #000; }
+    .status-bar-scrolled[data-more~='left'] { --status-bar-left: transparent; }
+    .status-bar-scrolled[data-more~='right'] { --status-bar-right: transparent; }
+    .status-bar-scrolled[data-more] {
+        -webkit-mask-image: linear-gradient(
+            to right,
+            var(--status-bar-left),
+            #000 ${FADE}px,
+            #000 calc(100% - ${FADE}px),
+            var(--status-bar-right)
+        );
+        mask-image: linear-gradient(
+            to right,
+            var(--status-bar-left),
+            #000 ${FADE}px,
+            #000 calc(100% - ${FADE}px),
+            var(--status-bar-right)
+        );
+    }
+    .status-bar-strip { top: 0; left: 0; height: 100%; }
     .status-bar-item {
         position: absolute;
         display: flex;
@@ -34,11 +57,14 @@ const STYLE = `
 // `held` is the items as they stand; `commands()` is the owner of deckit/commands while one is connected, or null.
 function bar(shell, held, { commands = () => null } = {}) {
     // MARK: - Property
-    const content = document.createElement('div');
-    content.className = 'status-bar';
+    const part = (tag, name) => Object.assign(document.createElement(tag), { className: `status-bar${name}` });
+    const content = part('div', '');
     content.setAttribute('role', 'toolbar');
-    const measure = document.createElement('span');
-    measure.className = 'status-bar-measure';
+    content.setAttribute('aria-label', NAME);
+    const measure = part('span', '-measure');
+    const regions = { scrolled: part('div', '-scrolled'), fixed: part('div', '-fixed') };
+    const strip = part('div', '-strip'); // what scrolls under the scrolled region
+    regions.scrolled.append(strip);
     shell.ui.addStyle(STYLE);
     const widths = {}; // label -> the width it was measured at
     let window = null; // the panel window, while it is open
@@ -67,29 +93,20 @@ function bar(shell, held, { commands = () => null } = {}) {
         }
     }
 
-    // The capsule as wide as the model lays its items, each item's rect told as an anchor given to the item's mod. The
-    // shell is told a size and the anchors only as they change.
+    // The capsule as the model lays its items, the rect of each item in view told as an anchor given to the item's
+    // mod. The shell is told a size and the anchors only as they change.
     function lay() {
         const items = held.standing();
         if (content.isConnected) for (const { label } of items) if (label && !(label in widths)) measured(label);
-        const laid = BAR.barOf(items, widths, BAR.limitOf(null));
-        content.setAttribute('aria-label', BAR.nameOf(NAME, laid.hidden));
-        content.replaceChildren(
-            measure,
-            ...laid.items.map(({ id, rect }) =>
-                buttonOf(
-                    items.find((item) => item.id === id),
-                    rect
-                )
-            )
-        );
+        const laid = BAR.barOf(items, { widths, fixed: held.fixed() });
+        draw(laid, items);
         if (!laid.width) {
             window?.close();
             window = null;
             return;
         }
         const { width, height } = laid;
-        const anchors = laid.items.map(({ id, rect }) => ({ id, rect, mod: id }));
+        const anchors = laid.items.flatMap(({ id, rect }) => (rect ? [{ id, rect, mod: id }] : []));
         const next = { size: `${width} ${height}`, anchors: JSON.stringify(anchors) };
         if (!window) {
             window = shell.windows.open({ name: 'bar', content, level: 'panel', width, height, didAppear: lay });
@@ -100,30 +117,56 @@ function bar(shell, held, { commands = () => null } = {}) {
         told = next;
     }
 
+    // The two regions where the model has them, each item a button where it is drawn in its region, and the strip
+    // moved by how far it is scrolled. The scrolled region says at which ends more goes on past it.
+    function draw(laid, items) {
+        const buttons = (region) =>
+            laid.items
+                .filter((item) => item.region === region)
+                .map(({ id, at }) =>
+                    buttonOf(
+                        items.find((item) => item.id === id),
+                        at
+                    )
+                );
+        const standing = Object.keys(regions).filter((region) => laid[region]);
+        for (const region of standing) place(regions[region], laid[region]);
+        regions.fixed.replaceChildren(...buttons('fixed'));
+        strip.replaceChildren(...(laid.scrolled ? buttons('scrolled') : []));
+        strip.style.width = `${laid.scrolled?.extent ?? 0}px`;
+        strip.style.transform = `translateX(${-laid.scroll}px)`;
+        const more = [...(laid.scroll > 0 ? ['left'] : []), ...(laid.scroll < laid.most ? ['right'] : [])];
+        if (more.length) regions.scrolled.dataset.more = more.join(' ');
+        else delete regions.scrolled.dataset.more;
+        content.replaceChildren(measure, ...standing.map((region) => regions[region]));
+    }
+
+    function place(element, rect) {
+        for (const side of ['width', 'height']) element.style[side] = `${rect[side]}px`;
+        element.style.left = `${rect.x}px`;
+        element.style.top = `${rect.y}px`;
+    }
+
     function measured(label) {
         measure.textContent = label;
         const { width } = measure.getBoundingClientRect();
         if (width) widths[label] = width;
     }
 
-    function buttonOf(item, rect) {
-        const button = document.createElement('button');
-        button.className = 'status-bar-item';
+    function buttonOf(item, at) {
+        const button = part('button', '-item');
         button.dataset.item = item.id;
         button.dataset.tone = item.tone;
         button.setAttribute('aria-label', BAR.titleOf(item));
         button.disabled = item.command === null;
-        for (const side of ['width', 'height']) button.style[side] = `${rect[side]}px`;
-        button.style.left = `${rect.x}px`;
-        button.style.top = `${rect.y}px`;
+        place(button, at);
         if (item.icon) button.insertAdjacentHTML('beforeend', shell.ui.icon(item.icon, { size: ITEM.glyph }));
-        for (const [part, text] of [
+        for (const [name, text] of [
             ['label', item.label],
             ['count', item.count === null ? '' : BAR.countText(item.count)],
         ]) {
             if (!text) continue;
-            const span = document.createElement('span');
-            span.className = `status-bar-${part}`;
+            const span = part('span', `-${name}`);
             span.textContent = text;
             button.append(span);
         }
