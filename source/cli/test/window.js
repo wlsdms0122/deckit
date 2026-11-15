@@ -7,7 +7,8 @@
 // children its regions show laid over its content, the content's keys and presses heard and the page told of its
 // window, a window closed by its page and with its page, the keyboard of a page going to its key window's content, a
 // panel window in the host's bar, never ordered front and pressed as no window made key, one at the right edge, which
-// the desktop gives the keyboard as it is ordered front, and a web page's window: on
+// the desktop gives the keyboard as it is ordered front, the anchors a window's mod tells, a panel window under an
+// anchor and one refused its anchor, and a web page's window: on
 // the desktop for the mod whose page shows it, titled, with no name, closed however it closes with those who listen
 // told once. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
@@ -321,6 +322,46 @@ async function main() {
         desktop.anchors
     );
 
+    const under = { mod: 'a', id: 'item', more: true };
+    const view = shell.fromPage('open', pages.b, { name: 'view', level: 'panel', anchor: under, width: 320 });
+    const bound = desktop.panels.at(-1);
+    const frontedBefore = desktop.panelsFronted.length;
+    shell.fromPage('make-key-and-order-front', pages.b, { id: view.id });
+    const plain = shell.fromPage('open', pages.b, { name: 'unbound', anchor: under });
+    check(
+        'a panel window opened with an anchor stands under it, as the desktop places it, with no edge, and is ' +
+            'ordered front by nothing; a window at another level has no anchor',
+        bound?.id === view.id &&
+            bound.edge === null &&
+            JSON.stringify(bound.anchor) === JSON.stringify({ mod: 'a', id: 'item' }) &&
+            atSide.anchor === null &&
+            desktop.panelsFronted.length === frontedBefore &&
+            desktop.opened.find(({ id }) => id === plain.id)?.anchor === null,
+        bound
+    );
+    const refusalOf = (options) => {
+        try {
+            shell.fromPage('open', pages.b, { level: 'panel', ...options });
+            return null;
+        } catch (error) {
+            return error.kind;
+        }
+    };
+    const panelsOpen = desktop.panels.length;
+    desktop.foreign.add('b:a/taken');
+    const refusals = [
+        refusalOf({ name: 'taken', anchor: { mod: 'a', id: 'taken' } }),
+        refusalOf({ name: 'shapeless', anchor: { mod: 'a' } }),
+        refusalOf({ name: 'free', anchor: { mod: 'a', id: 'free' } }),
+    ];
+    check(
+        'a panel window is refused an anchor given to another mod, NOT_PERMITTED, and one that names no anchor, ' +
+            'INVALID_ARGUMENT, and neither opens',
+        JSON.stringify(refusals) === '["NOT_PERMITTED","INVALID_ARGUMENT",null]' &&
+            desktop.panels.length === panelsOpen + 1,
+        refusals
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);
@@ -334,7 +375,8 @@ async function main() {
 // answers what it answers; `openSurface(name, surface)` has a page open a window's content; `focus(page)` and
 // `end(page)` are a page taking the keyboard and its document ending; `webOf` maps a web page to the mod's page that
 // shows it. `desktop` records what the desktop was asked, `key` the id of its key window, `may` the mods that may
-// activate for the local seat, `frames` the frames it keeps, by the level, the mod and the name; `host` what the host
+// activate for the local seat, `frames` the frames it keeps, by the level, the mod and the name, `foreign` the anchors
+// it refuses, each `<asker>:<mod>/<id>`; `host` what the host
 // app was asked; `stages` the stages made, each with what it laid last; `sent` what the pages were told, by the
 // channel's last word.
 function windowsOver(createWindows) {
@@ -372,6 +414,7 @@ function windowsOver(createWindows) {
         panelPressed: [],
         panelsFronted: [],
         anchors: [],
+        foreign: new Set(),
         change: () => changes.forEach((listener) => listener()),
     };
     const host = { shown: [], closed: [] };
@@ -416,6 +459,7 @@ function windowsOver(createWindows) {
         orderFrontPanel: (window, { activates = true } = {}) =>
             desktop.panelsFronted.push({ id: window.id, activates }),
         setAnchors: (window, anchors) => desktop.anchors.push({ id: window.id, anchors }),
+        refusesAnchor: (mod, name) => desktop.foreign.has(`${mod}:${name.mod}/${name.id}`),
         keyPanel: () => null,
         toDesktop: () => {},
         localSeat: 'local',

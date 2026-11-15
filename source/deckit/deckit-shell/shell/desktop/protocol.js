@@ -8,14 +8,15 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame }], seats, asks, following, drop,
-// strip, dock, bar, down }`: the windows on the screen of the seat whose view the host window shows, the local seat's
-// or
-// that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `holder` the name of
-// the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its title bar
+// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame, radius }], seats, asks, following,
+// drop, strip, dock, bar, down }`: the windows on the screen of the seat whose view the host window shows, the local
+// seat's or that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `holder`
+// the name of the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its
+// title bar
 // (model/layout.js barOf), `title` what the title bar the shell draws over a titled window's content holds, or null for
-// a window whose content draws its own; `panels`, the panel windows at their edge, 'top' in the strip or 'right', the
-// material drawn under each at its frame; `seats`, `[{ id, name, colour, at, buttons, idle, shown, typing }]`, every
+// a window whose content draws its own; `panels`, the panel windows that stand, at their edge, 'top' in the strip or
+// 'right', or with `edge` null under an anchor, the material drawn under each at its frame, rounded by `radius`;
+// `seats`, `[{ id, name, colour, at, buttons, idle, shown, typing }]`, every
 // seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was
 // anywhere, the buttons it holds, whether its devices gave nothing for the idle time, whether it is the one whose view
 // the host window shows, and where it types in a window that does not have the machine's keyboard, `{ ring, bars,

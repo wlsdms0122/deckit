@@ -4,7 +4,9 @@ import * as WINDOW_PERMISSION from './model/permission.js';
 
 // A window opens, or the one of that name open orders front: answers `{ id, surface }` at once, `surface` the name
 // the page opens its content by (window.open('', surface)). `level` is 'normal', 'overlay' or 'panel', `edge` a panel
-// window's, 'top' or 'right'; `activates` false leaves the key window where it is. A normal window's title bar:
+// window's, 'top' or 'right', or `anchor`, `{ mod, id }`, the anchor it stands under in place of an edge
+// (model/anchor.js nameOf), refused NOT_PERMITTED where that anchor is given to another mod; `activates` false leaves
+// the key window where it is. A normal window's title bar:
 // `titleBar` 'unified' or 'titled', `titleBarHeight`, `controlsX` and `controlsY` where its buttons stand from the
 // frame's top left, `closable`, `minimizable` and `resizable` which of them act; and its `title`.
 export const open = CHANNEL.pageToMain(
@@ -13,6 +15,7 @@ export const open = CHANNEL.pageToMain(
         name: 'string',
         level: 'string',
         edge: 'string?',
+        anchor: 'object?',
         width: 'number?',
         height: 'number?',
         minWidth: 'number?',

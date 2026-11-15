@@ -71,10 +71,12 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     // MARK: - Public
     // `open(options)` opens a window, or orders front the one of its name open, and answers it: the key window, as
     // `makeKeyAndOrderFront()` puts it, or with `activates` false in front as `orderFront()` puts it, the keyboard left
-    // where it is. It throws its refusal: NOT_PERMITTED for the level `overlay` without system.overlay-windows, or
-    // `panel` without deckit.panel-windows, then INVALID_ARGUMENT for options that are no window's, then ENDED once
-    // `scope` is cut. `list()` answers the windows open, in the order they opened, and throws ENDED once `scope` is
-    // cut.
+    // where it is. A panel window stands at its `edge`, or with `anchor`, `{ mod, id }`, under the rect the mod `mod`
+    // named `id` in a window of its own (`setAnchors`), shown while that anchor stands. It throws its refusal:
+    // NOT_PERMITTED for the level `overlay` without system.overlay-windows, or `panel` without deckit.panel-windows,
+    // then INVALID_ARGUMENT for options that are no window's, then ENDED once `scope` is cut, then NOT_PERMITTED for an
+    // anchor given to another mod. `list()` answers the windows open, in the order they opened, and throws ENDED once
+    // `scope` is cut.
     function forScope(scope) {
         scope.add(() => {
             for (const [id, held] of open) if (held.scope === scope) PROTOCOL.close.send({ id });
@@ -109,11 +111,14 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         const problem = problemOf(options);
         if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `windows.open: ${problem}`);
         if (scope.isCut) throw cut('windows.open');
-        const { name, level = 'normal', edge = 'top', width, height, minWidth, minHeight, activates = true } = options;
+        const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
         const { titleBar, titleBarHeight, controlsOrigin, closable, minimizable, resizable, title = '' } = options;
+        const anchor = options.anchor === undefined ? undefined : ANCHOR.nameOf(options.anchor);
+        const edge = anchor ? undefined : (options.edge ?? 'top');
         const bar = { titleBar, titleBarHeight, controlsX: controlsOrigin?.x, controlsY: controlsOrigin?.y };
         const flags = { closable, minimizable, resizable };
-        const payload = { name, level, edge, width, height, minWidth, minHeight, activates, ...bar, ...flags, title };
+        const sizes = { width, height, minWidth, minHeight };
+        const payload = { name, level, edge, anchor, ...sizes, activates, ...bar, ...flags, title };
         const { id, surface } = PROTOCOL.open.invoke(payload);
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
@@ -283,9 +288,14 @@ function problemOf(options) {
     if (CHANNEL.kindOf(options) !== 'object') return 'options is no table';
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
-        return `takes { name, content, level, edge, width, height, minWidth, minHeight, activates, titleBar, titleBarHeight, controlsOrigin, ${FLAGS.join(', ')}, title, ${CALLBACKS.join(', ')} }, name a text and content an element`;
+        return `takes { name, content, level, edge, anchor, width, height, minWidth, minHeight, activates, titleBar, titleBarHeight, controlsOrigin, ${FLAGS.join(', ')}, title, ${CALLBACKS.join(', ')} }, name a text and content an element`;
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.slice(0, -1).join(', ')} or ${LEVELS.at(-1)}`;
     if (options.edge !== undefined && !EDGES.includes(options.edge)) return `takes an edge of ${EDGES.join(' or ')}`;
+    if (options.anchor !== undefined) {
+        if (level !== 'panel') return 'takes an anchor at the level panel';
+        if (options.edge !== undefined) return 'takes an edge or an anchor, not both';
+        if (!ANCHOR.nameOf(options.anchor)) return 'takes an anchor { mod, id }, each a text';
+    }
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
     if (options.activates !== undefined && typeof options.activates !== 'boolean') return 'takes activates a boolean';

@@ -37,12 +37,10 @@ const STYLE = `
     .deckit-desktop-backdrop { position: fixed; inset: 0; }
     .deckit-panel-material {
         position: fixed;
-        border-radius: var(--deckit-radius-round);
         background: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
     }
     .deckit-panel-material[data-edge='right'] {
-        border-radius: ${RADIUS}px;
         animation: deckit-panel-in var(--deckit-enter) var(--deckit-enter-curve);
     }
     .deckit-panel-material[data-edge='right'][data-leaving] {
@@ -451,7 +449,7 @@ function boot(theme, channels) {
         }
     }
 
-    // Each panel window's material at its frame, rounded as LAYOUT.panelRadius has it, and the backdrop cut away
+    // Each panel window's material at its frame, rounded by its `radius`, and the backdrop cut away
     // under it. One at the right edge slides in from past it as it opens and out as it closes, or fades where the
     // system asks for reduced motion, the backdrop cut away only while it stands still at its frame.
     function drawPanels(panels) {
@@ -466,7 +464,7 @@ function boot(theme, channels) {
             material.element.toggleAttribute('data-leaving', true);
             finished(material.element, () => material.element.remove());
         }
-        for (const { id, edge, frame } of panels) {
+        for (const { id, edge, frame, radius } of panels) {
             if (!materials.has(id)) {
                 const made = { element: element(document, 'div', 'deckit-panel-material'), edge, settled: true };
                 document.body.insertBefore(made.element, strip);
@@ -485,21 +483,18 @@ function boot(theme, channels) {
                 top: frame.y + 'px',
                 width: frame.width + 'px',
                 height: frame.height + 'px',
+                borderRadius: radius + 'px',
             });
         }
         const still = panels.filter(({ id }) => materials.get(id).settled);
-        const holes = still.map(({ edge, frame }) => {
+        const holes = still.map(({ frame, radius }) => {
             const { x, y, width, height } = frame;
             const shape =
                 `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-                `<rect width="${width}" height="${height}" rx="${LAYOUT.panelRadius(edge, frame)}"/></svg>`;
+                `<rect width="${width}" height="${height}" rx="${radius}"/></svg>`;
             return { image: `url("data:image/svg+xml,${encodeURIComponent(shape)}")`, at: `${x}px ${y}px` };
         });
-        glass.panels = still.map(({ edge, frame }) => ({
-            material: 'popover',
-            ...frame,
-            cornerRadius: LAYOUT.panelRadius(edge, frame),
-        }));
+        glass.panels = still.map(({ frame, radius }) => ({ material: 'popover', ...frame, cornerRadius: radius }));
         tellGlass();
         const masked = holes.length > 0;
         const { style } = backdropRoot;

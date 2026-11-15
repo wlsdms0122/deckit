@@ -16,7 +16,9 @@
 // in the order they opened, laid over the desktop's page, told no title bar, never key, pressed with the key window
 // left key; and one at the right edge: placed along it under the bar, cut to a window's corners, taking the keyboard
 // as it opens and as it is pressed, keeping it through a press in the bar, and giving it back to the key window as a
-// normal window or the desktop is pressed and as it closes. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// normal window or the desktop is pressed and as it closes; and the anchors a window's mod tells, with the panel
+// windows that stand under them. Exits 1 with a line for each check that failed. The packages are ES modules, so they
+// are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -710,7 +712,8 @@ async function main() {
         laidNames.indexOf('content-21') > laidNames.indexOf('desktop') &&
             laidNames.indexOf('content-22') > laidNames.indexOf('content-21') &&
             content.clip.cornerRadius === 10 &&
-            JSON.stringify(desk.page().panels) === JSON.stringify(inBar.map(({ id, frame }) => ({ id, frame }))),
+            JSON.stringify(desk.page().panels) ===
+                JSON.stringify(inBar.map(({ id, frame }) => ({ id, frame, radius: frame.height / 2 }))),
         { laidNames, content, panels: desk.page().panels }
     );
     check(
@@ -835,7 +838,7 @@ async function main() {
     const ANCHOR = await import(url('deckit-sdk', 'shell', 'window', 'model', 'anchor.js'));
     const ANCHORED = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'anchored.js'));
     anchoredChecks({ ANCHOR, ANCHORED }, check);
-    anchorChecks({ LAYOUT, createDesktop }, check);
+    await anchorChecks({ LAYOUT, createDesktop }, check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
@@ -1790,8 +1793,10 @@ function anchoredChecks({ ANCHOR, ANCHORED }, check) {
 }
 
 // The anchors the desktop keeps (desktop/main), over the stand-ins, on a stage 1200 by 800 under a bar 28 high: each
-// on the stage where its window's content is, gone with its window.
-function anchorChecks({ LAYOUT, createDesktop }, check) {
+// on the stage where its window's content is, gone with its window; and a view under one: standing nowhere until its
+// anchor is told, then under it, over the panel windows at an edge, for every seat, moving and going as the anchor
+// does, held to its sizes, and refused an anchor given to another mod.
+async function anchorChecks({ LAYOUT, createDesktop }, check) {
     const desk = desktopOver(createDesktop, {});
     desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
     desk.desktop.control.show();
@@ -1847,6 +1852,107 @@ function anchorChecks({ LAYOUT, createDesktop }, check) {
     desk.desktop.closePanel(band);
     desk.desktop.openPanel(band);
     check("a window's anchors go as it closes", anchors().length === 0, anchors());
+
+    // A view of `clock` under the anchor `bar` names for it, opened before the anchor is told and before another
+    // panel window in the bar.
+    const view = windowOf(3, 'clock', {
+        level: 'panel',
+        edge: null,
+        anchor: { mod: 'bar', id: 'clock' },
+        size: { width: 320, height: 200 },
+    });
+    desk.desktop.openPanel(view);
+    desk.desktop.openPanel(windowOf(4, 'z', { level: 'panel' }));
+    const names = () => desk.laid().map(({ page }) => page?.name);
+    const standsAt = () => desk.desktop.control.panels().find(({ id }) => id === 3)?.frame ?? null;
+    const drawnAt = () => desk.page().panels.find(({ id }) => id === 3) ?? null;
+    const nowhere = () => standsAt() === null && drawnAt() === null && !names().includes('content-3');
+    const unbound = { nowhere: nowhere(), told: desk.desktop.stateOf(view) };
+    check(
+        'a view under an anchor no window tells stands nowhere: it is not laid, no material is drawn for it, and it ' +
+            'is told it is not shown, at the size it would stand at',
+        unbound.nowhere &&
+            unbound.told.shown === false &&
+            unbound.told.key === false &&
+            unbound.told.width === 320 &&
+            unbound.told.height === 200,
+        unbound
+    );
+    desk.desktop.setAnchors(band, items);
+    const laid = desk.laid().find(({ page }) => page?.name === 'content-3');
+    const told = desk.desktop.stateOf(view);
+    check(
+        'a view stands under its anchor once that is told, 8 under the bar with their right edges in line, and is ' +
+            'told it is shown and no title bar',
+        written(standsAt()) === written(rect(832, 36, 320, 200)) &&
+            written(laid?.rect) === written(standsAt()) &&
+            told.shown === true &&
+            told.key === false &&
+            told.width === 320 &&
+            told.height === 200 &&
+            told.titleBar === null,
+        { at: standsAt(), laid, told }
+    );
+    check(
+        "a view's content is laid over the panel windows at an edge, cut to its corners, its overlay over the whole " +
+            "stage and its material under it in the desktop's page",
+        names().indexOf('content-3') > names().indexOf('content-4') &&
+            names().indexOf('content-4') > names().indexOf('content-2') &&
+            laid.clip.cornerRadius === 12 &&
+            written(laid.spread) === written(rect(0, 0, 1200, 800)) &&
+            written(drawnAt()) === written({ id: 3, edge: null, frame: standsAt(), radius: 12 }),
+        { names: names(), laid, drawn: drawnAt() }
+    );
+    const other = desk.sit('s1');
+    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    const before = desk.puts.length;
+    await desk.enter(other, pointer('down', { x: 900, y: 100 }));
+    await desk.enter(other, pointer('up', { x: 900, y: 100 }));
+    const reached = desk.puts.slice(before).map(({ page }) => page);
+    desk.desktop.pressPanel(view);
+    check(
+        'a view is laid for every seat: the press of a seat that did not open it reaches its content, and its mod ' +
+            'may activate for the seat that pressed',
+        reached.join() === 'content-3,content-3' &&
+            desk.desktop.activation.mayActivate('s1', 'clock') &&
+            desk.desktop.activation.mayActivate(desk.desktop.localSeat, 'clock') &&
+            desk.desktop.control.panels().every(({ key }) => key === false),
+        reached
+    );
+    desk.leave(other);
+    desk.desktop.setAnchors(band, [{ id: 'clock', rect: rect(40, 2, 60, 16), mod: 'clock' }]);
+    const moved = standsAt();
+    view.size = { width: 900, height: 900 };
+    desk.desktop.update();
+    check(
+        'a view moves as its anchor does, and is held between its sizes as its mod asks another',
+        written(moved) === written(rect(772, 36, 320, 200)) && written(standsAt()) === written(rect(612, 36, 480, 756)),
+        { moved, resized: standsAt() }
+    );
+    const refused = [
+        desk.desktop.refusesAnchor('bell', { mod: 'bar', id: 'clock' }),
+        desk.desktop.refusesAnchor('clock', { mod: 'bar', id: 'clock' }),
+        desk.desktop.refusesAnchor('bell', { mod: 'bar', id: 'gone' }),
+    ];
+    desk.desktop.setAnchors(band, [{ id: 'clock', rect: rect(40, 2, 60, 16), mod: 'bell' }]);
+    const foreign = nowhere();
+    desk.desktop.setAnchors(band, items);
+    check(
+        'an anchor given to another mod is refused a view, one given to its mod or told by no window is not, and a ' +
+            "view whose anchor becomes another mod's stands nowhere until it is its own again",
+        written(refused) === '[true,false,false]' && foreign && standsAt() !== null,
+        { refused, foreign, at: standsAt() }
+    );
+    desk.desktop.setAnchors(band, []);
+    const gone = { nowhere: nowhere(), shown: desk.desktop.stateOf(view).shown };
+    desk.desktop.setAnchors(band, items);
+    const back = standsAt();
+    desk.desktop.closePanel(band);
+    check(
+        'a view goes as its anchor goes, stands again as it is told again, and goes with the window that tells it',
+        gone.nowhere && gone.shown === false && back !== null && nowhere(),
+        { gone, back, at: standsAt() }
+    );
 }
 
 // What a seat reads of the desktop, over a reader that answers one document a page: the desktop, a window and a node

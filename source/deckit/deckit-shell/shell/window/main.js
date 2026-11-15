@@ -1,4 +1,5 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as REQUEST from '../../../deckit-sdk/deckit/request/index.js';
 import * as DECLARED from '../../../deckit-sdk/shell/window/protocol.js';
 import * as ANCHOR from '../../../deckit-sdk/shell/window/model/anchor.js';
 import * as SURFACE from './model/surface.js';
@@ -10,8 +11,8 @@ import * as LAYOUT from '../desktop/model/layout.js';
 // lay pages on (environment: SHELL.stage);
 // `showWindow(control, { activates })` and `closeWindow(control)` are the host app's, which puts an overlay window on
 // screen in a floating window of its own, taking the keyboard unless `activates` is false, and closes it. A panel
-// window stands at its edge, in the host's bar over the desktop or along the desktop's right edge, where DESKTOP places
-// it.
+// window stands at its edge, in the host's bar over the desktop or along the desktop's right edge, or under the anchor
+// it binds by, where DESKTOP places it.
 export function createWindows({
     deckit,
     web,
@@ -32,8 +33,10 @@ export function createWindows({
     // The size a window opens at where its mod gives none, and the size a web page's window opens at.
     const SIZE = Object.freeze({ width: 720, height: 480 });
     const WEB_SIZE = Object.freeze({ width: 520, height: 700 });
-    // id -> { id, mod, page, name, level, edge, size, minimum, bar, surface, sent, host, title, web }: `name` null for
-    // a web page's window, which has none, `edge` a panel window's, 'top' or 'right', and null for any other, `bar` a
+    // id -> { id, mod, page, name, level, edge, anchor, size, minimum, bar, surface, sent, host, title, web }: `name`
+    // null for a web page's window, which has none, `edge` that of a panel window at an edge, 'top' or 'right', and
+    // null for any other, `anchor` what a panel window under an anchor binds by, `{ mod, id }`, and null for any
+    // other, `bar` a
     // normal window's title bar (LAYOUT.barOf), `surface` its content once the page opened it, `sent` what the page was
     // last told of it, `host` an overlay window's `{ control, stage, key }`, `title` what a titled window's bar holds;
     // and for a web page's window `web`, `{ closed }`, the listeners of its close.
@@ -100,6 +103,7 @@ export function createWindows({
             name: null,
             level: NORMAL,
             edge: null,
+            anchor: null,
             size: LAYOUT.framedSize(WEB_SIZE, bar),
             minimum: { width: 0, height: 0 },
             bar,
@@ -153,7 +157,9 @@ export function createWindows({
     }
 
     // One window of a name per run: the one open orders front. It comes up as the key window unless `activates` is
-    // false. A normal window's title bar is as its style options say, read here once.
+    // false. A normal window's title bar is as its style options say, read here once. A panel window with an `anchor`
+    // stands under it and has no edge: refused INVALID_ARGUMENT for one that is no anchor's name, and NOT_PERMITTED
+    // where the anchor of that name is given to another mod.
     function open(page, options) {
         const { name, level, edge, width, height, minWidth, minHeight, activates = true, title } = options;
         const mod = deckit.mods.modOf(page);
@@ -162,6 +168,15 @@ export function createWindows({
             orderFront(same, { activates });
             return { id: same.id, surface: SURFACE.nameOf(same.id) };
         }
+        const anchor = level === PANEL && options.anchor != null ? ANCHOR.nameOf(options.anchor) : null;
+        if (level === PANEL && options.anchor != null && !anchor)
+            throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'windows.open: takes an anchor { mod, id }, each a text');
+        if (anchor && DESKTOP.refusesAnchor(mod, anchor))
+            throw REQUEST.refusal(
+                'call',
+                'NOT_PERMITTED',
+                `${mod} is not given the anchor ${anchor.id} of ${anchor.mod}`
+            );
         const id = ++count;
         const window = {
             id,
@@ -169,7 +184,8 @@ export function createWindows({
             page,
             name,
             level: [OVERLAY_LEVEL, PANEL].includes(level) ? level : NORMAL,
-            edge: level === PANEL ? (edge === 'right' ? 'right' : 'top') : null,
+            edge: level === PANEL && !anchor ? (edge === 'right' ? 'right' : 'top') : null,
+            anchor,
             size: { width: width ?? SIZE.width, height: height ?? SIZE.height },
             minimum: { width: minWidth ?? 0, height: minHeight ?? 0 },
             bar: barOf(options),
@@ -234,7 +250,7 @@ export function createWindows({
     // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false,
     // where the mod may activate for the local seat (DESKTOP.orderFront); an overlay window takes the keyboard only
     // then. A panel window stands where it is: one at the right edge takes the keyboard as an overlay window does, one
-    // in the bar never.
+    // in the bar or under an anchor never.
     function orderFront(window, { activates = true } = {}) {
         if (window.level === PANEL) {
             if (window.edge === 'right') DESKTOP.orderFrontPanel(window, { activates });
