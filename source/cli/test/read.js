@@ -34,14 +34,9 @@ const TAKE = `(() => {
     return true;
 })()`;
 
-async function run({ check, main, windowOf, dockClick }) {
-    const open = async (mod) => {
-        if (!(await windowOf(mod))) await dockClick(mod);
-        await until(async () => !!(await windowOf(mod)), 8000);
-        await sleep(1000);
-        return windowOf(mod);
-    };
-    // The environment's module over the app's pages, each asked through the app's main process.
+// The environment's module over the app's pages, each asked through the app's main process: `read(method, id, ...rest)`
+// answers what the reader of the page `id` does, or `{ refused }` with the code it refused with.
+async function asked(main) {
     const { createRead } = await import(READ);
     const reader = createRead({ LOG: console });
     const pages = new Map();
@@ -67,6 +62,17 @@ async function run({ check, main, windowOf, dockClick }) {
             return { refused: error.code ?? String(error) };
         }
     };
+    return read;
+}
+
+async function run({ check, main, windowOf, dockClick }) {
+    const open = async (mod) => {
+        if (!(await windowOf(mod))) await dockClick(mod);
+        await until(async () => !!(await windowOf(mod)), 8000);
+        await sleep(1000);
+        return windowOf(mod);
+    };
+    const read = await asked(main);
     const put = async (page, event) => {
         const answer = await main(`return webkit.putInput(${page.id}, ${JSON.stringify({ ...event, from: SEAT })})`);
         await sleep(80);
@@ -348,4 +354,4 @@ async function run({ check, main, windowOf, dockClick }) {
     return undefined;
 }
 
-module.exports = { run };
+module.exports = { run, asked };
