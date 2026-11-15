@@ -1054,9 +1054,10 @@ export function createDesktop({
         tellPage();
     }
 
-    // Where `seat` types as the host window shows it, `{ ring, bars, caret, over }` on the desktop, or null: what shows
-    // in its page of the rects the reader answered, from where the page lies in its window, and nothing where a window
-    // in front of that one for the shown seat covers a part of what has the focus. `over` is whether it is drawn over
+    // Where `seat` types as the host window shows it, `{ ring, bars, caret, over }` on the desktop, or null: the ring
+    // round what has the focus (MARKS.ringOf; the reader answers no radius of its corners) and what shows in its page
+    // of the rects the reader answered, from where the page lies in its window, and nothing where a window in front
+    // of that one for the shown seat covers a part of what has the focus. `over` is whether it is drawn over
     // everything, with the cursors: so for a panel window, whose content lies over the desktop's page.
     function typingOf(seat) {
         const typing = typings.get(seat);
@@ -1072,7 +1073,8 @@ export function createDesktop({
         const view = MANAGER.viewOf(shownSeat());
         const at = view.findIndex(({ id }) => id === window.id);
         if (windows.has(window.id) && (at < 0 || view.slice(at + 1).some(({ frame }) => cut(frame, ring)))) return null;
-        return { ring, bars: typing.bars.flatMap((bar) => moved(bar) ?? []), caret: typing.caret, over };
+        const bars = typing.bars.flatMap((bar) => moved(bar) ?? []);
+        return { ring: MARKS.ringOf(ring), bars, caret: typing.caret, over };
     }
 
     // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of

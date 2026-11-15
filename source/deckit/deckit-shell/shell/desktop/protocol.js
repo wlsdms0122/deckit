@@ -22,8 +22,9 @@ export const setup = CHANNEL.pageToMain(
 // anywhere, the buttons it holds, whether its devices gave nothing for the idle time, whether it is the one whose view
 // the host window shows, whether its cursor is drawn dimmed (model/marks.js isDimmed), whether its name shows beside
 // its cursor (model/marks.js nameLeft), and where it types in a window that does not have the machine's keyboard,
-// `{ ring, bars, caret }`, the rect on the stage of what has the focus there and those of what is selected in it or,
-// `caret` true, the one its caret is at, or null, each as of this telling;
+// `{ ring, bars, caret, over }`, the ring round what has the focus there, `{ x, y, width, height, radius, line }` on
+// the stage (model/marks.js ringOf), the rects of what is selected in it or, `caret` true, the one its caret is at,
+// and whether it is drawn over everything, or null, each as of this telling;
 // `following`, `{ id, name, colour }`, the seat the local seat follows, whose view this is, or null for the local
 // seat's own; `drop` `{ tile, frame }`, the tile
 // (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame, or null; `strip` `{ height,

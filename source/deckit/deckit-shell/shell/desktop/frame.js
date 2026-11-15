@@ -181,7 +181,7 @@ const STYLE = `
         box-sizing: border-box;
         transition: transform var(--deckit-move) var(--deckit-move-curve);
     }
-    .deckit-seat-focus { border: 2px solid var(--deckit-seat); border-radius: var(--deckit-radius-small); }
+    .deckit-seat-focus { border: 0 solid var(--deckit-seat); }
     .deckit-seat-bar { background: var(--deckit-seat); opacity: 0.3; }
     .deckit-seat-bar[data-caret] { opacity: 1; }
     .deckit-seat-tick { position: absolute; left: ${-CURSOR}px; top: 0; width: 12px; height: 12px; }
@@ -467,9 +467,10 @@ function boot(theme, channels) {
     }
 
     // Where each seat types in a window that does not have the machine's keyboard, in this page, over the windows, or,
-    // where the state says `over`, in the cursors' surface under the cursors: a ring in the seat's colour round what
-    // has the focus there, 2 px outside it, and a bar in that colour at its caret, 2 px wide, or over each rect of what
-    // is selected in it. The ring goes to another place by the `move` spring, and is made anew as `over` changes.
+    // where the state says `over`, in the cursors' surface under the cursors: the ring the state says, in the seat's
+    // colour, its line as wide and its corners as round as told, and a bar in that colour at its caret, 2 px wide, or
+    // over each rect of what is selected in it. The ring goes to another place by the `move` spring, and is made anew
+    // as `over` changes.
     function drawTypings(all) {
         const seen = new Map(all.filter(({ typing }) => typing).map((seat) => [seat.id, seat]));
         for (const [id, drawn] of typings) {
@@ -494,7 +495,8 @@ function boot(theme, channels) {
             const drawn = typings.get(id);
             const { ring, bars } = typing;
             drawn.ring.style.setProperty('--deckit-seat', `var(--deckit-seat-${colour})`);
-            place(drawn.ring, { x: ring.x - 2, y: ring.y - 2, width: ring.width + 4, height: ring.height + 4 });
+            place(drawn.ring, ring);
+            Object.assign(drawn.ring.style, { borderWidth: `${ring.line}px`, borderRadius: `${ring.radius}px` });
             for (const gone of drawn.bars.splice(bars.length)) gone.remove();
             bars.forEach((bar, at) => {
                 if (!drawn.bars[at]) {

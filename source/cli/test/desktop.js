@@ -883,8 +883,8 @@ async function main() {
     const { createSeats } = await import(url('deckit-shell', 'shell', 'seats', 'main.js'));
     await memberChecks({ ROSTER, createSeats, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
-    await typingChecks({ LAYOUT, createDesktop }, check);
     const MARKS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'marks.js'));
+    await typingChecks({ MARKS, LAYOUT, createDesktop }, check);
     await marksChecks({ MARKS, LAYOUT, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
@@ -3149,7 +3149,31 @@ async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
 
 // Where a seat types, as the desktop's page is told it: read of the page its keys go to after its input and as the
 // reader tells that the page changed, and gone with its key window.
-async function typingChecks({ LAYOUT, createDesktop }, check) {
+async function typingChecks({ MARKS, LAYOUT, createDesktop }, check) {
+    const { room, line, radius } = MARKS.RING;
+    const round = [
+        MARKS.ringOf({ x: 10, y: 20, width: 100, height: 30 }),
+        MARKS.ringOf({ x: 0, y: 0, width: 8, height: 8 }, 6),
+    ];
+    check(
+        'the ring round a field leaves a little room off it on every side, is a thin line, and its corners go round ' +
+            "the field's where their radius is known, and are a little round where not",
+        room === 2 &&
+            line < 2 &&
+            JSON.stringify(round[0]) ===
+                JSON.stringify({
+                    x: 10 - room - line,
+                    y: 20 - room - line,
+                    width: 100 + 2 * (room + line),
+                    height: 30 + 2 * (room + line),
+                    radius: 4,
+                    line,
+                }) &&
+            round[1].radius === 6 + room + line &&
+            radius === 4,
+        round
+    );
+    const out = room + line;
     const hearing = [];
     const asked = [];
     // What has the focus is at the left edge of its page, where the window in front of the first one is not over it.
@@ -3206,7 +3230,12 @@ async function typingChecks({ LAYOUT, createDesktop }, check) {
         before === null &&
             asked.join() === 'content-1' &&
             JSON.stringify(first) ===
-                JSON.stringify({ ring: moved(answer.rect), bars: [moved(caret)], caret: true, over: false }) &&
+                JSON.stringify({
+                    ring: MARKS.ringOf(moved(answer.rect)),
+                    bars: [moved(caret)],
+                    caret: true,
+                    over: false,
+                }) &&
             desk.page().seats.find(({ id }) => id === 'local').typing === null,
         JSON.stringify({ before, asked, first, content: content?.rect })
     );
@@ -3247,8 +3276,8 @@ async function typingChecks({ LAYOUT, createDesktop }, check) {
             back !== null &&
             atOnce === null &&
             asked.at(-1) === 'content-2' &&
-            typing()?.ring.x === other.rect.x + 2 &&
-            typing().ring.y === other.rect.y + 40,
+            typing()?.ring.x === other.rect.x + 2 - out &&
+            typing().ring.y === other.rect.y + 40 - out,
         JSON.stringify({ covered, back, atOnce, asked, now: typing(), other: other?.rect })
     );
 
@@ -3294,8 +3323,8 @@ async function typingChecks({ LAYOUT, createDesktop }, check) {
         unseen === null &&
             asked.at(-1) === 'content-4' &&
             inView?.over === true &&
-            inView.ring.x === laidView.x + 2 &&
-            inView.ring.y === laidView.y + 40,
+            inView.ring.x === laidView.x + 2 - out &&
+            inView.ring.y === laidView.y + 40 - out,
         JSON.stringify({ unseen, inView, laidView, asked: asked.at(-1) })
     );
 }
