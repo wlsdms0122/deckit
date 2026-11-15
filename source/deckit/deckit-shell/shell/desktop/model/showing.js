@@ -6,11 +6,12 @@ const HELD = 'held';
 // MARK: - Initializer
 // MARK: - Public
 // On which seats' screens each view is. A view is open while its mod keeps it, and is on a seat's screen only where
-// it was shown for that seat: for every seat, where nothing ties it to anyone's input, or for the seats its mod may
-// activate for, one view a seat, which is put away for a seat again. The keyboard of a seat a view is shown for by
-// activation is the view's: one seat holds it, the first it was shown for, and it is given back as the view is put
-// away for that seat. Views are named by their ids, seats by the tokens the caller keeps; `isIdle(seat)` answers
-// whether a holder gives the keyboard up, and `onTaken(holder, view, by)` hears it.
+// it was shown for that seat: for every seat, where nothing ties it to anyone's input, or by activation for the one
+// seat its mod acts for each time it shows or toggles it, one view a seat, which is put away for a seat again. The
+// keyboard of a seat a view is shown for by activation is the view's: one seat holds it, the first it was shown for,
+// and it is given back as the view is put away for that seat. Views are named by their ids, seats by the tokens the
+// caller keeps; `isIdle(seat)` answers whether a holder gives the keyboard up, and `onTaken(holder, view, by)` hears
+// it.
 function createShowing({ isIdle = () => false, onTaken = () => {} } = {}) {
     // MARK: - Property
     const seats = new Map(); // seat -> the view shown for it by activation, or null
@@ -28,10 +29,10 @@ function createShowing({ isIdle = () => false, onTaken = () => {} } = {}) {
     }
 
     // A view opens: with `activates` false it is shown for every seat, as nothing ties it to anyone's input; else for
-    // each of `seats`, those its mod may activate for, as show has it.
-    function open(view, { activates = true, seats: forSeats = [] } = {}) {
+    // `seat`, the one its mod acts for, as show has it.
+    function open(view, { activates = true, seat = null } = {}) {
         views.set(view, { every: !activates, holder: null });
-        if (activates) show(view, forSeats);
+        if (activates) show(view, seat);
     }
 
     // A view closes: it is on no screen.
@@ -40,28 +41,22 @@ function createShowing({ isIdle = () => false, onTaken = () => {} } = {}) {
         for (const [seat, shown] of seats) if (shown === view) seats.set(seat, null);
     }
 
-    // Shown for each of `forSeats`, the seats its mod may activate for: the view each had is put away for it, one a
-    // seat, and the keyboard of the view is taken for the first that no other holds it against.
-    function show(view, forSeats) {
-        if (!views.has(view)) return;
-        for (const seat of forSeats) {
-            if (!seats.has(seat) || seats.get(seat) === view) continue;
-            putAway(seat);
-            seats.set(seat, view);
-            take(seat);
-        }
+    // Shown for `seat`, the one its mod acts for, and for no seat where that is null: the view the seat had is put
+    // away for it, one a seat, and the keyboard of the view is taken for it unless another seat holds it. Every other
+    // seat's screen is left as it is.
+    function show(view, seat) {
+        if (!views.has(view) || !seats.has(seat) || seats.get(seat) === view) return;
+        putAway(seat);
+        seats.set(seat, view);
+        take(seat);
     }
 
-    // For each of `forSeats`, the seats its mod may activate for: put away where it is shown by activation, then shown
-    // where it was not, so a keyboard given back is there to take.
-    function toggle(view, forSeats) {
+    // For `seat`, the one its mod acts for: put away where it is shown for it by activation, shown where it is not.
+    // Every other seat's screen is left as it is.
+    function toggle(view, seat) {
         if (!views.has(view)) return;
-        const had = forSeats.filter((seat) => seats.get(seat) === view);
-        for (const seat of had) putAway(seat);
-        show(
-            view,
-            forSeats.filter((seat) => !had.includes(seat))
-        );
+        if (seats.get(seat) === view) putAway(seat);
+        else show(view, seat);
     }
 
     // The view shown for `seat` by activation is put away for it, its keyboard given back where the seat held it: as

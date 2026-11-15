@@ -2002,13 +2002,13 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
     });
     for (const seat of ['me', 'you']) showing.addSeat(seat);
     const on = (view) => ['me', 'you', 'late'].filter((seat) => showing.isOn(seat, view)).join();
-    showing.open(1, { seats: ['you'] });
+    showing.open(1, { seat: 'you' });
     check(
-        'a view opened is shown for the seats its mod may activate for and no other, the first holding its keyboard',
+        'a view opened is shown for the seat its mod acts for and no other, which holds its keyboard',
         on(1) === 'you' && showing.of('you') === 1 && showing.of('me') === null && showing.holderOf(1) === 'you',
         { on: on(1), holder: showing.holderOf(1) }
     );
-    showing.open(2, { activates: false, seats: ['me'] });
+    showing.open(2, { activates: false, seat: 'me' });
     showing.addSeat('late');
     check(
         'a view opened with activates false is shown for every seat, one that sits later too, and takes no keyboard',
@@ -2016,26 +2016,46 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
         { on: on(2), holder: showing.holderOf(2) }
     );
     showing.removeSeat('late');
-    showing.show(1, ['me', 'you', 'nobody']);
+    for (const seat of ['me', 'nobody', null]) showing.show(1, seat);
     const second = { on: on(1), holder: showing.holderOf(1), take: showing.take('me'), held: showing.heldBy('me') };
     check(
-        'a view shown again is shown for each seat its mod may activate for, and a second seat finds its keyboard held',
+        'a view shown again is shown for a second seat too and for no seat where its mod acts for none, and the ' +
+            'second seat finds its keyboard held',
         second.on === 'me,you' && second.holder === 'you' && second.take === HELD && second.held === null,
         second
     );
-    showing.toggle(1, ['me']);
+    showing.toggle(1, 'me');
     const off = on(1);
-    showing.toggle(1, ['me', 'you']);
-    const flipped = { off, on: on(1), holder: showing.holderOf(1), take: showing.take('me') };
+    showing.toggle(1, 'me');
+    const both = on(1);
+    showing.toggle(1, 'you');
+    const flipped = { off, both, on: on(1), holder: showing.holderOf(1), take: showing.take('me') };
     check(
-        'a toggle puts a view away for each seat it is shown for and shows it for each it is not, its keyboard given ' +
-            'back by the holder it is put away for',
-        flipped.off === 'you' && flipped.on === 'me' && flipped.holder === 'me' && flipped.take === KEY,
+        "a toggle puts a view away for one seat and shows it for that seat again, the other seat's screen left as it " +
+            'is, so two seats each keep it by their own toggles, and its keyboard is given back by the holder it is ' +
+            'put away for',
+        flipped.off === 'you' &&
+            flipped.both === 'me,you' &&
+            flipped.on === 'me' &&
+            flipped.holder === null &&
+            flipped.take === KEY,
         flipped
     );
-    showing.open(3, { seats: [] });
+    showing.toggle(1, 'me');
+    showing.toggle(1, 'you');
+    const apart = on(1);
+    for (const seat of [null, 'nobody']) showing.toggle(1, seat);
+    const still = on(1);
+    showing.toggle(1, 'you');
+    showing.toggle(1, 'me');
+    check(
+        "a seat that put a view away does not get it by another seat's toggle, and a toggle for no seat does nothing",
+        apart === 'you' && still === 'you' && on(1) === 'me' && showing.holderOf(1) === 'me',
+        { apart, still, on: on(1), holder: showing.holderOf(1) }
+    );
+    showing.open(3);
     const unseen = showing.isShown(3);
-    showing.show(3, ['me']);
+    showing.show(3, 'me');
     check(
         'another view shown for a seat puts away the one it had, one a seat, and a view is shown from its first seat',
         !unseen && showing.isShown(3) && on(3) === 'me' && on(1) === '' && showing.holderOf(1) === null,
@@ -2050,7 +2070,7 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
         spared === false && stays === 'me' && outside === true && on(3) === '' && !showing.isShown(3),
         { spared, stays, outside, on: on(3) }
     );
-    showing.show(3, ['me']);
+    showing.show(3, 'me');
     const away = [showing.putAway('me'), showing.putAway('me'), showing.heldBy('me'), showing.holderOf(3)];
     check(
         "a seat's view is put away as a window becomes its key window, at Escape, at Close Window and as it begins " +
@@ -2058,7 +2078,7 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
         JSON.stringify(away) === '[true,false,null,null]',
         away
     );
-    showing.show(3, ['me', 'you']);
+    for (const seat of ['me', 'you']) showing.show(3, seat);
     const gone = [showing.unanchored(3), on(3), showing.holderOf(3), showing.unanchored(3), showing.unanchored(2)];
     check(
         'a view whose anchor goes is put away for every seat it was shown for by activation, and one shown for ' +
@@ -2066,7 +2086,7 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
         JSON.stringify(gone) === '[true,"",null,false,false]' && on(2) === 'me,you',
         gone
     );
-    showing.show(1, ['me', 'you']);
+    for (const seat of ['me', 'you']) showing.show(1, seat);
     idle.add('me');
     const given = [showing.take('you'), showing.holderOf(1), taken.join(';'), showing.take('me')];
     idle.clear();
@@ -2282,6 +2302,25 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
         { stood, gone, back: await on() }
     );
 
+    // One seat a toggle: the one whose input reached the view's mod last.
+    await elsewhere(s1);
+    await press(s1, onAnchor);
+    await asks(s2);
+    desk.desktop.togglePanel(view);
+    const toggled = [await on()];
+    for (const seat of [s1, s1, s2, s2]) {
+        await asks(seat);
+        desk.desktop.togglePanel(view);
+        toggled.push(await on());
+    }
+    check(
+        'a toggle is for the seat whose input reached its mod last: of two seats that pressed the band the later ' +
+            "alone is shown the view, each keeps it by its own toggle, one's toggle leaves the other's, and a seat " +
+            "that put it away does not get it by another's",
+        JSON.stringify(toggled) === JSON.stringify(['s2', 's1,s2', 's2', '', 's2']),
+        toggled
+    );
+    await press(s2, outside);
     // The local seat: the machine's keyboard goes to the view shown for it and comes back as it is put away.
     const hostShown = desk.hostShown();
     await elsewhere(s1);

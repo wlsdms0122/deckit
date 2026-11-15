@@ -269,7 +269,7 @@ export function createDesktop({
     // places it, in front of every normal window: its content lies on the material the desktop's page draws for it,
     // cut to its frame rounded as radiusOf has it. One in the bar is never key; one at the right edge takes the
     // keyboard as it opens, as orderFront gives it. A view under an anchor is on the screens it is shown for (SHOWING):
-    // with `activates` false every seat's, else those of the seats its mod may activate for, as orderFrontPanel shows.
+    // with `activates` false every seat's, else that of the seat its mod acts for, as orderFrontPanel shows.
     function openPanel(window, { activates = true } = {}) {
         panels.set(window.id, window);
         if (window.anchor) SHOWING.open(window.id, { activates });
@@ -287,8 +287,8 @@ export function createDesktop({
 
     // A panel window at the right edge takes the keyboard from the desktop where `activates` is true and its mod may
     // activate for the local seat, the host window coming up; one in the bar stands where it is. A view under an
-    // anchor is shown, where `activates` is true, for each seat its mod may activate for. Answers whether the desktop
-    // was laid again for it.
+    // anchor is shown, where `activates` is true, for the seat its mod acts for. Answers whether the desktop was laid
+    // again for it.
     function orderFrontPanel(window, { activates = true } = {}) {
         if (!panels.has(window.id) || !activates) return false;
         if (window.anchor) return shownBy(window, SHOWING.show);
@@ -300,19 +300,17 @@ export function createDesktop({
         return true;
     }
 
-    // A view under an anchor, for each seat its mod may activate for: put away where it is shown by activation, shown
-    // where it is not. Nothing for any other window.
+    // A view under an anchor, for the seat its mod acts for: put away where it is shown by activation, shown where it
+    // is not. Nothing for any other window.
     function togglePanel(window) {
         if (panels.has(window.id) && window.anchor) shownBy(window, SHOWING.toggle);
     }
 
-    // A view shown or toggled, `rule` of SHOWING, for the seats its mod may activate for: the host window comes up
-    // where the view has the local seat's keyboard after it. Answers true.
+    // A view shown or toggled, `rule` of SHOWING, for the seat its mod acts for (ACTIVATION.causeOf), and for none
+    // where it may activate for no seat; the mod is told no seat. The host window comes up where the view has the
+    // local seat's keyboard after it. Answers true.
     function shownBy(window, rule) {
-        rule(
-            window.id,
-            [...hands.keys()].filter((seat) => ACTIVATION.mayActivate(seat, window.mod))
-        );
+        rule(window.id, ACTIVATION.causeOf(window.mod));
         update();
         if (SHOWING.heldBy(LOCAL) === window.id) host.show();
         return true;

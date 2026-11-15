@@ -251,8 +251,7 @@ export function createWindows({
     // In front as the mod asks: the key window, the host window it is in coming up too, unless `activates` is false,
     // where the mod may activate for the local seat (DESKTOP.orderFront); an overlay window takes the keyboard only
     // then. A panel window stands where it is: one at the right edge takes the keyboard as an overlay window does, one
-    // in the bar never, and a view under an anchor is shown for the seats its mod may activate for
-    // (DESKTOP.orderFrontPanel).
+    // in the bar never, and a view under an anchor is shown for the seat its mod acts for (DESKTOP.orderFrontPanel).
     function orderFront(window, { activates = true } = {}) {
         if (window.level === PANEL) {
             if (window.edge === 'right' || window.anchor) DESKTOP.orderFrontPanel(window, { activates });

@@ -189,8 +189,9 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             orderFront: sent('orderFront', () => PROTOCOL.orderFront.send({ id })),
             makeKeyAndOrderFront: sent('makeKeyAndOrderFront', () => PROTOCOL.makeKeyAndOrderFront.send({ id })),
             // A view under an anchor is on a person's screen where it was shown for that person: `open` and
-            // `makeKeyAndOrderFront()` show it for whoever the mod may activate for, and `toggle()` puts it away where
-            // it is shown and shows it where it is not. Nothing for any other window.
+            // `makeKeyAndOrderFront()` show it for the one person the mod may activate for whose input reached it
+            // last, and `toggle()` puts it away for that person where it is shown and shows it where it is not;
+            // everyone else's screen is left as it is. Nothing for any other window.
             toggle: sent('toggle', () => PROTOCOL.toggle.send({ id })),
             resize(width, height) {
                 if (!positive(width) || !positive(height))
