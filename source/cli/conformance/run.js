@@ -48,24 +48,36 @@ async function run(theCase, { folder, hostApp, electron }) {
         const why = layOut(bundles[name], to);
         if (why) return { outcome: 'not laid out', why: `${name}: ${why}` };
     }
-    // The owner of each standard interface `owners` names, as the implementation ships it, marked system, then the
-    // case's own; the host adds each field an owner's manifest writes that the system does not read and the case does
-    // not write, before the case's, and runs main process modules where an owner asks for system.main-process.
-    const owners = [];
+    // The owner of each standard interface `owners` names, then the mod of each id `mods` names, as the implementation
+    // ships it, marked system, a mod both reach once, then the case's own; the host adds each field their manifests
+    // write that the system does not read and the case does not write, before the case's, and runs main process
+    // modules where one asks for system.main-process.
+    const shipped = path.join(hostApp, 'deckit', 'mods');
+    const reached = [
+        ...host.owners.map((name) => [
+            shippedOf(shipped, (manifest) => Object.hasOwn(manifest.interfaces?.provides ?? {}, name)),
+            `the implementation ships no owner of ${name}`,
+        ]),
+        ...host.mods.map((id) => [
+            shippedOf(shipped, (manifest) => manifest.id === id),
+            `the implementation ships no mod of the id ${id}`,
+        ]),
+    ];
+    const implementation = [];
     const read = [];
     let mainProcess = false;
-    for (const name of host.owners) {
-        const owner = ownerOf(name, path.join(hostApp, 'deckit', 'mods'));
-        if (!owner) return { outcome: 'not laid out', why: `the implementation ships no owner of ${name}` };
-        owners.push({ folder: owner.folder, system: true });
-        if (Object.hasOwn(owner.manifest.permissions ?? {}, MAIN_PROCESS)) mainProcess = true;
-        for (const field of Object.keys(owner.manifest))
+    for (const [mod, why] of reached) {
+        if (!mod) return { outcome: 'not laid out', why };
+        if (implementation.some(({ folder }) => folder === mod.folder)) continue;
+        implementation.push({ folder: mod.folder, system: true });
+        if (Object.hasOwn(mod.manifest.permissions ?? {}, MAIN_PROCESS)) mainProcess = true;
+        for (const field of Object.keys(mod.manifest))
             if (!MANIFEST.includes(field) && !BASE_FIELDS[host.base].includes(field) && !read.includes(field))
                 read.push(field);
     }
     const fields = [...read.filter((field) => !host.fields.includes(field)), ...host.fields];
     const ship = [
-        ...owners,
+        ...implementation,
         ...host.ship.map((name) => ({ folder: path.join(folder, 'ship', name), system: host.system.includes(name) })),
     ];
 
@@ -169,15 +181,14 @@ function builtOf(hostApp) {
     return JSON.parse(fs.readFileSync(path.join(hostApp, 'deckit', 'deckit.json'), 'utf8'));
 }
 
-// The bundle in `mods`, the mods the implementation ships, that provides the interface `name`, `{ folder, manifest }`,
+// The first bundle in `mods`, the mods the implementation ships, whose manifest `wanted` takes, `{ folder, manifest }`,
 // or null.
-function ownerOf(name, mods) {
+function shippedOf(mods, wanted) {
     for (const entry of fs.existsSync(mods) ? fs.readdirSync(mods).sort() : []) {
         const file = path.join(mods, entry, 'manifest.toml');
         if (!fs.existsSync(file)) continue;
         const manifest = TOML.read(fs.readFileSync(file, 'utf8'));
-        if (Object.hasOwn(manifest.interfaces?.provides ?? {}, name))
-            return { folder: path.join(mods, entry), manifest };
+        if (wanted(manifest)) return { folder: path.join(mods, entry), manifest };
     }
     return null;
 }

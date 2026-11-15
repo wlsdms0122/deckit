@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 26;
+const FORMAT = 27;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -13,6 +13,8 @@ const KIND = /^[A-Z][A-Z_]*$/;
 const MEMBER = /^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$/;
 // The name of a standard interface, as the bundle names an interface.
 const STANDARD = /^deckit\/[a-z][a-z0-9-]*$/;
+// A mod's id, as the bundle writes one: holding no `..`.
+const ID = /^(?!.*\.\.)[a-z0-9][a-z0-9._-]{0,63}$/;
 // A site's address, as a call writes it: a site's name, then a path on it, if any.
 const SITE_ADDRESS = /^([a-z][a-z0-9-]*)(\/(?!\/)[\x21-\x7e]*)?$/;
 // A file of a bundle, as a show writes it: a bundle's name, then a path in it.
@@ -96,6 +98,11 @@ const is = {
     standards: (value) =>
         Array.isArray(value) &&
         value.every((one) => typeof one === 'string' && STANDARD.test(one)) &&
+        new Set(value).size === value.length,
+    // The ids of the mods the implementation ships that a host ships: format 27.
+    ids: (value) =>
+        Array.isArray(value) &&
+        value.every((one) => typeof one === 'string' && ID.test(one)) &&
         new Set(value).size === value.length,
 };
 
@@ -287,6 +294,7 @@ const HOST_KEYS_ADDED = {
     users: 25,
     keys: 25,
     seats: 26,
+    mods: 27,
 };
 // The inputs answered with nothing.
 const ANSWERLESS = [
@@ -453,6 +461,7 @@ function hostOf(host, format, refuse) {
             keys: is.keys,
             seats: is.seats,
             owners: is.standards,
+            mods: is.ids,
             sites: (value) => Array.isArray(value) && value.every(is.name),
             refusing: (value) => Array.isArray(value) && value.every(is.name),
             delegate: (value) =>
@@ -496,6 +505,7 @@ function hostOf(host, format, refuse) {
         system,
         sources: host.sources ?? [],
         owners: host.owners ?? [],
+        mods: host.mods ?? [],
         sites: host.sites ?? [],
         refusing,
         delegate: host.delegate ?? {},
