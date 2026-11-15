@@ -1,0 +1,24 @@
+case = 23
+name = "windows-open-with-an-empty-place-throws-invalid-argument"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. windows.open with a place that does not fit the table throws INVALID_ARGUMENT at call, and opens nothing: mod-a, granted deckit.panel-windows, opens v at the level panel with the place \"\"."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/v/threw/INVALID_ARGUMENT", activates = true }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = []
