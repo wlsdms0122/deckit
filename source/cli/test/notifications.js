@@ -399,6 +399,7 @@ function element(tag) {
         replaceChildren: (...nodes) => (made.children = nodes),
         addEventListener: (type, listener) => (made.listeners[type] = listener),
         toggleAttribute: () => {},
+        setAttribute: () => {},
         getBoundingClientRect: () => ({
             height: / notifications-card|^notifications-card/.test(made.className) ? 60 : 0,
         }),

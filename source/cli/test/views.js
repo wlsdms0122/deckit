@@ -2,7 +2,7 @@
 // name, held line by line, so that a part that loses its role or its name fails here.
 const path = require('path');
 const { pathToFileURL } = require('url');
-const { sleep } = require('./devtools.js');
+const { sleep, until } = require('./devtools.js');
 const { asked } = require('./read.js');
 
 const MODEL = pathToFileURL(
@@ -67,6 +67,7 @@ main
     combobox "Forge session"
 separator "Sidebar"`,
 };
+const CENTER = 'region "Notifications"';
 
 // Whether the lines of `text` hold those of `golden`, in its order.
 const holds = (text, golden) => {
@@ -75,7 +76,7 @@ const holds = (text, golden) => {
     return golden.split('\n').every((line) => (from = lines.indexOf(line, from) + 1) > 0);
 };
 
-async function run({ check, main, open, show }) {
+async function run({ check, main, open, show, desktopLaid, pressIn }) {
     const { elementLine } = await import(MODEL);
     const read = await asked(main);
     // A page's reading by role and name alone, and whether it lists any item.
@@ -100,6 +101,19 @@ async function run({ check, main, open, show }) {
         // The folder a tab of the Finder starts at holds something, and each entry is an item of the tree.
         if (mod === 'finder') check("views: the Finder's entries read as the items of its tree", items > 6, items);
     }
+    const laidOf = async (mod) =>
+        ((await desktopLaid())?.pages ?? []).filter(
+            ({ opener, name }) => opener?.startsWith(`deckit://${mod}.mod`) && /^deckit-window-/.test(name)
+        );
+    const bell = '.status-bar-item[data-item="notifications"]';
+    const [bar] = await laidOf('status-bar');
+    await pressIn(bar, bell);
+    const center = await until(async () => (await laidOf('notifications'))[0], 4000);
+    await sleep(500);
+    const { text } = center ? await reading(center.id) : { text: '' };
+    console.log(`[views] the notification center\n${text}`);
+    check('views: the notification center reads as a region by its name', holds(text, CENTER), text);
+    if (center) await pressIn(bar, bell);
 }
 
 module.exports = { run };

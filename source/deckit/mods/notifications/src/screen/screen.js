@@ -100,9 +100,12 @@ function screen(shell, center) {
     content.className = 'notifications notifications-toasts';
     const list = document.createElement('div'); // the notification center
     list.className = 'notifications notifications-center';
+    list.setAttribute('role', 'region');
+    list.setAttribute('aria-label', 'Notifications');
     shell.ui.addStyle(STYLE);
     // The center's rows, by the notification's id, and the one the pointer or the keys are on.
     const rows = ui.list({
+        role: 'listbox',
         key: (notification) => notification.id,
         create: (notification) => card(notification, { row: true }),
         update: (made, notification) => made.replaceChildren(...partsOf(notification, { row: true })),
@@ -290,6 +293,7 @@ function screen(shell, center) {
     function card(notification, { row }) {
         const made = element('div', 'notifications-card');
         made.dataset.deckitSolid = ''; // opaque on the panel's material: the plain inks
+        if (!row) made.setAttribute('role', 'alert');
         made.append(...partsOf(notification, { row }));
         made.addEventListener('click', () => center.press(notification.id));
         return made;
