@@ -8,7 +8,8 @@ export const setup = CHANNEL.pageToMain(
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
 // `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame }], seats, asks, following, drop,
-// strip, dock, down }`: the windows on the screen of the seat whose view the host window shows, the local seat's or
+// strip, dock, bar, down }`: the windows on the screen of the seat whose view the host window shows, the local seat's
+// or
 // that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `holder` the name of
 // the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its title bar
 // (model/layout.js barOf), `title` what the title bar the shell draws over a titled window's content holds, or null for
@@ -24,7 +25,9 @@ export const setup = CHANNEL.pageToMain(
 // (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame, or null; `strip` `{ height,
 // controlsWidth }`, the host window's bar over the page's top, which drags the host window, and the width its controls
 // take from its start; `dock` `{ items, active, attention }`, the Dock's items (dock/main.js items), the id of the mod
-// whose window is that seat's key window, or null, and the ids of the mods that ask for that seat's attention; and
+// whose window is that seat's key window, or null, and the ids of the mods that ask for that seat's attention; `bar`,
+// the status bar as that seat has it, its capsule, its items and its open popover, each at its rect on the stage with
+// what it writes (status/model/status.js shownOf); and
 // `down` `{ name, why }` once deckit's core answers nothing more, or null.
 export const state = CHANNEL.mainToPage('deckit-shell:desktop-state');
 // What the pointer of a seat that is not the one shown just did, each event as it comes, between two states:
@@ -60,6 +63,13 @@ export const dock = CHANNEL.pageToMain('deckit-shell:desktop-dock', { out: 'bool
 export const glass = CHANNEL.pageToMain(
     'deckit-shell:desktop-glass',
     { materials: 'array' },
+    { guard: CHANNEL.GUARD.ANY }
+);
+// How wide the page draws a label of the status bar, `{ label, width }`, told once for each text it draws: main lays
+// the item by it (status/model/status.js barOf).
+export const label = CHANNEL.pageToMain(
+    'deckit-shell:desktop-label',
+    { label: 'string', width: 'number' },
     { guard: CHANNEL.GUARD.ANY }
 );
 // Whether the system asks for reduced motion, told as the page starts and each time that changes.

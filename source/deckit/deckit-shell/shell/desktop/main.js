@@ -12,6 +12,8 @@ import * as SEATS_MODEL from './model/seats.js';
 import { SEAT_COLOURS } from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as ROUTING from './model/routes.js';
 import { createReading } from './reading.js';
+import * as STATUS_MODEL from '../status/model/status.js';
+import { createStatus } from '../status/main.js';
 
 // How many frames a second a window's motion is drawn at.
 const FRAMES = 120;
@@ -29,14 +31,18 @@ const cut = (one, other) => {
 const REREAD = 16;
 // The parts of the chips of the seats (model/seats.js partAt).
 const CHIP_PARTS = Object.freeze(['chip', 'allow', 'deny']);
+// The part of the desktop's page that is the status bar's, told with `on`, what of the bar it is
+// (status/model/status.js partAt).
+const STATUS_PART = 'status';
 
 // `deckit` is what connect answered, `state` the shell's own state, `web` what the web engine answered (`pageFor`),
 // `host` the app's answers, `REGION` the regions mods give their children, `PAGES` the shell's pages, `OVERLAY` their
 // overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment: SHELL.stage),
 // `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL), `input` what
 // tells the machine's input and puts a seat's in a page, `reserve` what keeps a page from the machine's keyboard
-// (environment: SHELL `input`, `keys.reserve`), `read` what reads a page (environment: SHELL `read`), and `clock`
-// what draws a frame's motion: `now()` in ms and `later(next)`, next called once the next frame is due.
+// (environment: SHELL `input`, `keys.reserve`), `read` what reads a page (environment: SHELL `read`), `clock`
+// what draws a frame's motion: `now()` in ms and `later(next)`, next called once the next frame is due, and `STATUS`
+// the status bar (status/main.js), what its providers give.
 export function createDesktop({
     REGION,
     PAGES,
@@ -52,6 +58,7 @@ export function createDesktop({
     web,
     host,
     clock = { now: () => performance.now(), later: (next) => setTimeout(next, 1000 / FRAMES) },
+    STATUS = createStatus(),
 }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -65,7 +72,9 @@ export function createDesktop({
     // and where the pointer is on the stage now; `dropping`, the tile that window takes let go now, or null; `pointer`,
     // where its pointer is on the desktop, or null; `down`, where its press went until it lets go, a page of the window
     // `id` with `inside`, the page's top left from that window's frame, or a `part` of the window `id` with its `grip`,
-    // the Dock's item `id`, its `part` 'dock', or a part of the chip `id` (CHIP_PARTS); `wanted`, the window it pressed
+    // the Dock's item `id`, its `part` 'dock', a part of the chip `id` (CHIP_PARTS), or a part of the status bar, its
+    // `part` STATUS_PART and `on` what of the bar; `bar`, its open popover of the status bar, `{ item, scroll }`, or
+    // null; `wanted`, the window it pressed
     // last that another seat holds, or null; `dock`, whether the Dock is out for it, as the desktop's page tells of the
     // seat it shows and as its pointer says of any other; `panel`, the id of the panel window at the edge `right` that
     // holds its keyboard, or null, the local seat's being the machine's (`held`); and `keys`, `{ id, page }`, the page
@@ -212,6 +221,7 @@ export function createDesktop({
         deckit.mods.onChange(update);
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, update);
         REGION.onChange(update);
+        STATUS.onChange(update);
         OVERLAY.onChange(() => layout());
         // With the core down nothing on deckit works, so the desktop's page covers it and asks for a restart.
         deckit.core.onDown((why) => {
@@ -626,6 +636,7 @@ export function createDesktop({
             down: null,
             wanted: null,
             dock: false,
+            bar: null,
             panel: null,
             keys: null,
             waits: null,
@@ -641,11 +652,12 @@ export function createDesktop({
     // The host window shows the view of `seat`, the local seat following it: the stage is laid in that seat's order,
     // the desktop's page is told what is so of it, and the machine's keyboard and pointer reach the desktop's page
     // alone, the pages lying in another seat's order. With null, or the local seat, the view is the local seat's own
-    // again.
+    // again. The local seat's open popover of the status bar closes as it begins to follow.
     function follow(seat) {
         const next = seat !== LOCAL && hands.has(seat) ? seat : null;
         if (next === followed) return;
         followed = next;
+        if (next !== null) hands.get(LOCAL).bar = null;
         update();
         if (shown) focus();
     }
@@ -661,6 +673,7 @@ export function createDesktop({
         hands.delete(seat.id);
         typings.delete(seat.id);
         seated.delete(seat.id);
+        STATUS.leave(seat.id);
         for (const [source, id] of sources) if (id === seat.id) sources.delete(source);
         for (const [id, by] of pressers) if (by === seat.id) pressers.delete(id);
         update();
@@ -691,6 +704,38 @@ export function createDesktop({
     function chips() {
         const others = [...hands.keys()].filter((id) => id !== shownSeat());
         return SEATS_MODEL.chipsOf(stage.size(), others, [...asks.keys()]);
+    }
+
+    // The status bar as it is laid for `seat` (STATUS.laid), the seat's open popover kept on its hand as it is now.
+    function statusOf(seat) {
+        const hand = hands.get(seat);
+        const laid = STATUS.laid(seat, hand.bar, stage.size(), strip);
+        hand.bar = laid.open;
+        return laid;
+    }
+
+    // The part of the status bar a point of the desktop is on for `seat`, `{ part: STATUS_PART, id: null, on }`, or
+    // null.
+    function statusAt(seat, point) {
+        const { bar, popover } = statusOf(seat);
+        const on = STATUS_MODEL.partAt(bar, popover, point);
+        return on && { part: STATUS_PART, id: null, on };
+    }
+
+    // A press down of `seat` on `part` (partAt), or on none: its open popover closes where that is no part of the bar.
+    function pressedDown(hand, part) {
+        const next = STATUS_MODEL.downOutside(hand.bar, part?.part === STATUS_PART ? part.on : null);
+        if (next === hand.bar) return;
+        hand.bar = next;
+        update();
+    }
+
+    // A scroll of `seat` on the status bar moves the rows of its open popover.
+    function scrollStatus(seat, hand, dy) {
+        const next = STATUS_MODEL.scrolled(hand.bar, statusOf(seat).popover, dy);
+        if (!next || next.scroll === hand.bar.scroll) return;
+        hand.bar = next;
+        update();
     }
 
     // The seat that pressed the window last, or the one the host window shows where none did.
@@ -778,7 +823,7 @@ export function createDesktop({
     function windowUnder(seat, point) {
         const hit = stage.hit(laidFor(seat), point);
         if (!hit) return null;
-        const part = partAt(hit);
+        const part = partAt(hit, seat);
         if (part) return windows.has(part.id) && hit.page !== desktop.page ? part.id : null;
         return windowAt(hit.page)?.id ?? null;
     }
@@ -788,7 +833,8 @@ export function createDesktop({
     }
 
     // A pointer event the environment carried: the pointer is there, and a press in a window's page is the seat's
-    // press on that window. One on a chip, in the desktop's page, is recognized as any seat's is (gesture).
+    // press on that window. One on a chip or on the status bar, in the desktop's page, is recognized as any seat's is
+    // (gesture), and a scroll there moves the open popover's rows.
     function arrived(seat, hand, event) {
         if (Number.isFinite(event.x)) hand.pointer = { x: event.x, y: event.y };
         moved(seat, hand, event);
@@ -796,9 +842,12 @@ export function createDesktop({
             if (event.type === 'down') follow(null);
             return { over: null };
         }
-        const chip = event.page === desktop.page && hand.pointer ? SEATS_MODEL.partAt(chips(), hand.pointer) : null;
-        if (event.type === 'down' && chip) gesture(seat, 'down', hand.pointer, chip, { button: event.button });
-        if (event.type === 'up' && CHIP_PARTS.includes(hand.down?.part)) gesture(seat, 'up', hand.pointer, chip);
+        const at = event.page === desktop.page ? hand.pointer : null;
+        const on = at && (statusAt(seat, at) ?? SEATS_MODEL.partAt(chips(), at));
+        if (event.type === 'down') pressedDown(hand, on);
+        if (event.type === 'down' && on) gesture(seat, 'down', hand.pointer, on, { button: event.button });
+        if (event.type === 'up' && ofPage(hand.down?.part)) gesture(seat, 'up', hand.pointer, on);
+        if (event.type === 'scroll' && on?.part === STATUS_PART) scrollStatus(seat, hand, event.dy ?? 0);
         const window = event.type === 'down' ? windowAt(event.page) : null;
         if (!window || !windows.has(window.id) || MANAGER.isMinimized(seat, window.id)) return { over: null };
         return reached(seat, window);
@@ -807,8 +856,10 @@ export function createDesktop({
     // A pointer event to be carried. A press and a scroll go where `stage.hit` finds a page in what is laid for the
     // seat; a move with a button held and the up that ends it go where the press went, at the pointer's point of that
     // page where its window is now, so a window its content's drag moves stays under the pointer. A press on the
-    // desktop, the Dock or a chip leaves the seat's keyboard with its key window, wanting no other. A move with none
-    // held moves the seat's pointer alone. The Dock comes out for the seat as its pointer reaches the Dock's sliver,
+    // desktop, the Dock, a chip or the status bar leaves the seat's keyboard with its key window, wanting no other, and
+    // one on no part of the status bar closes the seat's open popover; a scroll on the bar moves that popover's rows.
+    // A move with none held moves the seat's pointer alone. The Dock comes out for the seat as its pointer reaches the
+    // Dock's sliver,
     // and stays out while it is there or on the Dock's card.
     function pointed(seat, hand, event) {
         const { type } = event;
@@ -823,7 +874,7 @@ export function createDesktop({
         if (type === 'move' || type === 'up') {
             const held = hand.down;
             if (!held) return { over: null };
-            if (held.part) gesture(seat, type, point, hit && partAt(hit));
+            if (held.part) gesture(seat, type, point, hit && partAt(hit, seat));
             else {
                 const frame = frameOn(held.id);
                 if (type === 'up' || !frame) hand.down = null;
@@ -831,18 +882,20 @@ export function createDesktop({
                 if (at) INPUT.put(held.page, { ...event, ...at });
                 reread(seat);
             }
-            if (CHIP_PARTS.includes(held.part)) return { over: 'desktop' };
+            if (ofPage(held.part)) return { over: 'desktop' };
             return { over: held.part === 'dock' ? 'dock' : held.id };
         }
+        const part = hit && partAt(hit, seat);
+        if (type === 'down') pressedDown(hand, part);
         if (!hit) return { over: null };
-        const part = partAt(hit);
         if (part) {
-            const onChip = CHIP_PARTS.includes(part.part);
+            const onPage = ofPage(part.part);
             if (type === 'down') gesture(seat, type, point, part, { count: event.count, button: event.button });
-            if (type === 'down' && (part.part === 'dock' || onChip)) hand.wanted = null;
+            if (type === 'scroll' && part.part === STATUS_PART) scrollStatus(seat, hand, event.dy ?? 0);
+            if (type === 'down' && (part.part === 'dock' || onPage)) hand.wanted = null;
             if (type === 'down') backToKey(hand);
             if (part.part === 'dock') return { over: 'dock' };
-            if (onChip) return { over: 'desktop' };
+            if (onPage) return { over: 'desktop' };
             const made = MANAGER.keyOf(seat) === part.id ? 'key' : 'held';
             return { over: part.id, ...(type === 'down' ? { key: made, holder: MANAGER.holderOf(part.id) } : {}) };
         }
@@ -980,10 +1033,13 @@ export function createDesktop({
 
     // The part the shell draws that a point of a page is on, `{ id, part }`: of the window `id`, 'bar', its title bar,
     // an edge as LAYOUT.resized names it, a button by its name, or 'buttons' between them; in the desktop's page, a
-    // part of the chip `id` (SEATS_MODEL.partAt), or 'dock', the Dock's item of the mod `id`; null for any other point.
-    function partAt({ page, x, y }) {
+    // part of the status bar as it is laid for `seat` (statusAt), a part of the chip `id` (SEATS_MODEL.partAt), or
+    // 'dock', the Dock's item of the mod `id`; null for any other point.
+    function partAt({ page, x, y }, seat) {
         const holds = (rect) => within(rect, { x, y });
         if (page === desktop.page) {
+            const status = statusAt(seat, { x, y });
+            if (status) return status;
             const chip = SEATS_MODEL.partAt(chips(), { x, y });
             if (chip) return chip;
             const items = DOCK.items();
@@ -1005,14 +1061,16 @@ export function createDesktop({
     // drag of an edge resizes it, an up on the button the press was on clicks it, and a 'down' on the title bar that
     // is the second of two, `count` 2, is a double click. A 'down' of another `button` than the first is a press on
     // the window and no more. An up on the Dock's item the press was on is the seat's click on it, and an up on the
-    // part of a chip the press was on is its press on that part (pressChip). `point` is in any
+    // part of a chip the press was on is its press on that part (pressChip), and an up on the part of the status bar
+    // the press was on is its press there: the item's provider is told, and the seat's popover opens or closes
+    // (STATUS.press). `point` is in any
     // space that holds still while the button is down, and `grab` where a 'down' is from the frame's top left, read
     // from `point` where it is not told, which holds for a point on the desktop.
     function gesture(seat, type, point, on, { count = 1, button = 0, grab = null } = {}) {
         const hand = hands.get(seat);
         if (!hand) return;
         if (type === 'down') {
-            const ofDesktop = on.part === 'dock' || CHIP_PARTS.includes(on.part);
+            const ofDesktop = on.part === 'dock' || ofPage(on.part);
             hand.down = ofDesktop && button === 0 ? { ...on } : null;
             if (ofDesktop) return;
             return byHand(seat, on.id, (window) => {
@@ -1035,6 +1093,13 @@ export function createDesktop({
             if (type === 'up' && on?.part === held.part && on.id === held.id) pressChip(seat, held);
             return;
         }
+        if (held?.part === STATUS_PART) {
+            if (type !== 'up' || on?.part !== STATUS_PART || JSON.stringify(on.on) !== JSON.stringify(held.on)) return;
+            const { open, tell } = STATUS.press(seat, hand.bar, held.on);
+            hand.bar = open;
+            tell();
+            return update();
+        }
         const window = held?.part ? windows.get(held.id) : null;
         if (!window) return;
         const [dx, dy] = [point.x - held.from.x, point.y - held.from.y];
@@ -1046,6 +1111,11 @@ export function createDesktop({
         }
         const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
         framed(seat, window, phase, LAYOUT.resized(held.frame, held.part, dx, dy, minimum), held.part);
+    }
+
+    // Whether a part is one the desktop's page draws beside the Dock: of a chip, or of the status bar.
+    function ofPage(part) {
+        return CHIP_PARTS.includes(part) || part === STATUS_PART;
     }
 
     // A seat's press on a part of a chip. An ask is put to the local seat, so 'allow' and 'deny' answer it for that
@@ -1118,6 +1188,7 @@ export function createDesktop({
             })
         );
         PROTOCOL.restart.on(fromPage(() => down && deckit.restart()));
+        PROTOCOL.label.on(fromPage(STATUS.measured));
         PROTOCOL.motion.on(
             fromPage(({ reduced: asked }) => {
                 reduced = asked;
@@ -1361,7 +1432,7 @@ export function createDesktop({
             return;
         }
         const view = MANAGER.viewOf(shownSeat());
-        const { layers: own, children } = laidOf(view, drawnNow(view), hands.get(LOCAL).dock);
+        const { layers: own, children } = laidOf(view, drawnNow(view), hands.get(LOCAL).dock, shownSeat());
         // In another seat's order the desktop's page takes the machine's pointer everywhere, and what is laid over it
         // nowhere.
         const top = own.findIndex(({ page }) => page === desktop.page);
@@ -1383,11 +1454,12 @@ export function createDesktop({
     }
 
     // What is laid of the desktop for a seat, bottom to top, as layout() tells it: `view` the windows on its screen
-    // (MANAGER.viewOf), `seen` what is drawn of each (drawnNow) and `out` whether the Dock is out for it. Answers
-    // `{ layers, children }`, `children` those
+    // (MANAGER.viewOf), `seen` what is drawn of each (drawnNow), `out` whether the Dock is out for it and `seat` the
+    // seat whose status bar takes the pointer, or null for none. Answers `{ layers, children }`, `children` those
     // the windows and the panel windows show (childrenIn).
-    function laidOf(view, seen, out) {
+    function laidOf(view, seen, out, seat = null) {
         const full = { x: 0, y: 0, ...stage.size() };
+        const status = seat === null ? null : statusOf(seat);
         const inBar = panelFrames();
         const children = childrenIn([
             ...seen.filter(({ leaving }) => !leaving),
@@ -1465,6 +1537,7 @@ export function createDesktop({
                         ...(strip.height ? [{ x: 0, y: 0, width: full.width, height: strip.height }] : []),
                         ...DOCK_MODEL.inputOf(area(), out, DOCK.items()),
                         ...chips().map(({ rect }) => rect),
+                        ...(status ? STATUS_MODEL.inputOf(status.bar, status.popover) : []),
                     ],
                 },
                 ...inBar.flatMap(({ window, frame }) => {
@@ -1484,7 +1557,7 @@ export function createDesktop({
     // seat's pointer is read against (`stage.hit`), and what a picture for it is made of.
     function laidFor(seat) {
         const view = MANAGER.viewOf(seat);
-        return OVERLAY.withOverlays(laidOf(view, rested(view), hands.get(seat).dock).layers);
+        return OVERLAY.withOverlays(laidOf(view, rested(view), hands.get(seat).dock, seat).layers);
     }
 
     // What is laid of one window or panel window alone, where it rests, whatever is over it and whichever seat's
@@ -1708,7 +1781,8 @@ export function createDesktop({
         }));
     }
 
-    // `{ windows, panels, seats, asks, following, drop, strip, dock, down }`, as the desktop's page draws it, of the
+    // `{ windows, panels, seats, asks, following, drop, strip, dock, bar, down }`, as the desktop's page draws it, of
+    // the
     // seat the host window shows. A window's frame is key as its content is (stateOf): not while an overlay window
     // holds the keyboard, which update() tells as it takes or gives it back.
     function stateOfPage() {
@@ -1716,6 +1790,7 @@ export function createDesktop({
         const key = MANAGER.keyOf(seat);
         const { moving, dropping } = hands.get(seat) ?? {};
         const active = windows.get(key)?.mod ?? null;
+        const status = statusOf(seat);
         return {
             windows: MANAGER.viewOf(seat).map(({ id, frame }) => ({
                 id,
@@ -1745,6 +1820,7 @@ export function createDesktop({
                 moving && dropping ? { tile: dropping, frame: LAYOUT.tileOf(dropping, LAYOUT.zoomedIn(area())) } : null,
             strip,
             dock: { items: DOCK.items(), active, attention: ACTIVATION.attentionOf(seat) },
+            bar: STATUS_MODEL.shownOf(status.bar, status.popover, status.items),
             down: down && { name: deckit.config.name, why: down },
         };
     }
