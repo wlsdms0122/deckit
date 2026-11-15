@@ -24,6 +24,7 @@ final class WebPageView: WKWebView {
     var inputRegion: [CGRect]? // the rects that take the pointer, from its top left; nil, all of it
     private var given = false // whether the keyboard is being handed to it
     private var isPut = false // whether a seat's pointer event is being handed to it
+    private(set) var isPressedBySeat = false // whether the press last handed to it is a seat's
     private(set) var droppedFiles: [URL] = []
     private lazy var relay = PointerRelay(view: self)
     private var relayed: NSTrackingArea?
@@ -103,6 +104,23 @@ final class WebPageView: WKWebView {
     override func cursorUpdate(with event: NSEvent) {
         guard isUnderPointer(event) else { return }
         super.cursorUpdate(with: event)
+    }
+
+
+    // A press is the machine's unless it is handed for a seat (put).
+    override func mouseDown(with event: NSEvent) {
+        isPressedBySeat = isPut
+        super.mouseDown(with: event)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        isPressedBySeat = isPut
+        super.rightMouseDown(with: event)
+    }
+
+    override func otherMouseDown(with event: NSEvent) {
+        isPressedBySeat = isPut
+        super.otherMouseDown(with: event)
     }
 
     // MARK: - Public

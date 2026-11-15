@@ -544,6 +544,19 @@ extension WebPage: WKNavigationDelegate {
 
 extension WebPage: WKUIDelegate {
     // MARK: - Lifecycle
+    // The menu WebKit opens of a press the page left to it: its own for the machine's press, and none for a press put
+    // in for a seat, which is no press at the machine. WebKit asks its delegate by this name before it opens one.
+    @objc(_webView:getContextMenuFromProposedMenu:forElement:userInfo:completionHandler:)
+    func webView(
+        _ webView: WKWebView,
+        contextMenuFrom proposed: NSMenu,
+        forElement element: Any,
+        userInfo: Any?,
+        completionHandler: @escaping (NSMenu?) -> Void
+    ) {
+        completionHandler(view.isPressedBySeat ? nil : proposed)
+    }
+
     // A window the page asks for is JavaScript's to give, as a page of the module's with WebKit's configuration for
     // it, which keeps its opener.
     func webView(
