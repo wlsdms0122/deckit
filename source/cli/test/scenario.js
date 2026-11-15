@@ -3231,6 +3231,7 @@ async function run(app, named = []) {
                 desktopShot,
                 answer,
                 allowed,
+                seatsView: local.seatsView,
                 reads: runs('reading'),
                 anchors,
                 bar: runs('desktop')

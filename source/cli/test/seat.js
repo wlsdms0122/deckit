@@ -195,6 +195,69 @@ function seat({ main, pageById, compose, desktop }) {
         }
         await compose(name, layers, options);
     };
+    // The windows of the mod `mod` the host window lays over the desktop's page, the local seat's screen, as
+    // `desktopLaid` has each: one on another seat's screen alone lies under the backdrop and is left out.
+    const laidOf = async (mod) => {
+        const laid = (await desktopLaid())?.pages ?? [];
+        const over = laid.findIndex(({ url }) => /^deckit:\/\/desktop\//.test(url ?? ''));
+        return laid
+            .slice(over + 1)
+            .filter(({ opener, name }) => opener?.startsWith(`deckit://${mod}.mod`) && /^deckit-window-/.test(name));
+    };
+    // The machine's press in the middle of what `selector` finds in the laid page `page`, the local seat's: where
+    // it pressed on the stage, or null where nothing is found there.
+    const pressIn = async (page, selector) => {
+        const session = page && (await pageById(page.id));
+        const at = await session?.evaluate(`(() => {
+            const part = document.querySelector(${JSON.stringify(selector)});
+            if (!part) return null;
+            const { x, y, width, height } = part.getBoundingClientRect();
+            return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) };
+        })()`);
+        if (!at) return null;
+        for (const type of ['down', 'up'])
+            await main(`return webkit.sendMouse(${page.id}, ${JSON.stringify({ type, ...at })})`);
+        return { x: page.rect.x + at.x, y: page.rect.y + at.y };
+    };
+    // The Seats mod's item in the status bar as the capsule draws it, `{ name, text, x, y }`, what it is called, what
+    // it writes and its middle on the stage, or null while there is none.
+    const seatsItem = async () => {
+        const [bar] = await laidOf('status-bar');
+        const drawn = await (bar && (await pageById(bar.id)))?.evaluate(`(() => {
+            const item = document.querySelector('.status-bar-item[data-item="seats"]');
+            if (!item) return null;
+            const { x, y, width, height } = item.getBoundingClientRect();
+            const name = item.getAttribute('aria-label');
+            return { name, text: item.textContent, x: x + width / 2, y: y + height / 2 };
+        })()`);
+        if (!drawn) return null;
+        return { ...drawn, x: Math.round(bar.rect.x + drawn.x), y: Math.round(bar.rect.y + drawn.y) };
+    };
+    // The Seats mod's view on the local seat's screen, as `desktopLaid` has it, shown by the machine's press on the
+    // mod's item where it is not there; null where no item stands or the view did not come within `within` ms.
+    const seatsShown = async (within = 3000) => {
+        const [shown] = await laidOf('seats');
+        if (shown) return shown;
+        const [bar] = await laidOf('status-bar');
+        if (!(await pressIn(bar, '.status-bar-item[data-item="seats"]'))) return null;
+        return until(async () => (await laidOf('seats'))[0], within);
+    };
+    // The rows of that view as it draws them, `{ asks, seats }`: each ask's user's name, and each seat's `{ name,
+    // says, colour, idle, following }`; both empty where the view is not shown.
+    const seatsRows = async () => {
+        const view = await seatsShown();
+        const rows = await (view && (await pageById(view.id)))?.evaluate(`({
+            asks: [...document.querySelectorAll('.seats-ask .seats-name')].map((node) => node.textContent),
+            seats: [...document.querySelectorAll('.seats-seat')].map((node) => ({
+                name: node.querySelector('.seats-name').textContent,
+                says: node.querySelector('.seats-says').textContent,
+                colour: node.style.getPropertyValue('--seats-colour'),
+                idle: node.hasAttribute('data-idle'),
+                following: node.getAttribute('aria-pressed') === 'true',
+            })),
+        })`);
+        return rows || { asks: [], seats: [] };
+    };
     // The users that ask to sit, by id, as the desktop's page draws their chips at its bottom right.
     const asksNow = () =>
         desktop().evaluate(
@@ -254,6 +317,7 @@ function seat({ main, pageById, compose, desktop }) {
         pressAt,
         answer,
         allowed,
+        seatsView: { item: seatsItem, shown: seatsShown, rows: seatsRows, pressIn },
     };
 }
 

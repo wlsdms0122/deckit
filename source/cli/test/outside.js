@@ -59,6 +59,7 @@ async function run({
     desktopShot,
     answer,
     allowed,
+    seatsView,
     reads,
     anchors,
     bar,
@@ -765,6 +766,7 @@ async function run({
             await inPage(page, `document.querySelector('#${FIELD}')?.remove()`);
         if (bar) await barChecks({ seatA });
         await viewChecks({ seatA, seatB });
+        await seatsChecks({ seatA, seatB });
         seatA.as('detach');
         seatB.as('detach');
         check('outside: both terminals detach', (await seatA.gone) === 0 && (await seatB.gone) === 0, '');
@@ -847,10 +849,10 @@ async function run({
         await send('test-item', null);
         const alone = await until(async () => {
             const now = await capsuleNow();
-            return !now.joined && now.bar?.width === wide.clock.width + 4 && now;
+            return !now.joined && now.bar?.width === wide.bar.width - 57 - 4 && now;
         }, 6000);
         check(
-            'outside: as the room is given back and the item goes the status bar is its clock alone',
+            'outside: as the room is given back and the item goes the status bar is as wide as what is left in it',
             alone,
             JSON.stringify(await capsuleNow())
         );
@@ -869,8 +871,12 @@ async function run({
                 const now = await capsuleNow();
                 return wanted(now) && now;
             }, time)) || (await capsuleNow());
-        const fixedWhole = ({ bar: laid, joined }) =>
-            joined?.region === 'fixed' && joined.x === 2 && joined.width === 57 && laid?.width === wide.bar.width;
+        // Whole in the fixed region, right before the clock, which ends the capsule: whatever else the bar holds.
+        const fixedWhole = ({ bar: laid, joined, clock }) =>
+            joined?.region === 'fixed' &&
+            joined.width === 57 &&
+            joined.x + joined.width + 4 === clock?.x &&
+            clock.x + clock.width + 2 === laid?.width;
         const scrolls = ({ bar: laid, joined }) => joined?.region === 'scrolled' && laid?.width === room;
         // The local seat's context press on the item, and the press on the one entry its menu offers.
         const locally = async (wanted, shot = null) => {
@@ -979,6 +985,110 @@ async function run({
     // its anchor toggles it for that seat alone: shown for it too, its keyboard stays the first seat's; a press outside
     // it puts it away for the seat that pressed, the second seat's next toggle for the second, and the one after shows
     // it for the second again and not for the first, which put it away.
+    // The Seats mod's item and its view, with two seats beside the local one: the item and its count, the view the
+    // local seat's press on the item shows, a user that asks as a row there, an attached seat's press on Allow as it
+    // reads it, and a seat followed by a press on its row, which an attached seat's press on that row ends.
+    async function seatsChecks({ seatA, seatB }) {
+        const { item, shown, rows, pressIn } = seatsView;
+        const ASKER = 'outside-asker';
+        const desk = ((await desktopLaid())?.pages ?? []).find(({ url }) => /^deckit:\/\/desktop\//.test(url ?? ''));
+        const followingNow = () =>
+            inPage(desk?.id, `document.querySelector('.deckit-following:not([hidden]) span')?.textContent ?? ''`);
+        const refIn = (text, name) =>
+            new RegExp(`^ *button "${name}"(?: \\[[^\\]]*\\])? (\\d+\\.\\d+)`, 'm').exec(text)?.[1] ?? null;
+        // The view as `seat` reads it, shown by its press on the item as it reads that where it is not on its screen.
+        const readBy = (seat) => {
+            const desktop = seat.as('read', 'desktop');
+            const view = /^panel (w\d+) .* seats at /m.exec(desktop)?.[1];
+            if (view) return seat.as('read', 'window', view);
+            const band = /^panel (w\d+) .* status-bar top at /m.exec(desktop)?.[1];
+            const ref = band && refIn(seat.as('read', 'window', band), 'Seats[^"]*');
+            if (ref) seat.as('press', ref);
+            return '';
+        };
+        const stood = await until(async () => {
+            const now = await item();
+            return now && /2/.test(now.name) && now;
+        }, 6000);
+        await desktopShot('seats-item');
+        check(
+            'outside: while seats sit beside the first the status bar has the Seats item, with their count',
+            /^Seats\b/.test(stood?.name ?? '') && /2/.test(stood.text),
+            JSON.stringify(stood || (await item()))
+        );
+        const view = await shown();
+        const sat = await rows();
+        check(
+            "outside: the local seat's press on the item shows the view under it, a row for every seat in the order " +
+                'they sat, each in a colour of its own with its name',
+            view &&
+                view.rect.y > (stood?.y ?? Infinity) &&
+                same(
+                    sat.seats.slice(1).map(({ name, says, idle, following }) => [name, says, idle, following]),
+                    [
+                        ['First', '', false, false],
+                        ['Second', '', false, false],
+                    ]
+                ) &&
+                new Set(sat.seats.map(({ colour }) => colour)).size === 3 &&
+                sat.seats.every(({ colour }) => /^var\(--deckit-seat-\w+\)$/.test(colour)),
+            JSON.stringify({ view, sat })
+        );
+        const asker = await connect(socket);
+        const sitting = asker
+            .authenticate({ principal: ASKER, ...userWithKey(ASKER, 'Asker') })
+            .catch((error) => error);
+        const asked = await until(async () => {
+            const [now, wants] = [await rows(), await item()];
+            return now.asks.includes('Asker') && /attention/.test(wants?.name ?? '') && { now, wants };
+        }, 8000);
+        await desktopShot('seats-ask');
+        check(
+            'outside: with asking on a user that asks to sit is a row of the view, and the item asks for attention',
+            !!asked,
+            JSON.stringify(asked || { now: await rows(), wants: await item() })
+        );
+        let read = '';
+        const allow = await until(() => {
+            read = readBy(seatA);
+            return refIn(read, 'Allow Asker');
+        }, 8000);
+        const pressed = allow ? seatA.as('press', allow) : '';
+        const admitted = await Promise.race([sitting, sleep(8000)]);
+        const greeted = await until(async () => /Asker/.test((await item())?.text ?? ''), 3000);
+        check(
+            'outside: an attached seat reads the view, its rows buttons by name, and its press on Allow seats the ' +
+                'user that asks, whose name the item says as it sits',
+            !!refIn(read, 'Deny Asker') &&
+                !!refIn(read, 'First') &&
+                !!refIn(read, 'Second') &&
+                admitted?.seat?.user.id === ASKER &&
+                greeted,
+            JSON.stringify({ read, pressed, admitted: admitted?.message ?? admitted, item: await item() })
+        );
+        if (admitted?.seat) {
+            await asker.request('runner/started', started);
+            await asker.request('runner/quit', {});
+        } else asker.close();
+        const left = await until(async () => (await rows()).seats.length === 3, 5000);
+        const pressedRow = await pressIn(await shown(), '.seats-seat[aria-label^="First"]');
+        const followed = await until(async () => (await followingNow()) === 'Following First', 4000);
+        await desktopShot('seats-followed');
+        let byB = '';
+        const marked = await until(() => {
+            byB = readBy(seatB);
+            return refIn(byB, 'First, following');
+        }, 8000);
+        const ending = marked ? seatB.as('press', marked) : '';
+        const ended = await until(async () => (await followingNow()) === '', 4000);
+        check(
+            "outside: a press on a seat's row follows that seat, the row says so to every seat, and a press on it " +
+                'again ends it',
+            left && pressedRow && followed && marked && ended,
+            JSON.stringify({ left, pressedRow, followed, byB, ending, following: await followingNow() })
+        );
+    }
+
     async function viewChecks({ seatA, seatB }) {
         const mod = await anchors();
         const mark = (name) => mod?.evaluate(`document.documentElement.dataset.${name} ?? ''`);
