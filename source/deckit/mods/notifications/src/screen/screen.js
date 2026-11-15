@@ -103,15 +103,29 @@ function screen(shell, center) {
     list.setAttribute('role', 'region');
     list.setAttribute('aria-label', 'Notifications');
     shell.ui.addStyle(STYLE);
-    // The center's rows, by the notification's id, and the one the pointer or the keys are on.
+    // The center's rows, by the notification's id, and the one the pointer or the keys are on. A row that shows what
+    // it showed is left as it is, so what a reader named in it stands while the record changes around it.
+    const drew = new Map(); // a row's notification id -> what its card showed as it was last drawn (shows)
     const rows = ui.list({
         role: 'listbox',
         key: (notification) => notification.id,
         create: (notification) => card(notification, { row: true }),
-        update: (made, notification) => made.replaceChildren(...partsOf(notification, { row: true })),
+        update: (made, notification) => {
+            if (drew.get(notification.id) === shows(notification)) return;
+            made.replaceChildren(...partsOf(notification, { row: true }));
+        },
         animated: true,
     });
     rows.element.classList.add('notifications-rows');
+    // The center's head, its button and the empty record's words, each made once.
+    const head = element('div', 'notifications-head');
+    const heading = element('span', '', 'Notifications');
+    const clear = button('Clear All', () => center.clear());
+    const empty = ui.emptyState({
+        icon: ui.icon('bell', { size: 44 }),
+        title: 'No notifications',
+        hint: 'Notifications from your mods appear here.',
+    }).element;
     let shown = []; // the notifications the rows show, in order
     // A row is pressed as the press is let go, by its card's click, not as the list picks on the press.
     const choice = ui.listbox(rows.element, {
@@ -260,21 +274,29 @@ function screen(shell, center) {
 
     // The row the pointer or the keys are on stays on its index as rows come and go.
     function drawList() {
-        const head = element('div', 'notifications-head', 'Notifications');
         shown = center.list();
-        if (shown.length) head.append(button('Clear All', () => center.clear()));
+        for (const id of [...drew.keys()]) if (!shown.some((each) => each.id === id)) drew.delete(id);
         rows.set(shown);
         choice.set(
             shown.map(({ id }) => ({ element: rows.elementOf(id), disabled: false })),
             { active: Math.min(choice.active(), shown.length - 1) }
         );
-        const empty = ui.emptyState({
-            icon: ui.icon('bell', { size: 44 }),
-            title: 'No notifications',
-            hint: 'Notifications from your mods appear here.',
-        }).element;
-        list.replaceChildren(head, shown.length ? rows.element : empty);
+        hold(head, shown.length ? [heading, clear] : [heading]);
+        hold(list, [head, shown.length ? rows.element : empty]);
         fitList();
+    }
+
+    // `parent` holds `children` in that order: left untouched where it does already.
+    function hold(parent, children) {
+        const now = parent.children;
+        if (now.length === children.length && children.every((child, at) => now[at] === child)) return;
+        parent.replaceChildren(...children);
+    }
+
+    // What the card of `notification` shows (MODEL.cardOf), a row's with when it came, as one text.
+    function shows(notification, { row = true } = {}) {
+        const given = { icon: icons.get(notification.mod.id) ?? '', time: row ? when(notification) : '' };
+        return JSON.stringify(MODEL.cardOf(notification, given));
     }
 
     // Made once per toast, coming in from the right edge, where it lives, by the kit's `come`; it leaves by its `go`
@@ -299,22 +321,22 @@ function screen(shell, center) {
         return made;
     }
 
-    // What a card shows: the sender's icon, the title, the body, the actions and the close button. A row tells when
-    // its notification came.
+    // What a card shows (MODEL.cardOf): the sender's icon, the title, the body, the actions and the close button. A row
+    // tells when its notification came, and what it shows is kept to tell whether it is to be drawn anew.
     function partsOf(notification, { row }) {
+        const text = shows(notification, { row });
+        if (row) drew.set(notification.id, text);
+        const { title, body, sender, icon, time, actions } = JSON.parse(text);
         const words = element('div', 'notifications-words');
         const titleRow = element('div', 'notifications-title-row');
-        titleRow.append(element('div', 'notifications-title', notification.title || notification.mod.name));
-        if (row) titleRow.append(element('div', 'notifications-time', when(notification)));
+        titleRow.append(element('div', 'notifications-title', title));
+        if (time) titleRow.append(element('div', 'notifications-time', time));
         words.append(titleRow);
-        if (notification.body) words.append(element('div', 'notifications-body', notification.body));
-        const icon = ui.appIcon(icons.get(notification.mod.id) ?? '', { alt: notification.mod.name });
-        if (notification.actions.length) {
-            const actions = element('div', 'notifications-actions');
-            notification.actions.forEach((action, index) =>
-                actions.append(button(action.title, () => center.press(notification.id, index)))
-            );
-            words.append(actions);
+        if (body) words.append(element('div', 'notifications-body', body));
+        if (actions.length) {
+            const line = element('div', 'notifications-actions');
+            actions.forEach((label, index) => line.append(button(label, () => center.press(notification.id, index))));
+            words.append(line);
         }
         const close = ui.iconButton({
             icon: ui.icon('x', { size: 14 }),
@@ -324,7 +346,7 @@ function screen(shell, center) {
         }).element;
         close.classList.add('notifications-close');
         heldBack(close);
-        return [icon, words, close];
+        return [ui.appIcon(icon, { alt: sender }), words, close];
     }
 
     // The app icon of the mod `id` read once, and kept: '' where it has none or it is not read.

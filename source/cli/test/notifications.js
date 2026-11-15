@@ -373,6 +373,19 @@ async function main() {
                 SCREEN.CARD.plain + SCREEN.CARD.body + SCREEN.CARD.actions,
         null
     );
+    const shows = [
+        SCREEN.cardOf({ title: '', mod: { id: 'c', name: 'Calendar' }, actions: [{ title: 'Later', command: 'l' }] }),
+        SCREEN.cardOf({ title: 'Standup', body: 'now', mod: { id: 'c', name: 'Calendar' } }, { icon: 'i', time: '9' }),
+    ];
+    check(
+        "a card shows its title, the sender's name for none, its body, icon and time, and its actions' titles",
+        json(shows) ===
+            json([
+                { title: 'Calendar', body: '', sender: 'Calendar', icon: '', time: '', actions: ['Later'] },
+                { title: 'Standup', body: 'now', sender: 'Calendar', icon: 'i', time: '9', actions: [] },
+            ]),
+        shows
+    );
 
     await screenChecks({ check, json, mods });
 
@@ -427,11 +440,14 @@ async function screenChecks({ check, json, mods }) {
         }),
         iconButton: ({ title, onClick }) => ({ element: Object.assign(element('button'), { title, onClick }) }),
         motion: { come: () => {}, go: () => ({ finished: Promise.resolve() }), glide: (_nodes, then) => then() },
-        list: ({ key, create }) => {
+        list: ({ key, create, update }) => {
             const rows = new Map();
             const list = element('div');
             const set = (items) => {
-                for (const each of items) if (!rows.has(key(each))) rows.set(key(each), create(each));
+                for (const each of items) {
+                    if (rows.has(key(each))) update(rows.get(key(each)), each);
+                    else rows.set(key(each), create(each));
+                }
                 list.children = items.map((each) => rows.get(key(each)));
             };
             return { element: list, set, elementOf: (id) => rows.get(id) };
@@ -597,7 +613,35 @@ async function screenChecks({ check, json, mods }) {
                 ]),
         { taken, calls }
     );
-    list.children[0].children[0].onClick();
+    // What a seat read of the center names its buttons: they stand as the record changes around them.
+    const rowOf = (id) =>
+        list.children[1].children.find((row) => row.children[1].children[0].children[0].textContent === id);
+    const held = {
+        head: list.children[0],
+        clear: list.children[0].children.at(-1),
+        remove: rowOf('x').children.at(-1),
+    };
+    record.unshift(note('z', { posted: 0 }));
+    told();
+    await settle();
+    const stood = {
+        rows: list.children[1].children.length,
+        head: list.children[0] === held.head,
+        clear: list.children[0].children.at(-1) === held.clear,
+        remove: rowOf('x').children.at(-1) === held.remove,
+    };
+    record.find(({ id }) => id === 'x').body = 'now with words';
+    told();
+    await settle();
+    check(
+        'as a notification comes the head, Clear All and the rows that stood keep their elements, and a row whose ' +
+            'notification says another thing is drawn anew',
+        json(stood) === json({ rows: 3, head: true, clear: true, remove: true }) &&
+            rowOf('x').children.at(-1) !== held.remove &&
+            rowOf('x').children[1].children[1]?.textContent === 'now with words',
+        stood
+    );
+    held.clear.onClick();
     record.length = 0;
     told();
     await settle();

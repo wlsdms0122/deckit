@@ -19,6 +19,14 @@ function guessOf({ body = '', actions = [] }) {
     return CARD.plain + (body ? CARD.body : 0) + (actions.length ? CARD.actions : 0);
 }
 
+// What the card of `notification` shows, as plain data: `{ title, body, sender, icon, time, actions }`, `title` the
+// sender's name where it has none, `icon` the sender's app icon as it is read, '' for none, `time` when it came as a
+// row writes it, '' on a toast, and `actions` the titles of its actions. A card that shows the same is not drawn anew.
+function cardOf({ title, body = '', mod, actions = [] }, { icon = '', time = '' } = {}) {
+    const titles = actions.map((action) => action.title);
+    return { title: title || mod.name, body, sender: mod.name, icon, time, actions: titles };
+}
+
 // The center's view, `{ width, height }`: `rows` the heights of its rows in order, none for an empty record. It is
 // never higher than MOST.
 function centerSize(rows) {
@@ -36,4 +44,4 @@ function stacked(heights) {
     return heights.reduce((sum, each) => sum + each, 0) + Math.max(0, heights.length - 1) * GAP;
 }
 
-module.exports = { WIDTH, GAP, ROOM, HEAD, EMPTY, MOST, CARD, guessOf, centerSize, toastsSize };
+module.exports = { WIDTH, GAP, ROOM, HEAD, EMPTY, MOST, CARD, guessOf, cardOf, centerSize, toastsSize };
