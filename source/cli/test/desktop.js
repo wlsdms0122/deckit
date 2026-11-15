@@ -1713,7 +1713,7 @@ function levelChecks(LEVELS, check) {
 // (model/anchored), as plain data: the shape kept, whose an anchor is, a view's size held to its limits, its place
 // under its anchor and inside the stage, and what stands as an anchor moves, goes or is another mod's.
 function anchoredChecks({ ANCHOR, ANCHORED }, check) {
-    const { VIEW, toldBy, isForeign, sizeOf, placeOf, standingOf } = ANCHORED;
+    const { VIEW, PLACES, isPlace, isView, toldBy, isForeign, sizeOf, placeOf, placedAt, standingOf } = ANCHORED;
     const rect = (x, y, width, height) => ({ x, y, width, height });
     const written = (value) => JSON.stringify(value);
     const told = [{ id: 'clock', rect: { ...rect(100, 2, 60, 16), more: 1 }, mod: 'clock', extra: true }];
@@ -1869,6 +1869,80 @@ function anchoredChecks({ ANCHOR, ANCHORED }, check) {
             circled.frames.size === 0 &&
             circled.anchors.length === 0,
         { chained: [...chained.frames], circled: [...circled.frames] }
+    );
+
+    // The places, on that stage and on one with no bar over the desktop.
+    const bare = { stage: { width: 800, height: 500 }, desktop: rect(0, 0, 800, 500) };
+    const tight = { stage: { width: 200, height: 60 }, desktop: rect(0, 28, 200, 32) };
+    const places = {
+        right: placedAt(bounds, 'top-right', size),
+        left: placedAt(bounds, 'top-left', size),
+        bareRight: placedAt(bare, 'top-right', size),
+        bareLeft: placedAt(bare, 'top-left', size),
+    };
+    check(
+        "a view at the place top-right stands 8 under the desktop's top and 8 inside the stage's right side, one at " +
+            "top-left 8 inside its left, under the host's bar and with none",
+        written(places) ===
+            written({
+                right: rect(472, 36, 320, 200),
+                left: rect(8, 36, 320, 200),
+                bareRight: rect(472, 8, 320, 200),
+                bareLeft: rect(8, 8, 320, 200),
+            }),
+        places
+    );
+    const held = [
+        placedAt(bounds, 'top-right', { width: 100, height: 10 }),
+        placedAt(bounds, 'top-right', { width: 900, height: 900 }),
+        placedAt(bare, 'top-left', { width: 900, height: 900 }),
+        placedAt(tight, 'top-right', size),
+        placedAt(tight, 'top-left', size),
+    ];
+    check(
+        'a view at a place is held to the sizes of a view under an anchor, so it stays 8 inside the stage and above ' +
+            "the desktop's bottom",
+        written(held) ===
+            written([
+                rect(552, 36, 240, 80),
+                rect(312, 36, 480, 456),
+                rect(8, 8, 480, 484),
+                rect(8, 36, 184, 16),
+                rect(8, 36, 184, 16),
+            ]),
+        held
+    );
+    const none = [null, undefined, '', 'bottom-right', 'right', 'toString', 7, {}];
+    check(
+        'the places are top-right and top-left and no other name is one, and a panel window with an anchor or a ' +
+            'place is a view',
+        Object.keys(PLACES).join() === 'top-right,top-left' &&
+            Object.keys(PLACES).every(isPlace) &&
+            none.every((name) => !isPlace(name)) &&
+            isView({ anchor: null, place: 'top-right' }) &&
+            isView({ anchor: { mod: 'bar', id: 'clock' }, place: null }) &&
+            !isView({ anchor: null, place: null }) &&
+            !isView({}),
+        none.filter(isPlace)
+    );
+    // A view of `bell` at a place, which names an anchor in its own content for `clock`.
+    const toast = {
+        id: 7,
+        mod: 'bell',
+        anchors: [{ id: 'more', rect: rect(10, 20, 100, 30), mod: 'clock' }],
+        content: null,
+        anchor: null,
+        place: 'top-right',
+        size,
+    };
+    const placed = standingOf(bounds, [toast, view(8, 'clock', { mod: 'bell', id: 'more' })]);
+    check(
+        'a view at a place stands with no anchor told, and an anchor it tells stands in it with the view bound to it',
+        written(placed.frames.get(7)) === written(rect(472, 36, 320, 200)) &&
+            written(placed.anchors.map(({ window, rect: at }) => [window, at])) ===
+                written([[7, rect(482, 56, 100, 30)]]) &&
+            written(placed.frames.get(8)) === written(rect(262, 94, 320, 200)),
+        { frames: [...placed.frames], anchors: placed.anchors }
     );
 }
 
@@ -2036,6 +2110,63 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
         gone.nowhere && gone.shown === false && back !== null && nowhere(),
         { gone, back, at: standsAt() }
     );
+
+    // A view of `bell` at the place top-right, opened activating for nobody.
+    const toast = windowOf(5, 'bell', {
+        level: 'panel',
+        edge: null,
+        anchor: null,
+        place: 'top-right',
+        size: { width: 300, height: 120 },
+    });
+    desk.desktop.openPanel(toast, { activates: false });
+    const toastAt = () => desk.desktop.control.panels().find(({ id }) => id === 5)?.frame ?? null;
+    const placed = {
+        at: toastAt(),
+        laid: desk.laid().find(({ page }) => page?.name === 'content-5'),
+        drawn: desk.page().panels.find(({ id }) => id === 5),
+        told: desk.desktop.stateOf(toast),
+        names: names(),
+    };
+    check(
+        "a view at the place top-right stands 8 under the bar and 8 inside the stage's right side with no anchor " +
+            'told: its content is laid over the panel windows at an edge, cut to the corners of a view, taking the ' +
+            'pointer over all of it, its material is drawn, and it is told it is shown and not key',
+        written(placed.at) === written(rect(892, 36, 300, 120)) &&
+            written(placed.laid?.rect) === written(placed.at) &&
+            placed.laid.clip.cornerRadius === 12 &&
+            placed.laid.input === undefined &&
+            placed.names.indexOf('content-5') > placed.names.indexOf('content-4') &&
+            written(placed.drawn) === written({ id: 5, edge: null, frame: placed.at, radius: 12 }) &&
+            placed.told.shown === true &&
+            placed.told.key === false &&
+            placed.told.width === 300 &&
+            placed.told.height === 120,
+        placed
+    );
+    const guest = desk.sit('s2');
+    const start = desk.puts.length;
+    await desk.enter(guest, pointer('down', { x: 900, y: 100 }));
+    await desk.enter(guest, pointer('up', { x: 900, y: 100 }));
+    const taken = desk.puts.slice(start).map(({ page }) => page);
+    await desk.enter(guest, pointer('down', { x: 600, y: 700 }));
+    await desk.enter(guest, pointer('up', { x: 600, y: 700 }));
+    const stays = written(toastAt());
+    toast.size = { width: 900, height: 900 };
+    desk.desktop.update();
+    const regrown = toastAt();
+    desk.leave(guest);
+    desk.desktop.closePanel(toast);
+    check(
+        "a view at a place opened activating for nobody is on every seat's screen: the press of any reaches its " +
+            'content, no press outside it puts it away, it is placed again at the size its mod asks, and it goes as ' +
+            'it closes',
+        taken.join() === 'content-5,content-5' &&
+            stays === written(rect(892, 36, 300, 120)) &&
+            written(regrown) === written(rect(712, 36, 480, 756)) &&
+            toastAt() === null,
+        { taken, stays, regrown, at: toastAt() }
+    );
 }
 
 // What a seat reads of the desktop, over a reader that answers one document a page: the desktop, a window and a node
@@ -2157,6 +2288,19 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
             on(2) === '' &&
             showing.take('me') === null,
         left
+    );
+    const stack = createShowing();
+    for (const seat of ['me', 'you']) stack.addSeat(seat);
+    stack.open(1, { seat: 'me' });
+    stack.open(2, { activates: false });
+    stack.open(3, { activates: false });
+    stack.show(3, 'you');
+    const stacked = [stack.stackedOn('me', [1, 2, 3]), stack.stackedOn('you', [2, 3]), stack.stackedOn(null, [1, 2])];
+    check(
+        "on a seat's screen the view shown for it by activation lies over those shown for every seat, which lie in " +
+            'the order they opened',
+        JSON.stringify(stacked) === '[[2,3,1],[2,3],[1,2]]',
+        stacked
     );
 }
 
@@ -2380,6 +2524,31 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
             'and no request that follows no input',
         put === '' && (await on()) === '',
         { put, on: await on() }
+    );
+
+    // A view of `bell` at a place, shown for every seat, which covers where the view of `clock` stands.
+    const toast = windowOf(7, 'bell', {
+        level: 'panel',
+        edge: null,
+        anchor: null,
+        place: 'top-right',
+        size: { width: 480, height: 300 },
+    });
+    desk.desktop.openPanel(toast, { activates: false });
+    await asks(s1);
+    desk.desktop.togglePanel(view);
+    const stacks = {
+        over: (await press(s1, inView)).over,
+        under: (await press(s2, inView)).over,
+        on: await on(),
+    };
+    await press(s1, outside);
+    desk.desktop.closePanel(toast);
+    check(
+        "a view shown for a seat by activation lies over a view at a place on that seat's screen, though it opened " +
+            'first: its press there reaches it, and that of a seat it is not shown for reaches the view at the place',
+        stacks.over === 3 && stacks.under === 7 && stacks.on === 's1' && (await on()) === '',
+        stacks
     );
 
     // The local seat: the machine's keyboard goes to the view shown for it and comes back as it is put away.

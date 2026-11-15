@@ -374,6 +374,28 @@ async function main() {
             desktop.panels.length === panelsOpen + 1,
         refusals
     );
+    const placed = shell.fromPage('open', pages.b, { name: 'placed', level: 'panel', place: 'top-right', width: 300 });
+    const atPlace = desktop.panels.at(-1);
+    const placedOpen = desktop.panels.length;
+    const unplaced = [
+        refusalOf({ name: 'nowhere', place: 'middle' }),
+        refusalOf({ name: 'both', place: 'top-right', anchor: { mod: 'a', id: 'free' } }),
+    ];
+    const level = shell.fromPage('open', pages.b, { name: 'level', place: 'top-right' });
+    check(
+        'a panel window opened with a place stands there, as the desktop places it, with no edge and no anchor; a ' +
+            'place the desktop does not name, and a place with an anchor, are refused INVALID_ARGUMENT and open ' +
+            'nothing; a window at another level has no place',
+        atPlace?.id === placed.id &&
+            atPlace.edge === null &&
+            atPlace.anchor === null &&
+            atPlace.place === 'top-right' &&
+            atSide.place === null &&
+            JSON.stringify(unplaced) === '["INVALID_ARGUMENT","INVALID_ARGUMENT"]' &&
+            desktop.panels.length === placedOpen &&
+            desktop.opened.find(({ id }) => id === level.id)?.place === null,
+        { atPlace, unplaced }
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);
@@ -475,6 +497,7 @@ function windowsOver(createWindows) {
         togglePanel: (window) => desktop.panelsToggled.push(window.id),
         setAnchors: (window, anchors) => desktop.anchors.push({ id: window.id, anchors }),
         refusesAnchor: (mod, name) => desktop.foreign.has(`${mod}:${name.mod}/${name.id}`),
+        isPlace: (name) => name === 'top-right',
         keyPanel: () => null,
         toDesktop: () => {},
         localSeat: 'local',

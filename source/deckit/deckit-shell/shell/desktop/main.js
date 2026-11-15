@@ -72,7 +72,7 @@ export function createDesktop({
     // of the window `id` that took its last press there, where its keys and text go while that window holds its
     // keyboard, or null for the window's content, the local seat's being the machine's; `buttons`, those of its
     // pointer that are held now; `key`, its key window as update() last saw it; and `waits`, a promise of the turn of
-    // its last event that is not done, or null. The view under an anchor shown for it is SHOWING's.
+    // its last event that is not done, or null. The view shown for it is SHOWING's.
     const hands = new Map();
     const COLOURS = COLOURS_MODEL.createColours(SEAT_COLOURS); // the colour each seat here is told apart by
     let tells = null; // what deckit answered the shell's serving with: what tells a seat
@@ -99,7 +99,7 @@ export function createDesktop({
     };
     const MANAGER = WM.createWindowManager(GIVING);
     const ACTIVATION = ACTIVATION_MODEL.createActivation();
-    // On which seats' screens each view under an anchor is, and which seat holds its keyboard.
+    // On which seats' screens each view is, and which seat holds its keyboard.
     const SHOWING = SHOWING_MODEL.createShowing(GIVING);
     // What each of the shell's keys does, by its id, to the key window of the seat that pressed it. Close Window puts
     // away the view shown for that seat where there is one, and closes nothing then.
@@ -255,14 +255,15 @@ export function createDesktop({
         orderFront(window, { activates });
     }
 
-    // A panel window stands at its edge, or under the anchor it binds by (`anchor`, ANCHORED), where panelFrames()
-    // places it, in front of every normal window: its content lies on the material the desktop's page draws for it,
-    // cut to its frame rounded as radiusOf has it. One in the bar is never key; one at the right edge takes the
-    // keyboard as it opens, as orderFront gives it. A view under an anchor is on the screens it is shown for (SHOWING):
-    // with `activates` false every seat's, else that of the seat its mod acts for, as orderFrontPanel shows.
+    // A panel window stands at its edge, or as a view under the anchor it binds by (`anchor`) or at the place it names
+    // (`place`, ANCHORED), where panelFrames() places it, in front of every normal window: its content lies on the
+    // material the desktop's page draws for it, cut to its frame rounded as radiusOf has it. One in the bar is never
+    // key; one at the right edge takes the keyboard as it opens, as orderFront gives it. A view is on the screens it
+    // is shown for (SHOWING): with `activates` false every seat's, else that of the seat its mod acts for, as
+    // orderFrontPanel shows.
     function openPanel(window, { activates = true } = {}) {
         panels.set(window.id, window);
-        if (window.anchor) SHOWING.open(window.id, { activates });
+        if (ANCHORED.isView(window)) SHOWING.open(window.id, { activates });
         if (!orderFrontPanel(window, { activates })) update();
     }
 
@@ -276,12 +277,11 @@ export function createDesktop({
     }
 
     // A panel window at the right edge takes the keyboard from the desktop where `activates` is true and its mod may
-    // activate for the local seat, the host window coming up; one in the bar stands where it is. A view under an
-    // anchor is shown, where `activates` is true, for the seat its mod acts for. Answers whether the desktop was laid
-    // again for it.
+    // activate for the local seat, the host window coming up; one in the bar stands where it is. A view is shown,
+    // where `activates` is true, for the seat its mod acts for. Answers whether the desktop was laid again for it.
     function orderFrontPanel(window, { activates = true } = {}) {
         if (!panels.has(window.id) || !activates) return false;
-        if (window.anchor) return shownBy(window, SHOWING.show);
+        if (ANCHORED.isView(window)) return shownBy(window, SHOWING.show);
         if (window.edge !== 'right') return false;
         if (!ACTIVATION.mayActivate(LOCAL, window.mod)) return false;
         held = window.id;
@@ -290,10 +290,10 @@ export function createDesktop({
         return true;
     }
 
-    // A view under an anchor, for the seat its mod acts for: put away where it is shown by activation, shown where it
-    // is not. Nothing for any other window.
+    // A view, for the seat its mod acts for: put away where it is shown by activation, shown where it is not. Nothing
+    // for any other window.
     function togglePanel(window) {
-        if (panels.has(window.id) && window.anchor) shownBy(window, SHOWING.toggle);
+        if (panels.has(window.id) && ANCHORED.isView(window)) shownBy(window, SHOWING.toggle);
     }
 
     // A view shown or toggled, `rule` of SHOWING, for the seat its mod acts for (ACTIVATION.causeOf), and for none
@@ -561,7 +561,7 @@ export function createDesktop({
 
     // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` while the
     // keyboard of the seat that holds it is on it, not away (`away`), its size, and where its buttons stand over its
-    // top; a panel window is key while it holds some seat's keyboard and has no buttons, and a view under an anchor is
+    // top; a panel window is key while it holds some seat's keyboard and has no buttons, and a view is
     // shown only while it stands on some seat's screen, told the size it would stand at while it does not. A panel
     // window in the host's bar is told its `room` there (LAYOUT.roomsIn), any other window none. A content is one page
     // under every seat that looks at it, so it is told what is so of the one whose keyboard it has, its holder: a seat
@@ -587,7 +587,7 @@ export function createDesktop({
 
     // The room the panel window `id` has in the host's bar, or null for one that stands at no edge or at another.
     function roomOf(id) {
-        const atEdge = [...panels.values()].filter(({ anchor }) => !anchor);
+        const atEdge = [...panels.values()].filter((window) => !ANCHORED.isView(window));
         const rooms = LAYOUT.roomsIn(
             atEdge.map(({ edge, size }) => ({ edge, size })),
             { ...stage.size(), bar: strip.height, controls: strip.controlsWidth }
@@ -1422,9 +1422,9 @@ export function createDesktop({
     }
 
     // The panel windows that stand on the screen of `seat`, or with none on some seat's, in the order they opened,
-    // each `{ window, frame }`: one at an edge at its frame there, on every screen, a view under an anchor where
-    // ANCHORED places it, on the screens it is shown for (SHOWING). A view whose anchor is gone, or is another mod's,
-    // stands nowhere and is left out.
+    // each `{ window, frame }`: one at an edge at its frame there, on every screen, a view where ANCHORED places it,
+    // under its anchor or at its place, on the screens it is shown for (SHOWING). A view whose anchor is gone, or is
+    // another mod's, stands nowhere and is left out.
     function panelFrames(seat = null) {
         const { edged, frames } = standing();
         const on = ({ id }) => (seat === null ? SHOWING.isShown(id) : SHOWING.isOn(seat, id));
@@ -1444,26 +1444,40 @@ export function createDesktop({
     // is at its frame; a normal window's is where it rests, while some seat has it on screen.
     function openedNow() {
         const told = (id) => anchors.get(id) ?? [];
-        const atEdge = [...panels.values()].filter(({ anchor }) => !anchor);
+        const atEdge = [...panels.values()].filter((window) => !ANCHORED.isView(window));
         const frames = LAYOUT.panelsIn(
             atEdge.map(({ edge, size }) => ({ edge, size })),
             { ...stage.size(), bar: strip.height }
         );
         const edged = new Map(atEdge.map(({ id }, at) => [id, frames[at]]));
-        const alone = (id, mod, content) => ({ id, mod, anchors: told(id), content, anchor: null, size: null });
-        const opened = [...windows.values(), ...panels.values()].map(({ id, mod, bar, anchor, size }) => {
-            if (anchor) return { id, mod, anchors: told(id), content: null, anchor, size };
+        const alone = (id, mod, content) => ({
+            id,
+            mod,
+            anchors: told(id),
+            content,
+            anchor: null,
+            place: null,
+            size: null,
+        });
+        const opened = [...windows.values(), ...panels.values()].map((window) => {
+            const { id, mod, bar, anchor = null, place = null, size } = window;
+            if (ANCHORED.isView(window)) return { id, mod, anchors: told(id), content: null, anchor, place, size };
             if (panels.has(id)) return alone(id, mod, edged.get(id));
             return alone(id, mod, MANAGER.isShown(id) ? LAYOUT.contentOf(MANAGER.frameOf(id), bar) : null);
         });
         return { edged, opened: opened.sort((one, other) => one.id - other.id) };
     }
 
-    // What stands by anchors now (ANCHORED.standingOf): `anchors`, every anchor of a window whose content is on the
-    // stage, at its rect there, and `frames`, the frame of each view under an anchor that stands; with `edged`.
+    // What stands by anchors and at places now (ANCHORED.standingOf): `anchors`, every anchor of a window whose content
+    // is on the stage, at its rect there, and `frames`, the frame of each view that stands; with `edged`.
     function standing() {
         const { edged, opened } = openedNow();
         return { edged, ...ANCHORED.standingOf(bounds(), opened) };
+    }
+
+    // Whether `name` is a place of the stage a view stands at.
+    function isPlace(name) {
+        return ANCHORED.isPlace(name);
     }
 
     // Whether a view of the mod `mod` is refused the anchor `name`, `{ mod, id }`: some window tells it, for another
@@ -1472,9 +1486,16 @@ export function createDesktop({
         return ANCHORED.isForeign(ANCHORED.toldBy(openedNow().opened), name, mod);
     }
 
-    // The rounding of a panel window's frame: a view's corners under an anchor, LAYOUT.panelRadius at an edge.
+    // The rounding of a panel window's frame: a view's corners, LAYOUT.panelRadius at an edge.
     function radiusOf(window, frame) {
-        return window.anchor ? ANCHORED.VIEW.radius : LAYOUT.panelRadius(window.edge, frame);
+        return ANCHORED.isView(window) ? ANCHORED.VIEW.radius : LAYOUT.panelRadius(window.edge, frame);
+    }
+
+    // The panel windows of `frames`, those on the screen of `seat` (panelFrames), as they lie there from the bottom
+    // (SHOWING.stackedOn).
+    function stackedFor(seat, frames) {
+        const ids = frames.map(({ window }) => window.id);
+        return SHOWING.stackedOn(seat, ids).map((id) => frames[ids.indexOf(id)]);
     }
 
     // Whether a seat's keyboard is away from its key window: the machine's, the local seat's, with an overlay window
@@ -1530,12 +1551,12 @@ export function createDesktop({
     // window in the local seat's order with the children its regions show, the materials the desktop's page draws glass
     // over, then that page, taking the pointer only at the host's bar and the Dock, its sliver down the edge
     // and its card while it is out, the panel windows at an edge with the children their regions show, and over them
-    // the views under anchors on that seat's screen. Over all of it, the overlay of each page laid that shows anything,
-    // at its page's rect, or over the whole stage for a page whose front window is a panel window, so what it presents
-    // is not cut to the panel. Over those, while more than one seat is at the
-    // desktop, the cursors' surface, where the desktop's page draws each seat's cursor: it covers the stage and takes
-    // the pointer nowhere, so a press, a move and a scroll go to what is under it, and it is given no keyboard. With
-    // deckit's core down the desktop's page alone covers it all.
+    // the views on that seat's screen, as stackedFor has them. Over all of it, the overlay of each page laid that shows
+    // anything, at its page's rect, or over the whole stage for a page whose front window is a panel window, so what it
+    // presents is not cut to the panel. Over those, while more than one seat is at the desktop, the cursors' surface,
+    // where the desktop's page draws each seat's cursor: it covers the stage and takes the pointer nowhere, so a press,
+    // a move and a scroll go to what is under it, and it is given no keyboard. With deckit's core down the desktop's
+    // page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
         inPanels.clear();
@@ -1564,7 +1585,7 @@ export function createDesktop({
 
     // What is laid of the desktop for a seat, as layout() tells it: `view` the windows on its screen (MANAGER.viewOf),
     // `seen` what is drawn of each (drawnNow), `out` whether the Dock is out for it and `seat` the seat whose views
-    // under anchors are laid, or null for every view. Answers `{ parts, children }`, `parts` the layers of each level
+    // are laid, or null for every view. Answers `{ parts, children }`, `parts` the layers of each level
     // (model/levels.js), and `children` those the windows and the panel windows show (childrenIn).
     function laidOf(view, seen, out, seat = null) {
         const full = { x: 0, y: 0, ...stage.size() };
@@ -1593,6 +1614,7 @@ export function createDesktop({
                 .filter((page) => !laidChildren.has(page) && !REGION.shownElsewhere(page, stage))
         );
         const surface = (name) => desktop.surfaces.get(name);
+        const views = inBar.filter(({ window }) => ANCHORED.isView(window));
         const laidPanel = ({ window, frame }) => {
             const clip = { ...frame, cornerRadius: radiusOf(window, frame) };
             return [
@@ -1680,8 +1702,8 @@ export function createDesktop({
                         ],
                     },
                 ],
-                panels: inBar.filter(({ window }) => !window.anchor).flatMap(laidPanel),
-                views: inBar.filter(({ window }) => window.anchor).flatMap(laidPanel),
+                panels: inBar.filter(({ window }) => !ANCHORED.isView(window)).flatMap(laidPanel),
+                views: stackedFor(seat, views).flatMap(laidPanel),
                 cursors: cursors ? [{ page: cursors, rect: full, input: [] }] : [],
             },
         };
@@ -1939,7 +1961,7 @@ export function createDesktop({
                 bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
             })),
-            panels: panelFrames(seat).map(({ window, frame }) => ({
+            panels: stackedFor(seat, panelFrames(seat)).map(({ window, frame }) => ({
                 id: window.id,
                 edge: window.edge,
                 frame,
@@ -2055,6 +2077,7 @@ export function createDesktop({
         openPanel,
         closePanel,
         setAnchors,
+        isPlace,
         refusesAnchor,
         orderFrontPanel,
         togglePanel,
@@ -2117,7 +2140,7 @@ export function createDesktop({
             shown: () => shown,
             windows: windowsNow,
             // The panel windows that stand, in the order they opened, each `{ id, mod, name, edge, frame, key }`,
-            // `edge` null for a view under an anchor.
+            // `edge` null for a view.
             panels: () =>
                 panelFrames().map(({ window: { id, mod, name, edge }, frame }) => ({
                     id,

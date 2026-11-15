@@ -3,8 +3,8 @@
 // own in the order they are given: `pages`, the mods' pages with a window here; `backdrop`; `windows`, each window's
 // frame, content, children and buttons, in a seat's order; `glass`, the materials under what the desktop's page draws
 // as glass; `desktop`, the desktop's page; `panels`, the panel windows at an edge with their children; `views`, the
-// panel windows under an anchor with theirs; `overlays`, what each page laid under them presents over itself, which is
-// made from those layers and given as no part; `cursors`, the seats' cursors, over everything.
+// panel windows under an anchor or at a place with theirs; `overlays`, what each page laid under them presents over
+// itself, which is made from those layers and given as no part; `cursors`, the seats' cursors, over everything.
 const ORDER = Object.freeze([
     'pages',
     'backdrop',

@@ -80,11 +80,12 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     // `open(options)` opens a window, or orders front the one of its name open, and answers it: the key window, as
     // `makeKeyAndOrderFront()` puts it, or with `activates` false in front as `orderFront()` puts it, the keyboard left
     // where it is. A panel window stands at its `edge`, or with `anchor`, `{ mod, id }`, under the rect the mod `mod`
-    // named `id` in a window of its own (`setAnchors`), shown while that anchor stands. It throws its refusal:
+    // named `id` in a window of its own (`setAnchors`), shown while that anchor stands, or with `place` at the place of
+    // the stage the shell knows by that name ('top-right', 'top-left'). It throws its refusal:
     // NOT_PERMITTED for the level `overlay` without system.overlay-windows, or `panel` without deckit.panel-windows,
     // then INVALID_ARGUMENT for options that are no window's, then ENDED once `scope` is cut, then NOT_PERMITTED for an
-    // anchor given to another mod. `list()` answers the windows open, in the order they opened, and throws ENDED once
-    // `scope` is cut.
+    // anchor given to another mod, or INVALID_ARGUMENT for a place the shell does not name. `list()` answers the
+    // windows open, in the order they opened, and throws ENDED once `scope` is cut.
     function forScope(scope) {
         scope.add(() => {
             for (const [id, held] of open) if (held.scope === scope) PROTOCOL.close.send({ id });
@@ -122,11 +123,12 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
         const { titleBar, titleBarHeight, controlsOrigin, closable, minimizable, resizable, title = '' } = options;
         const anchor = options.anchor === undefined ? undefined : ANCHOR.nameOf(options.anchor);
-        const edge = anchor ? undefined : (options.edge ?? 'top');
+        const { place } = options;
+        const edge = anchor || place !== undefined ? undefined : (options.edge ?? 'top');
         const bar = { titleBar, titleBarHeight, controlsX: controlsOrigin?.x, controlsY: controlsOrigin?.y };
         const flags = { closable, minimizable, resizable };
         const sizes = { width, height, minWidth, minHeight };
-        const payload = { name, level, edge, anchor, ...sizes, activates, ...bar, ...flags, title };
+        const payload = { name, level, edge, anchor, place, ...sizes, activates, ...bar, ...flags, title };
         const { id, surface } = PROTOCOL.open.invoke(payload);
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
@@ -201,8 +203,8 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             zoom: sent('zoom', () => PROTOCOL.zoom.send({ id })),
             orderFront: sent('orderFront', () => PROTOCOL.orderFront.send({ id })),
             makeKeyAndOrderFront: sent('makeKeyAndOrderFront', () => PROTOCOL.makeKeyAndOrderFront.send({ id })),
-            // A view under an anchor is on a person's screen where it was shown for that person: `open` and
-            // `makeKeyAndOrderFront()` show it for the one person the mod may activate for whose input reached it
+            // A view, under an anchor or at a place, is on a person's screen where it was shown for that person: `open`
+            // and `makeKeyAndOrderFront()` show it for the one person the mod may activate for whose input reached it
             // last, and `toggle()` puts it away for that person where it is shown and shows it where it is not;
             // everyone else's screen is left as it is. Nothing for any other window.
             toggle: sent('toggle', () => PROTOCOL.toggle.send({ id })),
@@ -307,13 +309,19 @@ function problemOf(options) {
     if (CHANNEL.kindOf(options) !== 'object') return 'options is no table';
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
-        return `takes { name, content, level, edge, anchor, width, height, minWidth, minHeight, activates, titleBar, titleBarHeight, controlsOrigin, ${FLAGS.join(', ')}, title, ${CALLBACKS.join(', ')} }, name a text and content an element`;
+        return `takes { name, content, level, edge, anchor, place, width, height, minWidth, minHeight, activates, titleBar, titleBarHeight, controlsOrigin, ${FLAGS.join(', ')}, title, ${CALLBACKS.join(', ')} }, name a text and content an element`;
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.slice(0, -1).join(', ')} or ${LEVELS.at(-1)}`;
     if (options.edge !== undefined && !EDGES.includes(options.edge)) return `takes an edge of ${EDGES.join(' or ')}`;
     if (options.anchor !== undefined) {
         if (level !== 'panel') return 'takes an anchor at the level panel';
         if (options.edge !== undefined) return 'takes an edge or an anchor, not both';
         if (!ANCHOR.nameOf(options.anchor)) return 'takes an anchor { mod, id }, each a text';
+    }
+    if (options.place !== undefined) {
+        if (level !== 'panel') return 'takes a place at the level panel';
+        if (options.edge !== undefined || options.anchor !== undefined)
+            return 'takes an edge, an anchor or a place, one';
+        if (typeof options.place !== 'string' || !options.place) return 'takes a place a text';
     }
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;

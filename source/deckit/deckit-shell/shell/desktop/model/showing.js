@@ -127,6 +127,13 @@ function createShowing({ isIdle = () => false, onTaken = () => {} } = {}) {
         return seats.has(seat) && (!!views.get(view)?.every || seats.get(seat) === view);
     }
 
+    // `views`, those on the screen of `seat` in the order they opened, as they lie there from the bottom: the one shown
+    // for it by activation, which the seat asked for, over those shown for every seat.
+    function stackedOn(seat, views) {
+        const own = of(seat);
+        return [...views.filter((view) => view !== own), ...views.filter((view) => view === own)];
+    }
+
     // Whether the view is on some seat's screen.
     function isShown(view) {
         return [...seats.keys()].some((seat) => isOn(seat, view));
@@ -147,6 +154,7 @@ function createShowing({ isIdle = () => false, onTaken = () => {} } = {}) {
         heldBy,
         holderOf,
         seatsOf,
+        stackedOn,
         isOn,
         isShown,
     };

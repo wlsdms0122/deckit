@@ -5,8 +5,9 @@ import * as WINDOW_PERMISSION from './model/permission.js';
 // A window opens, or the one of that name open orders front: answers `{ id, surface }` at once, `surface` the name
 // the page opens its content by (window.open('', surface)). `level` is 'normal', 'overlay' or 'panel', `edge` a panel
 // window's, 'top' or 'right', or `anchor`, `{ mod, id }`, the anchor it stands under in place of an edge
-// (model/anchor.js nameOf), refused NOT_PERMITTED where that anchor is given to another mod; `activates` false leaves
-// the key window where it is. A normal window's title bar:
+// (model/anchor.js nameOf), refused NOT_PERMITTED where that anchor is given to another mod, or `place`, the name of
+// the place of the stage it stands at in place of both, refused INVALID_ARGUMENT where the shell knows no place of that
+// name; `activates` false leaves the key window where it is. A normal window's title bar:
 // `titleBar` 'unified' or 'titled', `titleBarHeight`, `controlsX` and `controlsY` where its buttons stand from the
 // frame's top left, `closable`, `minimizable` and `resizable` which of them act; and its `title`.
 export const open = CHANNEL.pageToMain(
@@ -16,6 +17,7 @@ export const open = CHANNEL.pageToMain(
         level: 'string',
         edge: 'string?',
         anchor: 'object?',
+        place: 'string?',
         width: 'number?',
         height: 'number?',
         minWidth: 'number?',
@@ -53,7 +55,7 @@ export const makeKeyAndOrderFront = CHANNEL.pageToMain(
     },
     { guard: CHANNEL.GUARD.ANY }
 );
-// A view under an anchor, put away where it is shown and shown where it is not.
+// A view, put away where it is shown and shown where it is not.
 export const toggle = CHANNEL.pageToMain('deckit-shell:window-toggle', { id: 'number' }, { guard: CHANNEL.GUARD.ANY });
 export const resize = CHANNEL.pageToMain(
     'deckit-shell:window-resize',
