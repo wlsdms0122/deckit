@@ -47,6 +47,15 @@ const NOTED = [
     ['seeded-old', 'Seeded old', '', {}],
 ];
 
+// What the joining mod posts in the walk: one with an action stays on screen until it is answered.
+const TOAST = {
+    title: 'Toasted',
+    body: 'Stands until it is pressed.',
+    command: 'noted',
+    args: { word: 'toasted' },
+    actions: [{ title: 'Later', command: 'noted', args: { word: 'later' } }],
+};
+
 function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -77,8 +86,8 @@ function seed({ data, files, app }) {
     }
     const lines = path.join(files, LINES);
     const session = { spaces: [{ root: files, open: [lines], active: lines, mode: 'files' }], active: files };
-    // Notifications' record as a run left it: nothing is posted in the walk, since the app under test is never the
-    // active one and a post would be shown as the system's. The newer names a command of the joining mod's.
+    // Notifications' record as a run left it, so the bar holds its count from the start. The newer names a command of
+    // the joining mod's.
     const noted = path.join(data, 'deckit', 'records', 'notifications', 'notifications.json');
     fs.mkdirSync(path.dirname(noted), { recursive: true });
     fs.writeFileSync(
@@ -3106,6 +3115,73 @@ async function walk({
                 await barPage()
             )?.evaluate(`document.querySelector('.status-bar-item[data-item="clock"]').disabled`);
             check('the clock takes no press', clockTakes === true, JSON.stringify({ clockTakes }));
+            // A post of the joining mod's stands as a toast at the top right of the stage, 8 inside its right side and
+            // 8 under the bar, 360 wide, in a view that takes no keyboard, while the app is not in front; the item
+            // counts it. A press on it runs the command it names on its sender and takes it away, its view with it.
+            // Nothing is posted where the run would raise a notification of the system's.
+            const quiet = (await main(`return require('electron').Notification.isSupported()`)) === false;
+            check("a run raises none of the system's notifications", quiet, JSON.stringify({ quiet }));
+            if (quiet) {
+                const toastsPage = async () => {
+                    for (const each of await pages('about:blank'))
+                        if (
+                            await each.evaluate(`!!document.querySelector('.notifications-toasts .notifications-card')`)
+                        )
+                            return each;
+                    return null;
+                };
+                const keyBefore = await keyMod();
+                await joinsPage?.evaluate(
+                    `delete document.documentElement.dataset.posted; document.dispatchEvent(new CustomEvent('test-post', { detail: ${JSON.stringify(TOAST)} }))`
+                );
+                const toastStood = await until(async () => {
+                    const [now, toast] = [await centerNow(), await toastsPage()];
+                    const stage = (await desktopLaid())?.pages.find(({ url }) => url.startsWith('deckit://desktop'));
+                    const right = stage && stage.rect.width - 8;
+                    return (
+                        now &&
+                        toast &&
+                        right &&
+                        Math.abs(now.rect.x + now.rect.width - right) <= 1 &&
+                        Math.abs(now.rect.y - 60) <= 1 &&
+                        now.rect.width === 360 &&
+                        !now.responder && { rect: now.rect, right }
+                    );
+                }, 8000);
+                const counted = await until(async () => /^Notifications, 1\b/.test((await bell())?.name ?? ''), 4000);
+                const toastSays = await (
+                    await toastsPage()
+                )?.evaluate(`document.querySelector('.notifications-card .notifications-title')?.textContent ?? null`);
+                check(
+                    'a post stands as a toast at the top right of the stage, in a view that takes no keyboard, and the item counts it',
+                    toastStood && counted && toastSays === TOAST.title && (await keyMod()) === keyBefore,
+                    JSON.stringify({
+                        toastStood,
+                        counted,
+                        toastSays,
+                        posted: await mark(joinsPage, 'posted'),
+                        bell: await bell(),
+                        view: await centerNow(),
+                        key: [keyBefore, await keyMod()],
+                    })
+                );
+                await (await toastsPage())?.press('.notifications-card .notifications-title');
+                const toastRan = await until(async () => (await mark(joinsPage, 'noted')) === TOAST.args.word, 6000);
+                const toastGone = await until(
+                    async () => !(await centerNow()) && (await bell())?.name === 'Notifications',
+                    6000
+                );
+                check(
+                    'a press on a toast runs its command on its sender and takes it away: its view closes and the item has no count',
+                    toastRan && toastGone && (await keyMod()) === keyBefore,
+                    JSON.stringify({
+                        noted: await mark(joinsPage, 'noted'),
+                        view: await centerNow(),
+                        bell: await bell(),
+                        key: [keyBefore, await keyMod()],
+                    })
+                );
+            }
         }
         await show('window-probe');
 

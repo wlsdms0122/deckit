@@ -3,6 +3,7 @@
 // for none, and marks how that ended; it marks how many times its command ran, and the word its command
 // `noted` is run with, as a notification of its own names it. On `test-band` it opens a
 // band of its own in the bar as wide as the test names, which takes that much of the bar's room, or closes it for none.
+// On `test-post` it posts the notification the test names to deckit/notifications, and marks how that ended.
 const ITEM = { name: 'Star', icon: 'star', command: 'show' };
 
 class StatusItem {
@@ -47,6 +48,18 @@ class StatusItem {
             band = width ? shell.windows.open({ name: 'band', level: 'panel', content, width, height: 28 }) : null;
         });
         this.noted = ({ word }) => (marks.noted = word);
+        let notifications = null;
+        deckit.dependencies.onConnect('deckit/notifications', (connected) => {
+            notifications = connected;
+            return () => (notifications = null);
+        });
+        document.addEventListener('test-post', ({ detail }) => {
+            const posted = notifications ? notifications.post(detail) : Promise.reject({ kind: 'none' });
+            posted.then(
+                () => (marks.posted = 'posted'),
+                (error) => (marks.posted = error.kind)
+            );
+        });
     }
 }
 

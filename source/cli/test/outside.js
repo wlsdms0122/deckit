@@ -742,6 +742,7 @@ async function run({
         if (bar) await barChecks({ seatA });
         await viewChecks({ seatA, seatB });
         await seatsChecks({ seatA, seatB });
+        if (bar) await toastChecks({ seatA, seatB });
         await centerChecks({ seatA, seatB });
         seatA.as('detach');
         seatB.as('detach');
@@ -1008,6 +1009,102 @@ async function run({
     // its anchor toggles it for that seat alone: shown for it too, its keyboard stays the first seat's; a press outside
     // it puts it away for the seat that pressed, the second seat's next toggle for the second, and the one after shows
     // it for the second again and not for the first, which put it away.
+    // A toast is everyone's: the joining mod posts a notification, and every seat reads its view at the top right of
+    // the stage as a panel window with no keyboard, while the app is not in front. A seat presses the toast's action as
+    // it reads it, which runs the action's command on its sender and takes the toast away. With another posted, the
+    // center a seat opens lies over it: where both stand that seat's press reaches the center, and the press of a seat
+    // with no center reaches the toast. Nothing is posted where the run would raise a notification of the system's.
+    async function toastChecks({ seatA, seatB }) {
+        const quiet = (await main(`return require('electron').Notification.isSupported()`)) === false;
+        const mod = await bar.joins();
+        check("outside: a run raises none of the system's notifications", quiet && !!mod, JSON.stringify({ quiet }));
+        if (!quiet || !mod) return;
+        const mark = (name) => mod.evaluate(`document.documentElement.dataset.${name} ?? ''`);
+        const post = (word, also = word) =>
+            mod.evaluate(
+                `document.dispatchEvent(new CustomEvent('test-post', { detail: ${JSON.stringify({
+                    title: 'Toasted',
+                    body: 'Stands until it is answered.',
+                    command: 'noted',
+                    args: { word },
+                    actions: [{ title: 'Later', command: 'noted', args: { word: also } }],
+                })} }))`
+            );
+        // Notifications' views as a seat reads them on the desktop, `{ id, x, y, key }` each.
+        const viewsOf = (seat) =>
+            [
+                ...seat
+                    .as('read', 'desktop')
+                    .matchAll(/^panel (w\d+) .* notifications at (\d+),(\d+) 360x\d+(?: \[key (\w+)\])?$/gm),
+            ].map(([, id, x, y, key]) => ({ id, x: Number(x), y: Number(y), key: key ?? null }));
+        const stoodFor = () =>
+            until(() => {
+                const [first, second] = [viewsOf(seatA), viewsOf(seatB)];
+                return first.length === 1 && second.length === 1 && { first: first[0], second: second[0] };
+            }, 8000);
+        const stage =
+            (await desktopLaid())?.pages?.find(({ url }) => /^deckit:\/\/desktop\//.test(url ?? ''))?.rect ?? null;
+
+        // A view shown for a seat by activation lies over one at a place: each seat's press on the desktop's middle
+        // puts away the one it has.
+        const middle = stage ? `${Math.round(stage.width / 2)},${Math.round(stage.height / 2)}` : null;
+        if (middle) for (const seat of [seatA, seatB]) seat.as('press', middle);
+        await post('card', 'later');
+        const stood = await stoodFor();
+        const toast = stood ? stood.first : null;
+        const asWindow = toast ? seatA.as('read', 'window', toast.id) : '';
+        const later = /^ *button "Later"(?: \[[^\]]*\])? (\d+\.\d+)/m.exec(asWindow)?.[1] ?? null;
+        check(
+            'outside: every seat reads a toast at the top right of the stage, 8 inside its right side, with no keyboard',
+            toast &&
+                stage &&
+                same(stood.first, stood.second) &&
+                toast.key === null &&
+                toast.x + 360 === Math.round(stage.width) - 8 &&
+                later,
+            JSON.stringify({ stood, stage, asWindow, posted: await mark('posted') })
+        );
+        const onLater = later ? seatA.as('press', later) : '';
+        const ranLater = await until(async () => (await mark('noted')) === 'later', 6000);
+        const gone = await until(() => !viewsOf(seatA).length && !viewsOf(seatB).length, 6000);
+        check(
+            "outside: an attached seat presses a toast's action as it reads it, which runs its command and takes the " +
+                'toast away for every seat, and takes no keyboard',
+            toast && ranLater && gone && onLater.startsWith(`over ${toast.id.slice(1)}`) && !/key|held/.test(onLater),
+            JSON.stringify({ onLater, noted: await mark('noted'), first: viewsOf(seatA), second: viewsOf(seatB) })
+        );
+
+        await post('second');
+        const again = (await stoodFor())?.first ?? null;
+        const barId = /^panel (w\d+) .* status-bar top at /m.exec(seatA.as('read', 'desktop'))?.[1] ?? null;
+        const item = () =>
+            /^ *button "Notifications[^"]*"(?: \[[^\]]*\])? (\d+\.\d+)/m.exec(
+                barId ? seatA.as('read', 'window', barId) : ''
+            )?.[1] ?? null;
+        if (again && item()) seatA.as('press', item());
+        const center = await until(() => viewsOf(seatA).find(({ id, key }) => id !== again?.id && key), 6000);
+        // A point where both stand: in the center's head, clear of its button, and on the toast's card.
+        const shared = center && again ? Math.min(center.x, again.x) + 360 - Math.max(center.x, again.x) : 0;
+        const both = shared > 80 ? `${Math.max(center.x, again.x) + 40},${again.y + 32}` : null;
+        const over = both ? seatA.as('press', both) : '';
+        const kept = { noted: await mark('noted'), second: viewsOf(seatB) };
+        const beside = both ? seatB.as('press', both) : '';
+        const ranSecond = await until(async () => (await mark('noted')) === 'second', 6000);
+        check(
+            "outside: the center a seat opened lies over a toast: where both stand that seat's press reaches the " +
+                'center, and the press of a seat with no center reaches the toast',
+            both &&
+                over.startsWith(`over ${center.id.slice(1)}`) &&
+                kept.noted === 'later' &&
+                kept.second.length === 1 &&
+                beside.startsWith(`over ${again.id.slice(1)}`) &&
+                ranSecond,
+            JSON.stringify({ again, center, both, over, kept, beside, noted: await mark('noted') })
+        );
+        if (center && item()) seatA.as('press', item());
+        await until(() => !viewsOf(seatA).length, 6000);
+    }
+
     // The notification center is a seat's own: a seat presses the Notifications item as it reads it in the bar, and
     // the center stands under the item for that seat alone, which reads it as a panel window with the keyboard; the
     // other seat reads none. Its second press on the item puts it away.
