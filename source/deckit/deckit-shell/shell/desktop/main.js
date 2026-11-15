@@ -1407,10 +1407,16 @@ export function createDesktop({
     // The hand of the person at the host window, the local seat's, on the window `id` that windows() answers, as the
     // host app hands it, each gesture whole: a press in it; a click of a button, `close`, `minimize` or `zoom`; a drag
     // of its title bar by `dx`, `dy`; a drag of its edge `edge`, as LAYOUT.resized names one, by `dx`, `dy`; and a
-    // double click on its title bar. A window minimized takes none; a panel window takes a press alone.
+    // double click on its title bar. A window minimized takes none; a panel window takes a press alone. A press in
+    // a window is the local seat's press down in its content, so the view shown for the seat is put away unless
+    // the press is in it.
     const hand = Object.freeze({
-        press: (id) =>
-            panels.has(id) ? pressPanel(LOCAL, panels.get(id)) : byHand(LOCAL, id, (window) => press(LOCAL, window)),
+        press: (id) => {
+            const window = panels.get(id) ?? windows.get(id);
+            if (!window || (windows.has(id) && MANAGER.isMinimized(LOCAL, id))) return undefined;
+            pressedDown(LOCAL, { pointer: null }, window.surface);
+            return panels.has(id) ? pressPanel(LOCAL, window) : byHand(LOCAL, id, (one) => press(LOCAL, one));
+        },
         button: (id, button) =>
             byHand(LOCAL, id, (window) => {
                 press(LOCAL, window);

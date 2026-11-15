@@ -2630,6 +2630,18 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
         stood === 's1' && gone.on === '' && !gone.shown && (await on()) === '' && !told().shown,
         { stood, gone, back: await on() }
     );
+    await asks(desk.seats.open[0]);
+    desk.desktop.togglePanel(view);
+    const handed = [await on()];
+    desk.desktop.control.hand.press(3);
+    handed.push(await on());
+    desk.desktop.control.hand.press(1);
+    handed.push(await on());
+    check(
+        "the hand's press is the local seat's press down: in its view it spares the view, in a window it puts it away",
+        JSON.stringify(handed) === JSON.stringify(['local', 'local', '']),
+        handed
+    );
 
     // One seat a toggle: the one whose input reached the view's mod last.
     await elsewhere(s1);
