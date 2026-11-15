@@ -171,7 +171,11 @@ function install() {
         return line;
     };
     const childrenOf = (el) => (el.shadowRoot ? el.shadowRoot.children : el.children);
-    const shown = (el) => (el.checkVisibility ? el.checkVisibility({ visibilityProperty: true }) : true);
+    // An element that only passes its children on to its parent's layout draws no box of its own and is still shown.
+    const shown = (el) =>
+        !el.checkVisibility ||
+        el.checkVisibility({ visibilityProperty: true }) ||
+        getComputedStyle(el).display === 'contents';
     const within = (rect, clip) =>
         rect.right > clip.left && rect.left < clip.right && rect.bottom > clip.top && rect.top < clip.bottom;
     const scrolls = (el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
