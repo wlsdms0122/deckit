@@ -11,8 +11,9 @@ deckit: a library a host app embeds to take mods, the way a game does
   style            hold the styles deckit writes to the rules of its look: a line for each problem, by its rule
   dev [<Electron's arguments>]
                    Deckit.app from the sources, built again when one changes
-  test [--port <port>]
-                   deckit built, then the core's tests, then Deckit.app from it, through its scenario
+  test [--port <port>] [--list] [<area> ...]
+                   deckit built, then the core's tests, then Deckit.app from it, through its scenario; with areas,
+                   such as \`deckit test outside reading\`, only their checks, and --list prints the areas
   shots [--port <port>]
                    deckit built, then Deckit.app from it, each surface drawn in light and in dark into .build/shots/,
                    over a blurred wallpaper drawn from code, a stand-in for what is behind the app's window
