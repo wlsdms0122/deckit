@@ -2,7 +2,7 @@ import * as CHANNEL from '../../../deckit/channel/index.js';
 
 // MARK: - Property
 // What a mod holds for a window over every app's, and for one along an edge of the app's window, in the bar across its
-// top or at its right, as a person reads it before installing.
+// top, as a person reads it before installing.
 const OVERLAY_WINDOWS = 'system.overlay-windows';
 const PANEL_WINDOWS = 'deckit.panel-windows';
 const PERMISSIONS = Object.freeze([
@@ -14,8 +14,7 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: PANEL_WINDOWS,
         name: 'Panel Windows',
-        description:
-            "It can show a window of its own along an edge of the app's window, in the bar across its top or at its right.",
+        description: "It can show a window of its own along an edge of the app's window, in the bar across its top.",
     }),
 ]);
 // The permission each level is guarded by, where one is.
