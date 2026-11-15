@@ -127,7 +127,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         }
         for (const went of [gone.get(null), gone.get(seat.id) ?? new Map()])
             for (const [ref, at] of went) if (at > from && !track.has(ref)) entries.push({ kind: '-', line: ref });
-        const ids = [...desk.MANAGER.viewOf(seat.id), ...desk.panelFrames().map(({ window }) => window)];
+        const ids = [...desk.MANAGER.viewOf(seat.id), ...desk.panelFrames(seat.id).map(({ window }) => window)];
         for (const { id } of ids) {
             for (const { page, part, name, rect, typing } of pagesOf(id)) {
                 const number = numbers.get(page);
@@ -248,8 +248,8 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         return new Map(MODS.loaded(deckit.mods).map(({ id, name }) => [id, name]));
     }
 
-    // A window or a panel window as `seat` reads it, refused NOT_FOUND for an id none has; `names` as namesNow has
-    // them.
+    // A window or a panel window as `seat` reads it, refused NOT_FOUND for an id none has and for a view that is not
+    // on its screen; `names` as namesNow has them.
     function factOf(seat, id, names = namesNow()) {
         const nameOf = (mod) => names.get(mod) || mod;
         const window = desk.windows.get(id);
@@ -266,7 +266,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                 tile: desk.MANAGER.tileNameOf(id),
             };
         }
-        const panel = desk.panelFrames().find(({ window: { id: each } }) => each === id);
+        const panel = desk.panelFrames(seat).find(({ window: { id: each } }) => each === id);
         if (!panel) throw refusal('NOT_FOUND', `no window ${id} is open`);
         const { mod, edge } = panel.window;
         const key = desk.panelHolderOf(id);
@@ -301,7 +301,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             windows: desk.MANAGER.orderOf(seat)
                 .reverse()
                 .map((id) => factOf(seat, id, names)),
-            panels: desk.panelFrames().map(({ window }) => factOf(seat, window.id, names)),
+            panels: desk.panelFrames(seat).map(({ window }) => factOf(seat, window.id, names)),
         };
     }
 

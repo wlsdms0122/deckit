@@ -839,6 +839,8 @@ async function main() {
     const ANCHORED = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'anchored.js'));
     anchoredChecks({ ANCHOR, ANCHORED }, check);
     await anchorChecks({ LAYOUT, createDesktop }, check);
+    showingChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'showing.js')), check);
+    await viewChecks({ LAYOUT, createDesktop }, check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
@@ -1861,7 +1863,7 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
         anchor: { mod: 'bar', id: 'clock' },
         size: { width: 320, height: 200 },
     });
-    desk.desktop.openPanel(view);
+    desk.desktop.openPanel(view, { activates: false });
     desk.desktop.openPanel(windowOf(4, 'z', { level: 'panel' }));
     const names = () => desk.laid().map(({ page }) => page?.name);
     const standsAt = () => desk.desktop.control.panels().find(({ id }) => id === 3)?.frame ?? null;
@@ -1911,7 +1913,7 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
     const reached = desk.puts.slice(before).map(({ page }) => page);
     desk.desktop.pressPanel(view);
     check(
-        'a view is laid for every seat: the press of a seat that did not open it reaches its content, and its mod ' +
+        'a view opened activating for nobody is laid for every seat: the press of any reaches its content, and its mod ' +
             'may activate for the seat that pressed',
         reached.join() === 'content-3,content-3' &&
             desk.desktop.activation.mayActivate('s1', 'clock') &&
@@ -1959,6 +1961,325 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
 // as text and as data, what changed since a mark, a mark that is not kept, an act on a ref and a picture.
 // What the desktop's page is told of the seats: each one's colour, where its pointer is and what it holds.
 // The chips of the seats at the desktop's bottom right, as the model lays them.
+// The showing rule (model/showing.js): on which seats' screens a view is after each thing that shows it and each that
+// puts it away, and which seat holds its keyboard.
+function showingChecks({ createShowing, KEY, HELD }, check) {
+    const idle = new Set();
+    const taken = [];
+    const showing = createShowing({
+        isIdle: (seat) => idle.has(seat),
+        onTaken: (holder, view, by) => taken.push([holder, view, by].join()),
+    });
+    for (const seat of ['me', 'you']) showing.addSeat(seat);
+    const on = (view) => ['me', 'you', 'late'].filter((seat) => showing.isOn(seat, view)).join();
+    showing.open(1, { seats: ['you'] });
+    check(
+        'a view opened is shown for the seats its mod may activate for and no other, the first holding its keyboard',
+        on(1) === 'you' && showing.of('you') === 1 && showing.of('me') === null && showing.holderOf(1) === 'you',
+        { on: on(1), holder: showing.holderOf(1) }
+    );
+    showing.open(2, { activates: false, seats: ['me'] });
+    showing.addSeat('late');
+    check(
+        'a view opened with activates false is shown for every seat, one that sits later too, and takes no keyboard',
+        on(2) === 'me,you,late' && showing.of('me') === null && showing.holderOf(2) === null && showing.isShown(2),
+        { on: on(2), holder: showing.holderOf(2) }
+    );
+    showing.removeSeat('late');
+    showing.show(1, ['me', 'you', 'nobody']);
+    const second = { on: on(1), holder: showing.holderOf(1), take: showing.take('me'), held: showing.heldBy('me') };
+    check(
+        'a view shown again is shown for each seat its mod may activate for, and a second seat finds its keyboard held',
+        second.on === 'me,you' && second.holder === 'you' && second.take === HELD && second.held === null,
+        second
+    );
+    showing.toggle(1, ['me']);
+    const off = on(1);
+    showing.toggle(1, ['me', 'you']);
+    const flipped = { off, on: on(1), holder: showing.holderOf(1), take: showing.take('me') };
+    check(
+        'a toggle puts a view away for each seat it is shown for and shows it for each it is not, its keyboard given ' +
+            'back by the holder it is put away for',
+        flipped.off === 'you' && flipped.on === 'me' && flipped.holder === 'me' && flipped.take === KEY,
+        flipped
+    );
+    showing.open(3, { seats: [] });
+    const unseen = showing.isShown(3);
+    showing.show(3, ['me']);
+    check(
+        'another view shown for a seat puts away the one it had, one a seat, and a view is shown from its first seat',
+        !unseen && showing.isShown(3) && on(3) === 'me' && on(1) === '' && showing.holderOf(1) === null,
+        { unseen, three: on(3), one: on(1) }
+    );
+    const spared = showing.pressed('me', [3]);
+    const stays = on(3);
+    const outside = showing.pressed('me', [1, 2]);
+    check(
+        'a press down a view is spared by leaves it, one outside puts it away for that seat, and it is shown to its ' +
+            'last seat',
+        spared === false && stays === 'me' && outside === true && on(3) === '' && !showing.isShown(3),
+        { spared, stays, outside, on: on(3) }
+    );
+    showing.show(3, ['me']);
+    const away = [showing.putAway('me'), showing.putAway('me'), showing.heldBy('me'), showing.holderOf(3)];
+    check(
+        "a seat's view is put away as a window becomes its key window, at Escape, at Close Window and as it begins " +
+            'to follow: once, its keyboard given back',
+        JSON.stringify(away) === '[true,false,null,null]',
+        away
+    );
+    showing.show(3, ['me', 'you']);
+    const gone = [showing.unanchored(3), on(3), showing.holderOf(3), showing.unanchored(3), showing.unanchored(2)];
+    check(
+        'a view whose anchor goes is put away for every seat it was shown for by activation, and one shown for ' +
+            'every seat is left',
+        JSON.stringify(gone) === '[true,"",null,false,false]' && on(2) === 'me,you',
+        gone
+    );
+    showing.show(1, ['me', 'you']);
+    idle.add('me');
+    const given = [showing.take('you'), showing.holderOf(1), taken.join(';'), showing.take('me')];
+    idle.clear();
+    check(
+        'an idle holder gives the keyboard of a view up to the seat that takes it, and is told',
+        JSON.stringify(given) === JSON.stringify([KEY, 'you', 'me,1,you', HELD]),
+        given
+    );
+    showing.removeSeat('you');
+    const left = [showing.holderOf(1), on(1), showing.take('me'), showing.take('you')];
+    showing.close(1);
+    showing.close(2);
+    check(
+        'a seat that leaves gives its keyboard back, and a view that closes is on no screen',
+        JSON.stringify(left) === JSON.stringify([null, 'me', KEY, null]) &&
+            showing.of('me') === null &&
+            on(1) === '' &&
+            on(2) === '' &&
+            showing.take('me') === null,
+        left
+    );
+}
+
+// The desktop over stand-ins: a view under an anchor is on the screens it was shown for, is put away for a seat by
+// each line of the rule, and its keyboard is one seat's.
+async function viewChecks({ LAYOUT, createDesktop }, check) {
+    const desk = desktopOver(createDesktop, {});
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const windowOf = (id, mod, more = {}) => {
+        const page = { name: `page-${mod}`, mod };
+        return {
+            id,
+            mod,
+            name: `w${id}`,
+            level: 'normal',
+            page,
+            surface: { name: `content-${id}`, of: page },
+            size: { width: 200, height: 20 },
+            minimum: { width: 0, height: 0 },
+            bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+            ...more,
+        };
+    };
+    const normal = windowOf(1, 'a', { size: { width: 300, height: 200 } });
+    desk.desktop.open(normal);
+    desk.openSurfaces(1);
+    const band = windowOf(2, 'bar', { level: 'panel', edge: 'top' });
+    desk.desktop.openPanel(band);
+    desk.desktop.setAnchors(band, [
+        { id: 'clock', rect: { x: 100, y: 2, width: 60, height: 16 }, mod: 'clock' },
+        { id: 'bell', rect: { x: 20, y: 2, width: 24, height: 16 }, mod: 'bell' },
+    ]);
+    const viewOf = (id, mod) =>
+        windowOf(id, mod, {
+            level: 'panel',
+            edge: null,
+            anchor: { mod: 'bar', id: mod },
+            size: { width: 320, height: 200 },
+        });
+    const view = viewOf(3, 'clock');
+    const s1 = desk.sit('s1');
+    const s2 = desk.sit('s2');
+    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    const press = async (seat, at) => {
+        const answer = await desk.enter(seat, pointer('down', at));
+        await desk.enter(seat, pointer('up', at));
+        return answer;
+    };
+    const key = (seat) => desk.enter(seat, { event: 'key', type: 'down', code: 'KeyA' });
+    const refused = (ask) =>
+        Promise.resolve()
+            .then(ask)
+            .then(
+                () => null,
+                (error) => error.kind
+            );
+    const onAnchor = { x: 1100, y: 10 }; // on the anchor `clock` in the band
+    const inView = { x: 900, y: 100 };
+    const outside = { x: 600, y: 700 }; // on the desktop, in no window
+    // The seat's press in the front normal window there: its input reached that window's mod and no other.
+    const elsewhere = (seat) => press(seat, { x: desk.frameOf(1).x + 10, y: desk.frameOf(1).y + 10 });
+    // The mod `clock` asked by the band's mod after the seat's press on its anchor, as a command runs.
+    const asks = async (seat) => {
+        await press(seat, onAnchor);
+        desk.request('bar', 'clock');
+    };
+    // The ids of the panel windows `seat` reads on the desktop.
+    const reads = async (seat) => {
+        const read = JSON.stringify(await desk.seats.served.read(seat, { of: 'desktop', format: 'json' }));
+        return ['w2', 'w3', 'w5'].filter((id) => read.includes(`"${id}"`));
+    };
+    const on = async () => {
+        const seats = [];
+        for (const seat of [desk.seats.open[0], s1, s2]) if ((await reads(seat)).includes('w3')) seats.push(seat.id);
+        return seats.join();
+    };
+    const drawn = () => desk.page().panels.some(({ id }) => id === 3);
+    const laid = () => desk.laid().some(({ page }) => page?.name === 'content-3');
+    const told = () => desk.desktop.stateOf(view);
+
+    await asks(s1);
+    desk.desktop.openPanel(view);
+    const opened = { on: await on(), drawn: drawn(), laid: laid(), told: told(), over: await press(s1, inView) };
+    const typed = await key(s1);
+    check(
+        "a view its mod opens after a seat's press is on that seat's screen alone: the local seat's does not lay or " +
+            'draw it, the seat reads it, presses in it and types in it, and its content is told shown and key',
+        opened.on === 's1' &&
+            !opened.drawn &&
+            !opened.laid &&
+            opened.told.shown &&
+            opened.told.key &&
+            opened.over.over === 3 &&
+            opened.over.key === 'key' &&
+            opened.over.holder === 's1' &&
+            typed.to === 3 &&
+            desk.puts.at(-1).page === 'content-3',
+        { ...opened, typed, put: desk.puts.at(-1) }
+    );
+    await asks(s2);
+    desk.desktop.orderFrontPanel(view);
+    const both = { on: await on(), over: await press(s2, inView), key: await refused(() => key(s2)) };
+    check(
+        "a view shown for a second seat is on its screen too, its keyboard the first seat's: the second's press " +
+            'answers held and its key is refused HELD',
+        both.on === 's1,s2' && both.over.key === 'held' && both.over.holder === 's1' && both.key === 'HELD',
+        both
+    );
+    await press(s1, outside);
+    const after = { on: await on(), key: await refused(() => key(s2)), holder: (await press(s2, inView)).holder };
+    check(
+        "a press down outside a view puts it away for that seat alone, and its keyboard is the other seat's to take",
+        after.on === 's2' && after.key === null && after.holder === 's2' && told().shown && told().key,
+        after
+    );
+    await press(s2, onAnchor);
+    const spared = await on();
+    await elsewhere(s1);
+    desk.desktop.togglePanel(view);
+    const off = { on: await on(), told: told() };
+    await elsewhere(s2);
+    await asks(s1);
+    desk.desktop.togglePanel(view);
+    const flipped = await on();
+    check(
+        'a press down on its anchor leaves a view, and a toggle puts it away where it is shown and shows it where ' +
+            'it is not, told it is gone at the last seat and shown at the first',
+        spared === 's2' && off.on === '' && !off.told.shown && !off.told.key && flipped === 's1' && told().shown,
+        { spared, off, flipped }
+    );
+    const other = viewOf(5, 'bell');
+    desk.request('clock', 'bell');
+    desk.desktop.openPanel(other);
+    const one = (await reads(s1)).join();
+    desk.desktop.closePanel(other);
+    check('another view shown for a seat puts away the one it had', one === 'w2,w5' && (await on()) === '', one);
+
+    await asks(s1);
+    desk.desktop.togglePanel(view);
+    const escaped = [
+        desk.unhandled(view.surface, 'KeyA', s1.source),
+        desk.unhandled(normal.surface, 'Escape', s1.source),
+        desk.unhandled(view.surface, 'Escape', s2.source),
+        await on(),
+        desk.unhandled(view.surface, 'Escape', s1.source),
+        await on(),
+        desk.unhandled(view.surface, 'Escape', s1.source),
+    ];
+    check(
+        'Escape a view left unhandled puts it away for the seat that pressed it there, and no other key does',
+        JSON.stringify(escaped) === JSON.stringify([false, false, false, 's1', true, '', false]),
+        escaped
+    );
+    await asks(s1);
+    desk.desktop.togglePanel(view);
+    const closing = [await on(), desk.press('closeWindow', view.surface, s1.source), await on(), desk.closed.length];
+    check(
+        "Close Window puts a seat's view away and closes no window",
+        JSON.stringify(closing) === JSON.stringify(['s1', true, '', 0]),
+        closing
+    );
+    await asks(s1);
+    desk.desktop.togglePanel(view);
+    const before = await on();
+    desk.request('clock', 'b');
+    const second = windowOf(6, 'b', { size: { width: 300, height: 200 } });
+    desk.desktop.open(second);
+    desk.openSurfaces(6);
+    check(
+        "a window that becomes a seat's key window puts its view away",
+        before === 's1' && (await on()) === '' && desk.desktop.control.windows().some(({ id }) => id === 6),
+        { before, on: await on() }
+    );
+    await asks(s1);
+    desk.desktop.togglePanel(view);
+    const stood = await on();
+    desk.desktop.setAnchors(band, []);
+    const gone = { on: await on(), shown: told().shown };
+    desk.desktop.setAnchors(band, [{ id: 'clock', rect: { x: 100, y: 2, width: 60, height: 16 }, mod: 'clock' }]);
+    check(
+        'a view is put away as its anchor goes, and is not back as the anchor is until it is shown again',
+        stood === 's1' && gone.on === '' && !gone.shown && (await on()) === '' && !told().shown,
+        { stood, gone, back: await on() }
+    );
+
+    // The local seat: the machine's keyboard goes to the view shown for it and comes back as it is put away.
+    const hostShown = desk.hostShown();
+    await elsewhere(s1);
+    desk.desktop.pressPanel(band);
+    desk.request('bar', 'clock');
+    desk.desktop.togglePanel(view);
+    const mine = {
+        on: await on(),
+        drawn: drawn(),
+        laid: laid(),
+        key: desk.desktop.isKey(view),
+        focused: desk.focused.at(-1)?.name,
+        host: desk.hostShown() - hostShown,
+        active: desk.desktop.control.active(),
+    };
+    desk.pagePointer('s1', 'chip', 'down', { x: 0, y: 0 });
+    desk.pagePointer('s1', 'chip', 'up', { x: 0, y: 0 });
+    const followed = { following: desk.page().following?.id, on: await on(), key: desk.desktop.isKey(view) };
+    check(
+        "a view shown for the local seat is laid and drawn on its screen and takes the machine's keyboard, the host " +
+            'window coming up, and is put away as the local seat begins to follow another',
+        mine.on === 'local' &&
+            mine.drawn &&
+            mine.laid &&
+            mine.key &&
+            mine.focused === 'content-3' &&
+            mine.host === 1 &&
+            mine.active === 'clock' &&
+            followed.following === 's1' &&
+            followed.on === '' &&
+            !followed.key,
+        { mine, followed }
+    );
+    desk.leave(s1);
+    desk.leave(s2);
+}
+
 function chipChecks({ SEATS }, check) {
     const { CHIP, chipsOf, partAt } = SEATS;
     const stage = { width: 1200, height: 800 };
@@ -2860,6 +3181,7 @@ function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} },
         listen() {},
         monitor: (handler) => (heard.monitor = handler),
         onChord: (listener) => (heard.chords = listener),
+        onUnhandled: (handler) => (heard.unhandled = handler),
     };
     const mods = [
         { id: 'a', name: 'A', uses: {} },
@@ -3056,6 +3378,8 @@ function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} },
         request: (from, to) => heard.requests({ from, to }),
         key: (page) => heard.monitor(page, { code: 'KeyA' }),
         chord: (mod) => heard.chords(mod),
+        // A key `page` left unhandled, pressed by the seat `source` is of: answers whether the desktop took it.
+        unhandled: (page, code, source) => heard.unhandled(page, { code }, source),
     };
 }
 
