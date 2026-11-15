@@ -1576,6 +1576,7 @@ function levelChecks(LEVELS, check) {
     const named = (layers) => layers.map(({ page }) => page).join();
     const parts = {
         cursors: [{ page: 'cursors', input: [] }],
+        views: [{ page: 'view' }],
         panels: [{ page: 'panel' }, { page: 'child', input: [{ x: 1, y: 1, width: 2, height: 2 }] }],
         desktop: [{ page: 'desktop', input: [{ x: 0, y: 0, width: 9, height: 3 }] }],
         glass: [{ material: 'popover' }],
@@ -1585,14 +1586,14 @@ function levelChecks(LEVELS, check) {
     };
     check(
         "the stage's levels are, from the bottom, the mods' pages, the backdrop, the windows, the glass, the desktop's " +
-            "page, the panel windows, the pages' overlays and the cursors",
-        ORDER.join() === 'pages,backdrop,windows,glass,desktop,panels,overlays,cursors' && Object.isFrozen(ORDER),
+            "page, the panel windows at an edge, those under an anchor, the pages' overlays and the cursors",
+        ORDER.join() === 'pages,backdrop,windows,glass,desktop,panels,views,overlays,cursors' && Object.isFrozen(ORDER),
         ORDER
     );
     check(
         "what lies under the pages' overlays is each level under them in order, a level's own layers as given, and " +
             'what lies over them is the cursors alone',
-        named(under(parts)) === 'mod,backdrop,frame,content,buttons,,desktop,panel,child' &&
+        named(under(parts)) === 'mod,backdrop,frame,content,buttons,,desktop,panel,child,view' &&
             under(parts)[5] === parts.glass[0] &&
             named(over(parts)) === 'cursors',
         { under: named(under(parts)), over: named(over(parts)) }
@@ -1618,7 +1619,7 @@ function levelChecks(LEVELS, check) {
     check(
         'a level held takes the pointer over the whole rect, every level over it nowhere, those under it as they did',
         JSON.stringify([...under(held), ...over(held)].map(({ input }) => input ?? null)) ===
-            JSON.stringify([[], null, null, null, null, null, [full], [], [], []]) &&
+            JSON.stringify([[], null, null, null, null, null, [full], [], [], [], []]) &&
             held.windows === parts.windows &&
             JSON.stringify(parts.desktop[0].input) === JSON.stringify([{ x: 0, y: 0, width: 9, height: 3 }]),
         held
