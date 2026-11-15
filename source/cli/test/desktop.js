@@ -830,6 +830,7 @@ async function main() {
     drawnChecks({ COLOURS, LAYOUT, createDesktop }, check);
     const SEATS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'seats.js'));
     chipChecks({ SEATS }, check);
+    routeChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'routes.js')), check);
     await askChecks({ SEATS, createDesktop }, check);
     await followChecks({ SEATS, LAYOUT, createDesktop }, check);
     await typingChecks({ LAYOUT, createDesktop }, check);
@@ -1517,6 +1518,46 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
             'frame, until it is there, then is laid no more',
         !!going && same(goingContent?.scale, going.scale) && same(goingContent.rect, leftTile) && !frameLayer(),
         { going, goingContent }
+    );
+}
+
+// How what a seat's devices did finds where it goes (model/routes.js), as plain data.
+function routeChecks(ROUTING, check) {
+    const { routeOf, placeOf, waits, hovers, raises } = ROUTING;
+    check(
+        'each kind of event has its route by the table, and what is no kind has none',
+        ['pointer', 'key', 'text', 'act', undefined].map((event) => routeOf({ event })).join() ===
+            'place,keyboard,keyboard,,' && routeOf(null) === null,
+        JSON.stringify(ROUTING.ROUTES)
+    );
+    check(
+        "a pointer's place is a point or a ref, never both and never neither",
+        placeOf({ x: 1, y: 2 }) === 'point' &&
+            placeOf({ ref: '4.2' }) === 'ref' &&
+            [{}, { x: 1 }, { x: 1, y: 2, ref: '4.2' }, { ref: '' }, { x: '1', y: 2 }].every(
+                (event) => placeOf(event) === null
+            ),
+        ''
+    );
+    check(
+        "an event at a ref waits, and so does any that enters behind one that waits, but never the machine's own",
+        waits({ ref: '4.2' }, false) &&
+            waits({ x: 1, y: 2 }, true) &&
+            !waits({ x: 1, y: 2 }, false) &&
+            !waits({ carried: true }, true),
+        ''
+    );
+    check(
+        'a move at a ref with no button held hovers, and a window comes forward only where another covers the place',
+        hovers({ type: 'move', ref: '4.2' }, []) &&
+            !hovers({ type: 'move', ref: '4.2' }, [0]) &&
+            !hovers({ type: 'move', x: 1, y: 2 }, []) &&
+            !hovers({ type: 'down', ref: '4.2' }, []) &&
+            raises(1, 3) &&
+            !raises(1, 1) &&
+            !raises(1, null) &&
+            !raises(null, 3),
+        ''
     );
 }
 

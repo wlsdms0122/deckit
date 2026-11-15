@@ -26,6 +26,7 @@ const EDITOR = `window "Editor" editor
   button "Close"
   button "Minimize"
   button "Zoom"
+  titlebar
   document content
     complementary "Sidebar"
       group "Workspaces"
@@ -59,6 +60,7 @@ const SETTINGS = `window "Settings" settings
   button "Close"
   button "Minimize"
   button "Zoom"
+  titlebar
   document content
     complementary "Sidebar"
       navigation "Sections"
