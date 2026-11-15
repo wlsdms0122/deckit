@@ -7,6 +7,12 @@ const RADIUS = 20;
 // The card the items stand in, down the Dock and centred on the desktop's height: its padding, the size of an item, the
 // room between items, and between the items kept and those running, a hairline with that room above and below it.
 const CARD = Object.freeze({ padding: 8, item: 48, gap: 4 });
+// How far the pointer goes from its press on an item kept in the Dock before it drags the item.
+const SLOP = 4;
+// An item's menu, beside the card: how far right of the card it stands, how wide it is, the padding round its entries,
+// how tall an entry and a rule between entries stand, the radius of its corners, and the room it keeps from the
+// desktop's top and bottom.
+const MENU = Object.freeze({ beside: 8, width: 160, padding: 4, entry: 28, rule: 9, radius: 10, margin: 8 });
 
 // MARK: - Initializer
 // MARK: - Public
@@ -28,11 +34,72 @@ function dragged(ids, id, to) {
 }
 
 // Where the Dock takes the pointer on `desktop` with `items`, as items() answers them, its rects: the sliver at the
-// desktop's left edge, down all of it, which brings it out and keeps it out while the pointer stays there, and while it
-// is `out` its card too, where it is drawn. A window under the rest of the column takes the pointer there.
-function inputOf(desktop, out, items) {
+// desktop's left edge, down all of it, which brings it out and keeps it out while the pointer stays there, while it
+// is `out` its card too, where it is drawn, and the `menu` of an item, as menuOf() answers it, while one is open. A
+// window under the rest of the column takes the pointer there.
+function inputOf(desktop, out, items, menu = null) {
     const sliver = { x: desktop.x, y: desktop.y, width: SLIVER, height: desktop.height };
-    return out ? [sliver, cardOf(desktop, items)] : [sliver];
+    return [sliver, ...(out ? [cardOf(desktop, items)] : []), ...(menu ? [menu.frame] : [])];
+}
+
+// The id of the item of `items` that stands at `point` on `desktop` with the Dock out, or null.
+function itemAt(desktop, items, point) {
+    return items.find(({ id }) => within(tileOf(desktop, items, id), point))?.id ?? null;
+}
+
+// Whether a pointer pressed on an item at `from` and now at `point` went far enough to drag it.
+function drags(from, point) {
+    return Math.abs(point.x - from.x) >= SLOP || Math.abs(point.y - from.y) >= SLOP;
+}
+
+// The ids of the items kept in the Dock, in the order they show while the item `id` is dragged with the pointer at
+// `point` on `desktop`: `id` at the place of the kept item the pointer is level with, the first above them all and
+// the last below, the others shifted by one. Let go there, it is their order. Null where `id` is not kept.
+function orderOf(desktop, items, id, point) {
+    const kept = items.filter(({ pinned }) => pinned).map((item) => item.id);
+    if (!kept.includes(id)) return null;
+    const top = cardOf(desktop, items).y + CARD.padding - CARD.gap / 2;
+    const place = Math.floor((point.y - top) / (CARD.item + CARD.gap));
+    return dragged(kept, id, kept[Math.min(kept.length - 1, Math.max(0, place))]);
+}
+
+// What the menu of `item` offers, top to bottom, each `{ id, label }`, null a rule between two: 'open', which opens
+// its mod or shows it while it runs; 'keep', which keeps it in the Dock or takes it out; and 'quit' while it runs.
+function entriesOf({ pinned, running }) {
+    return [
+        { id: 'open', label: running ? 'Show' : 'Open' },
+        null,
+        { id: 'keep', label: pinned ? 'Remove from Dock' : 'Keep in Dock' },
+        ...(running ? [null, { id: 'quit', label: 'Quit' }] : []),
+    ];
+}
+
+// The menu of the item `id` of `items` on `desktop`, `{ item, frame, radius, entries, rules }`: beside the card, its
+// top level with the item's and inside the desktop, `entries` `[{ id, label, rect }]` and `rules` the rects of the
+// rules between them, each on the desktop. Null where `id` is none of the items.
+function menuOf(desktop, items, id) {
+    const item = items.find((one) => one.id === id);
+    if (!item) return null;
+    const listed = entriesOf(item);
+    const height = 2 * MENU.padding + listed.reduce((sum, entry) => sum + (entry ? MENU.entry : MENU.rule), 0);
+    const x = desktop.x + WIDTH + MENU.beside;
+    const lowest = desktop.y + desktop.height - MENU.margin - height;
+    const y = Math.max(desktop.y + MENU.margin, Math.min(tileOf(desktop, items, id).y, lowest));
+    const [entries, rules] = [[], []];
+    let top = y + MENU.padding;
+    for (const entry of listed) {
+        const tall = entry ? MENU.entry : MENU.rule;
+        const rect = { x: x + MENU.padding, y: top, width: MENU.width - 2 * MENU.padding, height: tall };
+        if (entry) entries.push({ ...entry, rect });
+        else rules.push(rect);
+        top += tall;
+    }
+    return { item: id, frame: { x, y, width: MENU.width, height }, radius: MENU.radius, entries, rules };
+}
+
+// The id of the entry of `menu`, as menuOf() answers it, at `point` on the desktop, or null.
+function entryAt(menu, point) {
+    return menu.entries.find(({ rect }) => within(rect, point))?.id ?? null;
 }
 
 // Where the item `id` of `items`, as items() answers them, stands on `desktop` with the Dock out, as its view lays it,
@@ -68,6 +135,10 @@ function coverOf(desktop, out, items) {
 }
 
 // MARK: - Private
+function within({ x, y, width, height }, point) {
+    return point.x >= x && point.x < x + width && point.y >= y && point.y < y + height;
+}
+
 // How tall `count` items stand in a row down the card, the room between them included.
 function runOf(count) {
     return count ? count * (CARD.item + CARD.gap) - CARD.gap : 0;
@@ -80,4 +151,23 @@ function dividerOf(items) {
     return kept && items.length > kept ? 1 + 3 * CARD.gap : 0;
 }
 
-export { SLIVER, WIDTH, RADIUS, CARD, items, dragged, inputOf, tileOf, cardOf, coverOf };
+export {
+    SLIVER,
+    WIDTH,
+    RADIUS,
+    CARD,
+    SLOP,
+    MENU,
+    items,
+    dragged,
+    inputOf,
+    itemAt,
+    drags,
+    orderOf,
+    entriesOf,
+    menuOf,
+    entryAt,
+    tileOf,
+    cardOf,
+    coverOf,
+};
