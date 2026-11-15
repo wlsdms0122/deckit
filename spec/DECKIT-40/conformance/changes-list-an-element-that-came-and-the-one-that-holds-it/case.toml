@@ -1,0 +1,44 @@
+case = 26
+name = "changes-list-an-element-that-came-and-the-one-that-holds-it"
+note = "mod-a opens the window 1 at 283, 107, 720 by 480, with no title. Its content holds, each in a box of its own: the heading Notes, the button Bold, not pressed, the field Name with the value say \"a\", b, the empty field Find, the checkbox Done, the list Days of Mon, Tue and Wed, and the region Log, 60 high, that scrolls three paragraphs 40 high each. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the window at the mark 7. Then mod-a sends its event add, and at it the page puts a fourth item, Thu, in the list. It asks what changed since 7: the list, changed, with a tilde, and the item that came, with a plus and a ref no element had."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+part = "mark"
+
+[step.expect]
+answers = 7
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["add"]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "changes", since = 7 }
+
+[step.expect]
+answers = { text = "changes 7 to 8\n~ list \"Days\" (4 items, 4 in view) 7.6\n+ listitem \"Thu\" 7.11", mark = 8 }
