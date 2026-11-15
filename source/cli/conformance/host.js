@@ -21,7 +21,8 @@
 // changes; it reads what a page of the shell's wears, its colour scheme and the custom properties of its root. It keeps
 // what the shell lays on the desktop and in each overlay window, for the children's views laid over regions, and drops
 // files from outside the app on the page laid at a point of a window, through WebKit, as the machine drops them, never
-// in a drag of the machine's.
+// in a drag of the machine's. It listens for parties as any host app does, on the socket in its folder of deckit: the
+// runner is each party, and after what one did the host says once the run its principal's proof hosts has settled.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -388,7 +389,9 @@ socket.on('data', (chunk) => {
                                 ? appear(asked)
                                 : asked.input === 'drop'
                                   ? drop(asked)
-                                  : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
+                                  : asked.input === 'parties'
+                                    ? partiesSettled(asked)
+                                    : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
             ).then(async (came) => {
                 // A run a page starts or ends as it takes what it was told is waited for too.
                 if (asked.input) {
@@ -619,6 +622,16 @@ async function runsSettled() {
     const was = !!deckit?.mods.runs().some(moving);
     while (deckit?.mods.runs().some(moving)) await new Promise((resolve) => setTimeout(resolve, 10));
     return was;
+}
+
+// Resolves once deckit has taken what the parties did, `{}`: of each principal a party proved, `{ principal, open }`,
+// the run is not ending while the party's end of its transport connection is `open`, and has ended once it is not.
+async function partiesSettled({ attached }) {
+    const state = (principal) => deckit?.mods.runOf(principal)?.state ?? 'notRunning';
+    const moving = ({ principal, open }) =>
+        open ? state(principal) === 'terminating' : state(principal) !== 'notRunning';
+    while (attached.some(moving)) await new Promise((resolve) => setTimeout(resolve, 10));
+    return {};
 }
 
 // What a look comes to: `{ answers }`, `{ refuses, kind, message }` for a bundle found and not taken or a run refused,
