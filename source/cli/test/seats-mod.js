@@ -293,6 +293,13 @@ async function modChecks() {
         ]),
         calls.answer
     );
+    await change({ seats: [seat('1', 'Host'), seat('2', 'Ada', { colour: 'green', idle: true })] });
+    const stood = [rowsNow()[0].children[3] === allow, rowsNow()[0].children[2] === deny, rowsNow()[2] === ada];
+    check(
+        "as a seat's state changes an ask's answers keep their elements, and the seat's row says the state",
+        same(stood, [true, true, true]) && ada.children[2].textContent === 'idle',
+        [stood, ada.children[2]?.textContent]
+    );
     ada.fire('click');
     await change({
         asks: [],

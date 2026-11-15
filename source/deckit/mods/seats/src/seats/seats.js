@@ -38,7 +38,13 @@ function seats(shell, { onItem }) {
     const { ui } = shell;
     const content = ui.element('div', { className: 'seats' });
     const drawn = new Map(); // a row's key -> the row as it is drawn now
-    const rows = ui.list({ key: (row) => row.key, create, update: fill });
+    const filled = new Map(); // a row's key -> the row as its element was last filled with it, as text
+    // A row that says what it said is left as it is, so what a reader named in it stands while others change.
+    const rows = ui.list({
+        key: (row) => row.key,
+        create,
+        update: (made, row) => filled.get(row.key) !== JSON.stringify(row) && fill(made, row),
+    });
     let now = { seats: [], asks: [] }; // who sits and who asks, as last read
     let known = false; // whether they were read once
     let reads = 0; // how many times they were asked
@@ -104,6 +110,7 @@ function seats(shell, { onItem }) {
         const laid = MODEL.rowsOf(now);
         drawn.clear();
         for (const row of laid) drawn.set(row.key, row);
+        for (const key of [...filled.keys()]) if (!drawn.has(key)) filled.delete(key);
         rows.set(laid);
         const size = MODEL.sizeOf(laid);
         if (laid.length) window?.resize(size.width, size.height);
@@ -135,6 +142,7 @@ function seats(shell, { onItem }) {
     }
 
     function fill(made, row) {
+        filled.set(row.key, JSON.stringify(row));
         const words = [
             ui.element('span', { className: 'seats-name', text: row.name }),
             ui.element('span', { className: 'seats-says', text: row.says }),
