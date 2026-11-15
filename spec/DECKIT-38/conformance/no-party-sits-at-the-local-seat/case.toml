@@ -1,0 +1,21 @@
+case = 25
+name = "no-party-sits-at-the-local-seat"
+note = "The local user sits at the local seat from the start, and no run holds that seat. The host registers a key for the principal local and makes no user; a party that proves local is refused at call with ALREADY_RUNNING, so the system made the user and it sits."
+
+[host]
+base = "system"
+api = "1.0.0"
+keys = [{ principal = "local", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "local"
+key = "first"
+
+[step.expect]
+refuses = "call"
+kind = "ALREADY_RUNNING"

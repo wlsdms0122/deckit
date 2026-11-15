@@ -1,0 +1,28 @@
+case = 25
+name = "the-users-stand-as-the-host-app-starts-again"
+note = "The users are kept as the host app quits and starts again. The host makes ada before the first start; the host app quits and starts again, and ada attaches and sits under its name."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "quit"
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+part = "seat"
+
+[step.expect]
+answers = { id = "s1", local = false, user = { id = "ada", name = "Ada Lovelace" } }

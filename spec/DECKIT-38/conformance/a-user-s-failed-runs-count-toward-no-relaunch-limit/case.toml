@@ -1,0 +1,82 @@
+case = 25
+name = "a-user-s-failed-runs-count-toward-no-relaunch-limit"
+note = "A user's run that failed counts toward no relaunch limit. Six parties of ada in a row attach and close their transport connections, each a run that failed, more than the five in 10 seconds that put a mod at the limit; a seventh attaches and hosts run 7."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p1"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "detach"
+party = "p1"
+
+[[step]]
+input = "attach"
+party = "p2"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "detach"
+party = "p2"
+
+[[step]]
+input = "attach"
+party = "p3"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "detach"
+party = "p3"
+
+[[step]]
+input = "attach"
+party = "p4"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "detach"
+party = "p4"
+
+[[step]]
+input = "attach"
+party = "p5"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "detach"
+party = "p5"
+
+[[step]]
+input = "attach"
+party = "p6"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "detach"
+party = "p6"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "ada"
+key = "first"
+part = "run"
+
+[step.expect]
+answers = 7

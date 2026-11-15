@@ -1,0 +1,22 @@
+case = 25
+name = "a-user-s-job-holds-deckit-seat-and-no-other-permission"
+note = "The permissions of a user's job are deckit.seat and no other, which authenticate answers under permissions."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+part = "permissions"
+
+[step.expect]
+answers = ["deckit.seat"]

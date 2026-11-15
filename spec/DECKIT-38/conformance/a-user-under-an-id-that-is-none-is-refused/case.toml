@@ -1,0 +1,15 @@
+case = 25
+name = "a-user-under-an-id-that-is-none-is-refused"
+note = "Making a user is refused at call with INVALID_ARGUMENT where id is no id, and the refusal is the answer to the start."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "Not An Id", name = "Ada Lovelace" }]
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
