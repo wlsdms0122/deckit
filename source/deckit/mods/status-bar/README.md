@@ -26,7 +26,7 @@ command = "show"
 
 An entry of another shape, and a second entry of one mod, is left out and logged.
 
-While it runs, a mod sets what changes of its item on the exports the bar opens in `attach`:
+While it runs, a mod sets what changes of its item on the exports the bar opens in `start`, so from any lifecycle of its own, on screen or not:
 
 ```js
 deckit.dependencies.onConnect('status-bar/items', (bar) => {
