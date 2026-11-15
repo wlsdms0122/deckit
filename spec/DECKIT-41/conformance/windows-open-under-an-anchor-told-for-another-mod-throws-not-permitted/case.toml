@@ -1,0 +1,36 @@
+case = 23
+name = "windows-open-under-an-anchor-told-for-another-mod-throws-not-permitted"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. windows.open under an anchor that is told as it is called, and told for another mod, throws NOT_PERMITTED at call, and opens nothing: mod-a opens p 120 by 32 in the bar and is told to name the anchor spot of it for mod-a, and mod-b, granted deckit.panel-windows too, is told to open v at the level panel under the anchor { mod = \"mod-a\", id = \"spot\" }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "setAnchors", name = "p", args = [[{ id = "spot", rect = { x = 20, y = 0, width = 40, height = 32 }, mod = "mod-a" }]] }]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", activates = false, width = 320, height = 240, anchor = { mod = "mod-a", id = "spot" } } }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/p/didAppear", activates = true }, { url = "https://said.test/v/threw/NOT_PERMITTED", activates = true }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }]

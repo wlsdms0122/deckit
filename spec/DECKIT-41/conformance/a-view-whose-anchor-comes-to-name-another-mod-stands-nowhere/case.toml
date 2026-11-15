@@ -1,0 +1,66 @@
+case = 23
+name = "a-view-whose-anchor-comes-to-name-another-mod-stands-nowhere"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view under an anchor stands while that anchor's mod is the view's mod: mod-a opens p 120 by 32 in the bar, names the anchor spot of it for mod-a and opens v under it, activates false, and v stands at { x = 892, y = 60 }; it then names spot for mod-b, and v is on no screen, open still; and names it for mod-a again, and v stands where it stood."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "setAnchors", name = "p", args = [[{ id = "spot", rect = { x = 20, y = 0, width = 40, height = 32 }, mod = "mod-a" }]] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", activates = false, width = 320, height = 240, anchor = { mod = "mod-a", id = "spot" } } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 892, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "setAnchors", name = "p", args = [[{ id = "spot", rect = { x = 20, y = 0, width = 40, height = 32 }, mod = "mod-b" }]] }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { list = true }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "setAnchors", name = "p", args = [[{ id = "spot", rect = { x = 20, y = 0, width = 40, height = 32 }, mod = "mod-a" }]] }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 892, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/p/didAppear", activates = true }, { url = "https://said.test/v/didAppear", activates = true }, { url = "https://said.test/v/didDisappear", activates = true }, { url = "https://said.test/list/p,v", activates = true }, { url = "https://said.test/v/didAppear", activates = true }]

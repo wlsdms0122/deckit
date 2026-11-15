@@ -1,0 +1,54 @@
+case = 23
+name = "a-view-is-put-away-as-a-window-becomes-the-seat-s-key-window"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view shown for a seat by activation is put away for it as a window becomes the seat's key window. The person presses main, and mod-a is told to open v at the place top-right, shown by activation for the local seat, and then to open second, which becomes the key window: v is put away, open still."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", place = "top-right", width = 320, height = 240 } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 952, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "second" } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "second", level = "normal", frame = { x = 307, y = 165, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { list = true }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/main/didResignKey", activates = true }, { url = "https://said.test/v/didAppear", activates = true }, { url = "https://said.test/v/didBecomeKey", activates = true }, { url = "https://said.test/v/didResignKey", activates = true }, { url = "https://said.test/v/didDisappear", activates = true }, { url = "https://said.test/second/didAppear", activates = true }, { url = "https://said.test/second/didBecomeKey", activates = true }, { url = "https://said.test/list/main,v,second", activates = true }]
