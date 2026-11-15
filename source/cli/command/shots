@@ -693,6 +693,23 @@ async function draw(app, look, shots, origin) {
         await sleep(400);
         await windowShot(name, 'settings', { overlay: true });
     });
+    // A toast of Notifications' at the top right of the desktop, close: the one Calendar's button in Settings posts,
+    // drawn while it stands and left to go. None is posted where the run would raise a notification of the system's.
+    await surface('notifications-toast', async (name) => {
+        if ((await main(`return require('electron').Notification.isSupported()`)) !== false) return;
+        const toast = async () => {
+            for (const each of await pages('about:blank'))
+                if (await each.evaluate(`!!document.querySelector('.notifications-toasts .notifications-card')`))
+                    return each;
+            return null;
+        };
+        await settings.evaluate(`[...document.querySelectorAll('button')]
+            .find((button) => button.textContent.trim() === 'Send a test')?.click()`);
+        const stands = await until(toast, 4000);
+        await sleep(600);
+        if (stands) await desktopShot(name, { under, crop: { x: screen.width - 400, y: 0, width: 400, height: 180 } });
+        await until(async () => !(await toast()), 9000);
+    });
 
     // The Browser: a tab's context menu, the question a download asks, and the downloads listed from the toolbar.
     await show('browser');
