@@ -1,9 +1,11 @@
-// The relay of a party that sits at a seat: a local socket in deckit's folder, `<home>/seats/<user>.sock`, which only
-// its owner opens. One user is one run, so a terminal attaches once and whatever else acts for that user speaks to the
-// relay, as the party speaks to the host: JSON-RPC 2.0, a message a line (client.js connects to both).
+// The relay of a party that sits at a seat: a local socket in deckit's folder, named `<home>/seats/<user>.sock`
+// (socket.js), which only its owner opens. One user is one run, so a terminal attaches once and whatever else acts for
+// that user speaks to the relay, as the party speaks to the host: JSON-RPC 2.0, a message a line (client.js connects to
+// both).
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
+const SOCKET = require('./socket.js');
 
 // What the host tells a seat, passed on to everything connected.
 const TOLD = ['seat/output'];
@@ -64,15 +66,7 @@ function serve({ party, file, detach }) {
             for (const { send } of connections) send({ method, params });
         });
     fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-    fs.rmSync(file, { force: true });
-    const mask = process.umask(0o177);
-    return new Promise((resolve, reject) => {
-        server.once('error', reject);
-        server.listen(file, () => {
-            process.umask(mask);
-            resolve(() => fs.rmSync(file, { force: true }));
-        });
-    });
+    return SOCKET.listen(server, file);
 }
 
 module.exports = { DETACH, fileOf, attached, serve };

@@ -3,6 +3,7 @@
 // is from then on a run of that principal's job.
 const crypto = require('crypto');
 const net = require('net');
+const SOCKET = require('./socket.js');
 
 const LABEL = 'deckit-authenticate-1';
 
@@ -21,14 +22,14 @@ function pairOf(privateKey) {
     return { publicKey: Buffer.from(x, 'base64url').toString('base64'), privateKey };
 }
 
-// The transport connection to the socket at `file`, once it is open: `request(method, params)` resolves with the
-// result or rejects with the error, its `code`, `kind` and `stage` on it; `notify(method, params)` asks for no answer;
-// `on(method, handler(params))` hears what the host tells, and answers what it asks; `authenticate({ principal,
-// publicKey, privateKey })` proves the principal and resolves with what the host answers; `close()` closes it, and
-// `closed` settles once it is closed, by either end.
+// The transport connection to the socket named `file` (socket.js), once it is open: `request(method, params)` resolves
+// with the result or rejects with the error, its `code`, `kind` and `stage` on it; `notify(method, params)` asks for no
+// answer; `on(method, handler(params))` hears what the host tells, and answers what it asks; `authenticate({
+// principal, publicKey, privateKey })` proves the principal and resolves with what the host answers; `close()` closes
+// it, and `closed` settles once it is closed, by either end.
 function connect(file) {
     return new Promise((resolve, reject) => {
-        const socket = net.createConnection(file);
+        const socket = net.createConnection(SOCKET.placeOf(file));
         const pending = new Map();
         const handlers = new Map();
         let sequence = 0;
