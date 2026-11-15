@@ -1448,6 +1448,21 @@ async function dockChecks({ LAYOUT, DOCK, createDesktop }, check) {
             desk.page().dock.held === null,
         JSON.stringify({ second, clicked: desk.dock.clicked })
     );
+    desk.enter(me, pointer('down', { x: 600, y: 700 }));
+    desk.enter(me, pointer('up', { x: 600, y: 700 }));
+    desk.enter(me, pointer('move', { x: 600, y: 700 }));
+    const byRef = (type) => desk.enter(me, { event: 'pointer', type, ref: 'dock.b', button: 0, count: 1 });
+    const pressed = await byRef('down');
+    const letGo = await byRef('up');
+    check(
+        "a seat's down and up at the ref of an item, the Dock in before them, are its click on the item",
+        pressed.over === 'dock' &&
+            letGo.over === 'dock' &&
+            JSON.stringify(pressed.at) === JSON.stringify(on('b')) &&
+            JSON.stringify(desk.dock.clicked.at(-1)) === '["b","s1"]' &&
+            desk.dock.clicked.length === clicks + 1,
+        JSON.stringify({ pressed, letGo, clicked: desk.dock.clicked })
+    );
 }
 
 function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {

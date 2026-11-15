@@ -881,10 +881,10 @@ export function createDesktop({
     }
 
     // A pointer event placed by `ref`, what a reading named: the pointer goes to the middle of what shows of it, an
-    // item of the Dock by way of the Dock's sliver, and the event enters there as one at that point does. Where
-    // another window covers that place in the seat's order, the window the ref is of comes to the front of that order
-    // first, as the seat's press on it brings it. No page hears a pointer that only moves, so a move with no button
-    // held is refused.
+    // item of the Dock by way of the Dock's sliver while the Dock is in for the seat, and the event enters there as one
+    // at that point does. Where another window covers that place in the seat's order, the window the ref is of comes to
+    // the front of that order first, as the seat's press on it brings it. No page hears a pointer that only moves, so a
+    // move with no button held is refused.
     async function placed(seat, hand, { ref, ...event }) {
         if (ROUTING.hovers({ ...event, ref }, hand.buttons))
             throw refusal('REFUSED', 'no page hears a pointer that only moves yet');
@@ -892,7 +892,8 @@ export function createDesktop({
         if (hands.get(seat) !== hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
         if (!shown) throw refusal('HIDDEN', 'the desktop is hidden: nothing of it takes input');
         if (windows.has(window) && ROUTING.raises(window, windowUnder(seat, at))) press(seat, windows.get(window));
-        if (by) pointed(seat, hand, { event: 'pointer', type: 'move', source: event.source, ...by }, 'ref');
+        if (by && !hand.dock)
+            pointed(seat, hand, { event: 'pointer', type: 'move', source: event.source, ...by }, 'ref');
         return { ...pointed(seat, hand, { ...event, ...at }, 'ref'), at };
     }
 
@@ -1195,16 +1196,17 @@ export function createDesktop({
 
     // What a seat's pointer does on the parts of a window the shell draws, `on` `{ id, part }` under it (partAt), the
     // one recognizer of every seat: a 'down' is a press on the window, a drag of its title bar from there moves it, a
-    // drag of an edge resizes it, an up on the button the press was on clicks it, and a 'down' on the title bar that
-    // is the second of two, `count` 2, is a double click. A 'down' of another `button` than the first is a press on
-    // the window and no more. The hand keeps what each 'down' reached until its up (`hand.down`), and only one that
-    // `acts`, the first button's on a part that does something, goes on to a click or a drag. On the Dock (DOCK_PARTS), `on` null where nothing of it is under the pointer: an up on
-    // the item the press was on is the seat's click on it; a press on an item kept there dragged past the Dock's slop
-    // drags it, the kept items showing in the order the Dock's model answers of the pointer until the up leaves them
-    // so; a 'down' of the second button on an item opens its menu for the seat; an up on the entry of that menu the
-    // press was on chooses it, and a press on anything but the menu puts it away. `point` is in any space that holds
-    // still while the button is down, the desktop for the Dock, and `grab` where a 'down' is from the frame's top
-    // left, read from `point` where it is not told, which holds for a point on the desktop.
+    // drag of an edge resizes it, an up on the button the press was on clicks it, and a 'down' on the title bar that is
+    // the second of two, `count` 2, is a double click. A 'down' of another `button` than the first is a press on the
+    // window and no more. The hand keeps what each 'down' reached until its up (`hand.down`), and only one that `acts`,
+    // the first button's on a part that does something, goes on to a click or a drag. On the Dock (DOCK_PARTS), `on`
+    // null where nothing of it is under the pointer: an up on the item the press was on is the seat's click on it; a
+    // press on an item kept there dragged past the Dock's slop drags it, the kept items showing in the order the Dock's
+    // model answers of the pointer until the up leaves them so; a 'down' of the second button on an item opens its menu
+    // for the seat; an up on the entry of that menu the press was on chooses it, and a press on anything but the menu
+    // puts it away. `point` is in any space that holds still while the button is down, the desktop for the Dock, and
+    // `grab` where a 'down' is from the frame's top left, read from `point` where it is not told, which holds for a
+    // point on the desktop.
     function gesture(seat, type, point, on, { count = 1, button = 0, grab = null } = {}) {
         const hand = hands.get(seat);
         if (!hand) return;
