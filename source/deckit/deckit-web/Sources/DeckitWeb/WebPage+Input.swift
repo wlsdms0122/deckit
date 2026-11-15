@@ -180,7 +180,8 @@ extension WebPage {
         "PageDown": String(UnicodeScalar(NSPageDownFunctionKey)!)
     ]
 
-    // The buttons the seat holds are the system's while its event is made into the page's, and no other seat's.
+    // The buttons the seat holds are the system's while its event is made into the page's, and no other seat's: the
+    // page's event is made before the view answers (WebPageView.put).
     private func put(_ pointer: Put.Pointer, from: String, in window: NSWindow) throws {
         let held = HeldButtons.held(by: from) { held in
             if let buttons = pointer.buttons {
@@ -224,17 +225,19 @@ extension WebPage {
         }
         if type == .leftMouseDown || type == .leftMouseUp { pointed(made, from: from) }
         HeldButtons.while(held) {
-            switch type {
-            case .leftMouseDown: view.mouseDown(with: made)
-            case .rightMouseDown: view.rightMouseDown(with: made)
-            case .otherMouseDown: view.otherMouseDown(with: made)
-            case .leftMouseUp: view.mouseUp(with: made)
-            case .rightMouseUp: view.rightMouseUp(with: made)
-            case .otherMouseUp: view.otherMouseUp(with: made)
-            case .leftMouseDragged: view.mouseDragged(with: made)
-            case .rightMouseDragged: view.rightMouseDragged(with: made)
-            case .otherMouseDragged: view.otherMouseDragged(with: made)
-            default: view.moved(put: made)
+            view.put {
+                switch type {
+                case .leftMouseDown: view.mouseDown(with: made)
+                case .rightMouseDown: view.rightMouseDown(with: made)
+                case .otherMouseDown: view.otherMouseDown(with: made)
+                case .leftMouseUp: view.mouseUp(with: made)
+                case .rightMouseUp: view.rightMouseUp(with: made)
+                case .otherMouseUp: view.otherMouseUp(with: made)
+                case .leftMouseDragged: view.mouseDragged(with: made)
+                case .rightMouseDragged: view.rightMouseDragged(with: made)
+                case .otherMouseDragged: view.otherMouseDragged(with: made)
+                default: view.moved(put: made)
+                }
             }
         }
     }

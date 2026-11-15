@@ -23,6 +23,7 @@ final class WebPageView: WKWebView {
     var clearWhileBlank = false // drawing nothing where the document does not until it commits its first page
     var inputRegion: [CGRect]? // the rects that take the pointer, from its top left; nil, all of it
     private var given = false // whether the keyboard is being handed to it
+    private var isPut = false // whether a seat's pointer event is being handed to it
     private(set) var droppedFiles: [URL] = []
     private lazy var relay = PointerRelay(view: self)
     private var relayed: NSTrackingArea?
@@ -75,6 +76,13 @@ final class WebPageView: WKWebView {
         return super.performDragOperation(sender)
     }
 
+    // WebKit asks the machine's input method of each pointer event in editable content and makes the page's event
+    // once that answers, which an input method does later. A seat's pointer event does not concern the machine's
+    // input method, so there is none to ask while one is handed, and the page's event is made at once.
+    override var inputContext: NSTextInputContext? {
+        isPut ? nil : super.inputContext
+    }
+
     // Outside its input region a press, a move and a scroll go to what is under it.
     override func hitTest(_ point: NSPoint) -> NSView? {
         if let inputRegion {
@@ -110,6 +118,13 @@ final class WebPageView: WKWebView {
         given = true
         window?.makeFirstResponder(self)
         given = false
+    }
+
+    // A seat's pointer event handed to it by `work`, made into the page's before `work` ends.
+    func put(_ work: () -> Void) {
+        isPut = true
+        defer { isPut = false }
+        work()
     }
 
     // A move put into it for a seat, whose pointer is not the one the window hit tests for.
