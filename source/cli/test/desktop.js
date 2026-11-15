@@ -2544,11 +2544,13 @@ async function cursorChecks({ LAYOUT, createDesktop }, check) {
         layers.some(({ page }) => page?.name === 'content-1')
             ? [{ page: menu, rect: full, input: [{ x: 0, y: 400, width: 100, height: 100 }] }]
             : [];
-    const desk = desktopOver(createDesktop, { overlays });
+    // The menu is the overlay of the page of the mod `a`.
+    const pages = { a: { name: 'page-a', mod: 'a' }, b: { name: 'page-b', mod: 'b' } };
+    const desk = desktopOver(createDesktop, { overlays, ownerOf: (page) => (page === menu ? pages.a : page) });
     desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
     desk.desktop.control.show();
     const windowOf = (id, mod, level) => {
-        const page = { name: `page-${mod}`, mod };
+        const page = pages[mod];
         return {
             id,
             mod,
@@ -2593,6 +2595,16 @@ async function cursorChecks({ LAYOUT, createDesktop }, check) {
         "a seat's press under the cursors' surface reaches what is laid under it",
         reached.join() === 'content-2,content-2',
         reached
+    );
+    const onMenu = { x: 50, y: 450 };
+    const answered = await desk.enter(other, pointer('down', onMenu));
+    await desk.enter(other, pointer('up', onMenu));
+    const inMenu = desk.puts.slice(before + 2).map(({ page, event }) => `${page} ${event.type} ${event.x},${event.y}`);
+    check(
+        "a seat's press on what a mod's page presents over itself is put in that overlay, and is a press on the " +
+            "page's front window",
+        answered?.over === 1 && inMenu.join() === 'menu down 50,450,menu up 50,450',
+        { answered, inMenu }
     );
     desk.leave(other);
     check("the cursors' surface is taken off as the last other seat leaves", !names().includes('cursors'), names());
@@ -3258,7 +3270,10 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
 // which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it,
 // `key(page)` a key pressed in a page and `chord(mod)` a chord told to a mod. `read` is what reads a page, and
 // `pictures` each picture the stage was asked for.
-function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} }, overlays = () => [] }) {
+function desktopOver(
+    createDesktop,
+    { state = {}, clock, read = { listen() {} }, overlays = () => [], ownerOf = (page) => page }
+) {
     const handlers = {};
     const sent = [];
     const titles = [];
@@ -3380,7 +3395,7 @@ function desktopOver(createDesktop, { state = {}, clock, read = { listen() {} },
         OVERLAY: {
             onChange() {},
             withOverlays: (layers) => [...layers, ...overlays(layers)],
-            ownerOf: (page) => page,
+            ownerOf,
         },
         KEY,
         makeStage: () => stage,

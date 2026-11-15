@@ -137,6 +137,7 @@ export function createDesktop({
     let frames = {}; // mod id -> window name -> the frame it was left at, `{ level, x, y, width, height }`
     const pressers = new Map(); // window id -> the seat that pressed it last, which what its content asks is done for
     const inWindows = new Map(); // a child's page -> the window or panel window whose region shows it, as last laid
+    const fronts = new Map(); // a mod's page -> its front window or panel window, where its overlay lies, as last laid
     const reserved = new WeakMap(); // a window's content -> whether it is kept from the machine's keyboard, as told
     const onDesktop = new Map(); // a page laid in the host window's view -> its rect on the desktop, as last laid
     // id -> what is drawn of a window: `{ window, motion, value, velocity, late, leaving, gone }`, `value` its frame
@@ -1101,12 +1102,14 @@ export function createDesktop({
     }
 
     // The window or panel window a page is of: its content, a child a region of it shows, a web page in it or an
-    // overlay of one; or null.
+    // overlay of one, the overlay of a mod's own page being of that page's front window; or null.
     function windowAt(page) {
         const owner = OVERLAY.ownerOf(page);
         const held = web.pageFor(owner) ?? owner;
-        const child = inWindows.get(held);
-        return [...windows.values(), ...panels.values()].find(({ id, surface }) => surface === held || id === child);
+        const over = [inWindows.get(held), ...(owner === page ? [] : [fronts.get(held)])];
+        return [...windows.values(), ...panels.values()].find(
+            ({ id, surface }) => surface === held || over.includes(id)
+        );
     }
 
     // The part the shell draws that a point of a page is on, `{ id, part }`: of the window `id`, 'bar', its title bar,
@@ -1573,10 +1576,15 @@ export function createDesktop({
         const laidChildren = new Set(children.map(({ page }) => page));
         for (const { window, page } of children) inWindows.set(page, window);
         const front = new Map(); // a mod's page -> the frame of its front window on screen
-        for (const { window, frame } of inBar) if (!front.has(window.page)) front.set(window.page, frame);
+        for (const { window, frame } of inBar) {
+            if (front.has(window.page)) continue;
+            front.set(window.page, frame);
+            fronts.set(window.page, window.id);
+        }
         const ofPanels = new Set(front.keys()); // the pages whose front window on screen is a panel window
         for (const { id, frame } of view) {
             front.set(windows.get(id).page, frame);
+            fronts.set(windows.get(id).page, id);
             ofPanels.delete(windows.get(id).page);
         }
         const pages = new Set(
