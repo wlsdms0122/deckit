@@ -831,6 +831,7 @@ async function main() {
     const SEATS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'seats.js'));
     chipChecks({ SEATS }, check);
     await askChecks({ SEATS, createDesktop }, check);
+    await followChecks({ SEATS, LAYOUT, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -1633,6 +1634,115 @@ async function askChecks({ SEATS, createDesktop }, check) {
         grace.answer === false && late.answer === undefined && left.join() === 'late' && desk.page().asks.length === 0,
         [grace.answer, late.answer, left, desk.page().asks]
     );
+}
+
+// The local seat follows another: the host window shows that seat's view until the local seat presses or types.
+async function followChecks({ SEATS, LAYOUT, createDesktop }, check) {
+    const desk = desktopOver(createDesktop, {});
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const windowOf = (id, mod) => {
+        const page = { name: `page-${mod}`, mod };
+        return {
+            id,
+            mod,
+            name: `w${id}`,
+            level: 'normal',
+            page,
+            surface: { name: `content-${id}`, of: page },
+            size: { width: 200, height: 200 },
+            minimum: { width: 0, height: 0 },
+            bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+        };
+    };
+    const all = [windowOf(1, 'a'), windowOf(2, 'b')];
+    for (const window of all) {
+        desk.desktop.open(window);
+        desk.openSurfaces(window.id);
+    }
+    desk.desktop.control.hand.move(1, 100 - desk.frameOf(1).x, 300 - desk.frameOf(1).y);
+    desk.desktop.control.hand.move(2, 500 - desk.frameOf(2).x, 300 - desk.frameOf(2).y);
+    const [other, third] = [desk.sit('s1'), desk.sit('s2')];
+    const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
+    const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
+    const inWindow = (id) => middle(desk.desktop.control.windows().find((one) => one.id === id).frame);
+    desk.enter(other, pointer('down', inWindow(1)));
+    desk.enter(other, pointer('up', inWindow(1)));
+    const machine = async (event) => {
+        desk.carried({ page: desk.desktopPage, ...event, carried: true });
+        await new Promise((resolve) => setTimeout(resolve));
+    };
+    const press = async (at, page = desk.desktopPage) => {
+        await machine({ event: 'pointer', type: 'down', ...at, button: 0, buttons: [0], page });
+        await machine({ event: 'pointer', type: 'up', ...at, button: 0, buttons: [], page });
+    };
+    const chipOf = (seat, shown = 'local') => {
+        const others = ['local', 's1', 's2'].filter((id) => id !== shown);
+        return middle(SEATS.chipsOf({ width: 1200, height: 800 }, others, []).find(({ id }) => id === seat).rect);
+    };
+    const view = () => {
+        const { windows, seats, dock, following } = desk.page();
+        return [
+            following?.id ?? '',
+            windows.map(({ id, key }) => id + (key ? '*' : '')).join(),
+            seats.find(({ shown }) => shown).id,
+            dock.active,
+        ].join(' ');
+    };
+    const own = view();
+    desk.enter(third, pointer('down', chipOf('s1')));
+    desk.enter(third, pointer('up', chipOf('s1')));
+    check("an attached seat's press on a chip follows no one", view() === own && own === ' 1,2* local b', [
+        own,
+        view(),
+    ]);
+    await press(chipOf('s1'));
+    const full = { x: 0, y: 0, width: 1200, height: 800 };
+    const takes = desk.laid().filter(({ page, input }) => page && (!input || input.length));
+    check(
+        "the local seat's press on a seat's chip shows that seat's view: its order, its key window, its active mod",
+        view() === 's1 2,1* s1 a' && desk.page().following.name === 's1' && desk.page().following.colour === 'green',
+        [view(), desk.page().following]
+    );
+    check(
+        "while it follows, the machine's pointer and keyboard reach the desktop's page alone",
+        desk.focused.at(-1) === desk.desktopPage &&
+            JSON.stringify(desk.laid().find(({ page }) => page === desk.desktopPage).input) ===
+                JSON.stringify([full]) &&
+            takes.at(-1).page === desk.desktopPage,
+        [desk.focused.at(-1), takes.map(({ page }) => page.name)]
+    );
+    const before = desk.told().length;
+    await machine({ event: 'pointer', type: 'move', x: 300, y: 300, buttons: [] });
+    const toldLocal = desk.told().slice(before);
+    check(
+        "a move does not end it, and the local seat's pointer is told as any other seat's is",
+        view().startsWith('s1 ') && toldLocal.length === 1 && toldLocal[0].id === 'local' && toldLocal[0].x === 300,
+        [view(), toldLocal]
+    );
+    await press({ x: 5, y: 5 }, all[0].surface);
+    check(
+        "the local seat's press ends it and does no more: the view is its own again, as it left it",
+        view() === own && desk.focused.at(-1)?.name === 'content-2',
+        [view(), desk.focused.at(-1)]
+    );
+    await press(chipOf('s1'));
+    const closedBefore = desk.closed.length;
+    const taken = desk.press('closeWindow', all[1].surface);
+    const held = desk.press('closeWindow', all[1].surface);
+    await machine({ event: 'key', type: 'up', code: 'KeyW', key: 'w' });
+    check(
+        'a key of the shell ends it and does no more, until it is let go',
+        taken === true && held === true && view() === own && desk.closed.length === closedBefore,
+        [taken, held, view(), desk.closed]
+    );
+    await press(chipOf('s1'));
+    await machine({ event: 'key', type: 'down', code: 'KeyA', key: 'a' });
+    await machine({ event: 'key', type: 'up', code: 'KeyA', key: 'a' });
+    const byKey = view();
+    await press(chipOf('s1'));
+    desk.leave(other);
+    check('a key ends it, and so does the seat it follows leaving', byKey === own && view() === own, [byKey, view()]);
 }
 
 function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {

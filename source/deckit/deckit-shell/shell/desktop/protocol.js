@@ -7,23 +7,23 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame }], seats, asks, drop, strip, dock,
-// down }`: the windows on the screen of the seat at the host window, `frame` on the stage, `key` whether it is that
-// seat's key window, `holder` the name of the colour of the seat that holds its keyboard (a seat colour of the kit's
-// token), or null, `bar` its title bar (model/layout.js barOf), `title` what the title bar
-// the shell draws over a titled window's content holds, or null for a window whose content draws its own; `panels`,
-// the panel windows at their edge, 'top' in the strip or 'right', the material drawn under each at its frame; `seats`,
-// `[{ id, name, colour, at, buttons, idle, shown }]`, every seat at the desktop: its user's name, its colour's name,
-// where its pointer is on the stage, or null before it was anywhere, the buttons it holds, whether its devices gave
-// nothing for the idle time, and whether it is the one whose view the host window shows, each as of this telling;
-// `asks`, `[{ id, user, name }]`, the users that ask to sit, in the order they asked, each ask under a number of its
-// own with its user's id and name; `drop`
-// `{ tile, frame }`, the tile (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame,
-// or null; `strip`
-// `{ height, controlsWidth }`, the host window's bar over the page's top, which drags the host window, and the width
-// its controls take from its start; `dock` `{ items, active, attention }`, the Dock's items
-// (dock/main.js items), the id of the mod whose window is that seat's key window, or null, and the ids of the mods
-// that ask for that seat's attention; and `down` `{ name, why }` once deckit's core answers nothing more, or null.
+// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame }], seats, asks, following, drop,
+// strip, dock, down }`: the windows on the screen of the seat whose view the host window shows, the local seat's or
+// that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `holder` the name of
+// the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its title bar
+// (model/layout.js barOf), `title` what the title bar the shell draws over a titled window's content holds, or null for
+// a window whose content draws its own; `panels`, the panel windows at their edge, 'top' in the strip or 'right', the
+// material drawn under each at its frame; `seats`, `[{ id, name, colour, at, buttons, idle, shown }]`, every seat at
+// the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was anywhere,
+// the buttons it holds, whether its devices gave nothing for the idle time, and whether it is the one whose view the
+// host window shows, each as of this telling; `asks`, `[{ id, user, name }]`, the users that ask to sit, in the order
+// they asked, each ask under a number of its own with its user's id and name; `following`, `{ id, name, colour }`, the
+// seat the local seat follows, whose view this is, or null for the local seat's own; `drop` `{ tile, frame }`, the tile
+// (model/layout.js TILES) a window dragged by its title bar takes let go now, at its frame, or null; `strip` `{ height,
+// controlsWidth }`, the host window's bar over the page's top, which drags the host window, and the width its controls
+// take from its start; `dock` `{ items, active, attention }`, the Dock's items (dock/main.js items), the id of the mod
+// whose window is that seat's key window, or null, and the ids of the mods that ask for that seat's attention; and
+// `down` `{ name, why }` once deckit's core answers nothing more, or null.
 export const state = CHANNEL.mainToPage('deckit-shell:desktop-state');
 // What the pointer of a seat that is not the one shown just did, each event as it comes, between two states:
 // `{ id, type, x, y, buttons }`, `type` 'move', 'down', 'up' or 'scroll', the point on the stage, the buttons held

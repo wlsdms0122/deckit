@@ -2961,7 +2961,7 @@ async function run({
     }
 
     try {
-        const { asksNow, answerOf, answer, allowed } = local;
+        const { asksNow, answerOf, pressAt, answer, allowed } = local;
         await OUTSIDE.run({
             check,
             home,
@@ -2972,6 +2972,8 @@ async function run({
             idleTime: IDLE_TIME,
             asksNow,
             answerOf,
+            pressAt,
+            pageAt,
             answer,
             allowed,
         });

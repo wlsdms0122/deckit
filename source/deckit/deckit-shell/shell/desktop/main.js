@@ -51,16 +51,16 @@ export function createDesktop({
     const seated = new Map(); // seat id -> the seat as deckit tells it, while it is open
     // seat id -> what its hand holds: `moving`, `{ id, from, grab, pointer }`, the window a drag of its title bar or
     // its content's drag regions moves, from the frame it had at the press, `grab` where the press was in that frame,
-    // and where the pointer is on the stage now; `dropping`, the tile that window takes let go now, or null;
-    // `pointer`, where its pointer is on the desktop, or null; `down`, where its press went until it lets go, a page
-    // of the window `id` with `inside`, the page's top left from that window's frame, or a `part` of the window `id`
-    // with its `grip`, the Dock's item `id`, its `part` 'dock', or a part of the chip `id` (CHIP_PARTS); `wanted`, the window it pressed last that another
-    // seat holds, or null; `dock`, whether the Dock is out for it, as the desktop's page tells of the seat it shows and
-    // as its pointer says of any other; `panel`, the id of the panel window at the edge `right` that holds its
-    // keyboard, or null, the local seat's being the machine's (`held`); and `keys`, `{ id, page }`, the page of the
-    // window `id` that took its last press there, where its keys and text go while that window holds its keyboard,
-    // or null for the window's content, the local seat's being the machine's; and `buttons`, those of its pointer
-    // that are held now
+    // and where the pointer is on the stage now; `dropping`, the tile that window takes let go now, or null; `pointer`,
+    // where its pointer is on the desktop, or null; `down`, where its press went until it lets go, a page of the window
+    // `id` with `inside`, the page's top left from that window's frame, or a `part` of the window `id` with its `grip`,
+    // the Dock's item `id`, its `part` 'dock', or a part of the chip `id` (CHIP_PARTS); `wanted`, the window it pressed
+    // last that another seat holds, or null; `dock`, whether the Dock is out for it, as the desktop's page tells of the
+    // seat it shows and as its pointer says of any other; `panel`, the id of the panel window at the edge `right` that
+    // holds its keyboard, or null, the local seat's being the machine's (`held`); and `keys`, `{ id, page }`, the page
+    // of the window `id` that took its last press there, where its keys and text go while that window holds its
+    // keyboard, or null for the window's content, the local seat's being the machine's; and `buttons`, those of its
+    // pointer that are held now
     const hands = new Map();
     const COLOURS = COLOURS_MODEL.createColours(SEAT_COLOURS); // the colour each seat here is told apart by
     let tells = null; // what deckit answered the shell's serving with: what tells a seat
@@ -68,6 +68,10 @@ export function createDesktop({
     // what tells deckit yes or no.
     const asks = new Map();
     let asked = 0; // how many asked so far
+    // The seat whose view the host window shows in the local seat's place, by its id, the local seat following it; or
+    // null, the view the local seat's own.
+    let followed = null;
+    let ended = false; // whether the key that ended a follow is still down: what it would do is not done
     const MANAGER = WM.createWindowManager({
         isIdle: (seat) => seated.has(seat) && deckit.seats.isIdle(seated.get(seat)),
         onTaken: (holder, window, by) => seated.has(holder) && tells?.held(seated.get(holder), { window, holder: by }),
@@ -162,7 +166,8 @@ export function createDesktop({
     // that window. The machine's keyboard is the local seat's: a key pressed in a page reaches the mod whose page it
     // is, a chord the mod that took it, for the seat that pressed it. Every seat deckit opens sits here, and what a
     // seat's devices do enters through `deckit.seats.input`, the machine's as the local seat's. A user that asks to
-    // sit is put to the local seat (ask).
+    // sit is put to the local seat (ask). The host window shows the local seat's view, or that of the seat the local
+    // one follows (follow).
     function start(given) {
         WINDOWS = given.WINDOWS;
         DOCK = given.DOCK;
@@ -601,9 +606,27 @@ export function createDesktop({
         update();
     }
 
-    // A seat deckit closed leaves: what it held is no one's.
+    // The seat whose view the host window shows.
+    function shownSeat() {
+        return followed ?? LOCAL;
+    }
+
+    // The host window shows the view of `seat`, the local seat following it: the stage is laid in that seat's order,
+    // the desktop's page is told what is so of it, and the machine's keyboard and pointer reach the desktop's page
+    // alone, the pages lying in another seat's order. With null, or the local seat, the view is the local seat's own
+    // again.
+    function follow(seat) {
+        const next = seat !== LOCAL && hands.has(seat) ? seat : null;
+        if (next === followed) return;
+        followed = next;
+        update();
+        if (shown) focus();
+    }
+
+    // A seat deckit closed leaves: what it held is no one's, and a view that followed it is the local seat's again.
     function leave(seat) {
         if (seat.id === LOCAL || !hands.has(seat.id)) return;
+        if (followed === seat.id) follow(null);
         endDrag(seat.id);
         MANAGER.removeSeat(seat.id);
         ACTIVATION.removeSeat(seat.id);
@@ -637,7 +660,7 @@ export function createDesktop({
     // The chips at the desktop's bottom right (SEATS_MODEL.chipsOf): one for each seat but the one the host window
     // shows, then one for each user that asks to sit.
     function chips() {
-        const others = [...hands.keys()].filter((id) => id !== LOCAL);
+        const others = [...hands.keys()].filter((id) => id !== shownSeat());
         return SEATS_MODEL.chipsOf(stage.size(), others, [...asks.keys()]);
     }
 
@@ -660,20 +683,24 @@ export function createDesktop({
     }
 
     // The entry, as deckit hands it: what the devices of `seat` did. An event the environment carried is in its page
-    // already; any other is read against what is laid for the seat and put in the page it reaches. A pointer answers
-    // `{ over, key, holder }`: `over` the window it reached, 'desktop' for the desktop where no window is, or null,
-    // and, for a press on a window, `key` 'key' or 'held' and `holder`, the seat that holds its keyboard. A key or
-    // text answers `{ to }`, the window it went to, or null where the seat has no key window. Nothing is put while the
-    // host window is hidden, where no page takes input: that is refused HIDDEN. An act on what a reading named is the
-    // seat's pointer going there and pressing or scrolling, answered as that pointer event is.
+    // already, and the local seat's press or key that ends its following of another seat does no more; any other is
+    // read against what is laid for the seat and put in the page it reaches. A pointer answers `{ over, key, holder }`:
+    // `over` the window it reached, 'desktop' for the desktop where no window is, or null, and, for a press on a
+    // window, `key` 'key' or 'held' and `holder`, the seat that holds its keyboard. A key or text answers `{ to }`, the
+    // window it went to, or null where the seat has no key window. Nothing is put while the host window is hidden,
+    // where no page takes input: that is refused HIDDEN. An act on what a reading named is the seat's pointer going
+    // there and pressing or scrolling, answered as that pointer event is.
     function entered(seat, event) {
         const hand = hands.get(seat.id);
         if (!hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
         if (!event.carried && !shown) throw refusal('HIDDEN', 'the desktop is hidden: nothing of it takes input');
         if (event.event === 'pointer')
             return event.carried ? arrived(seat.id, hand, event) : pointed(seat.id, hand, event);
-        if (event.event === 'key' || event.event === 'text')
-            return event.carried ? { to: keyWindow(seat.id)?.id ?? null } : typed(seat.id, event);
+        if (event.event === 'key' || event.event === 'text') {
+            if (!event.carried) return typed(seat.id, event);
+            if (event.event === 'key' && seat.id === LOCAL) unfollowed(event.type);
+            return { to: keyWindow(seat.id)?.id ?? null };
+        }
         return acted(seat, event);
     }
 
@@ -711,6 +738,10 @@ export function createDesktop({
     function arrived(seat, hand, event) {
         if (Number.isFinite(event.x)) hand.pointer = { x: event.x, y: event.y };
         moved(seat, hand, event);
+        if (followed !== null) {
+            if (event.type === 'down') follow(null);
+            return { over: null };
+        }
         const chip = event.page === desktop.page && hand.pointer ? SEATS_MODEL.partAt(chips(), hand.pointer) : null;
         if (event.type === 'down' && chip) gesture(seat, 'down', hand.pointer, chip, { button: event.button });
         if (event.type === 'up' && CHIP_PARTS.includes(hand.down?.part)) gesture(seat, 'up', hand.pointer, chip);
@@ -722,9 +753,9 @@ export function createDesktop({
     // A pointer event to be carried. A press and a scroll go where `stage.hit` finds a page in what is laid for the
     // seat; a move with a button held and the up that ends it go where the press went, at the pointer's point of that
     // page where its window is now, so a window its content's drag moves stays under the pointer. A press on the
-    // desktop, the Dock or a chip leaves the seat's keyboard with its key window, wanting no other. A move with none held
-    // moves the seat's pointer alone. The Dock comes out for the seat as its pointer reaches the Dock's sliver, and
-    // stays out while it is there or on the Dock's card.
+    // desktop, the Dock or a chip leaves the seat's keyboard with its key window, wanting no other. A move with none
+    // held moves the seat's pointer alone. The Dock comes out for the seat as its pointer reaches the Dock's sliver,
+    // and stays out while it is there or on the Dock's card.
     function pointed(seat, hand, event) {
         const { type } = event;
         const point = { x: event.x, y: event.y };
@@ -801,11 +832,12 @@ export function createDesktop({
     }
 
     // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of
-    // a seat it draws the cursor of, that event alone, `{ id, type, x, y, buttons }` and for a scroll `dx`, `dy`.
+    // a seat it draws the cursor of, any but the one whose view it shows, that event alone, `{ id, type, x, y, buttons
+    // }` and for a scroll `dx`, `dy`.
     function moved(seat, hand, { type, button = 0, dx = 0, dy = 0 }) {
         if (type === 'down' && !hand.buttons.includes(button)) hand.buttons = [...hand.buttons, button];
         if (type === 'up') hand.buttons = hand.buttons.filter((each) => each !== button);
-        if (seat === LOCAL || !hand.pointer || !desktop.page || !PAGES.isAlive(desktop.page)) return;
+        if (seat === shownSeat() || !hand.pointer || !desktop.page || !PAGES.isAlive(desktop.page)) return;
         const { x, y } = hand.pointer;
         const scrolled = type === 'scroll' ? { dx, dy } : {};
         PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, ...scrolled });
@@ -898,9 +930,23 @@ export function createDesktop({
 
     // A seat's press on a part of a chip. An ask is put to the local seat, so 'allow' and 'deny' answer it for that
     // seat's press and for no other's.
+    // The local seat's press on the chip of a seat follows that seat; the host window is the local seat's, so no
+    // other's press does.
     function pressChip(seat, { part, id }) {
         if (seat !== LOCAL) return;
-        if (part !== 'chip') asks.get(id)?.answer(part === 'allow');
+        if (part === 'chip') follow(id);
+        else asks.get(id)?.answer(part === 'allow');
+    }
+
+    // A key of the machine's, `type` 'down' or 'up', while the local seat follows another: the key down ends the
+    // following, and until a key is let go what a key would do is not done. Answers whether it is so now.
+    function unfollowed(type) {
+        if (type === 'up') ended = false;
+        else if (followed !== null) {
+            ended = true;
+            follow(null);
+        }
+        return ended;
     }
 
     // What the shell keeps between runs, as the person left it. The desktop goes on with it whether deckit keeps it or
@@ -1180,11 +1226,12 @@ export function createDesktop({
     }
 
     // From the bottom: the mods' pages with a window here, but for a child's another stage shows, the backdrop, each
-    // window in the local seat's order with the children its regions show, the materials the desktop's page draws
-    // glass over, then that page, taking the pointer only at the host's bar, the chips and the Dock, its sliver down
-    // the edge and its card while it is out, and the panel windows in that bar with the children their regions show. Over all of
+    // window in the local seat's order with the children its regions show, the materials the desktop's page draws glass
+    // over, then that page, taking the pointer only at the host's bar, the chips and the Dock, its sliver down the edge
+    // and its card while it is out, and the panel windows in that bar with the children their regions show. Over all of
     // it, the overlay of each page laid that shows anything, at its page's rect, or over the whole stage for a panel
-    // window's content, so what it presents is not cut to the panel. With deckit's core down the desktop's page alone covers it all.
+    // window's content, so what it presents is not cut to the panel. With deckit's core down the desktop's page alone
+    // covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
         inPanels.clear();
@@ -1193,8 +1240,15 @@ export function createDesktop({
             REGION.show(stage, []);
             return;
         }
-        const view = MANAGER.viewOf(LOCAL);
-        const { layers, children } = laidOf(view, drawnNow(view), hands.get(LOCAL).dock);
+        const view = MANAGER.viewOf(shownSeat());
+        const { layers: own, children } = laidOf(view, drawnNow(view), hands.get(LOCAL).dock);
+        // In another seat's order the desktop's page takes the machine's pointer everywhere, and what is laid over it
+        // nowhere.
+        const top = own.findIndex(({ page }) => page === desktop.page);
+        const layers =
+            followed === null
+                ? own
+                : own.map((layer, at) => (at < top ? layer : { ...layer, input: at === top ? [full] : [] }));
         for (const { window, page } of children) {
             if (!panels.has(window)) continue;
             inPanels.add(page);
@@ -1357,18 +1411,17 @@ export function createDesktop({
         return null;
     }
 
-    // What is drawn of each window on the local seat's screen, `view` as MANAGER.viewOf has it: back to front, each
-    // `{ id, window, frame, opacity, scale, content, leaving, surfaces }`, `frame` where its frame is laid, `opacity`
-    // how much of it shows, `scale` how all of it is drawn scaled where it is, `content` the frame its content is laid
-    // at, its own, from the frame's top left and cut to it; a window going into its Dock tile or closing comes after
-    // them, in front, `leaving`, until it is gone, with the `surfaces` its frame and buttons are drawn in. Each frame is
+    // What is drawn of each window on the local seat's screen, `view` as MANAGER.viewOf has it: back to front, each `{
+    // id, window, frame, opacity, scale, content, leaving, surfaces }`, `frame` where its frame is laid, `opacity` how
+    // much of it shows, `scale` how all of it is drawn scaled where it is, `content` the frame its content is laid at,
+    // its own, from the frame's top left and cut to it; a window going into its Dock tile or closing comes after them,
+    // in front, `leaving`, until it is gone, with the `surfaces` its frame and buttons are drawn in. Each frame is
     // drawn by its motion to where the window is: one the hand moves or resizes, and every one as the desktop changes
     // size, there at once; any other by the `move` spring from where it is drawn, its speed carried over, its frame
     // moving and its content at its own size. One opening, closing, going into its Dock tile or coming out of it is
-    // laid whole at its frame and drawn scaled, content and all: opening from a little smaller about its middle,
-    // faded out, closing back so, going into its Dock tile and coming out of it from there. While the system asks for
-    // reduced motion each rect is there at once, opening, closing, going into the Dock and coming out of it fading
-    // alone.
+    // laid whole at its frame and drawn scaled, content and all: opening from a little smaller about its middle, faded
+    // out, closing back so, going into its Dock tile and coming out of it from there. While the system asks for reduced
+    // motion each rect is there at once, opening, closing, going into the Dock and coming out of it fading alone.
     function drawnNow(view) {
         const now = clock.now();
         const seen = [];
@@ -1522,7 +1575,8 @@ export function createDesktop({
     }
 
     // The Dock's items as the desktop's page draws them, `{ id, pinned, running, attention, active }`: `attention`
-    // where the mod asks for the local seat's attention, and `active` for the mod of the desktop's key window.
+    // where the mod asks for the attention of the seat the host window shows, and `active` for the mod of that seat's
+    // key window.
     function dockNow() {
         const { items, active, attention } = stateOfPage().dock;
         return items.map(({ id, pinned, running }) => ({
@@ -1534,18 +1588,19 @@ export function createDesktop({
         }));
     }
 
-    // `{ windows, panels, seats, asks, drop, strip, dock, down }`, as the desktop's page draws it. A window's frame is key as its
-    // content is (stateOf): not while an overlay window holds the keyboard, which update() tells as it takes or gives
-    // it back.
+    // `{ windows, panels, seats, asks, following, drop, strip, dock, down }`, as the desktop's page draws it, of the
+    // seat the host window shows. A window's frame is key as its content is (stateOf): not while an overlay window
+    // holds the keyboard, which update() tells as it takes or gives it back.
     function stateOfPage() {
-        const key = MANAGER.keyOf(LOCAL);
-        const { moving, dropping } = hands.get(LOCAL) ?? {};
+        const seat = shownSeat();
+        const key = MANAGER.keyOf(seat);
+        const { moving, dropping } = hands.get(seat) ?? {};
         const active = windows.get(key)?.mod ?? null;
         return {
-            windows: MANAGER.viewOf(LOCAL).map(({ id, frame }) => ({
+            windows: MANAGER.viewOf(seat).map(({ id, frame }) => ({
                 id,
                 frame,
-                key: id === key && !away(LOCAL),
+                key: id === key && !away(seat),
                 holder: COLOURS.of(MANAGER.holderOf(id)),
                 bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
@@ -1558,13 +1613,17 @@ export function createDesktop({
                 at: pointer && { x: Math.round(pointer.x), y: Math.round(pointer.y) },
                 buttons,
                 idle: seated.has(id) && deckit.seats.isIdle(seated.get(id)),
-                shown: id === LOCAL,
+                shown: id === seat,
             })),
             asks: [...asks].map(([id, { user }]) => ({ id, user: user.id, name: user.name })),
+            following:
+                followed === null
+                    ? null
+                    : { id: seat, name: seated.get(seat)?.user.name ?? seat, colour: COLOURS.of(seat) },
             drop:
                 moving && dropping ? { tile: dropping, frame: LAYOUT.tileOf(dropping, LAYOUT.zoomedIn(area())) } : null,
             strip,
-            dock: { items: DOCK.items(), active, attention: ACTIVATION.attentionOf(LOCAL) },
+            dock: { items: DOCK.items(), active, attention: ACTIVATION.attentionOf(seat) },
             down: down && { name: deckit.config.name, why: down },
         };
     }
@@ -1579,16 +1638,16 @@ export function createDesktop({
     }
 
     // The keyboard is the content's of the panel window that holds it or of the key window, or the desktop page's while
-    // there is none.
+    // there is none or the host window shows another seat's view.
     function focus() {
-        const page = (!down && (keyPanel() ?? keyWindow(LOCAL))?.surface) || desktop.page;
+        const page = (!down && followed === null && (keyPanel() ?? keyWindow(LOCAL))?.surface) || desktop.page;
         if (page) PAGES.focus(page);
     }
 
     // A press on the desktop's page or one of its surfaces leaves the keyboard with the key window, or with the panel
     // window that holds it.
     function giveBack() {
-        const content = !down && (keyPanel() ?? keyWindow(LOCAL))?.surface;
+        const content = !down && followed === null && (keyPanel() ?? keyWindow(LOCAL))?.surface;
         if (content) PAGES.focus(content);
     }
 
@@ -1609,10 +1668,12 @@ export function createDesktop({
     }
 
     // A press of the shell's key `id` in a page of the app that the page did not handle, by the seat it was put for or
-    // by the machine's keyboard: the desktop takes it in its own pages while it is shown, for that seat.
+    // by the machine's keyboard: the desktop takes it in its own pages while it is shown, for that seat. The local
+    // seat's key that ends its following of another seat does no more.
     function pressKey(id, pressedIn, from) {
         const seat = seatOf(from);
         if (!shown || !pageOf(pressedIn) || !hands.has(seat)) return false;
+        if (seat === LOCAL && unfollowed('down')) return true;
         KEY_ACTIONS[id](seat);
         return true;
     }

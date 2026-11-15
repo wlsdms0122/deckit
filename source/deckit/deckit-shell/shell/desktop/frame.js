@@ -20,6 +20,8 @@ const { CHIP } = SEATS;
 const HOLDER = 2;
 const CURSOR = 16;
 const RING = 20;
+// How high the bar that says whose view the page shows is, px.
+const FOLLOWING = 22;
 const STYLE = `
     .deckit-desktop-strip { position: fixed; top: 0; left: 0; right: 0; --app-region: drag; }
     .deckit-window-title-text {
@@ -259,6 +261,33 @@ const STYLE = `
         color: var(--deckit-on-accent);
     }
     .deckit-seat-chip-answer[data-answer='deny'] { right: ${CHIP.answer + 2 * CHIP.inset}px; }
+    .deckit-following { position: fixed; inset: 0; color: var(--deckit-seat); }
+    .deckit-following::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border: ${HOLDER}px solid currentColor;
+        pointer-events: none;
+    }
+    .deckit-following-bar {
+        position: absolute;
+        left: 50%;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-sizing: border-box;
+        height: ${FOLLOWING}px;
+        padding: 0 12px;
+        border-radius: var(--deckit-radius-round);
+        background: var(--deckit-seat);
+        box-shadow: var(--deckit-shadow-control);
+        color: var(--deckit-background);
+        font: var(--deckit-type-caption);
+        font-weight: 600;
+        white-space: nowrap;
+        transform: translateX(-50%);
+    }
+    .deckit-following-hint { font-weight: 400; }
     .deckit-drop[data-shown] {
         opacity: 1;
         transform: none;
@@ -333,7 +362,18 @@ function boot(theme, channels) {
     const chips = element(document, 'div', 'deckit-seat-chips');
     chips.setAttribute('role', 'group');
     chips.setAttribute('aria-label', 'Seats');
-    document.body.append(drop, seats, chips, dock.element, strip, down);
+    // Over all but the host's bar while the page shows another seat's view: it takes every press, so none reaches
+    // what the page draws, and says whose view it is, in the middle of the host's bar, over no window, or at the
+    // desktop's top where the host has no bar.
+    const following = element(document, 'div', 'deckit-following');
+    const followingBar = element(document, 'div', 'deckit-following-bar');
+    followingBar.setAttribute('role', 'status');
+    const followingName = element(document, 'span', 'deckit-following-name');
+    const followingHint = element(document, 'span', 'deckit-following-hint');
+    followingHint.textContent = 'Press or type to return';
+    followingBar.append(followingName, followingHint);
+    following.append(followingBar);
+    document.body.append(drop, seats, chips, dock.element, following, strip, down);
     let dropped = null; // the tile the drop shows, or null
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const tellMotion = () => PROTOCOL.motion.send({ reduced: reduced.matches });
@@ -354,6 +394,12 @@ function boot(theme, channels) {
         drawDrop(state.drop);
         drawPanels(state.panels);
         drawSeats(state.seats);
+        following.hidden = !state.following;
+        if (state.following) {
+            following.style.setProperty('--deckit-seat', `var(--deckit-seat-${state.following.colour})`);
+            followingBar.style.top = Math.max(8, Math.round((state.strip.height - FOLLOWING) / 2)) + 'px';
+            followingName.textContent = `Following ${state.following.name}`;
+        }
         dock.setTop(state.strip.height);
         dock.update(state.dock);
         // The page of a desktop down fades in, a rare sign of the system's own; it goes at once once it is back.

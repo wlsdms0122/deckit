@@ -49,6 +49,8 @@ async function run({
     idleTime,
     asksNow,
     answerOf,
+    pressAt,
+    pageAt,
     answer,
     allowed,
 }) {
@@ -546,6 +548,63 @@ async function run({
                 `${seatB.seat} Second ${worn(seatB)} false 12 46 148 28`,
             ]),
             JSON.stringify(chipsDrawn)
+        );
+        // The local seat follows the first: its press on that seat's chip shows the seat's view, the window it holds
+        // in front and key, until the local seat presses again, which reaches nothing.
+        const viewNow = async () => {
+            const standing = (await windowsNow()).filter(({ scaled }) => !scaled);
+            const drawn = await inPage(
+                desktopPage,
+                `({
+                    bar: document.querySelector('.deckit-following:not([hidden]) span')?.textContent ?? '',
+                    chips: [...document.querySelectorAll('.deckit-seat-chip[data-seat]')].map((n) => n.dataset.seat),
+                    cursors: [...document.querySelectorAll('.deckit-seat-cursor')].map((n) => n.dataset.seat),
+                })`
+            );
+            return { front: standing.at(-1)?.id, key: standing.find(({ key }) => key)?.id, ...drawn };
+        };
+        const chipOf = (seat) =>
+            inPage(
+                desktopPage,
+                `(() => {
+                    const chip = document.querySelector('.deckit-seat-chip[data-seat="${seat}"]');
+                    if (!chip) return null;
+                    const { x, y, width, height } = chip.getBoundingClientRect();
+                    return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) };
+                })()`
+            );
+        const ownView = await viewNow();
+        await pressAt(await chipOf(seatA.seat));
+        const followedView = await until(async () => {
+            const now = await viewNow();
+            return now.bar && now.front === windowA.id && now;
+        }, 3000);
+        check(
+            "outside: the local seat's press on a seat's chip shows that seat's view, and a bar says whose it is",
+            followedView &&
+                followedView.bar === 'Following First' &&
+                followedView.key === windowA.id &&
+                ownView.key === localKey.id &&
+                same(followedView.chips, ['local', seatB.seat]) &&
+                !followedView.cursors.includes(seatA.seat),
+            JSON.stringify({ ownView, followedView: followedView || (await viewNow()) })
+        );
+        const inA = {
+            x: Math.round(windowA.rect.x + windowA.rect.width / 2),
+            y: Math.round(windowA.rect.y + windowA.rect.height / 2),
+        };
+        const reached = await pageAt(inA);
+        await pressAt(inA);
+        const backView = await until(async () => {
+            const now = await viewNow();
+            return !now.bar && now;
+        }, 3000);
+        await sleep(300);
+        const restedView = await viewNow();
+        check(
+            'outside: its next press ends the following and reaches nothing: its own view is back as it left it',
+            reached === desktopPage && backView && same({ ...restedView, cursors: [] }, { ...ownView, cursors: [] }),
+            JSON.stringify({ reached, desktopPage, ownView, backView, restedView })
         );
         // The second seat presses the first one's window right after the first typed in it: held, and typing nothing.
         const shownToB = showsFor(seatB, windowA);
