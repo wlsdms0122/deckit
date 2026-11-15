@@ -80,7 +80,7 @@ item-state   = "running" / "active" / "attention"
 menu-line    = "menu " quoted
 entry-line   = "menuitem " quoted " " ref
 window-line  = "window " window-id " " quoted " " mod-id " at " point " " size [ " " states ]
-panel-line   = "panel " window-id " " quoted " " mod-id [ " " edge ] " at " point " " size [ " " states ]
+panel-line   = "panel " window-id " " quoted " " mod-id [ " top" ] " at " point " " size [ " " states ]
 ```
 
 - **`desktop-line`**: the desktop's size, and the mark.
@@ -88,7 +88,7 @@ panel-line   = "panel " window-id " " quoted " " mod-id [ " " edge ] " at " poin
 - **`dock-line`**: how many items the Dock has, then a line for each in [the Dock](../DECKIT-33/SPEC.md)'s order: its name, which is its mod's name, or its id where the mod has none; its marks in the order `running`, `active`, `attention`, those that are so for the seat that asks; and its ref.
 - **`menu-line`**, while the menu of an item of the Dock is open for the seat that asks: the name of that item, then a line for each choice of the menu in its order, with the words the menu shows for it and its ref.
 - **`window-line`**, one for each normal window, front to back in the order of the seat that asks, those it minimized among them: the window's id; its title where its title bar is `titled` and it has one, and its mod's name otherwise, or its mod's id where the mod has no name; its mod's id; where its frame's top left is on the desktop and its frame's size; and its states, in this order: `key` and the id of the seat that holds its keyboard, where one does; `minimized`, where the seat that asks minimized it; `zoomed`; `tile` and the name of the tile it has.
-- **`panel-line`**, one for each panel window on the screen of the seat that asks, in the order they opened, after every normal window: as a window's line, with its mod's name for the title, the edge it stands at where it stands at one, and for states only `key` and the seat that holds its keyboard.
+- **`panel-line`**, one for each panel window on the screen of the seat that asks, in the order they opened, after every normal window: as a window's line, with its mod's name for the title, `top` where it stands at that edge, as [windows](../DECKIT-31/SPEC.md) fixes a panel window's `edge`, and for states only `key` and the seat that holds its keyboard.
 
 No other window is listed.
 
@@ -110,7 +110,7 @@ The first line is the window's line of the desktop's reading, with the mark. Und
 
 A button that is not enabled, as [windows](../DECKIT-31/SPEC.md) fixes when one is, has the state `disabled`. A panel window lists no part.
 
-Then comes each **document** the window shows, from the one that lies lowest to the one on top, and after them those of the web pages shown inside them: its number, the `part` it is, for a `child` the id of the mod whose page it is, and the size of its page. `content` is the window's content, `child` a page another mod lays into [a region](../DECKIT-36/SPEC.md) of it, `overlay` what a page presents over itself, and `web` [a web page](../DECKIT-25/SPEC.md) shown inside one of them. A document's number counts up from 1 over the desktop as a page's document is first read; a page that loads another document has another number. Under each document come its elements, as *What an element reads as* gives them, an element under the element that holds it. A document whose page cannot be read is left out.
+Then comes each **document** the window shows, from the one that lies lowest to the one on top, and after them those of the web pages shown inside them: its number, the `part` it is, for a `child` the id of the mod whose page it is, and the size of its page. `content` is the window's content, `child` a page another mod lays into [a region](../DECKIT-36/SPEC.md) of it, `overlay` what a page presents over itself, and `web` [a web page](../DECKIT-25/SPEC.md) shown inside one of them. A document's number is a count the shell gives a page's document as it first hears of it, each greater than the one before, over every page the host app shows, so the first a reading lists need not be 1; a page that loads another document has another number. Under each document come its elements, as *What an element reads as* gives them, an element under the element that holds it. A document whose page cannot be read is left out.
 
 ### A node
 
@@ -170,7 +170,7 @@ An element that names a node and has no role reads as `generic`.
 | `required`, `readonly` | the element is so |
 | `level` and a number | a `heading`: its `aria-level`, or the digit of its element |
 | `focused` and a seat's id | the element has its document's focus; the id is that of the seat whose keys go to the document, left out where none's do |
-| `value` and a quoted text | a `textbox`, `searchbox`, `combobox` or `spinbutton` with a value: the value, cut to `text` characters and 40 at most as a name is cut |
+| `value`, a space, and a text between two DQUOTE | a `textbox`, `searchbox`, `combobox` or `spinbutton` that holds a value, an empty one too: the value as a name is flattened, written as it is with nothing escaped, cut to `text` characters and 40 at most as a name is cut |
 | `text` and a count | such a field that hides what is typed, or editable content: how many characters it holds |
 | `not in view` | in what `changes` lists alone: the element changed and is out of sight |
 
@@ -210,7 +210,7 @@ A ref **names nothing** where it is of none of these forms, or names what is not
 The **mark** is one count for the desktop, 0 as the host app starts. It goes up by 1:
 
 - as a line of the desktop's reading would read otherwise for some seat, or one is added or leaves, where a seat's pointer is and `(you)` apart: any number of lines that change together raise it once;
-- as a document a window shows tells that what it shows changed, or is first read.
+- as a document a window shows is first heard of, or tells that what it shows changed.
 
 Every reading and every answer of `changes` carries the mark as it was made.
 
@@ -224,7 +224,7 @@ line       = "desktop " size / seat-line / item-line / entry-line / window-line 
 gone       = "desktop" / seat-id / window-id / ref / "document " count
 ```
 
-The first line holds `since` and the mark now. `+` is a line that was not there at `since`, `~` a line that was and reads otherwise, each as it reads now, and `-` what was there and is gone, by its ref, a seat by its id, a window by its `window-id` and a document by its number. They come in this order: the lines of the desktop's reading that are new or changed, in its order; what is gone of the desktop; then, for each window on the seat's screen and each panel window on it, the documents first read since, each with the window it is in, and the elements that changed, came or went in the others.
+The first line holds `since` and the mark now. `+` is a line that was not there at `since`, `~` a line that was and changed after it, each as it reads now, and `-` what was there and is gone, by its ref, a seat by its id, a window by its `window-id`, and by its number a document whose page loaded another. A window that closed is told gone, and its documents with it by no line. They come in this order: the lines of the desktop's reading that are new or changed, in its order; what is gone of the desktop; then, for each window on the seat's screen and each panel window on it, the documents first read since, each with the window it is in, and the elements that changed, came or went in the others.
 
 With no `since`, the answer is `changes <mark> to <mark>` alone. A `since` the desktop never had, below 0 or above the mark now, is refused at `call` with kind `STALE`.
 
@@ -261,7 +261,7 @@ With `format` `json` a reading answers `{ data, mark }`, `data` a table that hol
 | `panels` | array of a panel window's table, in the order of its lines |
 | `mark` | an integer |
 
-A window's table is `{ kind, id, title, mod, frame, key, minimized, zoomed, tile }`: `kind` `window`, `id` its `window-id`, `frame` table `{ x, y, width, height }`, `key` a seat's id or null, `minimized` and `zoomed` booleans, `tile` a tile's name or null. A panel window's is `{ kind, id, title, mod, edge, frame, key }`, `kind` `panel`, `edge` written where it stands at one. A `rect` is a table `{ x, y, width, height }` on the desktop.
+A window's table is `{ kind, id, title, mod, frame, key, minimized, zoomed, tile }`: `kind` `window`, `id` its `window-id`, `frame` table `{ x, y, width, height }`, `key` a seat's id or null, `minimized` and `zoomed` booleans, `tile` a tile's name or null. A panel window's is `{ kind, id, title, mod, edge, frame, key }`, `kind` `panel`, `edge` `top` where it stands at that edge. A `rect` is a table `{ x, y, width, height }` on the desktop.
 
 **A window:** `{ window, parts, documents, mark }`: `window` its table; `parts` an array of `{ role, name, states, ref }`, `name` written where the part has one; `documents` an array of `{ document, part, name, width, height, lines }`, `document` its number, `name` written for a `child`, and `lines` an array of an element's table.
 
@@ -289,3 +289,5 @@ An element's table is `{ depth, role, name, length, states, items, inView, below
 ## Notes
 
 **Note.** What this costs an implementation: it keeps for each seat the lines of its desktop and the mark each last changed at, and what went with the mark it went at; numbers each document and each element it lists and keeps the numbers while they stand; hears each document tell that it changed; and reads a document by its elements' roles, names and states, not by how it is drawn.
+
+**Note.** No case holds these, each for its reason. A picture's bytes: a case holds a value whole and no two machines draw the same pixels, so the cases hold a picture's width and its refusals. The lines of the Dock's menu, and a choice of it as a node: a case holds a text whole, and the words of the menu are fixed by no DECKIT, as [the Dock](../DECKIT-33/SPEC.md) leaves them; its refs are held by the cases of [seats at the desktop](../DECKIT-39/SPEC.md) that press them. The mark at 0: a party reads only once it sits, and a seat that opens raised the mark. A `scale`, a member of `rect`, a `text` or a `lines` that holds a fraction or is no finite number: a case writes no number but an integer. `REFUSED` for a picture of an element of a `web` document: the base `shell` of [the case format](../DECKIT-1/SPEC.md) shows no web page inside a window's content. What a seat that watches `changes` is told: a case holds what a party was told whole, one input of a case may raise the mark more than once, and whether two raises close together are told once or twice is the moment's, so the same case would be told one message on one run and two on the next.
