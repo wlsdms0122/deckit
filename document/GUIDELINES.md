@@ -124,13 +124,16 @@ A post to `deckit/notifications` (MOD.md, Standard interfaces) tells the person 
 
 ## The status bar
 
-A mod joins the status bar, the capsule at the top right of the app, by naming its interface as its view's parent: its view is then an item there, in the mods' order, and the bar launches the mod to show it. The view draws the item with `ui.barItem`, a 16px glyph by default; a wider one, as text, tells its width with `setWidth` once connected ([README](../source/deckit/mods/status-bar/README.md)). An item takes a press only where it does something, and what it opens comes up in a window of the mod's: the clock opens the notification center, a panel window at the right edge, and shows pressed while it is open (`setPressed`).
+A mod gives the status bar, the capsule at the top right of the app, one item: a glyph of the kit, a short label, a count, or any of them together. An item that is always there is declared in the manifest and stands whether the mod runs or not; one that comes and goes is set and removed while the mod runs ([README](../source/deckit/mods/status-bar/README.md)). An item takes a press only where it names a command of the mod's, and what it opens is a view of the mod's own under the item: a panel window bound to the anchor the bar tells for it, which the command toggles. The `attention` tone is for what waits for the person, and goes once they have seen it.
 
 ```toml
-view = { parent = "status-bar/items" }
-
 [interfaces]
-uses = { "status-bar/items" = 1 }
+uses = { "status-bar/items" = 2 }
+
+[[contributes."status-bar/items"]]
+name = "Seats"
+icon = "users"
+command = "show"
 ```
 
 ## Keys

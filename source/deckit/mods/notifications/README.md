@@ -52,7 +52,7 @@ The recent notifications, newest first, each with its sender and when it came, i
 
 ## Providing `notifications/center`
 
-Notifications provides `notifications/center` major 1, the notification center for whoever shows a control for it, as the Clock does in the status bar. Its exports open in `attach`, since the center is on screen.
+Notifications provides `notifications/center` major 1, the notification center for whoever shows a control for it, as the Clock's item does in the status bar. Its exports open in `attach`, since the center is on screen.
 
 ```toml
 [interfaces]
