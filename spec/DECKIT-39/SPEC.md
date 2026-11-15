@@ -71,7 +71,7 @@ The output `held` tells a seat that the window it held was taken:
 | key | value |
 |---|---|
 | `of` | `held` |
-| `window` | a number: the window's id |
+| `window` | an integer: the window's id |
 | `holder` | a string: the id of the seat that holds it now |
 
 It is told from the moment a seat opens, and watched and turned off by `seat/watch` as [users and seats](../DECKIT-38/SPEC.md) fixes.
@@ -84,11 +84,13 @@ It is told from the moment a seat opens, and watched and turned off by `seat/wat
 |---|---|---|
 | `x`, `y` | numbers: a point of the desktop, from its top left | every type |
 | `ref` | a string: what a reading named, as the DECKIT of readings fixes a ref | every type |
-| `button` | a number: 0 the main button, 1 the middle, 2 the second | `down`, `up` |
-| `buttons` | an array of such numbers: the buttons held once the event is | every type |
+| `button` | an integer: 0 the main button, 1 the middle, 2 the second | `down`, `up` |
+| `buttons` | an array of such integers: the buttons held once the event is | every type |
 | `modifiers` | an array of `alt`, `control`, `meta`, `shift` | every type |
-| `count` | a number: which press in a row this is, 1 the first | `down`, `up` |
+| `count` | an integer: which press in a row this is, 1 the first | `down`, `up` |
 | `dx`, `dy` | numbers: how far a scroll goes, positive down and right | `scroll` |
+
+An integer is one as [a party from outside](../DECKIT-37/SPEC.md) fixes an integer, and a `button` or a `count` that is none is refused as [users and seats](../DECKIT-38/SPEC.md) refuses the `params` of a request. An `x`, a `y`, a `dx` and a `dy` may hold a fraction.
 
 An event names its place by `x` and `y`, both, or by `ref`, never by both. It answers a table:
 
@@ -111,7 +113,7 @@ A chord the event makes is read as [the shell's keys](../DECKIT-34/SPEC.md) read
 
 ### A key event and a text event
 
-`seat/input` with `event` `key` takes `code` and `key`, strings, as a page is told a key by them, and may take `modifiers`, as a pointer event writes it, and `repeat`, a boolean. With `event` `text` it may take `text`, a string: `insert` puts the text where the caret is, `compose` shows it as text still being composed, `commit` ends the composing with it, and `cancel` ends the composing with none.
+`seat/input` with `event` `key` takes `code` and `key`, strings, as a page is told a key by them, and may take `modifiers`, as a pointer event writes it, and `repeat`, a boolean. With `event` `text` it may take `text`, a string, read for `insert` and `compose`: `insert` puts the text where the caret is; `compose` shows it as text still being composed, in place of what was being composed before it; `commit` ends the composing and keeps the text composed last; and `cancel` ends the composing and keeps none of it. A `commit` and a `cancel` read no `text`. An `insert` with no `text`, and a `commit` or a `cancel` while nothing is being composed, do nothing.
 
 Each answers a table `{ to }`: the id of the window the event went to, or null where nothing holds the seat's keyboard, and nothing is done then.
 
@@ -122,7 +124,7 @@ A `seat/input` is refused at `call` with the first of these that is so, after wh
 1. kind `HIDDEN`, where the host app's window is hidden: no page takes input;
 2. kind `INVALID_ARGUMENT`, where a pointer event names no place, names one by both `x`, `y` and `ref`, or writes an `x` or a `y` that is no finite number;
 3. kind `REFUSED`, where it is a `move` at a `ref` with no button of the seat held: no page hears a pointer that only moves;
-4. kind `GONE` or `NOT_FOUND`, where its `ref` names nothing, as the DECKIT of readings fixes those;
+4. kind `GONE`, where its `ref` names nothing: nothing a reading named, or what one named and is there no more;
 5. kind `HELD`, where it is a key or text event, the window the seat pressed last is held from it, and that window's holder is not idle.
 
 A seat's events are done in the order its party sent them: one that takes time, as an event at a `ref` does, is answered before the next is begun.
@@ -203,4 +205,4 @@ It guards every member of `shell.seats`.
 
 **Note.** What this costs an implementation: it keeps the desktop's order, the key window, the minimized windows and the record of activation once for each seat; lays the stage out for each seat that reads or points; keeps for each window its holder and asks the system whether that holder is idle; and tells every content what is so of its holder alone.
 
-**Note.** No case holds these, each for its reason. What is drawn of a seat, since no look reads the screen. A seventh seat's colour, since a case's host would attach six parties to reach it. Two inputs close together, which no rule fixes. Following ended by the machine's key held down: the base `shell` of [the case format](../DECKIT-1/SPEC.md) presses a key down and lets it go as one input.
+**Note.** No case holds these, each for its reason. What is drawn of a seat, since no look reads the screen. A seventh seat's colour, since a case's host would attach six parties to reach it. Two inputs close together, which no rule fixes. Following ended by the machine's key held down: the base `shell` of [the case format](../DECKIT-1/SPEC.md) presses a key down and lets it go as one input. `HIDDEN`: that base shows the host app's window from its start, and no input of a case hides it. An `x` or a `y` that is no finite number, and a `button` or a `count` that is no integer: a case writes no number but an integer. An event at the `ref` of an element of a window's content: such a ref is known only from a reading, which no look answers, so the cases at a `ref` write `w1.bar`, the title bar of the window of the id 1.
