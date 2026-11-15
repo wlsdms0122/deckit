@@ -5,11 +5,15 @@
 // On `test-seat` it closes those and opens a band alone, which tells OWN. The first press on that band opens a second
 // view, MINE, under OWN, and each press after toggles it. It marks what MINE is told, in turn, and how many presses
 // MINE took.
+// On `test-place` it opens a third view, PLACED, at the place top-right, shown for everyone, with a button in it, and
+// marks how a try at a place nobody names ended; on `test-placed-size` it asks the size the test names for it. It marks
+// how many presses PLACED took.
 const MOD = 'anchor-user';
 const OWN = 'own';
 const OTHERS = 'others';
 const BAND = { width: 120, height: 28 };
 const VIEW = { width: 320, height: 200 };
+const PLACED = { width: 480, height: 200 };
 const OWN_RECT = { x: 80, y: 2, width: 32, height: 24 };
 const OTHERS_RECT = { x: 8, y: 2, width: 32, height: 24 };
 
@@ -66,6 +70,22 @@ class AnchorUser {
             tell(OWN_RECT);
             marks.seat = 'open';
         });
+        let placed = null;
+        document.addEventListener('test-place', () => {
+            const content = shell.ui.element('div', { style: { padding: '6px 10px' } });
+            content.style.minHeight = `${PLACED.height}px`;
+            content.append(shell.ui.element('button', { text: 'Placed' }));
+            content.addEventListener('click', () => (marks.placed = String(Number(marks.placed || 0) + 1)));
+            const options = { level: 'panel', activates: false, ...PLACED };
+            placed = shell.windows.open({ name: 'placed', place: 'top-right', content, ...options });
+            try {
+                shell.windows.open({ name: 'nowhere', place: 'middle', content: labelled('Nowhere'), ...options });
+                marks.unplaced = 'opened';
+            } catch (error) {
+                marks.unplaced = error.kind;
+            }
+        });
+        document.addEventListener('test-placed-size', ({ detail: { width, height } }) => placed.resize(width, height));
         document.addEventListener('test-anchor', ({ detail: rect }) => tell(rect));
         document.addEventListener('test-foreign', () => {
             try {
@@ -80,6 +100,8 @@ class AnchorUser {
             view.close();
             mine?.close();
             mine = null;
+            placed?.close();
+            placed = null;
             band.close();
         });
     }

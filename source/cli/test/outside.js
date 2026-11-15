@@ -1167,7 +1167,98 @@ async function run({
             again && again.key === seatB.seat && apart.first === null && apart.told.endsWith('didDisappear,didAppear,'),
             JSON.stringify(apart)
         );
+
+        // A view at the place top-right, shown for everyone, while the second seat has the view under the anchor.
+        await mod?.evaluate(`document.dispatchEvent(new CustomEvent('test-place'))`);
+        const placedBy = (seat, size = '480x200') => {
+            const line = new RegExp(`^panel (w\\d+) .* anchor-user at (\\d+),(\\d+) ${size}$`, 'm').exec(
+                seat.as('read', 'desktop')
+            );
+            return line && { id: line[1], x: Number(line[2]), y: Number(line[3]) };
+        };
+        const stageNow = async () =>
+            (await desktopLaid())?.pages?.find(({ url }) => /^deckit:\/\/desktop\//.test(url ?? ''))?.rect ?? null;
+        const local = await until(async () => (await laidOfMod()).Placed, 6000);
+        const stage = await stageNow();
+        const under = readBy(seatB);
+        const there = { local, stage, under, first: placedBy(seatA), second: placedBy(seatB) };
+        const unplaced = await mark('unplaced');
+        check(
+            "outside: a view at the place top-right stands 8 inside the stage's right side and 8 under the strip on " +
+                "the local seat's screen, every seat reads it there with no keyboard, and a place nobody names is " +
+                'refused',
+            local &&
+                stage &&
+                under &&
+                Math.round(local.x + local.width) === Math.round(stage.width) - 8 &&
+                Math.round(local.y) === under.y &&
+                same([local.width, local.height], [480, 200]) &&
+                same(there.first, there.second) &&
+                there.first?.x === Math.round(local.x) &&
+                there.first?.y === Math.round(local.y) &&
+                unplaced === 'INVALID_ARGUMENT',
+            JSON.stringify({ ...there, unplaced })
+        );
+        const placed = there.first;
+        const placedWindow = placed ? seatA.as('read', 'window', placed.id) : '';
+        const button = /^ *button "Placed"(?: \[[^\]]*\])? (\d+\.\d+)/m.exec(placedWindow)?.[1] ?? null;
+        const onButton = button ? seatA.as('press', button) : '';
+        const counted = await until(async () => (await mark('placed')) === '1', 4000);
+        check(
+            'outside: an attached seat reads a view at a place as a window and presses a button in it, which takes ' +
+                'no keyboard from it',
+            / content 480x200$/m.test(placedWindow) &&
+                button &&
+                counted &&
+                onButton.startsWith(`over ${placed?.id.slice(1)}`) &&
+                !/key|held/.test(onButton) &&
+                same(placedBy(seatA), placed),
+            JSON.stringify({ placedWindow, onButton, marked: await mark('placed') })
+        );
+        // Where both views stand, by what the second seat reads: a point in the lower half of both.
+        const shared = under && placed ? Math.min(under.x + 320, placed.x + 480) - Math.max(under.x, placed.x) : 0;
+        const both = shared > 20 ? `${Math.max(under.x, placed.x) + Math.round(shared / 2)},${placed.y + 150}` : null;
+        const before = { pressed: Number(await mark('pressed')), placed: Number(await mark('placed')) };
+        const over = both ? seatB.as('press', both) : '';
+        const reachedOver = await until(async () => Number(await mark('pressed')) === before.pressed + 1, 4000);
+        const lower = { placed: Number(await mark('placed')), kept: readBy(seatB) };
+        const beside = both ? seatA.as('press', both) : '';
+        const reachedUnder = await until(async () => Number(await mark('placed')) === before.placed + 1, 4000);
+        check(
+            'outside: a view shown for a seat under an anchor lies over a view at a place: where both stand that ' +
+                "seat's press reaches it, and the press of a seat it is not shown for reaches the view at the place",
+            both &&
+                reachedOver &&
+                lower.placed === before.placed &&
+                lower.kept &&
+                reachedUnder &&
+                Number(await mark('pressed')) === before.pressed + 1,
+            JSON.stringify({ under, placed, both, over, beside, before, lower, pressed: await mark('pressed') })
+        );
+        await mod?.evaluate(
+            `document.dispatchEvent(new CustomEvent('test-placed-size', { detail: { width: 320, height: 120 } }))`
+        );
+        const resized = await until(async () => {
+            const { Placed: at } = await laidOfMod();
+            return at && same([at.width, at.height], [320, 120]) && at;
+        }, 6000);
+        const smaller = placedBy(seatA, '320x120');
         await mod?.evaluate(`document.dispatchEvent(new CustomEvent('test-close'))`);
+        const closed = await until(
+            async () => !placedBy(seatA, '320x120') && !placedBy(seatB, '320x120') && !(await laidOfMod()).Placed,
+            6000
+        );
+        check(
+            'outside: a view at a place is placed again at the size its mod asks, and goes from every screen as its ' +
+                'mod closes it',
+            resized &&
+                stage &&
+                Math.round(resized.x + resized.width) === Math.round(stage.width) - 8 &&
+                Math.round(resized.y) === placed?.y &&
+                smaller?.x === Math.round(resized.x) &&
+                closed,
+            JSON.stringify({ resized, smaller, stage, closed })
+        );
     }
 
     const listed = deckit('list', principal);
