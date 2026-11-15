@@ -21,6 +21,7 @@ const { makeKey, readKey, connect } = require('../outside/client.js');
 const RELAY = require('../outside/relay.js');
 const { sleep, until } = require('./devtools.js');
 const READING = require('./reading.js');
+const VIEWS = require('./views.js');
 
 // How long an admission waits for an answer, in ms (deckit-shell/deckit/seat).
 const ASK_TIME = 60000;
@@ -1373,6 +1374,7 @@ async function run({
             return now.asks.includes('Asker') && /attention/.test(wants?.name ?? '') && { now, wants };
         }, 8000);
         await desktopShot('seats-ask');
+        await VIEWS.standing({ check, main, desktopLaid, area: 'outside' }, 'seats', 'seats');
         check(
             'outside: with asking on a user that asks to sit is a row of the view, and the item asks for attention',
             !!asked,

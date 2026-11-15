@@ -41,6 +41,7 @@ function seats(shell, { onItem }) {
     const filled = new Map(); // a row's key -> the row as its element was last filled with it, as text
     // A row that says what it said is left as it is, so what a reader named in it stands while others change.
     const rows = ui.list({
+        role: 'presentation', // the rows are the group's own: an ask a group, a seat a button
         key: (row) => row.key,
         create,
         update: (made, row) => filled.get(row.key) !== JSON.stringify(row) && fill(made, row),

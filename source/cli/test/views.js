@@ -72,6 +72,17 @@ const CENTER = 'region "Notifications"';
 const BAND = `toolbar "Status Bar"
   button "Clock, *"
   button "Notifications*"`;
+// The views read where the checks of another area have them stand, whole, their items too: `*` is any text.
+const STANDING = {
+    seats: `group "Seats"
+  group "Asker asks to sit"
+    button "Deny Asker"
+    button "Allow Asker"
+  button "*"
+  button "First"
+  button "Second"`,
+};
+
 // Whether the lines of `text` hold those of `golden`, in its order: a `*` in a golden line is any text there.
 const holds = (text, golden) => {
     const lines = text.split('\n');
@@ -135,4 +146,19 @@ async function run({ check, main, open, show, desktopLaid, pressIn }) {
     if (center) await pressIn(bar, bell);
 }
 
-module.exports = { run };
+// A view of the mod `mod` as it stands now, on any seat's screen, read whole: `check` is told whether one of the
+// mod's windows reads as STANDING has the view `named`, under the name of the area that has it stand.
+async function standing({ check, main, desktopLaid, area }, mod, named) {
+    const reading = await reader(main);
+    const texts = [];
+    for (const { id } of await laidOf(desktopLaid, mod))
+        texts.push((await reading(id, { deepest: 4, items: true })).text);
+    console.log(`[views] ${named} as it stands\n${texts.join('\n--\n')}`);
+    check(
+        `${area}: the ${named} view of ${mod} reads as its parts by role and name`,
+        texts.some((text) => holds(text, STANDING[named])),
+        texts.join('\n--\n')
+    );
+}
+
+module.exports = { run, standing };
