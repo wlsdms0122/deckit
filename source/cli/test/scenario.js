@@ -774,6 +774,37 @@ async function walk({
         );
         // The General font offers every family installed, not a list of its own.
         const fontSelect = `${general}.querySelector('.deckit-select')`;
+        // A scroll under a menu puts it away, so each one in the window's content from here on is kept, when on the
+        // page's clock, in what and how far, with the rows of Activity as they read now, for a check of the menu to
+        // say as it fails.
+        const activityRows = `[...document.querySelectorAll('.settings-activity-row')].map((row) => row.textContent)`;
+        await settings?.evaluate(`(() => {
+            const seen = (window.scrolledUnderMenu = { from: Math.round(performance.now()), scrolls: [] });
+            seen.rows = ${activityRows};
+            seen.heard = ({ target }) =>
+                seen.scrolls.push({
+                    at: Math.round(performance.now()),
+                    in: target.className ?? target.nodeName,
+                    top: target.scrollTop ?? null,
+                });
+            document.addEventListener('scroll', seen.heard, true);
+        })()`);
+        // What the window's content did while the menu was open: the scrolls kept, the rows of Activity as they `were`
+        // and as they `are` where one reads otherwise, came or went, and whether the select still says its menu is
+        // open.
+        const underTheMenu = () =>
+            settings?.evaluate(`(() => {
+                const { from, scrolls, rows } = window.scrolledUnderMenu;
+                const now = ${activityRows};
+                return {
+                    from,
+                    at: Math.round(performance.now()),
+                    scrolls,
+                    were: rows.filter((row) => !now.includes(row)),
+                    are: now.filter((row) => !rows.includes(row)),
+                    expanded: ${fontSelect}.getAttribute('aria-expanded'),
+                };
+            })()`);
         await settings?.evaluate(`${fontSelect}.click()`);
         await until(() => settingsOverlay.evaluate(menus), 2000);
         const families = await settingsOverlay?.evaluate(
@@ -830,8 +861,16 @@ async function walk({
         check(
             "a menu at a window's edge stays 8 inside it, as it opens and as it grows",
             openedIn.inside && grownIn.inside,
-            JSON.stringify({ openedIn, grownIn })
+            JSON.stringify({
+                openedIn,
+                grownIn,
+                under: openedIn.inside && grownIn.inside ? null : await underTheMenu(),
+            })
         );
+        await settings?.evaluate(`(() => {
+            document.removeEventListener('scroll', window.scrolledUnderMenu.heard, true);
+            delete window.scrolledUnderMenu;
+        })()`);
         await settingsOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
         // A switch's knob slides by the `move` spring: its running transition takes the token's length and curve and
