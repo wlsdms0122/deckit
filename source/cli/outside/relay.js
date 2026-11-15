@@ -6,7 +6,7 @@ const net = require('net');
 const path = require('path');
 
 // What the host tells a seat, passed on to everything connected.
-const TOLD = ['seat/changed', 'seat/held'];
+const TOLD = ['seat/output'];
 // What ends the party's run, answered by the relay itself.
 const DETACH = 'detach';
 
@@ -23,14 +23,16 @@ function attached(home) {
 }
 
 // `party`, attached (client.js), is asked what arrives at `file` from now on, and each answer goes back as the host
-// gave it. `seat/changes` with no mark is asked since the last mark a reading here answered. `detach()` is asked once
-// something asks to detach. Resolves with `close()`, which takes the socket away, once it listens.
+// gave it. What changes, `seat/read` of `changes`, with no mark is asked since the last mark a reading here answered.
+// `detach()` is asked once something asks to detach. Resolves with `close()`, which takes the socket away, once it
+// listens.
 function serve({ party, file, detach }) {
     const connections = new Set();
     let mark = null; // the mark of the last reading answered here
     const answer = async (method, params) => {
         if (method === DETACH) return (detach(), true);
-        const since = method === 'seat/changes' && params.since === undefined && mark !== null ? { since: mark } : {};
+        const changes = method === 'seat/read' && params.of === 'changes' && params.since === undefined;
+        const since = changes && mark !== null ? { since: mark } : {};
         const result = await party.request(method, { ...params, ...since });
         if (typeof result?.mark === 'number') mark = result.mark;
         return result;

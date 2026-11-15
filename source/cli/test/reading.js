@@ -136,7 +136,7 @@ async function run({ check, reader, other, window, editor, settings, showsFor, i
         changed
     );
     const stale = reader.as('changes', '99999999');
-    check('reading: a mark the desktop never had is refused', /not kept: read again/.test(stale), stale);
+    check('reading: a mark the desktop never had is refused', /never had the mark/.test(stale), stale);
 
     await inPage(
         page,

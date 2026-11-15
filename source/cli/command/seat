@@ -87,11 +87,12 @@ function relay() {
     });
 }
 
-// What the pointer is asked at a point, `<x>,<y>`, or on what a reading named, a ref.
-function pointed(seat, target, pointer, action) {
+// What the pointer does at a point, `<x>,<y>`, or at what a reading named, a ref: answered with `at`, the point it
+// went to.
+function pointed(seat, target, pointer) {
     const point = numbersOf(target, 2);
-    if (!point) return seat.request('seat/act', { ref: target ?? refuse(), ...action });
-    return seat.request('seat/pointer', { x: point[0], y: point[1], modifiers, ...pointer });
+    const place = point ? { x: point[0], y: point[1] } : { ref: target ?? refuse() };
+    return seat.request('seat/input', { event: 'pointer', ...place, modifiers, ...pointer });
 }
 
 function reached({ over = null, key = null, holder = null }) {
@@ -112,7 +113,7 @@ const ASKS = {
         const levels = { desktop: {}, window: { window: named }, node: { ref: named } };
         if (!Object.hasOwn(levels, level ?? '') || (level !== 'desktop') !== (named !== undefined)) refuse();
         const answer = await seat.request('seat/read', {
-            level,
+            of: level,
             ...levels[level],
             ...('depth' in options ? { depth: numberOf(options.depth) } : {}),
             ...('items' in options ? { items: numberOf(options.items) } : {}),
@@ -123,7 +124,8 @@ const ASKS = {
         console.log(options.json ? JSON.stringify(answer.data, null, 4) : answer.text);
     },
     changes: async (seat, [mark]) => {
-        const answer = await seat.request('seat/changes', mark === undefined ? {} : { since: numberOf(mark) });
+        const since = mark === undefined ? {} : { since: numberOf(mark) };
+        const answer = await seat.request('seat/read', { of: 'changes', ...since });
         console.log(answer.text);
     },
     capture: async (seat, [kind, named]) => {
@@ -133,19 +135,24 @@ const ASKS = {
             : { window: { window: named }, node: { ref: named }, none: {} }[kind ?? 'none'];
         if (!what || !options.out || (!rect && (kind === undefined) !== (named === undefined))) refuse();
         const scale = 'scale' in options ? { scale: numberOf(options.scale) } : {};
-        const { png, width, height } = await seat.request('seat/capture', { ...what, ...scale });
+        const { png, width, height } = await seat.request('seat/read', { of: 'picture', ...what, ...scale });
         fs.writeFileSync(path.resolve(options.out), Buffer.from(png, 'base64'));
         console.log(`${options.out} ${width}x${height}`);
     },
-    move: async (seat, [target]) =>
-        console.log(reached(await pointed(seat, target, { type: 'move' }, { action: 'hover' }))),
+    move: async (seat, [target]) => console.log(reached(await pointed(seat, target, { type: 'move' }))),
     press: async (seat, [target]) => {
         const button = 'button' in options ? numberOf(options.button) : 0;
         const count = 'count' in options ? numberOf(options.count) : 1;
-        const action = button === 2 ? 'context' : count === 2 ? 'double' : 'press';
-        const down = await pointed(seat, target, { type: 'down', button, buttons: [button], count }, { action });
-        if (numbersOf(target, 2)) await pointed(seat, target, { type: 'up', button, buttons: [] });
-        console.log(reached(down));
+        // A press is the button down and up where it went down. On a ref, a second press is both of a double click.
+        const pressed = async (at, nth) => {
+            const down = await pointed(seat, at, { type: 'down', button, buttons: [button], count: nth });
+            await pointed(seat, `${down.at.x},${down.at.y}`, { type: 'up', button, buttons: [], count: nth });
+            return down;
+        };
+        if (numbersOf(target, 2)) return console.log(reached(await pressed(target, count)));
+        const first = await pressed(target, 1);
+        for (let nth = 2; nth <= count; nth++) await pressed(`${first.at.x},${first.at.y}`, nth);
+        console.log(reached(first));
     },
     drag: async (seat, [from, to]) => {
         if (!numbersOf(from, 2) || !numbersOf(to, 2)) refuse();
@@ -164,7 +171,7 @@ const ASKS = {
     },
     scroll: async (seat, [target, by]) => {
         const [dx, dy] = numbersOf(by, 2) ?? refuse();
-        console.log(reached(await pointed(seat, target, { type: 'scroll', dx, dy }, { action: 'scroll', dx, dy })));
+        console.log(reached(await pointed(seat, target, { type: 'scroll', dx, dy })));
     },
     key: async (seat, [chord]) => {
         const parts = (chord ?? refuse()).split('+');
@@ -172,20 +179,24 @@ const ASKS = {
         const held = parts.map((part) => part.toLowerCase());
         if (!code || !held.every((part) => MODIFIERS.includes(part))) refuse();
         const event = { code, key: keyOf(code, held.includes('shift')), modifiers: held };
-        await seat.request('seat/key', { type: 'down', ...event });
-        await seat.request('seat/key', { type: 'up', ...event });
+        await seat.request('seat/input', { event: 'key', type: 'down', ...event });
+        await seat.request('seat/input', { event: 'key', type: 'up', ...event });
     },
-    type: async (seat, [text]) => void (await seat.request('seat/text', { type: 'insert', text: text ?? refuse() })),
-    // A line a change, until interrupted: the host says that the desktop changed, and what changed is asked then.
+    type: async (seat, [text]) =>
+        void (await seat.request('seat/input', { event: 'text', type: 'insert', text: text ?? refuse() })),
+    // A line an output told, until interrupted: the host says that the desktop changed, and what changed is asked
+    // then; a window of the seat's taken by another is said as it is told.
     watch: async (seat) => {
         let asked = Promise.resolve();
-        seat.on('seat/changed', () => {
-            asked = asked.then(async () => console.log((await seat.request('seat/changes', {})).text)).catch(() => {});
+        const changes = async () => console.log((await seat.request('seat/read', { of: 'changes' })).text);
+        seat.on('seat/output', ({ of, window, holder }) => {
+            if (of === 'changes') asked = asked.then(changes).catch(() => {});
+            if (of === 'held') console.log(`held w${window} by ${holder}`);
         });
-        await seat.request('seat/watch', { on: true });
+        await seat.request('seat/watch', { of: 'changes', on: true });
         const interrupted = new Promise((resolve) => process.once('SIGINT', resolve));
         await Promise.race([interrupted, seat.closed]);
-        await Promise.race([seat.request('seat/watch', { on: false }).catch(() => {}), seat.closed]);
+        await Promise.race([seat.request('seat/watch', { of: 'changes', on: false }).catch(() => {}), seat.closed]);
     },
 };
 

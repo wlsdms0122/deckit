@@ -134,7 +134,7 @@ async function run({
         JSON.stringify(unknown)
     );
 
-    const pending = await refusedWith(waits.request('seat/read', { level: 'desktop' }));
+    const pending = await refusedWith(waits.request('seat/read', { of: 'desktop' }));
     check(
         'outside: a party whose admission waits sits at no seat, and what it asks of one is refused',
         pending?.code === -32002 && waitsTold === 1,
@@ -196,12 +196,12 @@ async function run({
     const delivered = [];
     party.on('event/deliver', (event) => delivered.push(event));
     await party.request('runner/started', started);
-    const press = { type: 'down', x: 40, y: 30, button: 0, count: 1 };
+    const press = { event: 'pointer', type: 'down', x: 40, y: 30, button: 0, count: 1 };
     // The ask is put to the local seat: an attached seat's press on Allow reaches the desktop and answers nothing.
     const allowOfWaits = await answerOf(WAITS, 'allow', 1000);
     const byOther = allowOfWaits && [
-        await party.request('seat/pointer', { ...press, ...allowOfWaits }),
-        await party.request('seat/pointer', { ...press, ...allowOfWaits, type: 'up' }),
+        await party.request('seat/input', { ...press, ...allowOfWaits }),
+        await party.request('seat/input', { ...press, ...allowOfWaits, type: 'up' }),
     ];
     await sleep(500);
     check(
@@ -209,16 +209,16 @@ async function run({
         byOther?.[0]?.over === 'desktop' && same(await asksNow(), [WAITS]) && !waitsAnswered,
         JSON.stringify({ allowOfWaits, byOther, asks: await asksNow(), waitsAnswered })
     );
-    const pressed = await party.request('seat/pointer', press);
-    const typed = await party.request('seat/text', { type: 'insert', text: 'seen' });
+    const pressed = await party.request('seat/input', press);
+    const typed = await party.request('seat/input', { event: 'text', type: 'insert', text: 'seen' });
     check(
         'outside: what a seat does enters the shell, which answers what its pointer reached and where its text went',
         pressed && 'over' in pressed && typed && 'to' in typed,
         JSON.stringify({ pressed, typed })
     );
-    const reading = await party.request('seat/read', { level: 'desktop' });
-    const asData = await party.request('seat/read', { level: 'desktop', format: 'json' });
-    const malformed = await refusedWith(party.request('seat/pointer', { type: 'down' }));
+    const reading = await party.request('seat/read', { of: 'desktop' });
+    const asData = await party.request('seat/read', { of: 'desktop', format: 'json' });
+    const malformed = await refusedWith(party.request('seat/input', { event: 'pointer', type: 'down' }));
     const [first, ...lines] = String(reading?.text).split('\n');
     check(
         'outside: a reading is answered by the shell, as text or as data, and what is malformed is refused',
@@ -232,19 +232,19 @@ async function run({
         JSON.stringify({ reading, asData, malformed })
     );
     const changed = [];
-    party.on('seat/changed', (change) => changed.push(change));
+    party.on('seat/output', ({ of, ...change }) => of === 'changes' && changed.push(change));
     // A press in the middle of each window: the seat's key window changes, which its line and the window's tell.
     const pressIn = async ({ rect }) => {
         const point = { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
-        await party.request('seat/pointer', { ...press, ...point });
-        await party.request('seat/pointer', { ...press, ...point, type: 'up' });
+        await party.request('seat/input', { ...press, ...point });
+        await party.request('seat/input', { ...press, ...point, type: 'up' });
     };
     const [front, ...behind] = (await windowsNow()).filter(({ scaled }) => !scaled).reverse();
     await pressIn(front);
     await sleep(200);
     const untold = changed.length;
-    const watching = await party.request('seat/watch', { on: true });
-    const since = (await party.request('seat/changes', {})).mark;
+    const watching = await party.request('seat/watch', { of: 'changes', on: true });
+    const since = (await party.request('seat/read', { of: 'changes' })).mark;
     for (const window of behind) await pressIn(window);
     check(
         'outside: a seat that watches is told the desktop changed, and one that does not is told nothing',
@@ -671,7 +671,7 @@ async function run({
         // The first seat gives no input for the idle time: its window is the second one's as it presses it.
         const hears = await connect(RELAY.fileOf(home, 'ta'));
         const heard = [];
-        hears.on('seat/held', (told) => heard.push(told));
+        hears.on('seat/output', ({ of, ...told }) => of === 'held' && heard.push(told));
         await new Promise((resolve) => setTimeout(resolve, idleTime * 1000 + 500));
         const taken = seatB.as('press', at(windowA));
         const told = await until(() => heard[0], 3000);
@@ -679,7 +679,7 @@ async function run({
         const afterTaken = await until(async () => (await valueOf(windowA.content)) === 'alpha!?', 3000);
         hears.close();
         check(
-            "outside: an idle holder's window is taken by the seat that presses it, and the holder is told seat/held",
+            "outside: an idle holder's window is taken by the seat that presses it, and the holder is told it is held",
             taken === `over ${windowA.id}, key` && same(told, { window: windowA.id, holder: seatB.seat }) && afterTaken,
             JSON.stringify({ taken, heard, typedTaken, in: await valueOf(windowA.content) })
         );
