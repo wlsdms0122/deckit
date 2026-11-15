@@ -19,11 +19,11 @@ Where a party that attached is something beside a run, every rule of [connection
 
 ### A principal
 
-A **principal** is what the system runs code for and keeps storage for, named by an id, a string of the grammar `id` as [the bundle](../DECKIT-2/SPEC.md) gives it. A mod is a principal, under its id. What a principal's run may ask is what the **job** it runs holds: its permissions, the principals it reaches by id, and the interfaces it uses and provides. A mod's job holds what its bundle and [the permissions](../DECKIT-3/SPEC.md) give it. No rule tells a principal that a person acts through from one a program acts through.
+A **principal** is what the system runs code for and keeps storage for, named by an id, a string of the grammar `id` as [the bundle](../DECKIT-2/SPEC.md) gives it. A mod is a principal, under its id. What a principal's run may ask is what the **job** it runs holds: its permissions, the principals it reaches by id, and the interfaces it uses and provides. A mod's job holds what its bundle and [the permissions](../DECKIT-3/SPEC.md) give it. A principal that is no mod is a user, and its job is what [users and seats](../DECKIT-38/SPEC.md) fix. No rule tells a principal that a person acts through from one a program acts through.
 
 ### The transport
 
-A host app that is started listens on a local stream socket, the file `deckit.sock` in the system's own folder. Only the account that runs the host app can open the file. A file left at that path as the host app starts is removed before it listens, and the file is gone once the host app has quit.
+A host app that is started listens on a local stream socket under the name `deckit.sock` in the system's own folder: what is at that name is the socket, or a link to it, and a party connects to where the name leads. Only the account that runs the host app can open the socket. What is left at that name as the host app starts is removed before it listens, and nothing is at the name once the host app has quit.
 
 Each connection a party opens to the socket is a **transport connection**. Both ends send messages over it; either end closes it.
 
@@ -48,7 +48,7 @@ A party asks two requests, in this order, each once:
 | request | `params` | `result` |
 |---|---|---|
 | `initialize` | table `{ protocol, nonce }`: `protocol` the integer 1; `nonce`, a string, the base64 of 32 bytes the party chose | table `{ protocol, challenge, schemes }`: `protocol` the integer 1; `challenge`, a string, the base64 of 32 bytes the host chose at random for this transport connection; `schemes`, an array of strings, the signature schemes the host verifies |
-| `authenticate` | table `{ principal, scheme, key, signature }`: `principal`, a string, the id the party claims; `scheme`, a string, one of `schemes`; `key`, a string, the base64 of the public key; `signature`, a string, the base64 of the signature of *what is signed* by the private key of `key` | table `{ principal, run, permissions, end }`: `principal` the id proved; `run`, an integer, the number of the run the transport connection now hosts, 1 for a principal's first and one more for each after; `permissions`, an array of strings, the id of each permission the run's job holds; `end`, a number, how many seconds a lifecycle is given to end, as [the lifecycle](../DECKIT-5/SPEC.md) fixes that time |
+| `authenticate` | table `{ principal, scheme, key, signature }`: `principal`, a string, the id the party claims; `scheme`, a string, one of `schemes`; `key`, a string, the base64 of the public key; `signature`, a string, the base64 of the signature of *what is signed* by the private key of `key` | table `{ principal, run, permissions, end, seat }`: `principal` the id proved; `run`, an integer, the number of the run the transport connection now hosts, 1 for a principal's first and one more for each after; `permissions`, an array of strings, the id of each permission the run's job holds; `end`, a number, how many seconds a lifecycle is given to end, as [the lifecycle](../DECKIT-5/SPEC.md) fixes that time; `seat`, a table, the seat the principal sits at from now on, as [users and seats](../DECKIT-38/SPEC.md) fix a seat |
 
 The one scheme is `ed25519`: Ed25519 as RFC 8032 fixes it, its public key 32 bytes and its signature 64.
 
@@ -56,12 +56,15 @@ A request is answered with the first of these that is so:
 
 1. an error whose `code` is -32600, which holds no `data`, where it is `initialize` and `protocol` is not 1, or `initialize` was answered a result before;
 2. a refusal at `call` with kind `INVALID_ARGUMENT`, where it is `initialize` and `nonce` is not the base64 of 32 bytes;
-3. an error whose `code` is -32002, which holds no `data`, where it is any other request and `authenticate` has not answered a result on this transport connection;
-4. a refusal at `call` with kind `NOT_AUTHENTICATED`, where it is `authenticate` and the proof does not verify: `scheme` is none of `schemes`, `principal` is no `id`, no key is authorized for `principal`, `key` is not one authorized for it, or `signature` is not the signature of *what is signed* by `key`;
-5. a refusal at `call` with kind `ALREADY_RUNNING`, where it is `authenticate`, the proof verifies and a run of the principal is in a state other than `notRunning`, as [the lifecycle](../DECKIT-5/SPEC.md) names the states;
-6. an error whose `code` is -32601, which holds no `data`, where its `method` is none of *What a party asks*.
+3. an error whose `code` is -32002, which holds no `data`, where it is `authenticate` and `initialize` has not answered a result, or `authenticate` was asked before, on this transport connection; or it is any other request and `authenticate` has not answered a result on it;
+4. a refusal at `call` with kind `NOT_AUTHENTICATED`, where it is `authenticate` and the proof does not verify: `scheme` is none of `schemes`, `principal` is no `id`, `principal` is no user, no key is authorized for `principal`, `key` is not one authorized for it, or `signature` is not the signature of *what is signed* by `key`;
+5. a refusal at `call` with kind `ALREADY_RUNNING`, where it is `authenticate`, the proof verifies and the principal sits at a seat, or a run of it is in a state other than `notRunning`, as [the lifecycle](../DECKIT-5/SPEC.md) names the states;
+6. a refusal at `call` with kind `REFUSED`, where it is `authenticate`, the proof verifies and the principal is not admitted to a seat, as [users and seats](../DECKIT-38/SPEC.md) fix admission;
+7. an error whose `code` is -32601, which holds no `data`, where its `method` is none of *What a party asks*.
 
 Every cause of `NOT_AUTHENTICATED` is answered alike: nothing of the answer, its message among it, differs by which cause it was, so a party learns of no principal, nor of any key, by asking. The host reads and tells nothing of a principal before the proof verifies. After a refusal of `authenticate` the host closes the transport connection. A challenge is verified against once: a second `authenticate` finds none.
+
+`authenticate` is answered once the principal is admitted or refused, which may be after the host has sent the party the notification `attach/asking`, as [users and seats](../DECKIT-38/SPEC.md) fix it. Until then the transport connection hosts no run.
 
 ### What is signed
 
@@ -85,24 +88,24 @@ The run is `launching` as `authenticate` answers and `running` once the party ha
 
 ### What a party asks
 
-Each is a request the party sends once it hosts a run. None names the principal or the run: the transport connection says both. `lifecycle` is the number of one of the run's lifecycles, and a crossing value is a table `{ value, references }`: `value` what crosses, as [calls across a connection](../DECKIT-11/SPEC.md) fix what may, each function in it written as a null; `references` an array of arrays `[path, number]`, one for each function, `path` the array of keys and places that lead to it in `value` and `number` the integer the function is called by.
+Each is a request the party sends once it hosts a run. None names the principal or the run: the transport connection says both. An answer is the value the table gives, `true` where it says so and a null where it says nothing. `lifecycle` is the number of one of the run's lifecycles, and a crossing value is a table `{ value, references }`: `value` what crosses, as [calls across a connection](../DECKIT-11/SPEC.md) fix what may, each function in it written as a null; `references` an array of arrays `[path, number]`, one for each function, `path` the array of keys and places that lead to it in `value` and `number` the integer the function is called by.
 
 | request | `params` | answers |
 |---|---|---|
-| `runner/started` | table `{ contributions }`, `contributions` a table `{ exportedIn, awaits }` | nothing, once the run is `running` |
-| `runner/problem` | table `{ problem }`, a string | nothing: a problem of the run, as [the lifecycle](../DECKIT-5/SPEC.md) fixes one |
+| `runner/started` | table `{ contributions }`, `contributions` a table `{ exportedIn, awaits }` | `true`: the run is `running` once the host has taken it |
+| `runner/problem` | table `{ problem }`, a string | `true`: a problem of the run, as [the lifecycle](../DECKIT-5/SPEC.md) fixes one |
 | `runner/quit` | none | nothing: the run asks its own end |
 | `connection/begin` | table `{ lifecycle }` | an array of the connections the lifecycle has, each a table `{ id, name, exports }` or `{ name, refusal }` |
-| `connection/end` | table `{ lifecycle }` | nothing, once the lifecycle's connections have ended |
+| `connection/end` | table `{ lifecycle }` | `true`: the lifecycle's connections end |
 | `connection/reach` | table `{ lifecycle, target }`, `target` the id of a principal | nothing, once the lifecycle reaches for `target` |
 | `connection/release` | table `{ lifecycle, target }` | nothing, once it reaches for it no more |
 | `connection/call` | table `{ connection, number, args }`, `args` a crossing value | table `{ returned }` or `{ thrown }`, each a crossing value |
-| `connection/let-go` | table `{ connection, number, count }` | nothing: the party holds the function `number` `count` times fewer |
-| `event/listen` | table `{ names }`, an array of strings | nothing, once the run hears each event named |
-| `event/emit` | table `{ name, args }` | nothing, once the event is emitted |
+| `connection/let-go` | table `{ connection, number, count }` | `true`: the party holds the function `number` `count` times fewer |
+| `event/listen` | table `{ names }`, an array of strings | `true`: the run hears each event named |
+| `event/emit` | table `{ name, args }` | `true`, once the event is emitted |
 | `record/read` | table `{ key }` | the record under `key`, or a null where there is none |
-| `record/write` | table `{ key, value }` | nothing, once the record is kept |
-| `record/remove` | table `{ key }` | nothing, once no record is kept under `key` |
+| `record/write` | table `{ key, value }` | `true`, once the record is kept |
+| `record/remove` | table `{ key }` | `true`, once no record is kept under `key` |
 | `record/keys` | none | an array of the key of each record kept, in the order of their code points |
 
 Each is refused as the rule it reads from refuses the request of a mod's run it stands for, at that stage and with that kind.
@@ -111,14 +114,12 @@ Each is refused as the rule it reads from refuses the request of a mod's run it 
 
 | message | `params` | when |
 |---|---|---|
-| `connection/connected`, a notification | table `{ id, name, exports, lifecycle }` | a connection of the lifecycle stands |
-| `connection/unreached`, a notification | table `{ lifecycle, name, refusal }` | a connection it waits for does not come to stand |
-| `connection/disconnected`, a notification | table `{ id }` | the connection has ended |
-| `connection/connect`, a request | table `{ id, name, mod, lifecycle, credential }` | the run is the service of a connection being made; it answers its exports |
-| `connection/called`, a request | table `{ connection, number, args }` | a function the party handed across is called; it answers `{ returned }` or `{ thrown }` |
-| `connection/let-go`, a notification | table `{ connection, number, count }` | the other end holds a function the party handed `count` times fewer |
 | `event/deliver`, a notification | table `{ name, args }` | an event the run hears was emitted |
-| `runner/stop`, a request | none | the run's end is asked; it answers once it has ended what it runs |
+| `runner/stop`, a request | an empty table | the run's end is asked; it answers once it has ended what it runs |
+
+A run whose job uses and provides no interface and reaches no principal has no connection: `connection/begin` answers it an empty array, and it is told of none.
+
+**Note.** A user's job is such a job, and a proof verifies for a user alone, so no run a transport connection hosts has a connection, and this DECKIT fixes no message that tells a party of one.
 
 ### What ends it
 
@@ -149,7 +150,7 @@ The authorized keys are part of what a principal stored: erasing what a mod stor
 - Who hears an event, and how one is named: [events](../DECKIT-12/SPEC.md).
 - Records, their keys, and erasing what a mod stored: [storage](../DECKIT-13/SPEC.md).
 - `NOT_AUTHENTICATED` and `ALREADY_RUNNING`: here.
-- Which job a principal that is no mod runs: no rule here.
+- A user, the job a user's run holds, the seat `authenticate` answers, admission, `attach/asking` and `REFUSED`: [users and seats](../DECKIT-38/SPEC.md).
 
 ## Alternatives considered
 
@@ -166,5 +167,9 @@ The authorized keys are part of what a principal stored: erasing what a mod stor
 **Note.** The file's mode and the key are two gates: the mode says which account, the key which principal. On one machine and one account the key does not keep other software of that account from reading the private key's file.
 
 **Note.** Another transport changes how bytes are carried and the binding in *What is signed*. The messages, the handshake and the keys stay.
+
+**Note.** No case holds these, each for its reason. An error that holds no `data` (-32600, -32002, -32601) comes to nothing in a case, which reads a refusal by its stage and kind. A party of a case asks the handshake whole, so a `protocol` other than 1, a `nonce` or a `scheme` that is none, a second `initialize`, a request before `authenticate` and a signature over other bytes are reached by no case, and neither is a line that is no JSON object or is over its bound. A party of a case answers `runner/stop` at once, so the close once the time an end is given has passed is not reached. Nothing a case reads tells `launching` from `running` for a party's run, nor shows a problem kept against it. The mode of the socket and where a link leads are the machine's, which a case does not read.
+
+**Note.** The name `deckit.sock` is a link where the path to it is longer than a local socket's path may be on the machine; the socket then lies elsewhere, where only the same account reaches it.
 
 **Note.** What this costs an implementation: it listens where only its own account reaches, verifies a signature before it reads anything of the principal named, answers every failed proof alike, carries a run's requests and what it is told over the transport connection as it carries them to and from a page, and keeps each principal's keys with what the principal stored.
