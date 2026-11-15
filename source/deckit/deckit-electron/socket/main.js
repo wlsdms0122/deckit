@@ -1,11 +1,16 @@
 // MARK: - Property
+// The longest path a local socket is bound at, in bytes: the system refuses a longer one.
+const LIMIT = 103;
+
 // MARK: - Initializer
 // MARK: - Public
-// A local stream socket at `path`, a message a line each way, which only the account that runs the app can open: a
-// file left there by a run that did not end well is removed first, and the file goes as its process ends. Each transport
-// connection that arrives is handed to `opened({ send(line), close(), limit(bytes) })`, which answers `{ onMessage(line),
-// onEnd() }`: a line longer than its limit, `limit` at first, closes it unheard, and `onEnd` hears once that it closed.
-// `failed(why)` hears that nothing listens. Answers `{ close() }`.
+// A local stream socket named `path`, a message a line each way, which only the account that runs the app can open: a
+// file left there by a run that did not end well is removed first, and the file goes as its process ends. Where `path`
+// is longer than a socket's may be, the socket is bound at a short path in the system's temporary folder and `path` is
+// a link to it, there while it listens: whoever connects follows the link. Each transport connection that arrives is
+// handed to `opened({ send(line), close(), limit(bytes) })`, which answers `{ onMessage(line), onEnd() }`: a line
+// longer than its limit, `limit` at first, closes it unheard, and `onEnd` hears once that it closed. `failed(why)`
+// hears that nothing listens. Answers `{ close() }`.
 function listen({ path, limit }, { opened, failed }) {
     const fs = require('fs');
     const net = require('net');
@@ -42,24 +47,55 @@ function listen({ path, limit }, { opened, failed }) {
             listeners.onEnd();
         });
     });
+    const place = placeOf(path);
     const close = () => {
         server.close();
         for (const socket of sockets) socket.destroy();
-        fs.rmSync(path, { force: true });
+        remove(path);
+        remove(place);
     };
-    server.on('error', (error) => failed(error.message));
-    fs.rmSync(path, { force: true });
-    // The file is made for its owner alone, never open to another account for a moment.
-    const mask = process.umask(0o177);
+    const fail = (error) => {
+        close();
+        failed(error.message);
+    };
+    server.on('error', fail);
     try {
-        server.listen(path);
-    } finally {
-        process.umask(mask);
+        if (Buffer.byteLength(place) > LIMIT) throw new Error(tooLong(place));
+        remove(path);
+        remove(place);
+        // The file is made for its owner alone, never open to another account for a moment.
+        const mask = process.umask(0o177);
+        try {
+            server.listen(place);
+        } finally {
+            process.umask(mask);
+        }
+        if (place !== path) fs.symlinkSync(place, path);
+    } catch (error) {
+        fail(error);
     }
     process.once('exit', close);
     return { close };
 }
 
 // MARK: - Private
+// Where the socket named `name` is bound: at `name`, or where that is too long for one, at a name made of it in the
+// system's temporary folder.
+function placeOf(name) {
+    if (Buffer.byteLength(name) <= LIMIT) return name;
+    const hash = require('crypto').createHash('sha256').update(name).digest('hex').slice(0, 16);
+    return require('path').join(require('os').tmpdir(), `deckit-${hash}.sock`);
+}
+
+// `file` is taken away, a link to nothing as any file: what stays in the way is told by what is put there next.
+function remove(file) {
+    try {
+        require('fs').unlinkSync(file);
+    } catch {}
+}
+
+function tooLong(place) {
+    return `${place} is ${Buffer.byteLength(place)} bytes long, and a local socket's path holds at most ${LIMIT}`;
+}
 
 export { listen };
