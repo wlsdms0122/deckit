@@ -11,7 +11,8 @@ function createRoster() {
 
     // `{ seats, asks }` as a mod is told them, of `now`, the same of the shell's: `seats` each `{ id, name, colour,
     // idle, following }` in the order they sat, `asks` each `{ id, name }` in the order they asked. What is in neither
-    // any more loses its id.
+    // any more loses its id. An id is made as its seat or its ask is first in `now`, so the caller hands every change
+    // here for the ids to follow what happened and not who read.
     function told(now) {
         keep(seatIds, now.seats);
         keep(askIds, now.asks);

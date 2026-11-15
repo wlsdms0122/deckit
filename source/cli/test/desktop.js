@@ -2886,6 +2886,15 @@ async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
             left[1].id === sat.seats[1].id,
         [idle, left]
     );
+    const last = Math.max(...[...sat.seats, ...waiting].map(({ id }) => Number(id)));
+    const unread = asking('lin');
+    const blind = asked('answer', { ask: String(last + 1), allow: true });
+    await settled();
+    check(
+        'an ask has its id from the moment it waits, the next count, whether or not any mod read it',
+        blind === true && unread.answer === true,
+        [last, blind, unread.answer]
+    );
 }
 
 // The cursors' surface: laid over every level of the stage and over what the pages present, while more than one seat

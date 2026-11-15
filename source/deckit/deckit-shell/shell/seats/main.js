@@ -29,7 +29,11 @@ export function createSeats({ deckit, DESKTOP }) {
             if (seat !== null && id === null) return false;
             return DESKTOP.seats.follow(id);
         });
+        // A seat has its id from the moment it sits and an ask from the moment it waits, whether or not any mod read.
+        const noted = () => ROSTERED.told(DESKTOP.seats.now());
+        noted();
         DESKTOP.seats.onChange(() => {
+            noted();
             for (const page of pages) PROTOCOL.changed.send(page, {});
         });
     }
