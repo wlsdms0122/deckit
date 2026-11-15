@@ -32,8 +32,14 @@ function appHome() {
 // what it refused the first one it refused with, its `kind` and `stage` on it, or with why it answered nothing.
 function asks(home, requests) {
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-key-'));
-    const answered = new Promise((resolve, reject) => {
-        const { core, api } = built(folder);
+    return new Promise((resolve) => resolve(asksOf(built(folder), home, requests))).finally(() =>
+        fs.rmSync(folder, { recursive: true, force: true })
+    );
+}
+
+// The same of the core at `core`, which speaks the version `api` of the mod contract.
+function asksOf({ core, api }, home, requests) {
+    return new Promise((resolve, reject) => {
         const child = spawn(core, [], { stdio: ['pipe', 'pipe', 'ignore'] });
         const answers = [];
         let rest = '';
@@ -59,7 +65,6 @@ function asks(home, requests) {
         child.on('close', () => reject(new Error('the core ended before it answered')));
         send(1, 'initialize', { home, api, ship: [], sources: [], permissions: [], fields: [] });
     });
-    return answered.finally(() => fs.rmSync(folder, { recursive: true, force: true }));
 }
 
 // What the core answers `method` with, alone.
@@ -83,4 +88,4 @@ function list({ home, principal }) {
     return ask(home, 'key/list', { principal });
 }
 
-module.exports = { SCHEME, appHome, asks, ask, add, remove, list };
+module.exports = { SCHEME, appHome, asks, asksOf, ask, add, remove, list };
