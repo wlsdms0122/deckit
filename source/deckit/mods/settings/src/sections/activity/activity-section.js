@@ -116,14 +116,14 @@ function activitySection({ ui, mods, icons, onInterfaces }) {
 
         function fill(mod) {
             current = mod;
-            label.textContent = mod.name;
+            write(label, mod.name);
             // Under the Running card, only a run starting or stopping says its state.
-            state.element.textContent = STATE_WORDS[mod.run.state];
+            write(state.element, STATE_WORDS[mod.run.state]);
             state.element.hidden = mod.run.state === 'running';
             const since = mod.run.launchedAt ? elapsedText(Date.now() - mod.run.launchedAt) : '';
             const line = [mod.background ? 'In the background' : '', since].filter(Boolean).join(', ');
-            why.textContent = line.charAt(0).toUpperCase() + line.slice(1);
-            problem.textContent = problemsOf(mod, refusals.get(mod.id)).join('\n');
+            write(why, line.charAt(0).toUpperCase() + line.slice(1));
+            write(problem, problemsOf(mod, refusals.get(mod.id)).join('\n'));
             owns.element.hidden = !ownsInterface(mod);
             relaunch.element.hidden = mod.run.state !== 'running';
             quit.element.hidden = mod.run.state === 'terminating';
@@ -143,8 +143,8 @@ function activitySection({ ui, mods, icons, onInterfaces }) {
         return element;
 
         function fill(mod) {
-            name.textContent = mod.name;
-            reason.textContent = mod.background;
+            write(name, mod.name);
+            write(reason, mod.background);
         }
     }
 
@@ -174,6 +174,12 @@ function runningOf(list, runs) {
     });
 }
 
+// A row's text is written where it reads otherwise. The section is drawn again as time passes, and the engine holds
+// the page's view by what is at its top: text replaced there moves the page.
+function write(element, text) {
+    if (element.textContent !== text) element.textContent = text;
+}
+
 // How long, in the largest unit that fits: `less than a minute`, `5 min`, `2 h 5 min`, `3 d 2 h`.
 function elapsedText(ms) {
     const minutes = Math.floor(ms / 60000);
@@ -190,4 +196,4 @@ function problemsOf(mod, refusal) {
     return [mod.run.problem, mod.run.refusal?.message, refusal].filter(Boolean);
 }
 
-module.exports = { activitySection, runningOf, elapsedText, problemsOf };
+module.exports = { activitySection, runningOf, elapsedText, problemsOf, write };
