@@ -222,7 +222,7 @@ const GLYPHS = Object.freeze({
     zoom: 'M4 1.5v5M1.5 4h5',
 });
 const ARROW =
-    `<svg class="deckit-seat-arrow" viewBox="0 0 16 16" fill="currentColor" stroke="var(--deckit-background)" ` +
+    `<svg class="deckit-seat-arrow" viewBox="0 0 16 16" fill="currentColor" style="stroke: var(--deckit-background)" ` +
     'stroke-linejoin="round"><path d="M1.5 1.5l4.6 12.2 2-5.6 5.6-2z"/></svg>';
 const TICK =
     '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
