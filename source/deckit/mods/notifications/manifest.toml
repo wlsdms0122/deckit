@@ -10,13 +10,21 @@ keywords = ["notifications", "알림", "toast"]
 
 [permissions]
 "system.notifications" = "Shows a notification as the system's while you are in another app."
-"system.overlay-windows" = "Shows notifications over the app as they come."
-"deckit.panel-windows" = "Shows the recent notifications along the right edge of the app's window when you ask."
+"deckit.panel-windows" = "Shows each notification at the top right of the app as it comes, and the recent ones under its item in the status bar when you ask."
 "deckit.system-services" = "Runs the command of a notification you press, which launches its sender if it does not run."
 
 [interfaces]
-provides = { "deckit/notifications" = [1], "notifications/center" = [1] }
-uses = { "deckit/commands" = 1 }
+provides = { "deckit/notifications" = [1] }
+uses = { "deckit/commands" = 1, "status-bar/items" = 2 }
+
+[[contributes."status-bar/items"]]
+name = "Notifications"
+icon = "bell"
+command = "toggle"
+
+[[contributes."deckit/commands"]]
+id = "toggle"
+title = "Show or Hide Notifications"
 
 [[contributes."deckit/commands"]]
 id = "show"
