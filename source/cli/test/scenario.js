@@ -149,7 +149,8 @@ async function atRest(probe, ms = 3000) {
 
 // The status bar as it stands: `barPage()` is the document of its capsule, and `capsuleNow()` answers `{ bar, name,
 // clock, joined }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item and the
-// joining mod's, `{ id, name, x, y, width, height }` each as its button is drawn in the capsule, or null.
+// joining mod's, `{ id, name, region, x, y, width, height }` each as its button is drawn in the capsule, `region` the
+// one it stands in, `fixed` or `scrolled`, or null.
 function statusBar({ pages, desktopLaid }) {
     const barPage = async () => {
         for (const each of await pages('about:blank'))
@@ -166,7 +167,8 @@ function statusBar({ pages, desktopLaid }) {
             name: document.querySelector('.status-bar').getAttribute('aria-label'),
             items: [...document.querySelectorAll('.status-bar-item')].map((item) => {
                 const { x, y, width, height } = item.getBoundingClientRect();
-                return { id: item.dataset.item, name: item.getAttribute('aria-label'), x, y, width, height };
+                const region = item.closest('.status-bar-fixed') ? 'fixed' : 'scrolled';
+                return { id: item.dataset.item, name: item.getAttribute('aria-label'), region, x, y, width, height };
             }),
         }))()`);
         const item = (id) => drawn?.items.find((each) => each.id === id) ?? null;
@@ -3232,7 +3234,12 @@ async function run(app, named = []) {
                 reads: runs('reading'),
                 anchors,
                 bar: runs('desktop')
-                    ? { ...statusBar({ pages: app.pages, desktopLaid }), joins: () => page(`deckit://${JOINS}.mod`) }
+                    ? {
+                          ...statusBar({ pages: app.pages, desktopLaid }),
+                          joins: () => page(`deckit://${JOINS}.mod`),
+                          frame: () => page('deckit://status-bar.mod'),
+                          overlay: async () => app.overlayOf(await page('deckit://status-bar.mod')),
+                      }
                     : null,
             });
         } catch (error) {

@@ -10,8 +10,9 @@
 // desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the local seat sees of them, and
 // `idleTime` the seconds a seat is idle after, as the app was started with. With `reads`, the second user reads the
 // desktop it sits at too (reading.js). With `bar`, the status bar as the walk through the desktop left it, `{ barPage,
-// capsuleNow, joins }`, `joins()` the page of the mod that joins it, a user scrolls the bar in a narrow room and reads
-// it.
+// capsuleNow, joins, frame, overlay }`, `joins()` the page of the mod that joins it, `frame()` the page of the bar's
+// own mod and `overlay()` that page's overlay, a user scrolls the bar in a narrow room and reads it, and the local seat
+// and that user fix an item of it and let it scroll again.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
@@ -788,7 +789,8 @@ async function run({
         if (!wide) return check('outside: the status bar holds the item of the mod that joins it', false, '');
         const stage = (await desktopLaid())?.rect.width;
         const room = wide.bar.width - (57 - SHOWN);
-        await send('test-band', stage - CONTROLS - 2 * MARGIN - GAP - room);
+        const band = stage - CONTROLS - 2 * MARGIN - GAP - room;
+        await send('test-band', band);
         const narrow =
             (await until(async () => {
                 const now = await capsuleNow();
@@ -840,6 +842,7 @@ async function run({
                 /button "Star, 99\+"/.test(asWindow),
             asWindow
         );
+        await fixChecks({ seatA, send, wide, room, band, over, turn });
         await send('test-band', null);
         await send('test-item', null);
         const alone = await until(async () => {
@@ -850,6 +853,124 @@ async function run({
             'outside: as the room is given back and the item goes the status bar is its clock alone',
             alone,
             JSON.stringify(await capsuleNow())
+        );
+    }
+
+    // The person fixes an item, in the narrow room `room` wide where the item scrolls: the local seat's context press on
+    // it opens a menu of one entry in the frame's overlay, and Keep in Bar stands it whole in the fixed region left of
+    // the clock, where no turn of the wheel moves it. The frame's mod run again has it fixed still. Remove from Bar
+    // lets it scroll again. A seat does the same at the surface: button 2 on the item as it reads it, then the entry
+    // as it reads it in the frame's overlay, and the one bar every screen shows has it fixed, and scrolling again.
+    async function fixChecks({ seatA, send, wide, room, band, over, turn }) {
+        const { capsuleNow, barPage, frame, overlay } = bar;
+        const ENTRY = `.deckit-menu[data-state="open"] [role="menuitem"]`;
+        const stands = async (wanted, time = 5000) =>
+            (await until(async () => {
+                const now = await capsuleNow();
+                return wanted(now) && now;
+            }, time)) || (await capsuleNow());
+        const fixedWhole = ({ bar: laid, joined }) =>
+            joined?.region === 'fixed' && joined.x === 2 && joined.width === 57 && laid?.width === wide.bar.width;
+        const scrolls = ({ bar: laid, joined }) => joined?.region === 'scrolled' && laid?.width === room;
+        // The local seat's context press on the item, and the press on the one entry its menu offers.
+        const locally = async (wanted, shot = null) => {
+            await (
+                await barPage()
+            )?.evaluate(`(() => {
+                const item = document.querySelector('.status-bar-item[data-item="status-item"]');
+                const { x, y } = item.getBoundingClientRect();
+                const at = { clientX: x + 4, clientY: y + 4 };
+                item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...at }));
+            })()`);
+            const menu = await until(overlay, 4000);
+            const offered = await until(async () => {
+                const rows = await menu?.evaluate(
+                    `[...document.querySelectorAll('${ENTRY}')].map((row) => row.textContent)`
+                );
+                return rows?.length && rows;
+            }, 4000);
+            if (offered && shot) {
+                const { x, width } = (await capsuleNow()).bar;
+                await desktopShot(shot, { crop: { x: x - 60, y: 0, width: width + 68, height: 84 } });
+            }
+            if (offered) await menu.press(ENTRY);
+            return { offered, now: await stands(wanted) };
+        };
+        const kept = await locally(fixedWhole, 'status-bar-menu');
+        const turnedOn = seatA.as('scroll', over, '27,0');
+        await sleep(600);
+        const still = await capsuleNow();
+        check(
+            "outside: the local seat's context press on an item offers Keep in Bar, which stands it whole in the " +
+                'fixed region left of the clock, where a turn of the wheel does not move it',
+            same(kept.offered, ['Keep in Bar']) &&
+                fixedWhole(kept.now) &&
+                kept.now.joined.x < kept.now.clock.x &&
+                fixedWhole(still) &&
+                same(still.joined, kept.now.joined),
+            JSON.stringify({ kept, turnedOn, still })
+        );
+        // The frame's mod runs again, the joining mod's band put away meanwhile so the bar opens first again: the list
+        // is the frame's record, so the item that joins again is fixed as it comes.
+        await send('test-band', null);
+        await (await frame())?.evaluate('location.reload()');
+        const gone = await until(async () => !(await capsuleNow()).joined, 4000);
+        await stands(({ joined }) => !!joined, 10000);
+        await send('test-item', { name: 'Star', icon: 'star', command: 'show', count: 120 });
+        await send('test-band', band);
+        const survived = await stands((now) => fixedWhole(now) && now.bar.x === kept.now.bar?.x, 8000);
+        check(
+            "outside: the item is fixed still once the status bar's mod ran again",
+            fixedWhole(survived) && survived.bar.x === kept.now.bar?.x,
+            JSON.stringify({ gone: !!gone, kept: kept.now, survived })
+        );
+        const freed = await locally(scrolls);
+        const scrolled = await turn('27,0', -25);
+        const back = await turn('0,-500', 2);
+        check(
+            'outside: Remove from Bar on the fixed item lets it scroll with the others again',
+            same(freed.offered, ['Remove from Bar']) &&
+                scrolls(freed.now) &&
+                freed.now.joined.x === 2 &&
+                scrolled.now.joined?.x === -25 &&
+                back.now.joined?.x === 2,
+            JSON.stringify({ freed, scrolled, back })
+        );
+        // A seat at the surface: what it reads of the bar names the item, button 2 on it opens the menu it reads next,
+        // and its press on the entry does what the entry says.
+        const refIn = (text, role, name) =>
+            new RegExp(`^ *${role} "${name}[^"]*"(?: \\[[^\\]]*\\])? (\\d+\\.\\d+)`, 'm').exec(text)?.[1] ?? null;
+        const panelNow = () => /^panel (w\d+) .* status-bar top at /m.exec(seatA.as('read', 'desktop'))?.[1] ?? null;
+        const bySeat = async (label, wanted) => {
+            const panel = panelNow();
+            const item = panel && refIn(seatA.as('read', 'window', panel), 'button', 'Star');
+            const pressed = item ? seatA.as('press', item, '--button', '2') : '';
+            let read = '';
+            const entry = await until(() => {
+                read = [seatA.as('read', 'desktop'), panel ? seatA.as('read', 'window', panel) : ''].join('\n');
+                return refIn(read, 'menuitem', label);
+            }, 4000);
+            const taken = entry ? seatA.as('press', entry) : '';
+            const now = await stands(wanted);
+            const asRead = panelNow();
+            return { panel, item, pressed, entry, taken, now, read: entry ? '' : read, asRead };
+        };
+        const seatKept = await bySeat('Keep in Bar', fixedWhole);
+        const seatReadsKept = seatKept.asRead ? seatA.as('read', 'window', seatKept.asRead) : '';
+        const seatFreed = await bySeat('Remove from Bar', scrolls);
+        const seatReadsFreed = seatFreed.asRead ? seatA.as('read', 'window', seatFreed.asRead) : '';
+        check(
+            'outside: a seat fixes the item by button 2 on it as it reads it and the entry Keep in Bar as it reads ' +
+                'that, and lets it scroll again by Remove from Bar: the bar the local seat sees has it so, and the ' +
+                'seat reads it after the clock while it is fixed and before it once it is not',
+            !!seatKept.entry &&
+                fixedWhole(seatKept.now) &&
+                /button "Clock"[^\n]*\n +button "Star/.test(seatReadsKept) &&
+                !!seatFreed.entry &&
+                scrolls(seatFreed.now) &&
+                seatFreed.now.joined.x === 2 &&
+                /button "Star[^\n]*\n +button "Clock"/.test(seatReadsFreed),
+            JSON.stringify({ seatKept, seatReadsKept, seatFreed, seatReadsFreed })
         );
     }
 
