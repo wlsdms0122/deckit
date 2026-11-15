@@ -2,7 +2,7 @@
 // Checks the channels between main and a page, the stage pages are laid on, what an environment gives and connect
 // answers, the seats main keeps, deck's client of the core, its runner, the exports a page opens by interface, the
 // mods a connection launches, the scope a lifecycle cuts and the events a page hears, deckit as a layer on deck, the
-// key map, the local sockets under a folder of a long path, the mods as
+// key map, the local sockets under a folder of a long path, the wire a party from outside speaks, the mods as
 // the core reads them, an address offered to its handlers in turn, the web pages a mod shows, what a page is told as it
 // starts, the styles a page wears, the regions mods give their children, forge's runs, the commands, urls, keymap and
 // configuration mods, the Switcher's list, the Browser's game, Settings' Activity and the Mods mod's search, runs the core's tests, then
@@ -28,6 +28,7 @@ const UNITS = {
     'stage.js': ['input', 'outside', 'read'],
     'seats.js': ['outside'],
     'socket.js': ['outside'],
+    'outside-wire.js': ['outside'],
     'core.js': ['core'],
     'runner.js': ['core'],
 };
@@ -80,6 +81,7 @@ const main = async () => {
         'host.js',
         'seats.js',
         'socket.js',
+        'outside-wire.js',
         'seats-mod.js',
         'key.js',
         'style.js',

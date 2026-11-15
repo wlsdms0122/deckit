@@ -1,3 +1,5 @@
+import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
+import * as REFUSAL from '../../../deckit-sdk/deckit/request/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import { OUTSIDE as RUNNER_WIRE } from '../runner/main.js';
@@ -92,6 +94,10 @@ export function createOutside({ CORE, LOG, RUNNER, SEAT, transport: TRANSPORT, p
             const payload = { ...params, ...(declared.adding ?? {}), ...(declared.run ? { run } : {}) };
             const message = { channel: declared.channel.channel, payload };
             if (!declared.channel.reply) return (carried.told(message), true);
+            // What a party asks is held to the method's fields here, under the method's name, as a page's own code
+            // holds what it is handed before it asks: no party is answered in a channel's name.
+            const problem = CHANNEL.problemOf({ channel: method, fields: declared.channel.fields }, payload);
+            if (problem) throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', problem);
             const answer = await carried.asked(message);
             if (answer.error) throw Object.assign(new Error(answer.error.message), answer.error);
             return answer.value ?? null;
