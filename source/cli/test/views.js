@@ -49,6 +49,12 @@ main
   list "Folders"
   list "Notes"
 separator "Sidebar"`,
+    calendar: `complementary "Sidebar"
+  group "Calendars"
+    button "Calendars"
+    button "Add Account…"
+main
+separator "Sidebar"`,
 };
 
 // Whether the lines of `text` hold those of `golden`, in its order.

@@ -110,11 +110,13 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     });
     const modeBar = ui.segmented({
         items: MODES.map(([key, label]) => ({ key, label, title: label + ' view' })),
+        name: 'View',
         value: mode,
         onChange: (key) => setMode(key),
     });
     const modeSelect = ui.select({
         options: MODES.map(([value, label]) => ({ value, label })),
+        label: 'View',
         value: mode,
         onChange: (key) => setMode(key),
     });
