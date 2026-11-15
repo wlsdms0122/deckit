@@ -92,12 +92,13 @@ export function createOutside({ CORE, LOG, RUNNER, SEAT, transport: TRANSPORT, p
             const declared = Object.hasOwn(ASKED, method) ? ASKED[method] : null;
             if (!declared) throw refusal(`no method ${method}`, DECLARED.CODE.methodNotFound);
             const payload = { ...params, ...(declared.adding ?? {}), ...(declared.run ? { run } : {}) };
-            const message = { channel: declared.channel.channel, payload };
-            if (!declared.channel.reply) return (carried.told(message), true);
             // What a party asks is held to the method's fields here, under the method's name, as a page's own code
-            // holds what it is handed before it asks: no party is answered in a channel's name.
+            // holds what it is handed before it asks: no party is answered in a channel's name, and what is only told
+            // main is held as what main answers is.
             const problem = CHANNEL.problemOf({ channel: method, fields: declared.channel.fields }, payload);
             if (problem) throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', problem);
+            const message = { channel: declared.channel.channel, payload };
+            if (!declared.channel.reply) return (carried.told(message), true);
             const answer = await carried.asked(message);
             if (answer.error) throw Object.assign(new Error(answer.error.message), answer.error);
             return answer.value ?? null;

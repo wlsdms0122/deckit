@@ -1,7 +1,7 @@
 // The wire a party from outside speaks (deckit-shell/deckit/outside) over stand-ins for the transport, the core, the
-// runner and the seats: what a party asks is held to its method's fields before a channel carries it, refused as a
-// bad argument under the method's name, and what is well formed reaches what answers it. Exits 1 with a line for each
-// check that failed.
+// runner and the seats: what a party asks is held to its method's fields before a channel carries it, what is only told
+// main as what main answers, refused as a bad argument under the method's name, and what is well formed reaches what
+// answers or hears it. Exits 1 with a line for each check that failed.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -11,6 +11,7 @@ async function main() {
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const { createOutside } = await import(url('deckit-shell', 'deckit', 'outside', 'main.js'));
     const { createRecord } = await import(url('deckit-shell', 'deckit', 'record', 'main.js'));
+    const { createEvent } = await import(url('deckit-shell', 'deckit', 'event', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -23,12 +24,18 @@ async function main() {
         { messages: { listen() {}, tell() {} }, pages: { isGone: () => false, watch() {} } },
         { report: () => {}, identify: () => user }
     );
+    const listened = []; // what the core was asked to listen to
     const CORE = {
         timeout: () => ({ end: 5000 }),
-        request: async (method) => (method === 'authentication/challenge' ? { challenge: 'c', schemes: [] } : null),
+        request: async (method, params) => {
+            if (method === 'event/listen') listened.push(params);
+            return method === 'authentication/challenge' ? { challenge: 'c', schemes: [] } : null;
+        },
     };
-    createRecord({ CORE, IDENTITY: { modFrom: () => user } }).start();
-    const RUNNER = { offer: () => () => {}, runOf: () => ({ number: 1 }) };
+    const IDENTITY = { modFrom: () => user };
+    const RUNNER = { offer: () => () => {}, runOf: () => ({ number: 1 }), handleEffect() {} };
+    createRecord({ CORE, IDENTITY }).start();
+    createEvent({ CORE, LOG: { error() {} }, IDENTITY, RUNNER }).start();
     const SEAT = {
         admit: async ({ transport }) => ({
             effects: [{ effect: 'open', transport, mod: user.id, permissions: user.granted }],
@@ -67,6 +74,12 @@ async function main() {
         ['record/read', { key: 5 }, "record/read's key is number, not string"],
         ['record/keys', { other: 1 }, 'record/keys has no field other'],
         ['connection/reach', { lifecycle: 0 }, 'connection/reach needs target'],
+        ['runner/started', {}, 'runner/started needs contributions'],
+        ['runner/problem', { problem: 5 }, "runner/problem's problem is number, not string"],
+        ['connection/end', { lifecycle: 0, other: 1 }, 'connection/end has no field other'],
+        ['connection/let-go', { connection: 1, number: 0 }, 'connection/let-go needs count'],
+        ['event/listen', { names: 'ada:ping' }, "event/listen's names is string, not array"],
+        ['event/emit', { name: 'ping' }, 'event/emit needs args'],
     ];
     for (const [method, params, message] of malformed) {
         const { error } = await ask(method, params);
@@ -78,6 +91,14 @@ async function main() {
     }
     const read = await ask('record/read', { key: 'note' });
     check('what is well formed reaches what answers it', read.result === null && !read.error, read);
+    const told = await ask('event/listen', { names: ['ada:ping'] });
+    check(
+        'what is well formed and only told is answered true, and reaches what hears it',
+        told.result === true &&
+            !told.error &&
+            JSON.stringify(listened) === '[{"mod":"ada","run":1,"names":["ada:ping"]}]',
+        { told, listened }
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);
