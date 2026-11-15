@@ -55,6 +55,8 @@ Each `name` and `description` is the text the table gives, every code point of i
 
 The system's other DECKITs define permissions of their own, each in a table of this shape. The system defines its own before any layer or the host defines a permission: this table's first, in its order, and then each other DECKIT's, by the DECKITs' numbers, each in its table's order.
 
+An id that only a job no bundle gave holds, such as `deckit.seat` of [users and seats](../DECKIT-38/SPEC.md), is in none of these tables: no manifest is read against it, and no mod is granted it.
+
 **Note.** A permission's `name` and `description` are what a person reads before a mod is installed, and they are fixed to the code point so that a mod asks for the same thing on every host.
 
 ## Interactions
