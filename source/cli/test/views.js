@@ -85,6 +85,17 @@ const STANDING = {
   button "*"
   button "First"
   button "Second"`,
+    toast: `alert "Toasted, Stands until it is answered."
+  img "Status Item"
+  button "Later"
+  button "Close"`,
+    center: `region "Notifications"
+  button "Clear All"
+  listbox
+    option "Toasted, Stands until it is answered."
+      img "Status Item"
+      button "Later"
+      button "Remove"`,
 };
 
 // Whether the lines of `text` hold those of `golden`, in its order: a `*` in a golden line is any text there.

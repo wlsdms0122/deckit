@@ -111,8 +111,7 @@ function screen(shell, center) {
         key: (notification) => notification.id,
         create: (notification) => card(notification, { row: true }),
         update: (made, notification) => {
-            if (drew.get(notification.id) === shows(notification)) return;
-            made.replaceChildren(...partsOf(notification, { row: true }));
+            if (drew.get(notification.id) !== shows(notification)) fill(made, notification, { row: true });
         },
         animated: true,
     });
@@ -316,9 +315,15 @@ function screen(shell, center) {
         const made = element('div', 'notifications-card');
         made.dataset.deckitSolid = ''; // opaque on the panel's material: the plain inks
         if (!row) made.setAttribute('role', 'alert');
-        made.append(...partsOf(notification, { row }));
+        fill(made, notification, { row });
         made.addEventListener('click', () => center.press(notification.id));
         return made;
+    }
+
+    // A card called by its title and its body, holding what it shows.
+    function fill(made, notification, { row }) {
+        made.setAttribute('aria-label', JSON.parse(shows(notification, { row })).name);
+        made.replaceChildren(...partsOf(notification, { row }));
     }
 
     // What a card shows (MODEL.cardOf): the sender's icon, the title, the body, the actions and the close button. A row

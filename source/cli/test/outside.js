@@ -1229,6 +1229,7 @@ async function run({
                 later,
             JSON.stringify({ stood, stage, asWindow, posted: await mark('posted') })
         );
+        if (toast) await VIEWS.standing({ check, main, desktopLaid, area: 'outside' }, 'notifications', 'toast');
         const onLater = later ? seatA.as('press', later) : '';
         const ranLater = await until(async () => (await mark('noted')) === 'later', 6000);
         const gone = await until(() => !viewsOf(seatA).length && !viewsOf(seatB).length, 6000);
@@ -1248,6 +1249,7 @@ async function run({
             )?.[1] ?? null;
         if (again && item()) seatA.as('press', item());
         const center = await until(() => viewsOf(seatA).find(({ id, key }) => id !== again?.id && key), 6000);
+        if (center) await VIEWS.standing({ check, main, desktopLaid, area: 'outside' }, 'notifications', 'center');
         // A point where both stand: in the center's head, clear of its button, and on the toast's card.
         const shared = center && again ? Math.min(center.x, again.x) + 360 - Math.max(center.x, again.x) : 0;
         const both = shared > 80 ? `${Math.max(center.x, again.x) + 40},${again.y + 32}` : null;

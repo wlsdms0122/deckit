@@ -378,11 +378,27 @@ async function main() {
         SCREEN.cardOf({ title: 'Standup', body: 'now', mod: { id: 'c', name: 'Calendar' } }, { icon: 'i', time: '9' }),
     ];
     check(
-        "a card shows its title, the sender's name for none, its body, icon and time, and its actions' titles",
+        "a card is called by its title and body, and shows them, the sender's name for no title, its icon, time and actions",
         json(shows) ===
             json([
-                { title: 'Calendar', body: '', sender: 'Calendar', icon: '', time: '', actions: ['Later'] },
-                { title: 'Standup', body: 'now', sender: 'Calendar', icon: 'i', time: '9', actions: [] },
+                {
+                    name: 'Calendar',
+                    title: 'Calendar',
+                    body: '',
+                    sender: 'Calendar',
+                    icon: '',
+                    time: '',
+                    actions: ['Later'],
+                },
+                {
+                    name: 'Standup, now',
+                    title: 'Standup',
+                    body: 'now',
+                    sender: 'Calendar',
+                    icon: 'i',
+                    time: '9',
+                    actions: [],
+                },
             ]),
         shows
     );

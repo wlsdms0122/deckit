@@ -19,12 +19,15 @@ function guessOf({ body = '', actions = [] }) {
     return CARD.plain + (body ? CARD.body : 0) + (actions.length ? CARD.actions : 0);
 }
 
-// What the card of `notification` shows, as plain data: `{ title, body, sender, icon, time, actions }`, `title` the
-// sender's name where it has none, `icon` the sender's app icon as it is read, '' for none, `time` when it came as a
-// row writes it, '' on a toast, and `actions` the titles of its actions. A card that shows the same is not drawn anew.
+// What the card of `notification` shows, as plain data: `{ name, title, body, sender, icon, time, actions }`, `title`
+// the sender's name where it has none, `name` what the card is called, its title and its body, `icon` the sender's
+// app icon as it is read, '' for none, `time` when it came as a row writes it, '' on a toast, and `actions` the titles
+// of its actions. A card that shows the same is not drawn anew.
 function cardOf({ title, body = '', mod, actions = [] }, { icon = '', time = '' } = {}) {
     const titles = actions.map((action) => action.title);
-    return { title: title || mod.name, body, sender: mod.name, icon, time, actions: titles };
+    const shown = title || mod.name;
+    const name = [shown, body].filter(Boolean).join(', ');
+    return { name, title: shown, body, sender: mod.name, icon, time, actions: titles };
 }
 
 // The center's view, `{ width, height }`: `rows` the heights of its rows in order, none for an empty record. It is
