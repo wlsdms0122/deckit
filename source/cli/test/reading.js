@@ -12,7 +12,7 @@ const sizeOfPng = (file) => {
 };
 
 // A window's reading without what differs from run to run: its id, frame, holder and mark, each ref, each document's
-// number and size, the seat a focus is of, how long a text is, a field's value and the folder the test made.
+// number and size, the seat a focus is of, how long a text is and a field's value.
 const masked = (text) =>
     text
         .replace(/^window w\d+ ("[^"]*" \S+) at .* mark \d+$/m, 'window $1')
@@ -20,8 +20,7 @@ const masked = (text) =>
         .replace(/^( *document) \d+ (.*) \d+x\d+$/gm, '$1 $2')
         .replace(/focused \w+/g, 'focused')
         .replace(/text \d+/g, 'text N')
-        .replace(/value "[^"]*"/g, 'value "*"')
-        .replace(/deckit-test-files-\w+/g, 'deckit-test-files');
+        .replace(/value "[^"]*"/g, 'value "*"');
 // The last line is the field the outside checks put into the window the local seat types in.
 const EDITOR = `window "Editor" editor
   button "Close"
