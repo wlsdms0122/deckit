@@ -3017,4 +3017,4 @@ async function run({
     return report;
 }
 
-module.exports = { seed, run };
+module.exports = { seed, run, serveSeats };

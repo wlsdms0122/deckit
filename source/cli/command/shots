@@ -19,6 +19,8 @@ const { execFileSync } = require('child_process');
 const { start } = require(path.join(root, 'source', 'cli', 'test', 'start.js'));
 const { seat } = require(path.join(root, 'source', 'cli', 'test', 'seat.js'));
 const { until, sleep, ALT, CTRL, META } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
+const { serveSeats } = require(path.join(root, 'source', 'cli', 'test', 'scenario.js'));
+const { readKey, connect } = require(path.join(root, 'source', 'cli', 'outside', 'client.js'));
 const OUT = path.join(root, '.build', 'shots');
 const LOOKS = ['light', 'dark'];
 const LIMIT = 600000;
@@ -155,7 +157,8 @@ function site() {
 // record, each record a value the app's storage takes (`valueProblem`, deckit-sdk/deckit/request), so a mod can write
 // back what it read.
 function seedOf(origin, valueProblem) {
-    return ({ data, files: given }) => {
+    return ({ data, files: given, app }) => {
+        serveSeats({ app });
         const files = path.join(given, FOLDER);
         for (const [name, text] of Object.entries(FILES)) {
             fs.mkdirSync(path.dirname(path.join(files, name)), { recursive: true });
@@ -289,6 +292,71 @@ async function draw(app, look, shots, origin) {
     await sleep(400);
     await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
     await surface('desktop-windows', backed);
+    // Two users sit beside the local seat, each at a transport connection of its own with a key of its own, and each
+    // presses a window where it shows for it, so it holds that window's keyboard: their cursors at rest, then one of
+    // them mid drag, its button held. Each shot is cut to what the two do, with a margin.
+    const attach = async (id, name) => {
+        const file = path.join(app.data, `${id}.key`);
+        const command = path.join(__dirname, '..', 'deckit');
+        execFileSync(command, ['user', 'add', id, '--name', name, '--key', file, '--home', app.home], {
+            stdio: 'pipe',
+        });
+        const party = await connect(path.join(app.home, 'deckit.sock'));
+        await party.authenticate({ principal: id, ...readKey(fs.readFileSync(file, 'utf8')) });
+        const point = (type, { x, y }, more = {}) => party.request('seat/pointer', { type, x, y, ...more });
+        return { point, leave: () => party.close() };
+    };
+    // A point where one of `windows` shows for `user`, whose windows are in an order of its own, and that window.
+    const shownTo = async (user, windows) => {
+        for (const { rect } of windows)
+            for (const down of [0.5, 0.25, 0.75])
+                for (let across = 6; across < rect.width; across += 18) {
+                    const at = { x: Math.round(rect.x + across), y: Math.round(rect.y + rect.height * down) };
+                    const { over } = await user.point('scroll', at, { dx: 0, dy: 1 });
+                    const window = windows.find(({ id }) => id === over);
+                    if (window) return { at, window };
+                }
+        throw new Error('no window shows for a seat');
+    };
+    const around = (points) => {
+        const [xs, ys] = [points.map(({ x }) => x), points.map(({ y }) => y)];
+        const [left, top] = [Math.max(0, Math.min(...xs) - 240), Math.max(0, Math.min(...ys) - 200)];
+        const [right, bottom] = [Math.max(...xs) + 240, Math.max(...ys) + 200];
+        return {
+            x: left,
+            y: top,
+            width: Math.min(screen.width, right) - left,
+            height: Math.min(screen.height, bottom) - top,
+        };
+    };
+    const users = [];
+    const rests = [];
+    await surface('seats', async (name) => {
+        users.push(await attach('ada', 'Ada'), await attach('grace', 'Grace'));
+        const behind = (await windowsNow()).filter(({ key, scaled }) => !key && !scaled);
+        for (const user of users) {
+            const { at, window } = await shownTo(user, behind);
+            behind.splice(behind.indexOf(window), 1);
+            await user.point('down', at, { button: 0, buttons: [0], count: 1 });
+            await user.point('up', at, { button: 0, buttons: [] });
+            rests.push({ x: at.x + 36, y: at.y + 28 });
+            await user.point('move', rests.at(-1));
+        }
+        await sleep(1200);
+        await desktopShot(name, { under, crop: around(rests) });
+    });
+    await surface('seats-drag', async (name) => {
+        const [from, other] = rests;
+        if (!other) throw new Error('no two seats are at rest');
+        const to = { x: from.x + 150, y: from.y + 70 };
+        await users[0].point('down', from, { button: 0, buttons: [0], count: 1 });
+        await users[0].point('move', to, { buttons: [0] });
+        await sleep(600);
+        await desktopShot(name, { under, crop: around([from, to, other]) });
+        await users[0].point('up', to, { button: 0, buttons: [] });
+    });
+    for (const user of users) user.leave();
+    await sleep(1000);
     // Two windows tiled side by side by the shell's keys, then each put back at its frame.
     const tileKey = async (key) => {
         const content = (await windowsNow()).find((window) => window.key)?.content;
