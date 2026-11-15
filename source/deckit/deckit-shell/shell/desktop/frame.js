@@ -368,10 +368,11 @@ function boot(theme, channels) {
     // What marks a seat on the screen is drawn in a document of its own, laid over everything on the stage, where it
     // takes no pointer and no keyboard: so a cursor shows on a panel window and on what a page presents over itself.
     const over = surface(PAGE.CURSORS);
+    const seatsOver = element(over.document, 'div', 'deckit-seats');
     const pointers = element(over.document, 'div', 'deckit-seat-cursors');
-    over.document.body.append(pointers);
+    over.document.body.append(seatsOver, pointers);
     const cursors = new Map(); // a seat's id -> { element, name, press }, its cursor and its press while it holds one
-    const typings = new Map(); // a seat's id -> { ring, bars }, the ring and the bars drawn where it types
+    const typings = new Map(); // a seat's id -> { ring, bars, over }, the ring and the bars drawn where it types
     const chips = element(document, 'div', 'deckit-seat-chips');
     chips.setAttribute('role', 'group');
     chips.setAttribute('aria-label', 'Seats');
@@ -540,14 +541,14 @@ function boot(theme, channels) {
         );
     }
 
-    // Where each seat types in a window that does not have the machine's keyboard, in this page, over the windows: a
-    // ring in the seat's colour round what has the focus there, 2 px outside it, and a bar in that colour at its
-    // caret, 2 px wide, or over each rect of what is selected in it. The ring goes to another place by the `move`
-    // spring.
+    // Where each seat types in a window that does not have the machine's keyboard, in this page, over the windows, or,
+    // where the state says `over`, in the cursors' surface under the cursors: a ring in the seat's colour round what
+    // has the focus there, 2 px outside it, and a bar in that colour at its caret, 2 px wide, or over each rect of what
+    // is selected in it. The ring goes to another place by the `move` spring, and is made anew as `over` changes.
     function drawTypings(all) {
         const seen = new Map(all.filter(({ typing }) => typing).map((seat) => [seat.id, seat]));
         for (const [id, drawn] of typings) {
-            if (seen.has(id)) continue;
+            if (seen.get(id)?.typing.over === drawn.over) continue;
             for (const each of [drawn.ring, ...drawn.bars]) each.remove();
             typings.delete(id);
         }
@@ -559,10 +560,11 @@ function boot(theme, channels) {
             });
         for (const { id, colour, typing } of seen.values()) {
             if (!typings.has(id)) {
-                const ring = element(document, 'div', 'deckit-seat-focus');
+                const root = typing.over ? seatsOver : seats;
+                const ring = element(root.ownerDocument, 'div', 'deckit-seat-focus');
                 ring.dataset.seat = id;
-                seats.insertBefore(ring, seats.firstChild);
-                typings.set(id, { ring, bars: [] });
+                root.insertBefore(ring, root.firstChild);
+                typings.set(id, { ring, bars: [], over: typing.over });
             }
             const drawn = typings.get(id);
             const { ring, bars } = typing;
@@ -571,7 +573,7 @@ function boot(theme, channels) {
             for (const gone of drawn.bars.splice(bars.length)) gone.remove();
             bars.forEach((bar, at) => {
                 if (!drawn.bars[at]) {
-                    drawn.bars[at] = element(document, 'div', 'deckit-seat-bar');
+                    drawn.bars[at] = element(drawn.ring.ownerDocument, 'div', 'deckit-seat-bar');
                     drawn.bars[at].dataset.seat = id;
                     drawn.ring.after(drawn.bars[at]);
                 }

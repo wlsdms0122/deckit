@@ -2891,7 +2891,8 @@ async function typingChecks({ LAYOUT, createDesktop }, check) {
         'where a seat types is told once its page is read after its press: the focus and its caret, on the stage',
         before === null &&
             asked.join() === 'content-1' &&
-            JSON.stringify(first) === JSON.stringify({ ring: moved(answer.rect), bars: [moved(caret)], caret: true }) &&
+            JSON.stringify(first) ===
+                JSON.stringify({ ring: moved(answer.rect), bars: [moved(caret)], caret: true, over: false }) &&
             desk.page().seats.find(({ id }) => id === 'local').typing === null,
         JSON.stringify({ before, asked, first, content: content?.rect })
     );
@@ -2935,6 +2936,53 @@ async function typingChecks({ LAYOUT, createDesktop }, check) {
             typing()?.ring.x === other.rect.x + 2 &&
             typing().ring.y === other.rect.y + 40,
         JSON.stringify({ covered, back, atOnce, asked, now: typing(), other: other?.rect })
+    );
+
+    // A view under an anchor lies over the desktop's page: where a seat types in it is drawn over everything.
+    const panelOf = (id, mod, more) => {
+        const page = { name: `page-${mod}`, mod };
+        return {
+            id,
+            mod,
+            name: `w${id}`,
+            level: 'panel',
+            page,
+            surface: { name: `content-${id}`, of: page },
+            size: { width: 320, height: 200 },
+            minimum: { width: 0, height: 0 },
+            bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+            ...more,
+        };
+    };
+    const band = panelOf(3, 'bar', { edge: 'top', size: { width: 200, height: 20 } });
+    desk.desktop.openPanel(band);
+    desk.desktop.setAnchors(band, [{ id: 'clock', rect: { x: 100, y: 2, width: 60, height: 16 }, mod: 'clock' }]);
+    const view = panelOf(4, 'clock', { edge: null, anchor: { mod: 'bar', id: 'clock' } });
+    const inBand = desk.laid().find(({ page }) => page.name === 'content-3').rect;
+    const onAnchor = { x: inBand.x + 110, y: inBand.y + 10 };
+    await desk.enter(seat, pointer('down', onAnchor));
+    await desk.enter(seat, pointer('up', onAnchor));
+    desk.request('bar', 'clock');
+    desk.desktop.openPanel(view);
+    desk.enter(seat, { event: 'key', type: 'down', code: 'KeyD', key: 'd' });
+    await read1();
+    const unseen = typing();
+    desk.desktop.pressPanel(band);
+    desk.request('bar', 'clock');
+    desk.desktop.orderFrontPanel(view);
+    desk.enter(seat, { event: 'key', type: 'down', code: 'KeyE', key: 'e' });
+    await read1();
+    const inView = typing();
+    const laidView = desk.laid().find(({ page }) => page.name === 'content-4')?.rect;
+    check(
+        'a seat that types in a view under an anchor is told as drawn over everything where the view is on the ' +
+            'screen shown, and not at all where it is not',
+        unseen === null &&
+            asked.at(-1) === 'content-4' &&
+            inView?.over === true &&
+            inView.ring.x === laidView.x + 2 &&
+            inView.ring.y === laidView.y + 40,
+        JSON.stringify({ unseen, inView, laidView, asked: asked.at(-1) })
     );
 }
 
