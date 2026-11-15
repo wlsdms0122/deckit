@@ -17,10 +17,12 @@ export const setup = CHANNEL.pageToMain(
 // a window whose content draws its own; `panels`, the panel windows that stand, at their edge, 'top' in the strip,
 // or with `edge` null as a view, as they lie from the bottom, the material
 // drawn under each at its frame, rounded by `radius`;
-// `seats`, `[{ id, name, colour, at, buttons, shown, dimmed, named, typing }]`, every
+// `seats`, `[{ id, name, colour, at, buttons, shown, under, named, typing }]`, every
 // seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was
 // anywhere, the buttons it holds, whether it is the one whose view
-// the host window shows, whether its cursor is drawn dimmed (model/marks.js isDimmed), whether its name shows beside
+// the host window shows, what its cursor is drawn under, `[{ x, y, width, height, radius }]` on the stage, the rects
+// that cover it there, each with the radius of its corners, or null for a cursor that is not seen at all
+// (model/marks.js underOf), whether its name shows beside
 // its cursor (model/marks.js nameLeft), and where it types in a window that does not have the machine's keyboard,
 // `{ ring, bars, caret, over }`, the ring round what has the focus there, `{ x, y, width, height, radius, line }` on
 // the stage (model/marks.js ringOf), the rects of what is selected in it or, `caret` true, the one its caret is at,
@@ -34,9 +36,10 @@ export const setup = CHANNEL.pageToMain(
 // `down` `{ name, why }` once deckit's core answers nothing more, or null.
 export const state = CHANNEL.mainToPage('deckit-shell:desktop-state');
 // What the pointer of a seat that is not the one shown just did, each event as it comes, between two states:
-// `{ id, type, x, y, buttons, dimmed, named, glide }`, `type` 'move', 'down', 'up' or 'scroll', or 'rest' once it did
-// nothing for as long as the seat's name shows, the point on the stage, the buttons held after it, whether the cursor
-// is drawn dimmed there, whether the seat's name shows beside it, whether the cursor glides there or is there at once
+// `{ id, type, x, y, buttons, under, named, glide }`, `type` 'move', 'down', 'up' or 'scroll', or 'rest' once it did
+// nothing for as long as the seat's name shows, the point on the stage, the buttons held after it, what the cursor is
+// drawn under there, as the state says it, whether the seat's name shows beside it, whether the cursor glides there
+// or is there at once
 // (model/marks.js glides), and for a scroll `dx`, `dy`.
 export const seat = CHANNEL.mainToPage('deckit-shell:desktop-seat');
 // What the pointer of the seat at the host window does on a part of a window the page draws, as it does it, main

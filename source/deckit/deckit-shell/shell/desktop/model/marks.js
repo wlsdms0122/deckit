@@ -14,13 +14,20 @@ function topAt(stack, { x, y }) {
     return at ? at.id : null;
 }
 
-// Whether a seat's cursor is drawn dimmed: its pointer, at `point`, is over a window in front there in the seat's own
-// order, `own`, and another window covers that point in the viewer's order, `viewed`, each `[{ id, frame }]` from the
-// back. A seat works in its own order, so the viewer sees such a cursor on a window the seat does not point at.
-function isDimmed(point, own, viewed) {
-    if (!point) return false;
-    const [over, top] = [topAt(own, point), topAt(viewed, point)];
-    return over !== null && top !== null && top !== over;
+// What covers, on the viewer's screen, what a seat's pointer at `point` is over, from the back: `[{ x, y, width,
+// height, radius }]` on the stage, each with the radius of its corners. `own` is what stands on the seat's own screen
+// and `viewed` what stands on the viewer's, each `[{ id, frame, radius }]` from the back. The pointer is over what is
+// in front at it on its own screen, or the bare desktop under all of it, and a cursor is in the layer of what its
+// pointer is over: all that lies over that on the viewer's screen covers it. Null where what the pointer is over is
+// not on the viewer's screen, so nothing of the cursor is seen; nothing for a pointer that is nowhere yet.
+function underOf(point, own, viewed) {
+    if (!point) return [];
+    const over = topAt(own, point);
+    const at = over === null ? -1 : viewed.findIndex(({ id }) => id === over);
+    if (over !== null && at < 0) return null;
+    return viewed
+        .slice(at + 1)
+        .map(({ frame: { x, y, width, height }, radius = 0 }) => ({ x, y, width, height, radius }));
 }
 
 // How long the name beside a seat's cursor still shows, ms: for NAME from its pointer's last act, a move, a press, a
@@ -52,4 +59,4 @@ function glides(place) {
     return place === 'ref';
 }
 
-export { NAME, RING, topAt, isDimmed, nameLeft, ringOf, glides };
+export { NAME, RING, topAt, underOf, nameLeft, ringOf, glides };

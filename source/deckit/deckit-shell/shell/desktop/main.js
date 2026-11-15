@@ -1080,7 +1080,7 @@ export function createDesktop({
 
     // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of
     // a seat it draws the cursor of, any but the one whose view it shows, that event alone, `{ id, type, x, y, buttons,
-    // dimmed, named, glide }` and for a scroll `dx`, `dy`, `glide` by how the seat named the place, `how`. The seat's
+    // under, named, glide }` and for a scroll `dx`, `dy`, `glide` by how the seat named the place, `how`. The seat's
     // name shows from then, and its fold is due once.
     function moved(seat, hand, { type, button = 0, dx = 0, dy = 0 }, how = 'point') {
         if (type === 'down' && !hand.buttons.includes(button)) hand.buttons = [...hand.buttons, button];
@@ -1098,12 +1098,13 @@ export function createDesktop({
         return seat !== shownSeat() && !!hand.pointer && !!desktop.page && PAGES.isAlive(desktop.page);
     }
 
-    // The desktop's page is told what the pointer of `seat` did where it is, and how its cursor is drawn there.
+    // The desktop's page is told what the pointer of `seat` did where it is, and how its cursor is drawn there: under
+    // what covers what it is over (MARKS.underOf), with its name or without.
     function tellSeat(seat, hand, type, more) {
         const { x, y } = hand.pointer;
-        const dimmed = MARKS.isDimmed(hand.pointer, stackOf(seat), stackOf(shownSeat()));
+        const under = MARKS.underOf(hand.pointer, stackOf(seat), viewedStack());
         const named = MARKS.nameLeft(hand.acted, clock.now()) > 0;
-        PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, dimmed, named, ...more });
+        PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, under, named, ...more });
     }
 
     // The fold of the name of `seat` is due: it waits on where the pointer did something since, and the page is told
@@ -1116,11 +1117,25 @@ export function createDesktop({
         if (isDrawn(seat, hand)) tellSeat(seat, hand, 'rest', { glide: false });
     }
 
-    // What stands on the screen of `seat`, `[{ id, frame }]` from the back: its windows in its order, then the panel
-    // windows there as they lie.
-    function stackOf(seat) {
-        const over = stackedFor(seat, panelFrames(seat)).map(({ window, frame }) => ({ id: window.id, frame }));
-        return [...MANAGER.viewOf(seat), ...over];
+    // What stands on the screen of `seat`, `[{ id, frame, radius }]` from the back, as the stage's levels lie
+    // (model/levels.js): its windows in its order; what the desktop's page draws over them, the band of the host's bar
+    // and the Dock, `out` or in as that screen has it; the panel windows at an edge; then the views there as they lie.
+    // What a page presents over itself is in none.
+    function stackOf(seat, out = hands.get(seat)?.dock ?? false) {
+        const frames = panelFrames(seat);
+        const views = frames.filter(({ window }) => ANCHORED.isView(window));
+        const panes = [...frames.filter(({ window }) => !ANCHORED.isView(window)), ...stackedFor(seat, views)];
+        return [
+            ...MANAGER.viewOf(seat).map(({ id, frame }) => ({ id, frame, radius: LAYOUT.RADIUS })),
+            { id: 'band', frame: { x: 0, y: 0, width: stage.size().width, height: strip.height }, radius: 0 },
+            { id: 'dock', ...DOCK_MODEL.coverOf(area(), out, DOCK.items()) },
+            ...panes.map(({ window, frame }) => ({ id: window.id, frame, radius: radiusOf(window, frame) })),
+        ];
+    }
+
+    // What stands on the screen the host window shows: the shown seat's, with the Dock as the local seat has it.
+    function viewedStack() {
+        return stackOf(shownSeat(), hands.get(LOCAL)?.dock ?? false);
     }
 
     // `seat`'s press on a window, answered as the entry answers it.
@@ -1959,7 +1974,7 @@ export function createDesktop({
         const key = MANAGER.keyOf(seat);
         const { moving, dropping } = hands.get(seat) ?? {};
         const active = windows.get(key)?.mod ?? null;
-        const viewed = stackOf(seat);
+        const viewed = viewedStack();
         return {
             windows: MANAGER.viewOf(seat).map(({ id, frame }) => ({
                 id,
@@ -1982,7 +1997,7 @@ export function createDesktop({
                 at: pointer && { x: Math.round(pointer.x), y: Math.round(pointer.y) },
                 buttons,
                 shown: id === seat,
-                dimmed: MARKS.isDimmed(pointer, stackOf(id), viewed),
+                under: MARKS.underOf(pointer, stackOf(id), viewed),
                 named: MARKS.nameLeft(acted, clock.now()) > 0,
                 typing: typingOf(id),
             })),

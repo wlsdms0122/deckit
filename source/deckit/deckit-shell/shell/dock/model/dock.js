@@ -58,6 +58,15 @@ function cardOf(desktop, items) {
     return { x: desktop.x, y: Math.round(y), width: WIDTH, height: Math.round(height) };
 }
 
+// What the Dock's card covers of `desktop` with `items`, `{ frame, radius }`: its card while `out`, and while it is in
+// that card slid off the desktop's left edge but for its sliver. The frame reaches RADIUS past the left edge, so that
+// corners of that radius round its outer side alone.
+function coverOf(desktop, out, items) {
+    const { x, y, width, height } = cardOf(desktop, items);
+    const left = out ? x : x - (WIDTH - SLIVER);
+    return { frame: { x: left - RADIUS, y, width: width + RADIUS, height }, radius: RADIUS };
+}
+
 // MARK: - Private
 // How tall `count` items stand in a row down the card, the room between them included.
 function runOf(count) {
@@ -71,4 +80,4 @@ function dividerOf(items) {
     return kept && items.length > kept ? 1 + 3 * CARD.gap : 0;
 }
 
-export { SLIVER, WIDTH, RADIUS, CARD, items, dragged, inputOf, tileOf, cardOf };
+export { SLIVER, WIDTH, RADIUS, CARD, items, dragged, inputOf, tileOf, cardOf, coverOf };

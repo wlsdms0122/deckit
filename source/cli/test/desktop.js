@@ -886,7 +886,7 @@ async function main() {
     await cursorChecks({ LAYOUT, createDesktop }, check);
     const MARKS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'marks.js'));
     await typingChecks({ MARKS, LAYOUT, createDesktop }, check);
-    await marksChecks({ MARKS, LAYOUT, createDesktop }, check);
+    await marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check);
 
     const MOTION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'motion.js'));
     tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check);
@@ -2953,8 +2953,9 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     const middle = { x: x + width / 2, y: y + height / 2 };
     check(
         'a move of a seat that is not shown is told to the page by itself, with no state',
-        JSON.stringify(desk.told()) ===
-            '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[],"dimmed":false,"named":true,"glide":false}]' &&
+        JSON.stringify(desk.told().map(({ under: _, ...event }) => event)) ===
+            '[{"id":"s2","type":"move","x":10,"y":20,"buttons":[],"named":true,"glide":false}]' &&
+            Array.isArray(desk.told()[0].under) &&
             desk.states() === states,
         [desk.told(), desk.states() - states]
     );
@@ -2962,9 +2963,11 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     desk.enter(third, pointer('scroll', { x: 5, y: 6 }, { dx: 0, dy: 40 }));
     desk.carried({ event: 'pointer', type: 'move', x: 1, y: 2 });
     const seats = Object.fromEntries(desk.page().seats.map((seat) => [seat.id, seat]));
+    const { under: covers, ...plain } = seats.s2;
     check(
-        "the page's state has each seat's name, colour, pointer, held buttons and whether it is shown, and no more",
-        JSON.stringify(seats.s2) ===
+        "the page's state has each seat's name, colour, pointer, held buttons, whether it is shown, what covers its " +
+            'cursor and whether its name shows, and no more',
+        JSON.stringify(plain) ===
             JSON.stringify({
                 id: 's2',
                 name: 's2',
@@ -2972,10 +2975,10 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
                 at: middle,
                 buttons: [0],
                 shown: false,
-                dimmed: false,
                 named: true,
                 typing: null,
             }) &&
+            Array.isArray(covers) &&
             seats.local.shown &&
             seats.local.colour === 'blue',
         desk.page().seats
@@ -3004,7 +3007,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
 }
 
 // What marks a seat on the viewer's screen: the model's answers, and what the desktop's page is told of them.
-async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
+async function marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check) {
     const rect = (x, y, width, height) => ({ x, y, width, height });
     const [back, front] = [
         { id: 1, frame: rect(0, 0, 100, 100) },
@@ -3019,20 +3022,69 @@ async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
             MARKS.topAt([], { x: 0, y: 0 }) === null,
         [MARKS.topAt([back, front], { x: 60, y: 10 }), MARKS.topAt([back, front], { x: 150, y: 10 })]
     );
-    const dimmed = [
-        MARKS.isDimmed({ x: 60, y: 10 }, [front, back], [back, front]),
-        MARKS.isDimmed({ x: 60, y: 10 }, [back, front], [back, front]),
-        MARKS.isDimmed({ x: 10, y: 10 }, [front, back], [back, front]),
-        MARKS.isDimmed({ x: 60, y: 10 }, [front, back], [back]),
-        MARKS.isDimmed({ x: 120, y: 10 }, [back], [back, front]),
-        MARKS.isDimmed({ x: 60, y: 10 }, [back], []),
-        MARKS.isDimmed(null, [back], [front]),
+    // Two windows, the band of the host's bar and a view over it, as a screen's stack holds them.
+    const [lower, upper] = [
+        { ...back, radius: 16 },
+        { ...front, radius: 16 },
     ];
+    const band = { id: 'band', frame: rect(0, 0, 400, 28), radius: 0 };
+    const view = { id: 9, frame: rect(300, 4, 80, 120), radius: 12 };
+    const cover = { ...upper.frame, radius: 16 };
+    const holds = ({ x, y, width, height }, at) => at.x >= x && at.y >= y && at.x < x + width && at.y < y + height;
+    const [whole, half] = [
+        { x: 60, y: 40 },
+        { x: 45, y: 40 },
+    ];
+    const answers = {
+        whole: MARKS.underOf(whole, [upper, lower], [lower, upper]),
+        half: MARKS.underOf(half, [upper, lower], [lower, upper]),
+        clear: MARKS.underOf(whole, [lower, upper], [lower, upper]),
+        own: MARKS.underOf({ x: 310, y: 60 }, [lower, band, view], [lower, band]),
+        away: MARKS.underOf(whole, [upper, lower], [upper]),
+        band: MARKS.underOf({ x: 310, y: 10 }, [lower, band], [lower, band, view]),
+        bare: MARKS.underOf({ x: 200, y: 300 }, [lower, band], [lower, upper, band, view]),
+        plain: MARKS.underOf(whole, [upper, lower], [lower, { id: 2, frame: upper.frame }]),
+        nowhere: MARKS.underOf(null, [lower], [upper]),
+    };
+    const written = (answer) => JSON.stringify(answer);
     check(
-        "a seat's cursor is dimmed where it is over a window in its own order and another covers the point in the " +
-            "viewer's, and nowhere else: not on the same window, on no window, or where the viewer has none there",
-        dimmed.join() === 'true,false,false,false,false,false,false',
-        dimmed
+        "a cursor over a window of its seat's order is under the windows over that one on the viewer's screen: " +
+            'where one of them holds its point it is covered whole, and beside that one its edge cuts it',
+        written(answers.whole) === written([cover]) &&
+            holds(answers.whole[0], whole) &&
+            written(answers.half) === written([cover]) &&
+            !holds(answers.half[0], half) &&
+            answers.half[0].x - half.x === 5,
+        answers
+    );
+    check(
+        "a cursor over what is in front on the viewer's screen too is under nothing, and one whose pointer is " +
+            'nowhere yet is under nothing',
+        written(answers.clear) === '[]' && written(answers.nowhere) === '[]',
+        answers
+    );
+    check(
+        "a cursor over what is not on the viewer's screen, a view shown for its seat alone or a window the viewer " +
+            'put away, is not seen at all',
+        answers.own === null && answers.away === null,
+        answers
+    );
+    check(
+        "a cursor over the band of the host's bar is under a view the viewer has over it, and over no window",
+        written(answers.band) === written([{ ...view.frame, radius: 12 }]),
+        answers
+    );
+    check(
+        "a cursor over the bare desktop is under all that stands on the viewer's screen, each with the radius of its " +
+            'corners, none for what names none',
+        written(answers.bare) ===
+            written([
+                { ...lower.frame, radius: 16 },
+                cover,
+                { ...band.frame, radius: 0 },
+                { ...view.frame, radius: 12 },
+            ]) && answers.plain[0].radius === 0,
+        answers
     );
 
     const desk = desktopOver(createDesktop, {});
@@ -3077,15 +3129,46 @@ async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
     const away = desk.told().at(-1);
     desk.enter(other, pointer('move', covered));
     desk.pagePress(under);
+    const lifted = of('s1');
+    const { frame } = desk.page().windows.find(({ id }) => id === over);
+    const inFront = JSON.stringify({ ...frame, radius: LAYOUT.RADIUS });
+    const covering = (told, at) => told.under.filter((each) => holds(each, at)).map((each) => JSON.stringify(each));
     check(
-        'the page is told a cursor is dimmed as it comes over a window of its own order that the shown seat has ' +
-            'under another, in the event and in the state, not off it and not once the shown seat has it in front',
-        moved.dimmed === true &&
-            pressed.dimmed === true &&
-            away.dimmed === false &&
-            of('s1').dimmed === false &&
-            of('local').dimmed === false,
-        { moved, pressed, away, now: desk.page().seats, windows: desk.page().windows }
+        'the page is told what covers a cursor over a window of its own order that the shown seat has under ' +
+            'another, in the event and in the state: the window in front holds its point, not where the window ' +
+            'shows alone, and no more once the shown seat has it in front',
+        covering(moved, covered).join() === inFront &&
+            covering(pressed, covered).join() === inFront &&
+            covering(away, alone).length === 0 &&
+            away.under.some((each) => JSON.stringify(each) === inFront) &&
+            covering(lifted, covered).length === 0,
+        { moved, pressed, away, lifted, windows: desk.page().windows }
+    );
+    const stage = desk.page().seats.find(({ id }) => id === 's1').under;
+    check(
+        "what covers a cursor on a window holds what the desktop's page draws over the windows: the band of the " +
+            "host's bar, square, and the Dock, round by its card's corners and in but for its sliver",
+        stage.some(({ x, y, height, radius }) => x === 0 && y === 0 && height === 28 && radius === 0) &&
+            stage.some(
+                ({ x, width, radius }) => radius === DOCK.RADIUS && x + width === DOCK.SLIVER && width > DOCK.WIDTH
+            ),
+        stage
+    );
+    const card = DOCK.cardOf(rect(0, 28, 800, 600), []);
+    const [out, drawnIn] = [
+        DOCK.coverOf(rect(0, 28, 800, 600), true, []),
+        DOCK.coverOf(rect(0, 28, 800, 600), false, []),
+    ];
+    check(
+        "the Dock covers its card while it is out and the card's sliver while it is in, its frame reaching past the " +
+            "desktop's left edge by its corners' radius",
+        out.radius === DOCK.RADIUS &&
+            out.frame.x === -DOCK.RADIUS &&
+            out.frame.x + out.frame.width === card.x + card.width &&
+            out.frame.y === card.y &&
+            out.frame.height === card.height &&
+            drawnIn.frame.x + drawnIn.frame.width === DOCK.SLIVER,
+        { card, out, drawnIn }
     );
 
     // The rules the desktop's page writes for a seat's cursor, each by its selector.
@@ -3101,12 +3184,13 @@ async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
         [MARKS.glides('ref'), MARKS.glides('point')]
     );
     check(
-        "the page's style places a cursor with no transition of its place but where it glides, dims one, and folds " +
+        "the page's style places a cursor with no transition of its place but where it glides, dims none, and folds " +
             'its name but where it shows',
         ruleOf('.deckit-seat-cursor').includes('transition: opacity') &&
             !ruleOf('.deckit-seat-cursor').includes(glide) &&
             ruleOf('.deckit-seat-cursor[data-glide]').includes(glide) &&
-            ruleOf('.deckit-seat-cursor[data-dimmed]').includes('opacity') &&
+            !style.includes('data-dimmed') &&
+            style.includes('clipPath') &&
             ruleOf('.deckit-seat-name').includes('opacity: 0') &&
             ruleOf('.deckit-seat-cursor[data-named] .deckit-seat-name').includes('opacity: 1') &&
             ruleOf('.deckit-seat-focus').includes('var(--deckit-seat)'),
@@ -3174,8 +3258,8 @@ async function marksChecks({ MARKS, LAYOUT, createDesktop }, check) {
             shown === true &&
             early === 'move true,down true,up true' &&
             before === early &&
-            JSON.stringify(rest) ===
-                '{"id":"s1","type":"rest","x":30,"y":40,"buttons":[],"dimmed":false,"named":false,"glide":false}' &&
+            JSON.stringify({ ...rest, under: null }) ===
+                '{"id":"s1","type":"rest","x":30,"y":40,"buttons":[],"under":null,"named":false,"glide":false}' &&
             after === `${early},rest false` &&
             folded === false &&
             types() === `${after},scroll true`,
