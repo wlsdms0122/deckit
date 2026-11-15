@@ -1,0 +1,28 @@
+case = 26
+name = "changes-with-no-mark-answer-the-mark-now-and-nothing"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads changes with no since: the answer is the one line from the mark now to the mark now."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "changes" }
+
+[step.expect]
+answers = { text = "changes 7 to 7", mark = 7 }

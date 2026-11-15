@@ -1,0 +1,28 @@
+case = 26
+name = "changes-since-the-first-mark-list-every-line-as-new"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads changes since 0: every line of the desktop is new, in the order of its reading, the desktop line without the mark, and then the document of the window on its screen, with the window it is in."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "changes", since = 0 }
+
+[step.expect]
+answers = { text = "changes 0 to 7\n+ desktop 1280x800\n+ seat local \"Deckit conformance\" blue\n+ seat s1 \"Ada Lovelace\" green (you)\n+ item \"mod-a\" [running] dock.mod-a\n+ window w1 \"mod-a\" mod-a at 283,107 720x480\n+ document 7 content 720x480 in w1", mark = 7 }

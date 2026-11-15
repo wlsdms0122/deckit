@@ -1,0 +1,28 @@
+case = 26
+name = "the-desktop-as-data-holds-what-its-lines-say"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480, and second, titled Second, the window 2 at 307, 131, in front of it; mod-b opens none. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the desktop with format json: data holds the size, the seats, the Dock, the windows in the order of their lines and the mark, and what is null, where a pointer is, a key window, the menu and a tile, is written by no key here."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop", format = "json" }
+
+[step.expect]
+answers = { data = { desktop = { width = 1280, height = 800 }, seats = [{ id = "local", name = "Deckit conformance", colour = "blue", you = false }, { id = "s1", name = "Ada Lovelace", colour = "green", you = true }], dock = [{ id = "mod-a", name = "mod-a", running = true, active = false, attention = false, ref = "dock.mod-a" }, { id = "mod-b", name = "mod-b", running = true, active = false, attention = false, ref = "dock.mod-b" }], windows = [{ kind = "window", id = "w2", title = "Second", mod = "mod-a", frame = { x = 307, y = 131, width = 720, height = 480 }, minimized = false, zoomed = false }, { kind = "window", id = "w1", title = "mod-a", mod = "mod-a", frame = { x = 283, y = 107, width = 720, height = 480 }, minimized = false, zoomed = false }], panels = [], mark = 10 }, mark = 10 }
