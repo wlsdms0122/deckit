@@ -185,8 +185,8 @@ const STYLE = `
         transition: transform var(--deckit-move) var(--deckit-move-curve);
     }
     .deckit-seat-focus { border: 0 solid var(--deckit-seat); }
-    .deckit-seat-bar { background: var(--deckit-seat); opacity: 0.3; }
-    .deckit-seat-bar[data-caret] { opacity: 1; }
+    .deckit-seat-bar { background: color-mix(in srgb, var(--deckit-seat) 30%, transparent); }
+    .deckit-seat-bar[data-caret] { background: var(--deckit-seat); }
     .deckit-seat-tick { position: absolute; left: ${-CURSOR}px; top: 0; width: 12px; height: 12px; }
     .deckit-seat-tick[data-way='up'] { transform: rotate(180deg); }
     .deckit-seat-tick[data-way='left'] { transform: rotate(90deg); }
