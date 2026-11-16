@@ -31,13 +31,13 @@ params = { of = "window", window = "w1" }
 input = "ask"
 party = "p"
 method = "seat/input"
-params = { event = "pointer", type = "down", ref = "9.2", button = 0 }
+params = { event = "pointer", type = "down", ref = "1.2", button = 0 }
 
 [[step]]
 input = "ask"
 party = "p"
 method = "seat/input"
-params = { event = "pointer", type = "up", ref = "9.2", button = 0 }
+params = { event = "pointer", type = "up", ref = "1.2", button = 0 }
 
 [[step]]
 look = "opened"

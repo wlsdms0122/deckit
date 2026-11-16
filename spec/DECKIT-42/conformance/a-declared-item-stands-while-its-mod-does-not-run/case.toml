@@ -30,11 +30,11 @@ params = { of = "window", window = "w1" }
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "node", ref = "7.1" }
+params = { of = "node", ref = "1.1" }
 part = "text"
 
 [step.expect]
-answers = "toolbar \"Status Bar\" 7.1 at 1236,2 36x28\n  button \"Alpha\" [disabled] 7.2"
+answers = "toolbar \"Status Bar\" 1.1 at 1236,2 36x28\n  button \"Alpha\" [disabled] 1.2"
 
 [[step]]
 look = "run"

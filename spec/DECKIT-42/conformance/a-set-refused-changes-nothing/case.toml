@@ -55,8 +55,8 @@ params = { of = "window", window = "w1" }
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "node", ref = "9.1" }
+params = { of = "node", ref = "1.1" }
 part = "text"
 
 [step.expect]
-answers = "toolbar \"Status Bar\" 9.1 at 1225,2 47x28\n  button \"Alpha, 3\" [disabled] 9.2\n    text \"3\""
+answers = "toolbar \"Status Bar\" 1.1 at 1225,2 47x28\n  button \"Alpha, 3\" [disabled] 1.2\n    text \"3\""
