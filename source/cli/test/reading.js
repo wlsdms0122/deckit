@@ -137,11 +137,16 @@ async function run({ check, reader, other, window, editor, settings, showsFor, i
 
     reader.as('type', '!');
     await sleep(400);
+    // Other windows the walk opened may still change: only what is of the typed field's document is read.
     const changed = reader.as('changes');
+    const typedIn = String(ref).split('.')[0];
+    const ofOwn = changed
+        .split('\n')
+        .filter((line, at) => !at || new RegExp(`( ${typedIn}\\.\\d+| document ${typedIn}( .*)?)$`).test(line));
     check(
         'reading: what changed after a typed line is one line',
         new RegExp(`^changes \\d+ to \\d+\\n~ textbox \\[focused ${reader.seat}, value "beta!"\\] ${ref}$`).test(
-            changed
+            ofOwn.join('\n')
         ),
         changed
     );
