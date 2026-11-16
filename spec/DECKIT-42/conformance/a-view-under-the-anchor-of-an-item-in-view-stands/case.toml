@@ -1,0 +1,25 @@
+case = 27
+name = "a-view-under-the-anchor-of-an-item-in-view-stands"
+note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. mod-a declares Alpha with the glyph bell and opens view under the anchor of its item: the view comes on screen."
+
+[host]
+base = "shell"
+api = "1.0.0"
+mods = ["status-bar"]
+ship = ["mod-a"]
+bar = 32
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go"]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/mod-a/view/didAppear", activates = true }]
