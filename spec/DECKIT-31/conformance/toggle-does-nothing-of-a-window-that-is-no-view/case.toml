@@ -1,0 +1,54 @@
+case = 23
+name = "toggle-does-nothing-of-a-window-that-is-no-view"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. toggle() does nothing of a window that is no view: mod-a opens main and p 120 by 32 in the bar, and the person presses main. mod-a is told to call toggle() of main and of p: both stay where they are, main key, and neither is told a callback."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { list = true }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "toggle", name = "main" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "toggle", name = "p" }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = true, minimized = false }, { mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { list = true }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/p/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/list/main,p", activates = true }, { url = "https://said.test/list/main,p", activates = true }]
