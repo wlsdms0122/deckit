@@ -13,6 +13,8 @@ function install() {
     let count = 0; // goes up as what changed is sealed
     const changed = new Map(); // number -> the last count it changed at, 0 the document itself
     const open = new Set(); // the numbers changed since the last count, 0 the document itself
+    // element -> the count it was added or had an attribute change at: what may have come into sight under it then
+    const cameAt = new WeakMap();
     let timer = null;
 
     const INPUT = {
@@ -162,10 +164,16 @@ function install() {
         }
         return out;
     };
-    // An element's own line, `level` deep: `{ depth, role, name, length, states, number, fresh }`.
+    // An element's own line, `level` deep: `{ depth, role, name, length, states, number, fresh, element }`.
     const lineOf = (el, role, level, { text }) => {
         const [name, length] = cut(nameOf(el, role), text);
-        const line = { depth: level, role, states: statesOf(el, role, Math.min(text, 40)), ...numberOf(el) };
+        const line = {
+            depth: level,
+            role,
+            states: statesOf(el, role, Math.min(text, 40)),
+            ...numberOf(el),
+            element: el,
+        };
         if (name) line.name = name;
         if (length) line.length = length;
         return line;
@@ -424,6 +432,8 @@ function install() {
     new MutationObserver((records) => {
         for (const record of records) {
             mark(record.target);
+            if (record.type === 'attributes') cameAt.set(record.target, count + 1);
+            for (const node of record.addedNodes) if (node.nodeType === 1) cameAt.set(node, count + 1);
             for (const node of record.removedNodes) markRemoved(node);
         }
     }).observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
@@ -475,8 +485,8 @@ function install() {
             return answer;
         },
         // What reads otherwise since `since`, a count of this document's: `{ key, from, count, entries }`, each entry a
-        // line as it reads now, `kind` `~`, a line not answered before, `+`, or `{ kind: '-', number }`, an element
-        // gone.
+        // line as it reads now, `kind` `~`, a line not answered before that came into sight since, `+`, or
+        // `{ kind: '-', number }`, an element gone.
         changes(asked, since) {
             if (asked !== key) return refuse('GONE');
             seal();
@@ -484,6 +494,12 @@ function install() {
             const numbers = [...changed].flatMap(([number, at]) => (at > since ? [number] : []));
             const entries = [];
             const told = new Set();
+            // A line not answered before is told as added only where it may not have been in sight at `since`: it or
+            // an element above it was added or changed an attribute after it.
+            const came = (line) => {
+                for (let at = line.element; at; at = at.parentElement) if ((cameAt.get(at) ?? 0) > since) return true;
+                return false;
+            };
             const tell = (kind, line) => {
                 if (told.has(line.number)) return;
                 told.add(line.number);
@@ -491,7 +507,7 @@ function install() {
             };
             for (const number of numbers.sort((a, b) => a - b)) {
                 if (!number) {
-                    for (const line of read(document.documentElement)) if (line.fresh) tell('+', line);
+                    for (const line of read(document.documentElement)) if (line.fresh && came(line)) tell('+', line);
                     continue;
                 }
                 const el = elementOf(number);
@@ -507,7 +523,7 @@ function install() {
                     tell('~', line);
                     continue;
                 }
-                for (const line of lines) if (line.fresh) tell('+', line);
+                for (const line of lines) if (line.fresh && came(line)) tell('+', line);
             }
             return { key, from: since, count, entries };
         },

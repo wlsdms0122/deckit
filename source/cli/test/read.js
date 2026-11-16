@@ -174,6 +174,25 @@ async function run({ check, main, open }) {
         JSON.stringify(none)
     );
 
+    // Lines no answer listed yet are told as added only once they came: a change of text beside them tells none.
+    await editor.evaluate(`(() => { const quiet = document.createElement('div'); quiet.id = 'deckit-read-quiet';
+        quiet.innerHTML = '<button>Quiet one</button><span id="deckit-read-quiet-text">q</span>'
+            + '<button>Quiet two</button>';
+        document.body.append(quiet); return true; })()`);
+    await sleep(100);
+    const quiet = await read('node', editor.id, probe?.ref);
+    await editor.evaluate(`(() => { document.querySelector('#deckit-read-quiet-text').textContent = 'r';
+        document.querySelector('#deckit-read-quiet').append(Object.assign(document.createElement('button'),
+            { textContent: 'Quiet three' })); return true; })()`);
+    const came = await read('changes', editor.id, { document: before.document, count: quiet.count });
+    await editor.evaluate(`document.querySelector('#deckit-read-quiet').remove()`);
+    const quietTold = (came.entries ?? []).map(({ kind, name }) => `${kind} ${name}`);
+    check(
+        'read: a line no answer listed is told added as it comes, and not as text beside it changes',
+        quietTold.includes('+ Quiet three') && !quietTold.some((each) => /Quiet (one|two)/.test(each)),
+        JSON.stringify(came).slice(0, 400)
+    );
+
     // The caret in a field of one line and in editable content.
     const field = await read('node', editor.id, probe?.ref);
     const expected = await editor.evaluate(`(() => {
