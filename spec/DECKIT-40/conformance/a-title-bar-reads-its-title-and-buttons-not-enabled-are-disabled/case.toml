@@ -1,0 +1,28 @@
+case = 26
+name = "a-title-bar-reads-its-title-and-buttons-not-enabled-are-disabled"
+note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1 at 283, 107, 720 by 480, titled Notes, its bar titled, neither closable nor minimizable. The window is read: its line holds the title, the buttons Close and Minimize are disabled, and the title bar is named Notes; its content is laid below the bar."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[step.expect]
+answers = { text = "window w1 \"Notes\" mod-a at 283,107 720x480 mark 7\n  button \"Close\" [disabled] w1.close\n  button \"Minimize\" [disabled] w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar \"Notes\" w1.bar\n  document 1 content 720x432", mark = 7 }

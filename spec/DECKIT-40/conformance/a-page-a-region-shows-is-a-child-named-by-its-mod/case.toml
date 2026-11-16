@@ -1,0 +1,34 @@
+case = 26
+name = "a-page-a-region-shows-is-a-child-named-by-its-mod"
+note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1 at 283, 107, 720 by 480, and makes a region of the interface case/view over its box at 100, 100, 200 by 150; mod-b, a view of that interface, is placed in it. The window is read: its content, then the document of mod-b's page, a child with its mod's id and the region's size."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[step.expect]
+answers = { text = "window w1 \"mod-a\" mod-a at 283,107 720x480 mark 10\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  document 1 content 720x480\n  document 2 child \"mod-b\" 200x150", mark = 10 }

@@ -1,0 +1,44 @@
+case = 26
+name = "changes-list-an-element-out-of-sight-as-not-in-view"
+note = "mod-a opens the window 1 at 283, 107, 720 by 480. Its content holds, each in a box of its own: the field Secret, of the type password, holding abc; Draft, editable content that holds Hello; the field Span, holding abcdef with bcd selected; the empty field Auto, which the page focuses as the window appears; the region Feed, 60 high, that scrolls the buttons One, Two and Three, 40 high each; and an element of the role note that holds Aside. The desktop is the base shell, 1280 by 800, ada sits at s1, and no seat pressed the window. It reads the window with all at the mark 7. Then mod-a sends its event rename, and at it the page names the button Three Four. It asks what changed since 7: the button, as it reads now, not in view, as it is out of sight in Feed."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1", all = true }
+part = "mark"
+
+[step.expect]
+answers = 7
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["rename"]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "changes", since = 7 }
+
+[step.expect]
+answers = { text = "changes 7 to 8\n~ button \"Four\" [not in view] 1.8", mark = 8 }

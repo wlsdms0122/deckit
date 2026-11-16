@@ -1,0 +1,28 @@
+case = 26
+name = "elements-read-with-the-roles-names-and-states-the-tables-give"
+note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens the window 1 at 283, 107, 720 by 480; its content holds a grid of boxes, each 110 by 22, each one element and what it holds, among them a list of the role presentation, an image with an empty alt and a button that is aria-hidden. The window is read with all: each element with a role is a line with the role, the name and the states the tables give it, and those three are not read."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1", all = true }
+
+[step.expect]
+answers = { text = "window w1 \"mod-a\" mod-a at 283,107 720x480 mark 7\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  document 1 content 720x480\n    link \"Home\" 1.1\n    button \"Send\" 1.2\n    radio \"Red\" [checked] 1.3\n    slider \"Volume\" 1.4\n    searchbox \"Look\" [value \"\"] 1.5\n    spinbutton \"Age\" [value \"3\"] 1.6\n    textbox \"Body\" [value \"\"] 1.7\n    combobox \"Size\" [value \"Small\"] (2 items) 1.8\n      option \"Small\" 1.9\n      option \"Large\" 1.10\n    listbox \"Tags\" (2 items) 1.11\n      option \"Red\" 1.12\n      option \"Blue\" 1.13\n    navigation \"Site\" 1.14\n    main 1.15\n    banner 1.16\n    contentinfo 1.17\n    complementary 1.18\n    article 1.19\n    form \"Login\" 1.20\n    heading \"Sub\" [level 2] 1.21\n    heading \"Four\" [level 4] 1.22\n    list (1 items) 1.23\n      listitem \"First\" 1.24\n    img \"Logo\" 1.25\n    dialog 1.26\n    progressbar \"Load\" 1.27\n    meter \"Fuel\" 1.28\n    status \"Done\" 1.29\n    group 1.30\n      button \"More\" 1.31\n    group \"Part\" 1.32\n    tab \"Tab\" [selected] 1.33\n    button \"Off\" [disabled] 1.34\n    button \"Dim\" [disabled] 1.35\n    checkbox \"Some\" [mixed] 1.36\n    button \"Open\" [expanded, haspopup] 1.37\n    button \"Shut\" [not expanded] 1.38\n    link \"Here\" [current=page] 1.39\n    textbox \"Code\" [invalid, required, readonly, value \"\"] 1.40\n    button \"Wait\" [busy] 1.41\n    textbox \"Mail\" [value \"\"] 1.42\n    textbox \"Two words\" [value \"\"] 1.43\n    textbox \"Tip\" [value \"\"] 1.44\n    textbox \"Hint\" [value \"\"] 1.45\n    table (1 items) 1.46\n      row \"KeyVal\" (2 items) 1.47\n        columnheader \"Key\" 1.48\n        cell \"Val\" 1.49", mark = 7 }

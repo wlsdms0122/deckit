@@ -1,0 +1,52 @@
+case = 27
+name = "a-menu-a-page-presents-is-an-overlay-document"
+note = "The host ships the status bar, on the base shell, 1280 by 800, under a bar 32 high; ada sits at s1. mod-a, mod-b and mod-c each declare an item of it, Alpha, Beta and Gamma. ada reads the status bar's panel window, then presses Gamma with the second button, and the bar presents its menu over itself: the panel window is read again, its content, then the menu in a document that is an overlay, over the whole desktop."
+
+[host]
+base = "shell"
+api = "1.0.0"
+mods = ["status-bar"]
+ship = ["mod-a", "mod-b", "mod-c"]
+bar = 32
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "1.2", button = 2 }
+
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "1.2", button = 2 }
+
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[step.expect]
+answers = { text = "panel w1 \"Status Bar\" status-bar top at 1164,2 108x28 mark 10\n  document 1 content 108x28\n    toolbar \"Status Bar\" 1.1\n      button \"Gamma\" [disabled] 1.2\n      button \"Beta\" [disabled] 1.3\n      button \"Alpha\" [disabled] 1.4\n  document 2 overlay 1280x800\n    menu [focused] (1 items, 1 in view) 2.1\n      menuitem \"Keep in Bar\" [unchecked] 2.2", mark = 10 }
