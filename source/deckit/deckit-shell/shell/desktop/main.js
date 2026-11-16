@@ -1407,9 +1407,14 @@ export function createDesktop({
     // The hand of the person at the host window, the local seat's, on the window `id` that windows() answers, as the
     // host app hands it, each gesture whole: a press in it; a click of a button, `close`, `minimize` or `zoom`; a drag
     // of its title bar by `dx`, `dy`; a drag of its edge `edge`, as LAYOUT.resized names one, by `dx`, `dy`; and a
-    // double click on its title bar. A window minimized takes none; a panel window takes a press alone. A press in
-    // a window is the local seat's press down in its content, so the view shown for the seat is put away unless
-    // the press is in it.
+    // double click on its title bar. A window minimized takes none; a panel window takes a press alone. Each is the
+    // local seat's press down, in the window's content for a press and on what the shell draws of it for the others,
+    // so the view shown for the seat is put away unless the press is in it.
+    const onFrame = (id, surface, handler) => {
+        if (!windows.has(id) || MANAGER.isMinimized(LOCAL, id)) return;
+        pressedDown(LOCAL, { pointer: null }, desktop.surfaces.get(surface(id)));
+        byHand(LOCAL, id, handler);
+    };
     const hand = Object.freeze({
         press: (id) => {
             const window = panels.get(id) ?? windows.get(id);
@@ -1418,18 +1423,18 @@ export function createDesktop({
             return panels.has(id) ? pressPanel(LOCAL, window) : byHand(LOCAL, id, (one) => press(LOCAL, one));
         },
         button: (id, button) =>
-            byHand(LOCAL, id, (window) => {
+            onFrame(id, PAGE.buttonsOf, (window) => {
                 press(LOCAL, window);
                 clicked(LOCAL, window, button);
             }),
         move: (id, dx, dy) =>
-            byHand(LOCAL, id, (window) => {
+            onFrame(id, PAGE.frameOf, (window) => {
                 move(LOCAL, window, 'began', 0, 0);
                 move(LOCAL, window, 'changed', dx, dy);
                 move(LOCAL, window, 'ended', dx, dy);
             }),
         resize: (id, edge, dx, dy) =>
-            byHand(LOCAL, id, (window) => {
+            onFrame(id, PAGE.frameOf, (window) => {
                 press(LOCAL, window);
                 const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
                 const frame = LAYOUT.resized(MANAGER.frameOf(id), edge, dx, dy, minimum);
@@ -1437,7 +1442,7 @@ export function createDesktop({
                 framed(LOCAL, window, 'ended', frame, edge);
             }),
         doubleClick: (id) =>
-            byHand(LOCAL, id, (window) => {
+            onFrame(id, PAGE.frameOf, (window) => {
                 press(LOCAL, window);
                 doubleClick(LOCAL, window);
             }),

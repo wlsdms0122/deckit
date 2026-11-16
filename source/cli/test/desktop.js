@@ -2643,6 +2643,25 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
         JSON.stringify(handed) === JSON.stringify(['local', 'local', '']),
         handed
     );
+    const gestured = [];
+    for (const gesture of [
+        () => desk.desktop.control.hand.move(1, 0, 0),
+        () => desk.desktop.control.hand.resize(1, 'right', 0, 0),
+        () => desk.desktop.control.hand.button(1, 'zoom'),
+        () => desk.desktop.control.hand.doubleClick(1),
+    ]) {
+        await asks(desk.seats.open[0]);
+        desk.desktop.togglePanel(view);
+        const shown = await on();
+        gesture();
+        gestured.push(`${shown}>${await on()}`);
+    }
+    check(
+        "the hand's move, resize, button and double click on a window are the local seat's press down: each puts " +
+            'its view away',
+        JSON.stringify(gestured) === JSON.stringify(Array(4).fill('local>')),
+        gestured
+    );
 
     // One seat a toggle: the one whose input reached the view's mod last.
     await elsewhere(s1);
